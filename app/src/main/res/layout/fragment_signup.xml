@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/white"
+    android:clipChildren="false"
+    android:clipToPadding="false">
+
+    <TextView
+        android:id="@+id/signup_title"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="32dp"
+        android:layout_marginLeft="32dp"
+        android:layout_marginTop="64dp"
+        android:layout_marginEnd="32dp"
+        android:layout_marginRight="32dp"
+        android:gravity="center"
+        android:lineSpacingMultiplier="1.20"
+        android:maxWidth="312dp"
+        android:maxLines="2"
+        android:text="@string/signup_title_label_1"
+        android:textColor="@color/grey_text_1"
+        android:textSize="20sp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+
+        <EditText
+            android:id="@+id/signup_edit_text"
+            android:layout_width="0dp"
+            android:layout_height="56dp"
+            android:background="@null"
+            android:gravity="center"
+            android:layout_marginHorizontal="24dp"
+            android:hint="@string/signup_edit_text_label_1"
+            android:imeOptions="actionDone|flagNoExtractUi"
+            android:inputType="textVisiblePassword"
+            android:textColor="@color/grey_900"
+            android:textColorHint="@color/grey_400"
+            android:textSize="20sp"
+            android:layout_marginTop="16dp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/signup_title"/>
+
+
+    <TextView
+        android:id="@+id/signup_subtitle"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="40dp"
+        android:layout_marginLeft="40dp"
+        android:layout_marginTop="16dp"
+        android:layout_marginEnd="40dp"
+        android:layout_marginRight="40dp"
+        android:layout_marginBottom="16dp"
+        android:gravity="center"
+        android:lineSpacingMultiplier="1.1"
+        android:text="@string/signup_subtitle_1"
+        android:textColor="@color/grey_text_3"
+        android:textSize="13sp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/signup_edit_text" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_next"
+            android:layout_width="0dp"
+            android:layout_height="56dp"
+            android:enabled="false"
+            android:gravity="center"
+            android:layout_marginHorizontal="24dp"
+            android:longClickable="false"
+            android:stateListAnimator="@animator/shadow"
+            android:text="@string/signup_next_button"
+            android:textAllCaps="false"
+            android:textIsSelectable="false"
+            android:textSize="17sp"
+            android:theme="@style/SignUpButtonNext"
+            app:cornerRadius="100dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="@id/profile_image_background"/>
+
+
+    <ProgressBar
+        android:id="@+id/progress_bar"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:indeterminateTint="@color/grey_400"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="@+id/btn_next"
+        app:layout_constraintEnd_toEndOf="@+id/btn_next"
+        app:layout_constraintStart_toStartOf="@+id/btn_next"
+        app:layout_constraintTop_toTopOf="@+id/btn_next" />
+
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/profile_image_background"
+        android:layout_width="170dp"
+        android:layout_height="170dp"
+        android:layout_marginStart="92dp"
+        android:layout_marginLeft="92dp"
+        android:layout_marginTop="45dp"
+        android:layout_marginEnd="92dp"
+        android:layout_marginRight="92dp"
+        android:theme="@style/LargeAvatarCardView"
+        android:visibility="gone"
+        app:cardCornerRadius="85dp"
+        app:layout_constraintDimensionRatio="1:1"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/signup_title">
+
+        <ImageView
+            android:id="@+id/profile_image_emoji"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_gravity="center"
+            android:padding="21dp"
+            app:srcCompat="@drawable/ic_avatar_placeholder"/>
+    </com.google.android.material.card.MaterialCardView>
+
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/profile_photo_background"
+        android:layout_width="64dp"
+        android:layout_height="64dp"
+        android:layout_margin="106dp"
+        android:theme="@style/MinimumAvatarCardView"
+        android:visibility="gone"
+        app:cardCornerRadius="32dp"
+        app:layout_constraintStart_toStartOf="@id/profile_image_background"
+        app:layout_constraintTop_toTopOf="@id/profile_image_background">
+
+        <ImageView
+            android:id="@+id/profile_photo_camera"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_gravity="center"
+            android:layout_margin="14dp"
+            app:srcCompat="@drawable/ic_baseline_photo_camera_24"/>
+    </com.google.android.material.card.MaterialCardView>
+</androidx.constraintlayout.widget.ConstraintLayout>
