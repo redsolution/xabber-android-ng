@@ -1,9 +1,13 @@
-package com.xabber.presentation.signin.feature
+package com.xabber.onboarding.fragments.signin.feature
 
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
+import androidx.core.content.res.ResourcesCompat
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
+import androidx.recyclerview.widget.RecyclerView
+import com.xabber.R
 import com.xabber.databinding.ItemFeatureBinding
 
 class FeatureAdapter : ListAdapter<Feature, FeatureViewHolder>(DiffUtilCallback) {

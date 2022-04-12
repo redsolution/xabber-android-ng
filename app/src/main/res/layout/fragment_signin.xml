@@ -10,7 +10,7 @@
 
     <TextView
         android:id="@+id/signin_title"
-        android:layout_width="match_parent"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="32dp"
         android:layout_marginLeft="32dp"
@@ -29,7 +29,7 @@
 
 
         <EditText
-            android:id="@+id/et_login"
+            android:id="@+id/edit_text_login"
             android:layout_width="0dp"
             android:layout_height="48dp"
             android:layout_marginStart="48dp"
@@ -39,7 +39,7 @@
             android:layout_marginBottom="48dp"
             android:gravity="center"
             android:hint="@string/signin_edit_text_jid_label"
-            android:imeOptions="flagNoExtractUi"
+            android:imeOptions="actionNext"
             android:inputType="textVisiblePassword"
             android:textColor="@color/grey_900"
             android:background="@drawable/frame_normal"
@@ -54,7 +54,7 @@
 
 
         <EditText
-            android:id="@+id/et_password"
+            android:id="@+id/edit_text_password"
             android:layout_width="match_parent"
             android:layout_height="48dp"
             android:background="@drawable/frame_normal"
@@ -72,7 +72,7 @@
             android:layout_marginTop="24dp"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/et_login"
+            app:layout_constraintTop_toBottomOf="@+id/edit_text_login"
             android:focusableInTouchMode="true"
             android:focusable="true" />
 
@@ -97,7 +97,7 @@
         android:textSize="13sp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/et_password" />
+        app:layout_constraintTop_toBottomOf="@+id/edit_text_password" />
 
 
 
@@ -143,7 +143,7 @@
 
     <TextView
         android:id="@+id/signin_subtitle_2"
-        android:layout_width="match_parent"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="40dp"
         android:layout_marginLeft="40dp"
@@ -163,12 +163,16 @@
         app:layout_constraintTop_toBottomOf="@+id/rv_feature" />
 
 
-        <com.google.android.material.button.MaterialButton
+      <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_rock"
             android:layout_width="0dp"
-            android:layout_height="56dp"
+            android:layout_height="44dp"
             android:enabled="true"
             android:gravity="center"
+            android:insetLeft="0dp"
+            android:insetTop="0dp"
+            android:insetRight="0dp"
+            android:insetBottom="0dp"
             android:stateListAnimator="@animator/shadow"
             android:text="@string/signin_rock_button_label"
             android:textAllCaps="false"
@@ -176,10 +180,14 @@
             android:theme="@style/SignUpButtonNext"
             android:visibility="gone"
             app:cornerRadius="100dp"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="@id/signin_subtitle_2" />
-
-
+          android:layout_marginStart="48dp"
+          android:layout_marginLeft="48dp"
+          android:layout_marginTop="50dp"
+          android:layout_marginEnd="48dp"
+          android:layout_marginBottom="48dp"
+          android:layout_marginRight="48dp"
+          app:layout_constraintEnd_toEndOf="parent"
+          app:layout_constraintStart_toStartOf="parent"
+          app:layout_constraintTop_toTopOf="@id/signin_subtitle_2"/>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -15,7 +15,7 @@ class FillTextWatcher(private val editTextList: ArrayList<EditText>, private val
 
     }
 
-    override fun afterTextChanged(p0: Editable?) {
+    override fun afterTextChanged(s: Editable?) {
         for (editText in editTextList) {
             if (editText.text.toString().trim().isEmpty()) {
                 button.isEnabled = false

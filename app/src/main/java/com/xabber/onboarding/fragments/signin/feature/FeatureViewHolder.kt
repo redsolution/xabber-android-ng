@@ -1,11 +1,11 @@
-package com.xabber.presentation.signin.feature
+package com.xabber.onboarding.fragments.signin.feature
 
 import android.view.View
 import androidx.core.content.res.ResourcesCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.xabber.R
 import com.xabber.databinding.ItemFeatureBinding
-import com.xabber.presentation.signin.feature.State.*
+import com.xabber.onboarding.fragments.signin.feature.State.*
 
 class FeatureViewHolder(private val binding: ItemFeatureBinding) :
     RecyclerView.ViewHolder(binding.root) {

@@ -1,101 +1,83 @@
 package com.xabber.onboarding.activity
 
 import android.content.Intent
+import android.content.pm.ActivityInfo
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.os.Parcelable
-import android.util.Log
-import android.view.View
 import androidx.fragment.app.Fragment
-import androidx.fragment.app.FragmentManager
 import androidx.lifecycle.LifecycleOwner
 import com.xabber.*
 import com.xabber.application.activity.ApplicationActivity
-import com.xabber.onboarding.fragments.StartFragment
-import com.xabber.onboarding.fragments.SignInFragment
-import com.xabber.onboarding.fragments.SignUpFragment
+import com.xabber.onboarding.fragments.start.StartFragment
+import com.xabber.onboarding.fragments.signin.SigninFragment
 import com.xabber.databinding.ActivityOnboardingBinding
+import com.xabber.onboarding.contract.Navigator
+import com.xabber.onboarding.contract.ResultListener
+import com.xabber.onboarding.contract.ToolbarChanger
+import com.xabber.onboarding.fragments.signup.*
 
-class OnBoardingActivity : AppCompatActivity(), Navigator {
+class OnBoardingActivity : AppCompatActivity(), Navigator, ToolbarChanger {
     private var binding: ActivityOnboardingBinding? = null
 
-    private val fragment: Fragment
-        get() = supportFragmentManager.findFragmentById(R.id.container_auth)!!
-
-    private val fragmentListener = object : FragmentManager.FragmentLifecycleCallbacks() {
-        override fun onFragmentViewCreated(
-            fm: FragmentManager,
-            f: Fragment,
-            v: View,
-            savedInstanceState: Bundle?
-        ) {
-            super.onFragmentViewCreated(fm, f, v, savedInstanceState)
-            updateUi()
-        }
-    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         binding = ActivityOnboardingBinding.inflate(layoutInflater)
         setContentView(binding?.root)
-        setSupportActionBar(binding?.toolbarOnboarding)
-        supportActionBar?.title = "Sign"
-        if (savedInstanceState == null) startOnboardingFragment()
+        setSupportActionBar(binding?.onboardingToolbar)
+        if (savedInstanceState == null) addStartFragment()
     }
 
-    private fun updateUi() {
-        val fr = fragment
-        if (fr is ChoiceTitleToolbar) {
-          binding?.toolbarOnboarding?.title = fr.getTitle()
-        } else {
-           binding?.toolbarOnboarding?.title = ""
-        }
-
-        if (supportFragmentManager.backStackEntryCount > 0) {
-            supportActionBar?.setDisplayHomeAsUpEnabled(true)
-            supportActionBar?.setDisplayShowHomeEnabled(true)
-        } else {
-            supportActionBar?.setDisplayHomeAsUpEnabled(false)
-            supportActionBar?.setDisplayShowHomeEnabled(false)
-        }
-
-    }
-
-    private fun startOnboardingFragment() {
+    private fun addStartFragment() {
         supportFragmentManager.beginTransaction().replace(
-            R.id.container_auth, StartFragment()
+            R.id.onboarding_container, StartFragment()
         ).commit()
 
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        supportFragmentManager.unregisterFragmentLifecycleCallbacks(fragmentListener)
+    private fun launchFragment(fragment: Fragment) {
+        supportFragmentManager.beginTransaction().addToBackStack(null)
+            .replace(R.id.onboarding_container, fragment).commit()
     }
 
-    override fun startSignUpFragment() {
-        supportFragmentManager.beginTransaction().replace(
-            R.id.container_auth,
-            SignUpFragment.newInstance()
-        ).addToBackStack(null).commit()
+
+    override fun startSignupNicknameFragment() {
+        launchFragment(SignupNicknameFragment())
     }
 
-    override fun startSignInFragment() {
-        supportFragmentManager.beginTransaction().replace(
-            R.id.container_auth,
-            SignInFragment()
-        ).addToBackStack(null).commit()
-        Log.d("Xabber login", "Sign in")
+    override fun startSignupUserNameFragment() {
+        launchFragment(SignupUserNameFragment())
     }
 
-    override fun goMainActivity(userName: String) {
+    override fun startSignupPasswordFragment() {
+        launchFragment(SignupPasswordFragment.newInstance(UserParams("cat", "hhh")))
+    }
+
+    override fun startSignupAvatarFragment() {
+        launchFragment(SignupAvatarFragment())
+    }
+
+    override fun startSigninFragment() {
+       launchFragment(SigninFragment())
+    }
+
+
+    override fun goApplicationActivity(userName: String) {
         val intent = Intent(this, ApplicationActivity::class.java)
         intent.putExtra("key", userName)
         startActivity(intent)
+        finish()
     }
 
     override fun goBack() {
         onBackPressed()
+    }
+
+    override fun onSupportNavigateUp(): Boolean {
+        onBackPressed()
+        return true
     }
 
     override fun <T : Parcelable> showResult(result: T) {
@@ -108,5 +90,18 @@ class OnBoardingActivity : AppCompatActivity(), Navigator {
         listener: ResultListener<T>
     ) {
 
+    }
+
+    override fun setTitle(titleResId: Int) {
+        binding?.onboardingToolbar?.setTitle(titleResId)
+    }
+
+    override fun clearTitle() {
+        binding?.onboardingToolbar?.setTitle("")
+    }
+
+    override fun setShowBack(isVisible: Boolean) {
+        supportActionBar?.setDisplayHomeAsUpEnabled(isVisible)
+        supportActionBar?.setDisplayShowHomeEnabled(isVisible)
     }
 }

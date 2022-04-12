@@ -9,7 +9,7 @@
 
 
     <com.google.android.material.appbar.MaterialToolbar
-        android:id="@+id/toolbar_onboarding"
+        android:id="@+id/onboarding_toolbar"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:background="@color/white"
@@ -22,11 +22,11 @@
     </com.google.android.material.appbar.MaterialToolbar>
 
     <androidx.fragment.app.FragmentContainerView
-        android:id="@+id/container_auth"
+        android:id="@+id/onboarding_container"
         android:layout_width="0dp"
         android:layout_height="0dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/toolbar_onboarding" />
+        app:layout_constraintTop_toBottomOf="@id/onboarding_toolbar" />
 </androidx.constraintlayout.widget.ConstraintLayout>
