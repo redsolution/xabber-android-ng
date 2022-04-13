@@ -1,11 +1,22 @@
 package com.xabber.onboarding.activity
 
+import android.Manifest.permission.CAMERA
+import android.Manifest.permission_group.CAMERA
 import android.content.Intent
 import android.content.pm.ActivityInfo
+import android.content.pm.PackageManager
+import android.media.MediaRecorder.VideoSource.CAMERA
+import android.net.Uri
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.os.Parcelable
+import android.provider.MediaStore
+import android.util.Log
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.FragmentManager
 import androidx.lifecycle.LifecycleOwner
 import com.xabber.*
 import com.xabber.application.activity.ApplicationActivity
@@ -16,9 +27,18 @@ import com.xabber.onboarding.contract.Navigator
 import com.xabber.onboarding.contract.ResultListener
 import com.xabber.onboarding.contract.ToolbarChanger
 import com.xabber.onboarding.fragments.signup.*
+import com.xabber.util.AppConstants.REQUEST_PERMISSION_CAMERA
+import com.xabber.util.AppConstants.REQUEST_PERMISSION_GALLERY
+import com.xabber.util.AppConstants.REQUEST_TAKE_PHOTO
+import com.xabber.util.AppConstants.TEMP_FILE_NAME
+import java.io.File
+import java.io.IOException
+import java.util.jar.Manifest
 
 class OnBoardingActivity : AppCompatActivity(), Navigator, ToolbarChanger {
     private var binding: ActivityOnboardingBinding? = null
+    private var filePhotoUri: Uri? = null
+    private var newAvatarImageUri: Uri? = null
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -29,6 +49,7 @@ class OnBoardingActivity : AppCompatActivity(), Navigator, ToolbarChanger {
         setSupportActionBar(binding?.onboardingToolbar)
         if (savedInstanceState == null) addStartFragment()
     }
+
 
     private fun addStartFragment() {
         supportFragmentManager.beginTransaction().replace(
@@ -60,7 +81,7 @@ class OnBoardingActivity : AppCompatActivity(), Navigator, ToolbarChanger {
     }
 
     override fun startSigninFragment() {
-       launchFragment(SigninFragment())
+        launchFragment(SigninFragment())
     }
 
 
@@ -103,5 +124,71 @@ class OnBoardingActivity : AppCompatActivity(), Navigator, ToolbarChanger {
     override fun setShowBack(isVisible: Boolean) {
         supportActionBar?.setDisplayHomeAsUpEnabled(isVisible)
         supportActionBar?.setDisplayShowHomeEnabled(isVisible)
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        when (requestCode) {
+            REQUEST_PERMISSION_CAMERA -> {
+                if (ContextCompat.checkSelfPermission(
+                        this,
+                        android.Manifest.permission.CAMERA
+                    )
+                    == PackageManager.PERMISSION_GRANTED
+                )
+                    takePhoto()
+
+            }
+            REQUEST_PERMISSION_GALLERY -> {
+                if (ContextCompat.checkSelfPermission(
+                        this,
+                        android.Manifest.permission.WRITE_EXTERNAL_STORAGE
+                    )
+                    == PackageManager.PERMISSION_GRANTED
+                )
+                    chooseFromGallery()
+            }
+        }
+    }
+
+    private fun chooseFromGallery() {
+     //   Crop.pickImage(this)
+    }
+
+
+    private fun takePhoto() {
+        val takePictureIntent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
+        try {
+            createTempImageFile(TEMP_FILE_NAME).let {
+                filePhotoUri = getFileUri(it)
+                takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, filePhotoUri)
+                startActivityForResult(
+                    takePictureIntent,
+                    REQUEST_TAKE_PHOTO
+                )
+            }
+        } catch (e: IOException) {
+            Log.e("qwe", e.stackTraceToString())
+        }
+    }
+
+    @Throws(IOException::class)
+    fun createTempImageFile(name: String): File {
+        return File.createTempFile(
+            name,
+            ".jpg",
+            application.getExternalFilesDir(null)
+        )
+    }
+
+    private fun getFileUri(file: File): Uri {
+        return FileProvider.getUriForFile(
+            application, BuildConfig.APPLICATION_ID + ".provider",
+            file
+        )
     }
 }

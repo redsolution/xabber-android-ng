@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <dimen name="button_font_size">17sp</dimen>
+    <dimen name="image_xabber_size">128dp</dimen>
     <dimen name="container_width_onboarding">360dp</dimen>
     <integer name="container_container_wrapper_horizontal_width">1</integer>
     <integer name="details_content_container_wrapper_horihontal_width">0</integer>

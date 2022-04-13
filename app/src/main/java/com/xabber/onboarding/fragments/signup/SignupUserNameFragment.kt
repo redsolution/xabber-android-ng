@@ -52,59 +52,35 @@ class SignupUserNameFragment : BaseFragment() {
             }
         }
 
-        val textChangeListener = object : TextWatcher {
-            override fun beforeTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {
-            }
-
-            override fun onTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {
-            }
-
-            override fun afterTextChanged(p0: Editable?) {
-             //   binding?.usernameEditText?.setText(p0.toString().lowercase().replace(' ', '.'))
-            //    binding?.usernameEditText?.setSelection(binding?.usernameEditText?.text!!.length)
-
-                if (p0.toString() != binding?.usernameEditText?.text.toString()) {  // кейс username isn’t available
-                    binding?.usernameSubtitle?.text =
-                        resources.getString(R.string.signup_error_subtitle_2)
-                    changeSubtitleColor(R.color.red_600)
-                    binding?.usernameBtnNext?.isEnabled = false
+        with(binding!!) {
+            usernameEditText.addTextChangedListener(object : TextWatcher {
+                override fun beforeTextChanged(
+                    p0: CharSequence?,
+                    p1: Int,
+                    p2: Int,
+                    p3: Int
+                ) {
                 }
-                if (p0.toString().length > 3) {
-                    compositeDisposable.clear()
-                    compositeDisposable.add(
-                        viewModel.checkIfNameAvailable(p0.toString().trimStart(), host)
-                            .subscribeOn(Schedulers.io())
-                            .observeOn(AndroidSchedulers.mainThread())
-                            .doAfterSuccess {
-                                username = p0.toString().trimStart()
-                                binding?.usernameSubtitle?.text =
-                                    resources.getString(R.string.signup_success_subtitle_2)
-                                changeSubtitleColor(R.color.blue_600)
-                                binding?.usernameBtnNext?.isEnabled = true
-                            }.doOnDispose {
-                                binding?.usernameBtnNext?.isEnabled = false
-                                binding?.usernameSubtitle?.text =
-                                    resources.getString(R.string.signup_subtitle_2)
-                                changeSubtitleColor(R.color.grey_text_3)
-                            }
-                            .subscribe({}, {
-                                binding?.usernameSubtitle?.text =
-                                    resources.getString(R.string.signup_error_subtitle_2)
-                                changeSubtitleColor(R.color.red_600)
-                                binding?.usernameBtnNext?.isEnabled = false
-                                logError(it)
-                            })
-                    )
-                } else {
-                    binding?.usernameBtnNext?.isEnabled = false
-                    binding?.usernameSubtitle?.text =
-                        resources.getString(R.string.signup_subtitle_2)
-                    changeSubtitleColor(R.color.grey_text_3)
+
+                override fun onTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {}
+                override fun afterTextChanged(p0: Editable?) {
+
+             if (usernameSubtitle.text == resources.getString(R.string.signup_error_subtitle_2))  { usernameSubtitle.text = resources.getString(R.string.signup_subtitle_2)
+                    changeSubtitleColor(R.color.grey_text_3) }
+
+                    if(p0.toString() == "маша") {
+                        usernameSubtitle.text = resources.getString(R.string.signup_error_subtitle_2)
+                        changeSubtitleColor(R.color.red_600)
+                    } else if (p0.toString().length > 3) {
+                        usernameBtnNext.isEnabled = true
+                        usernameSubtitle.text =
+                            resources.getString(R.string.signup_success_subtitle_2)
+                        changeSubtitleColor(R.color.blue_600)
+                    }
                 }
-            }
+            })
+
         }
-
-        binding?.usernameEditText?.addTextChangedListener(textChangeListener)
     }
 
 

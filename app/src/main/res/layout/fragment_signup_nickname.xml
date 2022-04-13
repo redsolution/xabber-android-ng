@@ -31,20 +31,24 @@
         <EditText
             android:id="@+id/nickname_edit_text"
             android:layout_width="0dp"
-            android:layout_height="56dp"
-            android:background="@null"
+            android:layout_height="48dp"
+            android:background="@drawable/frame_normal"
             android:gravity="center"
             android:layout_marginHorizontal="24dp"
             android:hint="@string/signup_edit_text_label_1"
+            android:layout_marginStart="56dp"
+            android:layout_marginLeft="56dp"
+            android:layout_marginEnd="56dp"
+            android:layout_marginRight="56dp"
             android:imeOptions="actionDone|flagNoExtractUi"
             android:inputType="textVisiblePassword"
             android:textColor="@color/grey_900"
             android:textColorHint="@color/grey_400"
             android:textSize="20sp"
-            android:layout_marginTop="16dp"
+            android:layout_marginTop="24dp"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/nickname_title"/>
+            app:layout_constraintTop_toBottomOf="@+id/nickname_title" />
 
 
     <TextView
@@ -66,12 +70,12 @@
     <com.google.android.material.button.MaterialButton
         android:id="@+id/nickname_btn_next"
         android:layout_width="0dp"
-        android:layout_height="48dp"
+        android:layout_height="56dp"
         android:layout_marginHorizontal="24dp"
         android:layout_marginTop="64dp"
         android:enabled="false"
-        android:layout_marginStart="48dp"
-        android:layout_marginEnd="48dp"
+        android:layout_marginStart="56dp"
+        android:layout_marginEnd="56dp"
         android:gravity="center"
         android:longClickable="false"
         android:stateListAnimator="@animator/shadow"

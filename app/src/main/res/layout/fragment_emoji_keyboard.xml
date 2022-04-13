@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/avatar_background">
+
+    <com.google.android.material.imageview.ShapeableImageView
+        android:id="@+id/bottom_sheet_swipe"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="12dp"
+        android:src="@drawable/avatar_swipe"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recycler_view_keys"
+        android:layout_width="match_parent"
+        android:layout_height="256dp"
+        android:layout_marginTop="12dp"
+        android:background="@drawable/avatar_background"
+        android:orientation="vertical"
+        android:overScrollMode="never"
+        android:paddingHorizontal="8dp"
+        app:layoutManager="androidx.recyclerview.widget.GridLayoutManager"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/bottom_sheet_swipe"
+        app:spanCount="8"
+        tools:itemCount="40"
+        tools:listitem="@layout/item_emoji_key" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recycler_view_keys_types"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="4dp"
+        android:orientation="horizontal"
+        android:overScrollMode="never"
+        android:paddingHorizontal="8dp"
+        app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/recycler_view_keys"
+        tools:ignore="SpeakableTextPresentCheck"
+        tools:itemCount="16"
+        tools:listitem="@layout/item_emoji_type" />
+</androidx.constraintlayout.widget.ConstraintLayout>

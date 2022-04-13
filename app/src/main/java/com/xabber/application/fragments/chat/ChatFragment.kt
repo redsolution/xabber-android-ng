@@ -1,4 +1,4 @@
-package com.xabber.application.fragments
+package com.xabber.application.fragments.chat
 
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -29,6 +29,9 @@ class ChatFragment() : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        binding?.tvUserName?.text = userName
+        // binding?.tvUserName?.text = userName
+
+
+
     }
 }

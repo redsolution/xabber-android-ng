@@ -1,6 +1,8 @@
 package com.xabber.onboarding.fragments.signup
 
 import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -62,40 +64,62 @@ class SignupPasswordFragment : BaseFragment() {
     }
 
     private fun initEditText() {
+        binding?.passwordEditText?.setOnFocusChangeListener { _, hasFocused ->
+            if (hasFocused) {
+                binding?.passwordEditText?.background = resources.getDrawable(R.drawable.frame_blue)
+            } else {
+                binding?.passwordEditText?.background =
+                    resources.getDrawable(R.drawable.frame_normal)
+            }
+        }
+        binding?.passwordEditText?.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(
+                p0: CharSequence?,
+                p1: Int,
+                p2: Int,
+                p3: Int
+            ) {
+            }
 
+            override fun onTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {}
+            override fun afterTextChanged(p0: Editable?) {
+                password = p0.toString()
+                binding?.passwordBtnNext?.isEnabled = password.length > 3
+            }
+        })
 
     }
 
     private fun initButton() {
         with(binding!!) {
             passwordBtnNext.setOnClickListener {
-                progressBar.isVisible = true
-                passwordBtnNext.isEnabled = false
-                passwordEditText.isEnabled = false
-                passwordBtnNext.text = ""
-                compositeDisposable.clear()
-                compositeDisposable.add(
-                    viewModel.registerAccount(username, host, password)
-                        .subscribeOn(Schedulers.io())
-                        .observeOn(AndroidSchedulers.mainThread())
-                        .doAfterSuccess {
-                            passwordEditText.isEnabled = true
-                            accountJid = AccountJid.from(
-                                Localpart.from(it.username),
-                                domainBareFrom(
-                                    Domainpart.from(it.domain)
-                                ),
-                                Resourcepart.EMPTY
-                            )
+              //  progressBar.isVisible = true
+             //   passwordBtnNext.isEnabled = false
+             //   passwordEditText.isEnabled = false
+             //   passwordBtnNext.text = ""
+              //  compositeDisposable.clear()
+              //  compositeDisposable.add(
+               //     viewModel.registerAccount(username, host, password)
+                 //       .subscribeOn(Schedulers.io())
+                 //       .observeOn(AndroidSchedulers.mainThread())
+                  //      .doAfterSuccess {
+                   //         passwordEditText.isEnabled = true
+                   //         accountJid = AccountJid.from(
+                     //           Localpart.from(it.username),
+                      //          domainBareFrom(
+                      //              Domainpart.from(it.domain)
+                       //         ),
+                      //          Resourcepart.EMPTY
+                       //     )
 
-                        }
-                        .doOnDispose {
+                     //   }
+                     //   .doOnDispose {
                             navigator().startSignupAvatarFragment()
-                        }
-                        .subscribe({}, {
-                            logError(it)
-                        })
-                )
+                    //    }
+                   //     .subscribe({}, {
+                   //         logError(it)
+                   //     })
+              //  )
             }
         }
     }

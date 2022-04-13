@@ -2,22 +2,20 @@ package com.xabber.onboarding.fragments.signin
 
 import android.content.Context
 import android.os.Bundle
-import android.text.Spannable
-import android.text.SpannableStringBuilder
-import android.text.TextPaint
+import android.text.*
 import android.text.method.LinkMovementMethod
 import android.text.style.ClickableSpan
 import android.text.style.ForegroundColorSpan
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import com.xabber.R
-import com.xabber.util.FillTextWatcher
 import com.xabber.databinding.FragmentSigninBinding
 import com.xabber.onboarding.contract.navigator
 import com.xabber.onboarding.contract.toolbarChanger
@@ -34,6 +32,7 @@ class SigninFragment() : Fragment() {
     private val password = "1"
     private val featureAdapter = FeatureAdapter()
     private val viewModel = SigninViewModel()
+     var host: String = "dev.xabber.org"
 
 
     override fun onCreateView(
@@ -53,15 +52,16 @@ class SigninFragment() : Fragment() {
         initRecyclerView()
         binding?.signinSubtitle1?.text = getSubtitleClickableSpan()
         binding?.signinSubtitle1?.movementMethod = LinkMovementMethod.getInstance()
+
     }
 
     private fun initEditText() {
 
         with(binding!!) {
 
-            val editTextList = arrayListOf(editTextLogin, editTextPassword)
-            val textWatcher = FillTextWatcher(editTextList, btnConnect)
-            for (editText in editTextList) editText.addTextChangedListener(textWatcher)
+         //  val editTextList = arrayListOf(editTextLogin, editTextPassword)
+        //    val textWatcher = FillTextWatcher(editTextList, btnConnect, signinSubtitle1)
+         //  for (editText in editTextList) editText.addTextChangedListener(textWatcher)
         }
         binding?.editTextLogin?.setOnFocusChangeListener { _, hasFocused ->
             if (hasFocused) {
@@ -70,6 +70,7 @@ class SigninFragment() : Fragment() {
                 binding?.editTextLogin?.background = resources.getDrawable(R.drawable.frame_normal)
             }
         }
+
 
         binding?.editTextPassword?.setOnFocusChangeListener { _, hasFocused ->
             if (hasFocused) {
@@ -81,13 +82,67 @@ class SigninFragment() : Fragment() {
             }
 
         }
-    }
+
+        binding?.editTextLogin?.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {}
+            override fun onTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {}
+
+            override fun afterTextChanged(p0: Editable?) {
+                var jidText = p0.toString()
+                if (!jidText.contains('@'))
+                    jidText += "@$host"
+                binding?.btnConnect?.isEnabled =
+                    viewModel.isJidValid(jidText) && binding?.editTextPassword?.text!!.isNotEmpty()
+                binding?.signinSubtitle1?.setTextColor(
+                    ResourcesCompat.getColor(
+                        resources,
+                        R.color.grey_text_3,
+                        requireContext().theme
+                    )
+                )
+                binding?.signinSubtitle1?.text = getSubtitleClickableSpan()
+                binding?.signinSubtitle1?.movementMethod = LinkMovementMethod.getInstance()
+            }
+        })
+        binding?.editTextPassword?.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {}
+            override fun onTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {}
+
+            override fun afterTextChanged(p0: Editable?) {
+                var jidText = binding?.editTextLogin?.text.toString()
+               // if (!jidText.contains('@'))
+                //    jidText += "@$host"
+                binding?.btnConnect?.isEnabled = p0.toString().isNotEmpty()
+                        //&& viewModel.isJidValid(jidText)
+                binding?.signinSubtitle1?.setTextColor(
+                    ResourcesCompat.getColor(
+                        resources,
+                        R.color.grey_text_3,
+                        requireContext().theme
+                    )
+                )
+                binding?.signinSubtitle1!!.text = getSubtitleClickableSpan()
+                binding?.signinSubtitle1!!.movementMethod = LinkMovementMethod.getInstance()
+            }
+        })
+        binding?.editTextPassword?.setOnEditorActionListener { _, i, _ ->
+            if (i == EditorInfo.IME_ACTION_DONE) {
+                if (binding?.btnConnect!!.isEnabled)
+                    binding?.btnConnect!!.performClick()
+                closeKeyboard()
+                return@setOnEditorActionListener true
+            }
+            return@setOnEditorActionListener false
+        }
+
+        }
+
 
 
     private fun initButton() {
         with(binding!!) {
             btnConnect.setOnClickListener {
-                if (editTextLogin.text.toString() != login || editTextPassword.text.toString(
+                if (editTextLogin.text.trim().toString() != login || editTextPassword.text.trim().toString(
                     ) != password
                 ) {
                     signinSubtitle1.setTextColor(
@@ -100,6 +155,7 @@ class SigninFragment() : Fragment() {
                     signinSubtitle1.text =
                         resources.getString(R.string.signin_subtitle_error_message)
                 } else {
+                    textEnabled()
                     btnConnect.isEnabled = false
                     binding?.btnConnect!!.text = "Connecting..."
                     closeKeyboard()
@@ -190,7 +246,12 @@ class SigninFragment() : Fragment() {
     }
 
 
-    private fun getSubtitleClickableSpan(): Spannable {
+    private fun textEnabled() {
+        binding?.signinSubtitle1?.movementMethod = null
+
+    }
+
+     fun getSubtitleClickableSpan(): Spannable {
         val spannable =
             SpannableStringBuilder(resources.getString(R.string.signin_subtitle_label_1))
         spannable.setSpan(

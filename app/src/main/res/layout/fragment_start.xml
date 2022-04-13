@@ -2,10 +2,8 @@
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:clipChildren="false"
-    android:clipToPadding="false">
+    android:layout_width="360dp"
+    android:layout_height="match_parent">
 
     <Button
         android:id="@+id/btn_skip"
@@ -13,11 +11,11 @@
         android:layout_height="wrap_content"
         android:layout_margin="16dp"
         android:background="@drawable/button_background"
-        android:drawableRight="@drawable/ic_chevron_right_24"
+        android:drawableEnd ="@drawable/ic_chevron_right_24"
         android:stateListAnimator="@animator/shadow"
-        android:text="Skip"
+        android:text="@string/skip"
         android:textAllCaps="false"
-        android:textSize="16sp"
+        android:textSize="@dimen/button_font_size"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
@@ -34,8 +32,8 @@
 
         <ImageView
             android:id="@+id/image_xabber"
-            android:layout_width="128dp"
-            android:layout_height="128dp"
+            android:layout_width="@dimen/image_xabber_size"
+            android:layout_height="@dimen/image_xabber_size"
             android:layout_marginBottom="85dp"
             android:contentDescription="@string/xabber_image_content_description"
             android:scaleType="centerCrop"
@@ -84,10 +82,10 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_login"
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginHorizontal="16dp"
-            android:background="@drawable/frame_normal"
+            android:background="@drawable/button_background"
             android:gravity="center"
             android:inputType="textCapSentences"
             android:insetLeft="0dp"
@@ -114,7 +112,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_margin="16dp"
-            android:background="@drawable/frame_normal"
+            android:background="@drawable/button_background"
             android:gravity="center"
             android:inputType="textCapSentences"
             android:longClickable="false"

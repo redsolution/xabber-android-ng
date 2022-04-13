@@ -7,7 +7,7 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentManager
 import com.xabber.R
 import com.xabber.application.contract.HasChangeTitle
-import com.xabber.application.fragments.ChatFragment
+import com.xabber.application.fragments.chat.ChatFragment
 import com.xabber.databinding.ActivityApplicationBinding
 
 class ApplicationActivity : AppCompatActivity() {
@@ -25,6 +25,9 @@ class ApplicationActivity : AppCompatActivity() {
             savedInstanceState: Bundle?
         ) {
             super.onFragmentViewCreated(fm, f, v, savedInstanceState)
+       //     if (savedInstanceState == null) {
+                startChatFragment()
+          //  }
             updateUi()
         }
     }
@@ -33,7 +36,7 @@ class ApplicationActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityApplicationBinding.inflate(layoutInflater)
         setContentView(binding!!.root)
-        setSupportActionBar(binding?.applicationToolbar)
+     //   setSupportActionBar(binding!!.applicationToolbar)
         userName = intent.getStringExtra("key").toString()
         if (savedInstanceState == null) {
             startChatFragment()
@@ -43,9 +46,9 @@ class ApplicationActivity : AppCompatActivity() {
     private fun updateUi() {
         val fragment = activeFragment
         if (fragment is HasChangeTitle) {
-            binding?.applicationToolbar?.title = fragment.getTitle()
+      //      binding?.applicationToolbar?.title = fragment.getTitle()
         } else {
-            binding?.applicationToolbar?.title = "Xabber"
+     //       binding?.applicationToolbar?.title = "Xabber"
         }
 
         if (supportFragmentManager.backStackEntryCount > 0) {
