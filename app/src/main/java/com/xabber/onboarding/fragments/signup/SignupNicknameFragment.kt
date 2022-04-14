@@ -30,7 +30,7 @@ class SignupNicknameFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        toolbarChanger().setTitle(R.string.signup_toolbar_title_1)
+        toolbarChanger().setTitle(R.string.signup_nickname_toolbar_title)
         toolbarChanger().setShowBack(true)
         initEditText()
         initButton()

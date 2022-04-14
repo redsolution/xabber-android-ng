@@ -13,8 +13,6 @@ import com.xabber.databinding.FragmentSignupUsernameBinding
 import com.xabber.onboarding.contract.navigator
 import com.xabber.onboarding.contract.toolbarChanger
 import com.xabber.onboarding.fragments.BaseFragment
-import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
-import io.reactivex.rxjava3.schedulers.Schedulers
 import kotlin.properties.Delegates
 
 class SignupUserNameFragment : BaseFragment() {
@@ -35,7 +33,7 @@ class SignupUserNameFragment : BaseFragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        toolbarChanger().setTitle(R.string.signup_toolbar_title_2)
+        toolbarChanger().setTitle(R.string.signup_username_toolbar_title)
         toolbarChanger().setShowBack(true)
         initEditText()
         initButton()
@@ -65,16 +63,16 @@ class SignupUserNameFragment : BaseFragment() {
                 override fun onTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {}
                 override fun afterTextChanged(p0: Editable?) {
 
-             if (usernameSubtitle.text == resources.getString(R.string.signup_error_subtitle_2))  { usernameSubtitle.text = resources.getString(R.string.signup_subtitle_2)
+             if (usernameSubtitle.text == resources.getString(R.string.signup_username_error_subtitle))  { usernameSubtitle.text = resources.getString(R.string.signup_username_subtitle)
                     changeSubtitleColor(R.color.grey_text_3) }
 
                     if(p0.toString() == "маша") {
-                        usernameSubtitle.text = resources.getString(R.string.signup_error_subtitle_2)
+                        usernameSubtitle.text = resources.getString(R.string.signup_username_error_subtitle)
                         changeSubtitleColor(R.color.red_600)
                     } else if (p0.toString().length > 3) {
                         usernameBtnNext.isEnabled = true
                         usernameSubtitle.text =
-                            resources.getString(R.string.signup_success_subtitle_2)
+                            resources.getString(R.string.signup_username_success_subtitle)
                         changeSubtitleColor(R.color.blue_600)
                     }
                 }

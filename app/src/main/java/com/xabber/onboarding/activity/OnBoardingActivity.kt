@@ -1,22 +1,17 @@
 package com.xabber.onboarding.activity
 
-import android.Manifest.permission.CAMERA
-import android.Manifest.permission_group.CAMERA
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
-import android.media.MediaRecorder.VideoSource.CAMERA
 import android.net.Uri
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.os.Parcelable
 import android.provider.MediaStore
 import android.util.Log
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.fragment.app.Fragment
-import androidx.fragment.app.FragmentManager
 import androidx.lifecycle.LifecycleOwner
 import com.xabber.*
 import com.xabber.application.activity.ApplicationActivity
@@ -33,7 +28,6 @@ import com.xabber.util.AppConstants.REQUEST_TAKE_PHOTO
 import com.xabber.util.AppConstants.TEMP_FILE_NAME
 import java.io.File
 import java.io.IOException
-import java.util.jar.Manifest
 
 class OnBoardingActivity : AppCompatActivity(), Navigator, ToolbarChanger {
     private var binding: ActivityOnboardingBinding? = null
@@ -46,8 +40,11 @@ class OnBoardingActivity : AppCompatActivity(), Navigator, ToolbarChanger {
         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         binding = ActivityOnboardingBinding.inflate(layoutInflater)
         setContentView(binding?.root)
+        clearTitle()
         setSupportActionBar(binding?.onboardingToolbar)
-        if (savedInstanceState == null) addStartFragment()
+      if (savedInstanceState == null) addStartFragment()
+        //   startSignupAvatarFragment()
+
     }
 
 
@@ -59,7 +56,7 @@ class OnBoardingActivity : AppCompatActivity(), Navigator, ToolbarChanger {
     }
 
     private fun launchFragment(fragment: Fragment) {
-        supportFragmentManager.beginTransaction().addToBackStack(null)
+        supportFragmentManager.beginTransaction().setCustomAnimations(R.animator.appearance, R.animator.disappearance).addToBackStack(null)
             .replace(R.id.onboarding_container, fragment).commit()
     }
 
@@ -85,11 +82,13 @@ class OnBoardingActivity : AppCompatActivity(), Navigator, ToolbarChanger {
     }
 
 
-    override fun goApplicationActivity(userName: String) {
+    override fun goToApplicationActivity(userName: String) {
         val intent = Intent(this, ApplicationActivity::class.java)
         intent.putExtra("key", userName)
         startActivity(intent)
+
         finish()
+        overridePendingTransition(R.animator.appearance, R.animator.disappearance)
     }
 
     override fun goBack() {

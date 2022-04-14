@@ -21,7 +21,7 @@
         android:lineSpacingMultiplier="1.20"
         android:maxWidth="312dp"
         android:maxLines="2"
-        android:text="@string/signup_title_label_4"
+        android:text="@string/signup__avatar_title_label"
         android:textColor="@color/grey_text_1"
         android:textSize="20sp"
         app:layout_constraintEnd_toEndOf="parent"
@@ -30,24 +30,25 @@
 
 
     <com.google.android.material.button.MaterialButton
-            android:id="@+id/avatar_btn_next"
-            android:layout_width="0dp"
-            android:layout_height="56dp"
-            android:enabled="false"
-            android:gravity="center"
-            android:layout_marginHorizontal="24dp"
-            android:longClickable="false"
-            android:stateListAnimator="@animator/shadow"
-            android:text="@string/signup_next_button"
-            android:textAllCaps="false"
-            android:textIsSelectable="false"
-            android:textSize="17sp"
-            android:theme="@style/SignUpButtonNext"
-            app:cornerRadius="100dp"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="@id/profile_image_background"/>
+        android:id="@+id/avatar_btn_next"
+        android:layout_width="0dp"
+        android:layout_height="56dp"
+        android:layout_marginStart="56dp"
+        android:layout_marginEnd="56dp"
+        android:enabled="false"
+        android:gravity="center"
+        android:longClickable="false"
+        android:stateListAnimator="@animator/shadow"
+        android:text="@string/signup_next_button"
+        android:textAllCaps="false"
+        android:textIsSelectable="false"
+        android:textSize="17sp"
+        android:theme="@style/SignUpButtonNext"
+        app:cornerRadius="100dp"
+        android:layout_marginTop="24dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/profile_image_background" />
 
 
     <com.google.android.material.card.MaterialCardView
@@ -72,18 +73,19 @@
             android:layout_height="match_parent"
             android:layout_gravity="center"
             android:padding="21dp"
-            app:srcCompat="@drawable/ic_avatar_placeholder"/>
+            app:srcCompat="@drawable/ic_avatar_placeholder" />
+
+
     </com.google.android.material.card.MaterialCardView>
 
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/profile_photo_background"
-        android:layout_width="64dp"
-        android:layout_height="64dp"
-        android:layout_margin="106dp"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
         android:theme="@style/MinimumAvatarCardView"
         app:cardCornerRadius="32dp"
-        app:layout_constraintStart_toStartOf="@id/profile_image_background"
-        app:layout_constraintTop_toTopOf="@id/profile_image_background">
+        app:layout_constraintBottom_toBottomOf="@+id/profile_image_background"
+        app:layout_constraintEnd_toEndOf="@+id/profile_image_background">
 
         <ImageView
             android:id="@+id/profile_photo_camera"
@@ -91,6 +93,6 @@
             android:layout_height="match_parent"
             android:layout_gravity="center"
             android:layout_margin="14dp"
-            app:srcCompat="@drawable/ic_baseline_photo_camera_24"/>
+            app:srcCompat="@drawable/ic_baseline_photo_camera_24" />
     </com.google.android.material.card.MaterialCardView>
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -20,7 +20,7 @@ interface Navigator {
 
     fun startSignupAvatarFragment()
 
-    fun goApplicationActivity(userName: String = "")
+    fun goToApplicationActivity(userName: String = "")
 
     fun goBack()
 

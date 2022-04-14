@@ -47,7 +47,6 @@ class AvatarBottomSheet : BottomSheetDialogFragment() {
         )
         bottomSheet.updateLayoutParams {
             this.height = 180.dp
-            this.width = resources.getDimension(R.dimen.container_width_onboarding).toInt()
         }
         behavior.state = BottomSheetBehavior.STATE_EXPANDED
     }

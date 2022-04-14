@@ -50,7 +50,7 @@ class SignupAvatarFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        toolbarChanger().setTitle(R.string.signup_toolbar_title_4)
+        toolbarChanger().setTitle(R.string.signup_avatar_toolbar_title)
         toolbarChanger().setShowBack(false)
         initButton()
 
@@ -128,7 +128,7 @@ class SignupAvatarFragment : Fragment() {
 
     private fun initButton() {
         binding?.avatarBtnNext?.setOnClickListener {
-            navigator().goApplicationActivity()
+            navigator().goToApplicationActivity()
         }
     }
 }

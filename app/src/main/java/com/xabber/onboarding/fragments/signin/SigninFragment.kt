@@ -32,7 +32,7 @@ class SigninFragment() : Fragment() {
     private val password = "1"
     private val featureAdapter = FeatureAdapter()
     private val viewModel = SigninViewModel()
-     var host: String = "dev.xabber.org"
+    var host: String = "dev.xabber.org"
 
 
     override fun onCreateView(
@@ -57,12 +57,6 @@ class SigninFragment() : Fragment() {
 
     private fun initEditText() {
 
-        with(binding!!) {
-
-         //  val editTextList = arrayListOf(editTextLogin, editTextPassword)
-        //    val textWatcher = FillTextWatcher(editTextList, btnConnect, signinSubtitle1)
-         //  for (editText in editTextList) editText.addTextChangedListener(textWatcher)
-        }
         binding?.editTextLogin?.setOnFocusChangeListener { _, hasFocused ->
             if (hasFocused) {
                 binding?.editTextLogin?.background = resources.getDrawable(R.drawable.frame_blue)
@@ -110,10 +104,10 @@ class SigninFragment() : Fragment() {
 
             override fun afterTextChanged(p0: Editable?) {
                 var jidText = binding?.editTextLogin?.text.toString()
-               // if (!jidText.contains('@'))
+                // if (!jidText.contains('@'))
                 //    jidText += "@$host"
                 binding?.btnConnect?.isEnabled = p0.toString().isNotEmpty()
-                        //&& viewModel.isJidValid(jidText)
+                //&& viewModel.isJidValid(jidText)
                 binding?.signinSubtitle1?.setTextColor(
                     ResourcesCompat.getColor(
                         resources,
@@ -135,15 +129,15 @@ class SigninFragment() : Fragment() {
             return@setOnEditorActionListener false
         }
 
-        }
-
+    }
 
 
     private fun initButton() {
         with(binding!!) {
             btnConnect.setOnClickListener {
-                if (editTextLogin.text.trim().toString() != login || editTextPassword.text.trim().toString(
-                    ) != password
+                if (editTextLogin.text.trim().toString() != login || editTextPassword.text.trim()
+                        .toString(
+                        ) != password
                 ) {
                     signinSubtitle1.setTextColor(
                         ResourcesCompat.getColor(
@@ -158,6 +152,8 @@ class SigninFragment() : Fragment() {
                     textEnabled()
                     btnConnect.isEnabled = false
                     binding?.btnConnect!!.text = "Connecting..."
+                  //  signinScrollView.visibility = View.VISIBLE
+                    rvFeature.visibility = View.VISIBLE
                     closeKeyboard()
                     if (viewModel.isJidValid(editTextLogin.text.toString()) || editTextPassword.text.length > 5) {
                         compositeDisposable.add(viewModel.features
@@ -176,8 +172,8 @@ class SigninFragment() : Fragment() {
                                     btnConnect.isVisible = false
                                 }
                                 if (list.all { it.state != State.Error } || viewModel.isServerFeatures) {
-                                    featureAdapter?.submitList(list)
-                                    featureAdapter?.notifyItemChanged(list.lastIndex)
+                                    featureAdapter.submitList(list)
+                                    featureAdapter.notifyItemChanged(list.lastIndex)
                                 }
                                 lifecycleScope.launch {
                                     delay(150)
@@ -193,9 +189,10 @@ class SigninFragment() : Fragment() {
                                     if (list.filter { it.nameResId == R.string.feature_name_10 }
                                             .count() == 1) {
                                         signinSubtitle2.isVisible = true
+
                                         btnRock.isVisible = true
                                         btnRock.setOnClickListener {
-                                         navigator().goApplicationActivity()
+                                            navigator().goToApplicationActivity()
                                         }
                                     }
                                     if (viewModel._features.filter { it.state == State.Error }
@@ -251,7 +248,7 @@ class SigninFragment() : Fragment() {
 
     }
 
-     fun getSubtitleClickableSpan(): Spannable {
+    fun getSubtitleClickableSpan(): Spannable {
         val spannable =
             SpannableStringBuilder(resources.getString(R.string.signin_subtitle_label_1))
         spannable.setSpan(

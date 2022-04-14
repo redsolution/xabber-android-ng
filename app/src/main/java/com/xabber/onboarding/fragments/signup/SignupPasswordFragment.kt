@@ -6,19 +6,12 @@ import android.text.TextWatcher
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.core.view.isVisible
 import com.xabber.R
 import com.xabber.databinding.FragmentSignupPasswordBinding
 import com.xabber.domain.entity.AccountJid
-import com.xabber.domain.entity.Domainpart
-import com.xabber.domain.entity.JidCreate.domainBareFrom
-import com.xabber.domain.entity.Localpart
-import com.xabber.domain.entity.Resourcepart
 import com.xabber.onboarding.contract.navigator
 import com.xabber.onboarding.contract.toolbarChanger
 import com.xabber.onboarding.fragments.BaseFragment
-import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
-import io.reactivex.rxjava3.schedulers.Schedulers
 import kotlin.properties.Delegates
 
 class SignupPasswordFragment : BaseFragment() {
@@ -57,7 +50,7 @@ class SignupPasswordFragment : BaseFragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        toolbarChanger().setTitle(R.string.signup_toolbar_title_3)
+        toolbarChanger().setTitle(R.string.signup_password_toolbar_title)
         toolbarChanger().setShowBack(true)
         initEditText()
         initButton()

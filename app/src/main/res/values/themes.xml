@@ -1,20 +1,17 @@
 <resources>
     <!-- Base application theme. -->
-    <style name="Theme.Xabber" parent="Theme.AppCompat.Light.DarkActionBar">
-        <!-- Primary brand color. -->
-        <!-- Customize your theme here. -->
-    </style>
-
-    <style name="Theme.LightToolbar" parent="Theme">
-        <!--        <item name="actionOverflowButtonStyle">@style/OverflowButtonStyle</item>-->
-    </style>
 
     <style name="ThemeOnboarding" parent="Theme.AppCompat.Light.DarkActionBar">
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
         <item name="android:windowLightStatusBar">true</item>
         <item name="android:statusBarColor">@color/white</item>
-        <item name="homeAsUpIndicator">@drawable/ic_chevron_left_24</item>
+        <item name="homeAsUpIndicator">@drawable/ic_material_chevron_left_variant_24</item>
+        <item name="bottomSheetDialogTheme">@style/BaseBottomSheetDialogTheme</item>
+    </style>
+
+    <style name="BaseBottomSheetDialogTheme" parent="Theme.Material3.Dark.BottomSheetDialog">
+        <item name="android:navigationBarColor">@color/grey_100</item>
     </style>
 
     <style name="Theme" parent="Theme.AppCompat.Light.DarkActionBar">
@@ -22,12 +19,14 @@
         <item name="windowNoTitle">true</item>
         <item name="android:statusBarColor">@color/blue_500</item>
         <item name="android:navigationBarColor">@color/blue_500</item>
-        <item name="homeAsUpIndicator">@drawable/ic_chevron_left_24</item>
+        <item name="homeAsUpIndicator">@drawable/ic_material_chevron_left_variant_24</item>
+        <item name="windowActionModeOverlay">true</item>
+    </style>
 
         <!--        <item name="bars_color">#eeeeee</item>-->
 
         <!--for text selection toolbar to be above usual toolbar -->
-        <item name="windowActionModeOverlay">true</item>
+
 
         <!--        <item name="recent_chats_background">@color/grey_300</item>-->
 
@@ -115,7 +114,6 @@
 
         <!--        <item name="standard_show_password_icon">@drawable/ic_show_grey_24dp</item>-->
         <!--        <item name="standard_hide_password_icon">@drawable/ic_hide_grey_24dp</item>-->
-    </style>
 
     <style name="ThemeDark" parent="Base.ThemeDark" />
 
@@ -258,7 +256,5 @@
         <item name="android:background">?android:attr/listDivider</item>
     </style>
 
-    <style name="GroupMemberInfoToolbar" parent="@style/ThemeBorderlessVcard">
-        <item name="actionMenuTextColor">@color/white</item>
-    </style>
+
 </resources>

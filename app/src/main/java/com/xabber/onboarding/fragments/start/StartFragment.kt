@@ -35,7 +35,7 @@ class StartFragment : BaseFragment() {
     private fun initButton() {
         with(binding!!) {
             btnSkip.setOnClickListener {
-                navigator().goApplicationActivity()
+                navigator().goToApplicationActivity()
             }
 
             btnLogin.setOnClickListener {

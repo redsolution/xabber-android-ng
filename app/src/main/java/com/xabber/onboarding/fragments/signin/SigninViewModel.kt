@@ -30,6 +30,7 @@ class SigninViewModel : ViewModel() {
         Feature(R.string.feature_name_8),
         Feature(R.string.feature_name_9),
         Feature(R.string.feature_name_10),
+
     )
 
     var isServerFeatures = false
