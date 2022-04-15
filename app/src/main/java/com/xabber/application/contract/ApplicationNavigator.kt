@@ -7,4 +7,18 @@ fun Fragment.navigator(): ApplicationNavigator = requireActivity() as Applicatio
 interface ApplicationNavigator {
 
     fun goBack()
+
+    fun goToChat()
+
+    fun goToCalls()
+
+    fun goToContacts()
+
+    fun goToDiscover()
+
+    fun goToSettings()
+
+    fun goToMessage()
+
+
 }

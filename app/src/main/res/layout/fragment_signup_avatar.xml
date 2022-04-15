@@ -12,11 +12,9 @@
         android:id="@+id/avatar_title"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginStart="32dp"
-        android:layout_marginLeft="32dp"
+        android:layout_marginStart="40dp"
         android:layout_marginTop="64dp"
-        android:layout_marginEnd="32dp"
-        android:layout_marginRight="32dp"
+        android:layout_marginEnd="40dp"
         android:gravity="center"
         android:lineSpacingMultiplier="1.20"
         android:maxWidth="312dp"
@@ -80,10 +78,10 @@
 
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/profile_photo_background"
-        android:layout_width="48dp"
-        android:layout_height="48dp"
+        android:layout_width="58dp"
+        android:layout_height="58dp"
         android:theme="@style/MinimumAvatarCardView"
-        app:cardCornerRadius="32dp"
+        app:cardCornerRadius="85dp"
         app:layout_constraintBottom_toBottomOf="@+id/profile_image_background"
         app:layout_constraintEnd_toEndOf="@+id/profile_image_background">
 

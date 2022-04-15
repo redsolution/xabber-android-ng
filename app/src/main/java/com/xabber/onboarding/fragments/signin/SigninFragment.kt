@@ -152,7 +152,25 @@ class SigninFragment() : Fragment() {
                     textEnabled()
                     btnConnect.isEnabled = false
                     binding?.btnConnect!!.text = "Connecting..."
-                  //  signinScrollView.visibility = View.VISIBLE
+
+                    val spannable =
+                        SpannableStringBuilder(resources.getString(R.string.signin_subtitle_label_1))
+                    spannable.setSpan(
+                        ForegroundColorSpan(
+                            ResourcesCompat.getColor(
+                                resources,
+                                R.color.grey_400,
+                                requireContext().theme
+                            )
+                        ),
+                        34,
+                        44,
+                        Spannable.SPAN_EXCLUSIVE_INCLUSIVE
+                    )
+                 signinSubtitle1.text = spannable
+                    signinSubtitle1.movementMethod = null
+
+                    signinScrollView.visibility = View.VISIBLE
                     rvFeature.visibility = View.VISIBLE
                     closeKeyboard()
                     if (viewModel.isJidValid(editTextLogin.text.toString()) || editTextPassword.text.length > 5) {

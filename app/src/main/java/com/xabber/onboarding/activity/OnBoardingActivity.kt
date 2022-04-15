@@ -42,8 +42,8 @@ class OnBoardingActivity : AppCompatActivity(), Navigator, ToolbarChanger {
         setContentView(binding?.root)
         clearTitle()
         setSupportActionBar(binding?.onboardingToolbar)
-      if (savedInstanceState == null) addStartFragment()
-        //   startSignupAvatarFragment()
+        if (savedInstanceState == null) addStartFragment()
+       //    startSignupAvatarFragment()
 
     }
 

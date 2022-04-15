@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_height="match_parent"
+    android:clipChildren="false"
+    android:clipToPadding="false">
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/blue_50"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toTopOf="@+id/input_layout_container"
+        android:paddingBottom="?attr/actionBarSize"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintVertical_bias="1">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/message_list"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_gravity="bottom"
+            android:orientation="vertical"
+            tools:itemCount="4"
+           />
+    </FrameLayout>
+
+    <net.orandja.shadowlayout.ShadowLayout
+        android:id="@+id/input_layout_container"
+        style="@style/ShadowWrapper"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:background="@drawable/rectangle"
+        android:elevation="0.0001dp"
+        android:visibility="visible"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:shadow_y_shift="-0.5dp">
+
+        <LinearLayout
+            android:id="@+id/input_layout"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:layout_gravity="center_horizontal"
+            android:gravity="center_horizontal"
+            android:orientation="horizontal">
+
+            <ImageButton
+                android:id="@+id/button_emoticon"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_gravity="center_vertical"
+                android:layout_margin="16dp"
+                android:background="@color/transparent"
+              app:tint="@color/grey_500"
+                app:srcCompat="@drawable/ic_material_emoticon_outline_24" />
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/chat_input"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_vertical"
+                android:layout_weight="1"
+                android:background="@android:color/transparent"
+                android:cursorVisible="true"
+                android:fadingEdge="vertical"
+                android:filterTouchesWhenObscured="false"
+                android:gravity="center_vertical"
+                android:hint="@string/chat_input_hint"
+                android:imeOptions="actionSend|flagNoExtractUi"
+                android:inputType="textAutoCorrect|textCapSentences|textMultiLine"
+                android:maxLines="4"
+                android:minHeight="40dp"
+                android:scrollbars="vertical" />
+
+            <ImageButton
+                android:id="@+id/button_attach"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_gravity="center_vertical"
+                android:layout_margin="16dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@drawable/ic_material_attach_24"
+                app:tint="@color/grey_500" />
+
+            <ImageButton
+                android:id="@+id/button_send_message"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_gravity="center_vertical"
+                android:layout_margin="16dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@drawable/ic_material_send_24"
+                app:tint="@color/grey_500"
+                android:visibility="gone" />
+
+            <ImageButton
+                android:id="@+id/button_record"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_gravity="center_vertical"
+                android:layout_margin="16dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:filterTouchesWhenObscured="false"
+                android:src="@drawable/ic_material_microphone_24"
+                app:tint="@color/grey_500" />
+        </LinearLayout>
+    </net.orandja.shadowlayout.ShadowLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

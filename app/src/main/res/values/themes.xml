@@ -18,7 +18,7 @@
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
         <item name="android:statusBarColor">@color/blue_500</item>
-        <item name="android:navigationBarColor">@color/blue_500</item>
+        <item name="android:navigationBarColor">@color/white</item>
         <item name="homeAsUpIndicator">@drawable/ic_material_chevron_left_variant_24</item>
         <item name="windowActionModeOverlay">true</item>
     </style>

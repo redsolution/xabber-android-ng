@@ -19,8 +19,7 @@ import com.xabber.data.dto.RosterItemEntity.ISSUE
 import com.xabber.databinding.ItemChatBinding
 
 class ChatViewHolder(
-    private val binding: ItemChatBinding,
-    private val onChatClick: (ChatDto) -> Unit
+    private val binding: ItemChatBinding
 ) : RecyclerView.ViewHolder(binding.root) {
 
     fun bind(chat: ChatDto) {
@@ -189,7 +188,7 @@ class ChatViewHolder(
                 chatMessage.setTypeface(null, Typeface.ITALIC)
 
             binding.root.setOnClickListener {
-                onChatClick(chat)
+
             }
         }
     }

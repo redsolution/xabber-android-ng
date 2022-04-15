@@ -8,13 +8,12 @@ import com.xabber.data.dto.ChatDto
 import com.xabber.databinding.ItemChatBinding
 
 class ChatAdapter(
-    private val onChatClick: (ChatDto) -> Unit
 ) : ListAdapter<ChatDto, ChatViewHolder>(DiffUtilCallback) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ChatViewHolder {
         val inflater = LayoutInflater.from(parent.context)
         val binding = ItemChatBinding.inflate(inflater, parent, false)
-        return ChatViewHolder(binding, onChatClick)
+        return ChatViewHolder(binding)
     }
 
     override fun onBindViewHolder(holder: ChatViewHolder, position: Int) =

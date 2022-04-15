@@ -63,6 +63,10 @@ class SignupUserNameFragment : BaseFragment() {
                 override fun onTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {}
                 override fun afterTextChanged(p0: Editable?) {
 
+           if (p0.toString().isEmpty()) {
+               usernameSubtitle.text = resources.getString(R.string.signup_username_subtitle)
+               changeSubtitleColor(R.color.grey_text_3)
+           }
              if (usernameSubtitle.text == resources.getString(R.string.signup_username_error_subtitle))  { usernameSubtitle.text = resources.getString(R.string.signup_username_subtitle)
                     changeSubtitleColor(R.color.grey_text_3) }
 
