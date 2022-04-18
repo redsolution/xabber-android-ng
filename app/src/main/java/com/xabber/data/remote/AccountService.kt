@@ -1,6 +1,6 @@
 package com.xabber.data.remote
 
-import com.xabber.data.HostListDto
+import com.xabber.data.dto.HostListDto
 import com.xabber.data.dto.XabberAccountDto
 import io.reactivex.rxjava3.core.Single
 import retrofit2.http.Body

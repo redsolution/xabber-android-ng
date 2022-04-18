@@ -25,11 +25,11 @@
         android:supportsRtl="true"
         android:theme="@style/Theme">
         <activity
-            android:name=".application.activity.ApplicationActivity"
+            android:name="com.xabber.presentation.application.activity.ApplicationActivity"
             android:exported="false"
             android:theme="@style/Theme"/>
         <activity
-            android:name=".onboarding.activity.OnBoardingActivity"
+            android:name="com.xabber.presentation.onboarding.activity.OnBoardingActivity"
             android:exported="true"
             android:theme="@style/ThemeOnboarding">
             <intent-filter>

@@ -2,7 +2,7 @@ package com.xabber.data.repository
 
 import android.util.Log
 import com.google.gson.GsonBuilder
-import com.xabber.data.HostListDto
+import com.xabber.data.dto.HostListDto
 import com.xabber.data.dto.XabberAccountDto
 import com.xabber.data.remote.AccountService
 import io.reactivex.rxjava3.core.Single

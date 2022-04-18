@@ -120,25 +120,6 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/edit_text_password" />
 
-    <androidx.core.widget.NestedScrollView
-        android:id="@+id/signin_scroll_view"
-        android:layout_width="match_parent"
-        android:background="@color/white"
-        android:layout_height="wrap_content"
-        android:layout_marginHorizontal="32dp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/btn_connect"
-        android:scrollbars="vertical"
-        android:visibility="gone"
-        app:layout_constrainedHeight="true">
-
-        <LinearLayout
-            android:id="@+id/linear_in_scrollview"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical">
 
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/rv_feature"
@@ -155,8 +136,7 @@
                 app:layout_constraintTop_toBottomOf="@id/btn_connect"
                 app:layout_constraintVertical_bias="0.0"
                 tools:itemCount="3"
-                tools:listitem="@layout/item_feature"
-                />
+                tools:listitem="@layout/item_feature" />
 
 
             <TextView
@@ -205,8 +185,6 @@
                 app:cornerRadius="100dp"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="@id/signin_subtitle_2" />
-        </LinearLayout>
-    </androidx.core.widget.NestedScrollView>
+                app:layout_constraintTop_toBottomOf="@id/signin_subtitle_2" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

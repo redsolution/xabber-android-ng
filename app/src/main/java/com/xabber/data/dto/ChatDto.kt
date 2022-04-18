@@ -1,9 +1,9 @@
 package com.xabber.data.dto
 
 import androidx.annotation.ColorRes
-import com.xabber.application.fragments.chat.MessageState
-import com.xabber.application.fragments.chat.ResourceStatus
-import com.xabber.application.fragments.chat.RosterItemEntity
+import com.xabber.presentation.application.fragments.chat.MessageState
+import com.xabber.presentation.application.fragments.chat.ResourceStatus
+import com.xabber.presentation.application.fragments.chat.RosterItemEntity
 import java.util.*
 
 data class ChatDto(

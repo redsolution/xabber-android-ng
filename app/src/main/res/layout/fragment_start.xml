@@ -94,7 +94,7 @@
             android:insetBottom="0dp"
             android:longClickable="false"
             android:stateListAnimator="@animator/shadow"
-            android:text="@string/start_login_button_label"
+            android:text="@string/start_signin_button_label"
             android:textColor="@color/blue_500"
             android:textIsSelectable="false"
             android:textSize="17sp"

@@ -96,7 +96,7 @@
                 android:layout_margin="16dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:src="@drawable/ic_material_send_24"
-                app:tint="@color/grey_500"
+                app:tint="@color/blue_300"
                 android:visibility="gone" />
 
             <ImageButton
