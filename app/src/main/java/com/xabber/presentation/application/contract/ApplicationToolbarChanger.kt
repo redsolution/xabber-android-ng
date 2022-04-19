@@ -1,5 +1,6 @@
 package com.xabber.presentation.application.contract
 
+import android.widget.Toolbar
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import androidx.fragment.app.Fragment
@@ -16,6 +17,8 @@ interface ApplicationToolbarChanger {
 
     fun toolbarIconChange(fragmentAction : FragmentAction)
 
+   // fun hideToolbar()
+fun changeToolbar(toolbar: androidx.appcompat.widget.Toolbar)
 
 }
 

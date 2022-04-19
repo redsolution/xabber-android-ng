@@ -23,11 +23,11 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme">
+        android:theme="@style/ThemeApplication">
         <activity
             android:name="com.xabber.presentation.application.activity.ApplicationActivity"
             android:exported="false"
-            android:theme="@style/Theme"/>
+            android:theme="@style/ThemeApplication"/>
         <activity
             android:name="com.xabber.presentation.onboarding.activity.OnBoardingActivity"
             android:exported="true"

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <item
+        android:id="@+id/call_out"
+        android:title="Call out"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/set_up_notification"
+        android:title="Set up notifications"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/disable_notifications"
+        android:title="Disable notifications"
+        app:showAsAction="never" />
+
+     <item
+        android:id="@+id/delete_chat"
+        android:title="Delete chat"
+        app:showAsAction="never" />
+
+     <item
+        android:id="@+id/clear_message_history"
+        android:title="Disable notifications"
+        app:showAsAction="never" />
+
+</menu>

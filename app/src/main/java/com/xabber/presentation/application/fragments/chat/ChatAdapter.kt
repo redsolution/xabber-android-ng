@@ -34,6 +34,11 @@ class ChatAdapter(
         fun onClickMenu()
     }
 
+    private fun deleteItem(position : Int) {
+     //   val deletedItem =
+
+    }
+
     class ChatViewHolder(
         private val binding: ItemChatBinding, private val showMessage: ShowMessage
     ) : RecyclerView.ViewHolder(binding.root) {

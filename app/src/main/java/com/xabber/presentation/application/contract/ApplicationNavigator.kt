@@ -13,7 +13,9 @@ interface ApplicationNavigator {
 
     fun goToMessage()
 
-    fun goAccount()
+    fun goToAccount()
+
+    fun goToNewMessage()
 
     fun <T : Parcelable> showResult(result: T)
     fun <T : Parcelable> giveResult(

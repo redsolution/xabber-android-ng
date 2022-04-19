@@ -132,4 +132,8 @@
     <string name="edited">(edited at %s)</string>
     <string name="skip">Skip</string>
 
+    <!-- Calls -->
+    <string name="calls_toolbar_title">Calls</string>
+
+
 </resources>

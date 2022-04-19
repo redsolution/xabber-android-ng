@@ -1,21 +1,108 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:layout_width="match_parent"
     xmlns:tools="http://schemas.android.com/tools"
-    android:layout_height="match_parent"
-    android:clipChildren="false"
-    android:clipToPadding="false">
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
 
-    <FrameLayout
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:background="@color/blue_50"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toTopOf="@+id/input_layout_container"
-        android:paddingBottom="?attr/actionBarSize"
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/message_toolbar"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:menu="@menu/message_menu"
+        android:background="@color/blue_300">
+
+        <ImageView
+            android:id="@+id/message_icon_back"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:src="@drawable/ic_material_arrow_left_24" />
+
+          <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content">
+
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/avatar_container"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:layout_marginStart="12dp"
+                android:focusable="false"
+                android:theme="@style/Theme.MaterialComponents.NoActionBar"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="0dp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent">
+
+                <ImageView
+                    android:id="@+id/avatar"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:focusable="false"
+                    app:srcCompat="@drawable/ic_xabber_icon"
+                    tools:src="@tools:sample/avatars" />
+
+
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/avatar_status"
+                android:layout_width="8dp"
+                android:layout_height="8dp"
+                android:layout_margin="23dp"
+                android:elevation="0dp"
+                android:theme="@style/Theme.MaterialComponents.Light.NoActionBar"
+                android:visibility="visible"
+                app:cardBackgroundColor="@color/green_500"
+                app:cardCornerRadius="6dp"
+                app:cardElevation="0dp"
+                app:contentPadding="1dp"
+                app:layout_constraintStart_toStartOf="@id/avatar_container"
+                app:layout_constraintTop_toTopOf="@id/avatar_container"
+                app:strokeColor="@color/white"
+                app:strokeWidth="1dp"
+                tools:visibility="visible" />
+
+              <LinearLayout
+                  android:layout_width="wrap_content"
+                  android:layout_height="wrap_content"
+                  app:layout_constraintTop_toTopOf="parent"
+                  app:layout_constraintEnd_toEndOf="parent"
+                  app:layout_constraintStart_toEndOf="@id/avatar_container"
+                  android:orientation="vertical"
+                  android:layout_marginStart="12dp">
+
+                  <TextView
+                      android:layout_width="wrap_content"
+                      android:layout_height="wrap_content"
+                      android:text="Name Surname"
+                      android:textSize="18sp"
+                      android:textStyle="bold" />
+
+                  <TextView
+                      android:layout_width="wrap_content"
+                      android:layout_height="wrap_content"
+                      android:text="Status"
+                      android:textSize="13sp" />
+
+
+              </LinearLayout>
+        </androidx.constraintlayout.widget.ConstraintLayout>
+    </com.google.android.material.appbar.MaterialToolbar>
+
+    <FrameLayout
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:background="@color/blue_50"
+
+        app:layout_constraintBottom_toTopOf="@id/input_layout"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/message_toolbar"
         app:layout_constraintVertical_bias="1">
 
         <androidx.recyclerview.widget.RecyclerView
@@ -24,92 +111,80 @@
             android:layout_height="match_parent"
             android:layout_gravity="bottom"
             android:orientation="vertical"
-            tools:itemCount="4"
-           />
+            tools:itemCount="4" />
     </FrameLayout>
 
-    <net.orandja.shadowlayout.ShadowLayout
-        android:id="@+id/input_layout_container"
-        style="@style/ShadowWrapper"
+
+    <LinearLayout
+        android:id="@+id/input_layout"
         android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:background="@drawable/rectangle"
-        android:elevation="0.0001dp"
-        android:visibility="visible"
+        android:layout_height="?attr/actionBarSize"
+        android:layout_gravity="center_horizontal"
+        android:gravity="center_horizontal"
+        android:orientation="horizontal"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:shadow_y_shift="-0.5dp">
+        app:layout_constraintStart_toStartOf="parent">
 
-        <LinearLayout
-            android:id="@+id/input_layout"
-            android:layout_width="match_parent"
-            android:layout_height="?attr/actionBarSize"
-            android:layout_gravity="center_horizontal"
-            android:gravity="center_horizontal"
-            android:orientation="horizontal">
+        <ImageButton
+            android:id="@+id/button_emoticon"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_gravity="center_vertical"
+            android:layout_margin="16dp"
+            android:background="@color/transparent"
+            app:srcCompat="@drawable/ic_material_emoticon_outline_24"
+            app:tint="@color/grey_500" />
 
-            <ImageButton
-                android:id="@+id/button_emoticon"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:layout_gravity="center_vertical"
-                android:layout_margin="16dp"
-                android:background="@color/transparent"
-              app:tint="@color/grey_500"
-                app:srcCompat="@drawable/ic_material_emoticon_outline_24" />
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/chat_input"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
+            android:layout_weight="1"
+            android:background="@android:color/transparent"
+            android:cursorVisible="true"
+            android:fadingEdge="vertical"
+            android:filterTouchesWhenObscured="false"
+            android:gravity="center_vertical"
+            android:hint="@string/chat_input_hint"
+            android:imeOptions="actionSend|flagNoExtractUi"
+            android:inputType="textAutoCorrect|textCapSentences|textMultiLine"
+            android:maxLines="4"
+            android:minHeight="40dp"
+            android:scrollbars="vertical" />
 
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/chat_input"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center_vertical"
-                android:layout_weight="1"
-                android:background="@android:color/transparent"
-                android:cursorVisible="true"
-                android:fadingEdge="vertical"
-                android:filterTouchesWhenObscured="false"
-                android:gravity="center_vertical"
-                android:hint="@string/chat_input_hint"
-                android:imeOptions="actionSend|flagNoExtractUi"
-                android:inputType="textAutoCorrect|textCapSentences|textMultiLine"
-                android:maxLines="4"
-                android:minHeight="40dp"
-                android:scrollbars="vertical" />
+        <ImageButton
+            android:id="@+id/button_attach"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_gravity="center_vertical"
+            android:layout_margin="16dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_material_attach_24"
+            app:tint="@color/grey_500" />
 
-            <ImageButton
-                android:id="@+id/button_attach"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:layout_gravity="center_vertical"
-                android:layout_margin="16dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:src="@drawable/ic_material_attach_24"
-                app:tint="@color/grey_500" />
+        <ImageButton
+            android:id="@+id/button_send_message"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_gravity="center_vertical"
+            android:layout_margin="16dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_material_send_24"
+            android:visibility="gone"
+            app:tint="@color/blue_300" />
 
-            <ImageButton
-                android:id="@+id/button_send_message"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:layout_gravity="center_vertical"
-                android:layout_margin="16dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:src="@drawable/ic_material_send_24"
-                app:tint="@color/blue_300"
-                android:visibility="gone" />
-
-            <ImageButton
-                android:id="@+id/button_record"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:layout_gravity="center_vertical"
-                android:layout_margin="16dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:filterTouchesWhenObscured="false"
-                android:src="@drawable/ic_material_microphone_24"
-                app:tint="@color/grey_500" />
-        </LinearLayout>
-    </net.orandja.shadowlayout.ShadowLayout>
+        <ImageButton
+            android:id="@+id/button_record"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_gravity="center_vertical"
+            android:layout_margin="16dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:filterTouchesWhenObscured="false"
+            android:src="@drawable/ic_material_microphone_24"
+            app:tint="@color/grey_500" />
+    </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

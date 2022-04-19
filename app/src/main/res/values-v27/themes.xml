@@ -9,6 +9,6 @@
         <item name="android:statusBarColor">@color/white</item>
         <item name="android:navigationBarColor">@color/white</item>
         <item name="homeAsUpIndicator">@drawable/ic_chevron_left_variant</item>
-          <item name="bottomSheetDialogTheme">@style/BaseBottomSheetDialogTheme</item>
+        <item name="bottomSheetDialogTheme">@style/BaseBottomSheetDialogTheme</item>
     </style>
 </resources>

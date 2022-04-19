@@ -20,6 +20,8 @@ import com.xabber.presentation.application.fragments.message.MessageFragment
 import com.xabber.presentation.application.fragments.settings.SettingsFragment
 import com.xabber.databinding.ActivityApplicationBinding
 import com.xabber.presentation.application.contract.FragmentAction
+import com.xabber.presentation.application.fragments.account.AccountFragment
+import com.xabber.presentation.application.fragments.message.NewMessageFragment
 import com.xabber.presentation.onboarding.contract.ResultListener
 
 class ApplicationActivity : AppCompatActivity(), ApplicationNavigator, ApplicationToolbarChanger {
@@ -35,7 +37,7 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator, Applicati
         binding = ActivityApplicationBinding.inflate(layoutInflater)
         setContentView(binding!!.root)
 //setSupportActionBar(binding?.applicationToolbar)
-userName = intent.getStringExtra("key").toString()
+        userName = intent.getStringExtra("key").toString()
         if (savedInstanceState == null) {
             startChatFragment()
         }
@@ -45,41 +47,40 @@ userName = intent.getStringExtra("key").toString()
     }
 
     private fun initToolbar() {
-        binding?.imSearch?.setOnClickListener {
-            binding?.searchView?.visibility = View.VISIBLE
-            binding?.searchView?.isIconified = false
-            binding?.searchView?.onActionViewExpanded()
+        //  binding?.imSearch?.setOnClickListener {
+        //      binding?.searchView?.visibility = View.VISIBLE
+        //      binding?.searchView?.isIconified = false
+        //      binding?.searchView?.onActionViewExpanded()
 
 
-            binding?.imBack?.visibility = View.VISIBLE
-            binding?.applicationToolbar?.setBackgroundColor(resources.getColor(R.color.white))
-            binding?.imSearch?.visibility = View.GONE
-            binding?.imPlus?.visibility = View.GONE
-            binding?.avatarContainer?.visibility = View.GONE
-            binding?.tvTitle?.visibility = View.GONE
-            binding?.avatarStatus?.visibility = View.GONE
+        //      binding?.imBack?.visibility = View.VISIBLE
+        //      binding?.applicationToolbar?.setBackgroundColor(resources.getColor(R.color.white))
+        //      binding?.imSearch?.visibility = View.GONE
+        //      binding?.imPlus?.visibility = View.GONE
+        //       binding?.avatarContainer?.visibility = View.GONE
+        //       binding?.tvTitle?.visibility = View.GONE
+        //      binding?.avatarStatus?.visibility = View.GONE
 
 
+        //  }
 
-        }
-
-        binding?.imBack?.setOnClickListener {
-              binding?.searchView?.visibility = View.GONE
-             binding?.imBack?.visibility = View.GONE
-            binding?.imSearch?.visibility = View.VISIBLE
-            binding?.imPlus?.visibility = View.VISIBLE
-            binding?.avatarContainer?.visibility = View.VISIBLE
-            binding?.tvTitle?.visibility = View.VISIBLE
-            binding?.avatarStatus?.visibility = View.VISIBLE
-            binding?.applicationToolbar?.setBackgroundColor(resources.getColor(R.color.blue_300))
-          //  binding?.shadowToolbar?.visibility = View.GONE
-        }
-
-        binding?.imPlus?.setOnClickListener {
-            binding?.bottomNavBar?.visibility = View.GONE
-            goToMessage()
-        }
+        //    binding?.imBack?.setOnClickListener {
+        //       binding?.searchView?.visibility = View.GONE
+        //       binding?.imBack?.visibility = View.GONE
+        //        binding?.imSearch?.visibility = View.VISIBLE
+        //        binding?.imPlus?.visibility = View.VISIBLE
+        //       binding?.avatarContainer?.visibility = View.VISIBLE
+        //      binding?.tvTitle?.visibility = View.VISIBLE
+        //      binding?.avatarStatus?.visibility = View.VISIBLE
+        //      binding?.applicationToolbar?.setBackgroundColor(resources.getColor(R.color.blue_300))
+        //  binding?.shadowToolbar?.visibility = View.GONE
     }
+
+    //    binding?.imPlus?.setOnClickListener {
+    //        binding?.bottomNavBar?.visibility = View.GONE
+    //         goToMessage()
+    //     }
+
 
     private fun initBottomNavigation() {
         binding!!.bottomNavBar.setOnItemSelectedListener { menuItem ->
@@ -95,14 +96,13 @@ userName = intent.getStringExtra("key").toString()
     }
 
 
-
     private fun startChatFragment() {
         supportFragmentManager.beginTransaction().replace(
             R.id.application_container,
             ChatFragment.newInstance(userName)
         )
             .commit()
-         binding?.bottomNavBar?.visibility = View.VISIBLE
+        binding?.bottomNavBar?.visibility = View.VISIBLE
     }
 
     private fun launchFragment(fragment: Fragment) {
@@ -111,19 +111,35 @@ userName = intent.getStringExtra("key").toString()
             .replace(R.id.application_container, fragment).commit()
     }
 
-    override fun goBack() {
+    private fun launchFragmentInStack(fragment: Fragment) {
 
+    }
+
+    override fun goBack() {
+        onBackPressed()
     }
 
 
     override fun goToMessage() {
-        binding?.bottomNavBar?.visibility = View.GONE
-      supportFragmentManager.beginTransaction().replace(
-          R.id.application_container, MessageFragment()).addToBackStack(null).commit()
+        supportFragmentManager.beginTransaction().replace(
+            R.id.application_container, MessageFragment()
+        ).addToBackStack(null).commit()
     }
 
-    override fun goAccount() {
+    override fun goToAccount() {
+        supportFragmentManager.beginTransaction()
+            .setCustomAnimations(R.animator.appearance, R.animator.disappearance).addToBackStack(
+                null
+            )
+            .replace(R.id.application_container, AccountFragment()).commit()
+    }
 
+    override fun goToNewMessage() {
+        supportFragmentManager.beginTransaction()
+            .setCustomAnimations(R.animator.appearance, R.animator.disappearance).addToBackStack(
+                null
+            )
+            .replace(R.id.application_container, NewMessageFragment()).commit()
     }
 
     override fun <T : Parcelable> showResult(result: T) {
@@ -139,22 +155,28 @@ userName = intent.getStringExtra("key").toString()
     }
 
     override fun setShowBack(isVisible: Boolean) {
- supportActionBar?.setDisplayHomeAsUpEnabled(isVisible)
+        supportActionBar?.setDisplayHomeAsUpEnabled(isVisible)
         supportActionBar?.setDisplayShowHomeEnabled(isVisible)
     }
 
     override fun setTitle(titleResId: Int) {
-        binding?.tvTitle?.setText(titleResId)
+        //      binding?.tvTitle?.setText(titleResId)
     }
 
     override fun showNavigationView(isShow: Boolean) {
-     binding?.bottomNavBar?.isVisible = isShow
+        binding?.bottomNavBar?.isVisible = isShow
     }
 
     override fun toolbarIconChange(fragmentAction: FragmentAction) {
-        binding?.applicationToolbar?.menu?.clear()
-        val iconDrawable = DrawableCompat.wrap(ContextCompat.getDrawable(this, fragmentAction.iconRes)!!)
+        //    binding?.applicationToolbar?.menu?.clear()
+        val iconDrawable =
+            DrawableCompat.wrap(ContextCompat.getDrawable(this, fragmentAction.iconRes)!!)
 
+    }
+
+    override fun changeToolbar(toolbar: androidx.appcompat.widget.Toolbar) {
+
+        setSupportActionBar(toolbar)
     }
 
 

@@ -1,17 +1,14 @@
 package com.xabber.presentation.application.fragments.chat
 
 import android.util.Log
-import androidx.lifecycle.ViewModel
-import com.xabber.presentation.application.util.getRandomColor
 import com.xabber.data.dto.ChatDto
+import com.xabber.presentation.application.util.getRandomColor
 import java.util.*
 
-class ChatViewModel : ViewModel() {
+class ChatRepository() {
 
-
-    val chat: List<ChatDto>
-        get() {
-            val list: List<ChatDto> = listOf(
+    fun getChatList() : List<ChatDto> {
+         val list: List<ChatDto> = listOf(
                 ChatDto(
                     "qwe",
                     "qwe",
@@ -344,11 +341,6 @@ class ChatViewModel : ViewModel() {
                 )
                 Log.d("qwe", mutableList.size.toString())
             }
-
-            return mutableList
-        }
-
-    fun deleteElement() {
-
+        return mutableList
     }
 }
