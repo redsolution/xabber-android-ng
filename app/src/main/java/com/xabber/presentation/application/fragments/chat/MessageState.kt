@@ -1,7 +1,7 @@
 package com.xabber.presentation.application.fragments.chat
 
 enum class MessageState {
-    SENDING,
+    SENDING, //
     SENT,
     DELIVERED,
     READ,

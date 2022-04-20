@@ -28,6 +28,7 @@
             android:name="com.xabber.presentation.application.activity.ApplicationActivity"
             android:exported="false"
             android:theme="@style/ThemeApplication"/>
+
         <activity
             android:name="com.xabber.presentation.onboarding.activity.OnBoardingActivity"
             android:exported="true"
@@ -38,6 +39,7 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.provider"

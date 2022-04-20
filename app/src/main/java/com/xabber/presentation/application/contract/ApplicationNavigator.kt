@@ -17,6 +17,10 @@ interface ApplicationNavigator {
 
     fun goToNewMessage()
 
+    fun startNewContactFragment()
+
+    fun startNewGroupFragment(incognito: Boolean)
+
     fun <T : Parcelable> showResult(result: T)
     fun <T : Parcelable> giveResult(
         clazz: Class<T>,

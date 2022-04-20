@@ -13,10 +13,11 @@ import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.xabber.data.util.dp
 import com.xabber.databinding.BottomSheetAvatarBinding
+import com.xabber.presentation.onboarding.contract.navigator
 
 
 class AvatarBottomSheet : BottomSheetDialogFragment() {
-    private var binding : BottomSheetAvatarBinding? = null
+    private var binding: BottomSheetAvatarBinding? = null
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -58,11 +59,11 @@ class AvatarBottomSheet : BottomSheetDialogFragment() {
                 dismiss()
             }
             btnSelfie.setOnClickListener {
-            //    (activity as MainActivity).onTakePhoto()
+                navigator().openCamera()
                 dismiss()
             }
             btnChoseImage.setOnClickListener {
-             //   (activity as MainActivity).onChooseFromGallery()
+                navigator().openGallery()
                 dismiss()
             }
         }

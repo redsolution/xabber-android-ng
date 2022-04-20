@@ -1,5 +1,6 @@
 package com.xabber.presentation.onboarding.activity
 
+import android.Manifest
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
@@ -8,11 +9,15 @@ import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.os.Parcelable
 import android.provider.MediaStore
+import android.provider.Settings
 import android.util.Log
-import androidx.core.content.ContextCompat
+import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
 import androidx.core.content.FileProvider
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.LifecycleOwner
+import com.soundcloud.android.crop.Crop
 import com.xabber.*
 import com.xabber.presentation.application.activity.ApplicationActivity
 import com.xabber.presentation.onboarding.fragments.start.StartFragment
@@ -22,8 +27,6 @@ import com.xabber.presentation.onboarding.contract.Navigator
 import com.xabber.presentation.onboarding.contract.ResultListener
 import com.xabber.presentation.onboarding.contract.ToolbarChanger
 import com.xabber.presentation.onboarding.fragments.signup.*
-import com.xabber.data.util.AppConstants.REQUEST_PERMISSION_CAMERA
-import com.xabber.data.util.AppConstants.REQUEST_PERMISSION_GALLERY
 import com.xabber.data.util.AppConstants.REQUEST_TAKE_PHOTO
 import com.xabber.data.util.AppConstants.TEMP_FILE_NAME
 import java.io.File
@@ -34,17 +37,22 @@ class OnBoardingActivity : AppCompatActivity(), Navigator, ToolbarChanger {
     private var filePhotoUri: Uri? = null
     private var newAvatarImageUri: Uri? = null
 
+    private val requestCameraPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission(), ::onGotCameraPermissionResult
+    )
+
+    private val requestGalleryPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+        ::onGotGalleryPermissionResult
+    )
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         binding = ActivityOnboardingBinding.inflate(layoutInflater)
         setContentView(binding?.root)
-        clearTitle()
         setSupportActionBar(binding?.onboardingToolbar)
+        clearTitle()
         if (savedInstanceState == null) addStartFragment()
-       //    startSignupAvatarFragment()
-
     }
 
 
@@ -52,14 +60,14 @@ class OnBoardingActivity : AppCompatActivity(), Navigator, ToolbarChanger {
         supportFragmentManager.beginTransaction().replace(
             R.id.onboarding_container, StartFragment()
         ).commit()
-
     }
 
     private fun launchFragment(fragment: Fragment) {
-        supportFragmentManager.beginTransaction().setCustomAnimations(R.animator.appearance, R.animator.disappearance).addToBackStack(null)
+        supportFragmentManager.beginTransaction()
+            .setCustomAnimations(R.animator.appearance, R.animator.disappearance)
+            .addToBackStack(null)
             .replace(R.id.onboarding_container, fragment).commit()
     }
-
 
     override fun startSignupNicknameFragment() {
         launchFragment(SignupNicknameFragment())
@@ -84,9 +92,8 @@ class OnBoardingActivity : AppCompatActivity(), Navigator, ToolbarChanger {
 
     override fun goToApplicationActivity(userName: String) {
         val intent = Intent(this, ApplicationActivity::class.java)
-        intent.putExtra("key", userName)
+// intent.putExtra("key", userName)
         startActivity(intent)
-
         finish()
         overridePendingTransition(R.animator.appearance, R.animator.disappearance)
     }
@@ -95,10 +102,97 @@ class OnBoardingActivity : AppCompatActivity(), Navigator, ToolbarChanger {
         onBackPressed()
     }
 
+    override fun openCamera() {
+        requestCameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+    }
+
+    override fun openGallery() {
+        requestGalleryPermissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
+    }
+
     override fun onSupportNavigateUp(): Boolean {
         onBackPressed()
         return true
     }
+
+    private fun onGotCameraPermissionResult(granted: Boolean) {
+        if (granted) {
+            takePhoto()
+        } else {
+            if (!shouldShowRequestPermissionRationale(Manifest.permission.CAMERA)) {
+                askUserForOpeningAppSettings()
+            } else {
+                Toast.makeText(this, "Permission denied", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun takePhoto() {
+        val takePictureIntent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
+        try {
+            createTempImageFile(TEMP_FILE_NAME).let {
+                filePhotoUri = getFileUri(it)
+                takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, filePhotoUri)
+                startActivityForResult(
+                    takePictureIntent,
+                    REQUEST_TAKE_PHOTO
+                )
+            }
+        } catch (e: IOException) {
+            Log.e("qwe", e.stackTraceToString())
+        }
+    }
+
+
+    fun createTempImageFile(name: String): File {
+        return File.createTempFile(
+            name,
+            ".jpg",
+            application.getExternalFilesDir(null)
+        )
+    }
+
+
+    private fun askUserForOpeningAppSettings() {
+        val appSettingsIntent = Intent(
+            Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+            Uri.fromParts("package", packageName, null)
+        )
+        if (packageManager.resolveActivity(
+                appSettingsIntent,
+                PackageManager.MATCH_DEFAULT_ONLY
+            ) == null
+        ) {
+            Toast.makeText(this, "Permissions denied forever", Toast.LENGTH_SHORT).show()
+        } else {
+            AlertDialog.Builder(this)
+                .setTitle("Permission denied")
+                .setMessage("Would you like to open app settings if change your mind?")
+                .setPositiveButton("Open") { _, _ ->
+                    startActivity(appSettingsIntent)
+                }
+                .create()
+                .show()
+        }
+    }
+
+    private fun onGotGalleryPermissionResult(granted: Boolean) {
+        if (granted) {
+            chooseFromGallery()
+        } else {
+            if (!shouldShowRequestPermissionRationale(Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
+                askUserForOpeningAppSettings()
+            } else {
+                Toast.makeText(this, "Permission denied", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun chooseFromGallery() {
+
+     Crop.pickImage(this)
+    }
+
 
     override fun <T : Parcelable> showResult(result: T) {
 
@@ -123,65 +217,6 @@ class OnBoardingActivity : AppCompatActivity(), Navigator, ToolbarChanger {
     override fun setShowBack(isVisible: Boolean) {
         supportActionBar?.setDisplayHomeAsUpEnabled(isVisible)
         supportActionBar?.setDisplayShowHomeEnabled(isVisible)
-    }
-
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
-    ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        when (requestCode) {
-            REQUEST_PERMISSION_CAMERA -> {
-                if (ContextCompat.checkSelfPermission(
-                        this,
-                        android.Manifest.permission.CAMERA
-                    )
-                    == PackageManager.PERMISSION_GRANTED
-                )
-                    takePhoto()
-
-            }
-            REQUEST_PERMISSION_GALLERY -> {
-                if (ContextCompat.checkSelfPermission(
-                        this,
-                        android.Manifest.permission.WRITE_EXTERNAL_STORAGE
-                    )
-                    == PackageManager.PERMISSION_GRANTED
-                )
-                    chooseFromGallery()
-            }
-        }
-    }
-
-    private fun chooseFromGallery() {
-     //   Crop.pickImage(this)
-    }
-
-
-    private fun takePhoto() {
-        val takePictureIntent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
-        try {
-            createTempImageFile(TEMP_FILE_NAME).let {
-                filePhotoUri = getFileUri(it)
-                takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, filePhotoUri)
-                startActivityForResult(
-                    takePictureIntent,
-                    REQUEST_TAKE_PHOTO
-                )
-            }
-        } catch (e: IOException) {
-            Log.e("qwe", e.stackTraceToString())
-        }
-    }
-
-    @Throws(IOException::class)
-    fun createTempImageFile(name: String): File {
-        return File.createTempFile(
-            name,
-            ".jpg",
-            application.getExternalFilesDir(null)
-        )
     }
 
     private fun getFileUri(file: File): Uri {

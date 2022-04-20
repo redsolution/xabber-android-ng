@@ -19,14 +19,17 @@ import com.xabber.data.util.dp
 
 class EmojiAvatarBottomSheet : BottomSheetDialogFragment() {
 
-    private var binding : FragmentEmojiAvatarBinding? = null
+    private var binding: FragmentEmojiAvatarBinding? = null
     private val viewModel = EmojiAvatarViewModel()
 
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
-    ): View? = inflater.inflate(R.layout.fragment_emoji_avatar, container, false)
+    ): View? {
+        binding = FragmentEmojiAvatarBinding.inflate(inflater, container, false)
+        return binding?.root
+    }
 
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
         val dialog = super.onCreateDialog(savedInstanceState) as BottomSheetDialog
@@ -55,10 +58,11 @@ class EmojiAvatarBottomSheet : BottomSheetDialogFragment() {
         super.onViewCreated(view, savedInstanceState)
 
         val palette = mapOf(
-            binding!!.orangeTint to R.color.orange_100,
-            binding!!.redTint to R.color.red_100,
-            binding!!.blueTint to R.color.blue_100,
-            binding!!.indigoTint to R.color.indigo_100,
+            binding?.greenTint to R.color.green_100,
+            binding?.orangeTint to R.color.orange_100,
+            binding?.redTint to R.color.red_100,
+            binding?.blueTint to R.color.blue_100,
+            binding?.indigoTint to R.color.indigo_100,
             binding!!.purpleTint to R.color.purple_100,
             binding!!.limeTint to R.color.lime_100,
             binding!!.pinkTint to R.color.pink_100,
@@ -78,7 +82,7 @@ class EmojiAvatarBottomSheet : BottomSheetDialogFragment() {
         )
 
         palette.forEach { mapElem ->
-            mapElem.key.setOnClickListener {
+            mapElem.key!!.setOnClickListener {
                 binding!!.avatarBackground.setCardBackgroundColor(
                     ContextCompat.getColor(requireContext(), mapElem.value)
                 )
@@ -101,9 +105,9 @@ class EmojiAvatarBottomSheet : BottomSheetDialogFragment() {
                 val avatar = avatarBackground
                 avatar.radius = 0F
                 val bitmap = viewModel.getBitmapFromView(requireContext(), avatar)
-            //    val fragment =
-               //     parentFragmentManager.findFragmentByTag(FragmentTag.Signup4.toString()) as SignupFragment
-              //  fragment.setAvatar(bitmap)
+                //    val fragment =
+                //     parentFragmentManager.findFragmentByTag(FragmentTag.Signup4.toString()) as SignupFragment
+                //  fragment.setAvatar(bitmap)
                 viewModel.saveBitmapToFile(bitmap, requireContext().cacheDir)
                 dismiss()
             }
@@ -113,10 +117,10 @@ class EmojiAvatarBottomSheet : BottomSheetDialogFragment() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-     //   setFragmentResultListener(EMOJI_KEY_REQUEST_KEY) { _, result ->
-     //       result.getString(EMOJI_KEY_RESPONSE_KEY)?.let { emoji ->
-     //           binding.emojiText.text = emoji
-     //       }
-      //  }
+        //   setFragmentResultListener(EMOJI_KEY_REQUEST_KEY) { _, result ->
+        //       result.getString(EMOJI_KEY_RESPONSE_KEY)?.let { emoji ->
+        //           binding.emojiText.text = emoji
+        //       }
+        //  }
     }
 }

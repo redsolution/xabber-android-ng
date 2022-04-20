@@ -2,7 +2,6 @@ package com.xabber.presentation.application.fragments.chat
 
 import android.os.Bundle
 import android.view.*
-import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.RecyclerView
@@ -10,11 +9,11 @@ import com.xabber.databinding.FragmentChatBinding
 import com.xabber.presentation.application.contract.navigator
 
 
-class ChatFragment() : Fragment(), ChatAdapter.ShowMessage {
+class ChatFragment : Fragment(), ChatAdapter.ShowMessage {
     private var binding: FragmentChatBinding? = null
     lateinit var userName: String
     private val viewModel = ChatViewModel()
-    private var chatAdapter: ChatAdapter? = null
+    private var chatAdapter : ChatAdapter? = null
 
     companion object {
         fun newInstance(_userName: String) = ChatFragment().apply {
@@ -34,7 +33,7 @@ class ChatFragment() : Fragment(), ChatAdapter.ShowMessage {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         initToolbarActions()
-        fillAdapter()
+        fillChat()
     }
 
     private fun initToolbarActions() {
@@ -46,10 +45,13 @@ class ChatFragment() : Fragment(), ChatAdapter.ShowMessage {
         }
     }
 
-    private fun fillAdapter() {
-        val adapter = ChatAdapter(this)
-        binding?.chatList?.adapter = adapter
-        adapter.submitList(viewModel.chat.sortedBy { !it.isPinned })
+    private fun fillChat() {
+        chatAdapter = ChatAdapter(this)
+        binding?.chatList?.adapter = chatAdapter
+        viewModel.chat.observe(viewLifecycleOwner) {
+            chatAdapter!!.submitList(it)
+        }
+
         val simpleCallback = object :
             ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT) {
             override fun onMove(

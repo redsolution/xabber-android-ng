@@ -21,7 +21,9 @@ import com.xabber.presentation.application.fragments.settings.SettingsFragment
 import com.xabber.databinding.ActivityApplicationBinding
 import com.xabber.presentation.application.contract.FragmentAction
 import com.xabber.presentation.application.fragments.account.AccountFragment
-import com.xabber.presentation.application.fragments.message.NewMessageFragment
+import com.xabber.presentation.application.fragments.chat.NewContactFragment
+import com.xabber.presentation.application.fragments.chat.NewGroupFragment
+import com.xabber.presentation.application.fragments.message.NewChatFragment
 import com.xabber.presentation.onboarding.contract.ResultListener
 
 class ApplicationActivity : AppCompatActivity(), ApplicationNavigator, ApplicationToolbarChanger {
@@ -139,8 +141,23 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator, Applicati
             .setCustomAnimations(R.animator.appearance, R.animator.disappearance).addToBackStack(
                 null
             )
-            .replace(R.id.application_container, NewMessageFragment()).commit()
+            .replace(R.id.application_container, NewChatFragment()).commit()
     }
+
+    override fun startNewContactFragment() {
+          supportFragmentManager.beginTransaction()
+            .setCustomAnimations(R.animator.appearance, R.animator.disappearance).addToBackStack(
+                null
+            )
+            .replace(R.id.application_container, NewContactFragment()).commit()
+    }
+
+    override fun startNewGroupFragment(incognito: Boolean) {
+        supportFragmentManager.beginTransaction()
+            .setCustomAnimations(R.animator.appearance, R.animator.disappearance).addToBackStack(
+                null
+            )
+            .replace(R.id.application_container, NewGroupFragment.newInstance(incognito)).commit() }
 
     override fun <T : Parcelable> showResult(result: T) {
 
@@ -165,6 +182,7 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator, Applicati
 
     override fun showNavigationView(isShow: Boolean) {
         binding?.bottomNavBar?.isVisible = isShow
+        binding?.shadow?.isVisible = isShow
     }
 
     override fun toolbarIconChange(fragmentAction: FragmentAction) {

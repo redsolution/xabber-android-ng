@@ -36,7 +36,6 @@ class ChatAdapter(
 
     private fun deleteItem(position : Int) {
      //   val deletedItem =
-
     }
 
     class ChatViewHolder(

@@ -24,6 +24,10 @@ interface Navigator {
 
     fun goBack()
 
+    fun openCamera()
+
+    fun openGallery()
+
     fun <T : Parcelable> showResult(result: T)
     fun <T : Parcelable> giveResult(
         clazz: Class<T>,
