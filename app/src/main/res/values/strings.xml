@@ -135,8 +135,8 @@
     <!-- Calls -->
     <string name="calls_toolbar_title">Calls</string>
     <string name="adt">Calls are coming to Xabber for Android! Not this release, but they are on our roadmap.\n
-    \n Really impatient users can test working VoIP right now in Web and <a href="https://w">IOS</a> version of Xabber.\n\n
-    If you want to keep Xabber strong and speed up Xabber development, take part in our crowdfunding campaign on Patreon!</string>
+    \n Really impatient users can test working VoIP right now in <a href="https://www.xabber.com/web/">Web</a> and <a href="https://www.xabber.com/ios/">IOS</a> version of Xabber.\n\n
+        If you want to keep Xabber strong and speed up Xabber development, take part in our <a href="https://www.patreon.com/xabber">crowdfunding campaign on Patreon!</a></string>
 
 
 </resources>

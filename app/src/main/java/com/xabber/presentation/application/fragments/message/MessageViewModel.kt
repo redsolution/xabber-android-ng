@@ -1,6 +1,8 @@
 package com.xabber.presentation.application.fragments.message
 
 import android.util.Log
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import com.xabber.data.dto.MessageDto
 import com.xabber.data.dto.MessageState
@@ -8,10 +10,11 @@ import com.xabber.data.dto.Sender
 import java.util.*
 
 class MessageViewModel : ViewModel() {
+    private val _messages = MutableLiveData<List<MessageDto>>()
+    val messages: LiveData<List<MessageDto>> = _messages
 
-    val dataset: List<MessageDto>
-        get() {
-            val list: List<MessageDto> = listOf(
+    init {
+        _messages.value = listOf(
                 MessageDto(
                     "1",
                     "qwe1",
@@ -123,18 +126,7 @@ class MessageViewModel : ViewModel() {
                     "Test 2: qkuyhscoiahfohflsjvonnvhdfg",
                 )
             )
-            val mutableList: MutableList<MessageDto> = mutableListOf()
 
-            while (mutableList.size < 1500) {
-                mutableList.addAll(
-                    list.map {
-                        it.messageId = UUID.randomUUID().toString()
-                        it
-                    }
-                )
-                Log.d("qwe", mutableList.size.toString())
-            }
 
-            return mutableList
         }
 }

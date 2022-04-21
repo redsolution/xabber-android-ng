@@ -1,9 +1,11 @@
 package com.xabber.presentation.onboarding.fragments.start
 
+import android.graphics.*
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageView
 import androidx.core.view.isVisible
 import com.xabber.databinding.FragmentStartBinding
 import com.xabber.presentation.onboarding.contract.navigator
@@ -31,6 +33,8 @@ class StartFragment : BaseFragment() {
         toolbarChanger().clearTitle()
         initButton()
     }
+
+
 
     private fun initButton() {
         with(binding!!) {

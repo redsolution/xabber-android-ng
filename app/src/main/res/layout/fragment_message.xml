@@ -9,11 +9,11 @@
         android:id="@+id/message_toolbar"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
+        android:background="@color/blue_300"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        app:menu="@menu/message_menu"
-        android:background="@color/blue_300">
+        app:menu="@menu/message_menu">
 
         <ImageView
             android:id="@+id/message_icon_back"
@@ -21,7 +21,7 @@
             android:layout_height="wrap_content"
             android:src="@drawable/ic_material_arrow_left_24" />
 
-          <androidx.constraintlayout.widget.ConstraintLayout
+        <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content">
 
@@ -67,30 +67,30 @@
                 app:strokeWidth="1dp"
                 tools:visibility="visible" />
 
-              <LinearLayout
-                  android:layout_width="wrap_content"
-                  android:layout_height="wrap_content"
-                  app:layout_constraintTop_toTopOf="parent"
-                  app:layout_constraintEnd_toEndOf="parent"
-                  app:layout_constraintStart_toEndOf="@id/avatar_container"
-                  android:orientation="vertical"
-                  android:layout_marginStart="12dp">
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:orientation="vertical"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toEndOf="@id/avatar_container"
+                app:layout_constraintTop_toTopOf="parent">
 
-                  <TextView
-                      android:layout_width="wrap_content"
-                      android:layout_height="wrap_content"
-                      android:text="Name Surname"
-                      android:textSize="18sp"
-                      android:textStyle="bold" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Name Surname"
+                    android:textSize="18sp"
+                    android:textStyle="bold" />
 
-                  <TextView
-                      android:layout_width="wrap_content"
-                      android:layout_height="wrap_content"
-                      android:text="Status"
-                      android:textSize="13sp" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Status"
+                    android:textSize="13sp" />
 
 
-              </LinearLayout>
+            </LinearLayout>
         </androidx.constraintlayout.widget.ConstraintLayout>
     </com.google.android.material.appbar.MaterialToolbar>
 
@@ -98,8 +98,7 @@
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:background="@color/blue_50"
-
-        app:layout_constraintBottom_toTopOf="@id/input_layout"
+        app:layout_constraintBottom_toTopOf="@id/answer"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/message_toolbar"
@@ -114,6 +113,75 @@
             tools:itemCount="4" />
     </FrameLayout>
 
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/answer"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        app:layout_constraintBottom_toTopOf="@id/line"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        android:padding="8dp"
+        android:visibility="gone"
+        android:layout_marginTop="8dp">
+
+        <ImageView
+            android:id="@+id/forward"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="8dp"
+            android:src="@drawable/ic_forward"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <TextView
+            android:id="@+id/answer_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_margin="8dp"
+            android:gravity="start"
+            android:text="title"
+            android:textColor="@color/blue_300"
+            android:textSize="15sp"
+            app:layout_constraintEnd_toStartOf="@id/close"
+            app:layout_constraintStart_toEndOf="@id/forward"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <TextView
+            android:id="@+id/answer_content"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_below="@id/answer_title"
+            android:layout_marginHorizontal="8dp"
+            android:layout_toStartOf="@id/close"
+            android:text="message"
+            android:textSize="13sp"
+            app:layout_constraintEnd_toStartOf="@id/close"
+            app:layout_constraintStart_toEndOf="@id/forward"
+            app:layout_constraintTop_toBottomOf="@id/answer_title"
+            android:layout_marginBottom="8dp"/>
+
+        <ImageView
+            android:id="@+id/close"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="8dp"
+            android:layout_toEndOf="@id/answer_content"
+            android:src="@drawable/ic_material_close_24"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toEndOf="@id/answer_content"
+            app:layout_constraintTop_toTopOf="parent" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <View
+        android:id="@+id/line"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_width="0dp"
+        android:layout_height="1dp"
+        android:background="@color/grey_200"
+        app:layout_constraintBottom_toTopOf="@id/input_layout"/>
 
     <LinearLayout
         android:id="@+id/input_layout"

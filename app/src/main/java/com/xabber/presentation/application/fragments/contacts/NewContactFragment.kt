@@ -1,13 +1,11 @@
-package com.xabber.presentation.application.fragments.chat
+package com.xabber.presentation.application.fragments.contacts
 
-import android.annotation.SuppressLint
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import com.xabber.R

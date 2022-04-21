@@ -1,30 +1,38 @@
 package com.xabber.presentation.application.activity
 
-import androidx.appcompat.app.AppCompatActivity
+import android.graphics.*
+import android.graphics.BlurMaskFilter.Blur
 import android.os.Bundle
 import android.os.Parcelable
 import android.view.View
+import android.widget.ImageView
+import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.DrawableCompat
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.FragmentManager
 import androidx.lifecycle.LifecycleOwner
 import com.xabber.R
+import com.xabber.data.dto.ChatDto
+import com.xabber.databinding.ActivityApplicationBinding
 import com.xabber.presentation.application.contract.ApplicationNavigator
 import com.xabber.presentation.application.contract.ApplicationToolbarChanger
-import com.xabber.presentation.application.fragments.calls.CallsFragment
-import com.xabber.presentation.application.fragments.chat.ChatFragment
-import com.xabber.presentation.application.fragments.contacts.ContactsFragment
-import com.xabber.presentation.application.fragments.discover.DiscoverFragment
-import com.xabber.presentation.application.fragments.message.MessageFragment
-import com.xabber.presentation.application.fragments.settings.SettingsFragment
-import com.xabber.databinding.ActivityApplicationBinding
 import com.xabber.presentation.application.contract.FragmentAction
 import com.xabber.presentation.application.fragments.account.AccountFragment
-import com.xabber.presentation.application.fragments.chat.NewContactFragment
+import com.xabber.presentation.application.fragments.calls.CallsFragment
+import com.xabber.presentation.application.fragments.chat.ChatFragment
 import com.xabber.presentation.application.fragments.chat.NewGroupFragment
+import com.xabber.presentation.application.fragments.chat.SpecialNotificationsFragment
+import com.xabber.presentation.application.fragments.contacts.ContactsFragment
+import com.xabber.presentation.application.fragments.contacts.EditContactFragment
+import com.xabber.presentation.application.fragments.contacts.NewContactFragment
+import com.xabber.presentation.application.fragments.discover.DiscoverFragment
+import com.xabber.presentation.application.fragments.message.MessageFragment
 import com.xabber.presentation.application.fragments.message.NewChatFragment
+import com.xabber.presentation.application.fragments.settings.SettingsFragment
 import com.xabber.presentation.onboarding.contract.ResultListener
+
 
 class ApplicationActivity : AppCompatActivity(), ApplicationNavigator, ApplicationToolbarChanger {
 
@@ -33,17 +41,30 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator, Applicati
     private val activeFragment: Fragment
         get() = supportFragmentManager.findFragmentById(R.id.application_container)!!
 
+    private val fragmentListner = object : FragmentManager.FragmentLifecycleCallbacks() {
+        override fun onFragmentViewCreated(
+            fm: FragmentManager,
+            f: Fragment,
+            v: View,
+            savedInstanceState: Bundle?
+        ) {
+            super.onFragmentViewCreated(fm, f, v, savedInstanceState)
+        }
+    }
+
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityApplicationBinding.inflate(layoutInflater)
         setContentView(binding!!.root)
+
 //setSupportActionBar(binding?.applicationToolbar)
         userName = intent.getStringExtra("key").toString()
         if (savedInstanceState == null) {
             startChatFragment()
         }
-
+        supportFragmentManager.registerFragmentLifecycleCallbacks(fragmentListner, false)
         initToolbar()
         initBottomNavigation()
     }
@@ -86,8 +107,9 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator, Applicati
 
     private fun initBottomNavigation() {
         binding!!.bottomNavBar.setOnItemSelectedListener { menuItem ->
+            val fragment = activeFragment
             when (menuItem.itemId) {
-                R.id.chats -> launchFragment(ChatFragment())
+                R.id.chats -> launchFragment(ChatFragment.newInstance(""))
                 R.id.calls -> launchFragment(CallsFragment())
                 R.id.contacts -> launchFragment(ContactsFragment())
                 R.id.discover -> launchFragment(DiscoverFragment())
@@ -122,7 +144,7 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator, Applicati
     }
 
 
-    override fun goToMessage() {
+    override fun goToMessage(chat: ChatDto) {
         supportFragmentManager.beginTransaction().replace(
             R.id.application_container, MessageFragment()
         ).addToBackStack(null).commit()
@@ -145,7 +167,7 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator, Applicati
     }
 
     override fun startNewContactFragment() {
-          supportFragmentManager.beginTransaction()
+        supportFragmentManager.beginTransaction()
             .setCustomAnimations(R.animator.appearance, R.animator.disappearance).addToBackStack(
                 null
             )
@@ -157,7 +179,24 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator, Applicati
             .setCustomAnimations(R.animator.appearance, R.animator.disappearance).addToBackStack(
                 null
             )
-            .replace(R.id.application_container, NewGroupFragment.newInstance(incognito)).commit() }
+            .replace(R.id.application_container, NewGroupFragment.newInstance(incognito)).commit()
+    }
+
+    override fun startSpecialNotificationsFragment() {
+        supportFragmentManager.beginTransaction()
+            .setCustomAnimations(R.animator.appearance, R.animator.disappearance).addToBackStack(
+                null
+            )
+            .replace(R.id.application_container, SpecialNotificationsFragment()).commit()
+    }
+
+    override fun startEditContactFragment() {
+        supportFragmentManager.beginTransaction()
+            .setCustomAnimations(R.animator.appearance, R.animator.disappearance).addToBackStack(
+                null
+            )
+            .replace(R.id.application_container, EditContactFragment()).commit()
+    }
 
     override fun <T : Parcelable> showResult(result: T) {
 
@@ -197,5 +236,12 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator, Applicati
         setSupportActionBar(toolbar)
     }
 
+    override fun startAccountFragment() {
+  supportFragmentManager.beginTransaction()
+            .setCustomAnimations(R.animator.appearance, R.animator.disappearance).addToBackStack(
+                null
+            )
+            .replace(R.id.application_container, AccountFragment()).commit()
+    }
 
 }

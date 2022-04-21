@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
+import android.graphics.*
 import android.net.Uri
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
@@ -11,6 +12,7 @@ import android.os.Parcelable
 import android.provider.MediaStore
 import android.provider.Settings
 import android.util.Log
+import android.widget.ImageView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
@@ -50,11 +52,11 @@ class OnBoardingActivity : AppCompatActivity(), Navigator, ToolbarChanger {
         super.onCreate(savedInstanceState)
         binding = ActivityOnboardingBinding.inflate(layoutInflater)
         setContentView(binding?.root)
+        binding?.onboardingToolbar?.title = ""
         setSupportActionBar(binding?.onboardingToolbar)
-        clearTitle()
+
         if (savedInstanceState == null) addStartFragment()
     }
-
 
     private fun addStartFragment() {
         supportFragmentManager.beginTransaction().replace(

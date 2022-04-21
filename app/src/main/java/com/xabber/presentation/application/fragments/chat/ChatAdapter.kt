@@ -29,13 +29,15 @@ class ChatAdapter(
     private val showMessage = _showMessage
 
     interface ShowMessage {
-        fun onClick()
+        fun onClick(chat : ChatDto)
 
         fun onClickMenu()
+
+        fun openSpecialNotificationsFragment()
     }
 
-    private fun deleteItem(position : Int) {
-     //   val deletedItem =
+    private fun deleteItem(position: Int) {
+        //   val deletedItem =
     }
 
     class ChatViewHolder(
@@ -208,7 +210,7 @@ class ChatAdapter(
                     chatMessage.setTypeface(null, Typeface.ITALIC)
 
                 binding.root.setOnClickListener {
-                    showMessage.onClick()
+                    showMessage.onClick(chat)
 
                 }
 
@@ -231,18 +233,35 @@ class ChatAdapter(
             popup.inflate(R.menu.context_menu_chat)
             popup.setOnMenuItemClickListener {
                 when (it.itemId) {
-                    R.id.aboutContact -> Toast.makeText(
-                        holder.itemView.context,
-                        "About contact",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                    R.id.enable -> showMessage.onClickMenu()
+                    R.id.aboutContact -> {
+                        Toast.makeText(
+                            holder.itemView.context,
+                            "About contact",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                    R.id.edit -> {
+                    }
+                    R.id.enable -> {
+                        showMessage.onClickMenu()
+                    }
+                    R.id.customise_notifications -> {
+                        showMessage.openSpecialNotificationsFragment()
+                    }
+                    R.id.delete_chat -> {
+                    }
+                    R.id.delete_contact -> {
+                    }
+                    R.id.block_contact -> {
+                    }
                 }
                 true
             }
             popup.show()
             true
         }
+
+          holder.itemView.setOnClickListener { }
         holder.bind(getItem(position))
 
     }
