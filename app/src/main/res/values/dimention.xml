@@ -5,4 +5,6 @@
     <dimen name="container_width_onboarding">360dp</dimen>
     <integer name="container_container_wrapper_horizontal_width">1</integer>
     <integer name="details_content_container_wrapper_horihontal_width">0</integer>
+    <dimen name="account_status_border">1dp</dimen>
+    <dimen name="account_status">12dp</dimen>
 </resources>

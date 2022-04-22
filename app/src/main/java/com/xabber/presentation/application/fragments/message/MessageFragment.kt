@@ -1,6 +1,8 @@
 package com.xabber.presentation.application.fragments.message
 
+import android.graphics.Canvas
 import android.os.Bundle
+import android.service.autofill.FieldClassification
 import android.text.Editable
 import android.text.TextWatcher
 import android.util.Log.d
@@ -19,6 +21,7 @@ import com.xabber.presentation.application.contract.FragmentAction
 import com.xabber.presentation.application.contract.applicationToolbarChanger
 import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.onboarding.contract.toolbarChanger
+import kotlin.math.abs
 
 
 class MessageFragment : Fragment() {
@@ -43,7 +46,7 @@ class MessageFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        applicationToolbarChanger().showNavigationView(false)
+
         initToolbarActions()
         // binding?.tvUserName?.text = userName
         //   applicationToolbarChanger().toolbarIconChange(FragmentAction(R.drawable.ic_material_check_24, R.string.signup_username_subtitle))
@@ -111,12 +114,44 @@ class MessageFragment : Fragment() {
                 target: RecyclerView.ViewHolder
             ): Boolean = false
 
+            override fun getSwipeEscapeVelocity(defaultValue: Float): Float {
+                return 5000.0f
+            }
+
+
+            override fun getSwipeVelocityThreshold(defaultValue: Float): Float {
+                return 10000000.0f
+            }
+
+            override fun onChildDraw(
+                c: Canvas,
+                recyclerView: RecyclerView,
+                viewHolder: RecyclerView.ViewHolder,
+                dX: Float,
+                dY: Float,
+                actionState: Int,
+                isCurrentlyActive: Boolean
+            ) {
+                if (abs(dX) >= 200f) {
+                    onSwiped(viewHolder, direction = if (Math.signum(dX).toInt() < 0.0 ) ItemTouchHelper.LEFT else ItemTouchHelper.RIGHT) }
+                super.onChildDraw(
+                    c,
+                    recyclerView,
+                    viewHolder,
+                    dX,
+                    dY,
+                    actionState,
+                    isCurrentlyActive
+                )
+            }
+
             override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
                 val position = viewHolder.bindingAdapterPosition
                 when (direction) {
 
                     ItemTouchHelper.LEFT -> {
                         binding?.answer?.visibility = View.VISIBLE
+
                     }
                 }
             }
@@ -131,7 +166,6 @@ class MessageFragment : Fragment() {
 
     override fun onDestroy() {
         super.onDestroy()
-        applicationToolbarChanger().showNavigationView(true)
     }
 
 }

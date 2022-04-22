@@ -64,7 +64,7 @@
                     android:imeOptions="actionNext"
                     android:inputType="textPersonName"
                     android:maxLines="1"
-                    android:nextFocusDown="@id/ed_alias" />
+                    android:nextFocusDown="@id/et_group_id" />
             </LinearLayout>
 
 

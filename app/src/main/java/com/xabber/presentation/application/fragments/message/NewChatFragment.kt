@@ -36,7 +36,6 @@ class NewChatFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        applicationToolbarChanger().showNavigationView(false)
         changeTitle()
         initToolbarAction()
         initButton()
@@ -49,22 +48,21 @@ class NewChatFragment : Fragment() {
     }
 
     private fun initToolbarAction() {
-        binding?.newChatToolbar?.setNavigationIcon(R.drawable.ic_arrow_left)
+       binding?.newChatToolbar?.setNavigationIcon(R.drawable.ic_arrow_left)
         binding?.newChatToolbar?.setNavigationOnClickListener { navigator().goBack() }
 
     }
 
     private fun initButton() {
         with(binding!!) {
-            rlAddContact.setOnClickListener { navigator().startNewContactFragment() }
-            rlCreateGroup.setOnClickListener {  navigator().startNewGroupFragment(false) }
-            rvCreateGroupIncognito.setOnClickListener { navigator().startNewGroupFragment(true) }
+            rlAddContact.setOnClickListener { navigator().showNewContact() }
+            rlCreateGroup.setOnClickListener {  navigator().showNewGroup(false) }
+            rvCreateGroupIncognito.setOnClickListener { navigator().showNewGroup(true) }
         }
     }
 
 
     override fun onDestroy() {
         super.onDestroy()
-        applicationToolbarChanger().showNavigationView(true)
     }
 }

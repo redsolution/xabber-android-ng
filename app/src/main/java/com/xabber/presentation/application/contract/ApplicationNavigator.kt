@@ -12,21 +12,19 @@ interface ApplicationNavigator {
 
     fun goBack()
 
-    fun goToMessage(chat: ChatDto)
+    fun showMessage(chat: ChatDto)
 
-    fun goToAccount()
+    fun showAccount()
 
-    fun goToNewMessage()
+    fun showNewChat()
 
-    fun startNewContactFragment()
+    fun showNewContact()
 
-    fun startNewGroupFragment(incognito: Boolean)
+    fun showNewGroup(incognito: Boolean)
 
-    fun startSpecialNotificationsFragment()
+    fun showSpecialNotificationSettings()
 
-    fun startEditContactFragment()
-
-    fun startAccountFragment()
+    fun showEditContact()
 
     fun <T : Parcelable> showResult(result: T)
     fun <T : Parcelable> giveResult(

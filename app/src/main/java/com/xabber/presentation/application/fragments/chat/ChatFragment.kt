@@ -3,14 +3,11 @@ package com.xabber.presentation.application.fragments.chat
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
-import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.view.*
-import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.RecyclerView
-import com.xabber.R
 import com.xabber.data.dto.ChatDto
 import com.xabber.databinding.FragmentChatBinding
 import com.xabber.presentation.application.contract.navigator
@@ -41,17 +38,14 @@ class ChatFragment : Fragment(), ChatAdapter.ShowMessage {
         super.onViewCreated(view, savedInstanceState)
         initToolbarActions()
         fillChat()
-        binding?.avatarContainer?.setOnClickListener {
-            navigator().startAccountFragment()
-        }
     }
 
     private fun initToolbarActions() {
         binding?.avatarContainer?.setOnClickListener {
-            navigator().goToAccount()
+            navigator().showAccount()
         }
         binding?.imPlus?.setOnClickListener {
-            navigator().goToNewMessage()
+            navigator().showNewChat()
         }
     }
 
@@ -131,11 +125,11 @@ class ChatFragment : Fragment(), ChatAdapter.ShowMessage {
 
 
     override fun onClick(chat: ChatDto) {
-        navigator().goToMessage(chat)
+        navigator().showMessage(chat)
     }
 
     override fun openSpecialNotificationsFragment() {
-        navigator().startSpecialNotificationsFragment()
+        navigator().showSpecialNotificationSettings()
     }
 
     override fun onClickMenu() {

@@ -13,7 +13,7 @@
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.READ_INTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
-   <uses-permission android:name="android.permission.CAMERA"/>
+    <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
 
@@ -27,7 +27,7 @@
         <activity
             android:name="com.xabber.presentation.application.activity.ApplicationActivity"
             android:exported="false"
-            android:theme="@style/ThemeApplication"/>
+            android:theme="@style/ThemeApplication" />
 
         <activity
             android:name="com.xabber.presentation.onboarding.activity.OnBoardingActivity"

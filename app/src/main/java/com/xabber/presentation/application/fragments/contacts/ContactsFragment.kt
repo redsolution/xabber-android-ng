@@ -24,7 +24,5 @@ class ContactsFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        applicationToolbarChanger().setTitle(R.string.bottom_nav_contact_label)
-
     }
 }

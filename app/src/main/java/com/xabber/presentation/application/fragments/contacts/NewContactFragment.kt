@@ -31,21 +31,21 @@ class NewContactFragment : Fragment() {
         binding?.newContactToolbar?.setNavigationOnClickListener { navigator().goBack() }
         initEditTexts()
         binding?.tvTitle?.setOnClickListener {
-           it.isEnabled = binding?.etName.toString().isNotEmpty()
+       //    it.isEnabled = binding?.etName.toString().isNotEmpty()
         }
     }
 
     private fun initEditTexts() {
         with(binding!!) {
 
-            etName.setOnFocusChangeListener { _, hasFocused ->
-                if (hasFocused) subtitleName.setTextColor(resources.getColor(R.color.blue_500))
-                else subtitleName.setTextColor(resources.getColor(R.color.grey_600))
-            }
-            edAlias.setOnFocusChangeListener { _, hasFocused ->
-                if (hasFocused) alias.setTextColor(resources.getColor(R.color.blue_500))
-                else alias.setTextColor(resources.getColor(R.color.grey_600))
-            }
+        //    etName.setOnFocusChangeListener { _, hasFocused ->
+        //        if (hasFocused) subtitleName.setTextColor(resources.getColor(R.color.blue_500))
+        //        else subtitleName.setTextColor(resources.getColor(R.color.grey_600))
+        //    }
+       //     edAlias.setOnFocusChangeListener { _, hasFocused ->
+       //         if (hasFocused) alias.setTextColor(resources.getColor(R.color.blue_500))
+       //         else alias.setTextColor(resources.getColor(R.color.grey_600))
+       //     }
 
             val textWatcher = object : TextWatcher {
                 override fun beforeTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {
@@ -55,11 +55,11 @@ class NewContactFragment : Fragment() {
                 }
 
                 override fun afterTextChanged(p0: Editable?) {
-                    check.isVisible = p0.toString().isNotEmpty()
+       //             check.isVisible = p0.toString().isNotEmpty()
 
                 }
             }
-            etCircle.addTextChangedListener(textWatcher)
+       //     etCircle.addTextChangedListener(textWatcher)
 
 
             val textWatcher1 = object : TextWatcher {
@@ -71,23 +71,23 @@ class NewContactFragment : Fragment() {
 
                 override fun afterTextChanged(p0: Editable?) {
                     if (p0.toString().isNotEmpty()) {
-                        etName.setCompoundDrawables(
-                            null,
-                            null,
-                            resources.getDrawable(R.drawable.ic_material_close_24),
-                            null
-                        )
+         //               etName.setCompoundDrawables(
+         //                   null,
+            //                null,
+           //                 resources.getDrawable(R.drawable.ic_material_close_24),
+            //                null
+           //             )
                     } else {
-                        etName.setCompoundDrawables(
-                            null,
-                            null,
-                            resources.getDrawable(R.drawable.ic_qrcode_scan),
-                            null
-                        )
+           //             etName.setCompoundDrawables(
+           //                 null,
+            //                null,
+            //                resources.getDrawable(R.drawable.ic_qrcode_scan),
+            //                null
+            //            )
                     }
                 }
             }
-            etName.addTextChangedListener(textWatcher1)
+          //  etName.addTextChangedListener(textWatcher1)
         }
     }
 }

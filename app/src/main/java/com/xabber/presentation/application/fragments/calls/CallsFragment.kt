@@ -30,7 +30,7 @@ class CallsFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        applicationToolbarChanger().setTitle(R.string.bottom_nav_call_label)
+
 binding?.tvAdt?.movementMethod = LinkMovementMethod.getInstance()
     }
 }

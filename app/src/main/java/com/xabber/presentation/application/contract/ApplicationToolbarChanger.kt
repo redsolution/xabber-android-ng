@@ -9,16 +9,10 @@ fun Fragment.applicationToolbarChanger(): ApplicationToolbarChanger = requireAct
 
 interface ApplicationToolbarChanger {
 
-    fun setShowBack(isVisible: Boolean)
-
     fun setTitle(titleResId: Int)
 
     fun showNavigationView(isShow: Boolean)
 
-    fun toolbarIconChange(fragmentAction : FragmentAction)
-
-   // fun hideToolbar()
-fun changeToolbar(toolbar: androidx.appcompat.widget.Toolbar)
 
 }
 

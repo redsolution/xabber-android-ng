@@ -1,24 +1,20 @@
 package com.xabber.presentation.application.activity
 
-import android.graphics.*
-import android.graphics.BlurMaskFilter.Blur
 import android.os.Bundle
 import android.os.Parcelable
 import android.view.View
-import android.widget.ImageView
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.ContextCompat
-import androidx.core.graphics.drawable.DrawableCompat
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentManager
+import androidx.fragment.app.FragmentTransaction
 import androidx.lifecycle.LifecycleOwner
 import com.xabber.R
 import com.xabber.data.dto.ChatDto
 import com.xabber.databinding.ActivityApplicationBinding
 import com.xabber.presentation.application.contract.ApplicationNavigator
 import com.xabber.presentation.application.contract.ApplicationToolbarChanger
-import com.xabber.presentation.application.contract.FragmentAction
 import com.xabber.presentation.application.fragments.account.AccountFragment
 import com.xabber.presentation.application.fragments.calls.CallsFragment
 import com.xabber.presentation.application.fragments.chat.ChatFragment
@@ -34,7 +30,7 @@ import com.xabber.presentation.application.fragments.settings.SettingsFragment
 import com.xabber.presentation.onboarding.contract.ResultListener
 
 
-class ApplicationActivity : AppCompatActivity(), ApplicationNavigator, ApplicationToolbarChanger {
+class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
 
     private var binding: ActivityApplicationBinding? = null
     lateinit var userName: String
@@ -49,84 +45,62 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator, Applicati
             savedInstanceState: Bundle?
         ) {
             super.onFragmentViewCreated(fm, f, v, savedInstanceState)
+            updateUi()
         }
     }
 
+    private fun updateUi() {
+        if (supportFragmentManager.backStackEntryCount > 0) {
+            supportActionBar?.setDisplayHomeAsUpEnabled(true)
+            supportActionBar?.setDisplayShowHomeEnabled(true)
 
+            binding?.bottomNavBar?.isVisible = false
+            binding?.shadow?.isVisible = false
+
+        } else {
+            supportActionBar?.setDisplayHomeAsUpEnabled(true)
+            supportActionBar?.setDisplayShowHomeEnabled(true)
+
+            binding?.bottomNavBar?.isVisible = true
+            binding?.shadow?.isVisible = true
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityApplicationBinding.inflate(layoutInflater)
         setContentView(binding!!.root)
-
-//setSupportActionBar(binding?.applicationToolbar)
         userName = intent.getStringExtra("key").toString()
         if (savedInstanceState == null) {
-            startChatFragment()
+            launchFragment(ChatFragment.newInstance(""))
         }
         supportFragmentManager.registerFragmentLifecycleCallbacks(fragmentListner, false)
-        initToolbar()
         initBottomNavigation()
     }
 
-    private fun initToolbar() {
-        //  binding?.imSearch?.setOnClickListener {
-        //      binding?.searchView?.visibility = View.VISIBLE
-        //      binding?.searchView?.isIconified = false
-        //      binding?.searchView?.onActionViewExpanded()
-
-
-        //      binding?.imBack?.visibility = View.VISIBLE
-        //      binding?.applicationToolbar?.setBackgroundColor(resources.getColor(R.color.white))
-        //      binding?.imSearch?.visibility = View.GONE
-        //      binding?.imPlus?.visibility = View.GONE
-        //       binding?.avatarContainer?.visibility = View.GONE
-        //       binding?.tvTitle?.visibility = View.GONE
-        //      binding?.avatarStatus?.visibility = View.GONE
-
-
-        //  }
-
-        //    binding?.imBack?.setOnClickListener {
-        //       binding?.searchView?.visibility = View.GONE
-        //       binding?.imBack?.visibility = View.GONE
-        //        binding?.imSearch?.visibility = View.VISIBLE
-        //        binding?.imPlus?.visibility = View.VISIBLE
-        //       binding?.avatarContainer?.visibility = View.VISIBLE
-        //      binding?.tvTitle?.visibility = View.VISIBLE
-        //      binding?.avatarStatus?.visibility = View.VISIBLE
-        //      binding?.applicationToolbar?.setBackgroundColor(resources.getColor(R.color.blue_300))
-        //  binding?.shadowToolbar?.visibility = View.GONE
-    }
-
-    //    binding?.imPlus?.setOnClickListener {
-    //        binding?.bottomNavBar?.visibility = View.GONE
-    //         goToMessage()
-    //     }
-
-
     private fun initBottomNavigation() {
         binding!!.bottomNavBar.setOnItemSelectedListener { menuItem ->
-            val fragment = activeFragment
             when (menuItem.itemId) {
-                R.id.chats -> launchFragment(ChatFragment.newInstance(""))
-                R.id.calls -> launchFragment(CallsFragment())
-                R.id.contacts -> launchFragment(ContactsFragment())
-                R.id.discover -> launchFragment(DiscoverFragment())
-                R.id.settings -> launchFragment(SettingsFragment())
+                R.id.chats -> {
+                    if (activeFragment !is ChatFragment) {
+                        launchFragment(ChatFragment.newInstance(""))
+                    } else {
+                        Toast.makeText(this, "Button press", Toast.LENGTH_SHORT).show()
+                    }
+                }
+                R.id.calls -> if (activeFragment !is CallsFragment) launchFragment(CallsFragment())
+                R.id.contacts -> if (activeFragment !is ContactsFragment) launchFragment(
+                    ContactsFragment()
+                )
+                R.id.discover -> if (activeFragment !is DiscoverFragment) launchFragment(
+                    DiscoverFragment()
+                )
+                R.id.settings -> if (activeFragment !is SettingsFragment) launchFragment(
+                    SettingsFragment()
+                )
             }
             true
         }
-    }
-
-
-    private fun startChatFragment() {
-        supportFragmentManager.beginTransaction().replace(
-            R.id.application_container,
-            ChatFragment.newInstance(userName)
-        )
-            .commit()
-        binding?.bottomNavBar?.visibility = View.VISIBLE
     }
 
     private fun launchFragment(fragment: Fragment) {
@@ -136,7 +110,13 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator, Applicati
     }
 
     private fun launchFragmentInStack(fragment: Fragment) {
+        supportFragmentManager.beginTransaction()
+            .replace(R.id.application_container, fragment).addToBackStack(null).commit()
+    }
 
+    override fun onSupportNavigateUp(): Boolean {
+        onBackPressed()
+        return true
     }
 
     override fun goBack() {
@@ -144,58 +124,32 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator, Applicati
     }
 
 
-    override fun goToMessage(chat: ChatDto) {
-        supportFragmentManager.beginTransaction().replace(
-            R.id.application_container, MessageFragment()
-        ).addToBackStack(null).commit()
+    override fun showMessage(chat: ChatDto) {
+        launchFragmentInStack(MessageFragment())
     }
 
-    override fun goToAccount() {
-        supportFragmentManager.beginTransaction()
-            .setCustomAnimations(R.animator.appearance, R.animator.disappearance).addToBackStack(
-                null
-            )
-            .replace(R.id.application_container, AccountFragment()).commit()
+    override fun showAccount() {
+        launchFragmentInStack(AccountFragment())
     }
 
-    override fun goToNewMessage() {
-        supportFragmentManager.beginTransaction()
-            .setCustomAnimations(R.animator.appearance, R.animator.disappearance).addToBackStack(
-                null
-            )
-            .replace(R.id.application_container, NewChatFragment()).commit()
+    override fun showNewChat() {
+        launchFragmentInStack(NewChatFragment())
     }
 
-    override fun startNewContactFragment() {
-        supportFragmentManager.beginTransaction()
-            .setCustomAnimations(R.animator.appearance, R.animator.disappearance).addToBackStack(
-                null
-            )
-            .replace(R.id.application_container, NewContactFragment()).commit()
+    override fun showNewContact() {
+        launchFragmentInStack(NewContactFragment())
     }
 
-    override fun startNewGroupFragment(incognito: Boolean) {
-        supportFragmentManager.beginTransaction()
-            .setCustomAnimations(R.animator.appearance, R.animator.disappearance).addToBackStack(
-                null
-            )
-            .replace(R.id.application_container, NewGroupFragment.newInstance(incognito)).commit()
+    override fun showNewGroup(incognito: Boolean) {
+        launchFragmentInStack(NewGroupFragment.newInstance(incognito))
     }
 
-    override fun startSpecialNotificationsFragment() {
-        supportFragmentManager.beginTransaction()
-            .setCustomAnimations(R.animator.appearance, R.animator.disappearance).addToBackStack(
-                null
-            )
-            .replace(R.id.application_container, SpecialNotificationsFragment()).commit()
+    override fun showSpecialNotificationSettings() {
+        launchFragmentInStack(SpecialNotificationsFragment())
     }
 
-    override fun startEditContactFragment() {
-        supportFragmentManager.beginTransaction()
-            .setCustomAnimations(R.animator.appearance, R.animator.disappearance).addToBackStack(
-                null
-            )
-            .replace(R.id.application_container, EditContactFragment()).commit()
+    override fun showEditContact() {
+        launchFragmentInStack(EditContactFragment())
     }
 
     override fun <T : Parcelable> showResult(result: T) {
@@ -210,38 +164,9 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator, Applicati
 
     }
 
-    override fun setShowBack(isVisible: Boolean) {
-        supportActionBar?.setDisplayHomeAsUpEnabled(isVisible)
-        supportActionBar?.setDisplayShowHomeEnabled(isVisible)
-    }
-
     override fun setTitle(titleResId: Int) {
         //      binding?.tvTitle?.setText(titleResId)
     }
 
-    override fun showNavigationView(isShow: Boolean) {
-        binding?.bottomNavBar?.isVisible = isShow
-        binding?.shadow?.isVisible = isShow
-    }
-
-    override fun toolbarIconChange(fragmentAction: FragmentAction) {
-        //    binding?.applicationToolbar?.menu?.clear()
-        val iconDrawable =
-            DrawableCompat.wrap(ContextCompat.getDrawable(this, fragmentAction.iconRes)!!)
-
-    }
-
-    override fun changeToolbar(toolbar: androidx.appcompat.widget.Toolbar) {
-
-        setSupportActionBar(toolbar)
-    }
-
-    override fun startAccountFragment() {
-  supportFragmentManager.beginTransaction()
-            .setCustomAnimations(R.animator.appearance, R.animator.disappearance).addToBackStack(
-                null
-            )
-            .replace(R.id.application_container, AccountFragment()).commit()
-    }
 
 }

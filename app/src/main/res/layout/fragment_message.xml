@@ -210,7 +210,7 @@
             android:layout_height="wrap_content"
             android:layout_gravity="center_vertical"
             android:layout_weight="1"
-            android:background="@android:color/transparent"
+            android:background="@android:color/white"
             android:cursorVisible="true"
             android:fadingEdge="vertical"
             android:filterTouchesWhenObscured="false"
