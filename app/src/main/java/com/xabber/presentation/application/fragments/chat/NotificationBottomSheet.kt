@@ -9,14 +9,11 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.core.view.updateLayoutParams
-import androidx.fragment.app.DialogFragment
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.xabber.data.util.dp
-import com.xabber.databinding.BottomSheetAvatarBinding
 import com.xabber.databinding.BottomSheetTurnOffNotificationsBinding
-import com.xabber.presentation.onboarding.fragments.signup.EmojiAvatarBottomSheet
 
 class NotificationBottomSheet : BottomSheetDialogFragment() {
     private var binding: BottomSheetTurnOffNotificationsBinding? = null
@@ -47,40 +44,37 @@ class NotificationBottomSheet : BottomSheetDialogFragment() {
         val behavior: BottomSheetBehavior<*> = BottomSheetBehavior.from(
             bottomSheet
         )
-        bottomSheet.updateLayoutParams {
-            this.height = 180.dp
-        }
-        behavior.state = BottomSheetBehavior.STATE_EXPANDED
+
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         with(binding!!) {
-            tv15min.setOnClickListener {
+            rl15min.setOnClickListener {
                 Toast.makeText(
                     context, "Notifications are disabled for 15 minutes", Toast.LENGTH_SHORT
                 ).show()
                 dismiss()
             }
-            tv1hour.setOnClickListener {
+           rl1hour.setOnClickListener {
                 Toast.makeText(
                     context, "Notifications are disabled for 1 hour", Toast.LENGTH_SHORT
                 ).show()
                 dismiss()
             }
-            tv1day.setOnClickListener {
+            rl2hour.setOnClickListener {
                 Toast.makeText(
                     context, "Notifications are disabled for 2 hours", Toast.LENGTH_SHORT
                 ).show()
                 dismiss()
             }
-            tv2days.setOnClickListener {
+            rl1day.setOnClickListener {
                 Toast.makeText(
                     context, "Notifications are disabled for 1 day", Toast.LENGTH_SHORT
                 ).show()
                 dismiss()
             }
-            tvForever.setOnClickListener {
+            rlForever.setOnClickListener {
                 Toast.makeText(
                     context, "Notifications are disabled for forever", Toast.LENGTH_SHORT
                 ).show()

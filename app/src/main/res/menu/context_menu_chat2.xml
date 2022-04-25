@@ -2,8 +2,8 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
 
     <item
-        android:id="@+id/to_pin"
-        android:title="To pin" />
+        android:id="@+id/unpin"
+        android:title="Unpin" />
 
     <item
         android:id="@+id/delete"

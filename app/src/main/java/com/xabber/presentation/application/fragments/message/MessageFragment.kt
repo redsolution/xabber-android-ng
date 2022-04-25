@@ -1,7 +1,11 @@
 package com.xabber.presentation.application.fragments.message
 
+import android.annotation.SuppressLint
+import android.content.Context
 import android.graphics.Canvas
+import android.os.Build
 import android.os.Bundle
+import android.os.Vibrator
 import android.service.autofill.FieldClassification
 import android.text.Editable
 import android.text.TextWatcher
@@ -120,7 +124,7 @@ class MessageFragment : Fragment() {
 
 
             override fun getSwipeVelocityThreshold(defaultValue: Float): Float {
-                return 10000000.0f
+                return 0.5f
             }
 
             override fun onChildDraw(
@@ -132,24 +136,37 @@ class MessageFragment : Fragment() {
                 actionState: Int,
                 isCurrentlyActive: Boolean
             ) {
-                if (abs(dX) >= 200f) {
-                    onSwiped(viewHolder, direction = if (Math.signum(dX).toInt() < 0.0 ) ItemTouchHelper.LEFT else ItemTouchHelper.RIGHT) }
                 super.onChildDraw(
                     c,
                     recyclerView,
                     viewHolder,
-                    dX,
+                    dX/4,
                     dY,
                     actionState,
                     isCurrentlyActive
                 )
             }
 
+
+            @SuppressLint("ServiceCast")
             override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
                 val position = viewHolder.bindingAdapterPosition
                 when (direction) {
 
                     ItemTouchHelper.LEFT -> {
+                   //     val vibrator =
+                   //         context?.getSystemService(requireActivity().VIBRATOR_MANAGER_SERVICE) as Vibrator
+                  //      if (Build.VERSION.SDK_INT >= 26) {
+                   //         vibrator.vibrate(
+                   //             android.os.VibrationEffect.createOneShot(
+                   //                 100,
+                     //               android.os.VibrationEffect.DEFAULT_AMPLITUDE
+                    //            )
+                    //        )
+                   //     } else {
+                   //         vibrator.vibrate(100)
+                   //     }
+
                         binding?.answer?.visibility = View.VISIBLE
 
                     }

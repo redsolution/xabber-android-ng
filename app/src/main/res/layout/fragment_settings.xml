@@ -5,234 +5,290 @@
     android:layout_height="match_parent"
     android:orientation="vertical">
 
-    <androidx.constraintlayout.widget.ConstraintLayout
-        android:id="@+id/cl_header"
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/settings_toolbar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@drawable/about_backdrop">
-
-        <ImageView
-            android:id="@+id/im_logo"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="top"
-            android:layout_marginStart="16dp"
-            android:layout_marginTop="16dp"
-            android:paddingTop="16dp"
-            android:src="@drawable/xabber_logo_80dp"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
-
-        <TextView
-            android:id="@+id/title_xabber"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Xabber"
-            android:textColor="@color/white"
-            android:textSize="17sp"
-            app:layout_constraintBottom_toTopOf="@id/subtitle"
-            app:layout_constraintStart_toEndOf="@id/im_logo"
-            app:layout_constraintTop_toTopOf="@id/im_logo" />
-
-
-        <TextView
-            android:id="@+id/subtitle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="open source XMPP client"
-            android:textSize="13sp"
-            android:textColor="@color/white"
-            app:layout_constraintStart_toEndOf="@id/im_logo"
-            app:layout_constraintTop_toBottomOf="@id/title_xabber" />
+        android:background="@color/blue_300"
+        app:title="Settings">
 
         <ImageView
             android:id="@+id/im_mode"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_gravity="end"
             android:layout_margin="16dp"
             android:src="@drawable/ic_moon_rotated_45"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
+    </com.google.android.material.appbar.MaterialToolbar>
 
-        <TextView
-            android:id="@+id/text_account"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="16dp"
-            android:layout_marginTop="32dp"
-            android:text="Account Xabber"
-            android:textColor="@color/white"
-            app:layout_constraintBottom_toTopOf="@id/text_login"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/im_logo" />
-
-        <TextView
-            android:id="@+id/text_login"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="16dp"
-            android:textColor="@color/white"
-            android:text="user.userov@redsolution.com"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/text_account"
-            android:layout_marginBottom="12dp"/>
-
-        <ImageView
-            android:id="@+id/image_cloud"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_margin="16dp"
-            android:src="@drawable/ic_cloud_check"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent" />
-
-    </androidx.constraintlayout.widget.ConstraintLayout>
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
 
     <LinearLayout
-        android:orientation="vertical"
-        android:id="@+id/cv_accounts"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:padding="16dp">
-
-
-        <TextView
-            android:id="@+id/text_view_xmpp_accounts"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="XMPP accounts"
-           android:layout_gravity="start" />
-
-
-       <include
-           android:id="@+id/acc"
-           layout="@layout/item_account_for_preference"
-           app:layout_constraintTop_toBottomOf="@id/text_view_xmpp_accounts"
-          />
-
-        <Button
-            android:id="@+id/settings_btn_add_account"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Add account"
-            android:background="@color/transparent"
-           android:layout_gravity="center" />
-    </LinearLayout>
+        android:orientation="vertical">
 
         <LinearLayout
+            android:id="@+id/linear_accounts"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical">
+            android:orientation="vertical"
+            android:padding="16dp">
 
-            <RelativeLayout
-        android:id="@+id/settings"
-        android:layout_width="match_parent"
-        android:layout_height="48dp"
-        android:clickable="true"
-        android:focusable="true" >
 
-        <ImageView
-            android:id="@+id/im_settings"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:layout_alignParentStart="true"
-            android:layout_alignParentTop="true"
-            android:layout_alignParentBottom="true"
-            android:layout_marginStart="16dp"
-            android:layout_marginTop="12dp"
-            android:layout_marginEnd="32dp"
-            android:layout_marginBottom="12dp"
-            app:srcCompat="@drawable/ic_settings" />
+            <TextView
+                android:id="@+id/text_view_xmpp_accounts"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="start"
+                android:text="XMPP accounts" />
+
+
+            <include
+                android:id="@+id/acc"
+                layout="@layout/item_account_for_preference"
+                app:layout_constraintTop_toBottomOf="@id/text_view_xmpp_accounts" />
+
+            <Button
+                android:id="@+id/settings_btn_add_account"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:background="@color/transparent"
+                android:text="Add account" />
+        </LinearLayout>
 
         <TextView
-            android:id="@+id/tv_settings"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="@color/blue_600"
+            android:text="Interface"
+            android:padding="12dp"/>
+
+        <LinearLayout
+            android:id="@+id/linear_chat"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:layout_alignParentTop="true"
-            android:layout_alignParentEnd="true"
-            android:layout_alignParentBottom="true"
-            android:layout_toEndOf="@+id/im_settings"
-            android:background="@color/transparent"
-            android:gravity="center_vertical"
-            android:text="Settings"
-            android:textAllCaps="false"
-            android:textSize="20sp" />
-    </RelativeLayout>
+            android:layout_height="wrap_content"
+            android:clickable="true"
+            android:focusable="true"
+            android:orientation="vertical"
+            android:padding="12dp">
 
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="start"
+                android:textColor="@color/black"
+                android:textSize="16sp"
+                android:text="Chat"/>
 
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="start"
+                android:textColor="@color/gray_text_600"
+                android:text="Chat appearance customization"
+                android:textSize="14sp"/>
+        </LinearLayout>
 
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/grey_300"/>
 
-            <RelativeLayout
-        android:id="@+id/about_application"
-        android:layout_width="match_parent"
-        android:layout_height="48dp"
-        android:clickable="true"
-        android:focusable="true" >
+          <LinearLayout
+            android:id="@+id/linear_contacts_settings"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:clickable="true"
+            android:focusable="true"
+            android:orientation="vertical"
+              android:padding="16dp"
+              >
 
-        <ImageView
-            android:id="@+id/im_abbout_application"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:layout_alignParentStart="true"
-            android:layout_alignParentTop="true"
-            android:layout_alignParentBottom="true"
-            android:layout_marginStart="16dp"
-            android:layout_marginTop="12dp"
-            android:layout_marginEnd="32dp"
-            android:layout_marginBottom="12dp"
-            app:srcCompat="@drawable/ic_information" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="start"
+                android:textColor="@color/black"
+                android:textSize="16sp"
+                android:text="Contacts"/>
 
-                <TextView
-                    android:id="@+id/tv_about_application"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:layout_alignParentTop="true"
-                    android:layout_alignParentEnd="true"
-                    android:layout_alignParentBottom="true"
-                    android:layout_toEndOf="@+id/im_abbout_application"
-                    android:background="@color/transparent"
-                    android:gravity="center_vertical"
-                    android:text="About application"
-                    android:textAllCaps="false"
-                    android:textSize="20sp" />
-    </RelativeLayout>
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="start"
+                android:textColor="@color/gray_text_600"
+                android:text="Contact list display settings"
+                android:textSize="14sp"/>
         </LinearLayout>
 
 
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="start"
+            android:textColor="@color/light_blue_600"
+            android:text="Settings"
+            android:padding="12dp"
+            android:layout_marginTop="8dp"/>
+
+        <LinearLayout
+            android:id="@+id/linear_launch"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:padding="16dp"
+            android:orientation="vertical"
+            android:clickable="true"
+            android:focusable="true">
+
+             <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="start"
+                android:textColor="@color/black"
+                android:textSize="16sp"
+                android:text="Launch when phone is turned on"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="start"
+                android:textColor="@color/gray_text_600"
+                android:text="Function will not work if Xabber is installed on SD card"
+                android:textSize="14sp"/>
 
 
-     <RelativeLayout
-        android:id="@+id/rl_output"
-        android:layout_width="match_parent"
-        android:layout_height="48dp"
-        android:clickable="true"
-        android:focusable="true" >
+        </LinearLayout>
 
-        <ImageView
-            android:id="@+id/im_output"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:layout_alignParentStart="true"
-            android:layout_alignParentTop="true"
-            android:layout_alignParentBottom="true"
-            android:layout_marginStart="16dp"
-            android:layout_marginTop="12dp"
-            android:layout_marginEnd="32dp"
-            android:layout_marginBottom="12dp"
-            app:srcCompat="@drawable/ic_baseline_exit_to_app_24" />
+     <View
+         android:layout_width="match_parent"
+         android:layout_height="1dp"
+         android:background="@color/grey_300"/>
 
-         <TextView
-             android:id="@+id/tv_exit"
-             android:layout_width="match_parent"
-             android:layout_height="match_parent"
-             android:layout_alignParentTop="true"
-             android:layout_alignParentEnd="true"
-             android:layout_alignParentBottom="true"
-             android:layout_toEndOf="@+id/im_output"
-             android:background="@color/transparent"
-             android:gravity="center_vertical"
-             android:text="Exit"
-             android:textSize="20sp" />
-    </RelativeLayout>
-    
+        <LinearLayout
+            android:id="@+id/linear_Alerts"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:padding="16dp"
+            android:orientation="vertical"
+            android:clickable="true"
+            android:focusable="true">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="start"
+                android:textColor="@color/black"
+                android:textSize="16sp"
+                android:text="Alerts"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="start"
+                android:textColor="@color/gray_text_600"
+                android:text="Alert options"
+                android:textSize="14sp"/>
     </LinearLayout>
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="@color/grey_300"/>
+
+            <LinearLayout
+            android:id="@+id/linear_connection_settings"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:padding="16dp"
+            android:orientation="vertical"
+                android:clickable="true"
+                android:focusable="true">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="start"
+                android:textColor="@color/black"
+                android:textSize="16sp"
+                android:text="Connection settings"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="start"
+                android:textColor="@color/gray_text_600"
+                android:text="Connection options settings"
+                android:textSize="14sp"/>
+    </LinearLayout>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/grey_300"/>
+
+        <LinearLayout
+            android:id="@+id/linear_presence_settings"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:padding="16dp"
+            android:orientation="vertical"
+            android:focusable="true"
+            android:clickable="true">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Presence"
+            android:layout_gravity="center"
+            android:textColor="@color/black"
+            android:textSize="16sp" />
+
+              <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="start"
+                android:textColor="@color/gray_text_600"
+                android:text="Presence settings"
+                android:textSize="14sp"/>
+        </LinearLayout>
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/grey_300"/>
+
+
+        <LinearLayout
+            android:id="@+id/linear_safety"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:padding="16dp"
+            android:orientation="vertical"
+            android:focusable="true"
+            android:clickable="true">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Safety"
+                android:layout_gravity="center"
+                android:textColor="@color/black"
+                android:textSize="16sp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="start"
+                android:textColor="@color/gray_text_600"
+                android:text="Safety settings"
+                android:textSize="14sp"/>
+        </LinearLayout>
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/grey_300"/>
+        </LinearLayout></ScrollView> </LinearLayout>

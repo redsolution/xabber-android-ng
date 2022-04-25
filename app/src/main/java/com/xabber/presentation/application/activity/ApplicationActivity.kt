@@ -8,16 +8,15 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentManager
-import androidx.fragment.app.FragmentTransaction
 import androidx.lifecycle.LifecycleOwner
 import com.xabber.R
 import com.xabber.data.dto.ChatDto
 import com.xabber.databinding.ActivityApplicationBinding
 import com.xabber.presentation.application.contract.ApplicationNavigator
-import com.xabber.presentation.application.contract.ApplicationToolbarChanger
 import com.xabber.presentation.application.fragments.account.AccountFragment
 import com.xabber.presentation.application.fragments.calls.CallsFragment
 import com.xabber.presentation.application.fragments.chat.ChatFragment
+import com.xabber.presentation.application.fragments.chat.ChatSettingsFragment
 import com.xabber.presentation.application.fragments.chat.NewGroupFragment
 import com.xabber.presentation.application.fragments.chat.SpecialNotificationsFragment
 import com.xabber.presentation.application.fragments.contacts.ContactsFragment
@@ -37,7 +36,7 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
     private val activeFragment: Fragment
         get() = supportFragmentManager.findFragmentById(R.id.application_container)!!
 
-    private val fragmentListner = object : FragmentManager.FragmentLifecycleCallbacks() {
+    private val fragmentListener = object : FragmentManager.FragmentLifecycleCallbacks() {
         override fun onFragmentViewCreated(
             fm: FragmentManager,
             f: Fragment,
@@ -47,6 +46,18 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
             super.onFragmentViewCreated(fm, f, v, savedInstanceState)
             updateUi()
         }
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        binding = ActivityApplicationBinding.inflate(layoutInflater)
+        setContentView(binding!!.root)
+        userName = intent.getStringExtra("key").toString()
+        if (savedInstanceState == null) {
+            launchFragment(ChatFragment.newInstance(""))
+        }
+        supportFragmentManager.registerFragmentLifecycleCallbacks(fragmentListener, false)
+        initBottomNavigation()
     }
 
     private fun updateUi() {
@@ -66,24 +77,12 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
         }
     }
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        binding = ActivityApplicationBinding.inflate(layoutInflater)
-        setContentView(binding!!.root)
-        userName = intent.getStringExtra("key").toString()
-        if (savedInstanceState == null) {
-            launchFragment(ChatFragment.newInstance(""))
-        }
-        supportFragmentManager.registerFragmentLifecycleCallbacks(fragmentListner, false)
-        initBottomNavigation()
-    }
-
     private fun initBottomNavigation() {
         binding!!.bottomNavBar.setOnItemSelectedListener { menuItem ->
             when (menuItem.itemId) {
                 R.id.chats -> {
                     if (activeFragment !is ChatFragment) {
-                        launchFragment(ChatFragment.newInstance(""))
+                        launchFragment(ChatFragment.newInstance("name.surname@redsolution.com"))
                     } else {
                         Toast.makeText(this, "Button press", Toast.LENGTH_SHORT).show()
                     }
@@ -110,8 +109,12 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
     }
 
     private fun launchFragmentInStack(fragment: Fragment) {
-        supportFragmentManager.beginTransaction()
-            .replace(R.id.application_container, fragment).addToBackStack(null).commit()
+        supportFragmentManager.beginTransaction().setCustomAnimations(
+            R.animator.in_right,
+            R.animator.out_left,
+            R.animator.in_left,
+            R.animator.out_right
+        ).replace(R.id.application_container, fragment).addToBackStack(null).commit()
     }
 
     override fun onSupportNavigateUp(): Boolean {
@@ -122,7 +125,6 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
     override fun goBack() {
         onBackPressed()
     }
-
 
     override fun showMessage(chat: ChatDto) {
         launchFragmentInStack(MessageFragment())
@@ -152,21 +154,10 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
         launchFragmentInStack(EditContactFragment())
     }
 
-    override fun <T : Parcelable> showResult(result: T) {
-
+    override fun showChatSettings() {
+        launchFragmentInStack(ChatSettingsFragment())
     }
 
-    override fun <T : Parcelable> giveResult(
-        clazz: Class<T>,
-        owner: LifecycleOwner,
-        listener: ResultListener<T>
-    ) {
-
-    }
-
-    override fun setTitle(titleResId: Int) {
-        //      binding?.tvTitle?.setText(titleResId)
-    }
 
 
 }

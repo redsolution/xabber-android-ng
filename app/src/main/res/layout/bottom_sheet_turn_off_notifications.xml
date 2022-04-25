@@ -2,49 +2,189 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
+    android:layout_height="300dp"
     android:orientation="vertical"
+    android:minHeight="200dp"
     android:padding="12dp"
     android:background="@drawable/bottom_sheet_background">
 
-    <TextView
-        android:id="@+id/tv_15min"
+    <RelativeLayout
+        android:id="@+id/rl_15min"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Turn off for 15 minutes"
-        style="@style/BottomSheetTextView"
-        app:drawableLeftCompat="@drawable/ic_bell_15m" />
+        android:layout_height="48dp"
+        android:clickable="true"
+        android:focusable="true" >
 
-    <TextView
-        android:id="@+id/tv_1hour"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Turn off for 1 hour"
-        style="@style/BottomSheetTextView"
-        app:drawableLeftCompat="@drawable/ic_bell_1h" />
+        <ImageView
+            android:id="@+id/im_15min"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_alignParentStart="true"
+            android:layout_alignParentTop="true"
+            android:layout_alignParentBottom="true"
+            android:layout_marginStart="16dp"
+            android:layout_marginTop="12dp"
+            android:layout_marginEnd="32dp"
+            android:layout_marginBottom="12dp"
+            app:srcCompat="@drawable/ic_bell_15m" />
 
-    <TextView
-        android:id="@+id/tv_1day"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Turn off for 2 hours"
-        style="@style/BottomSheetTextView"
-        app:drawableLeftCompat="@drawable/ic_bell_2h" />
+        <TextView
+            android:id="@+id/tv_15min"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_alignParentTop="true"
+            android:layout_alignParentEnd="true"
+            android:layout_alignParentBottom="true"
+            android:layout_toEndOf="@+id/im_15min"
+            android:background="@color/transparent"
+            android:gravity="center_vertical"
+            android:textColor="@color/black"
+            android:text="Turn off for 15 minutes"
+            android:textSize="17sp" />
+    </RelativeLayout>
 
-    <TextView
-        android:id="@+id/tv_2days"
+    <RelativeLayout
+        android:id="@+id/rl_1hour"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Turn off for 1 day"
-        style="@style/BottomSheetTextView"
-        app:drawableLeftCompat="@drawable/ic_bell_1d" />
+        android:layout_height="48dp"
+        android:clickable="true"
+        android:focusable="true" >
 
-    <TextView
-        android:id="@+id/tv_forever"
+        <ImageView
+            android:id="@+id/im_1hour"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_alignParentStart="true"
+            android:layout_alignParentTop="true"
+            android:layout_alignParentBottom="true"
+            android:layout_marginStart="16dp"
+            android:layout_marginTop="12dp"
+            android:layout_marginEnd="32dp"
+            android:layout_marginBottom="12dp"
+            app:srcCompat="@drawable/ic_bell_1h" />
+
+        <TextView
+            android:id="@+id/tv_1hour"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_alignParentTop="true"
+            android:layout_alignParentEnd="true"
+            android:layout_alignParentBottom="true"
+            android:layout_toEndOf="@+id/im_1hour"
+            android:background="@color/transparent"
+            android:gravity="center_vertical"
+             android:textColor="@color/black"
+            android:text="Turn off for 1 hour"
+            android:textSize="17sp" />
+    </RelativeLayout>
+
+    <RelativeLayout
+        android:id="@+id/rl_2hour"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Turn off forever"
-        style="@style/BottomSheetTextView"
-        app:drawableLeftCompat="@drawable/ic_bell_off_forever" />
+        android:layout_height="48dp"
+        android:layout_marginBottom="8dp"
+        android:clickable="true"
+        android:focusable="true" >
+
+        <ImageView
+            android:id="@+id/im_2hour"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_alignParentStart="true"
+            android:layout_alignParentTop="true"
+            android:layout_alignParentBottom="true"
+            android:layout_marginStart="16dp"
+            android:layout_marginTop="12dp"
+            android:layout_marginEnd="32dp"
+            android:layout_marginBottom="12dp"
+            app:srcCompat="@drawable/ic_bell_2h" />
+
+        <TextView
+            android:id="@+id/tv_2hour"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_alignParentTop="true"
+            android:layout_alignParentEnd="true"
+            android:layout_alignParentBottom="true"
+            android:layout_toEndOf="@id/im_2hour"
+            android:background="@color/transparent"
+            android:gravity="center_vertical"
+             android:textColor="@color/black"
+            android:text="Turn off for 2 hour"
+            android:textSize="17sp" />
+    </RelativeLayout>
+
+    <RelativeLayout
+        android:id="@+id/rl_1day"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:layout_marginBottom="8dp"
+        android:clickable="true"
+        android:focusable="true" >
+
+        <ImageView
+            android:id="@+id/im_1day"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_alignParentStart="true"
+            android:layout_alignParentTop="true"
+            android:layout_alignParentBottom="true"
+            android:layout_marginStart="16dp"
+            android:layout_marginTop="12dp"
+            android:layout_marginEnd="32dp"
+            android:layout_marginBottom="12dp"
+            app:srcCompat="@drawable/ic_bell_1d" />
+
+        <TextView
+            android:id="@+id/tv_1day"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_alignParentTop="true"
+            android:layout_alignParentEnd="true"
+            android:layout_alignParentBottom="true"
+            android:layout_toEndOf="@id/im_1day"
+            android:background="@color/transparent"
+            android:gravity="center_vertical"
+             android:textColor="@color/black"
+            android:text="Turn off for 1 day"
+            android:textSize="17sp" />
+    </RelativeLayout>
+
+
+      <RelativeLayout
+        android:id="@+id/rl_forever"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:layout_marginBottom="8dp"
+        android:clickable="true"
+        android:focusable="true" >
+
+        <ImageView
+            android:id="@+id/im_forever"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_alignParentStart="true"
+            android:layout_alignParentTop="true"
+            android:layout_alignParentBottom="true"
+            android:layout_marginStart="16dp"
+            android:layout_marginTop="12dp"
+            android:layout_marginEnd="32dp"
+            android:layout_marginBottom="12dp"
+            app:srcCompat="@drawable/ic_bell_off_forever" />
+
+        <TextView
+            android:id="@+id/tv_forever"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_alignParentTop="true"
+            android:layout_alignParentEnd="true"
+            android:layout_alignParentBottom="true"
+            android:layout_toEndOf="@id/im_forever"
+            android:background="@color/transparent"
+            android:gravity="center_vertical"
+            android:text="Turn off forever"
+             android:textColor="@color/black"
+            android:textSize="17sp" />
+    </RelativeLayout>
 
 </LinearLayout>
