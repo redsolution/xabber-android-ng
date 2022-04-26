@@ -9,9 +9,11 @@ interface ApplicationNavigator {
 
     fun goBack()
 
-    fun showMessage(chat: ChatDto)
+    fun showMessage(jid: String)
 
     fun showAccount()
+
+    fun showContacts()
 
     fun showNewChat()
 

@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_marginLeft="14dp"
+    android:layout_marginRight="12dp"
+    android:layout_centerVertical="true"
+    android:id="@+id/avatarView"
+    >
+
+    <de.hdodenhof.circleimageview.CircleImageView
+        android:id="@+id/ivAvatar"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_marginRight="2dp"
+        tools:src="@tools:sample/avatars"
+        />
+
+    <ImageView
+        android:id="@+id/ivStatusGroupchat"
+        android:layout_width="16dp"
+        android:layout_height="16dp"
+        android:src="@drawable/ic_status_combined"
+        android:layout_gravity="bottom|right"
+        android:visibility="gone"
+        />
+
+    <ImageView
+        android:id="@+id/ivStatus"
+        android:layout_width="16dp"
+        android:layout_height="16dp"
+        android:src="@drawable/ic_status_combined"
+        android:layout_gravity="bottom|right"
+        />
+
+    <ImageView
+        android:id="@+id/ivOnlyStatus"
+        android:layout_width="16dp"
+        android:layout_height="16dp"
+        android:src="@drawable/ic_status_combined"
+        android:visibility="gone"
+        />
+
+    <de.hdodenhof.circleimageview.CircleImageView
+        android:id="@+id/ivAvatarOverlay"
+        android:layout_width="40dp"
+        app:srcCompat="@drawable/ic_stripes"
+        android:layout_height="40dp"
+        app:civ_circle_background_color="@color/transparent"
+        android:visibility="gone"/>
+
+</FrameLayout>

@@ -1,13 +1,17 @@
 package com.xabber.presentation.application.fragments.chat
 
 import android.graphics.Canvas
+import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
 import android.util.TypedValue
 import android.view.*
+import android.widget.PopupMenu
+import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.snackbar.Snackbar
 import com.xabber.R
 import com.xabber.data.dto.ChatDto
 import com.xabber.databinding.FragmentChatBinding
@@ -41,6 +45,7 @@ class ChatFragment : Fragment(), ChatAdapter.ChatListener {
         super.onViewCreated(view, savedInstanceState)
         initToolbarActions()
         fillChat()
+        initButton()
     }
 
     private fun initToolbarActions() {
@@ -50,13 +55,49 @@ class ChatFragment : Fragment(), ChatAdapter.ChatListener {
         binding?.imPlus?.setOnClickListener {
             navigator().showNewChat()
         }
+
+        val popup = PopupMenu(context, binding?.tvChatTitle, Gravity.RIGHT)
+        popup.inflate(R.menu.context_menu_title_chat)
+        popup.setOnMenuItemClickListener {
+            val list = viewModel.chat.value
+            val sortedList = ArrayList<ChatDto>()
+            when (it.itemId) {
+                R.id.recent_chats -> {
+                    for (i in 0 until list!!.size) {
+                        if (!list[i].isArchived) sortedList.add(list[i])
+                    }
+                    sortedList.sort()
+                    chatAdapter.submitList(sortedList)
+                }
+                R.id.unread -> {
+                    for (i in 0 until list!!.size) {
+                        if (list[i].unread > 0) sortedList.add(list[i])
+                    }
+                    chatAdapter.submitList(sortedList)
+                }
+                R.id.archive -> {
+                    for (i in 0 until list!!.size) {
+                        if (list[i].isArchived) sortedList.add(list[i])
+                    }
+                    chatAdapter.submitList(sortedList)
+                }
+            }
+            true
+        }
+        binding?.tvChatTitle?.setOnClickListener { popup.show() }
     }
+
 
     private fun fillChat() {
         binding?.chatList?.adapter = chatAdapter
         viewModel.chat.observe(viewLifecycleOwner) {
-            it.sort()
-            chatAdapter.submitList(it)
+            val sortedList = ArrayList<ChatDto>()
+            for (i in 0 until it!!.size) {
+                if (!it[i].isArchived) sortedList.add(it[i])
+            }
+            sortedList.sort()
+            chatAdapter.submitList(sortedList)
+            binding?.groupChatEmpty?.isVisible = it.isEmpty()
         }
 
         val simpleCallback = object :
@@ -88,11 +129,11 @@ class ChatFragment : Fragment(), ChatAdapter.ChatListener {
                 )
 
                 val context = recyclerView.context
-                val icon = context.resources.getDrawable(R.drawable.ic_archive_put)
+                val icon = context.resources.getDrawable(R.drawable.ic_arcived)
                 val itemView = viewHolder.itemView
                 val typedValue = TypedValue()
                 context.theme.resolveAttribute(R.attr.action_with_chat_background, typedValue, true)
-                val background = ColorDrawable(typedValue.data)
+                val background = ColorDrawable(resources.getColor(R.color.grey_400))
 
                 val backgroundOffset = 20
                 val iconMargin = (itemView.height - icon.intrinsicHeight) / 2
@@ -126,14 +167,20 @@ class ChatFragment : Fragment(), ChatAdapter.ChatListener {
             }
 
             override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
-                val position = viewHolder.bindingAdapterPosition
-                        movieChatToArchive(position)
+                //    chatAdapter.onSwipeChatItem(viewHolder as ChatAdapter.ChatViewHolder)
 
-                }
+                val position = viewHolder.bindingAdapterPosition
+
+                movieChatToArchive(position)
             }
+        }
 
         val itemTouchHelper = ItemTouchHelper(simpleCallback)
         itemTouchHelper.attachToRecyclerView(binding?.chatList)
+    }
+
+    private fun initButton() {
+        binding?.emptyButton?.setOnClickListener { navigator().showContacts() }
     }
 
     private fun movieChatToArchive(position: Int) {
@@ -142,11 +189,8 @@ class ChatFragment : Fragment(), ChatAdapter.ChatListener {
     }
 
 
-    //   chatAdapter!!.submitList(viewModel.chat.sortedBy { !it.isPinned })
-
-
     override fun onClickItem(chat: ChatDto) {
-        navigator().showMessage(chat)
+        navigator().showMessage("")
     }
 
     override fun pinChat(id: Int, position: Int) {
@@ -165,12 +209,32 @@ class ChatFragment : Fragment(), ChatAdapter.ChatListener {
 
     override fun turnOfNotifications(id: Int) {
         NotificationBottomSheet().show(parentFragmentManager, null)
-        viewModel.turnOfNotifications(id)
+        //  viewModel.turnOfNotifications(id)
     }
 
     override fun openSpecialNotificationsFragment() {
         navigator().showSpecialNotificationSettings()
     }
 
+    private fun showSnackbar(view: View) {
+        var snackbar: Snackbar? = null
+        snackbar?.dismiss()
 
+        val archived = false
+        snackbar = view.let {
+            Snackbar.make(
+                it,
+                if (!archived) R.string.snackbar_title_to_archive else R.string.snackbar_title_pulled_from_archive,
+                Snackbar.LENGTH_LONG
+            )
+        }
+
+        snackbar.setAction(
+            R.string.snackbar_button_cancel
+        ) {
+        }
+
+        snackbar.setActionTextColor(Color.YELLOW)
+        snackbar.show()
+    }
 }

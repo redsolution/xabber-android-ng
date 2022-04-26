@@ -83,7 +83,7 @@ class SignupAvatarFragment : Fragment() {
 //                        checkAvatarSizeAndPublish()
             Toast.makeText(
                 requireContext(),
-                resources.getString(R.string.feature_not_created), Toast.LENGTH_SHORT
+                resources.getString(R.string.application_title), Toast.LENGTH_SHORT
             ).show()
         }
     }

@@ -10,7 +10,7 @@
 
     <!-- Onboarding -->
 
-     <!-- StartFragment -->
+    <!-- StartFragment -->
     <string name="xabber_image_content_description">Xabber application icon</string>
     <string name="start_title_label">Xabber</string>
     <string name="start_subtitle_label">World\'s best XMPP experience</string>
@@ -19,7 +19,7 @@
     <string name="start_comment_label">New accounts are created for free on xabber.org domain.You can use Xabber to connect to any compatible XMPP account on any server.</string>
     <string name="skip_button_label">Skip</string>
 
-     <!-- SigninFragment -->
+    <!-- SigninFragment -->
     <string name="signin_toolbar_title_1">Sign In</string>
     <string name="signin_toolbar_title_2">Server features</string>
     <string name="signin_title_label_1">Hi! Connect to your existing XMPP ID</string>
@@ -44,7 +44,7 @@
     <string name="feature_name_9">Publish-subscribe</string>
     <string name="feature_name_10">File upload</string>
 
-     <!-- Signup -->
+    <!-- Signup -->
     <string name="signup_next_button">Next</string>
 
     <!-- SignupNicknameFragment -->
@@ -102,37 +102,94 @@
 
     <!-- Toolbar -->
     <string name="application_title">Xabber</string>
-    <string name="no_internet_title">Connecting...</string>
+    <string name="no_internet_title">Connecting…</string>
 
-    <!-- Chat Popup Menu -->
+
+    <!-- CHAT FRAGMENT -->
+
+    <string name="avatar_account_content_description">Account avatar</string>
+    <string name="image_plus_content_description">Add chat</string>
+    <string name="recent_chats">Recent</string>
+    <string name="unread_chats">Unread</string>
+    <string name="archived_chat">Archive</string>
+    <string name="snackbar_title_to_archive">Moved to archive</string>
+    <string name="snackbar_title_pulled_from_archive">Pulled from archive</string>
+    <string name="snackbar_button_cancel">Cancel</string>
+    <string name="ctat_list_is_empty_text">Your chats will appear here</string>
+    <string name="chat_list_is_empty_button">Let\'s go!</string>
+    <string name="unread_list_is_empty_text">No unread chats</string>
+    <string name="archived_list_is_empty_text">No archived chats</string>
+
+    <!-- Chat Context Menu -->
+    <string name="to_pin">To pin</string>
+    <string name="unpin">Unpin</string>
     <string name="delete_chat">Delete chat</string>
-    <string name="enable_notification">Enable notification</string>
-    <string name="block">Block</string>
-    <string name="sub_menu_title">More</string>
+    <string name="turn_off_notifications">Turn off notifications</string>
+    <string name="customize_notifications">Customize notifications</string>
 
-    <!-- Dialog Chat Menu -->
+    <!-- Dialog Deleting Chat -->
     <string name="dialog_delete_chat_title">Deleting chat</string>
-    <string name="dialog_delete_chat_description">Are you shure</string>
+    <string name="dialog_delete_chat_description">Are you shure you want to delete chat with $s? It will be impossible to undo this action</string>
     <string name="dialog_delete_chat_button_positive">Delete</string>
     <string name="dialog_delete_chat_button_cancel">Cancel</string>
 
-    <!-- Shared Values -->
-    <string name="feature_not_created">This feature has not been implemented yet</string>
+    <!-- Turn Off Notifications -->
+    <string name="for_15_min">Turn off for 15 minutes</string>
+    <string name="for_1_hour">Turn off for 1 hour</string>
+    <string name="for_2_hours">Turn off for 2 hours</string>
+    <string name="for_1_day">Turn off for 1 day</string>
+    <string name="forever">Turn off forever</string>
+
+    <!-- Add Chat/Group Fragments -->
+    <string name="add_contact">Add contact</string>
+    <string name="create_group">Create group</string>
+    <string name="create_group_incognito">Create group incognito</string>
+
+    <string name="name_interlocutor">Name of the interlocutor</string>
+    <string name="name_interlocutor_hint">user@domain.name</string>
+    <string name="alias">Alias (not necessary)</string>
+    <string name="group_name">Group name</string>
+    <string name="group_name_hint">Public group</string>
+    <string name="group_identifier">Group identifier</string>
+    <string name="group_identifier_hint">public-group</string>
+    <string name="group_identifier_text">\@redsolution.com</string>
+    <string name="description">Description</string>
+    <string name="description_hint">Best group ever!</string>
+    <string name="participation">Participation</string>
+    <string name="by_invation">By invation</string>
+    <string name="free">Free</string>
+    <string name="indexing">Indexing</string>
+    <string name="no">No</string>
+    <string name="local">Local</string>
+    <string name="global">Global</string>
+    <string name="circles">Circles</string>
+    <string name="circles_hint">Add new circles…</string>
+    <string name="group_incognito_name_hint">Incognito group</string>
+
+    <!-- Special Notifications Fragment -->
+    <string name="use_special_settings_title">Use special settings</string>
+    <string name="special_settings_description">Special notification settings have higher priority over the other notification settings</string>
+    <string name="messages_preview_title">Messages preview</string>
+    <string name="messages_preview_description">Display text messages</string>
+    <string name="notification_sound_title">Notifications sound</string>
+    <string name="notification_sound_state">Default ($s)</string>
+    <string name="vibration_title">Vibration</string>
+    <string name="vibration_state_default">Default</string>
+    <string name="vibration_state_disabled">Disabled</string>
+    <string name="vibration_state_short">Short vibration</string>
+    <string name="vibration_state_long">Long vibration</string>
+    <string name="vibration_state_mute_mode">Only in mute mode</string>
+    <string name="vibration_dialog_cancel">Cancel</string>
 
 
+    <!-- MESSAGE FRAGMENT -->
 
-
-
-
-
-
-    <!-- Message -->
     <string name="chat_delay">sent at %s</string>
     <string name="chat_typed">entered at %s</string>
     <string name="edited">(edited at %s)</string>
     <string name="skip">Skip</string>
 
-    <!-- Calls -->
+    <!-- CallsFragment -->
     <string name="calls_toolbar_title">Calls</string>
     <string name="adt">Calls are coming to Xabber for Android! Not this release, but they are on our roadmap.\n
     \n Really impatient users can test working VoIP right now in <a href="https://www.xabber.com/web/">Web</a> and <a href="https://www.xabber.com/ios/">IOS</a> version of Xabber.\n\n

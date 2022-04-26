@@ -31,6 +31,8 @@ class ChatAdapter(
 
         fun pinChat(id: Int, position: Int)
 
+      //  fun swipeItem(id: Int)
+
         fun unPinChat(id: Int, position: Int)
 
         fun deleteChat(id: Int)
@@ -38,6 +40,7 @@ class ChatAdapter(
         fun turnOfNotifications(id: Int)
 
         fun openSpecialNotificationsFragment()
+
     }
 
 
@@ -262,6 +265,10 @@ class ChatAdapter(
                 }
 
 
+                fun onSwipeChatItem() {
+//listener.swipeItem(chat.id)
+
+                }
             }
         }
     }
@@ -276,7 +283,6 @@ class ChatAdapter(
     override fun onBindViewHolder(holder: ChatViewHolder, position: Int) {
 
 
-        holder.itemView.setOnClickListener { }
         holder.bind(getItem(position), listener)
 
     }

@@ -36,7 +36,7 @@
             />
 
         <de.hdodenhof.circleimageview.CircleImageView
-            android:id="@+id/avatar"
+            android:id="@+id/im_avatar"
             android:layout_width="38dp"
             android:layout_height="38dp"
             android:background="@color/blue_300"

@@ -14,6 +14,7 @@ class ChatViewModel : ViewModel() {
      var chat = MutableLiveData<ArrayList<ChatDto>>()
 
     init {
+        Log.d("Init", "Init   bbbbbbbbbbb")
         chat.value = ArrayList<ChatDto>()
         chat.value!!.addAll(mutableListOf(ChatDto(
             1,
@@ -82,8 +83,15 @@ class ChatViewModel : ViewModel() {
     }
 
     fun movieChatToArchive(id: Int) {
-       chatRepository.movieChatToArchive(id)
+   //    chatRepository.movieChatToArchive(id)
    //     chat.value = chatRepository.getChatList()
+         for (i in 0 until chat.value!!.size) {
+            if (chat.value!![i].id == id) {
+                val archivedChat = chat.value!![i].copy(isArchived = !chat.value!![i].isArchived)
+                chat.value!!.removeAt(i)
+               chat.value!!.add(archivedChat)
+            }
+        }
     }
 
     fun deleteChat(id: Int) {

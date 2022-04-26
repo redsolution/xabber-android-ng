@@ -33,9 +33,10 @@
                 app:layout_constraintTop_toTopOf="parent">
 
                 <ImageView
-                    android:id="@+id/avatar"
+                    android:id="@+id/im_avatar"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
+                    android:contentDescription="@string/avatar_account_content_description"
                     android:focusable="false"
                     app:srcCompat="@drawable/ic_xabber_icon"
                     tools:src="@tools:sample/avatars" />
@@ -62,11 +63,11 @@
                 tools:visibility="visible" />
 
             <TextView
-                android:id="@+id/tvTitle"
+                android:id="@+id/tv_chat_title"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="16dp"
-                android:text="Xabber"
+                android:text="@string/application_title"
                 android:textColor="@color/black"
                 android:textSize="20sp"
                 app:layout_constraintBottom_toBottomOf="parent"
@@ -74,10 +75,11 @@
                 app:layout_constraintTop_toTopOf="parent" />
 
             <ImageView
-                android:id="@+id/imPlus"
+                android:id="@+id/im_plus"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="24dp"
+                android:contentDescription="@string/image_plus_content_description"
                 android:src="@drawable/ic_material_plus_24"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintEnd_toEndOf="parent"
@@ -96,4 +98,43 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/chat_toolbar"
         tools:listitem="@layout/item_chat" />
+
+
+    <ImageView
+        android:id="@+id/empty_logo"
+        android:layout_width="90dp"
+        android:layout_height="90dp"
+        android:src="@drawable/xabber_logo_80dp"
+        app:layout_constraintBottom_toTopOf="@id/empty_text"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        android:layout_marginBottom="12dp"/>
+
+    <TextView
+        android:id="@+id/empty_text"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/ctat_list_is_empty_text"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintTop_toTopOf="parent"/>
+
+    <Button
+        android:id="@+id/empty_button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/chat_list_is_empty_button"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/empty_text"
+        android:layout_marginTop="12dp"
+        android:visibility="gone"/>
+
+    <androidx.constraintlayout.widget.Group
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/group_chat_empty"
+        app:constraint_referenced_ids="empty_logo, empty_text"
+        android:visibility="gone"/>
 </androidx.constraintlayout.widget.ConstraintLayout>

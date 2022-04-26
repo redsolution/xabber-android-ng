@@ -126,12 +126,16 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
         onBackPressed()
     }
 
-    override fun showMessage(chat: ChatDto) {
+    override fun showMessage(jid: String) {
         launchFragmentInStack(MessageFragment())
     }
 
     override fun showAccount() {
         launchFragmentInStack(AccountFragment())
+    }
+
+    override fun showContacts() {
+       launchFragment(ContactsFragment())
     }
 
     override fun showNewChat() {
