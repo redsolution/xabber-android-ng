@@ -45,4 +45,5 @@
         <item name="shadow_cast_only_background">true</item>
         <item name="shadow_with_content">true</item>
     </style>
+
 </resources>

@@ -19,21 +19,22 @@ import com.bumptech.glide.Glide
 import com.xabber.R
 import com.xabber.data.dto.ChatDto
 import com.xabber.databinding.ItemChatBinding
+import com.xabber.presentation.application.util.DateFormatter
 import com.xabber.presentation.application.util.getStatusColor
 import com.xabber.presentation.application.util.getStatusIcon
 
 class ChatAdapter(
-    val listener: ChatListener
+    private val listener: ChatListener
 ) : ListAdapter<ChatDto, ChatAdapter.ChatViewHolder>(DiffUtilCallback) {
 
     interface ChatListener {
         fun onClickItem(chat: ChatDto)
 
-        fun pinChat(id: Int, position: Int)
+        fun pinChat(id: Int)
 
-      //  fun swipeItem(id: Int)
+        //  fun swipeItem(id: Int)
 
-        fun unPinChat(id: Int, position: Int)
+        fun unPinChat(id: Int)
 
         fun deleteChat(id: Int)
 
@@ -50,6 +51,8 @@ class ChatAdapter(
 
         fun bind(chat: ChatDto, listener: ChatListener) {
             with(binding) {
+
+                chatName.text = chat.username
                 if (chat.isPinned) {
                     chatGround.setBackgroundColor(
                         itemView.resources.getColor(
@@ -63,6 +66,60 @@ class ChatAdapter(
                             R.color.white,
                             itemView.context.theme
                         )
+                    )
+
+                }
+                chatMuted.isVisible = chat.isMuted
+                chatPinned.isVisible = chat.isPinned
+                unreadMessagesWrapper.isVisible = chat.unread > 0
+                unreadMessagesCount.text = chat.unread.toString()
+
+
+                var image: Int? = null
+                var tint: Int? = null
+                chatStatusImage.isVisible = (chat.unread < 1)
+                when (chat.state) {
+                    MessageState.SENDING -> {
+                        tint = R.color.grey_500
+                        image = R.drawable.ic_material_clock_outline_24
+                    }
+                    MessageState.SENT -> {
+                        tint = R.color.grey_500
+                        image = R.drawable.ic_material_check_24
+                    }
+                    MessageState.DELIVERED -> {
+                        tint = R.color.green_500
+                        image = R.drawable.ic_material_check_24
+                    }
+                    MessageState.READ -> {
+                        tint = R.color.green_500
+                        image = R.drawable.ic_material_check_all_24
+                    }
+                    MessageState.ERROR -> {
+                        tint = R.color.red_500
+                        image = R.drawable.ic_material_alert_circle_outline_24
+                    }
+                    MessageState.NOT_SENT -> {
+                        tint = R.color.grey_500
+                        image = R.drawable.ic_material_clock_outline_24
+                    }
+                    MessageState.UPLOADING -> {
+                        tint = R.color.blue_500
+                        image = R.drawable.ic_material_clock_outline_24
+                    }
+                    MessageState.NONE -> {
+                        chatStatusImage.isVisible = false
+                    }
+                }
+                if (tint != null && image != null) {
+                    Glide.with(itemView)
+                        .load(image)
+                        .centerCrop()
+                        .skipMemoryCache(true)
+                        .into(chatStatusImage)
+                    chatStatusImage.setColorFilter(
+                        ContextCompat.getColor(itemView.context, tint),
+                        PorterDuff.Mode.SRC_IN
                     )
                 }
 
@@ -87,6 +144,15 @@ class ChatAdapter(
                     .skipMemoryCache(true)
                     .into(chatImage)
 
+
+                chatTimestamp.text = DateFormatter.dateFormat(chat.date.toString())
+
+                chatMessage.text = chat.message
+
+
+
+
+
                 val chatStatusContainer = chatStatusContainer12
                 //   if (chat.entity in listOf(CONTACT, ISSUE))
                 //        chatStatusContainer12
@@ -101,88 +167,7 @@ class ChatAdapter(
                     )
                 )
 
-                val chatStatus = chatStatus12
-                //   if (chat.entity in listOf(CONTACT, ISSUE))
-                //        chatStatus12
-                //     else
-                //          chatStatus16
 
-                chat.entity.getStatusIcon()?.let { iconId ->
-                    Glide.with(itemView)
-                        .load(iconId)
-                        .centerCrop()
-                        .skipMemoryCache(true)
-                        .into(chatStatus)
-                    chatStatus.background = ResourcesCompat.getDrawable(
-                        itemView.resources,
-                        iconId,
-                        itemView.context.theme
-                    )
-                }
-
-                chatName.text = chat.username
-
-                // допилить
-                chatTimestamp.text = "12:00"
-
-                chatMuted.isVisible = chat.isMuted
-                chatPinned.isVisible = chat.isPinned
-
-                when {
-                    chat.unread != 0 -> {
-                        unreadMessagesWrapper.isVisible = true
-                        unreadMessagesCount.text = chat.unread.toString()
-                    }
-                    else -> {
-                        chatStatusImage.isVisible = true
-                        var image: Int? = null
-                        var tint: Int? = null
-                        when (chat.state) {
-                            MessageState.SENDING -> {
-                                tint = R.color.grey_500
-                                image = R.drawable.ic_material_clock_outline_24
-                            }
-                            MessageState.SENT -> {
-                                tint = R.color.grey_500
-                                image = R.drawable.ic_material_check_24
-                            }
-                            MessageState.DELIVERED -> {
-                                tint = R.color.green_500
-                                image = R.drawable.ic_material_check_24
-                            }
-                            MessageState.READ -> {
-                                tint = R.color.green_500
-                                image = R.drawable.ic_material_check_all_24
-                            }
-                            MessageState.ERROR -> {
-                                tint = R.color.red_500
-                                image = R.drawable.ic_material_alert_circle_outline_24
-                            }
-                            MessageState.NOT_SENT -> {
-                                tint = R.color.grey_500
-                                image = R.drawable.ic_material_clock_outline_24
-                            }
-                            MessageState.UPLOADING -> {
-                                tint = R.color.blue_500
-                                image = R.drawable.ic_material_clock_outline_24
-                            }
-                            MessageState.NONE -> {
-                                chatStatusImage.isVisible = false
-                            }
-                        }
-                        if (tint != null && image != null) {
-                            Glide.with(itemView)
-                                .load(image)
-                                .centerCrop()
-                                .skipMemoryCache(true)
-                                .into(chatStatusImage)
-                            chatStatusImage.setColorFilter(
-                                ContextCompat.getColor(itemView.context, tint),
-                                PorterDuff.Mode.SRC_IN
-                            )
-                        }
-                    }
-                }
 
                 if (chat.hasAttachment)
                     chatMessage.setTextColor(
@@ -243,9 +228,9 @@ class ChatAdapter(
                     popup.setOnMenuItemClickListener {
 
                         when (it.itemId) {
-                            R.id.unpin -> listener.unPinChat(chat.id, absoluteAdapterPosition)
+                            R.id.unpin -> listener.unPinChat(chat.id)
                             R.id.to_pin -> {
-                                listener.pinChat(chat.id, absoluteAdapterPosition)
+                                listener.pinChat(chat.id)
                             }
                             R.id.turn_of_notifications -> {
                                 listener.turnOfNotifications(chat.id)

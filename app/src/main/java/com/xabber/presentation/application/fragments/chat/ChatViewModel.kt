@@ -22,7 +22,7 @@ class ChatViewModel : ViewModel() {
             "qwe",
             "Наталья Барабанщикова",
             "Attachment",
-            Date(1643155200),
+            "2022 04 26 17:05:57 вт",
             MessageState.READ,
             false,
             true,
@@ -44,7 +44,7 @@ class ChatViewModel : ViewModel() {
             "qwe1",
             "Лев Белоусов",
             "drafted",
-            Date(1643328000),
+            "2022 04 27 17:05:57 ср",
             MessageState.DELIVERED,
             false,
             true,
@@ -63,9 +63,9 @@ class ChatViewModel : ViewModel() {
             3,
             "qwe2",
             "qwe2",
-            "Артемий Маслов",
+            "Кирилл Петров",
             "qwe2",
-            Date(1643241600),
+            "2022 02 24 17:05:57 чт",
             MessageState.ERROR,
             true,
             true,
@@ -78,7 +78,28 @@ class ChatViewModel : ViewModel() {
             false,
             "Username",
             false,
-            true, false)))
+            true, false),
+            ChatDto(
+            3,
+            "qwe2",
+            "qwe2",
+            "Ирина Сидорова",
+            "qwe2",
+            "2021 11 13 12:05:01 сб",
+            MessageState.ERROR,
+            true,
+            true,
+            ResourceStatus.CHAT,
+            RosterItemEntity.GROUP_CHAT,
+            1,
+            "unread1",
+            getRandomColor(),
+            false,
+            false,
+            "Username",
+            false,
+            true, false)
+        ))
 
     }
 
@@ -95,7 +116,7 @@ class ChatViewModel : ViewModel() {
     }
 
     fun deleteChat(id: Int) {
-        chatRepository.deleteChat(id)
+      //  chatRepository.deleteChat(id)
    //     chat.value = chatRepository.getChatList()
     }
 
@@ -124,7 +145,7 @@ class ChatViewModel : ViewModel() {
     }
 
     fun turnOfNotifications(id: Int) {
-        chatRepository.turnOfNotifications(id)
+    //    chatRepository.turnOfNotifications(id)
 
     }
 }

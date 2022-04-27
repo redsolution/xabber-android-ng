@@ -1,16 +1,13 @@
 package com.xabber.presentation.application.activity
 
 import android.os.Bundle
-import android.os.Parcelable
 import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentManager
-import androidx.lifecycle.LifecycleOwner
 import com.xabber.R
-import com.xabber.data.dto.ChatDto
 import com.xabber.databinding.ActivityApplicationBinding
 import com.xabber.presentation.application.contract.ApplicationNavigator
 import com.xabber.presentation.application.fragments.account.AccountFragment
@@ -26,7 +23,6 @@ import com.xabber.presentation.application.fragments.discover.DiscoverFragment
 import com.xabber.presentation.application.fragments.message.MessageFragment
 import com.xabber.presentation.application.fragments.message.NewChatFragment
 import com.xabber.presentation.application.fragments.settings.SettingsFragment
-import com.xabber.presentation.onboarding.contract.ResultListener
 
 
 class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {

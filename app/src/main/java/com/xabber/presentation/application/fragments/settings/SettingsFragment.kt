@@ -23,8 +23,6 @@ class SettingsFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        binding?.settingsToolbar?.setNavigationIcon(R.drawable.ic_arrow_left)
-        binding?.settingsToolbar?.setNavigationOnClickListener { navigator().goBack() }
 
         binding?.linearChat?.setOnClickListener {
             navigator().showChatSettings()

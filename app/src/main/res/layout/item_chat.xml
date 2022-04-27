@@ -150,8 +150,8 @@
 
     <ImageView
         android:id="@+id/chat_pinned"
-        android:layout_width="24dp"
-        android:layout_height="24dp"
+        android:layout_width="28dp"
+        android:layout_height="28dp"
         android:layout_marginTop="4dp"
         android:layout_marginEnd="8dp"
         android:src="@drawable/ic_material_pinned_24"
@@ -181,7 +181,7 @@
         android:backgroundTint="@color/green_500"
         android:visibility="gone"
         app:cardCornerRadius="12dp"
-        app:layout_constraintEnd_toStartOf="@+id/chat_status_image"
+        app:layout_constraintEnd_toStartOf="@+id/chat_pinned"
         app:layout_constraintTop_toBottomOf="@+id/chat_timestamp"
         tools:visibility="visible">
 

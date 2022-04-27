@@ -6,16 +6,15 @@
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
     android:layout_centerVertical="true"
-    android:background="@color/grey_200">
+    android:background="@color/transparent">
 
     <de.hdodenhof.circleimageview.CircleImageView
         android:id="@+id/ivAvatar"
         android:layout_width="240dp"
         android:layout_height="240dp"
-        android:layout_marginLeft="6dp"
-        app:civ_circle_background_color="@color/white"
-        tools:src="@tools:sample/avatars"
-        tools:visibility="visible" />
+        android:layout_marginStart="6dp"
+        app:civ_circle_background_color="@color/blue_300"
+       android:visibility="visible" />
 
     <ImageView
         android:id="@+id/ivAvatarQR"
@@ -23,8 +22,7 @@
         android:layout_height="180dp"
         android:layout_marginLeft="33dp"
         android:layout_marginTop="30dp"
-        android:visibility="gone"
-        tools:visibility="visible" />
+        android:visibility="gone" />
 
     <ImageView
         android:id="@+id/ivSetAvatar"
@@ -35,8 +33,8 @@
         android:layout_centerVertical="true"
         android:layout_marginEnd="60dp"
         android:layout_marginRight="60dp"
-        android:visibility="gone"
-        app:srcCompat="@drawable/ic_material_check_all_24" />
+        android:visibility="visible"
+        app:srcCompat="@drawable/ic_camera_avatar" />
 
     <ProgressBar
         android:id="@+id/avatar_publishing_progress"

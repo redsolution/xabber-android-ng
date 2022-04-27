@@ -7,6 +7,7 @@ import android.os.Bundle
 import android.util.TypedValue
 import android.view.*
 import android.widget.PopupMenu
+import android.widget.Toast
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.ItemTouchHelper
@@ -16,6 +17,10 @@ import com.xabber.R
 import com.xabber.data.dto.ChatDto
 import com.xabber.databinding.FragmentChatBinding
 import com.xabber.presentation.application.contract.navigator
+import com.xabber.presentation.application.util.DateFormatter
+import java.text.SimpleDateFormat
+import java.util.*
+import kotlin.collections.ArrayList
 
 
 class ChatFragment : Fragment(), ChatAdapter.ChatListener {
@@ -50,7 +55,8 @@ class ChatFragment : Fragment(), ChatAdapter.ChatListener {
 
     private fun initToolbarActions() {
         binding?.avatarContainer?.setOnClickListener {
-            navigator().showAccount()
+          navigator().showAccount()
+
         }
         binding?.imPlus?.setOnClickListener {
             navigator().showNewChat()
@@ -193,12 +199,12 @@ class ChatFragment : Fragment(), ChatAdapter.ChatListener {
         navigator().showMessage("")
     }
 
-    override fun pinChat(id: Int, position: Int) {
+    override fun pinChat(id: Int) {
         viewModel.pinChat(id)
         chatAdapter.notifyDataSetChanged()
     }
 
-    override fun unPinChat(id: Int, position: Int) {
+    override fun unPinChat(id: Int) {
         viewModel.unPinChat(id)
         chatAdapter.notifyDataSetChanged()
     }

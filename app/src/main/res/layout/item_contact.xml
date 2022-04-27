@@ -68,10 +68,12 @@
         android:layout_height="12dp"
         android:visibility="visible"
         tools:backgroundTint="@color/green_700"
+        android:layout_marginEnd="16dp"
         app:cardCornerRadius="12dp"
         app:cardElevation="0dp"
-        app:layout_constraintBottom_toBottomOf="@id/contact_image_container"
-        app:layout_constraintEnd_toEndOf="@id/contact_image_container"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
         tools:visibility="visible">
 
         <ImageView

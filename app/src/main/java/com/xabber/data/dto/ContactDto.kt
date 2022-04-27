@@ -13,5 +13,5 @@ data class ContactDto(
     val status: ResourceStatus? = null,
     val entity: RosterItemEntity? = null,
     val collapsed: Boolean? = null,
-    val groupPrimary: String? = null,
+    val groupPrimary: String? = null
 )

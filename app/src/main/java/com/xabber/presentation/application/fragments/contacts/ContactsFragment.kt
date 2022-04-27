@@ -7,11 +7,11 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import com.xabber.R
-import com.xabber.databinding.FragmentContactsBinding
+import com.xabber.databinding.FragmentContactBinding
 import com.xabber.presentation.application.contract.navigator
 
 class ContactsFragment : Fragment(), ContactAdapter.Listener {
-    private var binding: FragmentContactsBinding? = null
+    private var binding: FragmentContactBinding? = null
     private val contactAdapter = ContactAdapter(this)
     private val viewModel = ContactsViewModel()
 
@@ -20,13 +20,13 @@ class ContactsFragment : Fragment(), ContactAdapter.Listener {
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
-        binding = FragmentContactsBinding.inflate(inflater, container, false)
+        binding = FragmentContactBinding.inflate(inflater, container, false)
         return binding?.root
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        binding?.rvContacts?.adapter = contactAdapter
+      binding?.recyclerView?.adapter = contactAdapter
         viewModel.contacts.observe(viewLifecycleOwner) {
             contactAdapter.submitList(it)
         }

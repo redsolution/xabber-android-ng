@@ -9,11 +9,11 @@ import java.util.*
 
 data class ChatDto(
     val id: Int,
-    var jid: String,   // xmpp id
+    var jid: String,   // xmpp
     val owner: String, //
     val username: String, // name/surname
     val message: String,   // last message
-    val date: Date,   // date of last message
+    val date: String,   // date of last message
     val state: MessageState,
     val isMuted: Boolean,
     val isSynced: Boolean, //

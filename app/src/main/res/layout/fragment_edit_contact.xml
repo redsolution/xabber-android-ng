@@ -25,137 +25,57 @@
 
     </com.google.android.material.appbar.MaterialToolbar>
 
-    <RelativeLayout
-        android:id="@+id/rl_name"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/edit_contact_toolbar">
-
-        <TextView
-            android:id="@+id/tv_alias"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_above="@id/contact_edit_image"
-            android:text="Alias" />
 
         <ImageView
+
+            app:layout_constraintTop_toBottomOf="@id/edit_contact_toolbar"
+            app:layout_constraintStart_toStartOf="parent"
             android:id="@+id/contact_edit_image"
             android:layout_width="56dp"
             android:layout_height="56dp"
-            android:layout_marginStart="12dp"
+            android:layout_marginStart="20dp"
             android:layout_marginTop="12dp"
-            android:layout_marginEnd="12dp"
-            android:layout_marginBottom="12dp"
             tools:background="@tools:sample/avatars" />
 
         <EditText
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
+            app:layout_constraintStart_toEndOf="@id/contact_edit_image"
             android:layout_height="wrap_content"
             android:layout_toRightOf="@id/contact_edit_image"
-            android:text="Name Surname" />
+            android:text="Виктория Иванова"
+            android:layout_marginStart="16dp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="@id/contact_edit_image"
+            app:layout_constraintBottom_toBottomOf="@id/contact_edit_image"/>
 
-    </RelativeLayout>
 
-    <View
-        android:id="@+id/line"
-        android:layout_width="0dp"
-        android:layout_height="1dp"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/rl_name"
-        android:background="@color/grey_300"/>
-
-    <androidx.constraintlayout.widget.ConstraintLayout
-        android:id="@+id/rl_subscription_information"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/line">
-
-        <TextView
+        <ImageView
             android:layout_margin="16dp"
-            android:id="@+id/title_subscription"
+            android:id="@+id/im_receive"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Subscription information"
-            android:textStyle="bold"
+            android:layout_marginStart="20dp"
+            android:src="@drawable/ic_subscription_to"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintTop_toTopOf="@id/contact_edit_image"
             android:textColor="@color/light_blue_600"/>
 
         <TextView
-            android:id="@+id/tv_send_status"
-            android:layout_width="wrap_content"
+            android:id="@+id/tv_receiving"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginStart="12dp"
             android:layout_marginTop="12dp"
             android:layout_marginEnd="12dp"
             android:layout_marginBottom="12dp"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/title_subscription"
-            android:text="Send status updates" />
+            app:layout_constraintStart_toStartOf="@id/im_receive"
+           app:layout_constraintTop_toTopOf="@id/im_receive"
+            android:text="Receiving presence updates" />
 
-        <TextView
-            android:id="@+id/tv_receive_status"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_below="@id/tv_send_status"
-            android:layout_marginStart="12dp"
-            android:layout_marginTop="12dp"
-            android:layout_marginEnd="12dp"
-            android:layout_marginBottom="12dp"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/tv_send_status"
-            android:text="Receive status updates" />
 
-        <CheckBox
-            android:id="@+id/check_send"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="@id/tv_send_status"
-            app:layout_constraintBottom_toBottomOf="@id/tv_send_status"
-            android:layout_marginEnd="20dp"/>
 
-        <CheckBox
-            android:id="@+id/check_receive"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_alignBottom="@id/tv_receive_status"
-            android:layout_toEndOf="@id/tv_receive_status"
-            app:layout_constraintEnd_toEndOf="parent"
-            android:layout_marginEnd="20dp"
-            app:layout_constraintTop_toTopOf="@id/tv_receive_status"
-            app:layout_constraintBottom_toBottomOf="@id/tv_receive_status"/>
     </androidx.constraintlayout.widget.ConstraintLayout>
 
 
-    <View
-        android:id="@+id/line1"
-        android:layout_width="0dp"
-        android:layout_height="1dp"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/rl_subscription_information"
-        android:background="@color/grey_300"
-        android:layout_marginVertical="12dp"/>
-
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:textColor="@color/light_blue_600"
-        android:text="Circles"
-        android:textStyle="bold"
-        android:layout_margin="16dp"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/line1"/>
-
-
-
-
-</androidx.constraintlayout.widget.ConstraintLayout>
 
 
