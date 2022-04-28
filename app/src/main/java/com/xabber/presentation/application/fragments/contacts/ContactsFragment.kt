@@ -41,7 +41,7 @@ class ContactsFragment : Fragment(), ContactAdapter.Listener {
     }
 
     override fun editContact() {
-       navigator().showEditContact()
+       navigator().showEditContact("")
     }
 
     override fun deleteContact() {

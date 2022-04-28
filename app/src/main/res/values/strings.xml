@@ -182,18 +182,33 @@
     <string name="vibration_dialog_cancel">Cancel</string>
 
 
+    <!-- CALLS FRAGMENT -->
+    <string name="calls_toolbar_title">Calls</string>
+    <string name="adt">Calls are coming to Xabber for Android! Not this release, but they are on our roadmap.\n
+    \n Really impatient users can test working VoIP right now in <a href="https://www.xabber.com/web/">Web</a> and <a href="https://www.xabber.com/ios/">IOS</a> version of Xabber.\n\n
+        If you want to keep Xabber strong and speed up Xabber development, take part in our <a href="https://www.patreon.com/xabber">crowdfunding campaign on Patreon!</a></string>
+
+
+    <!-- CONTACTS FRAGMENT -->
+
+    <string name="contacts_toolbar_title">Contacts</string>
+
+    <!-- Edit Contacts Fragment -->
+    <string name="edit_contact_toolbar_title">Edit</string>
+    <string name="image_changes_save_description">Save changes</string>
+    <string name="description_image_contact_photo">Contact photo</string>
+    <string name="receiving_presence_updates">Receiving presence updates</string>
+    <string name="sending_presence_updates">Sending presence updates</string>
+    <string name="information_with_contact_connecting">You and this contact are sharing presence information with each other.</string>
+    <string name="delete_contact">Delete contact</string>
+
+
     <!-- MESSAGE FRAGMENT -->
 
     <string name="chat_delay">sent at %s</string>
     <string name="chat_typed">entered at %s</string>
     <string name="edited">(edited at %s)</string>
     <string name="skip">Skip</string>
-
-    <!-- CallsFragment -->
-    <string name="calls_toolbar_title">Calls</string>
-    <string name="adt">Calls are coming to Xabber for Android! Not this release, but they are on our roadmap.\n
-    \n Really impatient users can test working VoIP right now in <a href="https://www.xabber.com/web/">Web</a> and <a href="https://www.xabber.com/ios/">IOS</a> version of Xabber.\n\n
-        If you want to keep Xabber strong and speed up Xabber development, take part in our <a href="https://www.patreon.com/xabber">crowdfunding campaign on Patreon!</a></string>
 
 
 </resources>

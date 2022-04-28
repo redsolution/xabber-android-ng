@@ -10,7 +10,17 @@ import com.xabber.databinding.FragmentEditContactBinding
 import com.xabber.presentation.application.contract.navigator
 
 class EditContactFragment : Fragment() {
-    private var binding : FragmentEditContactBinding? = null
+    private var binding: FragmentEditContactBinding? = null
+    lateinit var name: String
+
+    companion object {
+        fun newInstance(_name: String) = EditContactFragment().apply {
+            arguments = Bundle().apply {
+                putString("name", _name)
+                name = _name
+            }
+        }
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -23,8 +33,8 @@ class EditContactFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-          binding?.editContactToolbar?.setNavigationIcon(R.drawable.ic_material_close_24)
+        binding?.editContactToolbar?.setNavigationIcon(R.drawable.ic_material_close_24)
         binding?.editContactToolbar?.setNavigationOnClickListener { navigator().goBack() }
-
+        binding?.etName?.setText(name)
     }
 }

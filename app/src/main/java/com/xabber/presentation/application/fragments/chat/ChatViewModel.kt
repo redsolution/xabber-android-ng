@@ -1,8 +1,6 @@
 package com.xabber.presentation.application.fragments.chat
 
 import android.util.Log
-import android.widget.Toast
-import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import com.xabber.data.dto.ChatDto
@@ -70,7 +68,7 @@ class ChatViewModel : ViewModel() {
             true,
             true,
             ResourceStatus.CHAT,
-            RosterItemEntity.GROUP_CHAT,
+            RosterItemEntity.GROUP,
             1,
             "unread1",
             getRandomColor(),
@@ -90,7 +88,7 @@ class ChatViewModel : ViewModel() {
             true,
             true,
             ResourceStatus.CHAT,
-            RosterItemEntity.GROUP_CHAT,
+            RosterItemEntity.GROUP,
             1,
             "unread1",
             getRandomColor(),

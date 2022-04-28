@@ -10,7 +10,6 @@ import android.view.LayoutInflater
 import android.view.ViewGroup
 import android.widget.PopupMenu
 import androidx.core.content.ContextCompat
-import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
@@ -18,17 +17,17 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.xabber.R
 import com.xabber.data.dto.ChatDto
+import com.xabber.data.dto.ResourceStatus
 import com.xabber.databinding.ItemChatBinding
 import com.xabber.presentation.application.util.DateFormatter
 import com.xabber.presentation.application.util.getStatusColor
-import com.xabber.presentation.application.util.getStatusIcon
 
 class ChatAdapter(
     private val listener: ChatListener
 ) : ListAdapter<ChatDto, ChatAdapter.ChatViewHolder>(DiffUtilCallback) {
 
     interface ChatListener {
-        fun onClickItem(chat: ChatDto)
+        fun onClickItem(name: String)
 
         fun pinChat(id: Int)
 
@@ -41,6 +40,8 @@ class ChatAdapter(
         fun turnOfNotifications(id: Int)
 
         fun openSpecialNotificationsFragment()
+
+        fun onClickAvatar(name: String)
 
     }
 
@@ -149,8 +150,29 @@ class ChatAdapter(
 
                 chatMessage.text = chat.message
 
+                chatSyncImage.isVisible = chat.isSynced
 
+val color =
+                when (chat.status) {
+                  ResourceStatus.OFFLINE -> R.color.grey_500
+                      ResourceStatus.XA -> R.color.blue_500
+                    ResourceStatus.AWAY -> R.color.yellow_500
+                    ResourceStatus.DND -> R.color.red_500
+                    ResourceStatus.ONLINE -> R.color.green_500
+                    ResourceStatus.CHAT -> R.color.light_green_500
+                }
 
+      val iconId =
+          when(chat.entity) {
+              RosterItemEntity.CONTACT -> 1
+                  RosterItemEntity.BOT -> R.drawable.ic_bot
+              RosterItemEntity.GROUP -> R.drawable.ic_group
+              RosterItemEntity.INCOGNITO_GROUP -> R.drawable.ic_incognito_group
+            //  RosterItemEntity.ISSUE -> R.drawable.
+            //  RosterItemEntity.SERVER ->
+           //   RosterItemEntity.PRIVATE_CHAT ->
+              else -> {}
+          }
 
 
                 val chatStatusContainer = chatStatusContainer12
@@ -216,8 +238,12 @@ class ChatAdapter(
                     chatMessage.setTypeface(null, Typeface.ITALIC)
 
                 itemView.setOnClickListener {
-                    listener.onClickItem(chat)
+                    listener.onClickItem(chat.username)
 
+                }
+
+                chatImageContainer.setOnClickListener {
+                    listener.onClickAvatar(chat.username)
                 }
 
                 itemView.setOnLongClickListener {

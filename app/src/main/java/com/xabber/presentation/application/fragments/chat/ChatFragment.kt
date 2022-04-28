@@ -1,5 +1,6 @@
 package com.xabber.presentation.application.fragments.chat
 
+import android.content.res.Configuration
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
@@ -42,6 +43,9 @@ class ChatFragment : Fragment(), ChatAdapter.ChatListener {
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
+        when (resources.configuration.orientation) {
+                Configuration.ORIENTATION_PORTRAIT -> navigator().hideFragment(false)
+                Configuration.ORIENTATION_LANDSCAPE -> navigator().hideFragment(true) }
         binding = FragmentChatBinding.inflate(inflater, container, false)
         return binding!!.root
     }
@@ -195,8 +199,8 @@ class ChatFragment : Fragment(), ChatAdapter.ChatListener {
     }
 
 
-    override fun onClickItem(chat: ChatDto) {
-        navigator().showMessage("")
+    override fun onClickItem(name: String) {
+        navigator().showMessage(name)
     }
 
     override fun pinChat(id: Int) {
@@ -222,6 +226,10 @@ class ChatFragment : Fragment(), ChatAdapter.ChatListener {
         navigator().showSpecialNotificationSettings()
     }
 
+    override fun onClickAvatar(name: String) {
+       navigator().showEditContact(name)
+    }
+
     private fun showSnackbar(view: View) {
         var snackbar: Snackbar? = null
         snackbar?.dismiss()
@@ -242,5 +250,10 @@ class ChatFragment : Fragment(), ChatAdapter.ChatListener {
 
         snackbar.setActionTextColor(Color.YELLOW)
         snackbar.show()
+    }
+
+    override fun onDestroyView() {
+        navigator().hideFragment(false)
+        super.onDestroyView()
     }
 }

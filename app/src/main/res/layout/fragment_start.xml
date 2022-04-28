@@ -11,7 +11,7 @@
         android:layout_height="wrap_content"
         android:layout_margin="16dp"
         android:background="@drawable/button_background"
-        android:drawableEnd ="@drawable/ic_chevron_right_24"
+        android:drawableEnd="@drawable/ic_chevron_right_24"
         android:stateListAnimator="@animator/shadow"
         android:text="@string/skip"
         android:textAllCaps="false"
@@ -87,7 +87,6 @@
             android:layout_marginHorizontal="16dp"
             android:background="@drawable/button_background"
             android:gravity="center"
-            android:inputType="textCapSentences"
             android:insetLeft="0dp"
             android:insetTop="0dp"
             android:insetRight="0dp"
@@ -95,6 +94,7 @@
             android:longClickable="false"
             android:stateListAnimator="@animator/shadow"
             android:text="@string/start_signin_button_label"
+            android:textAllCaps="false"
             android:textColor="@color/blue_500"
             android:textIsSelectable="false"
             android:textSize="17sp"
@@ -114,10 +114,10 @@
             android:layout_margin="16dp"
             android:background="@drawable/button_background"
             android:gravity="center"
-            android:inputType="textCapSentences"
             android:longClickable="false"
             android:stateListAnimator="@animator/shadow"
             android:text="@string/start_signup_button_label"
+            android:textAllCaps="false"
             android:textColor="@color/blue_500"
             android:textSize="17sp"
             android:theme="@style/StartButton"
@@ -152,5 +152,7 @@
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent" />
+
     </androidx.constraintlayout.widget.ConstraintLayout>
+
 </androidx.constraintlayout.widget.ConstraintLayout>

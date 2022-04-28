@@ -3,7 +3,6 @@
     xmlns:tools="http://schemas.android.com/tools"
     package="com.xabber">
 
-
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
@@ -25,12 +24,11 @@
         android:supportsRtl="true"
         android:theme="@style/ThemeApplication">
         <activity
-            android:name="com.xabber.presentation.application.activity.ApplicationActivity"
+            android:name=".presentation.application.activity.ApplicationActivity"
             android:exported="false"
             android:theme="@style/ThemeApplication" />
-
         <activity
-            android:name="com.xabber.presentation.onboarding.activity.OnBoardingActivity"
+            android:name=".presentation.onboarding.activity.OnBoardingActivity"
             android:exported="true"
             android:theme="@style/ThemeOnboarding">
             <intent-filter>

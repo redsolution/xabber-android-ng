@@ -1,6 +1,5 @@
 package com.xabber.data.dto
 
-import com.xabber.presentation.application.fragments.chat.ResourceStatus
 import com.xabber.presentation.application.fragments.chat.RosterItemEntity
 
 data class ContactDto(

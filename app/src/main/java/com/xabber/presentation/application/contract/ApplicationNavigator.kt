@@ -23,9 +23,11 @@ interface ApplicationNavigator {
 
     fun showSpecialNotificationSettings()
 
-    fun showEditContact()
+    fun showEditContact(name : String)
 
     fun showChatSettings()
+
+    fun hideFragment(isVisible: Boolean)
 
 
 }

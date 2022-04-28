@@ -32,10 +32,15 @@ class MessageFragment : Fragment() {
     private var binding: FragmentMessageBinding? = null
     private var messageAdapter: MessageAdapter? = null
     private val viewModel = MessageViewModel()
-
+lateinit var name : String
 
     companion object {
-        fun newInstance() = MessageFragment()
+        fun newInstance(_name: String) = MessageFragment().apply {
+              arguments = Bundle().apply {
+                putString("_name", _name)
+                name = _name
+            }
+        }
     }
 
     override fun onCreateView(
@@ -50,7 +55,7 @@ class MessageFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-
+        binding?.messageUserName?.text = name
         initToolbarActions()
         // binding?.tvUserName?.text = userName
         //   applicationToolbarChanger().toolbarIconChange(FragmentAction(R.drawable.ic_material_check_24, R.string.signup_username_subtitle))

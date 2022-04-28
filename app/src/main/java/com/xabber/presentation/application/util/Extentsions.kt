@@ -8,7 +8,6 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import com.xabber.R
-import com.xabber.presentation.application.fragments.chat.ResourceStatus
 import com.xabber.presentation.application.fragments.chat.RosterItemEntity
 import com.xabber.data.dto.*
 
@@ -62,10 +61,10 @@ fun RosterItemEntity.getStatusIcon(): Int? =
     when (this) {
         RosterItemEntity.CONTACT -> null
         RosterItemEntity.PRIVATE_CHAT -> R.drawable.ic_badge_group_private_24
-        RosterItemEntity.GROUP_CHAT -> R.drawable.ic_badge_group_public_24
+        RosterItemEntity.GROUP -> R.drawable.ic_badge_group_public_24
         RosterItemEntity.BOT -> R.drawable.ic_badge_bot_24
         RosterItemEntity.SERVER -> R.drawable.ic_badge_server_24
-        RosterItemEntity.INCOGNITO_CHAT -> R.drawable.ic_badge_group_incognito_24
+        RosterItemEntity.INCOGNITO_GROUP -> R.drawable.ic_badge_group_incognito_24
         RosterItemEntity.ISSUE -> R.drawable.ic_badge_task_24
     }
 
@@ -74,8 +73,8 @@ fun ContactDto.getStatusColor(): Int? =
         ResourceStatus.ONLINE -> R.color.green_700
         ResourceStatus.OFFLINE ->
             if (this.entity in listOf(
-                    RosterItemEntity.GROUP_CHAT,
-                    RosterItemEntity.INCOGNITO_CHAT,
+                    RosterItemEntity.GROUP,
+                    RosterItemEntity.INCOGNITO_GROUP,
                     RosterItemEntity.SERVER,
                     RosterItemEntity.PRIVATE_CHAT,
                     RosterItemEntity.ISSUE
@@ -96,8 +95,8 @@ fun ChatDto.getStatusColor(): Int =
         ResourceStatus.ONLINE -> R.color.green_700
         ResourceStatus.OFFLINE ->
             if (this.entity in listOf(
-                    RosterItemEntity.GROUP_CHAT,
-                    RosterItemEntity.INCOGNITO_CHAT,
+                    RosterItemEntity.GROUP,
+                    RosterItemEntity.INCOGNITO_GROUP,
                     RosterItemEntity.SERVER,
                     RosterItemEntity.PRIVATE_CHAT,
                     RosterItemEntity.ISSUE
