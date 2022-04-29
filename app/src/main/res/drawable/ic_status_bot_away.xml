@@ -4,7 +4,7 @@
         <shape
             android:shape="oval">
             <solid
-                android:color="?attr/contact_list_contact_background"/>
+                android:color="@color/white"/>
         </shape>
     </item>
 
@@ -21,6 +21,6 @@
     </item>
 
     <item
-        android:drawable="@drawable/ic_bot"/>
+        android:drawable="@drawable/ic_bot_light"/>
 
 </layer-list>

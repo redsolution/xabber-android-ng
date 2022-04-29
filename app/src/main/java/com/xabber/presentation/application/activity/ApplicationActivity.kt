@@ -6,7 +6,6 @@ import android.os.Bundle
 import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentManager
@@ -54,8 +53,9 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
         binding = ActivityApplicationBinding.inflate(layoutInflater)
         setContentView(binding!!.root)
 
-      launchFragment(TestFragment())
-
+        if (savedInstanceState == null) launchFragment(ChatFragment())
+        //      launchFragment(TestFragment())
+        initBottomNavigation()
     }
 
 
@@ -72,13 +72,13 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
 
 
     fun setContainersWidth() {
-    //    binding.detailsContentContainerWrapper.updateLayoutParams<ConstraintLayout.LayoutParams> {
-      //      this.horizontalWeight =
-                    when (getWidthWindowType()) {
-                        WindowSize.EXPANDED -> 6F
-                        WindowSize.MEDIUM -> 6F
-                        WindowSize.COMPACT -> 0F
-                    }
+        //   binding.detailsContentContainerWrapper.updateLayoutParams<ConstraintLayout.LayoutParams> {
+        //      this.horizontalWeight =
+        when (getWidthWindowType()) {
+            WindowSize.EXPANDED -> 6F
+            WindowSize.MEDIUM -> 6F
+            WindowSize.COMPACT -> 0F
+        }
 
     }
 

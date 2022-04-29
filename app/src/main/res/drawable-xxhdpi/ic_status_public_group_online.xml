@@ -5,7 +5,7 @@
         <shape
             android:shape="oval">
             <solid
-                android:color="?attr/contact_list_contact_background"/>
+                android:color="@color/white"/>
         </shape>
     </item>
 
@@ -17,15 +17,11 @@
         <shape
             android:shape="oval">
             <solid
-                android:color="@color/blue_500"/>
+                android:color="@color/green_700"/>
         </shape>
     </item>
 
     <item
-        android:top="2dp"
-        android:left="2dp"
-        android:right="2dp"
-        android:bottom="2dp"
-        android:drawable="@drawable/ic_mobile"/>
+        android:drawable="@drawable/ic_group_public"/>
 
 </layer-list>

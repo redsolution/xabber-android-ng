@@ -17,11 +17,11 @@
         <shape
             android:shape="oval">
             <solid
-                android:color="@color/amber_700"/>
+                android:color="@color/light_green_500"/>
         </shape>
     </item>
 
     <item
-        android:drawable="@drawable/ic_group_incognito_light"/>
+        android:drawable="@drawable/ic_group_private"/>
 
 </layer-list>

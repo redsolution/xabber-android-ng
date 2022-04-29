@@ -5,7 +5,7 @@
         <shape
             android:shape="oval">
             <solid
-                android:color="?attr/contact_list_contact_background"/>
+                android:color="@color/white"/>
         </shape>
     </item>
 
@@ -17,11 +17,11 @@
         <shape
             android:shape="oval">
             <solid
-                android:color="@color/green_700"/>
+                android:color="@color/grey_500"/>
         </shape>
     </item>
 
     <item
-        android:drawable="@drawable/ic_channel"/>
+        android:drawable="@drawable/ic_group_public"/>
 
 </layer-list>

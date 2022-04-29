@@ -4,6 +4,7 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import com.xabber.data.dto.ContactDto
 import com.xabber.data.dto.ContactKind
+import com.xabber.data.dto.ResourceStatus
 import com.xabber.presentation.application.fragments.chat.RosterItemEntity
 
 class ContactsViewModel : ViewModel() {

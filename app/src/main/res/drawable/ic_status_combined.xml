@@ -7,7 +7,7 @@
     <item android:minLevel="2" android:maxLevel="2" android:drawable="@drawable/ic_status_away"/>
     <item android:minLevel="3" android:maxLevel="3" android:drawable="@drawable/ic_status_xa"/>
     <item android:minLevel="4" android:maxLevel="4" android:drawable="@drawable/ic_status_dnd"/>
-    <item android:minLevel="6" android:maxLevel="6" android:drawable="@drawable/ic_status_unavailable"/>
+
 
     <!-- Public group -->
     <item android:minLevel="20" android:maxLevel="20" android:drawable="@drawable/ic_status_public_group_chat"/>
@@ -21,15 +21,6 @@
     <item android:minLevel="34" android:maxLevel="34" android:drawable="@drawable/ic_status_incognito_group_dnd"/>
     <item android:minLevel="35" android:maxLevel="35" android:drawable="@drawable/ic_status_incognito_group_unavailable"/>
 
-    <!-- Private group -->
-
-    <!-- Channel -->
-    <item android:minLevel="50" android:maxLevel="50" android:drawable="@drawable/ic_status_channel_chat"/>
-    <item android:minLevel="51" android:maxLevel="51" android:drawable="@drawable/ic_status_channel_online"/>
-    <item android:minLevel="52" android:maxLevel="52" android:drawable="@drawable/ic_status_channel_away"/>
-    <item android:minLevel="53" android:maxLevel="53" android:drawable="@drawable/ic_status_channel_xa"/>
-    <item android:minLevel="54" android:maxLevel="54" android:drawable="@drawable/ic_status_channel_dnd"/>
-    <item android:minLevel="55" android:maxLevel="55" android:drawable="@drawable/ic_status_channel_unavailable"/>
 
     <!-- Bot -->
     <item android:minLevel="60" android:maxLevel="60" android:drawable="@drawable/ic_status_bot_chat"/>

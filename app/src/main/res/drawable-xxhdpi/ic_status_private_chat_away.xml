@@ -22,6 +22,6 @@
     </item>
 
     <item
-        android:drawable="@drawable/ic_group_incognito_light"/>
+        android:drawable="@drawable/ic_group_private"/>
 
 </layer-list>

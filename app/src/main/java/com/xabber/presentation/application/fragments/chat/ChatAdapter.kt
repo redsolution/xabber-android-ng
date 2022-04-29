@@ -1,5 +1,6 @@
 package com.xabber.presentation.application.fragments.chat
 
+import android.graphics.Color
 import android.graphics.PorterDuff
 import android.graphics.Typeface
 import android.text.Spannable
@@ -70,6 +71,7 @@ class ChatAdapter(
                     )
 
                 }
+
                 chatMuted.isVisible = chat.isMuted
                 chatPinned.isVisible = chat.isPinned
                 unreadMessagesWrapper.isVisible = chat.unread > 0
@@ -151,174 +153,231 @@ class ChatAdapter(
                 chatMessage.text = chat.message
 
                 chatSyncImage.isVisible = chat.isSynced
-
-val color =
-                when (chat.status) {
-                  ResourceStatus.OFFLINE -> R.color.grey_500
-                      ResourceStatus.XA -> R.color.blue_500
-                    ResourceStatus.AWAY -> R.color.yellow_500
-                    ResourceStatus.DND -> R.color.red_500
-                    ResourceStatus.ONLINE -> R.color.green_500
-                    ResourceStatus.CHAT -> R.color.light_green_500
-                }
-
-      val iconId =
-          when(chat.entity) {
-              RosterItemEntity.CONTACT -> 1
-                  RosterItemEntity.BOT -> R.drawable.ic_bot
-              RosterItemEntity.GROUP -> R.drawable.ic_group
-              RosterItemEntity.INCOGNITO_GROUP -> R.drawable.ic_incognito_group
-            //  RosterItemEntity.ISSUE -> R.drawable.
-            //  RosterItemEntity.SERVER ->
-           //   RosterItemEntity.PRIVATE_CHAT ->
-              else -> {}
-          }
+                chatMessage.text = if (chat.isDrafted) "Изображение 229б86 KiB" else chat.message
 
 
-                val chatStatusContainer = chatStatusContainer12
-                //   if (chat.entity in listOf(CONTACT, ISSUE))
-                //        chatStatusContainer12
-                //    else
-                //       chatStatusContainer16
+                if (chat.entity == RosterItemEntity.CONTACT) {
+                    val icon = when (chat.status) {
+                        ResourceStatus.OFFLINE -> R.drawable.ic_status_online
+                        ResourceStatus.AWAY -> R.drawable.ic_status_away
+                        ResourceStatus.ONLINE -> R.drawable.ic_status_online
+                        ResourceStatus.XA -> R.drawable.ic_status_xa
+                        ResourceStatus.DND -> R.drawable.ic_status_dnd
+                        ResourceStatus.CHAT -> R.drawable.ic_status_chat
 
-                chatStatusContainer.isVisible = true
-                chatStatusContainer.setCardBackgroundColor(
-                    itemView.resources.getColor(
-                        chat.getStatusColor(),
-                        itemView.context.theme
-                    )
-                )
+                    }
 
-
-
-                if (chat.hasAttachment)
-                    chatMessage.setTextColor(
-                        itemView.resources.getColor(
-                            chat.colorId,
-                            itemView.context.theme
-                        )
-                    )
-
-                if (chat.userNickname != null) {
-                    val spannable = SpannableString("${chat.userNickname}\n${chat.message}")
-                    spannable.setSpan(
-                        ForegroundColorSpan(
-                            itemView.resources.getColor(
-                                R.color.grey_900,
-                                itemView.context.theme
-                            )
-                        ),
-                        0,
-                        chat.userNickname.length,
-                        Spannable.SPAN_EXCLUSIVE_INCLUSIVE
-                    )
-                    chatMessage.text = spannable
-                } else
-                    chatMessage.text = chat.message
-
-
-                if (chat.isDrafted) {
-                    val spannable = SpannableString("Drafted: ${chat.message}")
-                    spannable.setSpan(
-                        ForegroundColorSpan(
-                            itemView.resources.getColor(
-                                R.color.red_500,
-                                itemView.context.theme
-                            )
-                        ),
-                        0,
-                        8,
-                        Spannable.SPAN_EXCLUSIVE_INCLUSIVE
-                    )
-                    chatMessage.text = spannable
-                }
-
-                chatSyncImage.isVisible = chat.isSynced
-                if (chat.isSystemMessage)
-                    chatMessage.setTypeface(null, Typeface.ITALIC)
-
-                itemView.setOnClickListener {
-                    listener.onClickItem(chat.username)
-
-                }
-
-                chatImageContainer.setOnClickListener {
-                    listener.onClickAvatar(chat.username)
-                }
-
-                itemView.setOnLongClickListener {
-                    val popup = PopupMenu(itemView.context, itemView, Gravity.RIGHT)
-                    if (!chat.isPinned) popup.inflate(R.menu.context_menu_chat)
-                    else popup.inflate(R.menu.context_menu_chat2)
-
-                    popup.setOnMenuItemClickListener {
-
-                        when (it.itemId) {
-                            R.id.unpin -> listener.unPinChat(chat.id)
-                            R.id.to_pin -> {
-                                listener.pinChat(chat.id)
+                    chatStatus16.isVisible = false
+                    imContainer12.isVisible = true
+                    imContainer12.setImageResource(icon)
+                } else {
+                    val icon =
+                        when (chat.entity) {
+                            RosterItemEntity.SERVER -> {
+                                when (chat.status) {
+                                    ResourceStatus.OFFLINE -> R.drawable.ic_status_server_unavailable
+                                    else -> R.drawable.ic_status_server_online
+                                }
                             }
-                            R.id.turn_of_notifications -> {
-                                listener.turnOfNotifications(chat.id)
+                            RosterItemEntity.BOT -> {
+                                when (chat.status) {
+                                    ResourceStatus.OFFLINE -> R.drawable.ic_status_bot_unavailable
+                                    ResourceStatus.AWAY -> R.drawable.ic_status_bot_away
+                                    ResourceStatus.ONLINE -> R.drawable.ic_status_bot_online
+                                    ResourceStatus.XA -> R.drawable.ic_status_bot_xa
+                                    ResourceStatus.DND -> R.drawable.ic_status_bot_dnd
+                                    ResourceStatus.CHAT -> R.drawable.ic_status_bot_chat
+
+                                }
                             }
-                            R.id.customise_notifications -> {
-                                listener.openSpecialNotificationsFragment()
+                            RosterItemEntity.INCOGNITO_GROUP -> {
+                                when (chat.status) {
+                                    ResourceStatus.OFFLINE -> R.drawable.ic_status_incognito_group_unavailable
+                                    ResourceStatus.AWAY -> R.drawable.ic_status_incognito_group_away
+                                    ResourceStatus.ONLINE -> R.drawable.ic_status_incognito_group_online
+                                    ResourceStatus.XA -> R.drawable.ic_status_incognito_group_xa
+                                    ResourceStatus.DND -> R.drawable.ic_status_incognito_group_dnd
+                                    ResourceStatus.CHAT -> R.drawable.ic_status_incognito_group_chat
+
+                                }
                             }
-                            R.id.delete_chat -> {
-                                listener.deleteChat(chat.id)
+
+
+                            RosterItemEntity.GROUP -> {
+                                when (chat.status) {
+                                    ResourceStatus.OFFLINE -> R.drawable.ic_status_public_group_unavailable
+                                    ResourceStatus.AWAY -> R.drawable.ic_status_public_group_away
+                                    ResourceStatus.ONLINE -> R.drawable.ic_status_public_group_online
+                                    ResourceStatus.XA -> R.drawable.ic_status_public_group_xa
+                                    ResourceStatus.DND -> R.drawable.ic_status_public_group_dnd
+                                    ResourceStatus.CHAT -> R.drawable.ic_status_public_group_chat
+                                }
                             }
+
+                            RosterItemEntity.PRIVATE_CHAT -> {
+                                when (chat.status) {
+                                    ResourceStatus.OFFLINE -> R.drawable.ic_status_private_chat_unavailable
+                                    ResourceStatus.AWAY -> R.drawable.ic_status_private_chat_away
+                                    ResourceStatus.ONLINE -> R.drawable.ic_status_private_chat_online
+                                    ResourceStatus.XA -> R.drawable.ic_status_private_chat_xa
+                                    ResourceStatus.DND -> R.drawable.ic_status_private_chat_dnd
+                                    ResourceStatus.CHAT -> R.drawable.ic_status_private_chat
+                                }
+                            }
+
+                            else -> {
+                                0
+                            }
+
 
                         }
-                        true
-                    }
-                    popup.show()
-                    true
+                    chatStatus16.isVisible = true
+                    imContainer12.isVisible = false
+                    chatStatus16.setImageResource(icon)
+
                 }
 
 
-                fun onSwipeChatItem() {
+
+                    //   RosterItemEntity.PRIVATE_CHAT ->
+
+
+                    //     val chatStatusContainer = chatStatusContainer12
+                    //   if (chat.entity in listOf(CONTACT, ISSUE))
+                    //        chatStatusContainer12
+                    //    else
+                    //       chatStatusContainer16
+
+                    //        chatStatusContainer.isVisible = true
+                    //    chatStatusContainer.setCardBackgroundColor(
+                    //        itemView.resources.getColor(
+                    //            chat.getStatusColor(),
+                    //             itemView.context.theme
+                    //         )
+                    //        )
+
+
+                    //      if (chat.userNickname != null) {
+                    //          val spannable = SpannableString("${chat.userNickname}\n${chat.message}")
+                    //          spannable.setSpan(
+                    //              ForegroundColorSpan(
+                    //                  itemView.resources.getColor(
+                    ////                      R.color.grey_900,
+                    //                     itemView.context.theme
+                    // //                   )
+                    //               ),
+                    //                0,
+                    //               chat.userNickname.length,
+                    //             Spannable.SPAN_EXCLUSIVE_INCLUSIVE
+                    //          )
+                    //           chatMessage.text = spannable
+                    //       } else
+                    //    chatMessage.text = chat.message
+
+
+                    if (chat.isDrafted) {
+                        val spannable = SpannableString("Drafted: ${chat.message}")
+                        spannable.setSpan(
+                            ForegroundColorSpan(
+                                itemView.resources.getColor(
+                                    R.color.red_500,
+                                    itemView.context.theme
+                                )
+                            ),
+                            0,
+                            8,
+                            Spannable.SPAN_EXCLUSIVE_INCLUSIVE
+                        )
+                        chatMessage.text = spannable
+                    }
+
+                    chatSyncImage.isVisible = chat.isSynced
+                    if (chat.isSystemMessage)
+                        chatMessage.setTypeface(null, Typeface.ITALIC)
+
+                    itemView.setOnClickListener {
+                        listener.onClickItem(chat.username)
+
+                    }
+
+                    chatImageContainer.setOnClickListener {
+                        listener.onClickAvatar(chat.username)
+                    }
+
+                    itemView.setOnLongClickListener {
+                        val popup = PopupMenu(itemView.context, itemView, Gravity.RIGHT)
+                        if (!chat.isPinned) popup.inflate(R.menu.context_menu_chat)
+                        else popup.inflate(R.menu.context_menu_chat2)
+
+                        popup.setOnMenuItemClickListener {
+
+                            when (it.itemId) {
+                                R.id.unpin -> listener.unPinChat(chat.id)
+                                R.id.to_pin -> {
+                                    listener.pinChat(chat.id)
+                                }
+                                R.id.turn_of_notifications -> {
+                                    listener.turnOfNotifications(chat.id)
+                                }
+                                R.id.customise_notifications -> {
+                                    listener.openSpecialNotificationsFragment()
+                                }
+                                R.id.delete_chat -> {
+                                    listener.deleteChat(chat.id)
+                                }
+
+                            }
+                            true
+                        }
+                        popup.show()
+                        true
+                    }
+
+
+                    fun onSwipeChatItem() {
 //listener.swipeItem(chat.id)
 
+                    }
                 }
             }
         }
+
+
+
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ChatViewHolder {
+            val inflater = LayoutInflater.from(parent.context)
+            val binding = ItemChatBinding.inflate(inflater, parent, false)
+            return ChatViewHolder(binding)
+        }
+
+        override fun onBindViewHolder(holder: ChatViewHolder, position: Int) {
+
+
+            holder.bind(getItem(position), listener)
+
+        }
+
+        private object DiffUtilCallback : DiffUtil.ItemCallback<ChatDto>() {
+
+            override fun areItemsTheSame(oldItem: ChatDto, newItem: ChatDto) =
+                oldItem.jid == newItem.jid
+
+            override fun areContentsTheSame(oldItem: ChatDto, newItem: ChatDto): Boolean =
+                oldItem.username == newItem.username &&
+                        oldItem.message == newItem.message &&
+                        oldItem.date == newItem.date &&
+                        oldItem.state == newItem.state &&
+                        oldItem.isMuted == newItem.isMuted &&
+                        oldItem.isSynced == newItem.isSynced &&
+                        oldItem.status == newItem.status &&
+                        oldItem.entity == newItem.entity &&
+                        oldItem.unread == newItem.unread &&
+                        oldItem.unreadString == newItem.unreadString &&
+                        oldItem.colorId == newItem.colorId &&
+                        oldItem.isDrafted == newItem.isDrafted &&
+                        oldItem.hasAttachment == newItem.hasAttachment &&
+                        oldItem.userNickname == newItem.userNickname &&
+                        oldItem.isSystemMessage == newItem.isSystemMessage &&
+                        oldItem.isPinned == newItem.isPinned
+        }
     }
-
-
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ChatViewHolder {
-        val inflater = LayoutInflater.from(parent.context)
-        val binding = ItemChatBinding.inflate(inflater, parent, false)
-        return ChatViewHolder(binding)
-    }
-
-    override fun onBindViewHolder(holder: ChatViewHolder, position: Int) {
-
-
-        holder.bind(getItem(position), listener)
-
-    }
-
-    private object DiffUtilCallback : DiffUtil.ItemCallback<ChatDto>() {
-
-        override fun areItemsTheSame(oldItem: ChatDto, newItem: ChatDto) =
-            oldItem.jid == newItem.jid
-
-        override fun areContentsTheSame(oldItem: ChatDto, newItem: ChatDto): Boolean =
-            oldItem.username == newItem.username &&
-                    oldItem.message == newItem.message &&
-                    oldItem.date == newItem.date &&
-                    oldItem.state == newItem.state &&
-                    oldItem.isMuted == newItem.isMuted &&
-                    oldItem.isSynced == newItem.isSynced &&
-                    oldItem.status == newItem.status &&
-                    oldItem.entity == newItem.entity &&
-                    oldItem.unread == newItem.unread &&
-                    oldItem.unreadString == newItem.unreadString &&
-                    oldItem.colorId == newItem.colorId &&
-                    oldItem.isDrafted == newItem.isDrafted &&
-                    oldItem.hasAttachment == newItem.hasAttachment &&
-                    oldItem.userNickname == newItem.userNickname &&
-                    oldItem.isSystemMessage == newItem.isSystemMessage &&
-                    oldItem.isPinned == newItem.isPinned
-    }
-}

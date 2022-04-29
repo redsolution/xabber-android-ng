@@ -16,7 +16,6 @@ data class ChatDto(
     val isSynced: Boolean, // маленькая серая точка
     val status: ResourceStatus,
     val entity: RosterItemEntity,
-    val unread: Int, // убрать
     val unreadString: String?, //
     @ColorRes
     val colorId: Int,
@@ -25,9 +24,8 @@ data class ChatDto(
     val userNickname: String?, // имя в чате
     val isSystemMessage: Boolean, // курсивом
     val isPinned: Boolean,   // закреплено
-    val isArchived: Boolean   // заархивировано
-
-    // isMentioned Boolean @ упомянули в чате
+    val isArchived: Boolean, // заархивировано
+    val isMentioned : Boolean // @ упомянули в чате
 
 ) : Comparable<ChatDto> {
     override fun compareTo(other: ChatDto): Int {

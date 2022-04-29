@@ -27,6 +27,7 @@
         <item name="homeAsUpIndicator">@drawable/ic_material_chevron_left_variant_24</item>
         <item name="windowActionModeOverlay">true</item>
         <item name="action_with_chat_background">@color/grey_800</item>
+         <item name="contact_list_contact_background">@color/white</item>
     </style>
 
     <!--        <item name="bars_color">#eeeeee</item>-->
