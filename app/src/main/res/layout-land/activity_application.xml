@@ -18,15 +18,14 @@
             android:id="@+id/application_container"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:layout_weight="1" />
+            android:layout_weight="2" />
 
         <androidx.fragment.app.FragmentContainerView
-            android:id="@+id/container"
+            android:id="@+id/detail_container"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:background="@color/blue_grey_200"
-            android:visibility="gone"/>
+            android:layout_weight="3"
+            android:background="@color/blue_grey_200" />
 
     </LinearLayout>
 

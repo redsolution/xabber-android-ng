@@ -6,13 +6,41 @@
     android:layout_height="match_parent"
     tools:context=".presentation.application.activity.ApplicationActivity">
 
+
     <androidx.fragment.app.FragmentContainerView
         android:id="@+id/application_container"
         android:layout_width="0dp"
         android:layout_height="0dp"
+        android:fillViewport="true"
+        android:isScrollContainer="true"
+        android:orientation="vertical"
+        app:layout_constraintBottom_toTopOf="@id/bottom_nav_bar"
+        app:layout_constraintEnd_toStartOf="@id/detail_container"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <View
+        android:id="@+id/divider_content"
+        android:layout_width="1dp"
+        android:layout_height="0dp"
+        android:background="@color/grey_300"
+        app:layout_constraintBottom_toTopOf="@id/bottom_nav_bar"
+        app:layout_constraintEnd_toStartOf="@id/detail_container"
+        app:layout_constraintStart_toEndOf="@id/application_container"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <androidx.fragment.app.FragmentContainerView
+        android:id="@+id/detail_container"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:elevation="0.001dp"
+        android:fillViewport="true"
+        android:isScrollContainer="true"
+        android:orientation="vertical"
         app:layout_constraintBottom_toTopOf="@id/bottom_nav_bar"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintHorizontal_weight="6"
+        app:layout_constraintStart_toEndOf="@id/application_container"
         app:layout_constraintTop_toTopOf="parent" />
 
     <View

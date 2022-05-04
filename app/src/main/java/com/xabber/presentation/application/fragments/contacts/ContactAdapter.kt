@@ -42,7 +42,7 @@ class ContactAdapter(
                     .centerCrop()
                     .skipMemoryCache(true)
                     .into(contactImage)
-                contactName.text = contact.title
+                contactName.text = contact.userName
                 contactSubtitle.text = contact.subtitle
 
                 contact.getStatusColor()?.let { colorId ->
@@ -120,10 +120,10 @@ class ContactAdapter(
 private object DiffUtilCallback : DiffUtil.ItemCallback<ContactDto>() {
 
     override fun areItemsTheSame(oldItem: ContactDto, newItem: ContactDto) =
-        oldItem.title == newItem.title
+        oldItem.userName == newItem.userName
 
     override fun areContentsTheSame(oldItem: ContactDto, newItem: ContactDto) =
-        oldItem.title == newItem.title &&
+        oldItem.userName == newItem.userName &&
                 oldItem.status == newItem.status &&
                 oldItem.subtitle == newItem.subtitle
 }

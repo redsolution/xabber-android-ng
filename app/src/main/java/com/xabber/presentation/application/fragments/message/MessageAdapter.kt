@@ -51,7 +51,7 @@ private object DiffUtilCallback : DiffUtil.ItemCallback<MessageDto>() {
                 oldItem.sentTimestamp == newItem.sentTimestamp &&
                 oldItem.editTimestamp == newItem.editTimestamp &&
                 oldItem.delayTimestamp == newItem.delayTimestamp &&
-                oldItem.kind == newItem.kind &&
+                oldItem.displayType == newItem.displayType &&
                 oldItem.isWithAuthor == newItem.isWithAuthor &&
                 oldItem.isWithAvatar == newItem.isWithAvatar &&
                 oldItem.canPinMessage == newItem.canPinMessage &&

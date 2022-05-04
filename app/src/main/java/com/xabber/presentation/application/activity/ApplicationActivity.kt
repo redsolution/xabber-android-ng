@@ -13,7 +13,6 @@ import com.xabber.R
 import com.xabber.databinding.ActivityApplicationBinding
 import com.xabber.presentation.application.contract.ApplicationNavigator
 import com.xabber.presentation.application.fragments.account.AccountFragment
-import com.xabber.presentation.application.fragments.account.TestFragment
 import com.xabber.presentation.application.fragments.calls.CallsFragment
 import com.xabber.presentation.application.fragments.chat.ChatFragment
 import com.xabber.presentation.application.fragments.chat.ChatSettingsFragment
@@ -54,8 +53,13 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
         setContentView(binding!!.root)
 
         if (savedInstanceState == null) launchFragment(ChatFragment())
+
+         if (resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE || getWidthWindowType() != WindowSize.COMPACT) {
+                       supportFragmentManager.beginTransaction().replace(R.id.detail_container, MessageFragment.newInstance("")).commit()
+                    }
         //      launchFragment(TestFragment())
         initBottomNavigation()
+        setContainersWidth()
     }
 
 
@@ -80,7 +84,8 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
             WindowSize.COMPACT -> 0F
         }
 
-    }
+        }
+
 
     private fun updateUi() {
         if (supportFragmentManager.backStackEntryCount > 0) {
@@ -103,10 +108,6 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
         binding!!.bottomNavBar.setOnItemSelectedListener { menuItem ->
             when (menuItem.itemId) {
                 R.id.chats -> {
-                    when (resources.configuration.orientation) {
-                        Configuration.ORIENTATION_PORTRAIT -> binding?.container?.isVisible = false
-                        Configuration.ORIENTATION_LANDSCAPE -> binding?.container?.isVisible = true
-                    }
                     if (activeFragment !is ChatFragment) {
                         launchFragment(ChatFragment.newInstance("name.surname@redsolution.com"))
                     } else {
@@ -160,9 +161,8 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
                 )
             )
             Configuration.ORIENTATION_LANDSCAPE -> {
-                binding?.container?.isVisible = true
                 supportFragmentManager.beginTransaction()
-                    .replace(R.id.container, MessageFragment.newInstance(jid)).commit()
+                    .replace(R.id.detail_container, MessageFragment.newInstance(jid)).commit()
             }
         }
 
@@ -201,7 +201,7 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
     }
 
     override fun hideFragment(isVisible: Boolean) {
-        binding?.container?.isVisible = isVisible
+
     }
 
 

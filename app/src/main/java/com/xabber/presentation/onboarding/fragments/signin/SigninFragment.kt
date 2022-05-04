@@ -55,24 +55,6 @@ class SigninFragment() : Fragment() {
     }
 
     private fun initEditText() {
-        binding?.editTextLogin?.setOnFocusChangeListener { _, hasFocused ->
-            if (hasFocused) {
-                binding?.editTextLogin?.background = resources.getDrawable(R.drawable.frame_blue)
-            } else {
-                binding?.editTextLogin?.background = resources.getDrawable(R.drawable.frame_normal)
-            }
-        }
-
-        binding?.editTextPassword?.setOnFocusChangeListener { _, hasFocused ->
-            if (hasFocused) {
-                binding?.editTextPassword?.background = resources.getDrawable(R.drawable.frame_blue)
-            } else {
-                binding?.editTextPassword?.background =
-                    resources.getDrawable(R.drawable.frame_normal)
-
-            }
-        }
-
         val textWatcher = object : TextWatcher {
             override fun beforeTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {
             }

@@ -74,13 +74,13 @@ class ChatAdapter(
 
                 chatMuted.isVisible = chat.isMuted
                 chatPinned.isVisible = chat.isPinned
-                unreadMessagesWrapper.isVisible = chat.unread > 0
-                unreadMessagesCount.text = chat.unread.toString()
+                unreadMessagesWrapper.isVisible = chat.unreadString!!.isNotEmpty()
+                unreadMessagesCount.text = chat.unreadString
 
 
                 var image: Int? = null
                 var tint: Int? = null
-                chatStatusImage.isVisible = (chat.unread < 1)
+                chatStatusImage.isVisible = (chat.unreadString.isEmpty())
                 when (chat.state) {
                     MessageState.SENDING -> {
                         tint = R.color.grey_500
@@ -238,146 +238,144 @@ class ChatAdapter(
                 }
 
 
-
-                    //   RosterItemEntity.PRIVATE_CHAT ->
-
-
-                    //     val chatStatusContainer = chatStatusContainer12
-                    //   if (chat.entity in listOf(CONTACT, ISSUE))
-                    //        chatStatusContainer12
-                    //    else
-                    //       chatStatusContainer16
-
-                    //        chatStatusContainer.isVisible = true
-                    //    chatStatusContainer.setCardBackgroundColor(
-                    //        itemView.resources.getColor(
-                    //            chat.getStatusColor(),
-                    //             itemView.context.theme
-                    //         )
-                    //        )
+                //   RosterItemEntity.PRIVATE_CHAT ->
 
 
-                    //      if (chat.userNickname != null) {
-                    //          val spannable = SpannableString("${chat.userNickname}\n${chat.message}")
-                    //          spannable.setSpan(
-                    //              ForegroundColorSpan(
-                    //                  itemView.resources.getColor(
-                    ////                      R.color.grey_900,
-                    //                     itemView.context.theme
-                    // //                   )
-                    //               ),
-                    //                0,
-                    //               chat.userNickname.length,
-                    //             Spannable.SPAN_EXCLUSIVE_INCLUSIVE
-                    //          )
-                    //           chatMessage.text = spannable
-                    //       } else
-                    //    chatMessage.text = chat.message
+                //     val chatStatusContainer = chatStatusContainer12
+                //   if (chat.entity in listOf(CONTACT, ISSUE))
+                //        chatStatusContainer12
+                //    else
+                //       chatStatusContainer16
+
+                //        chatStatusContainer.isVisible = true
+                //    chatStatusContainer.setCardBackgroundColor(
+                //        itemView.resources.getColor(
+                //            chat.getStatusColor(),
+                //             itemView.context.theme
+                //         )
+                //        )
 
 
-                    if (chat.isDrafted) {
-                        val spannable = SpannableString("Drafted: ${chat.message}")
-                        spannable.setSpan(
-                            ForegroundColorSpan(
-                                itemView.resources.getColor(
-                                    R.color.red_500,
-                                    itemView.context.theme
-                                )
-                            ),
-                            0,
-                            8,
-                            Spannable.SPAN_EXCLUSIVE_INCLUSIVE
-                        )
-                        chatMessage.text = spannable
-                    }
+                //      if (chat.userNickname != null) {
+                //          val spannable = SpannableString("${chat.userNickname}\n${chat.message}")
+                //          spannable.setSpan(
+                //              ForegroundColorSpan(
+                //                  itemView.resources.getColor(
+                ////                      R.color.grey_900,
+                //                     itemView.context.theme
+                // //                   )
+                //               ),
+                //                0,
+                //               chat.userNickname.length,
+                //             Spannable.SPAN_EXCLUSIVE_INCLUSIVE
+                //          )
+                //           chatMessage.text = spannable
+                //       } else
+                //    chatMessage.text = chat.message
 
-                    chatSyncImage.isVisible = chat.isSynced
-                    if (chat.isSystemMessage)
-                        chatMessage.setTypeface(null, Typeface.ITALIC)
 
-                    itemView.setOnClickListener {
-                        listener.onClickItem(chat.username)
+                if (chat.isDrafted) {
+                    val spannable = SpannableString("Drafted: ${chat.message}")
+                    spannable.setSpan(
+                        ForegroundColorSpan(
+                            itemView.resources.getColor(
+                                R.color.red_500,
+                                itemView.context.theme
+                            )
+                        ),
+                        0,
+                        8,
+                        Spannable.SPAN_EXCLUSIVE_INCLUSIVE
+                    )
+                    chatMessage.text = spannable
+                }
 
-                    }
+                chatSyncImage.isVisible = chat.isSynced
+                if (chat.isSystemMessage)
+                    chatMessage.setTypeface(null, Typeface.ITALIC)
 
-                    chatImageContainer.setOnClickListener {
-                        listener.onClickAvatar(chat.username)
-                    }
+                itemView.setOnClickListener {
+                    listener.onClickItem(chat.username)
 
-                    itemView.setOnLongClickListener {
-                        val popup = PopupMenu(itemView.context, itemView, Gravity.RIGHT)
-                        if (!chat.isPinned) popup.inflate(R.menu.context_menu_chat)
-                        else popup.inflate(R.menu.context_menu_chat2)
+                }
 
-                        popup.setOnMenuItemClickListener {
+                chatImageContainer.setOnClickListener {
+                    listener.onClickAvatar(chat.username)
+                }
 
-                            when (it.itemId) {
-                                R.id.unpin -> listener.unPinChat(chat.id)
-                                R.id.to_pin -> {
-                                    listener.pinChat(chat.id)
-                                }
-                                R.id.turn_of_notifications -> {
-                                    listener.turnOfNotifications(chat.id)
-                                }
-                                R.id.customise_notifications -> {
-                                    listener.openSpecialNotificationsFragment()
-                                }
-                                R.id.delete_chat -> {
-                                    listener.deleteChat(chat.id)
-                                }
+                itemView.setOnLongClickListener {
+                    val popup = PopupMenu(itemView.context, itemView, Gravity.RIGHT)
+                    if (!chat.isPinned) popup.inflate(R.menu.context_menu_chat)
+                    else popup.inflate(R.menu.context_menu_chat2)
 
+                    popup.setOnMenuItemClickListener {
+
+                        when (it.itemId) {
+                            R.id.unpin -> listener.unPinChat(chat.id)
+                            R.id.to_pin -> {
+                                listener.pinChat(chat.id)
                             }
-                            true
+                            R.id.turn_of_notifications -> {
+                                listener.turnOfNotifications(chat.id)
+                            }
+                            R.id.customise_notifications -> {
+                                listener.openSpecialNotificationsFragment()
+                            }
+                            R.id.delete_chat -> {
+                                listener.deleteChat(chat.id)
+                            }
+
                         }
-                        popup.show()
                         true
                     }
+                    popup.show()
+                    true
+                }
 
 
-                    fun onSwipeChatItem() {
+                fun onSwipeChatItem() {
 //listener.swipeItem(chat.id)
 
-                    }
                 }
             }
         }
-
-
-
-        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ChatViewHolder {
-            val inflater = LayoutInflater.from(parent.context)
-            val binding = ItemChatBinding.inflate(inflater, parent, false)
-            return ChatViewHolder(binding)
-        }
-
-        override fun onBindViewHolder(holder: ChatViewHolder, position: Int) {
-
-
-            holder.bind(getItem(position), listener)
-
-        }
-
-        private object DiffUtilCallback : DiffUtil.ItemCallback<ChatDto>() {
-
-            override fun areItemsTheSame(oldItem: ChatDto, newItem: ChatDto) =
-                oldItem.jid == newItem.jid
-
-            override fun areContentsTheSame(oldItem: ChatDto, newItem: ChatDto): Boolean =
-                oldItem.username == newItem.username &&
-                        oldItem.message == newItem.message &&
-                        oldItem.date == newItem.date &&
-                        oldItem.state == newItem.state &&
-                        oldItem.isMuted == newItem.isMuted &&
-                        oldItem.isSynced == newItem.isSynced &&
-                        oldItem.status == newItem.status &&
-                        oldItem.entity == newItem.entity &&
-                        oldItem.unread == newItem.unread &&
-                        oldItem.unreadString == newItem.unreadString &&
-                        oldItem.colorId == newItem.colorId &&
-                        oldItem.isDrafted == newItem.isDrafted &&
-                        oldItem.hasAttachment == newItem.hasAttachment &&
-                        oldItem.userNickname == newItem.userNickname &&
-                        oldItem.isSystemMessage == newItem.isSystemMessage &&
-                        oldItem.isPinned == newItem.isPinned
-        }
     }
+
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ChatViewHolder {
+        val inflater = LayoutInflater.from(parent.context)
+        val binding = ItemChatBinding.inflate(inflater, parent, false)
+        return ChatViewHolder(binding)
+    }
+
+    override fun onBindViewHolder(holder: ChatViewHolder, position: Int) {
+
+
+        holder.bind(getItem(position), listener)
+
+    }
+
+    private object DiffUtilCallback : DiffUtil.ItemCallback<ChatDto>() {
+
+        override fun areItemsTheSame(oldItem: ChatDto, newItem: ChatDto) =
+            oldItem.jid == newItem.jid
+
+        override fun areContentsTheSame(oldItem: ChatDto, newItem: ChatDto): Boolean =
+            oldItem.username == newItem.username &&
+                    oldItem.message == newItem.message &&
+                    oldItem.date == newItem.date &&
+                    oldItem.state == newItem.state &&
+                    oldItem.isMuted == newItem.isMuted &&
+                    oldItem.isSynced == newItem.isSynced &&
+                    oldItem.status == newItem.status &&
+                    oldItem.entity == newItem.entity &&
+                    oldItem.unreadString == newItem.unreadString &&
+                    oldItem.colorId == newItem.colorId &&
+                    oldItem.isDrafted == newItem.isDrafted &&
+                    oldItem.hasAttachment == newItem.hasAttachment &&
+                    oldItem.userNickname == newItem.userNickname &&
+                    oldItem.isSystemMessage == newItem.isSystemMessage &&
+                    oldItem.isPinned == newItem.isPinned &&
+                    oldItem.isArchived == newItem.isArchived
+    }
+}

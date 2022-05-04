@@ -1,38 +1,26 @@
 package com.xabber.presentation.application.fragments.message
 
 import android.annotation.SuppressLint
-import android.content.Context
 import android.graphics.Canvas
-import android.os.Build
 import android.os.Bundle
-import android.os.Vibrator
-import android.service.autofill.FieldClassification
 import android.text.Editable
 import android.text.TextWatcher
-import android.util.Log.d
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.google.firebase.crashlytics.buildtools.reloc.org.apache.commons.logging.Log
-import com.xabber.R
 import com.xabber.databinding.FragmentMessageBinding
-import com.xabber.presentation.application.contract.FragmentAction
-import com.xabber.presentation.application.contract.applicationToolbarChanger
 import com.xabber.presentation.application.contract.navigator
-import com.xabber.presentation.onboarding.contract.toolbarChanger
-import kotlin.math.abs
 
 
 class MessageFragment : Fragment() {
     private var binding: FragmentMessageBinding? = null
     private var messageAdapter: MessageAdapter? = null
     private val viewModel = MessageViewModel()
-lateinit var name : String
+ var name : String = ""
 
     companion object {
         fun newInstance(_name: String) = MessageFragment().apply {

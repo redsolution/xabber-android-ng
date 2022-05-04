@@ -81,7 +81,7 @@ class ChatFragment : Fragment(), ChatAdapter.ChatListener {
                 }
                 R.id.unread -> {
                     for (i in 0 until list!!.size) {
-                        if (list[i].unread > 0) sortedList.add(list[i])
+                        if (list[i].unreadString!!.isNotEmpty()) sortedList.add(list[i])
                     }
                     chatAdapter.submitList(sortedList)
                 }

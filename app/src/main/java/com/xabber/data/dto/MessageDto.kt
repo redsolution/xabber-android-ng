@@ -6,12 +6,10 @@ data class MessageDto(
     val ownerJid: String,
     val sender: Sender?,
     var messageId: String,
-
     val sentTimestamp: Long,
     val editTimestamp: Long?,
     val delayTimestamp: Long?,
-
-    val kind: MessageKind?,
+    val displayType: MessageKind?,  // отображение сообщения
     val isWithAuthor: Boolean?,
     val isWithAvatar: Boolean?,
     val canPinMessage: Boolean?,

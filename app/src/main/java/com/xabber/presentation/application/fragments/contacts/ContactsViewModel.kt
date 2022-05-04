@@ -13,50 +13,38 @@ class ContactsViewModel : ViewModel() {
     init {
         contacts.value = java.util.ArrayList<ContactDto>()
       contacts.value!!.addAll(mutableListOf(
-          ContactDto(ContactKind.CONTACT,
-              "Иван Иванов", "Иван Иванов", "группа 1", "Заголовок", "Подзаголовок",
-              ResourceStatus.ONLINE, RosterItemEntity.CONTACT, false, "groupPrimary"), ContactDto(ContactKind.CONTACT,
-              "Олег Олегов", "Олег Олегов", "группа 1", "Заголовок", "Подзаголовок",
-              ResourceStatus.ONLINE, RosterItemEntity.CONTACT, false, "groupPrimary"), ContactDto(ContactKind.CONTACT,
-              "Иван Иванов", "Иван Иванов", "группа 1", "Заголовок", "Подзаголовок",
-              ResourceStatus.ONLINE, RosterItemEntity.CONTACT, false, "groupPrimary"),ContactDto(ContactKind.CONTACT,
-              "Иван Иванов", "Иван Иванов", "группа 1", "Заголовок", "Подзаголовок",
-              ResourceStatus.ONLINE, RosterItemEntity.CONTACT, false, "groupPrimary"),ContactDto(ContactKind.CONTACT,
-              "Иван Иванов", "Иван Иванов", "группа 1", "Заголовок", "Подзаголовок",
-              ResourceStatus.ONLINE, RosterItemEntity.CONTACT, false, "groupPrimary"),ContactDto(ContactKind.CONTACT,
-              "Иван Иванов", "Иван Иванов", "группа 1", "Заголовок", "Подзаголовок",
-              ResourceStatus.ONLINE, RosterItemEntity.CONTACT, false, "groupPrimary"),ContactDto(ContactKind.CONTACT,
-              "Иван Иванов", "Иван Иванов", "группа 1", "Заголовок", "Подзаголовок",
-              ResourceStatus.ONLINE, RosterItemEntity.CONTACT, false, "groupPrimary"),ContactDto(ContactKind.CONTACT,
-              "Иван Иванов", "Иван Иванов", "группа 1", "Заголовок", "Подзаголовок",
-              ResourceStatus.ONLINE, RosterItemEntity.CONTACT, false, "groupPrimary"),ContactDto(ContactKind.CONTACT,
-              "Иван Иванов", "Иван Иванов", "группа 1", "Заголовок", "Подзаголовок",
-              ResourceStatus.ONLINE, RosterItemEntity.CONTACT, false, "groupPrimary"),ContactDto(ContactKind.CONTACT,
-              "Иван Иванов", "Иван Иванов", "группа 1", "Заголовок", "Подзаголовок",
-              ResourceStatus.ONLINE, RosterItemEntity.CONTACT, false, "groupPrimary"),ContactDto(ContactKind.CONTACT,
-              "Иван Иванов", "Иван Иванов", "группа 1", "Заголовок", "Подзаголовок",
-              ResourceStatus.ONLINE, RosterItemEntity.CONTACT, false, "groupPrimary"),ContactDto(ContactKind.CONTACT,
-              "Иван Иванов", "Иван Иванов", "группа 1", "Заголовок", "Подзаголовок",
-              ResourceStatus.ONLINE, RosterItemEntity.CONTACT, false, "groupPrimary"),ContactDto(ContactKind.CONTACT,
-              "Иван Иванов", "Иван Иванов", "группа 1", "Заголовок", "Подзаголовок",
-              ResourceStatus.ONLINE, RosterItemEntity.CONTACT, false, "groupPrimary"),ContactDto(ContactKind.CONTACT,
-              "Иван Иванов", "Иван Иванов", "группа 1", "Заголовок", "Подзаголовок",
-              ResourceStatus.ONLINE, RosterItemEntity.CONTACT, false, "groupPrimary"),ContactDto(ContactKind.CONTACT,
-              "Иван Иванов", "Иван Иванов", "группа 1", "Заголовок", "Подзаголовок",
-              ResourceStatus.ONLINE, RosterItemEntity.CONTACT, false, "groupPrimary"),ContactDto(ContactKind.CONTACT,
-              "Иван Иванов", "Иван Иванов", "группа 1", "Заголовок", "Подзаголовок",
-              ResourceStatus.ONLINE, RosterItemEntity.CONTACT, false, "groupPrimary"),ContactDto(ContactKind.CONTACT,
-              "Иван Иванов", "Иван Иванов", "группа 1", "Заголовок", "Подзаголовок",
-              ResourceStatus.ONLINE, RosterItemEntity.CONTACT, false, "groupPrimary"),ContactDto(ContactKind.CONTACT,
-              "Иван Иванов", "Иван Иванов", "группа 1", "Заголовок", "Подзаголовок",
-              ResourceStatus.ONLINE, RosterItemEntity.CONTACT, false, "groupPrimary"),ContactDto(ContactKind.CONTACT,
-              "Иван Иванов", "Иван Иванов", "группа 1", "Заголовок", "Подзаголовок",
-              ResourceStatus.ONLINE, RosterItemEntity.CONTACT, false, "groupPrimary"),ContactDto(ContactKind.CONTACT,
-              "Иван Иванов", "Иван Иванов", "группа 1", "Заголовок", "Подзаголовок",
-              ResourceStatus.ONLINE, RosterItemEntity.CONTACT, false, "groupPrimary"),ContactDto(ContactKind.CONTACT,
-              "Иван Иванов", "Иван Иванов", "группа 1", "Заголовок", "Подзаголовок",
-              ResourceStatus.ONLINE, RosterItemEntity.CONTACT, false, "groupPrimary"),ContactDto(ContactKind.CONTACT,
-              "Иван Иванов", "Иван Иванов", "группа 1", "Заголовок", "Подзаголовок",
-              ResourceStatus.ONLINE, RosterItemEntity.CONTACT, false, "groupPrimary"),))
+          ContactDto(
+              "Иван Иванов", "Иван Иванов", "группа 1", "Иван Иванов", "Подзаголовок",
+              ResourceStatus.ONLINE, RosterItemEntity.CONTACT), ContactDto(
+              "Олег Олегов", "Олег Олегов", "группа 1", "Подзаголовок", "Подзаголовок",
+              ResourceStatus.ONLINE, RosterItemEntity.CONTACT), ContactDto(
+              "Иван Иванов", "Иван Иванов", "группа 1", "Арина Артемонова", "Подзаголовок",
+              ResourceStatus.ONLINE, RosterItemEntity.CONTACT),ContactDto(
+              "Иван Иванов", "Иван Иванов", "группа 1", "Ирина Меньшикова", "Подзаголовок",
+              ResourceStatus.ONLINE, RosterItemEntity.CONTACT),ContactDto(
+              "Иван Иванов", "Иван Иванов", "группа 1", "Карина Румянцева", "Подзаголовок",
+              ResourceStatus.ONLINE, RosterItemEntity.CONTACT), ContactDto(
+              "Иван Иванов", "Иван Иванов", "группа 1", "Анатолий Медведев", "Подзаголовок",
+              ResourceStatus.ONLINE, RosterItemEntity.CONTACT), ContactDto(
+              "Иван Иванов", "Иван Иванов", "группа 1", "Виктор Пелевин", "Подзаголовок",
+              ResourceStatus.ONLINE, RosterItemEntity.CONTACT), ContactDto(
+              "Иван Иванов", "Иван Иванов", "группа 1", "Мария Антонова", "Подзаголовок",
+              ResourceStatus.ONLINE, RosterItemEntity.CONTACT), ContactDto(
+              "Иван Иванов", "Иван Иванов", "группа 1", "Тимофей Тигров", "Подзаголовок",
+              ResourceStatus.ONLINE, RosterItemEntity.CONTACT), ContactDto(
+              "Иван Иванов", "Иван Иванов", "группа 1", "Татьяна Пашнина", "Подзаголовок",
+              ResourceStatus.ONLINE, RosterItemEntity.CONTACT), ContactDto(
+              "Иван Иванов", "Иван Иванов", "группа 1", "Светлана Чернова", "Подзаголовок",
+              ResourceStatus.ONLINE, RosterItemEntity.CONTACT), ContactDto(
+              "Иван Иванов", "Иван Иванов", "группа 1", "Алексей Купатов", "Подзаголовок",
+              ResourceStatus.ONLINE, RosterItemEntity.CONTACT), ContactDto(
+              "Иван Иванов", "Иван Иванов", "группа 1", "Анна Левадная", "Подзаголовок",
+              ResourceStatus.ONLINE, RosterItemEntity.CONTACT), ContactDto(
+              "Иван Иванов", "Иван Иванов", "группа 1", "Сергей Бутрий", "Подзаголовок",
+              ResourceStatus.ONLINE, RosterItemEntity.CONTACT),ContactDto(
+              "Иван Иванов", "Иван Иванов", "группа 1", "Кирилл Розов", "Подзаголовок",
+              ResourceStatus.ONLINE, RosterItemEntity.CONTACT),ContactDto(
+              "Иван Иванов", "Иван Иванов", "группа 1", "Алина Рыбина", "Подзаголовок",
+              ResourceStatus.ONLINE, RosterItemEntity.CONTACT)))
     }
 }

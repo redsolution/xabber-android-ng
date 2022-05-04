@@ -38,15 +38,6 @@ class SignupNicknameFragment : Fragment() {
 
 
     private fun initEditText() {
-        binding?.nicknameEditText?.setOnFocusChangeListener { _, hasFocused ->
-            if (hasFocused) {
-                binding?.nicknameEditText?.background = resources.getDrawable(R.drawable.frame_blue)
-            } else {
-                binding?.nicknameEditText?.background =
-                    resources.getDrawable(R.drawable.frame_normal)
-            }
-        }
-
         val textChangeListener = object : TextWatcher {
             override fun beforeTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {
             }

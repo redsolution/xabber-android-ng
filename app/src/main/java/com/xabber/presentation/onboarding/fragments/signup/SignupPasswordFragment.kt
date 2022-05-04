@@ -57,14 +57,6 @@ class SignupPasswordFragment : BaseFragment() {
     }
 
     private fun initEditText() {
-        binding?.passwordEditText?.setOnFocusChangeListener { _, hasFocused ->
-            if (hasFocused) {
-                binding?.passwordEditText?.background = resources.getDrawable(R.drawable.frame_blue)
-            } else {
-                binding?.passwordEditText?.background =
-                    resources.getDrawable(R.drawable.frame_normal)
-            }
-        }
         binding?.passwordEditText?.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(
                 p0: CharSequence?,

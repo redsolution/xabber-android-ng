@@ -41,15 +41,6 @@ class SignupUserNameFragment : BaseFragment() {
     }
 
     private fun initEditText() {
-        binding?.usernameEditText?.setOnFocusChangeListener { _, hasFocused ->
-            if (hasFocused) {
-                binding?.usernameEditText?.background = resources.getDrawable(R.drawable.frame_blue)
-            } else {
-                binding?.usernameEditText?.background =
-                    resources.getDrawable(R.drawable.frame_normal)
-            }
-        }
-
         with(binding!!) {
             usernameEditText.addTextChangedListener(object : TextWatcher {
                 override fun beforeTextChanged(
