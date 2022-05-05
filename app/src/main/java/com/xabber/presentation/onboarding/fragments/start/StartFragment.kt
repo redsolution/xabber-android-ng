@@ -7,6 +7,8 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import androidx.core.view.isVisible
+import androidx.navigation.fragment.findNavController
+import com.xabber.R
 import com.xabber.databinding.FragmentStartBinding
 import com.xabber.presentation.onboarding.contract.navigator
 import com.xabber.presentation.onboarding.contract.toolbarChanger
@@ -39,11 +41,12 @@ class StartFragment : BaseFragment() {
     private fun initButton() {
         with(binding!!) {
             btnSkip.setOnClickListener {
-                navigator().goToApplicationActivity()
+              requireActivity().finish()
             }
 
             btnLogin.setOnClickListener {
-                navigator().startSigninFragment()
+               // navigator().startSigninFragment()
+                findNavController().navigate(R.id.action_startFragment_to_signinFragment)
             }
 
             btnSignup.setOnClickListener {
@@ -56,7 +59,8 @@ class StartFragment : BaseFragment() {
                         .observeOn(AndroidSchedulers.mainThread())
                         .subscribe({ host ->
                             progressBar.isVisible = false
-                            navigator().startSignupNicknameFragment()
+                                //    navigator().startSignupNicknameFragment()
+                            findNavController().navigate(R.id.action_startFragment_to_signinFragment)
                         }, this@StartFragment::logError)
                 )
             }

@@ -1,15 +1,19 @@
 package com.xabber.presentation.application.activity
 
+import android.content.Intent
 import android.content.res.Configuration
 import android.content.res.Resources
 import android.os.Bundle
 import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.view.isVisible
+import androidx.core.view.updateLayoutParams
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentManager
 import com.xabber.R
+import com.xabber.data.util.dp
 import com.xabber.databinding.ActivityApplicationBinding
 import com.xabber.presentation.application.contract.ApplicationNavigator
 import com.xabber.presentation.application.fragments.account.AccountFragment
@@ -26,40 +30,50 @@ import com.xabber.presentation.application.fragments.message.MessageFragment
 import com.xabber.presentation.application.fragments.message.NewChatFragment
 import com.xabber.presentation.application.fragments.settings.SettingsFragment
 import com.xabber.presentation.application.util.WindowSize
+import com.xabber.presentation.onboarding.activity.OnBoardingActivity
 
 
 class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
-
+    private val isSignedIn = true
     private var binding: ActivityApplicationBinding? = null
     lateinit var userName: String
     private val activeFragment: Fragment
         get() = supportFragmentManager.findFragmentById(R.id.application_container)!!
 
-    private val fragmentListener = object : FragmentManager.FragmentLifecycleCallbacks() {
-        override fun onFragmentViewCreated(
-            fm: FragmentManager,
-            f: Fragment,
-            v: View,
-            savedInstanceState: Bundle?
-        ) {
-            super.onFragmentViewCreated(fm, f, v, savedInstanceState)
-            updateUi()
-        }
-    }
+    //   private val fragmentListener = object : FragmentManager.FragmentLifecycleCallbacks() {
+    //    override fun onFragmentViewCreated(
+    //       fm: FragmentManager,
+    //      f: Fragment,
+    //     v: View,
+    //     savedInstanceState: Bundle?
+    //  ) {
+    //       super.onFragmentViewCreated(fm, f, v, savedInstanceState)
+    //       updateUi()
+    //   }
+    //  }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        binding = ActivityApplicationBinding.inflate(layoutInflater)
-        setContentView(binding!!.root)
+        if (isSignedIn) {
+            val intent = Intent(this, OnBoardingActivity::class.java)
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK)
+            startActivityForResult(intent, 1)
+          //  finish()
+          //  overridePendingTransition(0, 0)
+        } else {
+            if (savedInstanceState == null) launchFragment(ChatFragment())
+            binding = ActivityApplicationBinding.inflate(layoutInflater)
+            setContentView(binding!!.root)
+        }
+        //   setContainersWidth()
 
-        if (savedInstanceState == null) launchFragment(ChatFragment())
 
-         if (resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE || getWidthWindowType() != WindowSize.COMPACT) {
-                       supportFragmentManager.beginTransaction().replace(R.id.detail_container, MessageFragment.newInstance("")).commit()
-                    }
+        //     if (resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE || getWidthWindowType() != WindowSize.COMPACT) {
+        //                   supportFragmentManager.beginTransaction().replace(R.id.detail_container, MessageFragment.newInstance("")).commit()
+        //               }
         //      launchFragment(TestFragment())
         initBottomNavigation()
-        setContainersWidth()
+
     }
 
 
@@ -76,15 +90,23 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
 
 
     fun setContainersWidth() {
-        //   binding.detailsContentContainerWrapper.updateLayoutParams<ConstraintLayout.LayoutParams> {
-        //      this.horizontalWeight =
-        when (getWidthWindowType()) {
-            WindowSize.EXPANDED -> 6F
-            WindowSize.MEDIUM -> 6F
-            WindowSize.COMPACT -> 0F
+        binding?.detailContainer?.isVisible = true
+        binding?.applicationContainer?.updateLayoutParams<ConstraintLayout.LayoutParams> {
+            this.width =
+                when (getWidthWindowType()) {
+                    WindowSize.EXPANDED -> 360.dp
+                    WindowSize.MEDIUM -> 0.dp
+                    WindowSize.COMPACT -> 0.dp
+                }
         }
+    }
 
+    fun hideDetailContainer() {
+        binding?.applicationContainer?.updateLayoutParams<ConstraintLayout.LayoutParams> {
+            this.width = 0.dp
         }
+        binding?.detailContainer?.isVisible = false
+    }
 
 
     private fun updateUi() {
@@ -109,21 +131,34 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
             when (menuItem.itemId) {
                 R.id.chats -> {
                     if (activeFragment !is ChatFragment) {
+                        //     setContainersWidth()
                         launchFragment(ChatFragment.newInstance("name.surname@redsolution.com"))
                     } else {
                         Toast.makeText(this, "Button press", Toast.LENGTH_SHORT).show()
                     }
                 }
-                R.id.calls -> if (activeFragment !is CallsFragment) launchFragment(CallsFragment())
-                R.id.contacts -> if (activeFragment !is ContactsFragment) launchFragment(
-                    ContactsFragment()
-                )
-                R.id.discover -> if (activeFragment !is DiscoverFragment) launchFragment(
-                    DiscoverFragment()
-                )
-                R.id.settings -> if (activeFragment !is SettingsFragment) launchFragment(
-                    SettingsFragment()
-                )
+                R.id.calls -> if (activeFragment !is CallsFragment) {
+                    //  hideDetailContainer()
+                    launchFragment(CallsFragment())
+                }
+                R.id.contacts -> if (activeFragment !is ContactsFragment) {
+                    //    setContainersWidth()
+                    launchFragment(
+                        ContactsFragment()
+                    )
+                }
+                R.id.discover -> if (activeFragment !is DiscoverFragment) {
+                    //   hideDetailContainer()
+                    launchFragment(
+                        DiscoverFragment()
+                    )
+                }
+                R.id.settings -> if (activeFragment !is SettingsFragment) {
+                    //   hideDetailContainer()
+                    launchFragment(
+                        SettingsFragment()
+                    )
+                }
             }
             true
         }

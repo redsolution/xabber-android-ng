@@ -51,9 +51,8 @@ class OnBoardingActivity : AppCompatActivity(), Navigator, ToolbarChanger {
         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         binding = ActivityOnboardingBinding.inflate(layoutInflater)
         setContentView(binding?.root)
-        binding?.onboardingToolbar?.title = ""
+   //     binding?.onboardingToolbar?.title = ""
         setSupportActionBar(binding?.onboardingToolbar)
-
         if (savedInstanceState == null) addStartFragment()
     }
 

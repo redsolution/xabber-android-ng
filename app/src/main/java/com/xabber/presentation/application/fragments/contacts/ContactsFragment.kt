@@ -10,23 +10,16 @@ import com.xabber.R
 import com.xabber.databinding.FragmentContactBinding
 import com.xabber.presentation.application.contract.navigator
 
-class ContactsFragment : Fragment(), ContactAdapter.Listener {
-    private var binding: FragmentContactBinding? = null
-    private val contactAdapter = ContactAdapter(this)
-    private val viewModel = ContactsViewModel()
+class ContactsFragment : Fragment(R.layout.fragment_contact), ContactAdapter.Listener {
 
-    override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View? {
-        binding = FragmentContactBinding.inflate(inflater, container, false)
-        return binding?.root
-    }
+    private val viewModel = ContactsViewModel()
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-      binding?.recyclerView?.adapter = contactAdapter
+       val binding = FragmentContactBinding.bind(view)
+        val contactAdapter = ContactAdapter(this)
+      binding.recyclerView.adapter = contactAdapter
+
         viewModel.contacts.observe(viewLifecycleOwner) {
             contactAdapter.submitList(it)
         }
