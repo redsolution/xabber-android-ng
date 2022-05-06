@@ -6,10 +6,10 @@ import android.text.TextWatcher
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.navigation.fragment.findNavController
 import com.xabber.R
 import com.xabber.databinding.FragmentSignupPasswordBinding
 import com.xabber.domain.entity.AccountJid
-import com.xabber.presentation.onboarding.contract.navigator
 import com.xabber.presentation.onboarding.contract.toolbarChanger
 import com.xabber.presentation.onboarding.fragments.BaseFragment
 import kotlin.properties.Delegates
@@ -78,33 +78,34 @@ class SignupPasswordFragment : BaseFragment() {
     private fun initButton() {
         with(binding!!) {
             passwordBtnNext.setOnClickListener {
-              //  progressBar.isVisible = true
-             //   passwordBtnNext.isEnabled = false
-             //   passwordEditText.isEnabled = false
-             //   passwordBtnNext.text = ""
-              //  compositeDisposable.clear()
-              //  compositeDisposable.add(
-               //     viewModel.registerAccount(username, host, password)
-                 //       .subscribeOn(Schedulers.io())
-                 //       .observeOn(AndroidSchedulers.mainThread())
-                  //      .doAfterSuccess {
-                   //         passwordEditText.isEnabled = true
-                   //         accountJid = AccountJid.from(
-                     //           Localpart.from(it.username),
-                      //          domainBareFrom(
-                      //              Domainpart.from(it.domain)
-                       //         ),
-                      //          Resourcepart.EMPTY
-                       //     )
+                //  progressBar.isVisible = true
+                //   passwordBtnNext.isEnabled = false
+                //   passwordEditText.isEnabled = false
+                //   passwordBtnNext.text = ""
+                //  compositeDisposable.clear()
+                //  compositeDisposable.add(
+                //     viewModel.registerAccount(username, host, password)
+                //       .subscribeOn(Schedulers.io())
+                //       .observeOn(AndroidSchedulers.mainThread())
+                //      .doAfterSuccess {
+                //         passwordEditText.isEnabled = true
+                //         accountJid = AccountJid.from(
+                //           Localpart.from(it.username),
+                //          domainBareFrom(
+                //              Domainpart.from(it.domain)
+                //         ),
+                //          Resourcepart.EMPTY
+                //     )
 
-                     //   }
-                     //   .doOnDispose {
-                            navigator().startSignupAvatarFragment()
-                    //    }
-                   //     .subscribe({}, {
-                   //         logError(it)
-                   //     })
-              //  )
+                //   }
+                //   .doOnDispose {
+                //  navigator().startSignupAvatarFragment()
+                findNavController().navigate(R.id.action_signupPasswordFragment_to_signupAvatarFragment)
+                //    }
+                //     .subscribe({}, {
+                //         logError(it)
+                //     })
+                //  )
             }
         }
     }

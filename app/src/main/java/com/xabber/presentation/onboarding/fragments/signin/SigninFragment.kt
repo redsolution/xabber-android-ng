@@ -15,6 +15,7 @@ import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
+import androidx.navigation.fragment.findNavController
 import com.xabber.R
 import com.xabber.databinding.FragmentSigninBinding
 import com.xabber.presentation.onboarding.contract.navigator
@@ -44,8 +45,8 @@ class SigninFragment() : Fragment() {
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        toolbarChanger().setShowBack(true)
-        toolbarChanger().setTitle(R.string.signin_toolbar_title_1)
+     //   toolbarChanger().setShowBack(true)
+     //   toolbarChanger().setTitle(R.string.signin_toolbar_title_1)
         initEditText()
         initButton()
         initRecyclerView()
@@ -174,6 +175,7 @@ class SigninFragment() : Fragment() {
                                         btnRock.isVisible = true
                                         btnRock.setOnClickListener {
                                             navigator().goToApplicationActivity()
+                                         //   findNavController().navigate(R.id.action_signinFragment_to_applicationActivity)
                                         }
                                     }
                                     if (viewModel._features.filter { it.state == State.Error }
@@ -209,6 +211,7 @@ class SigninFragment() : Fragment() {
 
             }
         }
+
     }
 
 
@@ -247,7 +250,8 @@ class SigninFragment() : Fragment() {
         spannable.setSpan(
             object : ClickableSpan() {
                 override fun onClick(p0: View) {
-                    navigator().startSignupNicknameFragment()
+                    //navigator().startSignupNicknameFragment()
+                    findNavController().navigate(R.id.action_signinFragment_to_signupNicknameFragment)
                 }
 
                 override fun updateDrawState(ds: TextPaint) {

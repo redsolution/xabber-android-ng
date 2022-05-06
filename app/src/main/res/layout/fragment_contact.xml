@@ -1,46 +1,42 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.appcompat.widget.LinearLayoutCompat xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/contacts_sliding_layout"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:orientation="horizontal">
 
-    <androidx.slidingpanelayout.widget.SlidingPaneLayout
-        android:id="@+id/contacts_sliding_layout"
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/container_contacts"
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_height="match_parent"
+        android:layout_weight="1">
 
-        <androidx.fragment.app.FragmentContainerView
-            android:id="@+id/container_contacts"
-            android:name="com.xabber.presentation.application.fragments.contacts.ContactsFragment"
-            android:layout_width="280dp"
-            android:layout_height="match_parent">
-
-            <com.google.android.material.appbar.MaterialToolbar
-                android:id="@+id/toolbar_contacts"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:background="@color/blue_300"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent"
-                app:title="Contacts" />
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/toolbar_contacts"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:background="@color/blue_300"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:title="Contacts" />
 
 
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/recyclerView"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/toolbar_contacts" />
-        </androidx.fragment.app.FragmentContainerView>
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/recyclerView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/toolbar_contacts" />
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
-        <androidx.fragment.app.FragmentContainerView
-            android:name="com.xabber.presentation.application.fragments.contacts.ContactsFragment"
-            android:layout_width="300dp"
-            android:layout_height="match_parent"
-            android:background="@color/blue_grey_200" />
-    </androidx.slidingpanelayout.widget.SlidingPaneLayout>
-</FrameLayout>
+    <androidx.fragment.app.FragmentContainerView
+        android:id="@+id/container_details"
+        android:name="com.xabber.presentation.application.fragments.message.MessageFragment"
+        android:layout_width="0dp"
+        android:layout_height="match_parent" />
+</androidx.appcompat.widget.LinearLayoutCompat>

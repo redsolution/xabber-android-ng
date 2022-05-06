@@ -8,6 +8,7 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.annotation.ColorRes
 import androidx.core.content.res.ResourcesCompat
+import androidx.navigation.fragment.findNavController
 import com.xabber.R
 import com.xabber.databinding.FragmentSignupUsernameBinding
 import com.xabber.presentation.onboarding.contract.navigator
@@ -54,15 +55,20 @@ class SignupUserNameFragment : BaseFragment() {
                 override fun onTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {}
                 override fun afterTextChanged(p0: Editable?) {
 
-           if (p0.toString().isEmpty()) {
-               usernameSubtitle.text = resources.getString(R.string.signup_username_subtitle)
-               changeSubtitleColor(R.color.grey_text_3)
-           }
-             if (usernameSubtitle.text == resources.getString(R.string.signup_username_error_subtitle))  { usernameSubtitle.text = resources.getString(R.string.signup_username_subtitle)
-                    changeSubtitleColor(R.color.grey_text_3) }
+                    if (p0.toString().isEmpty()) {
+                        usernameSubtitle.text =
+                            resources.getString(R.string.signup_username_subtitle)
+                        changeSubtitleColor(R.color.grey_text_3)
+                    }
+                    if (usernameSubtitle.text == resources.getString(R.string.signup_username_error_subtitle)) {
+                        usernameSubtitle.text =
+                            resources.getString(R.string.signup_username_subtitle)
+                        changeSubtitleColor(R.color.grey_text_3)
+                    }
 
-                    if(p0.toString() == "маша") {
-                        usernameSubtitle.text = resources.getString(R.string.signup_username_error_subtitle)
+                    if (p0.toString() == "маша") {
+                        usernameSubtitle.text =
+                            resources.getString(R.string.signup_username_error_subtitle)
                         changeSubtitleColor(R.color.red_600)
                     } else if (p0.toString().length > 3) {
                         usernameBtnNext.isEnabled = true
@@ -89,7 +95,8 @@ class SignupUserNameFragment : BaseFragment() {
 
     private fun initButton() {
         binding?.usernameBtnNext?.setOnClickListener {
-            navigator().startSignupPasswordFragment()
+            //   navigator().startSignupPasswordFragment()
+            findNavController().navigate(R.id.action_signupUserNameFragment_to_signupPasswordFragment)
         }
     }
 

@@ -27,17 +27,18 @@
             android:name=".presentation.application.activity.ApplicationActivity"
             android:exported="true"
             android:theme="@style/ThemeApplication">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
 
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
         </activity>
         <activity
             android:name=".presentation.onboarding.activity.OnBoardingActivity"
             android:exported="true"
-            android:theme="@style/ThemeOnboarding" />
+            android:theme="@style/ThemeOnboarding">
+          <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
 
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+    </activity>
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.provider"

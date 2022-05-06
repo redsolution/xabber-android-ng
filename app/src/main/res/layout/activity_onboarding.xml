@@ -18,14 +18,15 @@
         app:titleCentered="true" />
 
 
-    <androidx.fragment.app.FragmentContainerView
+    <fragment
         android:id="@+id/onboarding_container"
+        android:name="androidx.navigation.fragment.NavHostFragment"
         android:layout_width="400dp"
         android:layout_height="0dp"
-        android:name="androidx.navigation.fragment.NavHostFragment"
         app:defaultNavHost="true"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/onboarding_toolbar" />
+        app:layout_constraintTop_toBottomOf="@id/onboarding_toolbar"
+        app:navGraph="@navigation/onboarding_graph" />
 </androidx.constraintlayout.widget.ConstraintLayout>

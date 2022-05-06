@@ -31,8 +31,6 @@ class StartFragment : BaseFragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        toolbarChanger().setShowBack(false)
-        toolbarChanger().clearTitle()
         initButton()
     }
 
@@ -41,11 +39,10 @@ class StartFragment : BaseFragment() {
     private fun initButton() {
         with(binding!!) {
             btnSkip.setOnClickListener {
-              requireActivity().finish()
+             findNavController().navigate(R.id.action_startFragment_to_applicationActivity)
             }
 
             btnLogin.setOnClickListener {
-               // navigator().startSigninFragment()
                 findNavController().navigate(R.id.action_startFragment_to_signinFragment)
             }
 
@@ -59,8 +56,7 @@ class StartFragment : BaseFragment() {
                         .observeOn(AndroidSchedulers.mainThread())
                         .subscribe({ host ->
                             progressBar.isVisible = false
-                                //    navigator().startSignupNicknameFragment()
-                            findNavController().navigate(R.id.action_startFragment_to_signinFragment)
+                            findNavController().navigate(R.id.action_startFragment_to_signupNicknameFragment)
                         }, this@StartFragment::logError)
                 )
             }

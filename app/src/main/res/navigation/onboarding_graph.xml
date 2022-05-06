@@ -1,13 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <navigation xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/onboarding_graph"
     app:startDestination="@id/startFragment">
 
     <fragment
         android:id="@+id/startFragment"
         android:name="com.xabber.presentation.onboarding.fragments.start.StartFragment"
-        android:label=""
+        android:label=" "
         >
         <action
             android:id="@+id/action_startFragment_to_signinFragment"
@@ -15,6 +16,9 @@
         <action
             android:id="@+id/action_startFragment_to_signupNicknameFragment"
             app:destination="@id/signupNicknameFragment" />
+        <action
+            android:id="@+id/action_startFragment_to_applicationActivity"
+            app:destination="@id/applicationActivity" />
     </fragment>
     <fragment
         android:id="@+id/signinFragment"
@@ -23,6 +27,9 @@
         <action
             android:id="@+id/action_signinFragment_to_signupNicknameFragment"
             app:destination="@id/signupNicknameFragment" />
+        <action
+            android:id="@+id/action_signinFragment_to_applicationActivity"
+            app:destination="@id/applicationActivity" />
     </fragment>
     <fragment
         android:id="@+id/signupNicknameFragment"
@@ -51,5 +58,14 @@
     <fragment
         android:id="@+id/signupAvatarFragment"
         android:name="com.xabber.presentation.onboarding.fragments.signup.SignupAvatarFragment"
-        android:label="Profile Image" />
+        android:label="Profile Image" >
+        <action
+            android:id="@+id/action_signupAvatarFragment_to_applicationActivity"
+            app:destination="@id/applicationActivity" />
+    </fragment>
+    <activity
+        android:id="@+id/applicationActivity"
+        android:name="com.xabber.presentation.application.activity.ApplicationActivity"
+        android:label="activity_application"
+        tools:layout="@layout/activity_application" />
 </navigation>

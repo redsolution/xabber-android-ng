@@ -2,21 +2,17 @@
 <navigation xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/nav_graph"
+    android:id="@+id/application_graph"
     app:startDestination="@id/chatFragment">
 
     <fragment
         android:id="@+id/chatFragment"
         android:name="com.xabber.presentation.application.fragments.chat.ChatFragment"
-        android:label="Xabber"
-        tools:layout="R.layout.fragment_chat">
+        android:label="fragment_chat"
+        tools:layout="@layout/fragment_chat" >
         <action
-            android:id="@+id/action_chatFragment_to_onBoardingActivity"
-            app:destination="@id/onBoardingActivity" />
+            android:id="@+id/action_chatFragment_to_onboarding_graph"
+            app:destination="@id/onboarding_graph" />
     </fragment>
-    <activity
-        android:id="@+id/onBoardingActivity"
-        android:name="com.xabber.presentation.onboarding.activity.OnBoardingActivity"
-        android:label="activity_onboarding"
-        tools:layout="@layout/activity_onboarding" />
+    <include app:graph="@navigation/onboarding_graph" />
 </navigation>
