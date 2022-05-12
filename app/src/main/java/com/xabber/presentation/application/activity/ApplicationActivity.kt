@@ -7,13 +7,13 @@ import android.util.Log
 import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.isVisible
 import androidx.core.view.updateLayoutParams
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.commit
 import androidx.slidingpanelayout.widget.SlidingPaneLayout
 import com.xabber.R
+import com.xabber.data.util.dp
 import com.xabber.databinding.ActivityApplicationBinding
 import com.xabber.presentation.application.contract.ApplicationNavigator
 import com.xabber.presentation.application.fragments.account.AccountFragment
@@ -58,15 +58,22 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
     fun setContainerWidth() {
         val widthPx = Resources.getSystem().displayMetrics.widthPixels
         val density = Resources.getSystem().displayMetrics.density
+        val widthDp = widthPx / density
 
-        
-
-        Log.d("iiii", "px = $widthPx, density = $density")
         binding.mainContainer.updateLayoutParams<SlidingPaneLayout.LayoutParams> {
-            this.width = 240 * 2
+            val maxSizeDp = 360.dp
+            val newWidth = (widthDp / 100 * 40.dp).toInt()
+            this.width =
+                    //   if (Resources.getSystem().configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) {
+                    //     if (newWidth > maxSizeDp) maxSizeDp else newWidth }
+                    //    else
+                newWidth
+
+            Log.d("veter", "this width = ${this.width}, all = ${widthDp}, maxSize = $maxSizeDp")
         }
 
     }
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -95,14 +102,14 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
         if (supportFragmentManager.backStackEntryCount > 0) {
             supportActionBar?.setDisplayHomeAsUpEnabled(true)
             supportActionBar?.setDisplayShowHomeEnabled(true)
-            binding.bottomNavBar.isVisible = false
-            binding.shadow.isVisible = false
+            //    binding.bottomNavBar.isVisible = false
+            //     binding.shadow.isVisible = false
         } else {
             supportActionBar?.setDisplayHomeAsUpEnabled(false)
             supportActionBar?.setDisplayShowHomeEnabled(false)
 
-            binding.bottomNavBar.isVisible = true
-            binding.shadow.isVisible = true
+            //   binding.bottomNavBar.isVisible = true
+            //     binding.shadow.isVisible = true
         }
     }
 
@@ -222,13 +229,12 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
     override fun closeDetail() {
         supportFragmentManager.beginTransaction()
             .remove(supportFragmentManager.findFragmentById(R.id.detail_container)!!).commit();
-          binding.slidingPaneLayout.closePane()
+        binding.slidingPaneLayout.closePane()
     }
 
     override fun onDestroy() {
         super.onDestroy()
     }
-
 
 }
 

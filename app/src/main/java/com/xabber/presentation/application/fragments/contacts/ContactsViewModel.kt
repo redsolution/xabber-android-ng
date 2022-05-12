@@ -14,7 +14,7 @@ class ContactsViewModel : ViewModel() {
       contacts.value!!.addAll(mutableListOf(
           ContactDto(
               "Иван Иванов", "Иван Иванов", "группа 1", "Иван Иванов", "Подзаголовок",
-              ResourceStatus.XA, RosterItemEntity.BOT), ContactDto(
+              ResourceStatus.XA, RosterItemEntity.SERVER), ContactDto(
               "Олег Олегов", "Олег Олегов", "группа 1", "Подзаголовок", "Подзаголовок",
               ResourceStatus.ONLINE, RosterItemEntity.CONTACT), ContactDto(
               "Иван Иванов", "Иван Иванов", "группа 1", "Арина Артемонова", "Подзаголовок",
