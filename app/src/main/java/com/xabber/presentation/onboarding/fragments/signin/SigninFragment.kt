@@ -15,7 +15,6 @@ import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
-import androidx.navigation.fragment.findNavController
 import com.xabber.R
 import com.xabber.databinding.FragmentSigninBinding
 import com.xabber.presentation.onboarding.contract.navigator
@@ -26,9 +25,10 @@ import io.reactivex.rxjava3.disposables.CompositeDisposable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-class SigninFragment() : Fragment() {
-    protected val compositeDisposable = CompositeDisposable()
-    private var binding: FragmentSigninBinding? = null
+class SigninFragment : Fragment() {
+    private val compositeDisposable = CompositeDisposable()
+    private var _binding: FragmentSigninBinding? = null
+    private val binding get() = _binding!!
     private val password = "1"
     private val featureAdapter = FeatureAdapter()
     private val viewModel = SigninViewModel()
@@ -39,19 +39,19 @@ class SigninFragment() : Fragment() {
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
-    ): View? {
-        binding = FragmentSigninBinding.inflate(inflater, container, false)
-        return binding?.root
+    ): View {
+        _binding = FragmentSigninBinding.inflate(inflater, container, false)
+        return binding.root
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-     //   toolbarChanger().setShowBack(true)
-     //   toolbarChanger().setTitle(R.string.signin_toolbar_title_1)
+        toolbarChanger().setShowBack(true)
+        toolbarChanger().setTitle(R.string.signin_toolbar_title_1)
         initEditText()
         initButton()
         initRecyclerView()
-        binding?.signinSubtitle1?.text = getSubtitleClickableSpan()
-        binding?.signinSubtitle1?.movementMethod = LinkMovementMethod.getInstance()
+        binding.signinSubtitle1.text = getSubtitleClickableSpan()
+        binding.signinSubtitle1.movementMethod = LinkMovementMethod.getInstance()
 
     }
 
@@ -64,30 +64,30 @@ class SigninFragment() : Fragment() {
             }
 
             override fun afterTextChanged(p0: Editable?) {
-                var jidText = binding?.editTextLogin?.text.toString()
+                var jidText = binding.editTextLogin.text.toString()
                 if (!jidText.contains('@'))
                     jidText += "@$host"
-                binding?.btnConnect?.isEnabled =
+                binding.btnConnect.isEnabled =
                     p0.toString().isNotEmpty() && viewModel.isJidValid(jidText)
-                binding?.signinSubtitle1?.setTextColor(
+                binding.signinSubtitle1.setTextColor(
                     ResourcesCompat.getColor(
                         resources,
                         R.color.grey_text_3,
                         requireContext().theme
                     )
                 )
-                binding?.signinSubtitle1?.text = getSubtitleClickableSpan()
-                binding?.signinSubtitle1?.movementMethod = LinkMovementMethod.getInstance()
+                binding.signinSubtitle1.text = getSubtitleClickableSpan()
+                binding.signinSubtitle1.movementMethod = LinkMovementMethod.getInstance()
             }
         }
 
-        binding?.editTextLogin?.addTextChangedListener(textWatcher)
-        binding?.editTextPassword?.addTextChangedListener(textWatcher)
+        binding.editTextLogin.addTextChangedListener(textWatcher)
+        binding.editTextPassword.addTextChangedListener(textWatcher)
 
-        binding?.editTextPassword?.setOnEditorActionListener { _, i, _ ->
+        binding.editTextPassword.setOnEditorActionListener { _, i, _ ->
             if (i == EditorInfo.IME_ACTION_DONE) {
-                if (binding?.btnConnect!!.isEnabled)
-                    binding?.btnConnect!!.performClick()
+                if (binding.btnConnect.isEnabled)
+                    binding.btnConnect.performClick()
                 closeKeyboard()
                 return@setOnEditorActionListener true
             }
@@ -97,7 +97,7 @@ class SigninFragment() : Fragment() {
 
 
     private fun initButton() {
-        with(binding!!) {
+        with(binding) {
             btnConnect.setOnClickListener {
                 if (editTextPassword.text.trim()
                         .toString(
@@ -113,9 +113,10 @@ class SigninFragment() : Fragment() {
                     signinSubtitle1.text =
                         resources.getString(R.string.signin_subtitle_error_message)
                 } else {
+
                     textEnabled()
                     btnConnect.isEnabled = false
-                    binding?.btnConnect!!.text = "Connecting..."
+                    binding.btnConnect.text = "Connecting..."
 
                     val spannable =
                         SpannableStringBuilder(resources.getString(R.string.signin_subtitle_label_1))
@@ -134,7 +135,7 @@ class SigninFragment() : Fragment() {
                     signinSubtitle1.text = spannable
                     signinSubtitle1.movementMethod = null
 
-                //   signinScrollView.visibility = View.VISIBLE
+                    //   signinScrollView.visibility = View.VISIBLE
                     rvFeature.visibility = View.VISIBLE
                     closeKeyboard()
                     if (viewModel.isJidValid(editTextLogin.text.toString()) || editTextPassword.text.length > 5) {
@@ -165,8 +166,8 @@ class SigninFragment() : Fragment() {
 //                                else
 //                                    State.Error
                                     if (viewModel.isServerFeatures) {
-                                        featureAdapter?.submitList(list)
-                                        featureAdapter?.notifyItemChanged(list.lastIndex)
+                                        featureAdapter.submitList(list)
+                                        featureAdapter.notifyItemChanged(list.lastIndex)
                                     }
                                     if (list.filter { it.nameResId == R.string.feature_name_10 }
                                             .count() == 1) {
@@ -175,22 +176,21 @@ class SigninFragment() : Fragment() {
                                         btnRock.isVisible = true
                                         btnRock.setOnClickListener {
                                             navigator().goToApplicationActivity()
-                                         //   findNavController().navigate(R.id.action_signinFragment_to_applicationActivity)
                                         }
                                     }
                                     if (viewModel._features.filter { it.state == State.Error }
                                             .count() <= 1 &&
                                         viewModel._features[list.lastIndex].state == State.Error
                                     ) {
-                                        featureAdapter?.submitList(list)
-                                        featureAdapter?.notifyItemChanged(list.lastIndex)
+                                        featureAdapter.submitList(list)
+                                        featureAdapter.notifyItemChanged(list.lastIndex)
                                     }
                                     if (viewModel._features[list.lastIndex].state == State.Success &&
                                         viewModel._features.filter { it.state == State.Error }
                                             .count() == 0
                                     ) {
-                                        featureAdapter?.submitList(list)
-                                        featureAdapter?.notifyItemChanged(list.lastIndex)
+                                        featureAdapter.submitList(list)
+                                        featureAdapter.notifyItemChanged(list.lastIndex)
                                     }
                                 }
                             }
@@ -211,24 +211,23 @@ class SigninFragment() : Fragment() {
 
             }
         }
-
     }
 
 
     private fun initRecyclerView() {
-        binding?.rvFeature?.adapter = featureAdapter
+        binding.rvFeature.adapter = featureAdapter
     }
 
     private fun closeKeyboard() {
         (requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager).hideSoftInputFromWindow(
-            binding?.editTextPassword?.windowToken,
+            binding.editTextPassword.windowToken,
             0
         )
     }
 
 
     private fun textEnabled() {
-        binding?.signinSubtitle1?.movementMethod = null
+        binding.signinSubtitle1.movementMethod = null
 
     }
 
@@ -250,8 +249,7 @@ class SigninFragment() : Fragment() {
         spannable.setSpan(
             object : ClickableSpan() {
                 override fun onClick(p0: View) {
-                    //navigator().startSignupNicknameFragment()
-                    findNavController().navigate(R.id.action_signinFragment_to_signupNicknameFragment)
+                    navigator().startSignupNicknameFragment()
                 }
 
                 override fun updateDrawState(ds: TextPaint) {
@@ -265,6 +263,5 @@ class SigninFragment() : Fragment() {
         )
         return spannable
     }
-
 
 }

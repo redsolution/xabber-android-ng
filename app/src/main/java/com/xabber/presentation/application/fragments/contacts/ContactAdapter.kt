@@ -4,16 +4,16 @@ import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import android.widget.PopupMenu
-import androidx.core.content.res.ResourcesCompat
+import androidx.core.view.isVisible
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.xabber.R
 import com.xabber.data.dto.ContactDto
+import com.xabber.data.dto.ResourceStatus
+import com.xabber.data.dto.RosterItemEntity
 import com.xabber.databinding.ItemContactBinding
-import com.xabber.presentation.application.util.getStatusColor
-import com.xabber.presentation.application.util.getStatusIcon
 
 class ContactAdapter(
     private val listener: Listener
@@ -45,37 +45,97 @@ class ContactAdapter(
                 contactName.text = contact.userName
                 contactSubtitle.text = contact.subtitle
 
-                contact.getStatusColor()?.let { colorId ->
-                    contactStatusContainer.setCardBackgroundColor(
-                        itemView.resources.getColor(
-                            colorId,
-                            itemView.context.theme
-                        )
-                    )
-                }
-                //  contactStatusContainer.updateLayoutParams<ConstraintLayout.LayoutParams> {
-                //      if (contact.entity in listOf(CONTACT, ISSUE)) {
-                //          this.width = 12.dp
-                //          this.height = 12.dp
-                //          contactStatusContainer.radius = 6.dp.toFloat()
-                //      } else {
-                //          this.width = 14.dp
-                //           this.height = 14.dp
-                //           contactStatusContainer.radius = 7.dp.toFloat()
-                //       }
-                //  }
 
-                contact.entity?.getStatusIcon()?.let { iconId ->
-                    Glide.with(itemView)
-                        .load(iconId)
-                        .centerCrop()
-                        .skipMemoryCache(true)
-                        .into(contactStatus)
-                    contactStatus.background = ResourcesCompat.getDrawable(
-                        itemView.resources,
-                        iconId,
-                        itemView.context.theme
-                    )
+                if (contact.entity == RosterItemEntity.CONTACT) {
+                    val icon = when (contact.status) {
+                        ResourceStatus.OFFLINE -> R.drawable.ic_status_online
+                        ResourceStatus.AWAY -> R.drawable.ic_status_away
+                        ResourceStatus.ONLINE -> R.drawable.ic_status_online
+                        ResourceStatus.XA -> R.drawable.ic_status_xa
+                        ResourceStatus.DND -> R.drawable.ic_status_dnd
+                        ResourceStatus.CHAT -> R.drawable.ic_status_chat
+                        else -> {
+                            0
+                        }
+                    }
+                    contactStatus16.isVisible = false
+                    contactStatus14.isVisible = true
+                    contactStatus14.setImageResource(icon)
+
+                } else {
+                    val icon =
+                        when (contact.entity) {
+                            RosterItemEntity.SERVER -> {
+                                when (contact.status) {
+                                    ResourceStatus.OFFLINE -> R.drawable.ic_status_server_unavailable
+                                    else -> R.drawable.ic_status_server_online
+                                }
+                            }
+                            RosterItemEntity.BOT -> {
+                                when (contact.status) {
+                                    ResourceStatus.OFFLINE -> R.drawable.ic_status_bot_unavailable
+                                    ResourceStatus.AWAY -> R.drawable.ic_status_bot_away
+                                    ResourceStatus.ONLINE -> R.drawable.ic_status_bot_online
+                                    ResourceStatus.XA -> R.drawable.ic_status_bot_xa
+                                    ResourceStatus.DND -> R.drawable.ic_status_bot_dnd
+                                    ResourceStatus.CHAT -> R.drawable.ic_status_bot_chat
+
+                                    else -> {
+                                        0
+                                    }
+                                }
+                            }
+                            RosterItemEntity.INCOGNITO_GROUP -> {
+                                when (contact.status) {
+                                    ResourceStatus.OFFLINE -> R.drawable.ic_status_incognito_group_unavailable
+                                    ResourceStatus.AWAY -> R.drawable.ic_status_incognito_group_away
+                                    ResourceStatus.ONLINE -> R.drawable.ic_status_incognito_group_online
+                                    ResourceStatus.XA -> R.drawable.ic_status_incognito_group_xa
+                                    ResourceStatus.DND -> R.drawable.ic_status_incognito_group_dnd
+                                    ResourceStatus.CHAT -> R.drawable.ic_status_incognito_group_chat
+
+                                    else -> {
+                                        0
+                                    }
+                                }
+                            }
+
+
+                            RosterItemEntity.GROUP -> {
+                                when (contact.status) {
+                                    ResourceStatus.OFFLINE -> R.drawable.ic_status_public_group_unavailable
+                                    ResourceStatus.AWAY -> R.drawable.ic_status_public_group_away
+                                    ResourceStatus.ONLINE -> R.drawable.ic_status_public_group_online
+                                    ResourceStatus.XA -> R.drawable.ic_status_public_group_xa
+                                    ResourceStatus.DND -> R.drawable.ic_status_public_group_dnd
+                                    ResourceStatus.CHAT -> R.drawable.ic_status_public_group_chat
+                                    else -> {
+                                        0
+                                    }
+                                }
+                            }
+
+                            RosterItemEntity.PRIVATE_CHAT -> {
+                                when (contact.status) {
+                                    ResourceStatus.OFFLINE -> R.drawable.ic_status_private_chat_unavailable
+                                    ResourceStatus.AWAY -> R.drawable.ic_status_private_chat_away
+                                    ResourceStatus.ONLINE -> R.drawable.ic_status_private_chat_online
+                                    ResourceStatus.XA -> R.drawable.ic_status_private_chat_xa
+                                    ResourceStatus.DND -> R.drawable.ic_status_private_chat_dnd
+                                    ResourceStatus.CHAT -> R.drawable.ic_status_private_chat
+                                    else -> {
+                                        0
+                                    }
+                                }
+                            }
+
+                            else -> {
+                                0
+                            }
+                        }
+                    contactStatus16.isVisible = true
+                    contactStatus14.isVisible = false
+                    contactStatus16.setImageResource(icon)
                 }
 
                 contactImageContainer.setOnClickListener {
@@ -86,9 +146,9 @@ class ContactAdapter(
                     listener.onContactClick()
                 }
 
-                 itemView.setOnLongClickListener {
+                itemView.setOnLongClickListener {
                     val popup = PopupMenu(itemView.context, itemView, Gravity.RIGHT)
-                     popup.inflate(R.menu.contact_context_menu)
+                    popup.inflate(R.menu.contact_context_menu)
 
                     popup.setOnMenuItemClickListener {
 

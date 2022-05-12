@@ -19,16 +19,17 @@ import com.xabber.data.util.dp
 
 class EmojiAvatarBottomSheet : BottomSheetDialogFragment() {
 
-    private var binding: FragmentEmojiAvatarBinding? = null
+    private var _binding: FragmentEmojiAvatarBinding? = null
+    private val binding get() = _binding!!
     private val viewModel = EmojiAvatarViewModel()
 
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
-    ): View? {
-        binding = FragmentEmojiAvatarBinding.inflate(inflater, container, false)
-        return binding?.root
+    ): View {
+        _binding = FragmentEmojiAvatarBinding.inflate(inflater, container, false)
+        return binding.root
     }
 
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
@@ -58,32 +59,32 @@ class EmojiAvatarBottomSheet : BottomSheetDialogFragment() {
         super.onViewCreated(view, savedInstanceState)
 
         val palette = mapOf(
-            binding?.greenTint to R.color.green_100,
-            binding?.orangeTint to R.color.orange_100,
-            binding?.redTint to R.color.red_100,
-            binding?.blueTint to R.color.blue_100,
-            binding?.indigoTint to R.color.indigo_100,
-            binding!!.purpleTint to R.color.purple_100,
-            binding!!.limeTint to R.color.lime_100,
-            binding!!.pinkTint to R.color.pink_100,
-            binding!!.amberTint to R.color.amber_100,
+            binding.greenTint to R.color.green_100,
+            binding.orangeTint to R.color.orange_100,
+            binding.redTint to R.color.red_100,
+            binding.blueTint to R.color.blue_100,
+            binding.indigoTint to R.color.indigo_100,
+            binding.purpleTint to R.color.purple_100,
+            binding.limeTint to R.color.lime_100,
+            binding.pinkTint to R.color.pink_100,
+            binding.amberTint to R.color.amber_100,
         )
 
         val toggles = mapOf(
-            binding!!.greenTint to binding!!.greenTintToggle,
-            binding!!.orangeTint to binding!!.orangeTintToggle,
-            binding!!.redTint to binding!!.redTintToggle,
-            binding!!.blueTint to binding!!.blueTintToggle,
-            binding!!.indigoTint to binding!!.indigoTintToggle,
-            binding!!.purpleTint to binding!!.purpleTintToggle,
-            binding!!.limeTint to binding!!.limeTintToggle,
-            binding!!.pinkTint to binding!!.pinkTintToggle,
-            binding!!.amberTint to binding!!.amberTintToggle,
+            binding.greenTint to binding.greenTintToggle,
+            binding.orangeTint to binding.orangeTintToggle,
+            binding.redTint to binding.redTintToggle,
+            binding.blueTint to binding.blueTintToggle,
+            binding.indigoTint to binding.indigoTintToggle,
+            binding.purpleTint to binding.purpleTintToggle,
+            binding.limeTint to binding.limeTintToggle,
+            binding.pinkTint to binding.pinkTintToggle,
+            binding.amberTint to binding.amberTintToggle,
         )
 
         palette.forEach { mapElem ->
-            mapElem.key!!.setOnClickListener {
-                binding!!.avatarBackground.setCardBackgroundColor(
+            mapElem.key.setOnClickListener {
+                binding.avatarBackground.setCardBackgroundColor(
                     ContextCompat.getColor(requireContext(), mapElem.value)
                 )
                 for (t in toggles) {
@@ -93,7 +94,7 @@ class EmojiAvatarBottomSheet : BottomSheetDialogFragment() {
             }
         }
 
-        with(binding!!) {
+        with(binding) {
             toggles[blueTint]!!.isVisible = true
             avatarBackground.setOnClickListener {
                 EmojiKeyboardBottomSheet().show(parentFragmentManager, null)
@@ -122,5 +123,10 @@ class EmojiAvatarBottomSheet : BottomSheetDialogFragment() {
         //           binding.emojiText.text = emoji
         //       }
         //  }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        _binding = null
     }
 }

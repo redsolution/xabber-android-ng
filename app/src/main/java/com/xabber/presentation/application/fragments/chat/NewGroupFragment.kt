@@ -11,8 +11,9 @@ import com.xabber.presentation.application.contract.navigator
 import kotlin.properties.Delegates
 
 class NewGroupFragment : Fragment() {
-    private var binding : FragmentNewGroupBinding? = null
-   var incognito by Delegates.notNull<Boolean>()
+    private var _binding: FragmentNewGroupBinding? = null
+    private val binding get() = _binding!!
+    var incognito by Delegates.notNull<Boolean>()
 
     companion object {
         fun newInstance(_incognito: Boolean) = NewGroupFragment().apply {
@@ -26,19 +27,24 @@ class NewGroupFragment : Fragment() {
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
-binding = FragmentNewGroupBinding.inflate(inflater, container, false)
-    return binding!!.root
+        _binding = FragmentNewGroupBinding.inflate(inflater, container, false)
+        return binding.root
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         if (incognito) initIncognitoUi()
-         binding?.newGroupToolbar?.setNavigationIcon(R.drawable.ic_material_close_24)
-        binding?.newGroupToolbar?.setNavigationOnClickListener { navigator().goBack() }
+        binding.newGroupToolbar.setNavigationIcon(R.drawable.ic_material_close_24)
+        binding.newGroupToolbar.setNavigationOnClickListener { navigator().goBack() }
     }
 
     private fun initIncognitoUi() {
-        binding?.tvTitle?.text = "Create incognito group"
-        binding?.etGroupName?.hint = "Incognito group"
+        binding.tvTitle.text = "Create incognito group"
+        binding.etGroupName.hint = "Incognito group"
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        _binding = null
     }
 }

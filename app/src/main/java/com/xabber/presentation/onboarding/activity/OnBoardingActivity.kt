@@ -6,35 +6,45 @@ import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
-import android.os.Parcelable
 import android.provider.MediaStore
 import android.provider.Settings
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.FileProvider
-import androidx.lifecycle.LifecycleOwner
-import androidx.navigation.NavController
-import androidx.navigation.fragment.NavHostFragment
-import androidx.navigation.ui.NavigationUI
+import androidx.fragment.app.Fragment
 import com.soundcloud.android.crop.Crop
 import com.xabber.BuildConfig
 import com.xabber.R
 import com.xabber.data.util.AppConstants.REQUEST_TAKE_PHOTO
 import com.xabber.data.util.AppConstants.TEMP_FILE_NAME
 import com.xabber.databinding.ActivityOnboardingBinding
-import com.xabber.presentation.onboarding.contract.ResultListener
-import com.xabber.presentation.onboarding.fragments.signup.*
+import com.xabber.presentation.application.activity.ApplicationActivity
+import com.xabber.presentation.onboarding.contract.Navigator
+import com.xabber.presentation.onboarding.contract.ToolbarChanger
+import com.xabber.presentation.onboarding.fragments.signin.SigninFragment
+import com.xabber.presentation.onboarding.fragments.signup.SignupAvatarFragment
+import com.xabber.presentation.onboarding.fragments.signup.SignupNicknameFragment
+import com.xabber.presentation.onboarding.fragments.signup.SignupPasswordFragment
+import com.xabber.presentation.onboarding.fragments.signup.SignupUserNameFragment
+import com.xabber.presentation.onboarding.fragments.start.StartFragment
 import java.io.File
 import java.io.IOException
 
-class OnBoardingActivity : AppCompatActivity() {
-    private var binding: ActivityOnboardingBinding? = null
-    private val navHost: NavHostFragment
-        get() = supportFragmentManager.findFragmentById(R.id.onboarding_container) as NavHostFragment
-lateinit var navController : NavController
+
+class OnBoardingActivity : AppCompatActivity(), Navigator, ToolbarChanger {
+    private val binding: ActivityOnboardingBinding by lazy {
+        ActivityOnboardingBinding.inflate(layoutInflater)
+    }
+
+    private val viewModel: OnboardingViewModel by viewModels()
+
+    private var nickName: String? = null
+    private var userName: String? = null
+    private var password: String? = null
     private var filePhotoUri: Uri? = null
     private var newAvatarImageUri: Uri? = null
 
@@ -51,26 +61,82 @@ lateinit var navController : NavController
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-        binding = ActivityOnboardingBinding.inflate(layoutInflater)
-        setContentView(binding?.root)
-        navController = navHost.navController
-        NavigationUI.setupActionBarWithNavController(this, navController)
-
+        setContentView(binding.root)
+        subscribeToDataFromFragments()
+        binding.onboardingToolbar.title = ""
+        setSupportActionBar(binding.onboardingToolbar)
+        if (savedInstanceState == null) addStartFragment()
     }
 
-    override fun onSupportNavigateUp(): Boolean {
-        return super.onSupportNavigateUp()
-     //  return navController.navigateUp() || super.onSupportNavigateUp()
+    private fun subscribeToDataFromFragments() {
+        viewModel.nickName.observe(this) {
+            nickName = it
+        }
+        viewModel.username.observe(this) {
+            userName = it
+        }
+        viewModel.password.observe(this) {
+            password = it
+        }
     }
 
-   fun openCamera() {
+    private fun addStartFragment() {
+        supportFragmentManager.beginTransaction().replace(
+            R.id.onboarding_container, StartFragment()
+        ).commit()
+    }
+
+    private fun launchFragment(fragment: Fragment) {
+        supportFragmentManager.beginTransaction()
+            .setCustomAnimations(R.animator.appearance, R.animator.disappearance)
+            .addToBackStack(null)
+            .replace(R.id.onboarding_container, fragment).commit()
+    }
+
+    override fun startSignupNicknameFragment() {
+        launchFragment(SignupNicknameFragment())
+    }
+
+    override fun startSignupUserNameFragment() {
+        launchFragment(SignupUserNameFragment())
+    }
+
+    override fun startSignupPasswordFragment() {
+        launchFragment(SignupPasswordFragment())
+    }
+
+    override fun startSignupAvatarFragment() {
+        launchFragment(SignupAvatarFragment())
+    }
+
+    override fun startSigninFragment() {
+        launchFragment(SigninFragment())
+    }
+
+
+    override fun goToApplicationActivity(userName: String) {
+        val intent = Intent(this, ApplicationActivity::class.java)
+        startActivity(intent)
+        finish()
+        overridePendingTransition(R.animator.appearance, R.animator.disappearance)
+    }
+
+    override fun goBack() {
+        onBackPressed()
+    }
+
+    override fun openCamera() {
         requestCameraPermissionLauncher.launch(Manifest.permission.CAMERA)
     }
 
-    fun openGallery() {
+    override fun openGallery() {
         requestGalleryPermissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
     }
 
+    override fun onSupportNavigateUp(): Boolean {
+        onBackPressed()
+        return true
+    }
 
     private fun onGotCameraPermissionResult(granted: Boolean) {
         if (granted) {
@@ -149,6 +215,20 @@ lateinit var navController : NavController
         Crop.pickImage(this)
     }
 
+
+    override fun setTitle(titleResId: Int) {
+        binding.onboardingToolbar.setTitle(titleResId)
+    }
+
+    override fun clearTitle() {
+        binding.onboardingToolbar.title = ""
+    }
+
+    override fun setShowBack(isVisible: Boolean) {
+        supportActionBar?.setDisplayHomeAsUpEnabled(isVisible)
+        supportActionBar?.setDisplayShowHomeEnabled(isVisible)
+    }
+
     private fun getFileUri(file: File): Uri {
         return FileProvider.getUriForFile(
             application, BuildConfig.APPLICATION_ID + ".provider",
@@ -156,3 +236,6 @@ lateinit var navController : NavController
         )
     }
 }
+
+
+

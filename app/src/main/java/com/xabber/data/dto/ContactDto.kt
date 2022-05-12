@@ -1,7 +1,5 @@
 package com.xabber.data.dto
 
-import com.xabber.presentation.application.fragments.chat.RosterItemEntity
-
 data class ContactDto(
     // id = owner + jid
     // круг

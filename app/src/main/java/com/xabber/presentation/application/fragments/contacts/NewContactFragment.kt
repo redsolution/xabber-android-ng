@@ -13,7 +13,8 @@ import com.xabber.databinding.FragmentNewContactBinding
 import com.xabber.presentation.application.contract.navigator
 
 class NewContactFragment : Fragment() {
-    private var binding: FragmentNewContactBinding? = null
+    private var _binding: FragmentNewContactBinding? = null
+    private val binding get() = _binding!!
 
 
     override fun onCreateView(
@@ -21,22 +22,22 @@ class NewContactFragment : Fragment() {
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
-        binding = FragmentNewContactBinding.inflate(inflater, container, false)
-        return binding!!.root
+        _binding = FragmentNewContactBinding.inflate(inflater, container, false)
+        return binding.root
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        binding?.newContactToolbar?.setNavigationIcon(R.drawable.ic_material_close_24)
-        binding?.newContactToolbar?.setNavigationOnClickListener { navigator().goBack() }
+        binding.newContactToolbar.setNavigationIcon(R.drawable.ic_material_close_24)
+        binding.newContactToolbar.setNavigationOnClickListener { navigator().goBack() }
         initEditTexts()
-        binding?.tvTitle?.setOnClickListener {
+        binding.tvTitle.setOnClickListener {
        //    it.isEnabled = binding?.etName.toString().isNotEmpty()
         }
     }
 
     private fun initEditTexts() {
-        with(binding!!) {
+        with(binding) {
 
         //    etName.setOnFocusChangeListener { _, hasFocused ->
         //        if (hasFocused) subtitleName.setTextColor(resources.getColor(R.color.blue_500))
@@ -89,5 +90,10 @@ class NewContactFragment : Fragment() {
             }
           //  etName.addTextChangedListener(textWatcher1)
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        _binding = null
     }
 }

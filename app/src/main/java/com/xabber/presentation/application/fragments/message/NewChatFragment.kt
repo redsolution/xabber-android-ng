@@ -7,13 +7,13 @@ import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import com.xabber.R
 import com.xabber.databinding.FragmentNewChatBinding
-import com.xabber.presentation.application.contract.applicationToolbarChanger
 import com.xabber.presentation.application.contract.navigator
 import kotlin.random.Random
 
 class NewChatFragment : Fragment() {
 
-    private var binding: FragmentNewChatBinding? = null
+    private var _binding: FragmentNewChatBinding? = null
+    private val binding get() = _binding!!
 
     private val quotes = listOf(
         "Leave the gun. Take the cannoli!",
@@ -28,10 +28,9 @@ class NewChatFragment : Fragment() {
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
-    ): View? {
-
-        binding = FragmentNewChatBinding.inflate(inflater, container, false)
-        return binding?.root
+    ): View {
+        _binding = FragmentNewChatBinding.inflate(inflater, container, false)
+        return binding.root
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -44,24 +43,25 @@ class NewChatFragment : Fragment() {
     private fun changeTitle() {
         val random = Random.nextInt(quotes.size)
         val randomQuote = quotes[random]
-        binding?.newChatToolbar?.title = randomQuote
+        binding.newChatToolbar.title = randomQuote
     }
 
     private fun initToolbarAction() {
-       binding?.newChatToolbar?.setNavigationIcon(R.drawable.ic_arrow_left)
-        binding?.newChatToolbar?.setNavigationOnClickListener { navigator().goBack() }
+        binding.newChatToolbar.setNavigationIcon(R.drawable.ic_arrow_left)
+        binding.newChatToolbar.setNavigationOnClickListener { navigator().goBack() }
 
     }
 
     private fun initButton() {
-        with(binding!!) {
+        with(binding) {
             rlAddContact.setOnClickListener { navigator().showNewContact() }
-            rlCreateGroup.setOnClickListener {  navigator().showNewGroup(false) }
+            rlCreateGroup.setOnClickListener { navigator().showNewGroup(false) }
             rvCreateGroupIncognito.setOnClickListener { navigator().showNewGroup(true) }
         }
     }
 
     override fun onDestroy() {
         super.onDestroy()
+        _binding = null
     }
 }

@@ -1,6 +1,5 @@
 package com.xabber.presentation.application.fragments.chat
 
-import android.graphics.Color
 import android.graphics.PorterDuff
 import android.graphics.Typeface
 import android.text.Spannable
@@ -18,10 +17,11 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.xabber.R
 import com.xabber.data.dto.ChatDto
+import com.xabber.data.dto.MessageState
 import com.xabber.data.dto.ResourceStatus
+import com.xabber.data.dto.RosterItemEntity
 import com.xabber.databinding.ItemChatBinding
 import com.xabber.presentation.application.util.DateFormatter
-import com.xabber.presentation.application.util.getStatusColor
 
 class ChatAdapter(
     private val listener: ChatListener
@@ -168,8 +168,8 @@ class ChatAdapter(
                     }
 
                     chatStatus16.isVisible = false
-                    imContainer12.isVisible = true
-                    imContainer12.setImageResource(icon)
+                    chatStatus14.isVisible = true
+                    chatStatus14.setImageResource(icon)
                 } else {
                     val icon =
                         when (chat.entity) {
@@ -232,7 +232,7 @@ class ChatAdapter(
 
                         }
                     chatStatus16.isVisible = true
-                    imContainer12.isVisible = false
+                    chatStatus14.isVisible = false
                     chatStatus16.setImageResource(icon)
 
                 }

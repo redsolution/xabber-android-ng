@@ -1,11 +1,18 @@
 package com.xabber.presentation.application.activity
 
 import android.content.Intent
-import android.content.res.Configuration
+import android.content.res.Resources
 import android.os.Bundle
+import android.util.Log
+import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.isVisible
+import androidx.core.view.updateLayoutParams
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.FragmentManager
+import androidx.fragment.app.commit
+import androidx.slidingpanelayout.widget.SlidingPaneLayout
 import com.xabber.R
 import com.xabber.databinding.ActivityApplicationBinding
 import com.xabber.presentation.application.contract.ApplicationNavigator
@@ -24,62 +31,110 @@ import com.xabber.presentation.application.fragments.message.NewChatFragment
 import com.xabber.presentation.application.fragments.settings.SettingsFragment
 import com.xabber.presentation.onboarding.activity.OnBoardingActivity
 
-
 class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
-    private var isSignedIn = false
-    private var binding: ActivityApplicationBinding? = null
-    lateinit var userName: String
-    private val activeFragment: Fragment
-        get() = supportFragmentManager.findFragmentById(R.id.application_container)!!
+    private val isSignedIn = true
+    private val binding: ActivityApplicationBinding by lazy {
+        ActivityApplicationBinding.inflate(
+            layoutInflater
+        )
+    }
+
+    private val activeFragment: Fragment?
+        get() = supportFragmentManager.findFragmentById(R.id.application_container)
+
+    private val fragmentListener = object : FragmentManager.FragmentLifecycleCallbacks() {
+        override fun onFragmentViewCreated(
+            fm: FragmentManager,
+            f: Fragment,
+            v: View,
+            savedInstanceState: Bundle?
+        ) {
+            super.onFragmentViewCreated(fm, f, v, savedInstanceState)
+            updateUi()
+        }
+    }
+
+
+    fun setContainerWidth() {
+
+//val  displayMetric =getResources().getDisplayMetrics();
+//val  screenWidthInDp = displayMetric.widthPixels/displayMetric.density;
+
+        val widthPx = Resources.getSystem().displayMetrics.widthPixels
+        val density = Resources.getSystem().displayMetrics.density
+
+        Log.d("iiii", "px = $widthPx, density = $density")
+        binding.mainContainer.updateLayoutParams<SlidingPaneLayout.LayoutParams> {
+            this.width = 240 * 2
+        }
+
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        binding = ActivityApplicationBinding.inflate(layoutInflater)
-        setContentView(binding!!.root)
-        if (savedInstanceState == null) {launchFragment(ChatFragment())
-         //   isSignedIn = true
-         //   val intent = Intent(this, OnBoardingActivity::class.java)
-        //    startActivity(intent)
-        }
-     //   else
+        setContentView(binding.root)
 
+        if (isSignedIn) {
+
+            if (savedInstanceState == null) {
+                launchFragment(ChatFragment.newInstance(""))
+            }
+        } else {
+            val intent = Intent(this, OnBoardingActivity::class.java)
+            startActivity(intent)
+            finish()
+            overridePendingTransition(R.animator.appearance, R.animator.disappearance)
+        }
+        setContainerWidth()
+        supportFragmentManager.registerFragmentLifecycleCallbacks(fragmentListener, false)
         initBottomNavigation()
+
+    }
+
+
+    private fun updateUi() {
+
+        if (supportFragmentManager.backStackEntryCount > 0) {
+            supportActionBar?.setDisplayHomeAsUpEnabled(true)
+            supportActionBar?.setDisplayShowHomeEnabled(true)
+            binding.bottomNavBar.isVisible = false
+            binding.shadow.isVisible = false
+        } else {
+            supportActionBar?.setDisplayHomeAsUpEnabled(false)
+            supportActionBar?.setDisplayShowHomeEnabled(false)
+
+            binding.bottomNavBar.isVisible = true
+            binding.shadow.isVisible = true
+        }
     }
 
 
     private fun initBottomNavigation() {
-        binding!!.bottomNavBar.setOnItemSelectedListener { menuItem ->
+        binding.bottomNavBar.setOnItemSelectedListener { menuItem ->
             when (menuItem.itemId) {
                 R.id.chats -> {
                     if (activeFragment !is ChatFragment) {
-                        //     setContainersWidth()
                         launchFragment(ChatFragment.newInstance("name.surname@redsolution.com"))
                     } else {
-                        Toast.makeText(this, "Button press", Toast.LENGTH_SHORT).show()
+
+                        val widthPx = Resources.getSystem().displayMetrics.widthPixels
+                        val density = Resources.getSystem().displayMetrics.density
+
+                        Log.d("iiii", "px = $widthPx, density = $density")
+
+                        Toast.makeText(this, "$density", Toast.LENGTH_SHORT).show()
                     }
                 }
-                R.id.calls -> if (activeFragment !is CallsFragment) {
-                    //  hideDetailContainer()
-                    launchFragment(CallsFragment())
-                }
-                R.id.contacts -> if (activeFragment !is ContactsFragment) {
-                    //    setContainersWidth()
-                    launchFragment(
-                        ContactsFragment()
-                    )
-                }
-                R.id.discover -> if (activeFragment !is DiscoverFragment) {
-                    //   hideDetailContainer()
-                    launchFragment(
-                        DiscoverFragment()
-                    )
-                }
-                R.id.settings -> if (activeFragment !is SettingsFragment) {
-                    //   hideDetailContainer()
-                    launchFragment(
-                        SettingsFragment()
-                    )
-                }
+                R.id.calls -> if (activeFragment !is CallsFragment) launchFragment(CallsFragment())
+                R.id.contacts -> if (activeFragment !is ContactsFragment) launchFragment(
+                    ContactsFragment()
+                )
+                R.id.discover -> if (activeFragment !is DiscoverFragment) launchFragment(
+                    DiscoverFragment()
+                )
+                R.id.settings -> if (activeFragment !is SettingsFragment) launchFragment(
+                    SettingsFragment()
+                )
             }
             true
         }
@@ -100,6 +155,27 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
         ).replace(R.id.application_container, fragment).addToBackStack(null).commit()
     }
 
+    private fun openDetail(fragment: Fragment) {
+        supportFragmentManager.commit {
+            setReorderingAllowed(true)
+            replace(R.id.detail_container, fragment).addToBackStack(null)
+        }
+        binding.slidingPaneLayout.openPane()
+    }
+
+    private fun launchDetailInStack(fragment: Fragment) {
+        supportFragmentManager.commit {
+            setReorderingAllowed(true)
+            replace(R.id.detail_container, fragment).addToBackStack(null).setCustomAnimations(
+                R.animator.in_right,
+                R.animator.out_left,
+                R.animator.in_left,
+                R.animator.out_right
+            )
+        }
+        binding.slidingPaneLayout.openPane()
+    }
+
     override fun onSupportNavigateUp(): Boolean {
         onBackPressed()
         return true
@@ -110,22 +186,11 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
     }
 
     override fun showMessage(jid: String) {
-        when (resources.configuration.orientation) {
-            Configuration.ORIENTATION_PORTRAIT -> launchFragmentInStack(
-                MessageFragment.newInstance(
-                    jid
-                )
-            )
-            Configuration.ORIENTATION_LANDSCAPE -> {
-                supportFragmentManager.beginTransaction()
-                    .replace(R.id.detail_container, MessageFragment.newInstance(jid)).commit()
-            }
-        }
-
+        openDetail(MessageFragment.newInstance(jid))
     }
 
     override fun showAccount() {
-        launchFragmentInStack(AccountFragment())
+        openDetail(AccountFragment())
     }
 
     override fun showContacts() {
@@ -133,32 +198,40 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
     }
 
     override fun showNewChat() {
-        launchFragmentInStack(NewChatFragment())
+        openDetail(NewChatFragment())
     }
 
     override fun showNewContact() {
-        launchFragmentInStack(NewContactFragment())
+        launchDetailInStack(NewContactFragment())
     }
 
     override fun showNewGroup(incognito: Boolean) {
-        launchFragmentInStack(NewGroupFragment.newInstance(incognito))
+        launchDetailInStack(NewGroupFragment.newInstance(incognito))
     }
 
     override fun showSpecialNotificationSettings() {
-        launchFragmentInStack(SpecialNotificationsFragment())
+        openDetail(SpecialNotificationsFragment())
     }
 
     override fun showEditContact(name: String) {
-        launchFragmentInStack(EditContactFragment.newInstance(name))
+        openDetail(EditContactFragment.newInstance(name))
     }
 
     override fun showChatSettings() {
-        launchFragmentInStack(ChatSettingsFragment())
+        openDetail(ChatSettingsFragment())
     }
 
-    override fun hideFragment(isVisible: Boolean) {
+    override fun closeDetail() {
+        supportFragmentManager.beginTransaction()
+            .remove(supportFragmentManager.findFragmentById(R.id.detail_container)!!).commit();
+          binding.slidingPaneLayout.closePane()
+    }
 
+    override fun onDestroy() {
+        super.onDestroy()
     }
 
 
 }
+
+

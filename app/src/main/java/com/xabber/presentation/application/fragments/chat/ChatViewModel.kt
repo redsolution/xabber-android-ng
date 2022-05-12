@@ -4,7 +4,9 @@ import android.util.Log
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import com.xabber.data.dto.ChatDto
+import com.xabber.data.dto.MessageState
 import com.xabber.data.dto.ResourceStatus
+import com.xabber.data.dto.RosterItemEntity
 import com.xabber.presentation.application.util.getRandomColor
 import java.util.*
 

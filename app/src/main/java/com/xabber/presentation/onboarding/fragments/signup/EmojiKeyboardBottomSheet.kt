@@ -18,7 +18,8 @@ import com.xabber.data.util.dp
 
 class EmojiKeyboardBottomSheet : BottomSheetDialogFragment() {
 
-    private var binding : FragmentEmojiKeyboardBinding? = null
+    private var _binding : FragmentEmojiKeyboardBinding? = null
+    private val binding get() = _binding!!
     private val viewModel = EmojiKeyboardViewModel()
     private var keysAdapter: EmojiKeyAdapter? = null
     private var typesAdapter: EmojiTypeAdapter? = null
@@ -28,7 +29,10 @@ class EmojiKeyboardBottomSheet : BottomSheetDialogFragment() {
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
-    ): View? = inflater.inflate(R.layout.fragment_emoji_keyboard, container, false)
+    ): View {
+        _binding = FragmentEmojiKeyboardBinding.inflate(inflater, container, false)
+        return binding.root
+    }
 
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
         val dialog = super.onCreateDialog(savedInstanceState) as BottomSheetDialog
@@ -57,7 +61,7 @@ class EmojiKeyboardBottomSheet : BottomSheetDialogFragment() {
         super.onViewCreated(view, savedInstanceState)
 
         dataset = viewModel.getEmojiMap(resources)
-        with(binding!!) {
+        with(binding) {
             with(recyclerViewKeys) {
                 adapter = EmojiKeyAdapter {
                     onEmojiClick(it)
@@ -74,6 +78,7 @@ class EmojiKeyboardBottomSheet : BottomSheetDialogFragment() {
     }
 
     override fun onDestroy() {
+        _binding = null
         keysAdapter = null
         typesAdapter = null
         super.onDestroy()

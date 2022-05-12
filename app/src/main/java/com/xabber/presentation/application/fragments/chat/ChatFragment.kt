@@ -1,14 +1,15 @@
 package com.xabber.presentation.application.fragments.chat
 
-import android.content.res.Configuration
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
 import android.util.TypedValue
-import android.view.*
+import android.view.Gravity
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
 import android.widget.PopupMenu
-import android.widget.Toast
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.ItemTouchHelper
@@ -18,14 +19,11 @@ import com.xabber.R
 import com.xabber.data.dto.ChatDto
 import com.xabber.databinding.FragmentChatBinding
 import com.xabber.presentation.application.contract.navigator
-import com.xabber.presentation.application.util.DateFormatter
-import java.text.SimpleDateFormat
-import java.util.*
-import kotlin.collections.ArrayList
 
 
 class ChatFragment : Fragment(), ChatAdapter.ChatListener {
-    private var binding: FragmentChatBinding? = null
+    private var _binding: FragmentChatBinding? = null
+    private val binding get() = _binding!!
     lateinit var jid: String
     private val viewModel = ChatViewModel()
     private var chatAdapter = ChatAdapter(this)
@@ -43,11 +41,9 @@ class ChatFragment : Fragment(), ChatAdapter.ChatListener {
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
-        when (resources.configuration.orientation) {
-                Configuration.ORIENTATION_PORTRAIT -> navigator().hideFragment(false)
-                Configuration.ORIENTATION_LANDSCAPE -> navigator().hideFragment(true) }
-        binding = FragmentChatBinding.inflate(inflater, container, false)
-        return binding!!.root
+        _binding = FragmentChatBinding.inflate(inflater, container, false)
+        return binding.root
+
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -55,18 +51,20 @@ class ChatFragment : Fragment(), ChatAdapter.ChatListener {
         initToolbarActions()
         fillChat()
         initButton()
+        binding.bounceScrollView.scrollBy(40, 40)
     }
 
     private fun initToolbarActions() {
-        binding?.avatarContainer?.setOnClickListener {
-          navigator().showAccount()
+        binding.avatarContainer.setOnClickListener {
+            navigator().showAccount()
 
         }
-        binding?.imPlus?.setOnClickListener {
+
+        binding.imPlus.setOnClickListener {
             navigator().showNewChat()
         }
 
-        val popup = PopupMenu(context, binding?.tvChatTitle, Gravity.RIGHT)
+        val popup = PopupMenu(context, binding.tvChatTitle, Gravity.RIGHT)
         popup.inflate(R.menu.context_menu_title_chat)
         popup.setOnMenuItemClickListener {
             val list = viewModel.chat.value
@@ -94,12 +92,12 @@ class ChatFragment : Fragment(), ChatAdapter.ChatListener {
             }
             true
         }
-        binding?.tvChatTitle?.setOnClickListener { popup.show() }
+        binding.tvChatTitle.setOnClickListener { popup.show() }
     }
 
 
     private fun fillChat() {
-        binding?.chatList?.adapter = chatAdapter
+        binding.chatList.adapter = chatAdapter
         viewModel.chat.observe(viewLifecycleOwner) {
             val sortedList = ArrayList<ChatDto>()
             for (i in 0 until it!!.size) {
@@ -107,7 +105,7 @@ class ChatFragment : Fragment(), ChatAdapter.ChatListener {
             }
             sortedList.sort()
             chatAdapter.submitList(sortedList)
-            binding?.groupChatEmpty?.isVisible = it.isEmpty()
+            binding.groupChatEmpty.isVisible = it.isEmpty()
         }
 
         val simpleCallback = object :
@@ -186,11 +184,11 @@ class ChatFragment : Fragment(), ChatAdapter.ChatListener {
         }
 
         val itemTouchHelper = ItemTouchHelper(simpleCallback)
-        itemTouchHelper.attachToRecyclerView(binding?.chatList)
+        itemTouchHelper.attachToRecyclerView(binding.chatList)
     }
 
     private fun initButton() {
-        binding?.emptyButton?.setOnClickListener { navigator().showContacts() }
+        binding.emptyButton.setOnClickListener { navigator().showContacts() }
     }
 
     private fun movieChatToArchive(position: Int) {
@@ -205,12 +203,10 @@ class ChatFragment : Fragment(), ChatAdapter.ChatListener {
 
     override fun pinChat(id: Int) {
         viewModel.pinChat(id)
-        chatAdapter.notifyDataSetChanged()
     }
 
     override fun unPinChat(id: Int) {
         viewModel.unPinChat(id)
-        chatAdapter.notifyDataSetChanged()
     }
 
     override fun deleteChat(id: Int) {
@@ -227,7 +223,7 @@ class ChatFragment : Fragment(), ChatAdapter.ChatListener {
     }
 
     override fun onClickAvatar(name: String) {
-       navigator().showEditContact(name)
+        navigator().showEditContact(name)
     }
 
     private fun showSnackbar(view: View) {
@@ -253,7 +249,7 @@ class ChatFragment : Fragment(), ChatAdapter.ChatListener {
     }
 
     override fun onDestroyView() {
-        navigator().hideFragment(false)
         super.onDestroyView()
+        _binding = null
     }
 }

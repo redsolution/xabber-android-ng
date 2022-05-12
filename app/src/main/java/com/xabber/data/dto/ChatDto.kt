@@ -1,8 +1,6 @@
 package com.xabber.data.dto
 
 import androidx.annotation.ColorRes
-import com.xabber.presentation.application.fragments.chat.MessageState
-import com.xabber.presentation.application.fragments.chat.RosterItemEntity
 
 data class ChatDto(
     val id: Int,

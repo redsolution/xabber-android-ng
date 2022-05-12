@@ -23,7 +23,8 @@ import com.xabber.data.util.dp
 import java.io.File
 
 class SignupAvatarFragment : Fragment() {
-    private var binding : FragmentSignupAvatarBinding? = null
+    private var _binding : FragmentSignupAvatarBinding? = null
+    private val binding get() = _binding!!
 
 
     private val newAvatarImageUri: Uri by lazy {
@@ -43,9 +44,9 @@ class SignupAvatarFragment : Fragment() {
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
-    ): View? {
-        binding = FragmentSignupAvatarBinding.inflate(inflater)
-        return binding?.root
+    ): View {
+        _binding = FragmentSignupAvatarBinding.inflate(inflater)
+        return binding.root
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -60,26 +61,26 @@ class SignupAvatarFragment : Fragment() {
             if (file.exists())
                 setAvatar(Uri.fromFile(file))
             else
-                binding!!.profileImageEmoji.setPadding(21.dp)
+                binding.profileImageEmoji.setPadding(21.dp)
         }
         else {
             if (file.exists())
                 file.delete()
         }
-       binding?.avatarBtnNext?.isEnabled = isImageSaved
+       binding.avatarBtnNext.isEnabled = isImageSaved
 
        // btnNextContainer.updateLayoutParams<ConstraintLayout.LayoutParams> {
       //      verticalBias = 1.0f
     //    }
 
-        binding?.profileImageBackground?.setOnClickListener {
+        binding.profileImageBackground.setOnClickListener {
             AvatarBottomSheet().show(parentFragmentManager, null)
         }
-        binding!!.profilePhotoBackground.setOnClickListener {
+        binding.profilePhotoBackground.setOnClickListener {
             AvatarBottomSheet().show(parentFragmentManager, null)
         }
 
-        binding!!.avatarBtnNext.setOnClickListener {
+        binding.avatarBtnNext.setOnClickListener {
 //                        checkAvatarSizeAndPublish()
             Toast.makeText(
                 requireContext(),
@@ -92,7 +93,7 @@ class SignupAvatarFragment : Fragment() {
 
 
  private fun setAvatar(uri: Uri?) {
-        with(binding!!) {
+        with(binding) {
             profileImageEmoji.setPadding(0.dp)
             Glide.with(this@SignupAvatarFragment)
                 .load(uri)
@@ -109,7 +110,7 @@ class SignupAvatarFragment : Fragment() {
     }
 
     private fun setAvatar(bitmap: Bitmap) {
-        with(binding!!) {
+        with(binding) {
             profileImageEmoji.setPadding(0.dp)
             Glide.with(this@SignupAvatarFragment)
                 .load(bitmap)
@@ -127,8 +128,13 @@ class SignupAvatarFragment : Fragment() {
 
 
     private fun initButton() {
-        binding?.avatarBtnNext?.setOnClickListener {
+        binding.avatarBtnNext.setOnClickListener {
             navigator().goToApplicationActivity()
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        _binding = null
     }
 }

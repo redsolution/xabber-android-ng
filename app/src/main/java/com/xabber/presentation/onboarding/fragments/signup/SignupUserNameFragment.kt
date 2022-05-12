@@ -8,28 +8,28 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.annotation.ColorRes
 import androidx.core.content.res.ResourcesCompat
-import androidx.navigation.fragment.findNavController
+import androidx.fragment.app.Fragment
+import androidx.fragment.app.activityViewModels
 import com.xabber.R
 import com.xabber.databinding.FragmentSignupUsernameBinding
+import com.xabber.presentation.onboarding.activity.OnboardingViewModel
 import com.xabber.presentation.onboarding.contract.navigator
 import com.xabber.presentation.onboarding.contract.toolbarChanger
-import com.xabber.presentation.onboarding.fragments.BaseFragment
 import kotlin.properties.Delegates
 
-class SignupUserNameFragment : BaseFragment() {
-
-    private var binding: FragmentSignupUsernameBinding? = null
-    private val viewModel = SignupViewModel()
+class SignupUserNameFragment : Fragment() {
+    private var _binding: FragmentSignupUsernameBinding? = null
+    private val binding get() = _binding!!
+    private val viewModel : OnboardingViewModel by activityViewModels()
     private var host by Delegates.notNull<String>()
-    private var username by Delegates.notNull<String>()
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
-    ): View? {
-        binding = FragmentSignupUsernameBinding.inflate(inflater)
-        return binding?.root
-
+    ): View {
+        _binding = FragmentSignupUsernameBinding.inflate(inflater)
+        return binding.root
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -42,7 +42,7 @@ class SignupUserNameFragment : BaseFragment() {
     }
 
     private fun initEditText() {
-        with(binding!!) {
+        with(binding) {
             usernameEditText.addTextChangedListener(object : TextWatcher {
                 override fun beforeTextChanged(
                     p0: CharSequence?,
@@ -84,7 +84,7 @@ class SignupUserNameFragment : BaseFragment() {
 
 
     private fun changeSubtitleColor(@ColorRes colorId: Int) {
-        binding?.usernameSubtitle?.setTextColor(
+        binding.usernameSubtitle.setTextColor(
             ResourcesCompat.getColor(
                 resources,
                 colorId,
@@ -94,9 +94,9 @@ class SignupUserNameFragment : BaseFragment() {
     }
 
     private fun initButton() {
-        binding?.usernameBtnNext?.setOnClickListener {
-            //   navigator().startSignupPasswordFragment()
-            findNavController().navigate(R.id.action_signupUserNameFragment_to_signupPasswordFragment)
+        binding.usernameBtnNext.setOnClickListener {
+            viewModel.stUserName(binding.usernameEditText.text.toString())
+            navigator().startSignupPasswordFragment()
         }
     }
 

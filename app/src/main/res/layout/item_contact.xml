@@ -1,25 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:background="@color/white"
     android:clickable="true"
-    xmlns:tools="http://schemas.android.com/tools"
     android:focusable="true">
 
     <androidx.cardview.widget.CardView
         android:id="@+id/contact_image_container"
         android:layout_width="48dp"
         android:layout_height="48dp"
-        android:layout_marginStart="16dp"
         android:layout_marginVertical="8dp"
+        android:layout_marginStart="16dp"
         android:clickable="true"
         android:focusable="true"
+        app:cardCornerRadius="24dp"
         app:cardElevation="0dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:cardCornerRadius="24dp"
         app:layout_constraintTop_toTopOf="parent">
 
         <ImageView
@@ -36,14 +36,14 @@
         android:layout_marginStart="16dp"
         android:layout_marginTop="8dp"
         android:layout_marginEnd="64dp"
+        android:ellipsize="end"
         android:lines="1"
         android:textColor="@color/grey_900"
         android:textSize="16sp"
-        android:ellipsize="end"
-        app:layout_constraintHorizontal_bias="0.0"
-        app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.0"
         app:layout_constraintStart_toEndOf="@id/contact_image_container"
+        app:layout_constraintTop_toTopOf="parent"
         tools:text="@tools:sample/full_names" />
 
     <TextView
@@ -52,36 +52,36 @@
         android:layout_height="wrap_content"
         android:layout_marginStart="16dp"
         android:layout_marginEnd="64dp"
+        android:ellipsize="end"
         android:lines="1"
         android:textColor="@color/grey_text_3"
         android:textSize="14sp"
-        android:ellipsize="end"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.0"
-        app:layout_constraintTop_toBottomOf="@id/contact_name"
         app:layout_constraintStart_toEndOf="@id/contact_image_container"
+        app:layout_constraintTop_toBottomOf="@id/contact_name"
         tools:text="@tools:sample/lorem/random" />
 
-    <androidx.cardview.widget.CardView
-        android:id="@+id/contact_status_container"
-        android:layout_width="12dp"
-        android:layout_height="12dp"
-        android:visibility="visible"
-        tools:backgroundTint="@color/green_700"
+
+    <ImageView
+        android:id="@+id/contact_status_16"
+        android:layout_width="16dp"
+        android:layout_height="16dp"
         android:layout_marginEnd="16dp"
-        app:cardCornerRadius="12dp"
-        app:cardElevation="0dp"
+        android:visibility="gone"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        tools:visibility="visible">
+        tools:src="@drawable/ic_status_bot_online" />
 
-        <ImageView
-            android:id="@+id/contact_status"
-            android:layout_width="match_parent"
-            android:layout_height="8dp"
-            tools:src="@drawable/ic_material_contact_24"
-            tools:tint="@color/white" />
-    </androidx.cardview.widget.CardView>
+    <ImageView
+        android:id="@+id/contact_status_14"
+        android:layout_width="14dp"
+        android:layout_height="14dp"
+        android:layout_marginEnd="16dp"
+        android:src="@drawable/ic_status_online"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

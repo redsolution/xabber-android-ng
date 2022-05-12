@@ -17,7 +17,8 @@ import com.xabber.presentation.application.contract.navigator
 
 
 class MessageFragment : Fragment() {
-    private var binding: FragmentMessageBinding? = null
+    private var _binding: FragmentMessageBinding? = null
+    private val binding get() = _binding!!
     private var messageAdapter: MessageAdapter? = null
     private val viewModel = MessageViewModel()
  var name : String = ""
@@ -36,23 +37,23 @@ class MessageFragment : Fragment() {
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
-        binding = FragmentMessageBinding.inflate(inflater, container, false)
-        return binding!!.root
+        _binding = FragmentMessageBinding.inflate(inflater, container, false)
+        return binding.root
 
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        binding?.messageUserName?.text = name
+        binding.messageUserName.text = name
         initToolbarActions()
         // binding?.tvUserName?.text = userName
         //   applicationToolbarChanger().toolbarIconChange(FragmentAction(R.drawable.ic_material_check_24, R.string.signup_username_subtitle))
         initNavigationBar()
         val lm = LinearLayoutManager(requireContext())
         lm.reverseLayout = true
-        with(binding?.messageList) {
-            this?.layoutManager = lm
-            this?.adapter = MessageAdapter().also { messageAdapter = it }
+        with(binding.messageList) {
+            this.layoutManager = lm
+            this.adapter = MessageAdapter().also { messageAdapter = it }
         }
         fillAdapter()
         initAnswer()
@@ -60,19 +61,19 @@ class MessageFragment : Fragment() {
     }
 
     private fun initAnswer() {
-        binding?.close?.setOnClickListener { binding?.answer?.visibility = View.GONE }
+        binding.close.setOnClickListener { binding.answer.visibility = View.GONE }
     }
 
     private fun initToolbarActions() {
-        binding?.messageIconBack?.setOnClickListener {
-            navigator().goBack()
+        binding.messageIconBack.setOnClickListener {
+            navigator().closeDetail()
         }
     }
 
     private fun initNavigationBar() {
 
 
-        with(binding!!) {
+        with(binding) {
             chatInput.addTextChangedListener(object : TextWatcher {
                 override fun beforeTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {
                 }
@@ -160,7 +161,7 @@ class MessageFragment : Fragment() {
                    //         vibrator.vibrate(100)
                    //     }
 
-                        binding?.answer?.visibility = View.VISIBLE
+                        binding.answer.visibility = View.VISIBLE
 
                     }
                 }
@@ -171,11 +172,12 @@ class MessageFragment : Fragment() {
             }
         }
         val itemTouchHelper = ItemTouchHelper(simpleCallback)
-        itemTouchHelper.attachToRecyclerView(binding?.messageList)
+        itemTouchHelper.attachToRecyclerView(binding.messageList)
     }
 
     override fun onDestroy() {
         super.onDestroy()
+        _binding = null
     }
 
 }

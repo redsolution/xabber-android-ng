@@ -16,16 +16,16 @@ import com.xabber.data.util.dp
 import com.xabber.databinding.BottomSheetTurnOffNotificationsBinding
 
 class NotificationBottomSheet : BottomSheetDialogFragment() {
-    private var binding: BottomSheetTurnOffNotificationsBinding? = null
+    private var _binding: BottomSheetTurnOffNotificationsBinding? = null
+    private val binding get() = _binding!!
 
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
-    ): View? {
-
-        binding = BottomSheetTurnOffNotificationsBinding.inflate(inflater, container, false)
-        return binding?.root
+    ): View {
+        _binding = BottomSheetTurnOffNotificationsBinding.inflate(inflater, container, false)
+        return binding.root
     }
 
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
@@ -49,7 +49,7 @@ class NotificationBottomSheet : BottomSheetDialogFragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        with(binding!!) {
+        with(binding) {
             rl15min.setOnClickListener {
                 Toast.makeText(
                     context, "Notifications are disabled for 15 minutes", Toast.LENGTH_SHORT
@@ -81,5 +81,10 @@ class NotificationBottomSheet : BottomSheetDialogFragment() {
                 dismiss()
             }
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        _binding = null
     }
 }

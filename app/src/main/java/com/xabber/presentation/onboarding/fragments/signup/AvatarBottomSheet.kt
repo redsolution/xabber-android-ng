@@ -17,16 +17,16 @@ import com.xabber.presentation.onboarding.contract.navigator
 
 
 class AvatarBottomSheet : BottomSheetDialogFragment() {
-    private var binding: BottomSheetAvatarBinding? = null
+    private var _binding: BottomSheetAvatarBinding? = null
+    private val binding get() = _binding!!
 
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
-    ): View? {
-
-        binding = BottomSheetAvatarBinding.inflate(inflater, container, false)
-        return binding?.root
+    ): View {
+        _binding = BottomSheetAvatarBinding.inflate(inflater, container, false)
+        return binding.root
     }
 
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
@@ -53,7 +53,7 @@ class AvatarBottomSheet : BottomSheetDialogFragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        with(binding!!) {
+        with(binding) {
             btnEmoji.setOnClickListener {
                 EmojiAvatarBottomSheet().show(parentFragmentManager, null)
                 dismiss()
@@ -67,5 +67,10 @@ class AvatarBottomSheet : BottomSheetDialogFragment() {
                 dismiss()
             }
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        _binding = null
     }
 }

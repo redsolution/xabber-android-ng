@@ -8,7 +8,6 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import com.xabber.R
-import com.xabber.presentation.application.fragments.chat.RosterItemEntity
 import com.xabber.data.dto.*
 
 fun Fragment.setFragmentResultListener(
@@ -65,7 +64,6 @@ fun RosterItemEntity.getStatusIcon(): Int? =
         RosterItemEntity.BOT -> R.drawable.ic_badge_bot_24
         RosterItemEntity.SERVER -> R.drawable.ic_badge_server_24
         RosterItemEntity.INCOGNITO_GROUP -> R.drawable.ic_badge_group_incognito_24
-        RosterItemEntity.ISSUE -> R.drawable.ic_badge_task_24
     }
 
 fun ContactDto.getStatusColor(): Int? =
@@ -76,9 +74,7 @@ fun ContactDto.getStatusColor(): Int? =
                     RosterItemEntity.GROUP,
                     RosterItemEntity.INCOGNITO_GROUP,
                     RosterItemEntity.SERVER,
-                    RosterItemEntity.PRIVATE_CHAT,
-                    RosterItemEntity.ISSUE
-                )
+                    RosterItemEntity.PRIVATE_CHAT)
             )
                 R.color.grey_500
             else
@@ -98,9 +94,7 @@ fun ChatDto.getStatusColor(): Int =
                     RosterItemEntity.GROUP,
                     RosterItemEntity.INCOGNITO_GROUP,
                     RosterItemEntity.SERVER,
-                    RosterItemEntity.PRIVATE_CHAT,
-                    RosterItemEntity.ISSUE
-                )
+                    RosterItemEntity.PRIVATE_CHAT)
             )
                 R.color.grey_500
             else
