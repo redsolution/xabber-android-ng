@@ -56,12 +56,10 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
 
 
     fun setContainerWidth() {
-
-//val  displayMetric =getResources().getDisplayMetrics();
-//val  screenWidthInDp = displayMetric.widthPixels/displayMetric.density;
-
         val widthPx = Resources.getSystem().displayMetrics.widthPixels
         val density = Resources.getSystem().displayMetrics.density
+
+        
 
         Log.d("iiii", "px = $widthPx, density = $density")
         binding.mainContainer.updateLayoutParams<SlidingPaneLayout.LayoutParams> {
