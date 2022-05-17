@@ -2,6 +2,10 @@ plugins {
     id 'com.android.application'
     id 'org.jetbrains.kotlin.android'
     id "androidx.navigation.safeargs.kotlin"
+    id 'kotlin-kapt'
+    id 'realm-android'
+    id 'kotlin-android'
+
 }
 
 android {
@@ -31,6 +35,10 @@ android {
         jvmTarget = '1.8'
     }
 
+    dataBinding {
+        enabled true
+    }
+
     buildFeatures {
         viewBinding true
     }
@@ -58,7 +66,8 @@ dependencies {
 
     //RxJava3
     implementation "io.reactivex.rxjava3:rxjava:3.1.2"
-    implementation "io.reactivex.rxjava3:rxandroid:3.0.0"
+    implementation "io.reactivex.rxjava3:rxandroid:$rxAndroidVersion"
+
 
     // Retrofit
     implementation "com.squareup.retrofit2:retrofit:$retrofit_version"
@@ -92,5 +101,8 @@ dependencies {
     // ShadowLayout
     implementation "net.orandja.shadowlayout:shadowlayout:1.0.1"
 
+     // ViewBindingPropertyDelegate without reflection
+    implementation "com.github.kirich1409:viewbindingpropertydelegate-noreflection:1.5.6"
 
+implementation "com.mikepenz:fastadapter-extensions-binding:5.6.0"
 }

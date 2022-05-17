@@ -12,13 +12,16 @@ import android.view.ViewGroup
 import android.widget.PopupMenu
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.activityViewModels
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.snackbar.Snackbar
 import com.xabber.R
 import com.xabber.data.dto.ChatDto
 import com.xabber.databinding.FragmentChatBinding
+import com.xabber.presentation.application.activity.ApplicationViewModel
 import com.xabber.presentation.application.contract.navigator
+import kotlin.collections.ArrayList
 
 
 class ChatFragment : Fragment(), ChatAdapter.ChatListener {
@@ -26,6 +29,7 @@ class ChatFragment : Fragment(), ChatAdapter.ChatListener {
     private val binding get() = _binding!!
     lateinit var jid: String
     private val viewModel = ChatViewModel()
+    private val applicationViewModel: ApplicationViewModel by activityViewModels()
     private var chatAdapter = ChatAdapter(this)
 
     companion object {
@@ -51,8 +55,23 @@ class ChatFragment : Fragment(), ChatAdapter.ChatListener {
         initToolbarActions()
         fillChat()
         initButton()
+        applicationViewModel.showUnread.observe(viewLifecycleOwner) {
+            if (it) {
+                var count = 0;
+             val a =   viewModel.chat.value
+                for (i in 0 until a!!.size) {
+                    if (a[i].unreadString!!.isNotEmpty()) count += a[i].unreadString!!.toInt()
+                }
+                applicationViewModel.setUnreadCount(count)
+            val unreadList = viewModel.chat.value!!.filter { s -> s.unreadString!!.isNotEmpty() }
+            chatAdapter.submitList(unreadList) }
+            else chatAdapter.submitList(viewModel.chat.value)
+
+        }
+
         binding.bounceScrollView.scrollBy(40, 40)
     }
+
 
     private fun initToolbarActions() {
         binding.avatarContainer.setOnClickListener {

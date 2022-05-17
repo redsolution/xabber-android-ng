@@ -1,19 +1,18 @@
-package com.xabber.presentation.application.fragments.message
+package com.xabber.presentation.application.fragments.chat
 
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.fragment.app.Fragment
+import by.kirich1409.viewbindingdelegate.viewBinding
 import com.xabber.R
 import com.xabber.databinding.FragmentNewChatBinding
 import com.xabber.presentation.application.contract.navigator
+import com.xabber.presentation.application.fragments.DetailBaseFragment
 import kotlin.random.Random
 
-class NewChatFragment : Fragment() {
-
-    private var _binding: FragmentNewChatBinding? = null
-    private val binding get() = _binding!!
+class NewChatFragment : DetailBaseFragment(R.layout.fragment_new_chat) {
+    private val binding by viewBinding(FragmentNewChatBinding::bind)
 
     private val quotes = listOf(
         "Leave the gun. Take the cannoli!",
@@ -23,15 +22,6 @@ class NewChatFragment : Fragment() {
         "Infinite possibilities!",
         "Our Princess is in another castle!"
     )
-
-    override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View {
-        _binding = FragmentNewChatBinding.inflate(inflater, container, false)
-        return binding.root
-    }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -48,7 +38,7 @@ class NewChatFragment : Fragment() {
 
     private fun initToolbarAction() {
         binding.newChatToolbar.setNavigationIcon(R.drawable.ic_arrow_left)
-        binding.newChatToolbar.setNavigationOnClickListener { navigator().goBack() }
+        binding.newChatToolbar.setNavigationOnClickListener { navigator().closeDetail() }
 
     }
 
@@ -60,8 +50,4 @@ class NewChatFragment : Fragment() {
         }
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        _binding = null
-    }
 }

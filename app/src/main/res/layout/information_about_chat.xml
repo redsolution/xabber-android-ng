@@ -1,18 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
+
 <androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    app:contentPadding="12dp">
+    app:contentPadding="12dp"
+    android:background="@color/blue_300"
+    android:backgroundTint="#7F64B5F6"
+    app:cardCornerRadius="8dp"
+    app:cardElevation="0dp">
 
 <androidx.constraintlayout.widget.ConstraintLayout
     android:id="@+id/cardview_about_chat"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    app:contentPadding="12dp"
-    app:layout_constraintCircleRadius="4dp"
-    android:background="#14b5f6">
+    android:layout_height="wrap_content">
 
     <ImageView
         android:id="@+id/imageView2"
@@ -36,37 +38,45 @@
         app:layout_constraintBottom_toTopOf="@+id/tv_about_chat_description"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/imageView2" />
+        app:layout_constraintTop_toBottomOf="@+id/imageView2"
+        android:layout_marginBottom="12dp"/>
 
     <TextView
         android:id="@+id/tv_about_chat_description"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
+        android:layout_marginBottom="12dp"
         android:gravity="center"
         android:text="Messages in this chat are not encrypted. Servers often keep a history of forwarded messages. This makes it easy to synchronize devices and search the history on the server side, but creates threats to the confidentiality of correspondence."
         android:textColor="@color/white"
         android:textSize="13sp"
+        app:layout_constraintBottom_toTopOf="@+id/white_line"
         app:layout_constraintStart_toStartOf="parent"
-       app:layout_constraintTop_toBottomOf="@id/tv_about_chat_title" />
+        app:layout_constraintTop_toBottomOf="@id/tv_about_chat_title" />
 
     <View
         android:id="@+id/white_line"
         android:layout_width="0dp"
-        android:layout_height="1dp"
+        android:layout_height="0.5dp"
         app:layout_constraintTop_toBottomOf="@id/tv_about_chat_description"
          app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        android:background="@color/white"/>
+        android:background="@color/white"
+        android:layout_marginBottom="8dp"
+        app:layout_constraintBottom_toTopOf="@id/link_about_messages"/>
 
     <TextView
+        android:id="@+id/link_about_messages"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:textSize="12sp"
         android:text="more about messaging"
-         app:layout_constraintEnd_toEndOf="parent"
+        android:textColor="@color/white"
+        android:textSize="12sp"
+        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/white_line"/>
+        app:layout_constraintTop_toBottomOf="@id/white_line"
+        app:layout_constraintBottom_toBottomOf="parent"/>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
 </androidx.cardview.widget.CardView>
