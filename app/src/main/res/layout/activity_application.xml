@@ -12,6 +12,7 @@
         android:layout_width="240dp"
         android:layout_height="match_parent">
 
+
         <androidx.fragment.app.FragmentContainerView
             android:id="@+id/application_container"
             android:layout_width="0dp"

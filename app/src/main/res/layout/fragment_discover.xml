@@ -8,7 +8,7 @@
         android:id="@+id/tvDiscover"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Discover"
+        android:text="@string/discover_toolbar_title"
         android:textSize="26sp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"

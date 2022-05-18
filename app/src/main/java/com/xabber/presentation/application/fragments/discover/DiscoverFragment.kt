@@ -1,33 +1,19 @@
 package com.xabber.presentation.application.fragments.discover
 
 import android.os.Bundle
-import android.view.LayoutInflater
 import android.view.View
-import android.view.ViewGroup
-import androidx.fragment.app.Fragment
+import by.kirich1409.viewbindingdelegate.viewBinding
+import com.xabber.R
 import com.xabber.databinding.FragmentDiscoverBinding
+import com.xabber.presentation.application.fragments.BaseFragment
 
-class DiscoverFragment : Fragment() {
-    private var _binding: FragmentDiscoverBinding? = null
-    private val binding get() = _binding!!
-
-
-    override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View {
-        _binding = FragmentDiscoverBinding.inflate(inflater, container, false)
-        return binding.root
-    }
+class DiscoverFragment : BaseFragment(R.layout.fragment_discover) {
+    private val binding by viewBinding(FragmentDiscoverBinding::bind)
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        _binding = null
-    }
+
 }

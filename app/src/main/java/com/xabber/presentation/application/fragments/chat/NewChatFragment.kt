@@ -1,9 +1,7 @@
 package com.xabber.presentation.application.fragments.chat
 
 import android.os.Bundle
-import android.view.LayoutInflater
 import android.view.View
-import android.view.ViewGroup
 import by.kirich1409.viewbindingdelegate.viewBinding
 import com.xabber.R
 import com.xabber.databinding.FragmentNewChatBinding

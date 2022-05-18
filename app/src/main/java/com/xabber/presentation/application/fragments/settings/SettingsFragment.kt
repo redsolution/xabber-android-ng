@@ -1,36 +1,24 @@
 package com.xabber.presentation.application.fragments.settings
 
 import android.os.Bundle
-import android.view.LayoutInflater
 import android.view.View
-import android.view.ViewGroup
-import androidx.fragment.app.Fragment
+import by.kirich1409.viewbindingdelegate.viewBinding
+import com.xabber.R
 import com.xabber.databinding.FragmentSettingsBinding
 import com.xabber.presentation.application.contract.navigator
+import com.xabber.presentation.application.fragments.BaseFragment
 
-class SettingsFragment : Fragment() {
-    private var _binding: FragmentSettingsBinding? = null
-    private val binding get() = _binding!!
-
-    override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View {
-        _binding = FragmentSettingsBinding.inflate(inflater, container, false)
-        return binding.root
-    }
+class SettingsFragment : BaseFragment(R.layout.fragment_settings) {
+    private val binding by viewBinding(FragmentSettingsBinding::bind)
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+
 
         binding.linearChat.setOnClickListener {
             navigator().showChatSettings()
         }
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        _binding = null
-    }
+
 }

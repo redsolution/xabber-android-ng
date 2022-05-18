@@ -16,18 +16,15 @@ import com.xabber.R
 import com.xabber.data.util.dp
 import com.xabber.databinding.ActivityApplicationBinding
 import com.xabber.presentation.application.contract.ApplicationNavigator
+import com.xabber.presentation.application.contract.ApplicationToolbarChanger
 import com.xabber.presentation.application.fragments.account.AccountFragment
 import com.xabber.presentation.application.fragments.calls.CallsFragment
-import com.xabber.presentation.application.fragments.chat.ChatFragment
-import com.xabber.presentation.application.fragments.chat.ChatSettingsFragment
-import com.xabber.presentation.application.fragments.chat.NewGroupFragment
-import com.xabber.presentation.application.fragments.chat.SpecialNotificationsFragment
+import com.xabber.presentation.application.fragments.chat.*
 import com.xabber.presentation.application.fragments.contacts.ContactsFragment
 import com.xabber.presentation.application.fragments.contacts.EditContactFragment
 import com.xabber.presentation.application.fragments.contacts.NewContactFragment
 import com.xabber.presentation.application.fragments.discover.DiscoverFragment
 import com.xabber.presentation.application.fragments.message.MessageFragment
-import com.xabber.presentation.application.fragments.chat.NewChatFragment
 import com.xabber.presentation.application.fragments.settings.SettingsFragment
 import com.xabber.presentation.onboarding.activity.OnBoardingActivity
 
@@ -53,9 +50,9 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
         if (isSignedIn) {
             val widthWindowSize = getWidthWindowSizeClass()
             val heightWindowSize = getHeightWindowSizeClass()
-             if (Resources.getSystem().configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) {
-                 if (heightWindowSize == HeightWindowSize.MEDIUM || heightWindowSize == HeightWindowSize.EXPANDED) setContainerWidth()
-             } else if (widthWindowSize == WidthWindowSize.MEDIUM || widthWindowSize == WidthWindowSize.EXPANDED) setContainerWidth()
+            if (Resources.getSystem().configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) {
+                if (heightWindowSize == HeightWindowSize.MEDIUM || heightWindowSize == HeightWindowSize.EXPANDED) setContainerWidth()
+            } else if (widthWindowSize == WidthWindowSize.MEDIUM || widthWindowSize == WidthWindowSize.EXPANDED) setContainerWidth()
             if (savedInstanceState == null) {
                 launchFragment(ChatFragment.newInstance(""))
             } else {
@@ -72,9 +69,14 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
             overridePendingTransition(R.animator.appearance, R.animator.disappearance)
         }
         viewModel.unreadCount.observe(this) {
+            count = it
+            binding.groupUnraedMessages.isVisible = it > 0
             binding.unreadAllMessagesCount.text = it.toString()
+            if (it < 1) binding.bottomNavBar.menu.getItem(0).setIcon(R.drawable.ic_material_chat_24)
         }
+
         initBottomNavigation()
+
     }
 
     fun getWidthWindowSizeClass(): WidthWindowSize {
@@ -126,9 +128,11 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
                     if (activeFragment !is ChatFragment) {
                         launchFragment(ChatFragment.newInstance("name.surname@redsolution.com"))
                     } else {
-                        isShowUnreadMessages = !isShowUnreadMessages
-                        binding.groupUnraedMessages.isVisible = isShowUnreadMessages
-                        viewModel.setShowUnreadValue(isShowUnreadMessages)
+                        if (count > 0) {
+                            isShowUnreadMessages = !isShowUnreadMessages
+                            viewModel.setShowUnreadValue(isShowUnreadMessages)
+                            menuItem.setIcon(R.drawable.ic_chat_alert)
+                        }
                     }
                 }
                 R.id.calls -> if (activeFragment !is CallsFragment) launchFragment(CallsFragment())
@@ -148,20 +152,10 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
 
     private fun launchFragment(fragment: Fragment) {
         supportFragmentManager.beginTransaction()
-            .setCustomAnimations(R.animator.appearance, R.animator.disappearance)
             .replace(R.id.application_container, fragment).commit()
     }
 
-    private fun launchFragmentInStack(fragment: Fragment) {
-        supportFragmentManager.beginTransaction().setCustomAnimations(
-            R.animator.in_right,
-            R.animator.out_left,
-            R.animator.in_left,
-            R.animator.out_right
-        ).replace(R.id.application_container, fragment).addToBackStack(null).commit()
-    }
-
-    private fun openDetail(fragment: Fragment) {
+    private fun launchDetail(fragment: Fragment) {
         supportFragmentManager.commit {
             setReorderingAllowed(true)
             replace(R.id.detail_container, fragment)
@@ -192,11 +186,11 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
     }
 
     override fun showMessage(jid: String) {
-        openDetail(MessageFragment.newInstance(jid))
+        launchDetail(MessageFragment.newInstance(jid))
     }
 
     override fun showAccount() {
-        openDetail(AccountFragment())
+        launchDetail(AccountFragment())
     }
 
     override fun showContacts() {
@@ -204,7 +198,7 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
     }
 
     override fun showNewChat() {
-        openDetail(NewChatFragment())
+        launchDetail(NewChatFragment())
     }
 
     override fun showNewContact() {
@@ -216,21 +210,22 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
     }
 
     override fun showSpecialNotificationSettings() {
-        openDetail(SpecialNotificationsFragment())
+        launchDetail(SpecialNotificationsFragment())
     }
 
     override fun showEditContact(name: String) {
-        openDetail(EditContactFragment.newInstance(name))
+        launchDetail(EditContactFragment.newInstance(name))
     }
 
     override fun showChatSettings() {
-        openDetail(ChatSettingsFragment())
+        launchDetail(ChatSettingsFragment())
     }
 
+
     override fun closeDetail() {
-          Log.d("Saved", "${supportFragmentManager.backStackEntryCount}")
+        Log.d("Saved", "${supportFragmentManager.backStackEntryCount}")
         if (supportFragmentManager.backStackEntryCount > 0) supportFragmentManager.popBackStack()
-      else {
+        else {
             supportFragmentManager.beginTransaction()
                 .remove(supportFragmentManager.findFragmentById(R.id.detail_container)!!).commit()
             if (binding.slidingPaneLayout.isOpen) binding.slidingPaneLayout.close()

@@ -211,4 +211,11 @@
     <string name="skip">Skip</string>
 
 
+    <!-- DISCOVER FRAGMENT -->
+    <string name="discover_toolbar_title">Discover</string>
+
+    <!-- SETTINGS FRAGMENT -->
+    <string name="settings_toolbar_title">Settings</string>
+    <string name="change_mode">Change mode</string>
+
 </resources>

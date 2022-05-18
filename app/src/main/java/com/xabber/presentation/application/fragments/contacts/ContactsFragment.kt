@@ -2,28 +2,17 @@ package com.xabber.presentation.application.fragments.contacts
 
 import android.app.AlertDialog
 import android.os.Bundle
-import android.view.LayoutInflater
 import android.view.View
-import android.view.ViewGroup
-import androidx.fragment.app.Fragment
+import by.kirich1409.viewbindingdelegate.viewBinding
 import com.xabber.R
 import com.xabber.databinding.FragmentContactBinding
+import com.xabber.presentation.application.contract.applicationToolbarChanger
 import com.xabber.presentation.application.contract.navigator
+import com.xabber.presentation.application.fragments.BaseFragment
 
-class ContactsFragment : Fragment(), ContactAdapter.Listener {
-    private var _binding: FragmentContactBinding? = null
-    private val binding get() = _binding!!
+class ContactsFragment : BaseFragment(R.layout.fragment_contact), ContactAdapter.Listener {
+    private val binding by viewBinding(FragmentContactBinding::bind)
     private val viewModel = ContactsViewModel()
-
-
-    override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View {
-        _binding = FragmentContactBinding.inflate(inflater, container, false)
-        return binding.root
-    }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -69,8 +58,4 @@ class ContactsFragment : Fragment(), ContactAdapter.Listener {
 
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        _binding = null
-    }
 }

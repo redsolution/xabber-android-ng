@@ -88,22 +88,27 @@
         </androidx.constraintlayout.widget.ConstraintLayout>
     </com.google.android.material.appbar.MaterialToolbar>
 
-    <com.xabber.presentation.application.util.BounceScrollView
-        android:id="@+id/bounce_scrollView"
+    <Button
+        android:id="@+id/button_archive"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/chat_toolbar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Archive"
+        android:visibility="gone" />
+    <androidx.recyclerview.widget.RecyclerView
+        android:layout_marginTop="0dp"
+        android:id="@+id/chat_list"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/chat_toolbar" >
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/chat_list"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/chat_toolbar"
+        app:layout_constraintBottom_toBottomOf="parent"
         android:orientation="vertical"
         app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
         tools:listitem="@layout/item_chat" />
-</com.xabber.presentation.application.util.BounceScrollView>
 
     <ImageView
         android:id="@+id/empty_logo"
@@ -142,4 +147,30 @@
         android:id="@+id/group_chat_empty"
         app:constraint_referenced_ids="empty_logo, empty_text"
         android:visibility="gone"/>
+
+
+    <androidx.cardview.widget.CardView
+        android:id="@+id/cv_mark_all_messages_unread"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        android:layout_marginBottom="8dp"
+        android:layout_marginHorizontal="36dp"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:backgroundTint="@color/blue_500"
+        app:cardCornerRadius="24dp"
+        app:contentPadding="4dp"
+        android:visibility="gone">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:text="Mark all messages as read"
+            android:gravity="center"
+            android:textColor="@color/white"
+            android:textSize="16sp"/>
+
+    </androidx.cardview.widget.CardView>
 </androidx.constraintlayout.widget.ConstraintLayout>

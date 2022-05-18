@@ -10,7 +10,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="@color/blue_300"
-        app:title="Settings">
+        app:title="@string/settings_toolbar_title">
 
         <ImageView
             android:id="@+id/im_mode"

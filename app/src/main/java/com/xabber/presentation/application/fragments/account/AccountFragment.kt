@@ -1,34 +1,20 @@
 package com.xabber.presentation.application.fragments.account
 
 import android.os.Bundle
-import android.view.LayoutInflater
 import android.view.View
-import android.view.ViewGroup
-import androidx.fragment.app.Fragment
+import by.kirich1409.viewbindingdelegate.viewBinding
 import com.xabber.R
 import com.xabber.databinding.FragmentAccountBinding
+import com.xabber.presentation.application.fragments.DetailBaseFragment
 
 
-class AccountFragment : Fragment() {
-    private var _binding: FragmentAccountBinding? = null
-    private val binding get() = _binding!!
-
-    override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View {
-        _binding = FragmentAccountBinding.inflate(inflater, container, false)
-        return binding.root
-    }
+class AccountFragment : DetailBaseFragment(R.layout.fragment_account) {
+    private val binding by viewBinding(FragmentAccountBinding::bind)
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         binding.accountToolbar?.setNavigationIcon(R.drawable.ic_arrow_left_white_24dp)
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        _binding = null
-    }
+
 }

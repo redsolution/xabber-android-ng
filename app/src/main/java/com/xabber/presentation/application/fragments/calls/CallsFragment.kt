@@ -2,32 +2,20 @@ package com.xabber.presentation.application.fragments.calls
 
 import android.os.Bundle
 import android.text.method.LinkMovementMethod
-import android.view.LayoutInflater
 import android.view.View
-import android.view.ViewGroup
-import androidx.fragment.app.Fragment
+import by.kirich1409.viewbindingdelegate.viewBinding
+import com.bumptech.glide.Glide
+import com.xabber.R
 import com.xabber.databinding.FragmentCallsBinding
+import com.xabber.presentation.application.fragments.BaseFragment
 
-class CallsFragment : Fragment() {
-    private var _binding: FragmentCallsBinding? = null
-    private val binding get() = _binding!!
-
-    override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View {
-        _binding = FragmentCallsBinding.inflate(inflater, container, false)
-        return binding.root
-    }
+class CallsFragment : BaseFragment(R.layout.fragment_calls) {
+    private val binding by viewBinding(FragmentCallsBinding::bind)
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        Glide.with(binding.imAvatar).load(R.drawable.img).into(binding.imAvatar)
         binding.tvAdt.movementMethod = LinkMovementMethod.getInstance()
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        _binding = null
-    }
 }

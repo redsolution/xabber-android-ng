@@ -28,6 +28,7 @@ data class ChatDto(
 ) : Comparable<ChatDto> {
     override fun compareTo(other: ChatDto): Int {
         var result = other.isPinned.compareTo(this.isPinned)
+        if (this.isPinned && other.isPinned) result = other.date.compareTo(this.date)
         if (!this.isPinned && !other.isPinned) result = other.date.compareTo(this.date)
         return result
     }
