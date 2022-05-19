@@ -17,7 +17,7 @@ interface Navigator {
 
     fun startSignupAvatarFragment()
 
-    fun goToApplicationActivity(userName: String = "")
+    fun goToApplicationActivity(isSignedIn: Boolean)
 
     fun goBack()
 

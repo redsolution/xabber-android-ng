@@ -12,7 +12,7 @@ android {
     compileSdk 31
 
     defaultConfig {
-        applicationId "com.xabber"
+        applicationId "com.xabber.android.ng"
         minSdk 23
         targetSdk 32
         versionCode 1

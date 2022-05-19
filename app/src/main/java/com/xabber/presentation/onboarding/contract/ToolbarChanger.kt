@@ -1,6 +1,7 @@
 package com.xabber.presentation.onboarding.contract
 
 import androidx.fragment.app.Fragment
+import com.xabber.presentation.onboarding.activity.OnBoardingActivity
 
 fun Fragment.toolbarChanger(): ToolbarChanger = requireActivity() as ToolbarChanger
 interface ToolbarChanger {

@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Xabber</string>
+    <string name="app_name">Xabber NG</string>
 
     <!-- Permissions -->
     <string name="no_permission_to_read_files_toast">No permission to read files</string>

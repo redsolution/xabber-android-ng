@@ -175,7 +175,7 @@ class SigninFragment : Fragment() {
 
                                         btnRock.isVisible = true
                                         btnRock.setOnClickListener {
-                                            navigator().goToApplicationActivity()
+                                            navigator().goToApplicationActivity(true)
                                         }
                                     }
                                     if (viewModel._features.filter { it.state == State.Error }

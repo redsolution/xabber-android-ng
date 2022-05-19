@@ -42,6 +42,7 @@ class MessageFragment : DetailBaseFragment(R.layout.fragment_message), SwipeCont
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        if (savedInstanceState != null) name = savedInstanceState.getString("name", "")
 
         val messageSwipeController =
             MessageSwipeController(requireContext(), object : SwipeControllerActions {
@@ -205,6 +206,11 @@ class MessageFragment : DetailBaseFragment(R.layout.fragment_message), SwipeCont
         }
     }
 
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putString("name", name)
+    }
 
 
 }

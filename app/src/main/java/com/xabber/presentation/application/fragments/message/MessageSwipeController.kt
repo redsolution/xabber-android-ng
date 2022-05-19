@@ -9,6 +9,7 @@ import android.graphics.drawable.Drawable
 import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
+import android.util.Log
 import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import android.view.View
@@ -80,22 +81,25 @@ class MessageSwipeController(private val context: Context, private val swipeCont
             super.onChildDraw(c, recyclerView, viewHolder, dX/3, dY, actionState, isCurrentlyActive)
             this.dX = dX
             startTracking = true
+
         }
         currentItemViewHolder = viewHolder
         drawReplyButton(Canvas())
-        swipeControllerActions.showReplyUI(viewHolder.adapterPosition)
+
+
 
     }
 
     @SuppressLint("ClickableViewAccessibility")
     private fun setTouchListener(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder) {
         recyclerView.setOnTouchListener { _, event ->
+           val a = dX
             swipeBack =
                 event.action == MotionEvent.ACTION_CANCEL || event.action == MotionEvent.ACTION_UP
             if (swipeBack) {
-                if (abs(mView.translationX) >= this@MessageSwipeController.convertTodp(50)) {
-
-                    drawReplyButton(Canvas())
+                Log.d("swipe", "$dX")
+                if (dX == a) {
+swipeControllerActions.showReplyUI(viewHolder.adapterPosition)
 
                 }
             }

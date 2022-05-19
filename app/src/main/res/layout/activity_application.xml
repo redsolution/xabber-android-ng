@@ -82,7 +82,7 @@
             android:layout_width="0.001dp"
             android:layout_height="0dp"
             android:background="@color/grey_300"
-            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintBottom_toTopOf="@id/bottom_nav_bar"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
     </androidx.constraintlayout.widget.ConstraintLayout>

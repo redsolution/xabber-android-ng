@@ -15,9 +15,11 @@ import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.FileProvider
+
 import androidx.fragment.app.Fragment
+import com.soundcloud.android.crop.BuildConfig.APPLICATION_ID
 import com.soundcloud.android.crop.Crop
-import com.xabber.BuildConfig
+
 import com.xabber.R
 import com.xabber.data.util.AppConstants.REQUEST_TAKE_PHOTO
 import com.xabber.data.util.AppConstants.TEMP_FILE_NAME
@@ -31,6 +33,7 @@ import com.xabber.presentation.onboarding.fragments.signup.SignupNicknameFragmen
 import com.xabber.presentation.onboarding.fragments.signup.SignupPasswordFragment
 import com.xabber.presentation.onboarding.fragments.signup.SignupUserNameFragment
 import com.xabber.presentation.onboarding.fragments.start.StartFragment
+import me.relex.circleindicator.BuildConfig.APPLICATION_ID
 import java.io.File
 import java.io.IOException
 
@@ -60,8 +63,8 @@ class OnBoardingActivity : AppCompatActivity(), Navigator, ToolbarChanger {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         setContentView(binding.root)
+        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         subscribeToDataFromFragments()
         binding.onboardingToolbar.title = ""
         setSupportActionBar(binding.onboardingToolbar)
@@ -114,8 +117,9 @@ class OnBoardingActivity : AppCompatActivity(), Navigator, ToolbarChanger {
     }
 
 
-    override fun goToApplicationActivity(userName: String) {
+    override fun goToApplicationActivity(isSignedIn: Boolean) {
         val intent = Intent(this, ApplicationActivity::class.java)
+        intent.putExtra("isSignedIn",true)
         startActivity(intent)
         finish()
         overridePendingTransition(R.animator.appearance, R.animator.disappearance)
@@ -154,7 +158,7 @@ class OnBoardingActivity : AppCompatActivity(), Navigator, ToolbarChanger {
         val takePictureIntent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
         try {
             createTempImageFile(TEMP_FILE_NAME).let {
-                filePhotoUri = getFileUri(it)
+             //   filePhotoUri = getFileUri(it)
                 takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, filePhotoUri)
                 startActivityForResult(
                     takePictureIntent,
@@ -229,12 +233,13 @@ class OnBoardingActivity : AppCompatActivity(), Navigator, ToolbarChanger {
         supportActionBar?.setDisplayShowHomeEnabled(isVisible)
     }
 
-    private fun getFileUri(file: File): Uri {
-        return FileProvider.getUriForFile(
-            application, BuildConfig.APPLICATION_ID + ".provider",
-            file
-        )
-    }
+//    private fun getFileUri(file: File): Uri {
+//      //  return FileProvider.getUriForFile(
+//      //      application, BuildConfig.APPLICATION_ID + ".provider",
+//            file
+//    //    )
+//
+//    }
 }
 
 

@@ -16,7 +16,6 @@ import com.xabber.R
 import com.xabber.data.util.dp
 import com.xabber.databinding.ActivityApplicationBinding
 import com.xabber.presentation.application.contract.ApplicationNavigator
-import com.xabber.presentation.application.contract.ApplicationToolbarChanger
 import com.xabber.presentation.application.fragments.account.AccountFragment
 import com.xabber.presentation.application.fragments.calls.CallsFragment
 import com.xabber.presentation.application.fragments.chat.*
@@ -29,7 +28,7 @@ import com.xabber.presentation.application.fragments.settings.SettingsFragment
 import com.xabber.presentation.onboarding.activity.OnBoardingActivity
 
 class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
-    private val isSignedIn = true
+    private var isSignedIn = false
     private val viewModel: ApplicationViewModel by viewModels()
     private var isShowUnreadMessages = false
     private var count = 0
@@ -46,18 +45,17 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(binding.root)
-
+        val data = intent.getBooleanExtra("isSignedIn", false)
+        isSignedIn = data
         if (isSignedIn) {
             val widthWindowSize = getWidthWindowSizeClass()
-            val heightWindowSize = getHeightWindowSizeClass()
-            if (Resources.getSystem().configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) {
-                if (heightWindowSize == HeightWindowSize.MEDIUM || heightWindowSize == HeightWindowSize.EXPANDED) setContainerWidth()
-            } else if (widthWindowSize == WidthWindowSize.MEDIUM || widthWindowSize == WidthWindowSize.EXPANDED) setContainerWidth()
+
+            if (widthWindowSize == WidthWindowSize.MEDIUM || widthWindowSize == WidthWindowSize.EXPANDED) setContainerWidth()
+
             if (savedInstanceState == null) {
                 launchFragment(ChatFragment.newInstance(""))
             } else {
                 isShowUnreadMessages = savedInstanceState.getBoolean("showUnread")
-                Log.d("Saved", "пришло $isShowUnreadMessages")
                 count = savedInstanceState.getInt("unreadCount")
                 binding.groupUnraedMessages.isVisible = isShowUnreadMessages
                 binding.unreadAllMessagesCount.text = count.toString()
@@ -79,7 +77,7 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
 
     }
 
-    fun getWidthWindowSizeClass(): WidthWindowSize {
+    private fun getWidthWindowSizeClass(): WidthWindowSize {
         val widthDp =
             (Resources.getSystem().displayMetrics.widthPixels / Resources.getSystem().displayMetrics.density).toInt()
         val widthWindowSize = when {
@@ -90,20 +88,8 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
         return widthWindowSize
     }
 
-    fun getHeightWindowSizeClass(): HeightWindowSize {
-        val heightDp =
-            (Resources.getSystem().displayMetrics.widthPixels / Resources.getSystem().displayMetrics.density).toInt()
-        val heightWindowSizeClass = when {
-            heightDp < 480f -> HeightWindowSize.COMPACT
-            heightDp < 900f -> HeightWindowSize.MEDIUM
-            else -> HeightWindowSize.EXPANDED
-        }
-        return heightWindowSizeClass
-    }
-
 
     private fun setContainerWidth() {
-        if (getWidthWindowSizeClass() == WidthWindowSize.MEDIUM || getWidthWindowSizeClass() == WidthWindowSize.EXPANDED) {
             val widthPx = Resources.getSystem().displayMetrics.widthPixels
             val density = Resources.getSystem().displayMetrics.density
             val widthDp = widthPx / density
@@ -112,13 +98,12 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
                 val maxSize = 400
                 val newWidth = (widthDp / 100 * 40.dp).toInt()
                 this.width =
-                    if (Resources.getSystem().configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) {
+                    if (Resources.getSystem().configuration.orientation == Configuration.ORIENTATION_LANDSCAPE && getWidthWindowSizeClass() == WidthWindowSize.EXPANDED) {
                         val landWidth = (widthDp / 100 * 40.dp).toInt()
                         if (landWidth > maxSize) maxSize else landWidth
                     } else
                         newWidth
             }
-        }
     }
 
     private fun initBottomNavigation() {

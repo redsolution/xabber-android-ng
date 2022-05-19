@@ -10,7 +10,7 @@
 
     <item
         android:id="@+id/display_contacts_offline"
-        android:title="Display_contacts_offline" />
+        android:title="Display contacts offline" />
 
 
 </menu>

@@ -79,47 +79,47 @@ class ChatFragment : BaseFragment(R.layout.fragment_chat), ChatAdapter.ChatListe
         Glide.with(binding.imAvatar).load(R.drawable.img).into(binding.imAvatar)
 
 
-        val layoutManager = binding.chatList.layoutManager as LinearLayoutManager
-        val first = layoutManager.findFirstVisibleItemPosition()
-        Log.v("scroll", "first = $first")
-    //    if (first == 0) {
-            binding.chatList.setOnTouchListener { v, event ->
-                val x = event.getX()
-                val y = event.getY()
-              var xTouch = 0f
-                var yTouch = 0f
-    when (event?.action) {
-
-        MotionEvent.ACTION_DOWN -> {
-            val params = binding.chatList.layoutParams
-            xTouch = x - binding.chatList.marginTop
-
-             yTouch = y - binding.chatList.marginTop
-       //     binding.buttonArchive.animate().translationX(binding.buttonArchive.height.toFloat()).alpha(1.0f)
-       //     binding.chatList.animate().translationY(200f)
-      //      binding.buttonArchive.isVisible = true
-       // binding.buttonArchive.alpha = 0.0f
-
-             }
-        MotionEvent.ACTION_MOVE -> {
-               Log.v("scroll", "y = ${event.y}, x = ${event.x}, xTouch = $xTouch, yTouch = $yTouch")
-            if (event.y < 50 ) {
-           //     val newX = xTouch - event.x
-           //     val newY = yTouch - event.y
-           //     binding.chatList.marginTop.plus(newY)
-                binding.buttonArchive.isVisible = true
-            }
-        }
-        MotionEvent.ACTION_UP -> {
-         //   if (event.getY() < 50 ) binding.chatList.animate().translationY(200f)
-        //    binding.buttonArchive.isVisible = true
-        //    false
-        }
-
-    }
-
-    true
-}
+//        val layoutManager = binding.chatList.layoutManager as LinearLayoutManager
+//        val first = layoutManager.findFirstVisibleItemPosition()
+//        Log.v("scroll", "first = $first")
+//    //    if (first == 0) {
+//            binding.chatList.setOnTouchListener { v, event ->
+//                val x = event.getX()
+//                val y = event.getY()
+//              var xTouch = 0f
+//                var yTouch = 0f
+//    when (event?.action) {
+//
+//        MotionEvent.ACTION_DOWN -> {
+//            val params = binding.chatList.layoutParams
+//            xTouch = x - binding.chatList.marginTop
+//
+//             yTouch = y - binding.chatList.marginTop
+//       //     binding.buttonArchive.animate().translationX(binding.buttonArchive.height.toFloat()).alpha(1.0f)
+//       //     binding.chatList.animate().translationY(200f)
+//      //      binding.buttonArchive.isVisible = true
+//       // binding.buttonArchive.alpha = 0.0f
+//
+//             }
+//        MotionEvent.ACTION_MOVE -> {
+//               Log.v("scroll", "y = ${event.y}, x = ${event.x}, xTouch = $xTouch, yTouch = $yTouch")
+//            if (event.y < 50 ) {
+//           //     val newX = xTouch - event.x
+//           //     val newY = yTouch - event.y
+//           //     binding.chatList.marginTop.plus(newY)
+//                binding.buttonArchive.isVisible = true
+//            }
+//        }
+//        MotionEvent.ACTION_UP -> {
+//         //   if (event.getY() < 50 ) binding.chatList.animate().translationY(200f)
+//        //    binding.buttonArchive.isVisible = true
+//        //    false
+//        }
+//
+//    }
+//
+//    true
+//}
         //    binding.chatList.animate().translationY(200f)
         //    binding.buttonArchive.isVisible = true
         }

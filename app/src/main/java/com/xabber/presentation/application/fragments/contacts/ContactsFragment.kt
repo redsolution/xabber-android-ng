@@ -4,9 +4,9 @@ import android.app.AlertDialog
 import android.os.Bundle
 import android.view.View
 import by.kirich1409.viewbindingdelegate.viewBinding
+import com.bumptech.glide.Glide
 import com.xabber.R
 import com.xabber.databinding.FragmentContactBinding
-import com.xabber.presentation.application.contract.applicationToolbarChanger
 import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.application.fragments.BaseFragment
 
@@ -17,6 +17,7 @@ class ContactsFragment : BaseFragment(R.layout.fragment_contact), ContactAdapter
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         val contactAdapter = ContactAdapter(this)
+        Glide.with(binding.imAvatar).load(R.drawable.img).into(binding.imAvatar)
 
         binding.recyclerView.adapter = contactAdapter
 
@@ -29,8 +30,8 @@ class ContactsFragment : BaseFragment(R.layout.fragment_contact), ContactAdapter
         navigator().showAccount()
     }
 
-    override fun onContactClick() {
-        navigator().showMessage("")
+    override fun onContactClick(userName: String) {
+        navigator().showMessage(userName)
     }
 
     override fun editContact() {

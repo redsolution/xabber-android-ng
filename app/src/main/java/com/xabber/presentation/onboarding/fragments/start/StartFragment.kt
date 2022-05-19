@@ -42,7 +42,7 @@ class StartFragment : Fragment() {
     private fun initButton() {
         with(binding) {
             btnSkip.setOnClickListener {
-                navigator().goToApplicationActivity()
+                navigator().goToApplicationActivity(true)
             }
 
             btnLogin.setOnClickListener {

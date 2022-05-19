@@ -134,7 +134,7 @@ class ChatAdapter(
                     )
                 )
 
-                chatImageContainer.setBackgroundColor(
+                chatImage.setBackgroundColor(
 
                     itemView.resources.getColor(
                         chat.colorId,
@@ -146,7 +146,7 @@ class ChatAdapter(
                     .load(R.drawable.ic_avatar_placeholder)
                     .centerCrop()
                     .skipMemoryCache(true)
-                    .into(chatImageContainer)
+                    .into(chatImage)
 
 
                 chatTimestamp.text = DateFormatter.dateFormat(chat.date.toString())

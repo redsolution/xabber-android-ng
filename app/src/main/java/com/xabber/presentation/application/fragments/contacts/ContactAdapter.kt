@@ -22,7 +22,7 @@ class ContactAdapter(
     interface Listener {
         fun onAvatarClick()
 
-        fun onContactClick()
+        fun onContactClick(userName: String)
 
         fun editContact()
 
@@ -143,7 +143,7 @@ class ContactAdapter(
                 }
 
                 binding.root.setOnClickListener {
-                    listener.onContactClick()
+                    listener.onContactClick(contact.userName!!)
                 }
 
                 itemView.setOnLongClickListener {

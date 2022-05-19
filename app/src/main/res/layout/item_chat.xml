@@ -4,7 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/chat_ground"
     android:layout_width="match_parent"
-    android:layout_height="48dp"
+    android:layout_height="72dp"
     android:background="@color/white"
     android:clickable="true"
     android:focusable="true">
@@ -19,29 +19,37 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <ImageView
+    <androidx.cardview.widget.CardView
         android:id="@+id/chat_image_container"
-        android:layout_width="32dp"
-        android:layout_height="32dp"
-        android:layout_marginStart="4dp"
-        app:cardPreventCornerOverlap="false"
+        android:layout_width="56dp"
+        android:layout_height="56dp"
+        android:layout_margin="12dp"
+        android:background="@color/blue_500"
+        app:cardCornerRadius="28dp"
+        app:cardElevation="0dp"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="@id/profile_divider"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
 
+        <ImageView
+            android:id="@+id/chat_image"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            tools:background="@tools:sample/avatars" />
+    </androidx.cardview.widget.CardView>
 
     <ImageView
         android:id="@+id/chat_status_16"
-        android:layout_width="13dp"
-        android:layout_height="13dp"
+        android:layout_width="16dp"
+        android:layout_height="16dp"
         app:layout_constraintBottom_toBottomOf="@id/chat_image_container"
         app:layout_constraintEnd_toEndOf="@id/chat_image_container"
         tools:src="@drawable/ic_status_bot_online" />
 
     <ImageView
         android:id="@+id/chat_status_14"
-        android:layout_width="11dp"
-        android:layout_height="11dp"
+        android:layout_width="14dp"
+        android:layout_height="14dp"
         android:src="@drawable/ic_status_online"
         app:layout_constraintBottom_toBottomOf="@id/chat_image_container"
         app:layout_constraintEnd_toEndOf="@id/chat_image_container" />
@@ -59,7 +67,7 @@
         android:maxLines="1"
         android:singleLine="true"
         android:textColor="@color/grey_900"
-        android:textSize="13sp"
+        android:textSize="16sp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0"
         app:layout_constraintStart_toEndOf="@id/chat_image_container"
@@ -72,7 +80,7 @@
         android:layout_marginTop="4dp"
         android:layout_marginEnd="8dp"
         android:textColor="@color/grey_text_2"
-        android:textSize="11sp"
+        android:textSize="14sp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="parent"
         tools:text="@tools:sample/date/hhmm" />
@@ -95,8 +103,8 @@
 
     <ImageView
         android:id="@+id/chat_muted"
-        android:layout_width="15dp"
-        android:layout_height="15dp"
+        android:layout_width="18dp"
+        android:layout_height="18dp"
         android:layout_marginStart="4dp"
         android:src="@drawable/ic_material_bell_off_24"
         android:visibility="gone"
@@ -107,8 +115,8 @@
 
     <ImageView
         android:id="@+id/chat_pinned"
-        android:layout_width="21dp"
-        android:layout_height="21dp"
+        android:layout_width="28dp"
+        android:layout_height="28dp"
         android:layout_marginEnd="8dp"
         android:src="@drawable/ic_material_pinned_24"
         android:visibility="gone"
@@ -129,34 +137,32 @@
         app:layout_constraintTop_toBottomOf="@+id/chat_timestamp"
         tools:visibility="visible" />
 
-    <ImageView
+    <androidx.cardview.widget.CardView
         android:id="@+id/unread_messages_wrapper"
-        android:layout_width="17dp"
-        android:layout_height="17dp"
+        android:layout_width="23dp"
+        android:layout_height="23dp"
         android:layout_marginEnd="8dp"
-        android:src="@drawable/round_shape"
+        android:backgroundTint="@color/green_500"
         android:visibility="gone"
+        app:cardCornerRadius="12dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toStartOf="@id/chat_pinned"
         app:layout_constraintTop_toBottomOf="@id/chat_timestamp"
-        tools:visibility="visible" />
+        tools:visibility="visible">
 
-    <TextView
-        android:id="@+id/unread_messages_count"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:background="@color/transparent"
-        android:lines="1"
-        android:maxLength="2"
-        android:textColor="@color/white"
-        android:textSize="9sp"
-        app:layout_constraintBottom_toBottomOf="@id/unread_messages_wrapper"
-        app:layout_constraintEnd_toEndOf="@id/unread_messages_wrapper"
-        app:layout_constraintStart_toStartOf="@id/unread_messages_wrapper"
-        app:layout_constraintTop_toTopOf="@id/unread_messages_wrapper"
-        tools:text="00" />
-
+        <TextView
+            android:id="@+id/unread_messages_count"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:lines="1"
+            android:maxWidth="24dp"
+            android:maxHeight="24dp"
+            android:maxLength="2"
+            android:textColor="@color/white"
+            android:textSize="13sp"
+            tools:text="00" />
+    </androidx.cardview.widget.CardView>
 
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/chat_sync_image"

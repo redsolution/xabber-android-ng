@@ -129,7 +129,7 @@ class SignupAvatarFragment : Fragment() {
 
     private fun initButton() {
         binding.avatarBtnNext.setOnClickListener {
-            navigator().goToApplicationActivity()
+            navigator().goToApplicationActivity(true)
         }
     }
 
