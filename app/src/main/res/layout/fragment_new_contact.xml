@@ -44,7 +44,7 @@
         android:layout_marginLeft="16dp"
         android:layout_marginEnd="16dp"
         android:layout_marginRight="16dp"
-        android:background="@drawable/edit_text_rounded_corners_background_grey">
+        android:background="@color/grey_300">
 
         <TextView
             android:id="@+id/contact_user_tv"
@@ -169,5 +169,8 @@
             android:background="@color/grey_500"/>
 
     </LinearLayout>
+
+
+         <include layout="@layout/contact_add_username_and_alias" />
 </LinearLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>

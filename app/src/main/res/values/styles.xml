@@ -33,6 +33,10 @@
         <item name="colorAccent">#BDBDBD</item>
     </style>
 
+     <style name="QRCodeLoginButton" parent="@style/Widget.AppCompat.ActionButton">
+        <item name="android:radius">40dp</item>
+    </style>
+
     <style name="ShadowWrapper">
         <item name="shadow_radius">8</item>
         <item name="shadow_x_shift">0dp</item>
@@ -45,5 +49,7 @@
         <item name="shadow_cast_only_background">true</item>
         <item name="shadow_with_content">true</item>
     </style>
+
+
 
 </resources>

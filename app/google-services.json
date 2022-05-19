@@ -1,0 +1,299 @@
+{
+  "project_info": {
+    "project_number": "868637702480",
+    "firebase_url": "https://xabber-sso.firebaseio.com",
+    "project_id": "xabber-sso",
+    "storage_bucket": "xabber-sso.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:868637702480:android:233f15644910687e",
+        "android_client_info": {
+          "package_name": "com.xabber.android"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "868637702480-g6rjls6dqcbplq5mghbmtvn6onsjifj5.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.xabber.android",
+            "certificate_hash": "86662b04c22ec4c9b104d54fe6d43cad18afc04d"
+          }
+        },
+        {
+          "client_id": "868637702480-g9okmcbge9a967gainjf4ui7kpqi1ren.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDRXY6WkQ0lNesu4eqm5XmZjVJ7wiX4vx4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "868637702480-6fn2kj4jqohgle37t6bngsclflall82h.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "868637702480-aifsa4coe18rn8q2ahjnpma2i35h6ahd.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.redsolution.xabber"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:868637702480:android:66586ee16fb3c47a",
+        "android_client_info": {
+          "package_name": "com.xabber.android.beta"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "868637702480-e54fgqq1kcb3lo1i2oibah966uggod78.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.xabber.android.beta",
+            "certificate_hash": "86662b04c22ec4c9b104d54fe6d43cad18afc04d"
+          }
+        },
+        {
+          "client_id": "868637702480-ik55rlsbqq8q4d5gl2c3p1r0tvlmllum.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.xabber.android.beta",
+            "certificate_hash": "da2cac038b3a629acf8d8fcb06f2a6de127b2685"
+          }
+        },
+        {
+          "client_id": "868637702480-g9okmcbge9a967gainjf4ui7kpqi1ren.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDRXY6WkQ0lNesu4eqm5XmZjVJ7wiX4vx4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "868637702480-6fn2kj4jqohgle37t6bngsclflall82h.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "868637702480-aifsa4coe18rn8q2ahjnpma2i35h6ahd.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.redsolution.xabber"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:868637702480:android:b7e481ede7dce294c05455",
+        "android_client_info": {
+          "package_name": "com.xabber.android.ng"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "868637702480-atroc691h0sms3vm5ih50kb4r4ecieoq.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.xabber.android.ng",
+            "certificate_hash": "f491901a3e8772c2f2cd9b36f0d08ac3dd7ec454"
+          }
+        },
+        {
+          "client_id": "868637702480-g9okmcbge9a967gainjf4ui7kpqi1ren.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDRXY6WkQ0lNesu4eqm5XmZjVJ7wiX4vx4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "868637702480-6fn2kj4jqohgle37t6bngsclflall82h.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "868637702480-aifsa4coe18rn8q2ahjnpma2i35h6ahd.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.redsolution.xabber"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:868637702480:android:83bea49cf6113518",
+        "android_client_info": {
+          "package_name": "com.xabber.android.ru"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "868637702480-05ubakvsa57jagd8ehunvpa6cr1q9j9i.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.xabber.android.ru",
+            "certificate_hash": "da2cac038b3a629acf8d8fcb06f2a6de127b2685"
+          }
+        },
+        {
+          "client_id": "868637702480-vu189180oq5o0mm599bam8cms99gujch.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.xabber.android.ru",
+            "certificate_hash": "86662b04c22ec4c9b104d54fe6d43cad18afc04d"
+          }
+        },
+        {
+          "client_id": "868637702480-g9okmcbge9a967gainjf4ui7kpqi1ren.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDRXY6WkQ0lNesu4eqm5XmZjVJ7wiX4vx4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "868637702480-6fn2kj4jqohgle37t6bngsclflall82h.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "868637702480-aifsa4coe18rn8q2ahjnpma2i35h6ahd.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.redsolution.xabber"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:868637702480:android:4d15b37daf488db1",
+        "android_client_info": {
+          "package_name": "com.xabber.androiddev"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "868637702480-1kdbfep6lmi5hpdppat528aicq11jidc.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.xabber.androiddev",
+            "certificate_hash": "86662b04c22ec4c9b104d54fe6d43cad18afc04d"
+          }
+        },
+        {
+          "client_id": "868637702480-tee3a52i84vml5sauflhc1j8131tciej.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.xabber.androiddev",
+            "certificate_hash": "da2cac038b3a629acf8d8fcb06f2a6de127b2685"
+          }
+        },
+        {
+          "client_id": "868637702480-g9okmcbge9a967gainjf4ui7kpqi1ren.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDRXY6WkQ0lNesu4eqm5XmZjVJ7wiX4vx4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "868637702480-6fn2kj4jqohgle37t6bngsclflall82h.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "868637702480-aifsa4coe18rn8q2ahjnpma2i35h6ahd.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.redsolution.xabber"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:868637702480:android:abd893d5403dcf29",
+        "android_client_info": {
+          "package_name": "com.xabber.androidvip"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "868637702480-028k75l2s7m14qeaa7kb4s7jadrldbpg.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.xabber.androidvip",
+            "certificate_hash": "86662b04c22ec4c9b104d54fe6d43cad18afc04d"
+          }
+        },
+        {
+          "client_id": "868637702480-g9okmcbge9a967gainjf4ui7kpqi1ren.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDRXY6WkQ0lNesu4eqm5XmZjVJ7wiX4vx4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "868637702480-6fn2kj4jqohgle37t6bngsclflall82h.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "868637702480-aifsa4coe18rn8q2ahjnpma2i35h6ahd.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.redsolution.xabber"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
