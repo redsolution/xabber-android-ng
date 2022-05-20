@@ -6,7 +6,13 @@ import androidx.lifecycle.ViewModel
 import com.xabber.data.dto.XabberAccountDto
 import com.xabber.data.repository.AccountRepository
 import com.xabber.data.util.AppConstants
+import com.xabber.xmpp.account.AccountStorageItem
+import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.core.Single
+import io.realm.Realm
+import io.realm.RealmConfiguration
+import io.realm.annotations.PrimaryKey
+import io.realm.query
 
 class OnboardingViewModel : ViewModel() {
     val accountRepository = AccountRepository()
@@ -55,4 +61,10 @@ class OnboardingViewModel : ViewModel() {
             )
         )
 
+
+
+
+
 }
+
+

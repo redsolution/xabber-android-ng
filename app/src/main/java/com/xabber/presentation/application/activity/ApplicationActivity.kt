@@ -26,9 +26,12 @@ import com.xabber.presentation.application.fragments.discover.DiscoverFragment
 import com.xabber.presentation.application.fragments.message.MessageFragment
 import com.xabber.presentation.application.fragments.settings.SettingsFragment
 import com.xabber.presentation.onboarding.activity.OnBoardingActivity
+import com.xabber.xmpp.account.AccountStorageItem
+import io.realm.Realm
+import io.realm.RealmConfiguration
+import io.realm.query
 
 class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
-    private var isSignedIn = false
     private val viewModel: ApplicationViewModel by viewModels()
     private var isShowUnreadMessages = false
     private var count = 0
@@ -46,8 +49,7 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
         super.onCreate(savedInstanceState)
         setContentView(binding.root)
         val data = intent.getBooleanExtra("isSignedIn", false)
-        isSignedIn = data
-        if (isSignedIn) {
+        if (true) {
             val widthWindowSize = getWidthWindowSizeClass()
 
             if (widthWindowSize == WidthWindowSize.MEDIUM || widthWindowSize == WidthWindowSize.EXPANDED) setContainerWidth()
@@ -77,6 +79,17 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
 
     }
 
+
+    fun checkUserIsRegister(): Boolean {
+        val config = RealmConfiguration.Builder(setOf(AccountStorageItem::class))
+            .build()
+        val realm = Realm.open(config)
+        val accountCollection = realm
+            .query<AccountStorageItem>()
+            .find()
+        return accountCollection.size == 0
+    }
+
     private fun getWidthWindowSizeClass(): WidthWindowSize {
         val widthDp =
             (Resources.getSystem().displayMetrics.widthPixels / Resources.getSystem().displayMetrics.density).toInt()
@@ -90,20 +103,20 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
 
 
     private fun setContainerWidth() {
-            val widthPx = Resources.getSystem().displayMetrics.widthPixels
-            val density = Resources.getSystem().displayMetrics.density
-            val widthDp = widthPx / density
+        val widthPx = Resources.getSystem().displayMetrics.widthPixels
+        val density = Resources.getSystem().displayMetrics.density
+        val widthDp = widthPx / density
 
-            binding.mainContainer.updateLayoutParams<SlidingPaneLayout.LayoutParams> {
-                val maxSize = 400
-                val newWidth = (widthDp / 100 * 40.dp).toInt()
-                this.width =
-                    if (Resources.getSystem().configuration.orientation == Configuration.ORIENTATION_LANDSCAPE && getWidthWindowSizeClass() == WidthWindowSize.EXPANDED) {
-                        val landWidth = (widthDp / 100 * 40.dp).toInt()
-                        if (landWidth > maxSize) maxSize else landWidth
-                    } else
-                        newWidth
-            }
+        binding.mainContainer.updateLayoutParams<SlidingPaneLayout.LayoutParams> {
+            val maxSize = 400
+            val newWidth = (widthDp / 100 * 40.dp).toInt()
+            this.width =
+                if (Resources.getSystem().configuration.orientation == Configuration.ORIENTATION_LANDSCAPE && getWidthWindowSizeClass() == WidthWindowSize.EXPANDED) {
+                    val landWidth = (widthDp / 100 * 40.dp).toInt()
+                    if (landWidth > maxSize) maxSize else landWidth
+                } else
+                    newWidth
+        }
     }
 
     private fun initBottomNavigation() {

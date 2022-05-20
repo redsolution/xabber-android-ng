@@ -20,4 +20,5 @@ class ApplicationViewModel : ViewModel() {
         _unreadCount.value = count
     }
 
+
 }
