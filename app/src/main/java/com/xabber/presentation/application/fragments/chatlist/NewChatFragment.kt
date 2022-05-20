@@ -1,4 +1,4 @@
-package com.xabber.presentation.application.fragments.chat
+package com.xabber.presentation.application.fragments.chatlist
 
 import android.os.Bundle
 import android.view.View

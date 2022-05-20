@@ -18,7 +18,7 @@ class AccountStorageItem: RealmObject {
     var enabled: Boolean = true
     var pushNode: String = ""
     var pushService: String = ""
-    var away: Date = Date()
+    var away: Long = 0
     var statusMessage: String = ""
     var colorKey: String = ""
     var hasAvatar: Boolean = false

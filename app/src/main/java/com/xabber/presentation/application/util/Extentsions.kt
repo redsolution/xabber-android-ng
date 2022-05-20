@@ -86,7 +86,7 @@ fun ContactDto.getStatusColor(): Int? =
         null -> null
     }
 
-fun ChatDto.getStatusColor(): Int =
+fun ChatListDto.getStatusColor(): Int =
     when (this.status) {
         ResourceStatus.ONLINE -> R.color.green_700
         ResourceStatus.OFFLINE ->

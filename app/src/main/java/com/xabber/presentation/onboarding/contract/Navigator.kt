@@ -25,4 +25,6 @@ interface Navigator {
 
     fun openGallery()
 
+    fun registerAccount()
+
 }

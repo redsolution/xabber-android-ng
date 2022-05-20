@@ -15,8 +15,8 @@ class LastChatsStorageItem: RealmObject {
 
     var owner: String = ""
     var jid: String = ""
-    var messageDate: Date = Date()
-    var lastReadMessageDate: Date = Date()
+    var messageDate: Long = 0
+    var lastReadMessageDate: Long = 0
     var rosterItem: RosterStorageItem? = null
     var lastMessage: MessageStorageItem? = null
     var lastMessageId: String = ""

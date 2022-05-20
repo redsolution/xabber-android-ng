@@ -7,12 +7,10 @@ import com.xabber.data.dto.XabberAccountDto
 import com.xabber.data.repository.AccountRepository
 import com.xabber.data.util.AppConstants
 import com.xabber.xmpp.account.AccountStorageItem
-import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
+import com.xabber.xmpp.presences.ResourceStorageItem
 import io.reactivex.rxjava3.core.Single
 import io.realm.Realm
 import io.realm.RealmConfiguration
-import io.realm.annotations.PrimaryKey
-import io.realm.query
 
 class OnboardingViewModel : ViewModel() {
     val accountRepository = AccountRepository()
@@ -29,7 +27,7 @@ class OnboardingViewModel : ViewModel() {
         _nickName.value = nickName
     }
 
-    fun stUserName(userName: String) {
+    fun setUserName(userName: String) {
         _userName.value = userName
     }
 
@@ -47,20 +45,22 @@ class OnboardingViewModel : ViewModel() {
             )
         )
 
-    fun registerAccount(
-        username: String,
-        host: String,
-        password: String
-    ): Single<XabberAccountDto> =
-        accountRepository.registerAccount(
-            mapOf(
-                "username" to username,
-                "host" to host,
-                "password" to password,
-                "no_captcha_key" to AppConstants.NO_CAPTCHA_KEY
-            )
-        )
 
+     suspend fun registerAccount(
+        username: String
+    ) {
+         val config = RealmConfiguration.Builder(setOf(AccountStorageItem::class, ResourceStorageItem::class))
+             .build()
+         val realm = Realm.open(config)
+             realm.write {
+                 this.copyToRealm(AccountStorageItem().apply {
+                     jid = username
+
+                 })
+             }
+
+realm.close()
+         }
 
 
 

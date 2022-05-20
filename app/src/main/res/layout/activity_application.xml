@@ -50,16 +50,18 @@
             android:layout_height="wrap_content"
             android:id="@+id/group_unraed_messages"
             app:constraint_referenced_ids="container_all_unread_messages, unread_all_messages_count"
-            android:visibility="gone"/>
+            android:visibility="visible"/>
+
         <ImageView
             android:id="@+id/container_all_unread_messages"
             android:layout_width="16dp"
             android:layout_height="16dp"
-            android:layout_marginStart="36dp"
-            android:layout_marginTop="12dp"
+            android:layout_marginStart="40dp"
+            android:layout_marginBottom="12dp"
             android:src="@drawable/round_shape"
             app:layout_constraintStart_toStartOf="@id/bottom_nav_bar"
-            app:layout_constraintTop_toTopOf="@id/bottom_nav_bar" />
+            app:layout_constraintBottom_toBottomOf="@id/bottom_nav_bar"
+            android:contentDescription="@string/unread_messages" />
 
         <TextView
             android:id="@+id/unread_all_messages_count"
@@ -69,7 +71,6 @@
             android:background="@color/transparent"
             android:lines="1"
             android:maxLength="2"
-            android:text="6"
             android:textColor="@color/white"
             android:textSize="9sp"
             app:layout_constraintBottom_toBottomOf="@id/container_all_unread_messages"

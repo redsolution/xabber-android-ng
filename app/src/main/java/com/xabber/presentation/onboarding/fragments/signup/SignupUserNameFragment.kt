@@ -95,7 +95,7 @@ class SignupUserNameFragment : Fragment() {
 
     private fun initButton() {
         binding.usernameBtnNext.setOnClickListener {
-            viewModel.stUserName(binding.usernameEditText.text.toString())
+            viewModel.setUserName(binding.usernameEditText.text.toString())
             navigator().startSignupPasswordFragment()
         }
     }

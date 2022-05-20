@@ -2,13 +2,13 @@ package com.xabber.data.dto
 
 import androidx.annotation.ColorRes
 
-data class ChatDto(
-    val id: Int,
+data class ChatListDto(
+    val id: String,
+    val owner: String,
     var jid: String,   // xmpp
-    val owner: String, //
     val username: String, // для групповых или обычных чатов (когда пересылаем сообщение)
     val message: String,   // last message
-    val date: String,   // date of last message
+    val date: Long,   // date of last message
     val state: MessageState,
     val isMuted: Boolean,
     val isSynced: Boolean, // маленькая серая точка
@@ -25,8 +25,8 @@ data class ChatDto(
     val isArchived: Boolean, // заархивировано
     val isMentioned : Boolean // @ упомянули в чате
 
-) : Comparable<ChatDto> {
-    override fun compareTo(other: ChatDto): Int {
+) : Comparable<ChatListDto> {
+    override fun compareTo(other: ChatListDto): Int {
         var result = other.isPinned.compareTo(this.isPinned)
         if (this.isPinned && other.isPinned) result = other.date.compareTo(this.date)
         if (!this.isPinned && !other.isPinned) result = other.date.compareTo(this.date)

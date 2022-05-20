@@ -3,6 +3,7 @@ package com.xabber.presentation.onboarding.fragments.signup
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -15,12 +16,11 @@ import com.xabber.presentation.onboarding.contract.navigator
 import com.xabber.presentation.onboarding.contract.toolbarChanger
 import kotlin.properties.Delegates
 
+
 class SignupPasswordFragment : Fragment() {
     private var _binding: FragmentSignupPasswordBinding? = null
     private val binding get() = _binding!!
     private val viewModel: OnboardingViewModel by activityViewModels()
-    private var username by Delegates.notNull<String>()
-    private var host by Delegates.notNull<String>()
     private var password by Delegates.notNull<String>()
 
     override fun onCreateView(
@@ -30,8 +30,7 @@ class SignupPasswordFragment : Fragment() {
     ): View {
         _binding = FragmentSignupPasswordBinding.inflate(inflater)
         return binding.root
-
-
+        Log.d("password", "PasswordFragment")
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -62,37 +61,12 @@ class SignupPasswordFragment : Fragment() {
     }
 
     private fun initButton() {
-        with(binding) {
-            passwordBtnNext.setOnClickListener {
-                //  progressBar.isVisible = true
-                //   passwordBtnNext.isEnabled = false
-                //   passwordEditText.isEnabled = false
-                //   passwordBtnNext.text = ""
-                //  compositeDisposable.clear()
-                //  compositeDisposable.add(
-                //     viewModel.registerAccount(username, host, password)
-                //       .subscribeOn(Schedulers.io())
-                //       .observeOn(AndroidSchedulers.mainThread())
-                //      .doAfterSuccess {
-                //         passwordEditText.isEnabled = true
-                //         accountJid = AccountJid.from(
-                //           Localpart.from(it.username),
-                //          domainBareFrom(
-                //              Domainpart.from(it.domain)
-                //         ),
-                //          Resourcepart.EMPTY
-                //     )
-
-                //   }
-                //   .doOnDispose {
-                viewModel.setPassword(binding.passwordEditText.text.toString())
-                navigator().startSignupAvatarFragment()
-                //    }
-                //     .subscribe({}, {
-                //         logError(it)
-                //     })
-                //  )
-            }
+        binding.passwordBtnNext.setOnClickListener {
+            Log.d("ggg", "hhhh")
+            viewModel.setPassword(binding.passwordEditText.text.toString())
+            navigator().registerAccount()
+            navigator().startSignupAvatarFragment()
         }
     }
+
 }

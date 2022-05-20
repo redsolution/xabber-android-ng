@@ -18,7 +18,7 @@ import com.xabber.databinding.ActivityApplicationBinding
 import com.xabber.presentation.application.contract.ApplicationNavigator
 import com.xabber.presentation.application.fragments.account.AccountFragment
 import com.xabber.presentation.application.fragments.calls.CallsFragment
-import com.xabber.presentation.application.fragments.chat.*
+import com.xabber.presentation.application.fragments.chatlist.*
 import com.xabber.presentation.application.fragments.contacts.ContactsFragment
 import com.xabber.presentation.application.fragments.contacts.EditContactFragment
 import com.xabber.presentation.application.fragments.contacts.NewContactFragment
@@ -27,6 +27,7 @@ import com.xabber.presentation.application.fragments.message.MessageFragment
 import com.xabber.presentation.application.fragments.settings.SettingsFragment
 import com.xabber.presentation.onboarding.activity.OnBoardingActivity
 import com.xabber.xmpp.account.AccountStorageItem
+import com.xabber.xmpp.presences.ResourceStorageItem
 import io.realm.Realm
 import io.realm.RealmConfiguration
 import io.realm.query
@@ -48,14 +49,15 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(binding.root)
+         Log.d("AccountCollection", "accountCollection")
         val data = intent.getBooleanExtra("isSignedIn", false)
-        if (true) {
+        if (checkUserIsRegister()) {
             val widthWindowSize = getWidthWindowSizeClass()
 
             if (widthWindowSize == WidthWindowSize.MEDIUM || widthWindowSize == WidthWindowSize.EXPANDED) setContainerWidth()
 
             if (savedInstanceState == null) {
-                launchFragment(ChatFragment.newInstance(""))
+                launchFragment(ChatListFragment.newInstance(""))
             } else {
                 isShowUnreadMessages = savedInstanceState.getBoolean("showUnread")
                 count = savedInstanceState.getInt("unreadCount")
@@ -74,20 +76,23 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
             binding.unreadAllMessagesCount.text = it.toString()
             if (it < 1) binding.bottomNavBar.menu.getItem(0).setIcon(R.drawable.ic_material_chat_24)
         }
-
+ Log.d("AccountCollection", "accountCollection")
         initBottomNavigation()
 
     }
 
 
-    fun checkUserIsRegister(): Boolean {
-        val config = RealmConfiguration.Builder(setOf(AccountStorageItem::class))
-            .build()
+    private fun checkUserIsRegister(): Boolean {
+        val config =
+            RealmConfiguration.Builder(setOf(AccountStorageItem::class, ResourceStorageItem::class))
+                .build()
         val realm = Realm.open(config)
         val accountCollection = realm
             .query<AccountStorageItem>()
             .find()
-        return accountCollection.size == 0
+        val comparsionResult = accountCollection.size > 0
+        realm.close()
+        return comparsionResult
     }
 
     private fun getWidthWindowSizeClass(): WidthWindowSize {
@@ -123,8 +128,8 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
         binding.bottomNavBar.setOnItemSelectedListener { menuItem ->
             when (menuItem.itemId) {
                 R.id.chats -> {
-                    if (activeFragment !is ChatFragment) {
-                        launchFragment(ChatFragment.newInstance("name.surname@redsolution.com"))
+                    if (activeFragment !is ChatListFragment) {
+                        launchFragment(ChatListFragment.newInstance("name.surname@redsolution.com"))
                     } else {
                         if (count > 0) {
                             isShowUnreadMessages = !isShowUnreadMessages

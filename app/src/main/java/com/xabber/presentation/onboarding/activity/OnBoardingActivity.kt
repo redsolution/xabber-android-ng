@@ -33,9 +33,16 @@ import com.xabber.presentation.onboarding.fragments.signup.SignupNicknameFragmen
 import com.xabber.presentation.onboarding.fragments.signup.SignupPasswordFragment
 import com.xabber.presentation.onboarding.fragments.signup.SignupUserNameFragment
 import com.xabber.presentation.onboarding.fragments.start.StartFragment
+import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
+import io.reactivex.rxjava3.core.Observable.just
+import io.reactivex.rxjava3.core.Single
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import me.relex.circleindicator.BuildConfig.APPLICATION_ID
 import java.io.File
 import java.io.IOException
+import java.util.*
 
 
 class OnBoardingActivity : AppCompatActivity(), Navigator, ToolbarChanger {
@@ -46,7 +53,7 @@ class OnBoardingActivity : AppCompatActivity(), Navigator, ToolbarChanger {
     private val viewModel: OnboardingViewModel by viewModels()
 
     private var nickName: String? = null
-    private var userName: String? = null
+    private var userName: String = ""
     private var password: String? = null
     private var filePhotoUri: Uri? = null
     private var newAvatarImageUri: Uri? = null
@@ -137,6 +144,11 @@ class OnBoardingActivity : AppCompatActivity(), Navigator, ToolbarChanger {
         requestGalleryPermissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
     }
 
+    override fun registerAccount() {
+         CoroutineScope(Dispatchers.Main).launch {
+            viewModel.registerAccount("olga") }
+    }
+
     override fun onSupportNavigateUp(): Boolean {
         onBackPressed()
         return true
@@ -171,7 +183,7 @@ class OnBoardingActivity : AppCompatActivity(), Navigator, ToolbarChanger {
     }
 
 
-    fun createTempImageFile(name: String): File {
+    private fun createTempImageFile(name: String): File {
         return File.createTempFile(
             name,
             ".jpg",

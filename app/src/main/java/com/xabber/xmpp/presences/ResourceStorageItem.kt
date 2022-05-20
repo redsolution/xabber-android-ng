@@ -16,7 +16,7 @@ class ResourceStorageItem: RealmObject {
     var client: String = ""
     var priority: Int = 0
 
-    var timestamp: Date = Date()
+    var timestamp: Long = 0
     var type_: String = ClientType.Unknown.rawValue
     var status_: String = ResourceStatus.Offline.rawValue
     var entity_: String = RosterItemEntity.Contact.rawValue

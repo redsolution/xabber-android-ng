@@ -4,7 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".presentation.application.fragments.chat.ChatFragment">
+    tools:context=".presentation.application.fragments.chatlist.ChatListFragment">
 
     <com.google.android.material.appbar.MaterialToolbar
         android:id="@+id/chat_toolbar"
@@ -119,7 +119,8 @@
         app:layout_constraintBottom_toTopOf="@id/empty_text"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        android:layout_marginBottom="12dp"/>
+        android:layout_marginBottom="12dp"
+        android:contentDescription="Xabber" />
 
     <TextView
         android:id="@+id/empty_text"

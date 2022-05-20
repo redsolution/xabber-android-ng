@@ -1,43 +1,39 @@
-package com.xabber.presentation.application.fragments.chat
+package com.xabber.presentation.application.fragments.chatlist
 
 import android.annotation.SuppressLint
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
-import android.util.Log
 import android.util.TypedValue
 import android.view.Gravity
-import android.view.MotionEvent
 import android.view.View
 import android.widget.PopupMenu
 import android.widget.Toast
 import androidx.core.view.isVisible
-import androidx.core.view.marginTop
 import androidx.fragment.app.activityViewModels
 import androidx.recyclerview.widget.ItemTouchHelper
-import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import by.kirich1409.viewbindingdelegate.viewBinding
 import com.bumptech.glide.Glide
 import com.google.android.material.snackbar.Snackbar
 import com.xabber.R
-import com.xabber.data.dto.ChatDto
+import com.xabber.data.dto.ChatListDto
 import com.xabber.databinding.FragmentChatBinding
 import com.xabber.presentation.application.activity.ApplicationViewModel
 import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.application.fragments.BaseFragment
 
 
-class ChatFragment : BaseFragment(R.layout.fragment_chat), ChatAdapter.ChatListener {
+class ChatListFragment : BaseFragment(R.layout.fragment_chat), ChatListAdapter.ChatListener {
     private val binding by viewBinding(FragmentChatBinding::bind)
     lateinit var jid: String
-    private val viewModel = ChatViewModel()
+    private val viewModel = ChatListViewModel()
     private val applicationViewModel: ApplicationViewModel by activityViewModels()
-    private var chatAdapter = ChatAdapter(this)
+    private var chatAdapter = ChatListAdapter(this)
 
     companion object {
-        fun newInstance(_jid: String) = ChatFragment().apply {
+        fun newInstance(_jid: String) = ChatListFragment().apply {
             arguments = Bundle().apply {
 
             }
@@ -178,7 +174,7 @@ class ChatFragment : BaseFragment(R.layout.fragment_chat), ChatAdapter.ChatListe
         popup.inflate(R.menu.context_menu_title_chat)
         popup.setOnMenuItemClickListener {
             val list = viewModel.chat.value
-            val sortedList = ArrayList<ChatDto>()
+            val sortedList = ArrayList<ChatListDto>()
             when (it.itemId) {
                 R.id.recent_chats -> {
                     for (i in 0 until list!!.size) {
@@ -208,8 +204,9 @@ class ChatFragment : BaseFragment(R.layout.fragment_chat), ChatAdapter.ChatListe
 
     private fun fillChat() {
         binding.chatList.adapter = chatAdapter
+        viewModel.getChatList()
         viewModel.chat.observe(viewLifecycleOwner) {
-            val sortedList = ArrayList<ChatDto>()
+            val sortedList = ArrayList<ChatListDto>()
             for (i in 0 until it!!.size) {
                 if (!it[i].isArchived) sortedList.add(it[i])
             }
@@ -289,7 +286,7 @@ class ChatFragment : BaseFragment(R.layout.fragment_chat), ChatAdapter.ChatListe
 
                 val position = viewHolder.bindingAdapterPosition
 
-                movieChatToArchive(position)
+             //   movieChatToArchive(position)
             }
         }
 
@@ -307,9 +304,8 @@ class ChatFragment : BaseFragment(R.layout.fragment_chat), ChatAdapter.ChatListe
 
     }
 
-    private fun movieChatToArchive(position: Int) {
-        viewModel.movieChatToArchive(position)
-        chatAdapter.notifyItemRemoved(position)
+    private fun movieChatToArchive(id: String) {
+        viewModel.movieChatToArchive(id)
     }
 
 
@@ -317,19 +313,19 @@ class ChatFragment : BaseFragment(R.layout.fragment_chat), ChatAdapter.ChatListe
         navigator().showMessage(name)
     }
 
-    override fun pinChat(id: Int) {
+    override fun pinChat(id: String) {
         viewModel.pinChat(id)
     }
 
-    override fun unPinChat(id: Int) {
+    override fun unPinChat(id: String) {
         viewModel.unPinChat(id)
     }
 
-    override fun deleteChat(id: Int) {
+    override fun deleteChat(id: String) {
         viewModel.deleteChat(id)
     }
 
-    override fun turnOfNotifications(id: Int) {
+    override fun turnOfNotifications(id: String) {
         NotificationBottomSheet().show(parentFragmentManager, null)
         //  viewModel.turnOfNotifications(id)
     }

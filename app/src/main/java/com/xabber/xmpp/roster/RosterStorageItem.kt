@@ -5,7 +5,7 @@ import com.xabber.xmpp.avatar.AvatarStorageItem
 import io.realm.RealmObject
 import io.realm.annotations.PrimaryKey
 
-class RosterStorageItem: RealmObject {
+class RosterStorageItem : RealmObject {
     @PrimaryKey
     val primary: String = ""
 
@@ -26,11 +26,16 @@ class RosterStorageItem: RealmObject {
 
     var ask: RosterAsk
         get() = RosterAsk.values().firstOrNull { it.rawValue == ask_ } ?: RosterAsk.None
-        set(newValue: RosterAsk) { ask_ = newValue.rawValue }
+        set(newValue: RosterAsk) {
+            ask_ = newValue.rawValue
+        }
 
     var subscribtion: RosterSubscribtion
-        get() = RosterSubscribtion.values().firstOrNull { it.rawValue == subscribtion_ } ?: RosterSubscribtion.Undefined
-        set(newValue: RosterSubscribtion) { subscribtion_ = newValue.rawValue }
+        get() = RosterSubscribtion.values().firstOrNull { it.rawValue == subscribtion_ }
+            ?: RosterSubscribtion.Undefined
+        set(newValue: RosterSubscribtion) {
+            subscribtion_ = newValue.rawValue
+        }
 
     companion object {
         fun genPrimary(jid: String, owner: String): String {

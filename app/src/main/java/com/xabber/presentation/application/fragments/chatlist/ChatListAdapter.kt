@@ -1,28 +1,28 @@
-package com.xabber.presentation.application.fragments.chat
+package com.xabber.presentation.application.fragments.chatlist
 
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
-import com.xabber.data.dto.ChatDto
+import com.xabber.data.dto.ChatListDto
 import com.xabber.databinding.ItemChatBinding
 
-class ChatAdapter(
+class ChatListAdapter(
     private val listener: ChatListener
-) : ListAdapter<ChatDto, ChatViewHolder>(DiffUtilCallback) {
+) : ListAdapter<ChatListDto, ChatViewHolder>(DiffUtilCallback) {
 
     interface ChatListener {
         fun onClickItem(name: String)
 
-        fun pinChat(id: Int)
+        fun pinChat(id: String)
 
         //  fun swipeItem(id: Int)
 
-        fun unPinChat(id: Int)
+        fun unPinChat(id: String)
 
-        fun deleteChat(id: Int)
+        fun deleteChat(id: String)
 
-        fun turnOfNotifications(id: Int)
+        fun turnOfNotifications(id: String)
 
         fun openSpecialNotificationsFragment()
 
@@ -44,12 +44,12 @@ class ChatAdapter(
 
     }
 
-    private object DiffUtilCallback : DiffUtil.ItemCallback<ChatDto>() {
+    private object DiffUtilCallback : DiffUtil.ItemCallback<ChatListDto>() {
 
-        override fun areItemsTheSame(oldItem: ChatDto, newItem: ChatDto) =
+        override fun areItemsTheSame(oldItem: ChatListDto, newItem: ChatListDto) =
             oldItem.jid == newItem.jid
 
-        override fun areContentsTheSame(oldItem: ChatDto, newItem: ChatDto): Boolean =
+        override fun areContentsTheSame(oldItem: ChatListDto, newItem: ChatListDto): Boolean =
             oldItem.username == newItem.username &&
                     oldItem.message == newItem.message &&
                     oldItem.date == newItem.date &&

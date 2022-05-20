@@ -1,4 +1,4 @@
-package com.xabber.presentation.application.fragments.chat
+package com.xabber.presentation.application.fragments.chatlist
 
 import android.graphics.PorterDuff
 import android.graphics.Typeface
@@ -12,7 +12,7 @@ import androidx.core.view.isVisible
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.xabber.R
-import com.xabber.data.dto.ChatDto
+import com.xabber.data.dto.ChatListDto
 import com.xabber.data.dto.MessageState
 import com.xabber.data.dto.ResourceStatus
 import com.xabber.data.dto.RosterItemEntity
@@ -23,11 +23,11 @@ class ChatViewHolder(
     private val binding: ItemChatBinding,
     ) : RecyclerView.ViewHolder(binding.root) {
 
-        fun bind(chat: ChatDto, listener: ChatAdapter.ChatListener) {
+        fun bind(chatList: ChatListDto, listener: ChatListAdapter.ChatListener) {
             with(binding) {
 
-                chatName.text = chat.username
-                if (chat.isPinned) {
+                chatName.text = chatList.username
+                if (chatList.isPinned) {
                     chatGround.setBackgroundColor(
                         itemView.resources.getColor(
                             R.color.grey_100,
@@ -44,16 +44,16 @@ class ChatViewHolder(
 
                 }
 
-                chatMuted.isVisible = chat.isMuted
-                chatPinned.isVisible = chat.isPinned
-                unreadMessagesWrapper.isVisible = chat.unreadString!!.isNotEmpty()
-                unreadMessagesCount.text = chat.unreadString
+                chatMuted.isVisible = chatList.isMuted
+                chatPinned.isVisible = chatList.isPinned
+                unreadMessagesWrapper.isVisible = chatList.unreadString!!.isNotEmpty()
+                unreadMessagesCount.text = chatList.unreadString
 
 
                 var image: Int? = null
                 var tint: Int? = null
-                chatStatusImage.isVisible = (chat.unreadString.isEmpty())
-                when (chat.state) {
+                chatStatusImage.isVisible = (chatList.unreadString.isEmpty())
+                when (chatList.state) {
                     MessageState.SENDING -> {
                         tint = R.color.grey_500
                         image = R.drawable.ic_material_clock_outline_24
@@ -101,7 +101,7 @@ class ChatViewHolder(
 
                 profileDivider.setBackgroundColor(
                     itemView.resources.getColor(
-                        chat.colorId,
+                        chatList.colorId,
                         itemView.context.theme
                     )
                 )
@@ -109,7 +109,7 @@ class ChatViewHolder(
                 chatImage.setBackgroundColor(
 
                     itemView.resources.getColor(
-                        chat.colorId,
+                        chatList.colorId,
                         itemView.context.theme
                     )
                 )
@@ -121,16 +121,16 @@ class ChatViewHolder(
                     .into(chatImage)
 
 
-                chatTimestamp.text = DateFormatter.dateFormat(chat.date.toString())
+                chatTimestamp.text = DateFormatter.dateFormat(chatList.date.toString())
 
-                chatMessage.text = chat.message
+                chatMessage.text = chatList.message
 
-                chatSyncImage.isVisible = chat.isSynced
-                chatMessage.text = if (chat.isDrafted) "Изображение 229б86 KiB" else chat.message
+                chatSyncImage.isVisible = chatList.isSynced
+                chatMessage.text = if (chatList.isDrafted) "Изображение 229б86 KiB" else chatList.message
 
 
-                if (chat.entity == RosterItemEntity.CONTACT) {
-                    val icon = when (chat.status) {
+                if (chatList.entity == RosterItemEntity.CONTACT) {
+                    val icon = when (chatList.status) {
                         ResourceStatus.OFFLINE -> R.drawable.ic_status_online
                         ResourceStatus.AWAY -> R.drawable.ic_status_away
                         ResourceStatus.ONLINE -> R.drawable.ic_status_online
@@ -145,15 +145,15 @@ class ChatViewHolder(
                     chatStatus14.setImageResource(icon)
                 } else {
                     val icon =
-                        when (chat.entity) {
+                        when (chatList.entity) {
                             RosterItemEntity.SERVER -> {
-                                when (chat.status) {
+                                when (chatList.status) {
                                     ResourceStatus.OFFLINE -> R.drawable.ic_status_server_unavailable
                                     else -> R.drawable.ic_status_server_online
                                 }
                             }
                             RosterItemEntity.BOT -> {
-                                when (chat.status) {
+                                when (chatList.status) {
                                     ResourceStatus.OFFLINE -> R.drawable.ic_status_bot_unavailable
                                     ResourceStatus.AWAY -> R.drawable.ic_status_bot_away
                                     ResourceStatus.ONLINE -> R.drawable.ic_status_bot_online
@@ -164,7 +164,7 @@ class ChatViewHolder(
                                 }
                             }
                             RosterItemEntity.INCOGNITO_GROUP -> {
-                                when (chat.status) {
+                                when (chatList.status) {
                                     ResourceStatus.OFFLINE -> R.drawable.ic_status_incognito_group_unavailable
                                     ResourceStatus.AWAY -> R.drawable.ic_status_incognito_group_away
                                     ResourceStatus.ONLINE -> R.drawable.ic_status_incognito_group_online
@@ -177,7 +177,7 @@ class ChatViewHolder(
 
 
                             RosterItemEntity.GROUP -> {
-                                when (chat.status) {
+                                when (chatList.status) {
                                     ResourceStatus.OFFLINE -> R.drawable.ic_status_public_group_unavailable
                                     ResourceStatus.AWAY -> R.drawable.ic_status_public_group_away
                                     ResourceStatus.ONLINE -> R.drawable.ic_status_public_group_online
@@ -188,7 +188,7 @@ class ChatViewHolder(
                             }
 
                             RosterItemEntity.PRIVATE_CHAT -> {
-                                when (chat.status) {
+                                when (chatList.status) {
                                     ResourceStatus.OFFLINE -> R.drawable.ic_status_private_chat_unavailable
                                     ResourceStatus.AWAY -> R.drawable.ic_status_private_chat_away
                                     ResourceStatus.ONLINE -> R.drawable.ic_status_private_chat_online
@@ -247,8 +247,8 @@ class ChatViewHolder(
                 //    chatMessage.text = chat.message
 
 
-                if (chat.isDrafted) {
-                    val spannable = SpannableString("Drafted: ${chat.message}")
+                if (chatList.isDrafted) {
+                    val spannable = SpannableString("Drafted: ${chatList.message}")
                     spannable.setSpan(
                         ForegroundColorSpan(
                             itemView.resources.getColor(
@@ -263,39 +263,39 @@ class ChatViewHolder(
                     chatMessage.text = spannable
                 }
 
-                chatSyncImage.isVisible = chat.isSynced
-                if (chat.isSystemMessage)
+                chatSyncImage.isVisible = chatList.isSynced
+                if (chatList.isSystemMessage)
                     chatMessage.setTypeface(null, Typeface.ITALIC)
 
                 itemView.setOnClickListener {
-                    listener.onClickItem(chat.username)
+                    listener.onClickItem(chatList.username)
 
                 }
 
                 chatImageContainer.setOnClickListener {
-                    listener.onClickAvatar(chat.username)
+                    listener.onClickAvatar(chatList.username)
                 }
 
                 itemView.setOnLongClickListener {
                     val popup = PopupMenu(itemView.context, itemView, Gravity.RIGHT)
-                    if (!chat.isPinned) popup.inflate(R.menu.context_menu_chat)
+                    if (!chatList.isPinned) popup.inflate(R.menu.context_menu_chat)
                     else popup.inflate(R.menu.context_menu_chat2)
 
                     popup.setOnMenuItemClickListener {
 
                         when (it.itemId) {
-                            R.id.unpin -> listener.unPinChat(chat.id)
+                            R.id.unpin -> listener.unPinChat(chatList.id)
                             R.id.to_pin -> {
-                                listener.pinChat(chat.id)
+                                listener.pinChat(chatList.id)
                             }
                             R.id.turn_of_notifications -> {
-                                listener.turnOfNotifications(chat.id)
+                                listener.turnOfNotifications(chatList.id)
                             }
                             R.id.customise_notifications -> {
                                 listener.openSpecialNotificationsFragment()
                             }
                             R.id.delete_chat -> {
-                                listener.deleteChat(chat.id)
+                                listener.deleteChat(chatList.id)
                             }
 
                         }

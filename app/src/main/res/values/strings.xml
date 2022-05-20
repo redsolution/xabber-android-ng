@@ -217,5 +217,6 @@
     <!-- SETTINGS FRAGMENT -->
     <string name="settings_toolbar_title">Settings</string>
     <string name="change_mode">Change mode</string>
+    <string name="unread_messages">Unread messages</string>
 
 </resources>
