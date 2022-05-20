@@ -28,8 +28,10 @@
             android:layout_margin="16dp"
             android:src="@drawable/ic_moon_rotated_45"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
+            app:layout_constraintTop_toTopOf="parent"
+            android:padding="12dp"/>
     </com.google.android.material.appbar.MaterialToolbar>
+
 
     <ScrollView
         android:layout_width="match_parent"
@@ -73,18 +75,20 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:padding="12dp"
+                android:layout_marginStart="16dp"
                 android:text="Interface"
-                android:textColor="@color/blue_600" />
+                android:textColor="@color/blue_600"
+                android:textStyle="bold" />
 
             <LinearLayout
                 android:id="@+id/linear_chat"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:background="@drawable/view_group_background"
                 android:clickable="true"
                 android:focusable="true"
                 android:orientation="vertical"
-                android:padding="12dp">
+                android:padding="16dp">
 
                 <TextView
                     android:layout_width="wrap_content"
@@ -112,6 +116,7 @@
                 android:id="@+id/linear_contacts_settings"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:background="@drawable/view_group_background"
                 android:clickable="true"
                 android:focusable="true"
                 android:orientation="vertical"
@@ -139,15 +144,17 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="start"
-                android:layout_marginTop="8dp"
-                android:padding="12dp"
+                android:layout_marginStart="16dp"
+                android:layout_marginTop="20dp"
                 android:text="Settings"
-                android:textColor="@color/light_blue_600" />
+                android:textColor="@color/light_blue_600"
+                android:textStyle="bold" />
 
             <LinearLayout
                 android:id="@+id/linear_launch"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:background="@drawable/view_group_background"
                 android:clickable="true"
                 android:focusable="true"
                 android:orientation="vertical"
@@ -179,8 +186,9 @@
 
             <LinearLayout
                 android:id="@+id/linear_Alerts"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:background="@drawable/view_group_background"
                 android:clickable="true"
                 android:focusable="true"
                 android:orientation="vertical"
@@ -210,8 +218,9 @@
 
             <LinearLayout
                 android:id="@+id/linear_connection_settings"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:background="@drawable/view_group_background"
                 android:clickable="true"
                 android:focusable="true"
                 android:orientation="vertical"
@@ -241,8 +250,9 @@
 
             <LinearLayout
                 android:id="@+id/linear_presence_settings"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:background="@drawable/view_group_background"
                 android:clickable="true"
                 android:focusable="true"
                 android:orientation="vertical"
@@ -273,17 +283,17 @@
 
             <LinearLayout
                 android:id="@+id/linear_safety"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:background="@drawable/view_group_background"
                 android:clickable="true"
                 android:focusable="true"
                 android:orientation="vertical"
                 android:padding="16dp">
 
                 <TextView
-                    android:layout_width="match_parent"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_gravity="center"
                     android:text="Safety"
                     android:textColor="@color/black"
                     android:textSize="16sp" />
@@ -297,10 +307,49 @@
                     android:textSize="14sp" />
             </LinearLayout>
 
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="start"
+                android:layout_marginStart="16dp"
+                android:layout_marginTop="20dp"
+                android:text="About the program"
+                android:textColor="@color/light_blue_600"
+                android:textStyle="bold" />
+
+            <LinearLayout
+                android:id="@+id/linear_about_program"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/view_group_background"
+                android:clickable="true"
+                android:focusable="true"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Information"
+                    android:textColor="@color/black"
+                    android:textSize="16sp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="start"
+                    android:text="Xabber NG \2.6.6.644-open"
+                    android:textColor="@color/gray_text_600"
+                    android:textSize="14sp" />
+            </LinearLayout>
+
             <View
                 android:layout_width="match_parent"
                 android:layout_height="1dp"
                 android:background="@color/grey_300" />
         </LinearLayout>
+
+
     </ScrollView>
 </LinearLayout>
