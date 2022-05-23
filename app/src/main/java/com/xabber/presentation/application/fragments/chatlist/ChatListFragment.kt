@@ -5,6 +5,7 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
+import android.util.Log
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
@@ -29,7 +30,7 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat), ChatListAdapter.C
     private val binding by viewBinding(FragmentChatBinding::bind)
     lateinit var jid: String
     private val viewModel = ChatListViewModel()
-    private val applicationViewModel: ApplicationViewModel by activityViewModels()
+        // private val applicationViewModel: ApplicationViewModel by activityViewModels()
     private var chatAdapter = ChatListAdapter(this)
 
     companion object {
@@ -47,27 +48,7 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat), ChatListAdapter.C
         initToolbarActions()
         fillChat()
         initButton()
-        applicationViewModel.showUnread.observe(viewLifecycleOwner) {
-            binding.cvMarkAllMessagesUnread.isVisible = it
-            if (it) {
-                binding.tvChatTitle.text = "Unread"
-                var count = 0
-                val a = viewModel.chat.value
-                for (i in 0 until a!!.size) {
-                    if (a[i].unreadString!!.isNotEmpty()) count += a[i].unreadString!!.toInt()
-                }
-                applicationViewModel.setUnreadCount(count)
-                val unreadList =
-                    viewModel.chat.value!!.filter { s -> s.unreadString!!.isNotEmpty() }
-                chatAdapter.submitList(unreadList)
-            } else {
-                chatAdapter.submitList(viewModel.chat.value)
-                binding.tvChatTitle.text = "Xabber"
-            }
-        }
-
-
-
+        subscribeOnViewModelData()
 
 
         //  binding.chatList.animate().translationY(250f)
@@ -118,7 +99,7 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat), ChatListAdapter.C
 //}
         //    binding.chatList.animate().translationY(200f)
         //    binding.buttonArchive.isVisible = true
-        }
+    }
 
 
 //       binding.chatList.addOnScrollListener(object : RecyclerView.OnScrollListener() {
@@ -159,11 +140,9 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat), ChatListAdapter.C
 //      }
 
 
-
     private fun initToolbarActions() {
         binding.avatarContainer.setOnClickListener {
             navigator().showAccount()
-
         }
 
         binding.imPlus.setOnClickListener {
@@ -173,7 +152,7 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat), ChatListAdapter.C
         val popup = PopupMenu(context, binding.tvChatTitle, Gravity.RIGHT)
         popup.inflate(R.menu.context_menu_title_chat)
         popup.setOnMenuItemClickListener {
-            val list = viewModel.chat.value
+            val list = viewModel.chatList.value
             val sortedList = ArrayList<ChatListDto>()
             when (it.itemId) {
                 R.id.recent_chats -> {
@@ -201,11 +180,34 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat), ChatListAdapter.C
         binding.tvChatTitle.setOnClickListener { popup.show() }
     }
 
+    private fun subscribeOnViewModelData() {
+//        applicationViewModel.showUnread.observe(viewLifecycleOwner) {
+//            binding.cvMarkAllMessagesUnread.isVisible = it
+//            if (it) {
+//                binding.tvChatTitle.text = "Unread"
+//                var count = 0
+//                val a = viewModel.chat.value
+//                for (i in 0 until a!!.size) {
+//                    if (a[i].unreadString!!.isNotEmpty()) count += a[i].unreadString!!.toInt()
+//                }
+//                applicationViewModel.setUnreadCount(count)
+//                val unreadList =
+//                    viewModel.chat.value!!.filter { s -> s.unreadString!!.isNotEmpty() }
+//                chatAdapter.submitList(unreadList)
+//            } else {
+//                chatAdapter.submitList(viewModel.chat.value)
+//                binding.tvChatTitle.text = "Xabber"
+//            }
+//        }
+    }
 
     private fun fillChat() {
         binding.chatList.adapter = chatAdapter
-        viewModel.getChatList()
-        viewModel.chat.observe(viewLifecycleOwner) {
+
+         Log.d("chatListSize", "ttt")
+        viewModel.chatList.observe(viewLifecycleOwner) {
+            binding.groupChatEmpty.isVisible = it.size == 0 || it == null
+            Log.d("chatListSize", "${it.size}")
             val sortedList = ArrayList<ChatListDto>()
             for (i in 0 until it!!.size) {
                 if (!it[i].isArchived) sortedList.add(it[i])
@@ -214,7 +216,7 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat), ChatListAdapter.C
             chatAdapter.submitList(sortedList)
             binding.groupChatEmpty.isVisible = it.isEmpty()
         }
-
+        viewModel.getChatList()
         val simpleCallback = object :
             ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT) {
             override fun onMove(
@@ -286,7 +288,7 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat), ChatListAdapter.C
 
                 val position = viewHolder.bindingAdapterPosition
 
-             //   movieChatToArchive(position)
+                //   movieChatToArchive(position)
             }
         }
 
@@ -297,7 +299,7 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat), ChatListAdapter.C
     private fun initButton() {
         binding.emptyButton.setOnClickListener { navigator().showContacts() }
         binding.cvMarkAllMessagesUnread.setOnClickListener {
-          applicationViewModel.setUnreadCount(0)
+          //  applicationViewModel.setUnreadCount(0)
             Toast.makeText(context, "You have no unread messages", Toast.LENGTH_SHORT).show()
 
         }

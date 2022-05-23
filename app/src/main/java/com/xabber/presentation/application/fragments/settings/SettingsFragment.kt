@@ -15,16 +15,16 @@ class SettingsFragment : BaseFragment(R.layout.fragment_settings) {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        binding.imMode.setOnClickListener {
-            isDarkMode = !isDarkMode
-            if (isDarkMode) AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
-           else  AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
+//        binding.imMode.setOnClickListener {
+//            isDarkMode = !isDarkMode
+//            if (isDarkMode) AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
+//           else  AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
+//
+//        }
 
-        }
-
-        binding.linearChat.setOnClickListener {
-            navigator().showChatSettings()
-        }
+//        binding.linearChatSettings.setOnClickListener {
+//            navigator().showChatSettings()
+//        }
     }
 
 

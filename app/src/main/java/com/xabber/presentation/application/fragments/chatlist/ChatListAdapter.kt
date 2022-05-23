@@ -51,8 +51,8 @@ class ChatListAdapter(
 
         override fun areContentsTheSame(oldItem: ChatListDto, newItem: ChatListDto): Boolean =
             oldItem.username == newItem.username &&
-                    oldItem.message == newItem.message &&
-                    oldItem.date == newItem.date &&
+                    oldItem.lastMessage == newItem.lastMessage &&
+                    oldItem.lastMessageDate == newItem.lastMessageDate &&
                     oldItem.state == newItem.state &&
                     oldItem.isMuted == newItem.isMuted &&
                     oldItem.isSynced == newItem.isSynced &&

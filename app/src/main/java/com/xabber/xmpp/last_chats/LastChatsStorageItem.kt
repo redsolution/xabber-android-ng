@@ -7,12 +7,10 @@ import com.xabber.xmpp.roster.RosterStorageItem
 import com.xabber.xmpp.sync.ConversationType
 import io.realm.RealmObject
 import io.realm.annotations.PrimaryKey
-import java.util.*
 
 class LastChatsStorageItem: RealmObject {
     @PrimaryKey
     var primary: String = ""
-
     var owner: String = ""
     var jid: String = ""
     var messageDate: Long = 0

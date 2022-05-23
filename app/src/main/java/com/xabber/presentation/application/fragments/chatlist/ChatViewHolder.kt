@@ -121,12 +121,12 @@ class ChatViewHolder(
                     .into(chatImage)
 
 
-                chatTimestamp.text = DateFormatter.dateFormat(chatList.date.toString())
+                chatTimestamp.text = DateFormatter.dateFormat(chatList.lastMessageDate.toString())
 
-                chatMessage.text = chatList.message
+                chatMessage.text = chatList.lastMessage
 
                 chatSyncImage.isVisible = chatList.isSynced
-                chatMessage.text = if (chatList.isDrafted) "Изображение 229б86 KiB" else chatList.message
+                chatMessage.text = if (chatList.isDrafted) "Изображение 229б86 KiB" else chatList.lastMessage
 
 
                 if (chatList.entity == RosterItemEntity.CONTACT) {
@@ -248,7 +248,7 @@ class ChatViewHolder(
 
 
                 if (chatList.isDrafted) {
-                    val spannable = SpannableString("Drafted: ${chatList.message}")
+                    val spannable = SpannableString("Drafted: ${chatList.lastMessage}")
                     spannable.setSpan(
                         ForegroundColorSpan(
                             itemView.resources.getColor(
