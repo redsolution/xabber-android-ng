@@ -38,17 +38,17 @@ class LastChatsStorageItem: RealmObject {
     var composingType_: String = ComposingType.none.rawValue
     var chatMarkersSupport: Boolean = false
 
-    var conversationType: ConversationType
-        get() = ConversationType.values().firstOrNull { it.rawValue == conversationType_ } ?: ConversationType.Regular
-        set(newValue: ConversationType) { conversationType_ = newValue.rawValue }
+//    var conversationType: ConversationType
+//        get() = ConversationType.values().firstOrNull { it.rawValue == conversationType_ } ?: ConversationType.Regular
+//        set(newValue: ConversationType) { conversationType_ = newValue.rawValue }
+//
+//    var composingType: ComposingType
+//        get() = ComposingType.values().firstOrNull { it.rawValue == composingType_ } ?: ComposingType.none
+//        set(newValue: ComposingType) { composingType_ = newValue.rawValue }
 
-    var composingType: ComposingType
-        get() = ComposingType.values().firstOrNull { it.rawValue == composingType_ } ?: ComposingType.none
-        set(newValue: ComposingType) { composingType_ = newValue.rawValue }
-
-    companion object {
-        fun genPrimary(jid: String, owner: String, conversationType: ConversationType): String {
-            return prp(strArray = arrayOf(jid, owner, conversationType.rawValue))
-        }
-    }
+//    companion object {
+//        fun genPrimary(jid: String, owner: String, conversationType: ConversationType): String {
+//            return prp(strArray = arrayOf(jid, owner, conversationType.rawValue))
+//        }
+//    }
 }

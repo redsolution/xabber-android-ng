@@ -7,9 +7,9 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.xabber.R
 import com.xabber.data.dto.ContactDto
-import com.xabber.data.dto.ResourceStatus
-import com.xabber.data.dto.RosterItemEntity
 import com.xabber.databinding.ItemContactBinding
+import com.xabber.xmpp.presences.ResourceStatus
+import com.xabber.xmpp.presences.RosterItemEntity
 
 class ContactViewHolder(
     private val binding: ItemContactBinding
@@ -26,14 +26,14 @@ class ContactViewHolder(
             contactSubtitle.text = contact.subtitle
 
 
-            if (contact.entity == RosterItemEntity.CONTACT) {
+            if (contact.entity == RosterItemEntity.Contact) {
                 val icon = when (contact.status) {
-                    ResourceStatus.OFFLINE -> R.drawable.ic_status_online
-                    ResourceStatus.AWAY -> R.drawable.ic_status_away
-                    ResourceStatus.ONLINE -> R.drawable.ic_status_online
-                    ResourceStatus.XA -> R.drawable.ic_status_xa
-                    ResourceStatus.DND -> R.drawable.ic_status_dnd
-                    ResourceStatus.CHAT -> R.drawable.ic_status_chat
+                    ResourceStatus.Offline -> R.drawable.ic_status_online
+                    ResourceStatus.Away -> R.drawable.ic_status_away
+                    ResourceStatus.Online -> R.drawable.ic_status_online
+                    ResourceStatus.Xa -> R.drawable.ic_status_xa
+                    ResourceStatus.Dnd -> R.drawable.ic_status_dnd
+                    ResourceStatus.Chat -> R.drawable.ic_status_chat
                     else -> {
                         0
                     }
@@ -45,34 +45,34 @@ class ContactViewHolder(
             } else {
                 val icon =
                     when (contact.entity) {
-                        RosterItemEntity.SERVER -> {
+                        RosterItemEntity.Server -> {
                             when (contact.status) {
-                                ResourceStatus.OFFLINE -> R.drawable.ic_status_server_unavailable
+                                ResourceStatus.Offline -> R.drawable.ic_status_server_unavailable
                                 else -> R.drawable.ic_status_server_online
                             }
                         }
-                        RosterItemEntity.BOT -> {
+                        RosterItemEntity.Bot -> {
                             when (contact.status) {
-                                ResourceStatus.OFFLINE -> R.drawable.ic_status_bot_unavailable
-                                ResourceStatus.AWAY -> R.drawable.ic_status_bot_away
-                                ResourceStatus.ONLINE -> R.drawable.ic_status_bot_online
-                                ResourceStatus.XA -> R.drawable.ic_status_bot_xa
-                                ResourceStatus.DND -> R.drawable.ic_status_bot_dnd
-                                ResourceStatus.CHAT -> R.drawable.ic_status_bot_chat
+                                ResourceStatus.Offline -> R.drawable.ic_status_bot_unavailable
+                                ResourceStatus.Away -> R.drawable.ic_status_bot_away
+                                ResourceStatus.Online -> R.drawable.ic_status_bot_online
+                                ResourceStatus.Xa -> R.drawable.ic_status_bot_xa
+                                ResourceStatus.Dnd -> R.drawable.ic_status_bot_dnd
+                                ResourceStatus.Chat -> R.drawable.ic_status_bot_chat
 
                                 else -> {
                                     0
                                 }
                             }
                         }
-                        RosterItemEntity.INCOGNITO_GROUP -> {
+                        RosterItemEntity.IncognitoChat -> {
                             when (contact.status) {
-                                ResourceStatus.OFFLINE -> R.drawable.ic_status_incognito_group_unavailable
-                                ResourceStatus.AWAY -> R.drawable.ic_status_incognito_group_away
-                                ResourceStatus.ONLINE -> R.drawable.ic_status_incognito_group_online
-                                ResourceStatus.XA -> R.drawable.ic_status_incognito_group_xa
-                                ResourceStatus.DND -> R.drawable.ic_status_incognito_group_dnd
-                                ResourceStatus.CHAT -> R.drawable.ic_status_incognito_group_chat
+                                ResourceStatus.Offline -> R.drawable.ic_status_incognito_group_unavailable
+                                ResourceStatus.Away -> R.drawable.ic_status_incognito_group_away
+                                ResourceStatus.Online -> R.drawable.ic_status_incognito_group_online
+                                ResourceStatus.Xa -> R.drawable.ic_status_incognito_group_xa
+                                ResourceStatus.Dnd -> R.drawable.ic_status_incognito_group_dnd
+                                ResourceStatus.Chat -> R.drawable.ic_status_incognito_group_chat
 
                                 else -> {
                                     0
@@ -81,28 +81,28 @@ class ContactViewHolder(
                         }
 
 
-                        RosterItemEntity.GROUP -> {
+                        RosterItemEntity.Groupchat -> {
                             when (contact.status) {
-                                ResourceStatus.OFFLINE -> R.drawable.ic_status_public_group_unavailable
-                                ResourceStatus.AWAY -> R.drawable.ic_status_public_group_away
-                                ResourceStatus.ONLINE -> R.drawable.ic_status_public_group_online
-                                ResourceStatus.XA -> R.drawable.ic_status_public_group_xa
-                                ResourceStatus.DND -> R.drawable.ic_status_public_group_dnd
-                                ResourceStatus.CHAT -> R.drawable.ic_status_public_group_chat
+                                ResourceStatus.Offline -> R.drawable.ic_status_public_group_unavailable
+                                ResourceStatus.Away -> R.drawable.ic_status_public_group_away
+                                ResourceStatus.Online -> R.drawable.ic_status_public_group_online
+                                ResourceStatus.Xa -> R.drawable.ic_status_public_group_xa
+                                ResourceStatus.Dnd -> R.drawable.ic_status_public_group_dnd
+                                ResourceStatus.Chat -> R.drawable.ic_status_public_group_chat
                                 else -> {
                                     0
                                 }
                             }
                         }
 
-                        RosterItemEntity.PRIVATE_CHAT -> {
+                        RosterItemEntity.PrivateChat -> {
                             when (contact.status) {
-                                ResourceStatus.OFFLINE -> R.drawable.ic_status_private_chat_unavailable
-                                ResourceStatus.AWAY -> R.drawable.ic_status_private_chat_away
-                                ResourceStatus.ONLINE -> R.drawable.ic_status_private_chat_online
-                                ResourceStatus.XA -> R.drawable.ic_status_private_chat_xa
-                                ResourceStatus.DND -> R.drawable.ic_status_private_chat_dnd
-                                ResourceStatus.CHAT -> R.drawable.ic_status_private_chat
+                                ResourceStatus.Offline -> R.drawable.ic_status_private_chat_unavailable
+                                ResourceStatus.Away -> R.drawable.ic_status_private_chat_away
+                                ResourceStatus.Online -> R.drawable.ic_status_private_chat_online
+                                ResourceStatus.Xa -> R.drawable.ic_status_private_chat_xa
+                                ResourceStatus.Dnd -> R.drawable.ic_status_private_chat_dnd
+                                ResourceStatus.Chat -> R.drawable.ic_status_private_chat
                                 else -> {
                                     0
                                 }

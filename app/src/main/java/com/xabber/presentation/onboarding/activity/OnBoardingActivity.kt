@@ -2,7 +2,6 @@ package com.xabber.presentation.onboarding.activity
 
 import android.Manifest
 import android.content.Intent
-import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
@@ -14,12 +13,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.FileProvider
-
 import androidx.fragment.app.Fragment
-import com.soundcloud.android.crop.BuildConfig.APPLICATION_ID
 import com.soundcloud.android.crop.Crop
-
 import com.xabber.R
 import com.xabber.data.util.AppConstants.REQUEST_TAKE_PHOTO
 import com.xabber.data.util.AppConstants.TEMP_FILE_NAME
@@ -33,17 +28,15 @@ import com.xabber.presentation.onboarding.fragments.signup.SignupNicknameFragmen
 import com.xabber.presentation.onboarding.fragments.signup.SignupPasswordFragment
 import com.xabber.presentation.onboarding.fragments.signup.SignupUserNameFragment
 import com.xabber.presentation.onboarding.fragments.start.StartFragment
-import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
-import io.reactivex.rxjava3.core.Observable.just
-import io.reactivex.rxjava3.core.Single
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import me.relex.circleindicator.BuildConfig.APPLICATION_ID
 import java.io.File
 import java.io.IOException
-import java.util.*
 
+/** OnBoarding Activity is for reg
+ *
+ */
 
 class OnBoardingActivity : AppCompatActivity(), Navigator, ToolbarChanger {
     private val binding: ActivityOnboardingBinding by lazy {
@@ -71,10 +64,9 @@ class OnBoardingActivity : AppCompatActivity(), Navigator, ToolbarChanger {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(binding.root)
-        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-        subscribeToDataFromFragments()
         binding.onboardingToolbar.title = ""
         setSupportActionBar(binding.onboardingToolbar)
+        subscribeToDataFromFragments()
         if (savedInstanceState == null) addStartFragment()
     }
 
@@ -126,7 +118,7 @@ class OnBoardingActivity : AppCompatActivity(), Navigator, ToolbarChanger {
 
     override fun goToApplicationActivity(isSignedIn: Boolean) {
         val intent = Intent(this, ApplicationActivity::class.java)
-        intent.putExtra("isSignedIn",true)
+        intent.putExtra("isSignedIn", true)
         startActivity(intent)
         finish()
         overridePendingTransition(R.animator.appearance, R.animator.disappearance)
@@ -145,8 +137,9 @@ class OnBoardingActivity : AppCompatActivity(), Navigator, ToolbarChanger {
     }
 
     override fun registerAccount() {
-         CoroutineScope(Dispatchers.Main).launch {
-            viewModel.registerAccount("olga") }
+        CoroutineScope(Dispatchers.Main).launch {
+            viewModel.registerAccount(userName)
+        }
     }
 
     override fun onSupportNavigateUp(): Boolean {
@@ -161,7 +154,7 @@ class OnBoardingActivity : AppCompatActivity(), Navigator, ToolbarChanger {
             if (!shouldShowRequestPermissionRationale(Manifest.permission.CAMERA)) {
                 askUserForOpeningAppSettings()
             } else {
-                Toast.makeText(this, "Permission denied", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, R.string.permission_denied_toast, Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -170,7 +163,7 @@ class OnBoardingActivity : AppCompatActivity(), Navigator, ToolbarChanger {
         val takePictureIntent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
         try {
             createTempImageFile(TEMP_FILE_NAME).let {
-             //   filePhotoUri = getFileUri(it)
+                //   filePhotoUri = getFileUri(it)
                 takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, filePhotoUri)
                 startActivityForResult(
                     takePictureIntent,
@@ -206,8 +199,8 @@ class OnBoardingActivity : AppCompatActivity(), Navigator, ToolbarChanger {
         } else {
             AlertDialog.Builder(this)
                 .setTitle("Permission denied")
-                .setMessage("Would you like to open app settings if change your mind?")
-                .setPositiveButton("Open") { _, _ ->
+                .setMessage(R.string.offer_to_open_settings)
+                .setPositiveButton(R.string.dialog_button_open) { _, _ ->
                     startActivity(appSettingsIntent)
                 }
                 .create()

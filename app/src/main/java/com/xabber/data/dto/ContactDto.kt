@@ -1,5 +1,8 @@
 package com.xabber.data.dto
 
+import com.xabber.xmpp.presences.ResourceStatus
+import com.xabber.xmpp.presences.RosterItemEntity
+
 data class ContactDto(
     // id = owner + jid
     // круг

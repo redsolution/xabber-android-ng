@@ -50,21 +50,17 @@ class ChatListAdapter(
             oldItem.jid == newItem.jid
 
         override fun areContentsTheSame(oldItem: ChatListDto, newItem: ChatListDto): Boolean =
-            oldItem.username == newItem.username &&
-                    oldItem.lastMessage == newItem.lastMessage &&
+            oldItem.displayName == newItem.displayName &&
                     oldItem.lastMessageDate == newItem.lastMessageDate &&
-                    oldItem.state == newItem.state &&
-                    oldItem.isMuted == newItem.isMuted &&
+                    oldItem.lastMessageState == newItem.lastMessageState &&
+                    oldItem.muteExpired == newItem.muteExpired &&
                     oldItem.isSynced == newItem.isSynced &&
                     oldItem.status == newItem.status &&
                     oldItem.entity == newItem.entity &&
                     oldItem.unreadString == newItem.unreadString &&
-                    oldItem.colorId == newItem.colorId &&
-                    oldItem.isDrafted == newItem.isDrafted &&
                     oldItem.hasAttachment == newItem.hasAttachment &&
-                    oldItem.userNickname == newItem.userNickname &&
                     oldItem.isSystemMessage == newItem.isSystemMessage &&
-                    oldItem.isPinned == newItem.isPinned &&
+                    oldItem.pinnedDate == newItem.pinnedDate &&
                     oldItem.isArchived == newItem.isArchived
     }
 }

@@ -25,9 +25,9 @@ class AvatarStorageItem: RealmObject {
         get() = AvatarKind.values().firstOrNull { it.rawValue == kind_ } ?: AvatarKind.None
         set(newValue: AvatarKind) { kind_ = newValue.rawValue }
 
-    companion object {
-        fun genPrimary(jid: String, owner: String): String {
-            return prp(strArray = arrayOf(jid, owner))
-        }
-    }
+//    companion object {
+//        fun genPrimary(jid: String, owner: String): String {
+//            return prp(strArray = arrayOf(jid, owner))
+//        }
+//    }
 }

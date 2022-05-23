@@ -1,8 +1,11 @@
 package com.xabber.presentation.application.fragments.contacts
 
+import android.annotation.SuppressLint
 import android.app.AlertDialog
 import android.os.Bundle
+import android.view.MotionEvent
 import android.view.View
+import androidx.core.view.isVisible
 import by.kirich1409.viewbindingdelegate.viewBinding
 import com.bumptech.glide.Glide
 import com.xabber.R
@@ -24,6 +27,8 @@ class ContactsFragment : BaseFragment(R.layout.fragment_contact), ContactAdapter
         viewModel.contacts.observe(viewLifecycleOwner) {
             contactAdapter.submitList(it)
         }
+
+        movieRecyclerView()
     }
 
     override fun onAvatarClick() {
@@ -56,6 +61,51 @@ class ContactsFragment : BaseFragment(R.layout.fragment_contact), ContactAdapter
     }
 
     override fun blockContact() {
+
+    }
+
+    @SuppressLint("ClickableViewAccessibility")
+    fun movieRecyclerView() {
+        var flag = false
+        val dX = FloatArray(2)
+        val dY = FloatArray(2)
+        binding.recyclerView.setOnTouchListener { view, motionEvent ->
+            when (motionEvent.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    dX[0] = view.x
+                    dY[0] = view.y
+                    dX[1] = motionEvent.getRawX()
+                    dY[1] = motionEvent.getRawY()
+
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    if (motionEvent.getRawY() + dY[0] > 0) {
+                        if (motionEvent.getRawY() > dY[1]) {
+                     view.animate().y(motionEvent.getRawY() - dY[1]).setDuration(0).start()
+                        binding.buttonArchive.isVisible = true
+                        flag = false }
+                    }
+                    if (motionEvent.getRawY() < dY[1]) {
+
+                        if (binding.buttonArchive.isVisible) binding.buttonArchive.isVisible = false
+                        flag = true
+                    }
+
+                }
+                MotionEvent.ACTION_UP -> {
+//                    val layout = view.parent
+//                    if (!flag && motionEvent.getRawY() > 100 + dY[1]) binding.buttonArchive.isVisible =
+//                        true
+//
+//                    if (motionEvent.getRawY() + dY[0] + dY[1] < 200 || (flag && motionEvent.getRawY() < -100 + dY[1])) binding.buttonArchive.isVisible =
+//                        false
+                }
+                else -> {
+                    false
+                }
+            }
+            true
+        }
 
     }
 

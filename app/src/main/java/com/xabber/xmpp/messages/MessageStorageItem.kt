@@ -15,9 +15,10 @@ class MessageStorageItem: RealmObject {
     var opponent: String = ""
     var body: String = ""
     var legacyBody: String = ""
-    var date: Date = Date()
-    var sentDate: Date = Date()
-    var editDate: Date = Date()
+    var date: Long = 0
+
+    var sentDate: Long = 0
+    var editDate: Long = 0
     var outgoing: Boolean = false
     var isRead: Boolean = false
 
@@ -35,15 +36,15 @@ class MessageStorageItem: RealmObject {
     var conversationType_: String = ConversationType.Regular.rawValue
 
 
-    var conversationType: ConversationType
-        get() = ConversationType.values().firstOrNull { it.rawValue == conversationType_ } ?: ConversationType.Regular
-        set(newValue: ConversationType) { conversationType_ = newValue.rawValue }
-
-    var displayAs: MessageDisplayType
-        get() = MessageDisplayType.values().firstOrNull { it.rawValue == displayAs_ } ?: MessageDisplayType.Text
-        set(newValue: MessageDisplayType) { displayAs_ = newValue.rawValue }
-
-    var state: MessageSendingState
-        get() = MessageSendingState.values().firstOrNull { it.rawValue == state_ } ?: MessageSendingState.Sending
-        set(newValue: MessageSendingState) { state_ = newValue.rawValue }
+//    var conversationType: ConversationType
+//        get() = ConversationType.values().firstOrNull { it.rawValue == conversationType_ } ?: ConversationType.Regular
+//        set(newValue: ConversationType) { conversationType_ = newValue.rawValue }
+//
+//    var displayAs: MessageDisplayType
+//        get() = MessageDisplayType.values().firstOrNull { it.rawValue == displayAs_ } ?: MessageDisplayType.Text
+//        set(newValue: MessageDisplayType) { displayAs_ = newValue.rawValue }
+//
+//    var state: MessageSendingState
+//        get() = MessageSendingState.values().firstOrNull { it.rawValue == state_ } ?: MessageSendingState.Sending
+//        set(newValue: MessageSendingState) { state_ = newValue.rawValue }
 }

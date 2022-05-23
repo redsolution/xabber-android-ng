@@ -4,14 +4,13 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import com.xabber.data.dto.ChatListDto
-import com.xabber.data.dto.MessageState
-import com.xabber.data.dto.ResourceStatus
-import com.xabber.data.dto.RosterItemEntity
+import com.xabber.defaultRealmConfig
+import com.xabber.xmpp.chat_states.ComposingType
 import com.xabber.xmpp.last_chats.LastChatsStorageItem
-import com.xabber.xmpp.messages.MessageStorageItem
-import com.xabber.xmpp.roster.RosterStorageItem
+import com.xabber.xmpp.messages.MessageSendingState
+import com.xabber.xmpp.presences.ResourceStatus
+import com.xabber.xmpp.presences.RosterItemEntity
 import io.realm.Realm
-import io.realm.RealmConfiguration
 import io.realm.query
 
 class ChatListViewModel : ViewModel() {
@@ -19,15 +18,8 @@ class ChatListViewModel : ViewModel() {
     val chatList: LiveData<List<ChatListDto>> = _chatList
 
     fun getChatList() {
-        val config =
-            RealmConfiguration.Builder(
-                setOf(
-                    LastChatsStorageItem::class, RosterStorageItem::class,
-                    MessageStorageItem::class
-                )
-            )
-                .build()
-        val realm = Realm.open(config)
+        val realm = Realm.open(defaultRealmConfig())
+
         val chatList = realm
             .query<LastChatsStorageItem>()
             .find()
@@ -36,17 +28,21 @@ class ChatListViewModel : ViewModel() {
                 T.primary,
                 T.owner,
                 T.jid,
-                T.rosterItem!!.nickname,
-                T.messageDate,
+                "",
                 T.lastMessage!!.body,
-                T.isSynced,
+                T.messageDate,
+              MessageSendingState.None,
                 T.isArchived,
-                T.lastMessage!!.state,
-
-
-
-
-                T.lastMessage,
+                T.isSynced,
+                T.draftMessage,
+                false, // hasAttachment
+                false, // isSystemMessage
+                false, //isMentioned
+                T.muteExpired,
+                T.pinnedPosition, // почему дабл?
+                ResourceStatus.Offline,
+                RosterItemEntity.Contact,
+                T.unread.toString()
 
 
             )

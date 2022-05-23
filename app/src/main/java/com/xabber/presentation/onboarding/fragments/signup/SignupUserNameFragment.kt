@@ -54,7 +54,7 @@ class SignupUserNameFragment : Fragment() {
 
                 override fun onTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {}
                 override fun afterTextChanged(p0: Editable?) {
-
+                    usernameBtnNext.isEnabled = p0.toString().length > 3
                     if (p0.toString().isEmpty()) {
                         usernameSubtitle.text =
                             resources.getString(R.string.signup_username_subtitle)
@@ -71,7 +71,6 @@ class SignupUserNameFragment : Fragment() {
                             resources.getString(R.string.signup_username_error_subtitle)
                         changeSubtitleColor(R.color.red_600)
                     } else if (p0.toString().length > 3) {
-                        usernameBtnNext.isEnabled = true
                         usernameSubtitle.text =
                             resources.getString(R.string.signup_username_success_subtitle)
                         changeSubtitleColor(R.color.blue_600)

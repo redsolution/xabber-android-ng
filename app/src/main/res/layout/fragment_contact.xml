@@ -74,6 +74,15 @@
         </androidx.constraintlayout.widget.ConstraintLayout>
     </com.google.android.material.appbar.MaterialToolbar>
 
+<Button
+        android:id="@+id/button_archive"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/toolbar_contacts"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Archive"
+        android:visibility="gone" />
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recyclerView"

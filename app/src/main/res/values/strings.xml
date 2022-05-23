@@ -2,11 +2,9 @@
     <string name="app_name">Xabber NG</string>
 
     <!-- Permissions -->
-    <string name="no_permission_to_read_files_toast">No permission to read files</string>
-    <string name="request_to_camera">Need photo permission to get photo</string>
-    <string name="no_permission_to_camera_toast">No permission for camera</string>
-    <string name="no_permission_on_camera_toast">Can\'t access to camera\nCheck your system camera permission</string>
-    <string name="no_permission_on_file_manager_toast">Can\'t access to file manager\nCheck your file manager permission</string>
+    <string name="permission_denied_toast">Permission denied</string>
+    <string name="offer_to_open_settings">Would you like to open app settings if change your mind?</string>
+    <string name="dialog_button_open">Open</string>
 
     <!-- Onboarding -->
 

@@ -24,9 +24,9 @@ class AccountStorageItem: RealmObject {
     var hasAvatar: Boolean = false
     var resource: ResourceStorageItem? = null
 
-    companion object {
-        fun genPrimary(jid: String): String {
-            return prp(strArray = arrayOf(jid))
-        }
-    }
+//    companion object {
+//        fun genPrimary(jid: String): String {
+//            return prp(strArray = arrayOf(jid))
+//        }
+//    }
 }

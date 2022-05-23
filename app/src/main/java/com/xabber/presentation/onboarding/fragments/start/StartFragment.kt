@@ -33,8 +33,8 @@ class StartFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        toolbarChanger().setShowBack(false)
         toolbarChanger().clearTitle()
+        toolbarChanger().setShowBack(false)
         initButton()
     }
 

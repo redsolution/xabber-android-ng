@@ -1,6 +1,7 @@
 package com.xabber.presentation.application.fragments.chatlist
 
 import android.annotation.SuppressLint
+import android.content.ClipData
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
@@ -8,6 +9,7 @@ import android.os.Bundle
 import android.util.Log
 import android.util.TypedValue
 import android.view.Gravity
+import android.view.MotionEvent
 import android.view.View
 import android.widget.PopupMenu
 import android.widget.Toast
@@ -50,7 +52,7 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat), ChatListAdapter.C
         initButton()
         subscribeOnViewModelData()
 
-
+movieRecyclerView()
         //  binding.chatList.animate().translationY(250f)
 
         Glide.with(binding.imAvatar).load(R.drawable.img).into(binding.imAvatar)
@@ -360,6 +362,39 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat), ChatListAdapter.C
 
         snackbar.setActionTextColor(Color.YELLOW)
         snackbar.show()
+    }
+
+
+
+    @SuppressLint("ClickableViewAccessibility")
+    fun movieRecyclerView() {
+        var flag = false
+      val dX =  floatArrayOf()
+        val dY = floatArrayOf()
+      binding.chatList.setOnTouchListener { view, motionEvent ->
+          when(motionEvent.action) {
+          MotionEvent.ACTION_DOWN -> {
+              dX[0] = view.x
+              dY[0] = view.y
+              dX[1] = motionEvent.getRawX()
+              dX[1] = motionEvent.getRawY()
+
+          }
+              MotionEvent.ACTION_MOVE -> {
+                  if((motionEvent.getRawY() + dY[0] > 0) || (!flag && motionEvent.getRawY() > dY[1]))
+                      view.animate().y(motionEvent.getRawY() + dY[0]).setDuration(0).start()
+              }
+              MotionEvent.ACTION_UP -> {
+                  val layout = view.parent
+                  if((!flag && motionEvent.getRawY() > 100 + dY[1]) || motionEvent.getRawY() + dY[0] + dY[1] < 200 || (flag && motionEvent.getRawY() < -100 + dY[1])) {
+                      binding.buttonArchive.isVisible = true
+                  }
+              }
+              else -> { false  }
+          }
+          true
+      }
+
     }
 
 
