@@ -5,34 +5,6 @@
     android:layout_height="match_parent"
     android:orientation="vertical">
 
-    <com.google.android.material.appbar.MaterialToolbar
-        android:id="@+id/settings_toolbar"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="@color/blue_300">
-
-        <TextView
-            android:id="@+id/tv_settings_toolbar_title"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="16dp"
-            android:text="@string/settings_toolbar_title"
-            android:textColor="@color/black"
-            android:textSize="19sp" />
-
-        <ImageView
-            android:id="@+id/im_mode"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="end"
-            android:layout_margin="16dp"
-            android:padding="12dp"
-            android:src="@drawable/ic_moon_rotated_45"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
-    </com.google.android.material.appbar.MaterialToolbar>
-
-
     <ScrollView
         android:layout_width="match_parent"
         android:layout_height="wrap_content">

@@ -2,10 +2,9 @@ package com.xabber.presentation.application.fragments.chatlist
 
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
-import androidx.lifecycle.ViewModel
 import com.xabber.data.dto.ChatListDto
 import com.xabber.defaultRealmConfig
-import com.xabber.xmpp.chat_states.ComposingType
+import com.xabber.presentation.application.activity.ApplicationViewModel
 import com.xabber.xmpp.last_chats.LastChatsStorageItem
 import com.xabber.xmpp.messages.MessageSendingState
 import com.xabber.xmpp.presences.ResourceStatus
@@ -13,7 +12,7 @@ import com.xabber.xmpp.presences.RosterItemEntity
 import io.realm.Realm
 import io.realm.query
 
-class ChatListViewModel : ViewModel() {
+class ChatListViewModel : ApplicationViewModel() {
     private val _chatList = MutableLiveData<List<ChatListDto>>()
     val chatList: LiveData<List<ChatListDto>> = _chatList
 
@@ -31,7 +30,7 @@ class ChatListViewModel : ViewModel() {
                 "",
                 T.lastMessage!!.body,
                 T.messageDate,
-              MessageSendingState.None,
+                MessageSendingState.None,
                 T.isArchived,
                 T.isSynced,
                 T.draftMessage,
@@ -91,8 +90,7 @@ class ChatListViewModel : ViewModel() {
 //        }
     }
 
-    fun turnOfNotifications(id: String) {
-        //    chatRepository.turnOfNotifications(id)
+    fun setMute() {
 
     }
 }

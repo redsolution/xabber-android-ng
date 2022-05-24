@@ -15,7 +15,7 @@
         <item name="android:navigationBarColor">@color/grey_100</item>
     </style>
 
-    <style name="ThemeApplication" parent="Theme.AppCompat.Light.DarkActionBar">
+    <style name="ThemeApplication" parent="Theme.MaterialComponents.Light.DarkActionBar">
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
         <item name="android:textColorPrimary">@color/black</item>

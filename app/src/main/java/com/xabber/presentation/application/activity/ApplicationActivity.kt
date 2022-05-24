@@ -1,21 +1,29 @@
 package com.xabber.presentation.application.activity
 
+import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.res.Configuration
 import android.content.res.Resources
 import android.os.Bundle
 import android.util.Log
+import android.view.MenuItem
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.isVisible
+import androidx.core.content.ContextCompat
+import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.updateLayoutParams
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.commit
 import androidx.slidingpanelayout.widget.SlidingPaneLayout
+import com.bumptech.glide.Glide
+import com.google.android.material.badge.BadgeDrawable
 import com.xabber.R
+import com.xabber.data.util.AppConstants
 import com.xabber.data.util.dp
 import com.xabber.databinding.ActivityApplicationBinding
 import com.xabber.presentation.application.contract.ApplicationNavigator
+import com.xabber.presentation.application.contract.ApplicationToolbarChanger
+import com.xabber.presentation.application.contract.FragmentAction
 import com.xabber.presentation.application.fragments.account.AccountFragment
 import com.xabber.presentation.application.fragments.calls.CallsFragment
 import com.xabber.presentation.application.fragments.chatlist.*
@@ -32,10 +40,8 @@ import io.realm.Realm
 import io.realm.RealmConfiguration
 import io.realm.query
 
-class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
+class ApplicationActivity : AppCompatActivity(), ApplicationNavigator, ApplicationToolbarChanger {
     private val viewModel: ApplicationViewModel by viewModels()
-    private var isShowUnreadMessages = false
-    private var count = 0
     private val binding: ActivityApplicationBinding by lazy {
         ActivityApplicationBinding.inflate(
             layoutInflater
@@ -49,20 +55,17 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(binding.root)
-         Log.d("AccountCollection", "accountCollection")
-        val data = intent.getBooleanExtra("isSignedIn", false)
         if (checkUserIsRegister()) {
-            val widthWindowSize = getWidthWindowSizeClass()
-
-            if (widthWindowSize == WidthWindowSize.MEDIUM || widthWindowSize == WidthWindowSize.EXPANDED) setContainerWidth()
-
+            if (getWidthWindowSizeClass() == WidthWindowSize.MEDIUM || getWidthWindowSizeClass() == WidthWindowSize.EXPANDED) setContainerWidth()
             if (savedInstanceState == null) {
+                initToolbar()
+                subscribeViewModelData()
+                initBottomNavigation()
                 launchFragment(ChatListFragment.newInstance(""))
             } else {
-                isShowUnreadMessages = savedInstanceState.getBoolean("showUnread")
-                count = savedInstanceState.getInt("unreadCount")
-                binding.groupUnraedMessages.isVisible = isShowUnreadMessages
-                binding.unreadAllMessagesCount.text = count.toString()
+                val unreadMessagesCount =
+                    savedInstanceState.getInt(AppConstants.UNREAD_MESSAGES_COUNT)
+                showBadge(unreadMessagesCount)
             }
         } else {
             val intent = Intent(this, OnBoardingActivity::class.java)
@@ -70,17 +73,8 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
             finish()
             overridePendingTransition(R.animator.appearance, R.animator.disappearance)
         }
-        viewModel.unreadCount.observe(this) {
-            count = it
-            binding.groupUnraedMessages.isVisible = it > 0
-            binding.unreadAllMessagesCount.text = it.toString()
-            if (it < 1) binding.bottomNavBar.menu.getItem(0).setIcon(R.drawable.ic_material_chat_24)
-        }
- Log.d("AccountCollection", "accountCollection")
-        initBottomNavigation()
 
     }
-
 
     private fun checkUserIsRegister(): Boolean {
         val config =
@@ -106,7 +100,6 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
         return widthWindowSize
     }
 
-
     private fun setContainerWidth() {
         val widthPx = Resources.getSystem().displayMetrics.widthPixels
         val density = Resources.getSystem().displayMetrics.density
@@ -124,6 +117,22 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
         }
     }
 
+    private fun subscribeViewModelData() {
+        viewModel.unreadCount.observe(this) {
+            showBadge(it)
+        }
+    }
+
+    private fun showBadge(count: Int) {
+        if (count > 0) {
+            val creator = binding.bottomNavBar.getOrCreateBadge(R.id.chats)
+            creator.backgroundColor =
+                ResourcesCompat.getColor(binding.bottomNavBar.resources, R.color.green_500, null)
+            creator.badgeGravity = BadgeDrawable.BOTTOM_END
+            creator.number = count
+        } else binding.bottomNavBar.removeBadge(R.id.chats)
+    }
+
     private fun initBottomNavigation() {
         binding.bottomNavBar.setOnItemSelectedListener { menuItem ->
             when (menuItem.itemId) {
@@ -131,9 +140,7 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
                     if (activeFragment !is ChatListFragment) {
                         launchFragment(ChatListFragment.newInstance("name.surname@redsolution.com"))
                     } else {
-                        if (count > 0) {
-                            isShowUnreadMessages = !isShowUnreadMessages
-                            viewModel.setShowUnreadValue(isShowUnreadMessages)
+                        if (viewModel.unreadCount.value != null && viewModel.unreadCount.value != 0) {
                             menuItem.setIcon(R.drawable.ic_chat_alert)
                         }
                     }
@@ -151,6 +158,15 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
             }
             true
         }
+    }
+
+    private fun initToolbar() {
+        setSupportActionBar(binding.applicationToolbar)
+        binding.imAvatar?.let { Glide.with(it).load(R.drawable.img).into(binding.imAvatar!!) }
+        binding.avatarContainer?.setOnClickListener {
+            launchDetail(AccountFragment())
+        }
+        invalidateOptionsMenu()
     }
 
     private fun launchFragment(fragment: Fragment) {
@@ -177,6 +193,15 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
             )
         }
         binding.slidingPaneLayout.openPane()
+    }
+
+    override fun closeDetail() {
+        if (supportFragmentManager.backStackEntryCount > 0) supportFragmentManager.popBackStack()
+        else {
+            supportFragmentManager.beginTransaction()
+                .remove(supportFragmentManager.findFragmentById(R.id.detail_container)!!).commit()
+            if (binding.slidingPaneLayout.isOpen) binding.slidingPaneLayout.close()
+        }
     }
 
     override fun onSupportNavigateUp(): Boolean {
@@ -224,23 +249,42 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
         launchDetail(ChatSettingsFragment())
     }
 
-
-    override fun closeDetail() {
-        Log.d("Saved", "${supportFragmentManager.backStackEntryCount}")
-        if (supportFragmentManager.backStackEntryCount > 0) supportFragmentManager.popBackStack()
-        else {
-            supportFragmentManager.beginTransaction()
-                .remove(supportFragmentManager.findFragmentById(R.id.detail_container)!!).commit()
-            if (binding.slidingPaneLayout.isOpen) binding.slidingPaneLayout.close()
-        }
-    }
-
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
-        Log.d("Saved", "ушло $isShowUnreadMessages")
-        viewModel.showUnread.value?.let { outState.putBoolean("showUnread", it) }
-        viewModel.unreadCount.value?.let { outState.putInt("unreadCount", it) }
+        viewModel.unreadCount.value?.let { outState.putInt(AppConstants.UNREAD_MESSAGES_COUNT, it) }
     }
+
+    override fun setTitle(titleResId: Int) {
+        binding.tvToolbarTitle?.setText(titleResId)
+    }
+
+    @SuppressLint("RestrictedApi")
+    override fun setAction(vararg fragmentActions: FragmentAction?) {
+        Log.d(
+            "toolbarChanger",
+            "До изменения ${supportActionBar} menu null?: ${binding.applicationToolbar?.menu == null}, меню ссылка - ${binding.applicationToolbar?.menu}, меню экшн - ${binding.applicationToolbar?.menu?.size()}"
+        )
+        binding.applicationToolbar?.menu!!.clear()
+
+        for (fragmentAction in fragmentActions) {
+            val icon = if (fragmentAction?.iconRes != null) ContextCompat.getDrawable(
+                this,
+                fragmentAction.iconRes
+            ) else null
+            val menuItem = binding.applicationToolbar?.menu?.add(fragmentAction!!.textRes)
+            menuItem?.setShowAsAction(if (icon == null) MenuItem.SHOW_AS_ACTION_NEVER else MenuItem.SHOW_AS_ACTION_ALWAYS)
+            if (icon != null) menuItem?.icon = icon
+            menuItem?.setOnMenuItemClickListener {
+                fragmentAction?.onAction?.run()
+                return@setOnMenuItemClickListener true
+            }
+        }
+        Log.d(
+            "toolbarChanger",
+            "${supportActionBar} После изменения  menu null?: ${binding.applicationToolbar?.menu == null}, меню ссылка - ${binding.applicationToolbar?.menu}  меню экшн - ${binding.applicationToolbar?.menu?.size()}"
+        )
+    }
+
 }
 
 

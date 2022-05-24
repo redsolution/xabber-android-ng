@@ -3,6 +3,7 @@ package com.xabber.data.util
 import android.net.Uri
 
 object AppConstants {
+const val UNREAD_MESSAGES_COUNT = "unread messages count"
 
     const val NO_CAPTCHA_KEY = "a75be9d697c34892b59ebe726dc1b377"
     const val TEMP_FILE_NAME = "cropped"

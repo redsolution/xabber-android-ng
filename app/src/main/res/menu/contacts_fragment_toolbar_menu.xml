@@ -2,15 +2,15 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
     <item
         android:id="@+id/reset_status"
-        android:title="Reset status" />
+        android:title="@string/item_menu_reset_status" />
 
     <item
         android:id="@+id/add_contact"
-        android:title="Add contact" />
+        android:title="@string/item_menu_add_contact" />
 
     <item
         android:id="@+id/display_contacts_offline"
-        android:title="Display contacts offline" />
+        android:title="@string/item_menu_display_contacts_offline" />
 
 
 </menu>

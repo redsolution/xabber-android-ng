@@ -2,13 +2,13 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
   <item
         android:id="@+id/recent_chats"
-        android:title="Recent chats" />
+        android:title="@string/toolbar_menu_recent" />
 
     <item
         android:id="@+id/unread"
-        android:title="Unread" />
+        android:title="@string/toolbar_menu_unread" />
 
     <item
         android:id="@+id/archive"
-        android:title="Archive" />
+        android:title="@string/toolbar_menu_archive" />
 </menu>

@@ -5,80 +5,11 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <com.google.android.material.appbar.MaterialToolbar
-        android:id="@+id/toolbar_contacts"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:background="@color/blue_300"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:menu="@menu/contacts_fragment_toolbar_menu">
-
-        <androidx.constraintlayout.widget.ConstraintLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content">
-
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/avatar_container"
-                android:layout_width="32dp"
-                android:layout_height="32dp"
-                android:layout_marginStart="8dp"
-                android:focusable="false"
-                android:theme="@style/Theme.MaterialComponents.NoActionBar"
-                app:cardCornerRadius="16dp"
-                app:cardElevation="0dp"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent">
-
-                <ImageView
-                    android:id="@+id/im_avatar"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:contentDescription="@string/avatar_account_content_description"
-                    android:focusable="false"
-                    app:srcCompat="@drawable/ic_xabber_icon" />
-
-            </com.google.android.material.card.MaterialCardView>
-
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/avatar_status"
-                android:layout_width="8dp"
-                android:layout_height="8dp"
-                android:layout_margin="23dp"
-                android:elevation="0dp"
-                android:theme="@style/Theme.MaterialComponents.Light.NoActionBar"
-                android:visibility="visible"
-                app:cardBackgroundColor="@color/green_500"
-                app:cardCornerRadius="6dp"
-                app:cardElevation="0dp"
-                app:contentPadding="1dp"
-                app:layout_constraintStart_toStartOf="@id/avatar_container"
-                app:layout_constraintTop_toTopOf="@id/avatar_container"
-                app:strokeColor="@color/white"
-                app:strokeWidth="1dp" />
-
-            <TextView
-                android:id="@+id/tv_contact_title"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="16dp"
-                android:text="@string/contacts_toolbar_title"
-                android:textColor="@color/black"
-                android:textSize="19sp"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintStart_toEndOf="@id/avatar_container"
-                app:layout_constraintTop_toTopOf="parent" />
-
-        </androidx.constraintlayout.widget.ConstraintLayout>
-    </com.google.android.material.appbar.MaterialToolbar>
-
 <Button
         android:id="@+id/button_archive"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/toolbar_contacts"
+        app:layout_constraintTop_toTopOf="parent"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Archive"
@@ -92,6 +23,6 @@
         app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/toolbar_contacts" />
+        app:layout_constraintTop_toTopOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

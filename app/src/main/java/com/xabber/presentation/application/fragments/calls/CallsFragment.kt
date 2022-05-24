@@ -4,9 +4,9 @@ import android.os.Bundle
 import android.text.method.LinkMovementMethod
 import android.view.View
 import by.kirich1409.viewbindingdelegate.viewBinding
-import com.bumptech.glide.Glide
 import com.xabber.R
 import com.xabber.databinding.FragmentCallsBinding
+import com.xabber.presentation.application.contract.toolbarChanger
 import com.xabber.presentation.application.fragments.BaseFragment
 
 class CallsFragment : BaseFragment(R.layout.fragment_calls) {
@@ -14,7 +14,8 @@ class CallsFragment : BaseFragment(R.layout.fragment_calls) {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        Glide.with(binding.imAvatar).load(R.drawable.img).into(binding.imAvatar)
+        toolbarChanger().setTitle(R.string.calls_toolbar_title)
+        toolbarChanger().setAction()
         binding.tvAdt.movementMethod = LinkMovementMethod.getInstance()
     }
 
