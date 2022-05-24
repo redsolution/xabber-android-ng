@@ -93,12 +93,7 @@ class ContactsFragment : BaseFragment(R.layout.fragment_contact), ContactAdapter
 
                 }
                 MotionEvent.ACTION_UP -> {
-//                    val layout = view.parent
-//                    if (!flag && motionEvent.getRawY() > 100 + dY[1]) binding.buttonArchive.isVisible =
-//                        true
-//
-//                    if (motionEvent.getRawY() + dY[0] + dY[1] < 200 || (flag && motionEvent.getRawY() < -100 + dY[1])) binding.buttonArchive.isVisible =
-//                        false
+
                 }
                 else -> {
                     false

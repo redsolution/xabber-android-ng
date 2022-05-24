@@ -1,21 +1,16 @@
 package com.xabber.presentation.application.fragments.message
 
 import android.content.Context
-import android.graphics.Canvas
 import android.os.Build
 import android.os.Bundle
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.text.Editable
 import android.text.TextWatcher
-import android.util.TypedValue
 import android.view.View
-import android.widget.Toast
-import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
 import by.kirich1409.viewbindingdelegate.viewBinding
 import com.xabber.R
 import com.xabber.databinding.FragmentMessageBinding
@@ -28,7 +23,6 @@ class MessageFragment : DetailBaseFragment(R.layout.fragment_message), SwipeCont
     private var messageAdapter: MessageAdapter? = null
     private val viewModel = MessageViewModel()
     var name: String = ""
-    private var quotedMessagePos = -1
 
     companion object {
         fun newInstance(_name: String) = MessageFragment().apply {
@@ -47,9 +41,7 @@ class MessageFragment : DetailBaseFragment(R.layout.fragment_message), SwipeCont
         val messageSwipeController =
             MessageSwipeController(requireContext(), object : SwipeControllerActions {
                 override fun showReplyUI(position: Int) {
-                    //    quotedMessagePos = position
-                  binding.answer.isVisible = true
-                    // showQuotedMessage("messageList[position]")
+                    binding.answer.isVisible = true
                 }
             })
 
@@ -76,12 +68,8 @@ class MessageFragment : DetailBaseFragment(R.layout.fragment_message), SwipeCont
     }
 
 
-    private fun showQuotedMessage(message: String) {
-        //binding.answer.isVisible = true
-    }
-
     private fun initAnswer() {
-         binding.close.setOnClickListener { binding.answer.isVisible = false }
+        binding.close.setOnClickListener { binding.answer.isVisible = false }
     }
 
     private fun initToolbarActions() {
@@ -124,71 +112,6 @@ class MessageFragment : DetailBaseFragment(R.layout.fragment_message), SwipeCont
             messageAdapter!!.submitList(it)
         }
 
-        val simpleCallback = object :
-            ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT) {
-            override fun onMove(
-                recyclerView: RecyclerView,
-                viewHolder: RecyclerView.ViewHolder,
-                target: RecyclerView.ViewHolder
-            ): Boolean = false
-
-            override fun getSwipeEscapeVelocity(defaultValue: Float): Float {
-                return super.getSwipeEscapeVelocity(defaultValue)
-            }
-
-
-            override fun getSwipeVelocityThreshold(defaultValue: Float): Float {
-                return 0.5f
-            }
-
-            override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
-
-            }
-
-            override fun onChildDraw(
-                c: Canvas,
-                recyclerView: RecyclerView,
-                viewHolder: RecyclerView.ViewHolder,
-                dX: Float,
-                dY: Float,
-                actionState: Int,
-                isCurrentlyActive: Boolean
-            ) {
-                super.onChildDraw(
-                    c,
-                    recyclerView,
-                    viewHolder,
-                    dX / 2,
-                    dY,
-                    actionState,
-                    isCurrentlyActive
-                )
-                val context = recyclerView.context
-                val icon =
-                    ResourcesCompat.getDrawable(context.resources, R.drawable.reply, context.theme)
-
-                val itemView = viewHolder.itemView
-                val typedValue = TypedValue()
-
-                val iconMargin = (itemView.height - icon!!.intrinsicHeight) / 2
-                val iconTop = itemView.top + (itemView.height - icon.intrinsicHeight) / 2
-                val iconBottom = iconTop + icon.intrinsicHeight
-
-                if (dX > 0) {
-                    val iconLeft = itemView.left + iconMargin
-                    val iconRight = itemView.left + iconMargin + icon.intrinsicWidth
-                    icon.setBounds(iconLeft, iconTop, iconRight, iconBottom)
-
-                }
-            }
-
-
-            override fun convertToAbsoluteDirection(flags: Int, layoutDirection: Int): Int {
-                return super.convertToAbsoluteDirection(flags, layoutDirection)
-            }
-        }
-        //   val itemTouchHelper = ItemTouchHelper(simpleCallback)
-        //  itemTouchHelper.attachToRecyclerView(binding.messageList)
     }
 
     override fun onDestroy() {
