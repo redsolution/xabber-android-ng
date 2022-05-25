@@ -110,4 +110,5 @@ dependencies {
 
     // Debug
      debugImplementation 'com.squareup.leakcanary:leakcanary-android:2.9.1'
+
 }

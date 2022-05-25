@@ -7,8 +7,10 @@ import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
 import android.util.Log
 import android.util.TypedValue
+import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
+import android.widget.PopupMenu
 import android.widget.Toast
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.ItemTouchHelper
@@ -18,15 +20,14 @@ import com.google.android.material.snackbar.Snackbar
 import com.xabber.R
 import com.xabber.data.dto.ChatListDto
 import com.xabber.databinding.FragmentChatBinding
-import com.xabber.presentation.application.contract.FragmentAction
 import com.xabber.presentation.application.contract.navigator
-import com.xabber.presentation.application.contract.toolbarChanger
+
 import com.xabber.presentation.application.fragments.BaseFragment
 
 class ChatListFragment : BaseFragment(R.layout.fragment_chat), ChatListAdapter.ChatListener {
     private val binding by viewBinding(FragmentChatBinding::bind)
     private val viewModel = ChatListViewModel()
-    private var chatAdapter = ChatListAdapter(this)
+    private var chatAdapter: ChatListAdapter? = null
 
     companion object {
         fun newInstance(_jid: String) = ChatListFragment().apply {
@@ -40,147 +41,52 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat), ChatListAdapter.C
     @SuppressLint("ClickableViewAccessibility")
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        chatAdapter = ChatListAdapter(this)
         initToolbarActions()
         fillChat()
         initButton()
         subscribeOnViewModelData()
-
-        movieRecyclerView()
-        //  binding.chatList.animate().translationY(250f)
-
-        //   Glide.with(binding.imAvatar).load(R.drawable.img).into(binding.imAvatar)
-
-
-//        val layoutManager = binding.chatList.layoutManager as LinearLayoutManager
-//        val first = layoutManager.findFirstVisibleItemPosition()
-//        Log.v("scroll", "first = $first")
-//    //    if (first == 0) {
-//            binding.chatList.setOnTouchListener { v, event ->
-//                val x = event.getX()
-//                val y = event.getY()
-//              var xTouch = 0f
-//                var yTouch = 0f
-//    when (event?.action) {
-//
-//        MotionEvent.ACTION_DOWN -> {
-//            val params = binding.chatList.layoutParams
-//            xTouch = x - binding.chatList.marginTop
-//
-//             yTouch = y - binding.chatList.marginTop
-//       //     binding.buttonArchive.animate().translationX(binding.buttonArchive.height.toFloat()).alpha(1.0f)
-//       //     binding.chatList.animate().translationY(200f)
-//      //      binding.buttonArchive.isVisible = true
-//       // binding.buttonArchive.alpha = 0.0f
-//
-//             }
-//        MotionEvent.ACTION_MOVE -> {
-//               Log.v("scroll", "y = ${event.y}, x = ${event.x}, xTouch = $xTouch, yTouch = $yTouch")
-//            if (event.y < 50 ) {
-//           //     val newX = xTouch - event.x
-//           //     val newY = yTouch - event.y
-//           //     binding.chatList.marginTop.plus(newY)
-//                binding.buttonArchive.isVisible = true
-//            }
-//        }
-//        MotionEvent.ACTION_UP -> {
-//         //   if (event.getY() < 50 ) binding.chatList.animate().translationY(200f)
-//        //    binding.buttonArchive.isVisible = true
-//        //    false
-//        }
-//
-//    }
-//
-//    true
-//}
-        //    binding.chatList.animate().translationY(200f)
-        //    binding.buttonArchive.isVisible = true
     }
 
 
-//       binding.chatList.addOnScrollListener(object : RecyclerView.OnScrollListener() {
-//                override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
-//                    super.onScrollStateChanged(recyclerView, newState)
-//
-//                }
-//
-//
-//
-//
-//                override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
-//
-//                    super.onScrolled(recyclerView, dx, dy)
-//                     Log.v("scroll", "dy = $dy")
-//                    if (dy < 0) {
-//                         val l = binding.chatList.layoutManager as LinearLayoutManager
-//        val first = l.findFirstVisibleItemPosition()
-//                        Log.v("scroll", "first = $first")
-//        if (first == 0) {
-//           binding.chatList.animate().translationY(200f)
-//             binding.buttonArchive.isVisible = true
-//        }
-//                     //   binding.chatList.animate().translationY(200f)
-//                     //   binding.buttonArchive.isVisible = true
-//                    }
-//                    val currentItem: Int = recyclerView.layoutManager!!.childCount
-//                    val totalItemCount = recyclerView.layoutManager!!.itemCount
-//
-//                }
-//            })
-//
-//        val l = binding.chatList.layoutManager as LinearLayoutManager
-//        val first = l.findFirstVisibleItemPosition()
-//        if (first == 1) {
-//             binding.buttonArchive.isVisible = true
-//        }
-//      }
-
-
     private fun initToolbarActions() {
-        toolbarChanger().setTitle(R.string.application_title)
-        toolbarChanger().setAction(
-            FragmentAction(
-                R.drawable.ic_material_plus_24,
-                R.string.image_plus_content_description,
-                Runnable { navigator().showNewChat() })
-        )
-        Log.d("toolbarChanger", "fragmentChat")
-//        binding.avatarContainer.setOnClickListener {
-//            navigator().showAccount()
-//        }
-//
-//        binding.imPlus.setOnClickListener {
-//            navigator().showNewChat()
-//        }
+        binding.avatarContainer.setOnClickListener {
+            navigator().showAccount()
+        }
 
-//        val popup = PopupMenu(context, binding.tvChatTitle, Gravity.RIGHT)
-//        popup.inflate(R.menu.context_menu_title_chat)
-//        popup.setOnMenuItemClickListener {
-//            val list = viewModel.chatList.value
-//            val sortedList = ArrayList<ChatListDto>()
-//            when (it.itemId) {
-//                R.id.recent_chats -> {
-//                    for (i in 0 until list!!.size) {
-//                        if (!list[i].isArchived) sortedList.add(list[i])
-//                    }
-//                    sortedList.sort()
-//                    chatAdapter.submitList(sortedList)
-//                }
-//                R.id.unread -> {
-//                    for (i in 0 until list!!.size) {
-//                        if (list[i].unreadString!!.isNotEmpty()) sortedList.add(list[i])
-//                    }
-//                    chatAdapter.submitList(sortedList)
-//                }
-//                R.id.archive -> {
-//                    for (i in 0 until list!!.size) {
-//                        if (list[i].isArchived) sortedList.add(list[i])
-//                    }
-//                    chatAdapter.submitList(sortedList)
-//                }
-//            }
-//            true
-//        }
-//        binding.tvChatTitle.setOnClickListener { popup.show() }
+        binding.imPlus.setOnClickListener {
+            navigator().showNewChat()
+        }
+
+        val popup = PopupMenu(context, binding.tvChatTitle, Gravity.RIGHT)
+        popup.inflate(R.menu.context_menu_title_chat)
+        popup.setOnMenuItemClickListener {
+            val list = viewModel.chatList.value
+            val sortedList = ArrayList<ChatListDto>()
+            when (it.itemId) {
+                R.id.recent_chats -> {
+                    for (i in 0 until list!!.size) {
+                        if (!list[i].isArchived) sortedList.add(list[i])
+                    }
+                    sortedList.sort()
+                    chatAdapter?.submitList(sortedList)
+                }
+                R.id.unread -> {
+                    for (i in 0 until list!!.size) {
+                        if (list[i].unreadString!!.isNotEmpty()) sortedList.add(list[i])
+                    }
+                    chatAdapter?.submitList(sortedList)
+                }
+                R.id.archive -> {
+                    for (i in 0 until list!!.size) {
+                        if (list[i].isArchived) sortedList.add(list[i])
+                    }
+                    chatAdapter?.submitList(sortedList)
+                }
+            }
+            true
+        }
+        binding.tvChatTitle.setOnClickListener { popup.show() }
     }
 
     private fun subscribeOnViewModelData() {
@@ -216,7 +122,7 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat), ChatListAdapter.C
                 if (!it[i].isArchived) sortedList.add(it[i])
             }
             sortedList.sort()
-            chatAdapter.submitList(sortedList)
+            chatAdapter?.submitList(sortedList)
             binding.groupChatEmpty.isVisible = it.isEmpty()
         }
         viewModel.getChatList()
@@ -366,37 +272,10 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat), ChatListAdapter.C
     }
 
 
-    @SuppressLint("ClickableViewAccessibility")
-    fun movieRecyclerView() {
-        var flag = false
-        val dX = floatArrayOf()
-        val dY = floatArrayOf()
-        binding.chatList.setOnTouchListener { view, motionEvent ->
-            when (motionEvent.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    dX[0] = view.x
-                    dY[0] = view.y
-                    dX[1] = motionEvent.getRawX()
-                    dX[1] = motionEvent.getRawY()
 
-                }
-                MotionEvent.ACTION_MOVE -> {
-                    if ((motionEvent.getRawY() + dY[0] > 0) || (!flag && motionEvent.getRawY() > dY[1]))
-                        view.animate().y(motionEvent.getRawY() + dY[0]).setDuration(0).start()
-                }
-                MotionEvent.ACTION_UP -> {
-                    val layout = view.parent
-                    if ((!flag && motionEvent.getRawY() > 100 + dY[1]) || motionEvent.getRawY() + dY[0] + dY[1] < 200 || (flag && motionEvent.getRawY() < -100 + dY[1])) {
-                        binding.buttonArchive.isVisible = true
-                    }
-                }
-                else -> {
-                    false
-                }
-            }
-            true
-        }
-
+    override fun onDestroy() {
+        super.onDestroy()
+        chatAdapter = null
     }
 
 

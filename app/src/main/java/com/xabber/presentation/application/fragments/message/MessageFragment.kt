@@ -1,13 +1,13 @@
 package com.xabber.presentation.application.fragments.message
 
+import android.annotation.SuppressLint
 import android.content.Context
-import android.os.Build
-import android.os.Bundle
-import android.os.VibrationEffect
-import android.os.Vibrator
+import android.os.*
 import android.text.Editable
 import android.text.TextWatcher
+import android.view.MotionEvent
 import android.view.View
+import android.widget.Toast
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -47,9 +47,6 @@ class MessageFragment : DetailBaseFragment(R.layout.fragment_message), SwipeCont
 
         val itemTouchHelper = ItemTouchHelper(messageSwipeController)
         itemTouchHelper.attachToRecyclerView(binding.messageList)
-
-
-
         binding.messageUserName.text = name
         initToolbarActions()
         // binding?.tvUserName?.text = userName
@@ -64,6 +61,35 @@ class MessageFragment : DetailBaseFragment(R.layout.fragment_message), SwipeCont
         }
         fillAdapter()
         initAnswer()
+        initButton()
+
+    }
+
+    @SuppressLint("ClickableViewAccessibility")
+    private fun initButton() {
+        binding.buttonRecord.setOnTouchListener { view, motionEvent ->
+            if (motionEvent.action == MotionEvent.ACTION_DOWN) {
+                binding.groupRecord.isVisible = true
+                binding.buttonEmoticon.isVisible = false
+                binding.buttonAttach.isVisible = false
+                binding.chatInput.isVisible = false
+                  binding.recordChronometer.base = SystemClock.elapsedRealtime()
+                binding.recordChronometer.start()
+                AudioRecorder.startRecord()
+            } else if (motionEvent.action == MotionEvent.ACTION_UP) {
+                binding.groupRecord.isVisible = false
+                binding.buttonEmoticon.isVisible = true
+                binding.buttonAttach.isVisible = true
+                binding.chatInput.isVisible = true
+
+                binding.recordChronometer.stop()
+                binding.recordChronometer.base = SystemClock.elapsedRealtime()
+                AudioRecorder.stopRecord { file ->
+                    Toast.makeText(context, "${file == null}", Toast.LENGTH_SHORT).show()
+                }
+            }
+            true
+        }
 
     }
 
@@ -115,6 +141,7 @@ class MessageFragment : DetailBaseFragment(R.layout.fragment_message), SwipeCont
     }
 
     override fun onDestroy() {
+        AudioRecorder.releaseRecorder()
         messageAdapter = null
         super.onDestroy()
     }

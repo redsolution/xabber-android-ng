@@ -80,8 +80,8 @@
                     android:id="@+id/message_user_name"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:textSize="19sp"
-                    android:textColor="@color/black" />
+                    android:textColor="@color/black"
+                    android:textSize="19sp" />
 
                 <TextView
                     android:layout_width="wrap_content"
@@ -104,6 +104,7 @@
         app:layout_constraintTop_toBottomOf="@id/message_toolbar"
         app:layout_constraintVertical_bias="1">
 
+
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/message_list"
             android:layout_width="match_parent"
@@ -111,6 +112,8 @@
             android:layout_gravity="bottom"
             android:orientation="vertical"
             tools:itemCount="4" />
+
+
     </FrameLayout>
 
     <androidx.constraintlayout.widget.ConstraintLayout
@@ -190,12 +193,12 @@
         android:layout_width="0dp"
         android:layout_height="?attr/actionBarSize"
         android:layout_gravity="center_horizontal"
+        android:background="@color/white"
         android:gravity="center_horizontal"
         android:orientation="horizontal"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        android:background="@color/white">
+        app:layout_constraintStart_toStartOf="parent">
 
         <ImageButton
             android:id="@+id/button_emoticon"
@@ -257,5 +260,80 @@
             android:src="@drawable/ic_material_microphone_24"
             app:tint="@color/grey_500" />
     </LinearLayout>
+
+
+    <ImageView
+        android:id="@+id/icon_record"
+        android:layout_width="10dp"
+        android:layout_height="10dp"
+        android:layout_marginStart="16dp"
+        android:src="@drawable/red_circle"
+        app:layout_constraintBottom_toBottomOf="@id/input_layout"
+        app:layout_constraintStart_toStartOf="@id/input_layout"
+        app:layout_constraintTop_toTopOf="@id/input_layout" />
+
+    <Chronometer
+        android:id="@+id/record_chronometer"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="4dp"
+        android:alpha="0.7"
+        android:textColor="@color/grey_700"
+        app:layout_constraintBottom_toBottomOf="@id/input_layout"
+        app:layout_constraintStart_toEndOf="@id/icon_record"
+        app:layout_constraintTop_toTopOf="@id/input_layout" />
+
+    <ImageView
+        android:id="@+id/im_record_cancel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:src="@drawable/ic_chevron_left_grey"
+        app:layout_constraintEnd_toStartOf="@id/tv_record_cancel"
+        app:layout_constraintTop_toTopOf="@id/tv_record_cancel" />
+
+    <TextView
+        android:id="@+id/tv_record_cancel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/record_cancel"
+        android:textColor="@color/grey_700"
+        android:textSize="18sp"
+        app:layout_constraintBottom_toBottomOf="@id/input_layout"
+        app:layout_constraintEnd_toEndOf="@id/input_layout"
+        app:layout_constraintStart_toStartOf="@id/input_layout"
+        app:layout_constraintTop_toTopOf="@id/input_layout" />
+
+    <LinearLayout
+        android:id="@+id/lin_record_lock"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="36dp"
+        android:background="@drawable/linear_background"
+        android:orientation="vertical"
+        android:padding="2dp"
+        app:layout_constraintBottom_toTopOf="@id/input_layout"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <ImageView
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_marginTop="6dp"
+            android:src="@drawable/ic_lock_outline" />
+
+        <ImageView
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/ic_chevron_up" />
+
+    </LinearLayout>
+
+    <androidx.constraintlayout.widget.Group
+        android:id="@+id/group_record"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        app:constraint_referenced_ids="icon_record, record_chronometer, im_record_cancel, tv_record_cancel, lin_record_lock" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

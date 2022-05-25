@@ -7,11 +7,10 @@ import android.view.MotionEvent
 import android.view.View
 import androidx.core.view.isVisible
 import by.kirich1409.viewbindingdelegate.viewBinding
+import com.bumptech.glide.Glide
 import com.xabber.R
 import com.xabber.databinding.FragmentContactBinding
-import com.xabber.presentation.application.contract.FragmentAction
 import com.xabber.presentation.application.contract.navigator
-import com.xabber.presentation.application.contract.toolbarChanger
 import com.xabber.presentation.application.fragments.BaseFragment
 
 class ContactsFragment : BaseFragment(R.layout.fragment_contact), ContactAdapter.Listener {
@@ -20,17 +19,8 @@ class ContactsFragment : BaseFragment(R.layout.fragment_contact), ContactAdapter
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        toolbarChanger().setTitle(R.string.contacts_toolbar_title)
-        toolbarChanger().setAction(
-            FragmentAction(
-                null,
-                R.string.item_menu_add_contact,
-                Runnable {}),
-            FragmentAction(null, R.string.item_menu_reset_status, Runnable {}),
-            FragmentAction(null, R.string.item_menu_display_contacts_offline, Runnable { })
-        )
-
         val contactAdapter = ContactAdapter(this)
+        Glide.with(binding.imAvatar).load(R.drawable.img).into(binding.imAvatar)
 
         binding.recyclerView.adapter = contactAdapter
 

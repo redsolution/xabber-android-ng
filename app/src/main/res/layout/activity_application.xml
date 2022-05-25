@@ -12,78 +12,6 @@
         android:layout_width="240dp"
         android:layout_height="match_parent">
 
-
-        <com.google.android.material.appbar.MaterialToolbar
-            android:id="@+id/application_toolbar"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            app:layout_constraintEnd_toStartOf="@id/delimiter_toolbar"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            android:background="@color/blue_300">
-
- <androidx.constraintlayout.widget.ConstraintLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content">
-
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/avatar_container"
-                android:layout_width="32dp"
-                android:layout_height="32dp"
-                android:layout_marginStart="8dp"
-                android:focusable="false"
-                android:theme="@style/Theme.MaterialComponents.NoActionBar"
-                app:cardCornerRadius="16dp"
-                app:cardElevation="0dp"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent">
-
-                <ImageView
-                    android:id="@+id/im_avatar"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:contentDescription="@string/avatar_account_content_description"
-                    android:focusable="false"
-                    app:srcCompat="@drawable/ic_xabber_icon"
-                    tools:src="@tools:sample/avatars" />
-
-            </com.google.android.material.card.MaterialCardView>
-
-
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/avatar_status"
-                android:layout_width="8dp"
-                android:layout_height="8dp"
-                android:layout_margin="23dp"
-                android:elevation="0dp"
-                android:theme="@style/Theme.MaterialComponents.Light.NoActionBar"
-                android:visibility="visible"
-                app:cardBackgroundColor="@color/green_500"
-                app:cardCornerRadius="6dp"
-                app:cardElevation="0dp"
-                app:contentPadding="1dp"
-                app:layout_constraintStart_toStartOf="@id/avatar_container"
-                app:layout_constraintTop_toTopOf="@id/avatar_container"
-                app:strokeColor="@color/white"
-                app:strokeWidth="1dp"
-                tools:visibility="visible" />
-
-            <TextView
-                android:id="@+id/tv_toolbar_title"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="16dp"
-                android:textColor="@color/black"
-                android:textSize="19sp"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintStart_toEndOf="@id/avatar_container"
-                app:layout_constraintTop_toTopOf="parent" />
- </androidx.constraintlayout.widget.ConstraintLayout>
-
-</com.google.android.material.appbar.MaterialToolbar>
-
-
         <androidx.fragment.app.FragmentContainerView
             android:id="@+id/application_container"
             android:layout_width="0dp"
@@ -91,7 +19,7 @@
             app:layout_constraintBottom_toTopOf="@id/bottom_nav_bar"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/application_toolbar"/>
+            app:layout_constraintTop_toTopOf="parent" />
 
         <View
             android:id="@+id/shadow"
@@ -116,24 +44,15 @@
             app:layout_constraintStart_toStartOf="parent"
             app:menu="@menu/bottom_nav_menu" />
 
-         <View
-
-            android:id="@+id/delimiter_toolbar"
-            android:layout_width="0.001dp"
-            android:layout_height="0dp"
-            android:background="@color/grey_500"
-            app:layout_constraintBottom_toBottomOf="@id/application_toolbar"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="@id/application_toolbar" />
 
         <View
             android:id="@+id/delimiter"
             android:layout_width="0.001dp"
             android:layout_height="0dp"
-            android:background="@color/grey_400"
+            android:background="@color/grey_500"
             app:layout_constraintBottom_toTopOf="@id/bottom_nav_bar"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/application_toolbar" />
+            app:layout_constraintTop_toTopOf="parent" />
     </androidx.constraintlayout.widget.ConstraintLayout>
 
 
@@ -142,5 +61,5 @@
         android:layout_width="300dp"
         android:layout_height="match_parent"
         android:layout_weight="1"
-        android:background="@drawable/chat_background" />
+        android:background="@color/white" />
 </androidx.slidingpanelayout.widget.SlidingPaneLayout>

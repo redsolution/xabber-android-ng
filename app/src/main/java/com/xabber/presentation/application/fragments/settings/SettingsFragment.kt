@@ -2,11 +2,10 @@ package com.xabber.presentation.application.fragments.settings
 
 import android.os.Bundle
 import android.view.View
+import androidx.appcompat.app.AppCompatDelegate
 import by.kirich1409.viewbindingdelegate.viewBinding
 import com.xabber.R
 import com.xabber.databinding.FragmentSettingsBinding
-import com.xabber.presentation.application.contract.FragmentAction
-import com.xabber.presentation.application.contract.toolbarChanger
 import com.xabber.presentation.application.fragments.BaseFragment
 
 class SettingsFragment : BaseFragment(R.layout.fragment_settings) {
@@ -15,18 +14,12 @@ class SettingsFragment : BaseFragment(R.layout.fragment_settings) {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        toolbarChanger().setTitle(R.string.settings_toolbar_title)
-        toolbarChanger().setAction(FragmentAction(R.drawable.ic_moon_rotated_45, R.string.change_mode, Runnable {}))
-//        binding.imMode.setOnClickListener {
-//            isDarkMode = !isDarkMode
-//            if (isDarkMode) AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
-//           else  AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
-//
-//        }
 
-//        binding.linearChatSettings.setOnClickListener {
-//            navigator().showChatSettings()
-//        }
+        binding.imMode.setOnClickListener {
+            isDarkMode = !isDarkMode
+            if (isDarkMode) AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
+            else AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
+        }
     }
 
 

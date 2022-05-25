@@ -22,8 +22,6 @@ import com.xabber.data.util.AppConstants
 import com.xabber.data.util.dp
 import com.xabber.databinding.ActivityApplicationBinding
 import com.xabber.presentation.application.contract.ApplicationNavigator
-import com.xabber.presentation.application.contract.ApplicationToolbarChanger
-import com.xabber.presentation.application.contract.FragmentAction
 import com.xabber.presentation.application.fragments.account.AccountFragment
 import com.xabber.presentation.application.fragments.calls.CallsFragment
 import com.xabber.presentation.application.fragments.chatlist.*
@@ -40,7 +38,7 @@ import io.realm.Realm
 import io.realm.RealmConfiguration
 import io.realm.query
 
-class ApplicationActivity : AppCompatActivity(), ApplicationNavigator, ApplicationToolbarChanger {
+class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
     private val viewModel: ApplicationViewModel by viewModels()
     private val binding: ActivityApplicationBinding by lazy {
         ActivityApplicationBinding.inflate(
@@ -51,16 +49,12 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator, Applicati
     private val activeFragment: Fragment?
         get() = supportFragmentManager.findFragmentById(R.id.application_container)
 
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(binding.root)
         if (checkUserIsRegister()) {
             if (getWidthWindowSizeClass() == WidthWindowSize.MEDIUM || getWidthWindowSizeClass() == WidthWindowSize.EXPANDED) setContainerWidth()
             if (savedInstanceState == null) {
-                initToolbar()
-                subscribeViewModelData()
-                initBottomNavigation()
                 launchFragment(ChatListFragment.newInstance(""))
             } else {
                 val unreadMessagesCount =
@@ -73,7 +67,8 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator, Applicati
             finish()
             overridePendingTransition(R.animator.appearance, R.animator.disappearance)
         }
-
+        subscribeViewModelData()
+        initBottomNavigation()
     }
 
     private fun checkUserIsRegister(): Boolean {
@@ -160,14 +155,6 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator, Applicati
         }
     }
 
-    private fun initToolbar() {
-        setSupportActionBar(binding.applicationToolbar)
-        binding.imAvatar?.let { Glide.with(it).load(R.drawable.img).into(binding.imAvatar!!) }
-        binding.avatarContainer?.setOnClickListener {
-            launchDetail(AccountFragment())
-        }
-        invalidateOptionsMenu()
-    }
 
     private fun launchFragment(fragment: Fragment) {
         supportFragmentManager.beginTransaction()
@@ -254,35 +241,8 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator, Applicati
         viewModel.unreadCount.value?.let { outState.putInt(AppConstants.UNREAD_MESSAGES_COUNT, it) }
     }
 
-    override fun setTitle(titleResId: Int) {
-        binding.tvToolbarTitle?.setText(titleResId)
-    }
-
-    @SuppressLint("RestrictedApi")
-    override fun setAction(vararg fragmentActions: FragmentAction?) {
-        Log.d(
-            "toolbarChanger",
-            "До изменения ${supportActionBar} menu null?: ${binding.applicationToolbar?.menu == null}, меню ссылка - ${binding.applicationToolbar?.menu}, меню экшн - ${binding.applicationToolbar?.menu?.size()}"
-        )
-        binding.applicationToolbar?.menu!!.clear()
-
-        for (fragmentAction in fragmentActions) {
-            val icon = if (fragmentAction?.iconRes != null) ContextCompat.getDrawable(
-                this,
-                fragmentAction.iconRes
-            ) else null
-            val menuItem = binding.applicationToolbar?.menu?.add(fragmentAction!!.textRes)
-            menuItem?.setShowAsAction(if (icon == null) MenuItem.SHOW_AS_ACTION_NEVER else MenuItem.SHOW_AS_ACTION_ALWAYS)
-            if (icon != null) menuItem?.icon = icon
-            menuItem?.setOnMenuItemClickListener {
-                fragmentAction?.onAction?.run()
-                return@setOnMenuItemClickListener true
-            }
-        }
-        Log.d(
-            "toolbarChanger",
-            "${supportActionBar} После изменения  menu null?: ${binding.applicationToolbar?.menu == null}, меню ссылка - ${binding.applicationToolbar?.menu}  меню экшн - ${binding.applicationToolbar?.menu?.size()}"
-        )
+    override fun onDestroy() {
+        super.onDestroy()
     }
 
 }

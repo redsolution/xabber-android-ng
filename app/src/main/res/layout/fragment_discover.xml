@@ -4,6 +4,25 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/chat_toolbar"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:background="@color/blue_300"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+         <TextView
+        android:id="@+id/tv_discover_toolbar_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/discover_toolbar_title"
+        android:textSize="19sp"
+             android:textColor="@color/black"
+       android:layout_marginStart="16dp" />
+    </com.google.android.material.appbar.MaterialToolbar>
+
     <TextView
         android:id="@+id/tvDiscover"
         android:layout_width="wrap_content"
