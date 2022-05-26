@@ -19,6 +19,7 @@
             android:id="@+id/message_icon_back"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:contentDescription="@string/image_description_close"
             android:src="@drawable/ic_material_close_24" />
 
         <androidx.constraintlayout.widget.ConstraintLayout
@@ -93,6 +94,7 @@
             </LinearLayout>
         </androidx.constraintlayout.widget.ConstraintLayout>
     </com.google.android.material.appbar.MaterialToolbar>
+
 
     <FrameLayout
         android:layout_width="0dp"
@@ -228,15 +230,6 @@
             android:minHeight="40dp"
             android:scrollbars="vertical" />
 
-        <ImageButton
-            android:id="@+id/button_attach"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:layout_gravity="center_vertical"
-            android:layout_margin="16dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:src="@drawable/ic_material_attach_24"
-            app:tint="@color/grey_500" />
 
         <ImageButton
             android:id="@+id/button_send_message"
@@ -249,18 +242,42 @@
             android:visibility="gone"
             app:tint="@color/blue_300" />
 
-        <ImageButton
-            android:id="@+id/button_record"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:layout_gravity="center_vertical"
-            android:layout_margin="16dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:filterTouchesWhenObscured="false"
-            android:src="@drawable/ic_material_microphone_24"
-            app:tint="@color/grey_500" />
+
     </LinearLayout>
 
+    <ImageButton
+        android:id="@+id/button_attach"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:layout_margin="16dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:src="@drawable/ic_material_attach_24"
+        app:layout_constraintBottom_toBottomOf="@id/input_layout"
+        app:layout_constraintEnd_toStartOf="@id/button_record"
+        app:layout_constraintTop_toTopOf="@id/input_layout"
+        app:tint="@color/grey_500" />
+
+    <ImageButton
+        android:id="@+id/button_record"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:layout_margin="16dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:filterTouchesWhenObscured="false"
+        android:src="@drawable/ic_material_microphone_24"
+        app:layout_constraintBottom_toBottomOf="@id/input_layout"
+        app:layout_constraintEnd_toEndOf="@id/input_layout"
+        app:layout_constraintTop_toTopOf="@id/input_layout"
+        app:tint="@color/grey_500" />
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:layout_width="84dp"
+        android:layout_height="84dp"
+        android:backgroundTint="@color/blue_400"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="@id/button_record"
+        app:layout_constraintEnd_toEndOf="@id/button_record"
+        app:layout_constraintTop_toTopOf="@id/button_record" />
 
     <ImageView
         android:id="@+id/icon_record"
@@ -335,5 +352,21 @@
         android:layout_height="wrap_content"
         android:visibility="gone"
         app:constraint_referenced_ids="icon_record, record_chronometer, im_record_cancel, tv_record_cancel, lin_record_lock" />
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/btn_downward"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_marginEnd="20dp"
+        android:layout_marginBottom="20dp"
+        android:backgroundTint="@color/white"
+        android:contentDescription="@string/im_description_downward"
+        android:src="@drawable/ic_downward_grey"
+
+        app:borderWidth="0dp"
+        app:fabCustomSize="40dp"
+        app:layout_constraintBottom_toTopOf="@id/input_layout"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:tint="@color/grey_600" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

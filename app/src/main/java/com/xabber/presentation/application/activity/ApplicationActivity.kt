@@ -1,21 +1,16 @@
 package com.xabber.presentation.application.activity
 
-import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.res.Configuration
 import android.content.res.Resources
 import android.os.Bundle
-import android.util.Log
-import android.view.MenuItem
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.updateLayoutParams
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.commit
 import androidx.slidingpanelayout.widget.SlidingPaneLayout
-import com.bumptech.glide.Glide
 import com.google.android.material.badge.BadgeDrawable
 import com.xabber.R
 import com.xabber.data.util.AppConstants
@@ -240,11 +235,6 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
         super.onSaveInstanceState(outState)
         viewModel.unreadCount.value?.let { outState.putInt(AppConstants.UNREAD_MESSAGES_COUNT, it) }
     }
-
-    override fun onDestroy() {
-        super.onDestroy()
-    }
-
 }
 
 

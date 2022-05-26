@@ -8,6 +8,6 @@ enum class MessageDisplayType(val rawValue: String) {
     Call("call"),
     System("system"),
     Sticker("sticker"),
-    Quote("quote"),
-    Initial("initial")
+    Quote("quote"), // цитата
+    Initial("initial") // плашка
 }

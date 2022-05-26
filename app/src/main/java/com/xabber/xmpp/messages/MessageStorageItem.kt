@@ -19,7 +19,7 @@ class MessageStorageItem: RealmObject {
 
     var sentDate: Long = 0
     var editDate: Long = 0
-    var outgoing: Boolean = false
+    var outgoing: Boolean = false  // true я
     var isRead: Boolean = false
 
     var displayAs_: String = ""

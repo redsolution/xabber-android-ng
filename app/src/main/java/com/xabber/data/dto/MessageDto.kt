@@ -1,38 +1,18 @@
 package com.xabber.data.dto
 
+import com.xabber.xmpp.messages.MessageDisplayType
+import com.xabber.xmpp.messages.MessageSendingState
+
 data class MessageDto(
     val primary: String,
-    val jid: String,
-    val ownerJid: String,
-    val sender: Sender?,
-    var messageId: String,
+    val isOutgoing: Boolean,
+    val owner: String,
+    val opponent: String,
+    val messageBody: String,
+    val messageSendingState: MessageSendingState,
     val sentTimestamp: Long,
     val editTimestamp: Long?,
-    val delayTimestamp: Long?,
-    val displayType: MessageKind?,  // отображение сообщения
-    val isWithAuthor: Boolean?,
-    val isWithAvatar: Boolean?,
-    val canPinMessage: Boolean?,
+    val displayType: MessageDisplayType?,
     val canEditMessage: Boolean?,
-    val canDeleteMessage: Boolean?,
-    // TODO форварды
-//    val forwards: List<MessageForwards>,
-    val isEdited: Boolean?,
-    val groupchatAuthorRole: String?,
-    val groupchatAuthorId: String?,
-    val groupchatAuthorNickname: String?,
-    val groupchatAuthorBadge: String?,
-    val hasAttachedMessages: Boolean?,
-    val isDownloaded: Boolean?,
-    val state: MessageState,
-    val searchString: String?,
-
-    val text: String?,
-) {
-    val isOutgoing: Boolean
-        get() =
-            if (sender != null)
-                sender.jid == ownerJid
-            else
-                false
-}
+    val canDeleteMessage: Boolean?
+)

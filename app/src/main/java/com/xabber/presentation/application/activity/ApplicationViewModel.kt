@@ -8,13 +8,13 @@ open class ApplicationViewModel : ViewModel() {
     private val _unreadCount = MutableLiveData<Int>()
     val unreadCount: LiveData<Int> = _unreadCount
 
+    private val _chatListType = MutableLiveData<ChatListType>()
+    val chatListType: LiveData<ChatListType> = _chatListType
+
+
     fun setUnreadCount(count: Int) {
         _unreadCount.value = count
     }
-
-
-    private val _chatListType = MutableLiveData<ChatListType>()
-    val chatListType: LiveData<ChatListType> = _chatListType
 
     fun setChatListType(chatListType: ChatListType) {
         _chatListType.value = chatListType

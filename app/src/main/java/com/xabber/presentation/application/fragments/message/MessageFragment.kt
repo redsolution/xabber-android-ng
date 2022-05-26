@@ -9,8 +9,10 @@ import android.view.MotionEvent
 import android.view.View
 import android.widget.Toast
 import androidx.core.view.isVisible
+import androidx.core.view.marginBottom
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import by.kirich1409.viewbindingdelegate.viewBinding
 import com.xabber.R
 import com.xabber.databinding.FragmentMessageBinding
@@ -73,7 +75,7 @@ class MessageFragment : DetailBaseFragment(R.layout.fragment_message), SwipeCont
                 binding.buttonEmoticon.isVisible = false
                 binding.buttonAttach.isVisible = false
                 binding.chatInput.isVisible = false
-                  binding.recordChronometer.base = SystemClock.elapsedRealtime()
+                binding.recordChronometer.base = SystemClock.elapsedRealtime()
                 binding.recordChronometer.start()
                 AudioRecorder.startRecord()
             } else if (motionEvent.action == MotionEvent.ACTION_UP) {
@@ -90,6 +92,26 @@ class MessageFragment : DetailBaseFragment(R.layout.fragment_message), SwipeCont
             }
             true
         }
+
+        binding.buttonAttach.setOnClickListener {
+
+        }
+
+        binding.btnDownward.setOnClickListener {
+            binding.messageList.scrollToPosition(0)
+
+        }
+
+        binding.messageList.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                    if (dy < 0) binding.btnDownward.animate()
+                        .translationY(binding.btnDownward.height + binding.btnDownward.marginBottom.toFloat())
+                    else if (dy > 0) binding.btnDownward.animate()
+                        .translationY(0f)
+            }
+        })
+
+
 
     }
 

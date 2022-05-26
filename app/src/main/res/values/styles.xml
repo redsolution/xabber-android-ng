@@ -33,6 +33,12 @@
         <item name="colorAccent">#BDBDBD</item>
     </style>
 
+     <style name="ContactViewCollapsingToolbar" parent="@style/TextAppearance.Widget.AppCompat.Toolbar.Title">
+        <item name="android:textSize">20sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/white</item>
+    </style>
+
     <style name="ShadowWrapper">
         <item name="shadow_radius">8</item>
         <item name="shadow_x_shift">0dp</item>

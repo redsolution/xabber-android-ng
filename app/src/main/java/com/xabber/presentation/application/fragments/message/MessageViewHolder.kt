@@ -15,9 +15,9 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.xabber.R
 import com.xabber.data.dto.MessageDto
-import com.xabber.data.dto.MessageState
-import com.xabber.data.dto.MessageState.*
 import com.xabber.databinding.ItemMessageBinding
+import com.xabber.xmpp.messages.MessageSendingState
+import com.xabber.xmpp.messages.MessageSendingState.*
 import java.util.*
 
 class MessageViewHolder(
@@ -33,55 +33,51 @@ class MessageViewHolder(
     ) {
         with(binding) {
             if (isMessageNeedDisplayName)
-                messageSender.text = messageDto.sender?.displayName ?: messageDto.sender?.jid
+                messageSender.text = messageDto.owner
             else
                 messageSender.isVisible = false
-            if (messageDto.text != null) {
-                binding.messageContainer.messageText.text = messageDto.text
-                binding.messageContainer.messageInfo.messageTime.text = getTime(messageDto)
-                setStatus(binding.messageContainer.messageInfo.messageStatusIcon, messageDto.state)
-            } else {
-                binding.messageBottomStatus.messageTime.text = getTime(messageDto)
-            }
+            binding.messageContainer.messageText.text = messageDto.messageBody
+            binding.messageContainer.messageInfo.messageTime.text = getTime(messageDto)
+          if (!messageDto.isOutgoing)  setStatus(binding.messageContainer.messageInfo.messageStatusIcon, messageDto.messageSendingState)
 
             setBackground(messageDto, isMessageNeedTail)
         }
     }
 
-    private fun setStatus(imageView: ImageView, messageState: MessageState) {
+    private fun setStatus(imageView: ImageView, messageSendingState: MessageSendingState) {
         imageView.isVisible = true
         var image: Int? = null
         var tint: Int? = null
-        when (messageState) {
-            SENDING -> {
+        when (messageSendingState) {
+             Sending -> {
                 tint = R.color.grey_500
                 image = R.drawable.ic_material_clock_outline_24
             }
-            SENT -> {
+            Sended -> {
                 tint = R.color.grey_500
                 image = R.drawable.ic_material_check_24
             }
-            DELIVERED -> {
+            Deliver -> {
                 tint = R.color.green_500
                 image = R.drawable.ic_material_check_24
             }
-            READ -> {
+            Read -> {
                 tint = R.color.green_500
                 image = R.drawable.ic_material_check_all_24
             }
-            ERROR -> {
+            Error -> {
                 tint = R.color.red_500
                 image = R.drawable.ic_material_alert_circle_outline_24
             }
-            NOT_SENT -> {
+            NotSended -> {
                 tint = R.color.grey_500
                 image = R.drawable.ic_material_clock_outline_24
             }
-            UPLOADING -> {
+            Uploading -> {
                 tint = R.color.blue_500
                 image = R.drawable.ic_material_clock_outline_24
             }
-            NONE -> {
+            None -> {
                 imageView.isVisible = false
             }
         }
@@ -211,13 +207,13 @@ class MessageViewHolder(
     private fun getTime(messageDto: MessageDto): String {
         var time = DateFormat.getTimeFormat(itemView.context.applicationContext)
             .format(Date(messageDto.sentTimestamp))
-        messageDto.delayTimestamp?.let {
-            val delay = itemView.context.getString(
-                if (messageDto.isOutgoing) R.string.chat_typed else R.string.chat_delay,
-                DateFormat.getTimeFormat(itemView.context.applicationContext).format(Date(it))
-            )
-            time += " ($delay)"
-        }
+//        messageDto.delayTimestamp?.let {
+//            val delay = itemView.context.getString(
+//                if (messageDto.isOutgoing) R.string.chat_typed else R.string.chat_delay,
+//                DateFormat.getTimeFormat(itemView.context.applicationContext).format(Date(it))
+//            )
+//            time += " ($delay)"
+//        }
         messageDto.editTimestamp?.let {
             time += itemView.context.getString(
                 R.string.edited,

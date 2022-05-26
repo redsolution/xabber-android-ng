@@ -13,7 +13,6 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.xabber.R
 import com.xabber.data.dto.ChatListDto
-import com.xabber.data.dto.MessageState
 import com.xabber.databinding.ItemChatBinding
 import com.xabber.presentation.application.util.DateFormatter
 import com.xabber.xmpp.messages.MessageSendingState

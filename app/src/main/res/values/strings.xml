@@ -222,6 +222,12 @@
     <string name="item_menu_reset_status">Reset status</string>
     <string name="item_menu_add_contact">Add contact</string>
     <string name="item_menu_display_contacts_offline">Display contacts offline</string>
+    <string name="image_description_close">close</string>
+    <string name="image_description_unpin_message">unpin message</string>
+    <string name="im_description_pin_message">pin message</string>
+    <string name="button_add_to_contacts">add to contacts</string>
+    <string name="im_description_close_board">close_board</string>
+    <string name="im_description_downward">downward</string>
 
 
 </resources>
