@@ -40,7 +40,8 @@ class MessageViewHolder(
             binding.messageContainer.messageInfo.messageTime.text = getTime(messageDto)
           if (!messageDto.isOutgoing)  setStatus(binding.messageContainer.messageInfo.messageStatusIcon, messageDto.messageSendingState)
 
-            setBackground(messageDto, isMessageNeedTail)
+           // setBackground(messageDto, isMessageNeedTail)
+
         }
     }
 

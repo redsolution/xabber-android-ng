@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+xmlns:app="http://schemas.android.com/apk/res-auto"
+android:id="@+id/cvcv"
+android:layout_width="match_parent"
+android:layout_height="wrap_content"
+android:layout_marginTop="4dp"
+android:layout_marginEnd="12dp"
+android:layout_marginBottom="4dp"
+android:orientation="vertical"
+android:layout_gravity="left"
+android:gravity="start"
+android:paddingRight="50dp"
+android:paddingEnd="50dp">
+
+<RelativeLayout
+    android:background="@drawable/bubble_message_ingoing"
+    android:layout_width="wrap_content"
+    android:layout_marginStart="8dp"
+    android:layout_height="wrap_content"
+    android:padding="16dp"
+    android:gravity="start">
+    <TextView
+        android:id="@+id/tv_text_content"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:maxWidth="300dp"
+        android:text="gkcgckg"
+        android:textColor="@color/black"
+        android:textSize="12sp"
+        app:layout_constraintEnd_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_above="@id/tv_text_content"
+        android:text="15:45"
+        android:textColor="@color/grey_600"
+        android:textSize="8sp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+</RelativeLayout></RelativeLayout>

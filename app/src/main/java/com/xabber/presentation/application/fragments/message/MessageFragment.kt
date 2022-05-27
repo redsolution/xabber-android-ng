@@ -15,9 +15,12 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import by.kirich1409.viewbindingdelegate.viewBinding
 import com.xabber.R
+import com.xabber.data.dto.MessageDto
 import com.xabber.databinding.FragmentMessageBinding
 import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.application.fragments.DetailBaseFragment
+import com.xabber.xmpp.messages.MessageDisplayType
+import com.xabber.xmpp.messages.MessageSendingState
 
 
 class MessageFragment : DetailBaseFragment(R.layout.fragment_message), SwipeControllerActions {
@@ -55,13 +58,95 @@ class MessageFragment : DetailBaseFragment(R.layout.fragment_message), SwipeCont
         //   applicationToolbarChanger().toolbarIconChange(FragmentAction(R.drawable.ic_material_check_24, R.string.signup_username_subtitle))
         initNavigationBar()
 
-        val lm = LinearLayoutManager(requireContext())
-        lm.reverseLayout = true
-        with(binding.messageList) {
-            this.layoutManager = lm
-            this.adapter = MessageAdapter().also { messageAdapter = it }
+//        val lm = LinearLayoutManager(requireContext())
+//        lm.reverseLayout = true
+//        with(binding.messageList) {
+//            this.layoutManager = lm
+//            this.adapter = MessageAdapter().also { messageAdapter = it }
+//        }
+        val adapter = MessageTestAdapter()
+
+        binding.messageList.adapter = adapter
+        binding.messageList.layoutManager = LinearLayoutManager(context)
+       val list = ArrayList<MessageDto>()
+        list.add(MessageDto(
+            "1",
+            false,
+            "Алескей Иванов",
+            "Геннадий Белов",
+            "Hi! What are you doing? I am go to school. It is very cold today. It is rain",
+            MessageSendingState.Sending,
+            System.currentTimeMillis(),
+            null,
+            MessageDisplayType.Text,
+            false,
+            false))
+           list.add(MessageDto(
+                "1",
+                false,
+                "Алескей Иванов",
+                "Геннадий Белов",
+                "Hi!",
+                MessageSendingState.Sending,
+                System.currentTimeMillis(),
+                null,
+                MessageDisplayType.Text,
+                false,
+                false))
+
+        list.add(MessageDto(
+            "1",
+            true,
+            "Алескей Иванов",
+            "Геннадий Белов",
+            "Как сажать картофель Лунки копают на штык лопаты. \n В каждую кладут по 1 клубню, осторожно, чтобы не поломать ростки. Затем лунки засыпают землей. \n После того, как весь картофель посажен, участок боронуют граблями.",
+            MessageSendingState.Sending,
+            System.currentTimeMillis(),
+            null,
+            MessageDisplayType.Text,
+            false,
+            false))
+
+        list.add(MessageDto(
+            "1",
+            true,
+            "Алескей Иванов",
+            "Геннадий Белов",
+            "yes",
+            MessageSendingState.Sending,
+            System.currentTimeMillis(),
+            null,
+            MessageDisplayType.Text,
+            false,
+            false))
+        for (i in 0..1000) {
+            list.add(MessageDto(
+            "1",
+            true,
+            "Алескей Иванов",
+            "Геннадий Белов",
+            "yes",
+            MessageSendingState.Sending,
+            System.currentTimeMillis(),
+            null,
+            MessageDisplayType.Text,
+            false,
+            false))
+               list.add(MessageDto(
+            "1",
+            true,
+            "Алескей Иванов",
+            "Геннадий Белов",
+            "Как сажать картофель Лунки копают на штык лопаты. \n В каждую кладут по 1 клубню, осторожно, чтобы не поломать ростки. Затем лунки засыпают землей. \n После того, как весь картофель посажен, участок боронуют граблями.",
+            MessageSendingState.Sending,
+            System.currentTimeMillis(),
+            null,
+            MessageDisplayType.Text,
+            false,
+            false))
         }
-        fillAdapter()
+        adapter.updateList(list)
+      //  fillAdapter()
         initAnswer()
         initButton()
 
@@ -182,6 +267,11 @@ class MessageFragment : DetailBaseFragment(R.layout.fragment_message), SwipeCont
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putString("name", name)
+    }
+
+    private fun sendMessage() {
+        val text = binding.chatInput.text.toString().trim()
+       binding.chatInput.text?.clear()
     }
 
 

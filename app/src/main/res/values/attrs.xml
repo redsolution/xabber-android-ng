@@ -95,10 +95,6 @@
 
         <attr name="discover_edittext_background_color" format="color" />
     </declare-styleable>
-    <declare-styleable name="CustomFlexboxLayout">
-        <attr name="viewPartMain" format="reference" />
-        <attr name="viewPartSlave" format="reference" />
-    </declare-styleable>
 
       <attr name="MessageInput" format="reference" />
 
@@ -324,4 +320,9 @@
         <attr name="dialogUnreadItemBackground" format="color|reference" />
 
     </declare-styleable>
+       <declare-styleable name="CustomFlexboxLayout">
+           <attr name="viewPartMain" format="reference" />
+           <attr name="viewPartSlave" format="reference" />
+    </declare-styleable>
+
 </resources>
