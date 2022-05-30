@@ -13,7 +13,7 @@ import androidx.fragment.app.commit
 import androidx.slidingpanelayout.widget.SlidingPaneLayout
 import com.google.android.material.badge.BadgeDrawable
 import com.xabber.R
-import com.xabber.data.util.AppConstants
+import com.xabber.presentation.application.util.AppConstants
 import com.xabber.data.util.dp
 import com.xabber.databinding.ActivityApplicationBinding
 import com.xabber.presentation.application.contract.ApplicationNavigator
@@ -27,8 +27,8 @@ import com.xabber.presentation.application.fragments.discover.DiscoverFragment
 import com.xabber.presentation.application.fragments.message.MessageFragment
 import com.xabber.presentation.application.fragments.settings.SettingsFragment
 import com.xabber.presentation.onboarding.activity.OnBoardingActivity
-import com.xabber.xmpp.account.AccountStorageItem
-import com.xabber.xmpp.presences.ResourceStorageItem
+import com.xabber.data.xmpp.account.AccountStorageItem
+import com.xabber.data.xmpp.presences.ResourceStorageItem
 import io.realm.Realm
 import io.realm.RealmConfiguration
 import io.realm.query

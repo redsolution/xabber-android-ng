@@ -1,12 +1,11 @@
 package com.xabber
 
-import com.xabber.xmpp.account.AccountStorageItem
-import com.xabber.xmpp.avatar.AvatarStorageItem
-import com.xabber.xmpp.last_chats.LastChatsStorageItem
-import com.xabber.xmpp.messages.MessageReferenceStorageItem
-import com.xabber.xmpp.messages.MessageStorageItem
-import com.xabber.xmpp.presences.ResourceStorageItem
-import com.xabber.xmpp.roster.RosterStorageItem
+import com.xabber.data.xmpp.account.AccountStorageItem
+import com.xabber.data.xmpp.last_chats.LastChatsStorageItem
+import com.xabber.data.xmpp.messages.MessageReferenceStorageItem
+import com.xabber.data.xmpp.messages.MessageStorageItem
+import com.xabber.data.xmpp.presences.ResourceStorageItem
+import com.xabber.data.xmpp.roster.RosterStorageItem
 import io.realm.RealmConfiguration
 
 fun defaultRealmConfig() : RealmConfiguration {

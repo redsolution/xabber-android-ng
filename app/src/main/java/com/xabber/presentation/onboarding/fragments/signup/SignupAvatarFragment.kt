@@ -17,8 +17,8 @@ import com.xabber.R
 import com.xabber.databinding.FragmentSignupAvatarBinding
 import com.xabber.presentation.onboarding.contract.navigator
 import com.xabber.presentation.onboarding.contract.toolbarChanger
-import com.xabber.data.util.AppConstants
-import com.xabber.data.util.AppConstants.TEMP_FILE_NAME
+import com.xabber.presentation.application.util.AppConstants
+import com.xabber.presentation.application.util.AppConstants.TEMP_FILE_NAME
 import com.xabber.data.util.dp
 import java.io.File
 

@@ -5,41 +5,53 @@
     android:layout_height="wrap_content"
     android:layout_gravity="end"
     android:layout_marginTop="4dp"
-    android:layout_marginEnd="12dp"
+    android:layout_marginEnd="2dp"
     android:layout_marginBottom="4dp"
     android:gravity="right"
+    android:id="@+id/message_shadow"
     android:orientation="vertical"
     android:paddingStart="50dp"
     android:paddingLeft="50dp">
 
-
     <RelativeLayout
+        android:id="@+id/balloon"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_alignParentEnd="true"
         android:layout_alignParentRight="true"
-        android:background="@drawable/bubble_message_outgoing"
-        android:padding="16dp">
+        android:padding="12dp">
 
-        <TextView
-            android:id="@+id/tv_text_content"
+<androidx.cardview.widget.CardView
+    android:id="@+id/cv"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:maxWidth="300dp"
-            android:text="gkcgckg"
-            android:textColor="@color/black"
-            android:textSize="12sp"
-            app:layout_constraintEnd_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
+            app:cardCornerRadius="16dp"
+   >
 
+            <ImageView
+                android:id="@+id/image_mes"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent" />
+        </androidx.cardview.widget.CardView>
         <com.xabber.presentation.custom.CustomFlexboxLayout
             android:layout_width="wrap_content"
+            android:layout_below="@id/cv"
             android:layout_height="wrap_content"
-            app:viewPartMain="@id/tv_text_content"
-            app:viewPartSlave="@id/lin">
+            app:viewPartMain="@id/tv_content"
+            app:viewPartSlave="@id/message_info">
+
+            <com.xabber.presentation.custom.CorrectlyTouchEventTextView
+                android:id="@+id/tv_content"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:maxWidth="300dp"
+                android:textColor="@color/black"
+                app:layout_constraintEnd_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                android:layout_marginEnd="8dp"/>
 
             <LinearLayout
-                android:id="@+id/lin"
+                android:id="@+id/message_info"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal">
@@ -48,27 +60,19 @@
                     android:id="@+id/tv_sending_time"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_below="@id/tv_text_content"
-                    android:layout_toRightOf="@id/tv_text_content"
-                    android:text="15:45"
-                    android:textColor="@color/grey_600"
-                    android:textSize="8sp" />
+                    android:textSize="10sp"
+                    android:singleLine="true"
+                    android:textColor="@color/grey_600" />
 
                 <ImageView
+                   android:layout_marginStart="4dp"
                     android:id="@+id/image_message_status"
-                    android:layout_width="13dp"
-                    android:layout_height="13dp"
-                    android:src="@drawable/ic_material_check_24" />
-            </LinearLayout>
+                    android:layout_width="14dp"
+                    android:layout_height="14dp"
+                    android:src="@drawable/ic_material_check_24"
+                    android:layout_marginEnd="4dp"/></LinearLayout>
         </com.xabber.presentation.custom.CustomFlexboxLayout>
 
-        <include
-            android:id="@+id/forwardLayout"
-            layout="@layout/forwarded_layout"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_above="@id/tv_text_content"
-            android:visibility="gone" />
 
     </RelativeLayout>
 </RelativeLayout>

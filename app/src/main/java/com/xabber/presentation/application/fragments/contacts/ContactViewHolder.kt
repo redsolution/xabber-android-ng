@@ -8,8 +8,8 @@ import com.bumptech.glide.Glide
 import com.xabber.R
 import com.xabber.data.dto.ContactDto
 import com.xabber.databinding.ItemContactBinding
-import com.xabber.xmpp.presences.ResourceStatus
-import com.xabber.xmpp.presences.RosterItemEntity
+import com.xabber.data.xmpp.presences.ResourceStatus
+import com.xabber.data.xmpp.presences.RosterItemEntity
 
 class ContactViewHolder(
     private val binding: ItemContactBinding

@@ -16,8 +16,8 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
 import com.soundcloud.android.crop.Crop
 import com.xabber.R
-import com.xabber.data.util.AppConstants.REQUEST_TAKE_PHOTO
-import com.xabber.data.util.AppConstants.TEMP_FILE_NAME
+import com.xabber.presentation.application.util.AppConstants.REQUEST_TAKE_PHOTO
+import com.xabber.presentation.application.util.AppConstants.TEMP_FILE_NAME
 import com.xabber.databinding.ActivityOnboardingBinding
 import com.xabber.presentation.application.activity.ApplicationActivity
 import com.xabber.presentation.onboarding.contract.Navigator

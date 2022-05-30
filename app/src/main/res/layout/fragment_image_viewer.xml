@@ -6,7 +6,7 @@
     android:background="#222222"
     >
 
-    <com.xabber.android.ui.widget.PinchImageView
+    <com.xabber.presentation.custom.PinchImageView
         android:id="@+id/ivPhoto"
         android:layout_width="match_parent"
         android:layout_height="match_parent"

@@ -7,7 +7,7 @@ import android.view.View
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
 import com.xabber.R
-import com.xabber.data.util.AppConstants.TEMP_FILE_NAME
+import com.xabber.presentation.application.util.AppConstants.TEMP_FILE_NAME
 import java.io.File
 import java.io.FileOutputStream
 

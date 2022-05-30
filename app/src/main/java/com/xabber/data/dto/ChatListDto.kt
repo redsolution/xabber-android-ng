@@ -1,9 +1,8 @@
 package com.xabber.data.dto
 
-import androidx.annotation.ColorRes
-import com.xabber.xmpp.messages.MessageSendingState
-import com.xabber.xmpp.presences.ResourceStatus
-import com.xabber.xmpp.presences.RosterItemEntity
+import com.xabber.data.xmpp.messages.MessageSendingState
+import com.xabber.data.xmpp.presences.ResourceStatus
+import com.xabber.data.xmpp.presences.RosterItemEntity
 
 data class ChatListDto(
     val id: String,

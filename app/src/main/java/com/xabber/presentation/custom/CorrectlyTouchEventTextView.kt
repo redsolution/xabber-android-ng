@@ -1,5 +1,6 @@
 package com.xabber.presentation.custom
 
+import android.app.AlertDialog
 import android.content.Context
 import android.content.DialogInterface
 import android.text.Selection
@@ -12,7 +13,6 @@ import android.text.style.URLSpan
 import android.util.AttributeSet
 import android.view.MotionEvent
 import android.widget.TextView
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.widget.AppCompatTextView
 import com.xabber.R
 
@@ -41,11 +41,11 @@ open class CorrectlyTouchEventTextView @JvmOverloads constructor(
         ): Boolean {
             if (event.action == MotionEvent.ACTION_UP) {
                 AlertDialog.Builder(textView.context).create().apply {
-                    setTitle(R.string.open_this_link)
+                    setTitle("open_this_link")
                     setMessage(url)
 
                     setButton(
-                        DialogInterface.BUTTON_POSITIVE, textView.context.getString(R.string.open)
+                        DialogInterface.BUTTON_POSITIVE, textView.context.getString(R.string.app_name)
                     ) { _: DialogInterface?, _: Int -> span.onClick(textView) }
 
                     setButton(
@@ -103,7 +103,7 @@ open class CorrectlyTouchEventTextView @JvmOverloads constructor(
             val highlightSpan = BackgroundColorSpan(textView.highlightColor)
 
             text.setSpan(highlightSpan, spanStart, spanEnd, Spannable.SPAN_INCLUSIVE_INCLUSIVE)
-            textView.setTag(R.id.clickable_span_highlight_background, highlightSpan)
+            textView.setTag(1, highlightSpan)
             Selection.setSelection(text, spanStart, spanEnd)
         }
 
@@ -114,11 +114,11 @@ open class CorrectlyTouchEventTextView @JvmOverloads constructor(
             isUrlHighlighted = false
             val text = textView.text as Spannable
             val highlightSpan =
-                textView.getTag(R.id.clickable_span_highlight_background) as? BackgroundColorSpan?
+                textView.getTag(1) as? BackgroundColorSpan?
                     ?: return
             text.removeSpan(highlightSpan)
             Selection.removeSelection(text)
         }
-
     }
 }
+

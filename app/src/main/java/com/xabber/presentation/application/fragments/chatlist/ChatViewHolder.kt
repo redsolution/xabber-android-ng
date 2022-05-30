@@ -15,9 +15,9 @@ import com.xabber.R
 import com.xabber.data.dto.ChatListDto
 import com.xabber.databinding.ItemChatBinding
 import com.xabber.presentation.application.util.DateFormatter
-import com.xabber.xmpp.messages.MessageSendingState
-import com.xabber.xmpp.presences.ResourceStatus
-import com.xabber.xmpp.presences.RosterItemEntity
+import com.xabber.data.xmpp.messages.MessageSendingState
+import com.xabber.data.xmpp.presences.ResourceStatus
+import com.xabber.data.xmpp.presences.RosterItemEntity
 
 class ChatViewHolder(
     private val binding: ItemChatBinding,

@@ -1,11 +1,10 @@
 package com.xabber.common.account_manager
 
-import com.xabber.xmpp.account.Account
-import com.xabber.xmpp.account.AccountStorageItem
+import com.xabber.data.xmpp.account.Account
+import com.xabber.data.xmpp.account.AccountStorageItem
 import io.realm.Realm
 import io.realm.RealmConfiguration
 import io.realm.query
-import io.realm.query.find
 
 class AccountManager {
     companion object {

@@ -1,7 +1,7 @@
 package com.xabber.data.dto
 
-import com.xabber.xmpp.messages.MessageDisplayType
-import com.xabber.xmpp.messages.MessageSendingState
+import com.xabber.data.xmpp.messages.MessageDisplayType
+import com.xabber.data.xmpp.messages.MessageSendingState
 
 data class MessageDto(
     val primary: String,

@@ -5,10 +5,10 @@ import androidx.lifecycle.MutableLiveData
 import com.xabber.data.dto.ChatListDto
 import com.xabber.defaultRealmConfig
 import com.xabber.presentation.application.activity.ApplicationViewModel
-import com.xabber.xmpp.last_chats.LastChatsStorageItem
-import com.xabber.xmpp.messages.MessageSendingState
-import com.xabber.xmpp.presences.ResourceStatus
-import com.xabber.xmpp.presences.RosterItemEntity
+import com.xabber.data.xmpp.last_chats.LastChatsStorageItem
+import com.xabber.data.xmpp.messages.MessageSendingState
+import com.xabber.data.xmpp.presences.ResourceStatus
+import com.xabber.data.xmpp.presences.RosterItemEntity
 import io.realm.Realm
 import io.realm.query
 

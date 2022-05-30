@@ -4,8 +4,8 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import com.xabber.data.dto.MessageDto
-import com.xabber.xmpp.messages.MessageDisplayType
-import com.xabber.xmpp.messages.MessageSendingState
+import com.xabber.data.xmpp.messages.MessageDisplayType
+import com.xabber.data.xmpp.messages.MessageSendingState
 
 class MessageViewModel : ViewModel() {
     private val _messages = MutableLiveData<List<MessageDto>>()

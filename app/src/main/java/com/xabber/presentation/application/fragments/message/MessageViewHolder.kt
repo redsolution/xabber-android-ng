@@ -1,56 +1,128 @@
 package com.xabber.presentation.application.fragments.message
 
-import android.content.Context
 import android.graphics.PorterDuff
-import android.text.format.DateFormat
+import android.graphics.drawable.Drawable
+import android.util.Log
 import android.util.TypedValue
-import android.view.Gravity
+import android.view.View
+import android.view.ViewGroup
 import android.widget.ImageView
-import android.widget.LinearLayout
+import android.widget.RelativeLayout
+import android.widget.TextView
+import androidx.cardview.widget.CardView
 import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.isVisible
-import androidx.core.view.updateLayoutParams
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.xabber.R
 import com.xabber.data.dto.MessageDto
-import com.xabber.databinding.ItemMessageBinding
-import com.xabber.xmpp.messages.MessageSendingState
-import com.xabber.xmpp.messages.MessageSendingState.*
+import com.xabber.presentation.application.fragments.message.MessageAdapter.Companion.INCOMING_MESSAGE
+import com.xabber.presentation.application.fragments.message.MessageAdapter.Companion.OUTGOING_MESSAGE
+import com.xabber.presentation.application.util.StringUtils
+import com.xabber.data.xmpp.messages.MessageDisplayType
+import com.xabber.data.xmpp.messages.MessageSendingState
+import com.xabber.data.xmpp.messages.MessageSendingState.*
 import java.util.*
 
+
 class MessageViewHolder(
-    private val binding: ItemMessageBinding,
+    private val view: View,
     private val onAvatarClick: (MessageDto) -> Unit = {},
     private val onMessageClick: (MessageDto) -> Unit = {},
-) : RecyclerView.ViewHolder(binding.root) {
+) : RecyclerView.ViewHolder(view) {
 
-    fun bind(
-        messageDto: MessageDto,
-        isMessageNeedDisplayName: Boolean,
-        isMessageNeedTail: Boolean
-    ) {
-        with(binding) {
-            if (isMessageNeedDisplayName)
-                messageSender.text = messageDto.owner
-            else
-                messageSender.isVisible = false
-            binding.messageContainer.messageText.text = messageDto.messageBody
-            binding.messageContainer.messageInfo.messageTime.text = getTime(messageDto)
-          if (!messageDto.isOutgoing)  setStatus(binding.messageContainer.messageInfo.messageStatusIcon, messageDto.messageSendingState)
+    private val tvContent: TextView = view.findViewById(R.id.tv_content)
+    private val tvTime: TextView = view.findViewById(R.id.tv_sending_time)
+    private val messageBalloon: RelativeLayout = view.findViewById(R.id.balloon)
 
-           // setBackground(messageDto, isMessageNeedTail)
+    private val cv: CardView = view.findViewById(R.id.cv)
+    private val im: ImageView = view.findViewById(R.id.image_mes)
+
+    fun bind(itemModel: MessageDto, next: String) {
+        // text & appearance
+        tvContent.text =
+            itemModel.messageBody //  tvContent.setTextAppearance(SettingsManager.chatsAppearanceStyle()) - берем из класса настроек
+
+        // time
+        val date = Date(itemModel.sentTimestamp)
+        val time = StringUtils.getTimeText(view.context, date)
+        tvTime.text = time
+
+        // status
+        if (itemModel.isOutgoing) setStatus(
+            view.findViewById(R.id.image_message_status),
+            itemModel.messageSendingState
+        )
+
+        // color
+        //     messageBalloon.backgroundTintList = ColorStateList.valueOf(R.color.blue_50)
+
+// image
+        if (itemModel.displayType == MessageDisplayType.Files) {
+            cv.isVisible = true
+
+        } else cv.isVisible = false
+
+        // needTail
+        var needTail = false
+        //  val nextMessage = getMessage(position + 1)
+        //   if (nextMessage != null)
+        needTail = itemModel.owner != next
+        Log.d("needtail", "$needTail")
+        if (itemViewType == INCOMING_MESSAGE) {
+            val params = RelativeLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+            params.setMargins(if (needTail) 2 else 24, 0, 0, 0)
+            messageBalloon.layoutParams = params
+            messageBalloon.setPadding(if (needTail) 54 else 30, 30, 30, 30)
+        } else {
+            val params = RelativeLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+            params.setMargins(0, 0, if (needTail) 2 else 24, 0)
+            messageBalloon.layoutParams = params
+            messageBalloon.setPadding(30, 30, if (needTail) 54 else 30, 30)
+        }
+
+
+        val typedValue = TypedValue()
+        view.context.theme.resolveAttribute(R.attr.message_background, typedValue, true)
+        val shadowDrawable: Drawable =
+            ContextCompat.getDrawable(view.context, R.drawable.fwd_out_shadow)!!
+        shadowDrawable.setColorFilter(
+            ContextCompat.getColor(view.context, R.color.black),
+            PorterDuff.Mode.MULTIPLY
+        )
+        if (itemViewType == OUTGOING_MESSAGE) {
+            messageBalloon.setBackgroundDrawable(
+                ContextCompat.getDrawable(
+                    view.context,
+                    if (needTail) R.drawable.msg_out else R.drawable.msg
+                )
+            )
+
+        } else {
+            // tvContent.marginStart = if (needTail) 20 else 11
+            messageBalloon.setBackgroundDrawable(
+                ContextCompat.getDrawable(
+                    view.context,
+                    if (needTail) R.drawable.msg_in else R.drawable.msg
+                )
+            )
 
         }
     }
 
+
     private fun setStatus(imageView: ImageView, messageSendingState: MessageSendingState) {
-        imageView.isVisible = true
         var image: Int? = null
         var tint: Int? = null
         when (messageSendingState) {
-             Sending -> {
+            Sending -> {
                 tint = R.color.grey_500
                 image = R.drawable.ic_material_clock_outline_24
             }
@@ -99,38 +171,37 @@ class MessageViewHolder(
         messageDto: MessageDto,
         isMessageNeedTail: Boolean
     ) {
-        with(binding) {
-            val balloonDrawable = ResourcesCompat.getDrawable(
-                itemView.resources,
-                if (isMessageNeedTail)
-                    if (messageDto.isOutgoing)
-                        R.drawable.msg_out
-                    else
-                        R.drawable.msg_in
+        val balloonDrawable = ResourcesCompat.getDrawable(
+            itemView.resources,
+            if (isMessageNeedTail)
+                if (messageDto.isOutgoing)
+                    R.drawable.msg_out
                 else
-                    R.drawable.msg,
-                itemView.context.theme
-            )!!
-            if (!messageDto.isOutgoing)
-                balloonDrawable.setColorFilter(
-                    itemView.resources.getColor(
-                        R.color.blue_100,
-                        itemView.context.theme
-                    ), PorterDuff.Mode.MULTIPLY
-                )
-            messageBalloon.background = balloonDrawable
+                    R.drawable.msg_in
+            else
+                R.drawable.msg,
+            itemView.context.theme
+        )!!
+        if (!messageDto.isOutgoing)
+            balloonDrawable.setColorFilter(
+                itemView.resources.getColor(
+                    R.color.blue_100,
+                    itemView.context.theme
+                ), PorterDuff.Mode.MULTIPLY
+            )
+        messageBalloon.background = balloonDrawable
 
-            val shadowDrawable = ResourcesCompat.getDrawable(
-                itemView.resources,
-                if (isMessageNeedTail)
-                    if (messageDto.isOutgoing)
-                        R.drawable.msg_out_shadow
-                    else
-                        R.drawable.msg_in_shadow
+        val shadowDrawable = ResourcesCompat.getDrawable(
+            itemView.resources,
+            if (isMessageNeedTail)
+                if (messageDto.isOutgoing)
+                    R.drawable.msg_out_shadow
                 else
-                    R.drawable.msg_shadow,
-                itemView.context.theme
-            )!!
+                    R.drawable.msg_in_shadow
+            else
+                R.drawable.msg_shadow,
+            itemView.context.theme
+        )!!
 //            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
 //                shadowDrawable.colorFilter = BlendModeColorFilterCompat.createBlendModeColorFilterCompat(
 //                    itemView.resources.getColor(R.color.grey_300, itemView.context.theme),
@@ -138,98 +209,14 @@ class MessageViewHolder(
 //                )
 //            }
 //            else {
-            shadowDrawable.setColorFilter(
-                itemView.resources.getColor(
-                    R.color.black,
-                    itemView.context.theme
-                ), PorterDuff.Mode.MULTIPLY
-            )
+        shadowDrawable.setColorFilter(
+            itemView.resources.getColor(
+                R.color.black,
+                itemView.context.theme
+            ), PorterDuff.Mode.MULTIPLY
+        )
 //            }
-            messageShadow.background = shadowDrawable
+        //     messageShadow.background = shadowDrawable
 
-            messageShadow.updateLayoutParams<LinearLayout.LayoutParams> {
-                gravity =
-                    if (messageDto.isOutgoing)
-                        Gravity.END
-                    else
-                        Gravity.START
-                setMargins(
-                    dipToPxFloat(
-                        if (isMessageNeedTail)
-                            if (messageDto.isOutgoing)
-                                50f
-                            else
-                                3f
-                        else
-                            11f,
-                        itemView.context
-                    ).toInt(),
-                    dipToPxFloat(3f, itemView.context).toInt(),
-                    dipToPxFloat(
-                        if (isMessageNeedTail)
-                            if (messageDto.isOutgoing)
-                                3f
-                            else
-                                50f
-                        else
-                            11f,
-                        itemView.context
-                    ).toInt(),
-                    dipToPxFloat(3f, itemView.context).toInt(),
-                )
-            }
-
-            messageBalloon.setPadding(
-                dipToPxFloat(
-                    if (isMessageNeedTail)
-                        if (messageDto.isOutgoing)
-                            12f
-                        else
-                            20f
-                    else
-                        12f,
-                    itemView.context
-                ).toInt(),
-                dipToPxFloat(8f, itemView.context).toInt(),
-                dipToPxFloat(
-                    if (isMessageNeedTail)
-                        if (messageDto.isOutgoing)
-                            20f
-                        else
-                            12f
-                    else
-                        12f, itemView.context
-                ).toInt(),
-                dipToPxFloat(8f, itemView.context).toInt(),
-            )
-        }
     }
-
-    private fun getTime(messageDto: MessageDto): String {
-        var time = DateFormat.getTimeFormat(itemView.context.applicationContext)
-            .format(Date(messageDto.sentTimestamp))
-//        messageDto.delayTimestamp?.let {
-//            val delay = itemView.context.getString(
-//                if (messageDto.isOutgoing) R.string.chat_typed else R.string.chat_delay,
-//                DateFormat.getTimeFormat(itemView.context.applicationContext).format(Date(it))
-//            )
-//            time += " ($delay)"
-//        }
-        messageDto.editTimestamp?.let {
-            time += itemView.context.getString(
-                R.string.edited,
-                DateFormat.getTimeFormat(itemView.context.applicationContext).format(Date(it))
-            )
-        }
-
-        return time
-    }
-}
-
-fun dipToPxFloat(dip: Float, context: Context): Float {
-    return TypedValue.applyDimension(
-        TypedValue.COMPLEX_UNIT_DIP,
-        dip,
-        context.resources.displayMetrics
-    )
 }

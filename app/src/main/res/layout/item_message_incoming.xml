@@ -1,43 +1,74 @@
 <?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
-xmlns:app="http://schemas.android.com/apk/res-auto"
-android:id="@+id/cvcv"
-android:layout_width="match_parent"
-android:layout_height="wrap_content"
-android:layout_marginTop="4dp"
-android:layout_marginEnd="12dp"
-android:layout_marginBottom="4dp"
-android:orientation="vertical"
-android:layout_gravity="left"
-android:gravity="start"
-android:paddingRight="50dp"
-android:paddingEnd="50dp">
-
-<RelativeLayout
-    android:background="@drawable/bubble_message_ingoing"
-    android:layout_width="wrap_content"
-    android:layout_marginStart="8dp"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/message_shadow"
+    android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:padding="16dp"
-    android:gravity="start">
-    <TextView
-        android:id="@+id/tv_text_content"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:maxWidth="300dp"
-        android:text="gkcgckg"
-        android:textColor="@color/black"
-        android:textSize="12sp"
-        app:layout_constraintEnd_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+    android:layout_gravity="end"
+    android:layout_marginStart="2dp"
+    android:layout_marginTop="4dp"
+    android:layout_marginBottom="4dp"
+    android:gravity="left"
+    android:orientation="vertical"
+    android:paddingEnd="50dp"
+    android:paddingRight="50dp">
 
-    <TextView
+
+    <RelativeLayout
+        android:id="@+id/balloon"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_above="@id/tv_text_content"
-        android:text="15:45"
-        android:textColor="@color/grey_600"
-        android:textSize="8sp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
-</RelativeLayout></RelativeLayout>
+        android:layout_alignParentEnd="true"
+        android:layout_alignParentRight="true"
+        android:background="@color/blue_50"
+        android:padding="12dp"
+        android:elevation="1dp"
+        android:backgroundTint="@color/blue_50">
+
+ <androidx.cardview.widget.CardView
+     android:id="@+id/cv"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:cardCornerRadius="16dp"
+     android:visibility="gone">
+
+            <ImageView
+                android:id="@+id/image_mes"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent" />
+        </androidx.cardview.widget.CardView>
+        <com.xabber.presentation.custom.CustomFlexboxLayout
+            android:layout_width="wrap_content"
+            android:layout_below="@id/cv"
+            android:layout_height="wrap_content"
+            app:viewPartMain="@id/tv_content"
+            app:viewPartSlave="@id/message_info">
+
+            <com.xabber.presentation.custom.CorrectlyTouchEventTextView
+                android:id="@+id/tv_content"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:maxWidth="300dp"
+                android:textColor="@color/black"
+                app:layout_constraintEnd_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <LinearLayout
+                android:id="@+id/message_info"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/tv_sending_time"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/grey_600"
+                    android:textSize="10sp" />
+
+            </LinearLayout>
+        </com.xabber.presentation.custom.CustomFlexboxLayout>
+
+    </RelativeLayout>
+</RelativeLayout>
