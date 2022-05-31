@@ -28,6 +28,9 @@
         <item name="windowActionModeOverlay">true</item>
         <item name="action_with_chat_background">@color/grey_800</item>
          <item name="contact_list_contact_background">@color/white</item>
+        <item name="android:popupMenuStyle">@style/popupMenuStyle</item>
+        <item name="popupMenuStyle">@style/popupMenuStyle</item>
+
     </style>
 
       <style name="ChatTheme" parent="Theme.AppCompat.Light.NoActionBar">
@@ -316,5 +319,8 @@
         <item name="android:background">?android:attr/listDivider</item>
     </style>
 
-
+<style name="popupMenuStyle" parent="Theme.MaterialComponents.Light.DarkActionBar">
+    <item name="popupMenuBackground">@drawable/menu_background</item>
+    <item name="android:popupBackground">@drawable/menu_background</item>
+</style>
 </resources>

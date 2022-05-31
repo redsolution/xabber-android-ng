@@ -1,26 +1,25 @@
 package com.xabber.presentation.application.fragments.message
 
+import android.annotation.SuppressLint
 import android.graphics.PorterDuff
 import android.graphics.drawable.Drawable
-import android.util.Log
 import android.util.TypedValue
+import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ImageView
-import android.widget.RelativeLayout
-import android.widget.TextView
-import androidx.cardview.widget.CardView
+import android.widget.*
+import androidx.appcompat.view.menu.MenuBuilder
+import androidx.appcompat.view.menu.MenuPopupHelper
+import androidx.appcompat.widget.CustomPopupMenu
 import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.isVisible
-import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.xabber.R
 import com.xabber.data.dto.MessageDto
 import com.xabber.presentation.application.fragments.message.MessageAdapter.Companion.INCOMING_MESSAGE
 import com.xabber.presentation.application.fragments.message.MessageAdapter.Companion.OUTGOING_MESSAGE
 import com.xabber.presentation.application.util.StringUtils
-import com.xabber.data.xmpp.messages.MessageDisplayType
 import com.xabber.data.xmpp.messages.MessageSendingState
 import com.xabber.data.xmpp.messages.MessageSendingState.*
 import java.util.*
@@ -28,18 +27,16 @@ import java.util.*
 
 class MessageViewHolder(
     private val view: View,
-    private val onAvatarClick: (MessageDto) -> Unit = {},
-    private val onMessageClick: (MessageDto) -> Unit = {},
-) : RecyclerView.ViewHolder(view) {
+    private val listener: MessageAdapter.Listener
+) : BasicViewHolder(view) {
 
     private val tvContent: TextView = view.findViewById(R.id.tv_content)
     private val tvTime: TextView = view.findViewById(R.id.tv_sending_time)
     private val messageBalloon: RelativeLayout = view.findViewById(R.id.balloon)
 
-    private val cv: CardView = view.findViewById(R.id.cv)
-    private val im: ImageView = view.findViewById(R.id.image_mes)
 
-    fun bind(itemModel: MessageDto, next: String) {
+   @SuppressLint("RestrictedApi")
+   override fun bind(itemModel: MessageDto, next: String) {
         // text & appearance
         tvContent.text =
             itemModel.messageBody //  tvContent.setTextAppearance(SettingsManager.chatsAppearanceStyle()) - берем из класса настроек
@@ -58,34 +55,28 @@ class MessageViewHolder(
         // color
         //     messageBalloon.backgroundTintList = ColorStateList.valueOf(R.color.blue_50)
 
-// image
-        if (itemModel.displayType == MessageDisplayType.Files) {
-            cv.isVisible = true
-
-        } else cv.isVisible = false
 
         // needTail
         var needTail = false
         //  val nextMessage = getMessage(position + 1)
         //   if (nextMessage != null)
         needTail = itemModel.owner != next
-        Log.d("needtail", "$needTail")
         if (itemViewType == INCOMING_MESSAGE) {
-            val params = RelativeLayout.LayoutParams(
+            val params = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
             )
             params.setMargins(if (needTail) 2 else 24, 0, 0, 0)
             messageBalloon.layoutParams = params
-            messageBalloon.setPadding(if (needTail) 54 else 30, 30, 30, 30)
+            messageBalloon.setPadding(if (needTail) 54 else 26, 26, 26, 26)
         } else {
-            val params = RelativeLayout.LayoutParams(
+            val params = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
             )
             params.setMargins(0, 0, if (needTail) 2 else 24, 0)
             messageBalloon.layoutParams = params
-            messageBalloon.setPadding(30, 30, if (needTail) 54 else 30, 30)
+            messageBalloon.setPadding(24, 24, if (needTail) 46 else 24, 24)
         }
 
 
@@ -115,7 +106,36 @@ class MessageViewHolder(
             )
 
         }
+
+
+
+
+          view.setOnClickListener {
+            val popup = CustomPopupMenu(it.context, it, Gravity.CENTER)
+              if (itemModel.isOutgoing) popup.inflate(R.menu.context_menu_message_outgoing)
+              else popup.inflate(R.menu.context_menu_message_incoming)
+
+              val menuHealper = MenuPopupHelper(it.context, popup.menu as MenuBuilder, view)
+              menuHealper.setForceShowIcon(true)
+          menuHealper.show()
+
+            popup.setOnMenuItemClickListener {
+                when (it.itemId) {
+                    R.id.copy -> {}
+                    R.id.forward -> {}
+                   R.id.reply -> {}
+                    R.id.delete_message -> {}
+                    R.id.edit -> { listener.editMessage(itemModel.primary) }
+                }
+                true
+            }
+            popup.show()
+            true
+        }
+
     }
+
+
 
 
     private fun setStatus(imageView: ImageView, messageSendingState: MessageSendingState) {
@@ -218,5 +238,7 @@ class MessageViewHolder(
 //            }
         //     messageShadow.background = shadowDrawable
 
+
     }
+
 }

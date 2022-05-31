@@ -2,6 +2,7 @@ package com.xabber.presentation.application.fragments.message
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.graphics.Canvas
 import android.os.*
 import android.text.Editable
 import android.text.TextWatcher
@@ -23,7 +24,7 @@ import com.xabber.data.xmpp.messages.MessageDisplayType
 import com.xabber.data.xmpp.messages.MessageSendingState
 
 
-class MessageFragment : DetailBaseFragment(R.layout.fragment_message), SwipeControllerActions {
+class MessageFragment : DetailBaseFragment(R.layout.fragment_message), MessageAdapter.Listener {
     private val binding by viewBinding(FragmentMessageBinding::bind)
     private var messageAdapter: MessageAdapter? = null
     private val viewModel = MessageViewModel()
@@ -43,15 +44,8 @@ class MessageFragment : DetailBaseFragment(R.layout.fragment_message), SwipeCont
         super.onViewCreated(view, savedInstanceState)
         if (savedInstanceState != null) name = savedInstanceState.getString("name", "")
 
-        val messageSwipeController =
-            MessageSwipeController(requireContext(), object : SwipeControllerActions {
-                override fun showReplyUI(position: Int) {
-                    binding.answer.isVisible = true
-                }
-            })
 
-        val itemTouchHelper = ItemTouchHelper(messageSwipeController)
-        itemTouchHelper.attachToRecyclerView(binding.messageList)
+
         binding.messageUserName.text = name
         initToolbarActions()
         // binding?.tvUserName?.text = userName
@@ -64,28 +58,46 @@ class MessageFragment : DetailBaseFragment(R.layout.fragment_message), SwipeCont
 //            this.layoutManager = lm
 //            this.adapter = MessageAdapter().also { messageAdapter = it }
 //        }
-        val adapter = MessageAdapter()
+        val adapter = MessageAdapter(this)
 
         binding.messageList.adapter = adapter
         val lin = LinearLayoutManager(context)
-     //  lin.reverseLayout = true
-   //     lin.setStackFromEnd(true)
+        lin.reverseLayout = true
         binding.messageList.layoutManager = lin
 
-       val list = ArrayList<MessageDto>()
-        list.add(MessageDto(
-            "1",
-            false,
-            "АИ",
-            "Геннадий Белов",
-            "Hi! What are you doing? I am go to school. It is very cold today. It is rain",
-            MessageSendingState.Sending,
-            System.currentTimeMillis(),
-            null,
-            MessageDisplayType.Files,
-            false,
-            false))
-           list.add(MessageDto(
+        val list = ArrayList<MessageDto>()
+         list.add(
+            MessageDto(
+                "1",
+                true,
+                "Кирилл Степанов",
+                "Геннадий Белов",
+                "Алексей присоединился к чату",
+                MessageSendingState.Read,
+                System.currentTimeMillis(),
+                null,
+                MessageDisplayType.System,
+                false,
+                false
+            )
+        )
+        list.add(
+            MessageDto(
+                "1",
+                false,
+                "АИ",
+                "Геннадий Белов",
+                "Hi! What are you doing? I am go to school. It is very cold today. It is rain",
+                MessageSendingState.Sending,
+                System.currentTimeMillis(),
+                null,
+                MessageDisplayType.Files,
+                false,
+                false
+            )
+        )
+        list.add(
+            MessageDto(
                 "1",
                 false,
                 "АИ",
@@ -96,123 +108,166 @@ class MessageFragment : DetailBaseFragment(R.layout.fragment_message), SwipeCont
                 null,
                 MessageDisplayType.Text,
                 false,
-                false))
+                false
+            )
+        )
 
-        list.add(MessageDto(
-            "1",
-            true,
-            "Кирилл Степанов",
-            "Геннадий Белов",
-            "Как сажать картофель Лунки копают на штык лопаты. \n В каждую кладут по 1 клубню, осторожно, чтобы не поломать ростки. Затем лунки засыпают землей. \n После того, как весь картофель посажен, участок боронуют граблями.",
-            MessageSendingState.NotSended,
-            System.currentTimeMillis(),
-            null,
-            MessageDisplayType.Text,
-            false,
-            false))
+        list.add(
+            MessageDto(
+                "1",
+                true,
+                "Кирилл Степанов",
+                "Геннадий Белов",
+                "Как сажать картофель Лунки копают на штык лопаты. \nВ каждую кладут по 1 клубню, осторожно, чтобы не поломать ростки. Затем лунки засыпают землей. \nПосле того, как весь картофель посажен, участок боронуют граблями.",
+                MessageSendingState.Sended,
+                System.currentTimeMillis(),
+                null,
+                MessageDisplayType.Text,
+                false,
+                false
+            )
+        )
 
-        list.add(MessageDto(
-            "1",
-            true,
-            "Кирилл Степанов",
-            "Геннадий Белов",
-            "yes",
-            MessageSendingState.Deliver,
-            System.currentTimeMillis(),
-            null,
-            MessageDisplayType.Text,
-            false,
-            false))
-        list.add(MessageDto(
-            "1",
-            true,
-            "Кирилл Степанов",
-            "Геннадий Белов",
-            "yes",
-            MessageSendingState.Deliver,
-            System.currentTimeMillis(),
-            null,
-            MessageDisplayType.Text,
-            false,
-            false))
-        list.add(MessageDto(
-            "1",
-            false,
-            "Алескей Иванов",
-            "Геннадий Белов",
-            "yes",
-            MessageSendingState.Deliver,
-            System.currentTimeMillis(),
-            null,
-            MessageDisplayType.Text,
-            false,
-            false))
+        list.add(
+            MessageDto(
+                "1",
+                true,
+                "Кирилл Степанов",
+                "Геннадий Белов",
+                "yes",
+                MessageSendingState.Deliver,
+                System.currentTimeMillis(),
+                null,
+                MessageDisplayType.Text,
+                false,
+                false
+            )
+        )
+        list.add(
+            MessageDto(
+                "1",
+                true,
+                "Кирилл Степанов",
+                "Геннадий Белов",
+                "yes",
+                MessageSendingState.Deliver,
+                System.currentTimeMillis(),
+                null,
+                MessageDisplayType.Text,
+                false,
+                false
+            )
+        )
+        list.add(
+            MessageDto(
+                "1",
+                false,
+                "Алескей Иванов",
+                "Геннадий Белов",
+                "yes",
+                MessageSendingState.Deliver,
+                System.currentTimeMillis(),
+                null,
+                MessageDisplayType.Text,
+                false,
+                false
+            )
+        )
         for (i in 0..2000) {
-            list.add(MessageDto(
-            "1",
-            true,
-            "Кирилл Степанов",
-            "Геннадий Белов",
-            "Соблюдай инструкцию",
-            MessageSendingState.Read,
-            System.currentTimeMillis(),
-            null,
-            MessageDisplayType.Text,
-            false,
-            false))
-            list.add(MessageDto(
-            "1",
-            true,
-            "Кирилл Степанов",
-            "Геннадий Белов",
-            "Тебе все понятно?",
-            MessageSendingState.Error,
-            System.currentTimeMillis(),
-            null,
-            MessageDisplayType.Text,
-            false,
-            false))
-               list.add(MessageDto(
-            "1",
-            false,
-            "Алескей Иванов",
-            "Геннадий Белов",
-            "Да, я все понял",
-            MessageSendingState.Error,
-            System.currentTimeMillis(),
-            null,
-            MessageDisplayType.Text,
-            false,
-            false))
-             list.add(MessageDto(
-            "1",
-            false,
-            "Алескей Иванов",
-            "Геннадий Белов",
-            "Я иду сажать картофель. Буду не скоро",
-            MessageSendingState.Error,
-            System.currentTimeMillis(),
-            null,
-            MessageDisplayType.Text,
-            false,
-            false))
+            list.add(
+                MessageDto(
+                    "1",
+                    true,
+                    "Кирилл Степанов",
+                    "Геннадий Белов",
+                    "Соблюдай инструкцию",
+                    MessageSendingState.Read,
+                    System.currentTimeMillis(),
+                    null,
+                    MessageDisplayType.Text,
+                    false,
+                    false
+                )
+            )
+            list.add(
+                MessageDto(
+                    "1",
+                    true,
+                    "Кирилл Степанов",
+                    "Геннадий Белов",
+                    "Тебе все понятно?",
+                    MessageSendingState.Error,
+                    System.currentTimeMillis(),
+                    null,
+                    MessageDisplayType.Text,
+                    false,
+                    false
+                )
+            )
+            list.add(
+                MessageDto(
+                    "1",
+                    false,
+                    "Алескей Иванов",
+                    "Геннадий Белов",
+                    "Да, я все понял",
+                    MessageSendingState.Error,
+                    System.currentTimeMillis(),
+                    null,
+                    MessageDisplayType.Text,
+                    false,
+                    false
+                )
+            )
+            list.add(
+                MessageDto(
+                    "1",
+                    false,
+                    "Алескей Иванов",
+                    "Геннадий Белов",
+                    "Я иду сажать картофель. Буду не скоро",
+                    MessageSendingState.Error,
+                    System.currentTimeMillis(),
+                    null,
+                    MessageDisplayType.Text,
+                    false,
+                    false
+                )
+            )
         }
-        list.add(MessageDto(
-            "1",
-            false,
-            "Алескей Иванов",
-            "Геннадий Белов",
-            "First message",
-            MessageSendingState.Error,
-            System.currentTimeMillis(),
-            null,
-            MessageDisplayType.Text,
-            false,
-            false))
+        list.add(
+            MessageDto(
+                "1",
+                false,
+                "Алескей Иванов",
+                "Геннадий Белов",
+                "First message",
+                MessageSendingState.Error,
+                System.currentTimeMillis(),
+                null,
+                MessageDisplayType.Text,
+                false,
+                false
+            )
+        )
+
+
         adapter.submitList(list)
-      //  fillAdapter()
+        //  fillAdapter()
         initAnswer()
         initButton()
+
+
+        val replySwipeCallback = ReplySwipeCallback(binding.messageList.context)
+        replySwipeCallback.setSwipeEnabled(true)
+        replySwipeCallback.replySwipeCallback()
+        ItemTouchHelper(replySwipeCallback).attachToRecyclerView(binding.messageList)
+
+        binding.messageList.addItemDecoration(object : RecyclerView.ItemDecoration() {
+            override fun onDraw(c: Canvas, parent: RecyclerView, state: RecyclerView.State) {
+                replySwipeCallback.onDraw(c)
+            }
+        })
 
     }
 
@@ -252,13 +307,12 @@ class MessageFragment : DetailBaseFragment(R.layout.fragment_message), SwipeCont
 
         binding.messageList.addOnScrollListener(object : RecyclerView.OnScrollListener() {
             override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
-                    if (dy < 0) binding.btnDownward.animate()
-                        .translationY(binding.btnDownward.height + binding.btnDownward.marginBottom.toFloat())
-                    else if (dy > 0) binding.btnDownward.animate()
-                        .translationY(0f)
+                if (dy < 0) binding.btnDownward.animate()
+                    .translationY(binding.btnDownward.height + binding.btnDownward.marginBottom.toFloat())
+                else if (dy > 0) binding.btnDownward.animate()
+                    .translationY(0f)
             }
         })
-
 
 
     }
@@ -286,7 +340,7 @@ class MessageFragment : DetailBaseFragment(R.layout.fragment_message), SwipeCont
                 }
 
                 override fun afterTextChanged(p0: Editable?) {
-                    if (p0.toString() != "") {
+                    if (p0.toString().trim().isNotEmpty()) {
                         buttonRecord.visibility = View.GONE
                         buttonAttach.visibility = View.GONE
                         buttonSendMessage.visibility = View.VISIBLE
@@ -316,7 +370,7 @@ class MessageFragment : DetailBaseFragment(R.layout.fragment_message), SwipeCont
         super.onDestroy()
     }
 
-    override fun showReplyUI(position: Int) {
+    fun showReplyUI(position: Int) {
         binding.answer.isVisible = true
         val v = requireContext().getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
         if (Build.VERSION.SDK_INT >= 26) {
@@ -334,8 +388,12 @@ class MessageFragment : DetailBaseFragment(R.layout.fragment_message), SwipeCont
 
     private fun sendMessage() {
         val text = binding.chatInput.text.toString().trim()
-       binding.chatInput.text?.clear()
+        binding.chatInput.text?.clear()
 
+    }
+
+    override fun editMessage(primary: String) {
+       Toast.makeText(context, primary, Toast.LENGTH_SHORT).show()
     }
 
 

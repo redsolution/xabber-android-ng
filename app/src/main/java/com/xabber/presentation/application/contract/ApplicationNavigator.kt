@@ -28,5 +28,4 @@ interface ApplicationNavigator {
 
     fun closeDetail()
 
-
 }

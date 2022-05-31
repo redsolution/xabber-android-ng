@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+  <item
+        android:id="@+id/copy"
+        android:title="Copy" />
+
+    <item
+        android:id="@+id/forward"
+        android:title="Forward" />
+
+    <item
+        android:id="@+id/reply"
+        android:title="Reply" />
+
+    <item
+        android:id="@+id/edit"
+        android:title="Edit" />
+
+    <item
+        android:id="@+id/delete_message"
+        android:title="Delete" />
+
+</menu>
