@@ -6,13 +6,20 @@
     android:layout_height="wrap_content"
     android:layout_gravity="end"
     android:layout_marginStart="2dp"
-    android:paddingTop="3dp"
-    android:paddingBottom="3dp"
     android:gravity="left"
     android:orientation="vertical"
+    android:paddingTop="3dp"
     android:paddingEnd="50dp"
-    android:paddingRight="50dp">
+    android:paddingRight="50dp"
+    android:paddingBottom="3dp">
 
+    <include
+        android:id="@+id/unread_messages"
+        layout="@layout/item_first_unread_message" />
+
+    <include
+        android:id="@+id/message_date"
+        layout="@layout/item_message_date" />
 
     <RelativeLayout
         android:id="@+id/balloon"
@@ -63,9 +70,9 @@
                     android:id="@+id/tv_sending_time"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
                     android:textColor="@color/grey_600"
-                    android:textSize="10sp"
-                    android:layout_marginTop="4dp"/>
+                    android:textSize="10sp" />
 
             </LinearLayout>
         </com.xabber.presentation.custom.CustomFlexboxLayout>

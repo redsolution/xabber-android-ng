@@ -24,7 +24,7 @@ class MessageViewModel : ViewModel() {
                 null,
                 MessageDisplayType.Text,
                 false,
-                false
+                false, null, false
             ), MessageDto(
                 "1",
                 false,
@@ -36,9 +36,10 @@ class MessageViewModel : ViewModel() {
                 null,
                 MessageDisplayType.Text,
                 false,
-                false
+                false, null, false
+
             ),
-               MessageDto(
+            MessageDto(
                 "2",
                 true,
                 "Ирина Андреева",
@@ -49,7 +50,7 @@ class MessageViewModel : ViewModel() {
                 null,
                 MessageDisplayType.Text,
                 false,
-                false
+                false, null, false
             ), MessageDto(
                 "1",
                 false,
@@ -61,7 +62,7 @@ class MessageViewModel : ViewModel() {
                 null,
                 MessageDisplayType.Text,
                 false,
-                false
+                false, null, true
             )
         )
 

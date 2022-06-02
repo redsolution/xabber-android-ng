@@ -6,6 +6,7 @@ import android.graphics.Canvas
 import android.os.*
 import android.text.Editable
 import android.text.TextWatcher
+import android.util.Log
 import android.view.MotionEvent
 import android.view.View
 import android.widget.Toast
@@ -17,11 +18,14 @@ import androidx.recyclerview.widget.RecyclerView
 import by.kirich1409.viewbindingdelegate.viewBinding
 import com.xabber.R
 import com.xabber.data.dto.MessageDto
+import com.xabber.data.xmpp.messages.MessageDisplayType
+import com.xabber.data.xmpp.messages.MessageSendingState
 import com.xabber.databinding.FragmentMessageBinding
 import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.application.fragments.DetailBaseFragment
-import com.xabber.data.xmpp.messages.MessageDisplayType
-import com.xabber.data.xmpp.messages.MessageSendingState
+import com.xabber.presentation.application.util.StringUtils
+import java.util.*
+import kotlin.collections.ArrayList
 
 
 class MessageFragment : DetailBaseFragment(R.layout.fragment_message), MessageAdapter.Listener {
@@ -29,6 +33,8 @@ class MessageFragment : DetailBaseFragment(R.layout.fragment_message), MessageAd
     private var messageAdapter: MessageAdapter? = null
     private val viewModel = MessageViewModel()
     var name: String = ""
+    var position = 0
+    var offset = 0
 
     companion object {
         fun newInstance(_name: String) = MessageFragment().apply {
@@ -42,7 +48,14 @@ class MessageFragment : DetailBaseFragment(R.layout.fragment_message), MessageAd
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        if (savedInstanceState != null) name = savedInstanceState.getString("name", "")
+        if (savedInstanceState != null) {
+            name = savedInstanceState.getString("name", "")
+//val listState: Parcelable? = savedInstanceState.getParcelable("listState")
+         //   Log.d("listState", "$listState")
+            position = savedInstanceState.getInt("position")
+            offset = savedInstanceState.getInt("offset")
+        }
+
 
 
 
@@ -62,53 +75,199 @@ class MessageFragment : DetailBaseFragment(R.layout.fragment_message), MessageAd
 
         binding.messageList.adapter = adapter
         val lin = LinearLayoutManager(context)
-        lin.reverseLayout = true
+       lin.reverseLayout = true
+
         binding.messageList.layoutManager = lin
 
         val list = ArrayList<MessageDto>()
-         list.add(
+          list.add(
             MessageDto(
                 "1",
                 true,
                 "Кирилл Степанов",
                 "Геннадий Белов",
-                "Алексей присоединился к чату",
+                "2Apps often need to provide the user with a consistent experience for executing actions that are contextually specific. The most common actions for an activity live on the default Action Bar but actions that are more specific to an item or element can be displayed contextually using menus and popups. In addition to menus, apps often need to display popup overlays that contain informational content. This guide covers how to manage menus and popups within your Android apps.",
+                MessageSendingState.Read,
+                System.currentTimeMillis() + 2000000,
+                null,
+                MessageDisplayType.Text,
+                false,
+                false, null,false
+            )
+        )
+          list.add(
+            MessageDto(
+                "1",
+                true,
+                "Кирилл Степанов",
+                "Геннадий Белов",
+                "1Apps often need to provide the user with a consistent experience for executing actions that are contextually specific. The most common actions for an activity live on the default Action Bar but actions that are more specific to an item or element can be displayed contextually using menus and popups. In addition to menus, apps often need to display popup overlays that contain informational content. This guide covers how to manage menus and popups within your Android apps.",
+                MessageSendingState.Read,
+                System.currentTimeMillis() + 1000000,
+                null,
+                MessageDisplayType.Text,
+                false,
+                false, null,false
+            )
+        )
+        list.add(
+            MessageDto(
+                "1",
+                true,
+                "Кирилл Степанов",
+                "Геннадий Белов",
+                "Apps often need to provide the user with a consistent experience for executing actions that are contextually specific. The most common actions for an activity live on the default Action Bar but actions that are more specific to an item or element can be displayed contextually using menus and popups. In addition to menus, apps often need to display popup overlays that contain informational content. This guide covers how to manage menus and popups within your Android apps.",
                 MessageSendingState.Read,
                 System.currentTimeMillis(),
                 null,
+                MessageDisplayType.Text,
+                false,
+                false, null,false
+            )
+        )
+         list.add(
+            MessageDto(
+                "2",
+                true,
+                "Ann",
+                "Геннадий Белов",
+                "Алексей присоединился к чату",
+                MessageSendingState.Read,
+               12345678,
+                null,
                 MessageDisplayType.System,
                 false,
-                false
+                false,
+                null,false
             )
         )
-        list.add(
+  list.add(
             MessageDto(
-                "1",
-                false,
-                "АИ",
+                "3",
+                true,
+                "Кирилл Степанов",
                 "Геннадий Белов",
-                "Hi! What are you doing? I am go to school. It is very cold today. It is rain",
-                MessageSendingState.Sending,
-                System.currentTimeMillis(),
-                null,
-                MessageDisplayType.Files,
-                false,
-                false
-            )
-        )
-        list.add(
-            MessageDto(
-                "1",
-                false,
-                "АИ",
-                "Геннадий Белов",
-                "Hi!",
-                MessageSendingState.Sending,
-                System.currentTimeMillis(),
+                "What are you doing?",
+                MessageSendingState.Read,
+               5623450975,
                 null,
                 MessageDisplayType.Text,
                 false,
-                false
+                false,
+                null,false
+            )
+        )
+ list.add(
+            MessageDto(
+                "3",
+                true,
+                "Кирилл Степанов",
+                "Геннадий Белов",
+                "What are you doing?",
+                MessageSendingState.Read,
+               5623450975,
+                null,
+                MessageDisplayType.Text,
+                false,
+                false,
+                null,false
+            )
+        )
+ list.add(
+            MessageDto(
+                "3",
+                true,
+                "Кирилл Степанов",
+                "Геннадий Белов",
+                "What are you doing?",
+                MessageSendingState.Read,
+               5623450975,
+                null,
+                MessageDisplayType.Text,
+                false,
+                false,
+                null,false
+            )
+        )
+ list.add(
+            MessageDto(
+                "3",
+                true,
+                "Кирилл Степанов",
+                "Геннадий Белов",
+                "What are you doing?",
+                MessageSendingState.Read,
+               5623450975,
+                null,
+                MessageDisplayType.Text,
+                false,
+                false,
+                null,false
+            )
+        )
+
+list.add(
+            MessageDto(
+                "3",
+                true,
+                "Кирилл Степанов",
+                "Геннадий Белов",
+                "What are you doing?",
+                MessageSendingState.Read,
+               5623450975,
+                null,
+                MessageDisplayType.Text,
+                false,
+                false,
+                null,false
+            )
+        )
+ list.add(
+            MessageDto(
+                "3",
+                true,
+                "Кирилл Степанов",
+                "Геннадий Белов",
+                "What are you doing?",
+                MessageSendingState.Read,
+               5623450975,
+                null,
+                MessageDisplayType.Text,
+                false,
+                false,
+                null,false
+            )
+        )
+list.add(
+            MessageDto(
+                "3",
+                true,
+                "Кирилл Степанов",
+                "Геннадий Белов",
+                "What are you doing?",
+                MessageSendingState.Read,
+               5623450975,
+                null,
+                MessageDisplayType.Text,
+                false,
+                false,
+                null,false
+            )
+        )
+ list.add(
+            MessageDto(
+                "3",
+                true,
+                "Кирилл Степанов",
+                "Геннадий Белов",
+                "What are you doing?",
+                MessageSendingState.Read,
+               5623450975,
+                null,
+                MessageDisplayType.Text,
+                false,
+                false,
+                null,false
             )
         )
 
@@ -118,141 +277,30 @@ class MessageFragment : DetailBaseFragment(R.layout.fragment_message), MessageAd
                 true,
                 "Кирилл Степанов",
                 "Геннадий Белов",
-                "Как сажать картофель Лунки копают на штык лопаты. \nВ каждую кладут по 1 клубню, осторожно, чтобы не поломать ростки. Затем лунки засыпают землей. \nПосле того, как весь картофель посажен, участок боронуют граблями.",
-                MessageSendingState.Sended,
-                System.currentTimeMillis(),
+                "2Apps often need to provide the user with a consistent experience for executing actions that are contextually specific. The most common actions for an activity live on the default Action Bar but actions that are more specific to an item or element can be displayed contextually using menus and popups. In addition to menus, apps often need to display popup overlays that contain informational content. This guide covers how to manage menus and popups within your Android apps.",
+                MessageSendingState.Read,
+                System.currentTimeMillis() + 2000000,
                 null,
                 MessageDisplayType.Text,
                 false,
-                false
+                false, null,false
             )
         )
-
-        list.add(
-            MessageDto(
-                "1",
-                true,
-                "Кирилл Степанов",
-                "Геннадий Белов",
-                "yes",
-                MessageSendingState.Deliver,
-                System.currentTimeMillis(),
-                null,
-                MessageDisplayType.Text,
-                false,
-                false
-            )
-        )
-        list.add(
-            MessageDto(
-                "1",
-                true,
-                "Кирилл Степанов",
-                "Геннадий Белов",
-                "yes",
-                MessageSendingState.Deliver,
-                System.currentTimeMillis(),
-                null,
-                MessageDisplayType.Text,
-                false,
-                false
-            )
-        )
-        list.add(
-            MessageDto(
-                "1",
-                false,
-                "Алескей Иванов",
-                "Геннадий Белов",
-                "yes",
-                MessageSendingState.Deliver,
-                System.currentTimeMillis(),
-                null,
-                MessageDisplayType.Text,
-                false,
-                false
-            )
-        )
-        for (i in 0..2000) {
-            list.add(
-                MessageDto(
-                    "1",
-                    true,
-                    "Кирилл Степанов",
-                    "Геннадий Белов",
-                    "Соблюдай инструкцию",
-                    MessageSendingState.Read,
-                    System.currentTimeMillis(),
-                    null,
-                    MessageDisplayType.Text,
-                    false,
-                    false
-                )
-            )
-            list.add(
-                MessageDto(
-                    "1",
-                    true,
-                    "Кирилл Степанов",
-                    "Геннадий Белов",
-                    "Тебе все понятно?",
-                    MessageSendingState.Error,
-                    System.currentTimeMillis(),
-                    null,
-                    MessageDisplayType.Text,
-                    false,
-                    false
-                )
-            )
-            list.add(
-                MessageDto(
-                    "1",
-                    false,
-                    "Алескей Иванов",
-                    "Геннадий Белов",
-                    "Да, я все понял",
-                    MessageSendingState.Error,
-                    System.currentTimeMillis(),
-                    null,
-                    MessageDisplayType.Text,
-                    false,
-                    false
-                )
-            )
-            list.add(
-                MessageDto(
-                    "1",
-                    false,
-                    "Алескей Иванов",
-                    "Геннадий Белов",
-                    "Я иду сажать картофель. Буду не скоро",
-                    MessageSendingState.Error,
-                    System.currentTimeMillis(),
-                    null,
-                    MessageDisplayType.Text,
-                    false,
-                    false
-                )
-            )
-        }
-        list.add(
-            MessageDto(
-                "1",
-                false,
-                "Алескей Иванов",
-                "Геннадий Белов",
-                "First message",
-                MessageSendingState.Error,
-                System.currentTimeMillis(),
-                null,
-                MessageDisplayType.Text,
-                false,
-                false
-            )
-        )
-
-
+list.sort()
         adapter.submitList(list)
+      binding.messageList.scrollToPosition(0)
+        Handler(Looper.getMainLooper()).postDelayed(object : Runnable {
+            override fun run() {
+            binding.messageList.scrollBy(0, -182)
+            }
+        },200)
+
+//        binding.messageList.scrollBy(0, -626)
+       val manager = binding.messageList.layoutManager as LinearLayoutManager
+        val first = manager.findFirstVisibleItemPosition()
+       Log.d("listState", "${first}")
+// val manager = binding.messageList.layoutManager as LinearLayoutManager
+//       manager.scrollToPositionWithOffset(0, 1819)
         //  fillAdapter()
         initAnswer()
         initButton()
@@ -269,6 +317,15 @@ class MessageFragment : DetailBaseFragment(R.layout.fragment_message), MessageAd
             }
         })
 
+    }
+
+
+    private fun updateTopDateIfNeed() {
+        val layoutManager = binding.messageList.layoutManager as LinearLayoutManager
+        val position = layoutManager.findFirstVisibleItemPosition()
+       val message : MessageDto = messageAdapter!!.getItem(position)
+        if (message != null)
+            binding.tvTopDate.setText(StringUtils.getDateStringForMessage(message.t)
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -365,8 +422,15 @@ class MessageFragment : DetailBaseFragment(R.layout.fragment_message), MessageAd
     }
 
     override fun onDestroy() {
+
+val manager = binding.messageList.layoutManager as LinearLayoutManager
         AudioRecorder.releaseRecorder()
         messageAdapter = null
+      val a = manager.findFirstVisibleItemPosition()
+          val firstChild = binding.messageList.getChildAt(0)
+        val firstVisiblePosition = binding.messageList.getChildAdapterPosition(firstChild)
+        val offset = firstChild.top
+        Log.d("listState", "a = $a")
         super.onDestroy()
     }
 
@@ -384,6 +448,14 @@ class MessageFragment : DetailBaseFragment(R.layout.fragment_message), MessageAd
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putString("name", name)
+//        val manager = binding.messageList.layoutManager as LinearLayoutManager
+//        val current = manager.findFirstVisibleItemPosition()
+ //      val firstChild = binding.messageList.getChildAt(current)
+  // val firstVisiblePosition = binding.messageList.getChildAdapterPosition(firstChild)
+//        val offset = firstChild.top
+//        outState.putInt("position", firstVisiblePosition)
+//        outState.putInt("offset", offset)
+  //      Log.d("listState","current = $current, offset = $offset, position = $position")
     }
 
     private fun sendMessage() {
@@ -395,6 +467,5 @@ class MessageFragment : DetailBaseFragment(R.layout.fragment_message), MessageAd
     override fun editMessage(primary: String) {
        Toast.makeText(context, primary, Toast.LENGTH_SHORT).show()
     }
-
 
 }

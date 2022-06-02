@@ -23,6 +23,7 @@ data class ChatListDto(
     val status: ResourceStatus,
     val entity: RosterItemEntity,
     val unreadString: String?,
+    val lastPosition: Int = 0
  //   @ColorRes
  //   val colorId: Int,
   //  val userNickname: String?, // имя в чате

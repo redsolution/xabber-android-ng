@@ -3,11 +3,13 @@ package com.xabber.presentation.application.fragments.message
 import android.annotation.SuppressLint
 import android.graphics.PorterDuff
 import android.graphics.drawable.Drawable
+import android.os.Build
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.widget.*
+import androidx.annotation.RequiresApi
 import androidx.appcompat.view.menu.MenuBuilder
 import androidx.appcompat.view.menu.MenuPopupHelper
 import androidx.appcompat.widget.CustomPopupMenu
@@ -17,105 +19,85 @@ import androidx.core.view.isVisible
 import com.bumptech.glide.Glide
 import com.xabber.R
 import com.xabber.data.dto.MessageDto
+import com.xabber.data.util.dp
 import com.xabber.presentation.application.fragments.message.MessageAdapter.Companion.INCOMING_MESSAGE
 import com.xabber.presentation.application.fragments.message.MessageAdapter.Companion.OUTGOING_MESSAGE
 import com.xabber.presentation.application.util.StringUtils
 import com.xabber.data.xmpp.messages.MessageSendingState
 import com.xabber.data.xmpp.messages.MessageSendingState.*
+import com.xabber.databinding.ItemMessageOutgoingBinding
 import java.util.*
 
 
-class MessageViewHolder(
-    private val view: View,
+class OutgoingMessageVH(
+    private val binding: ItemMessageOutgoingBinding,
     private val listener: MessageAdapter.Listener
-) : BasicViewHolder(view) {
+) : BasicViewHolder(binding.root) {
 
-    private val tvContent: TextView = view.findViewById(R.id.tv_content)
-    private val tvTime: TextView = view.findViewById(R.id.tv_sending_time)
-    private val messageBalloon: RelativeLayout = view.findViewById(R.id.balloon)
-
-
+   @RequiresApi(Build.VERSION_CODES.N)
    @SuppressLint("RestrictedApi")
-   override fun bind(itemModel: MessageDto, next: String) {
+   override fun bind(message: MessageDto, isNeedTail: Boolean, needDay: Boolean) {
         // text & appearance
-        tvContent.text =
-            itemModel.messageBody //  tvContent.setTextAppearance(SettingsManager.chatsAppearanceStyle()) - берем из класса настроек
+       binding.tvContent.isVisible = message.messageBody != null
+        if (message.messageBody != null) binding.tvContent.text = message.messageBody
+       //  tvContent.setTextAppearance(SettingsManager.chatsAppearanceStyle()) - берем из класса настроек
+
+       // date
+        binding.messageDate.tvDate.isVisible = needDay
+        binding.messageDate.tvDate.text = StringUtils.getDateStringForMessage(message.sentTimestamp)
 
         // time
-        val date = Date(itemModel.sentTimestamp)
-        val time = StringUtils.getTimeText(view.context, date)
-        tvTime.text = time
+        val date = Date(message.sentTimestamp)
+        val time = StringUtils.getTimeText(binding.tvSendingTime.context, date)
+        binding.tvSendingTime. text = time
 
         // status
-        if (itemModel.isOutgoing) setStatus(
-            view.findViewById(R.id.image_message_status),
-            itemModel.messageSendingState
+        if (message.isOutgoing) setStatus(
+           binding.imageMessageStatus,
+            message.messageSendingState
         )
 
-        // color
-        //     messageBalloon.backgroundTintList = ColorStateList.valueOf(R.color.blue_50)
 
+//dateMessage.isVisible = need
 
-        // needTail
-        var needTail = false
         //  val nextMessage = getMessage(position + 1)
         //   if (nextMessage != null)
-        needTail = itemModel.owner != next
-        if (itemViewType == INCOMING_MESSAGE) {
+
             val params = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
             )
-            params.setMargins(if (needTail) 2 else 24, 0, 0, 0)
-            messageBalloon.layoutParams = params
-            messageBalloon.setPadding(if (needTail) 54 else 26, 26, 26, 26)
-        } else {
-            val params = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            )
-            params.setMargins(0, 0, if (needTail) 2 else 24, 0)
-            messageBalloon.layoutParams = params
-            messageBalloon.setPadding(24, 24, if (needTail) 46 else 24, 24)
-        }
+            params.setMargins(50.dp, 2.dp, if (isNeedTail) 2.dp else 11.dp, 2.dp)
+            binding.balloon.layoutParams = params
+            binding.balloon.setPadding(16.dp, 8.dp, if (isNeedTail) 14.dp else 8.dp, 10.dp)
+
 
 
         val typedValue = TypedValue()
-        view.context.theme.resolveAttribute(R.attr.message_background, typedValue, true)
+        binding.root.context.theme.resolveAttribute(R.attr.message_background, typedValue, true)
         val shadowDrawable: Drawable =
-            ContextCompat.getDrawable(view.context, R.drawable.fwd_out_shadow)!!
+            ContextCompat.getDrawable(binding.root.context, R.drawable.fwd_out_shadow)!!
         shadowDrawable.setColorFilter(
-            ContextCompat.getColor(view.context, R.color.black),
+            ContextCompat.getColor(binding.root.context, R.color.black),
             PorterDuff.Mode.MULTIPLY
         )
-        if (itemViewType == OUTGOING_MESSAGE) {
-            messageBalloon.setBackgroundDrawable(
-                ContextCompat.getDrawable(
-                    view.context,
-                    if (needTail) R.drawable.msg_out else R.drawable.msg
-                )
-            )
 
-        } else {
+            binding.balloon.setBackgroundDrawable(
+                ContextCompat.getDrawable(
+                    binding.root.context,
+                    if (isNeedTail) R.drawable.msg_out else R.drawable.msg
+                ))
+
+
+
             // tvContent.marginStart = if (needTail) 20 else 11
-            messageBalloon.setBackgroundDrawable(
-                ContextCompat.getDrawable(
-                    view.context,
-                    if (needTail) R.drawable.msg_in else R.drawable.msg
-                )
-            )
 
-        }
-
-
-
-
-          view.setOnClickListener {
+          binding.root.setOnClickListener {
             val popup = CustomPopupMenu(it.context, it, Gravity.CENTER)
-              if (itemModel.isOutgoing) popup.inflate(R.menu.context_menu_message_outgoing)
+              if (message.isOutgoing) popup.inflate(R.menu.context_menu_message_outgoing)
               else popup.inflate(R.menu.context_menu_message_incoming)
 
-              val menuHealper = MenuPopupHelper(it.context, popup.menu as MenuBuilder, view)
+              val menuHealper = MenuPopupHelper(it.context, popup.menu as MenuBuilder, binding.root)
               menuHealper.setForceShowIcon(true)
           menuHealper.show()
 
@@ -125,7 +107,7 @@ class MessageViewHolder(
                     R.id.forward -> {}
                    R.id.reply -> {}
                     R.id.delete_message -> {}
-                    R.id.edit -> { listener.editMessage(itemModel.primary) }
+                    R.id.edit -> { listener.editMessage(message.primary) }
                 }
                 true
             }
@@ -194,10 +176,7 @@ class MessageViewHolder(
         val balloonDrawable = ResourcesCompat.getDrawable(
             itemView.resources,
             if (isMessageNeedTail)
-                if (messageDto.isOutgoing)
                     R.drawable.msg_out
-                else
-                    R.drawable.msg_in
             else
                 R.drawable.msg,
             itemView.context.theme
@@ -209,7 +188,7 @@ class MessageViewHolder(
                     itemView.context.theme
                 ), PorterDuff.Mode.MULTIPLY
             )
-        messageBalloon.background = balloonDrawable
+        binding.balloon.background = balloonDrawable
 
         val shadowDrawable = ResourcesCompat.getDrawable(
             itemView.resources,

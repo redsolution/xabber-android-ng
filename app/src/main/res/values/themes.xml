@@ -15,7 +15,7 @@
         <item name="android:navigationBarColor">@color/grey_100</item>
     </style>
 
-    <style name="ThemeApplication" parent="Theme.MaterialComponents.Light.DarkActionBar">
+    <style name="ThemeApplication" parent="Theme.AppCompat.Light.DarkActionBar">
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
         <item name="android:textColorPrimary">@color/black</item>
@@ -30,6 +30,7 @@
          <item name="contact_list_contact_background">@color/white</item>
         <item name="android:popupMenuStyle">@style/popupMenuStyle</item>
         <item name="popupMenuStyle">@style/popupMenuStyle</item>
+        <item name="transparent_rounded_background">@drawable/rounded_background_grey_transparent</item>
 
     </style>
 
@@ -85,6 +86,7 @@
         <item name="android:layout_marginBottom">4dp</item>
         <item name="android:gravity">center</item>
     </style>
+
 
     <!--        <item name="bars_color">#eeeeee</item>-->
 
@@ -322,5 +324,6 @@
 <style name="popupMenuStyle" parent="Theme.MaterialComponents.Light.DarkActionBar">
     <item name="popupMenuBackground">@drawable/menu_background</item>
     <item name="android:popupBackground">@drawable/menu_background</item>
+    <item name="android:dropDownHorizontalOffset">16dp</item>
 </style>
 </resources>

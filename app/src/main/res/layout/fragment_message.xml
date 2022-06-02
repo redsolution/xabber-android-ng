@@ -5,118 +5,131 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <com.google.android.material.appbar.MaterialToolbar
-        android:id="@+id/message_toolbar"
+    <com.google.android.material.appbar.AppBarLayout
+        android:id="@+id/appbar_messages"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:background="@color/blue_300"
+        app:elevation="6dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:menu="@menu/message_menu">
+        app:layout_constraintTop_toTopOf="parent">
 
-        <ImageView
-            android:id="@+id/message_icon_back"
-            android:layout_width="wrap_content"
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/message_toolbar"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:contentDescription="@string/image_description_close"
-            android:src="@drawable/ic_material_close_24" />
+            app:menu="@menu/message_menu">
 
-        <androidx.constraintlayout.widget.ConstraintLayout
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content">
-
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/avatar_container"
-                android:layout_width="32dp"
-                android:layout_height="32dp"
-                android:layout_marginStart="12dp"
-                android:focusable="false"
-                android:theme="@style/Theme.MaterialComponents.NoActionBar"
-                app:cardCornerRadius="16dp"
-                app:cardElevation="0dp"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent">
-
-                <ImageView
-                    android:id="@+id/im_avatar"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:focusable="false"
-                    app:srcCompat="@drawable/ic_xabber_icon"
-                    tools:src="@tools:sample/avatars" />
-
-
-            </com.google.android.material.card.MaterialCardView>
-
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/avatar_status"
-                android:layout_width="8dp"
-                android:layout_height="8dp"
-                android:layout_margin="23dp"
-                android:elevation="0dp"
-                android:theme="@style/Theme.MaterialComponents.Light.NoActionBar"
-                android:visibility="visible"
-                app:cardBackgroundColor="@color/green_500"
-                app:cardCornerRadius="6dp"
-                app:cardElevation="0dp"
-                app:contentPadding="1dp"
-                app:layout_constraintStart_toStartOf="@id/avatar_container"
-                app:layout_constraintTop_toTopOf="@id/avatar_container"
-                app:strokeColor="@color/white"
-                app:strokeWidth="1dp"
-                tools:visibility="visible" />
-
-            <LinearLayout
+            <ImageView
+                android:id="@+id/message_icon_back"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="16dp"
-                android:orientation="vertical"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toEndOf="@id/avatar_container"
-                app:layout_constraintTop_toTopOf="parent">
+                android:contentDescription="@string/image_description_close"
+                android:src="@drawable/ic_material_close_24" />
 
-                <TextView
-                    android:id="@+id/message_user_name"
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content">
+
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/avatar_container"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:layout_marginStart="12dp"
+                    android:focusable="false"
+                    android:theme="@style/Theme.MaterialComponents.NoActionBar"
+                    app:cardCornerRadius="16dp"
+                    app:cardElevation="0dp"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent">
+
+                    <ImageView
+                        android:id="@+id/im_avatar"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:focusable="false"
+                        app:srcCompat="@drawable/ic_xabber_icon"
+                        tools:src="@tools:sample/avatars" />
+
+
+                </com.google.android.material.card.MaterialCardView>
+
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/avatar_status"
+                    android:layout_width="8dp"
+                    android:layout_height="8dp"
+                    android:layout_margin="23dp"
+                    android:elevation="0dp"
+                    android:theme="@style/Theme.MaterialComponents.Light.NoActionBar"
+                    android:visibility="visible"
+                    app:cardBackgroundColor="@color/green_500"
+                    app:cardCornerRadius="6dp"
+                    app:cardElevation="0dp"
+                    app:contentPadding="1dp"
+                    app:layout_constraintStart_toStartOf="@id/avatar_container"
+                    app:layout_constraintTop_toTopOf="@id/avatar_container"
+                    app:strokeColor="@color/white"
+                    app:strokeWidth="1dp"
+                    tools:visibility="visible" />
+
+                <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:textColor="@color/black"
-                    android:textSize="19sp" />
+                    android:layout_marginStart="16dp"
+                    android:orientation="vertical"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintStart_toEndOf="@id/avatar_container"
+                    app:layout_constraintTop_toTopOf="parent">
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Available"
-                    android:textSize="13sp" />
+                    <TextView
+                        android:id="@+id/message_user_name"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textColor="@color/black"
+                        android:textSize="19sp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Available"
+                        android:textSize="13sp" />
 
 
-            </LinearLayout>
-        </androidx.constraintlayout.widget.ConstraintLayout>
-    </com.google.android.material.appbar.MaterialToolbar>
+                </LinearLayout>
+            </androidx.constraintlayout.widget.ConstraintLayout>
+        </com.google.android.material.appbar.MaterialToolbar>
+    </com.google.android.material.appbar.AppBarLayout>
 
 
-    <FrameLayout
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:background="@drawable/chat_background"
-        app:layout_constraintBottom_toTopOf="@id/answer"
+    <TextView
+        android:id="@+id/tvTopDate"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:background="?attr/transparent_rounded_background"
+        android:paddingLeft="8dp"
+        android:paddingTop="2dp"
+        android:paddingRight="8dp"
+        android:paddingBottom="2dp"
+        android:text="21 January"
+        android:textColor="@color/white"
+        android:textStyle="bold"
+        android:visibility="visible"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/message_toolbar"
-        app:layout_constraintVertical_bias="1">
+        app:layout_constraintTop_toBottomOf="@id/appbar_messages" />
 
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/message_list"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:scrollbars="vertical"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintEnd_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/appbar_messages" />
 
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/message_list"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:layout_gravity="bottom"
-            android:orientation="vertical"
-            tools:itemCount="4" />
-
-
-    </FrameLayout>
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/answer"
