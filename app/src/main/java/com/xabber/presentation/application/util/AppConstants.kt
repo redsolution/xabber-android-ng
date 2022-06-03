@@ -9,6 +9,8 @@ const val UNREAD_MESSAGES_COUNT = "unread messages count"
     const val TEMP_FILE_NAME = "cropped"
     const val REQUEST_TAKE_PHOTO = 3
 
+    const val DIALOG_TAG = "dialog_tag"
+
     val PUBLIC_DOWNLOADS = Uri.parse("content://downloads/public_downloads")
 
 }

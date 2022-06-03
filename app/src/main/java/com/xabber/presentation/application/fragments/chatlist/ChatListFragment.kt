@@ -237,7 +237,8 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat), ChatListAdapter.C
     }
 
     override fun turnOfNotifications(id: String) {
-        NotificationBottomSheet().show(parentFragmentManager, null)
+        val dialog = NotificationBottomSheet()
+      navigator().showBottomSheetDialog(dialog)
         //  viewModel.turnOfNotifications(id)
     }
 

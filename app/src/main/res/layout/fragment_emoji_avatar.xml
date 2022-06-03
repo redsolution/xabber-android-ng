@@ -261,7 +261,7 @@
                 android:layout_height="24dp"
                 android:layout_gravity="center"
                 android:background="@null"
-                app:srcCompat="@drawable/ic_edit_material_24"
+                app:srcCompat="@drawable/ic_edit_grey"
                 tools:ignore="SpeakableTextPresentCheck" />
         </androidx.cardview.widget.CardView>
 

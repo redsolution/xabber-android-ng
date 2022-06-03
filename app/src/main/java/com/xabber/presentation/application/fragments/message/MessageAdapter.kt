@@ -103,14 +103,19 @@ class MessageAdapter(
 
 
     override fun getItemViewType(position: Int): Int {
-        return if (getItem(position).displayType == MessageDisplayType.System) {
-            SYSTEM_MESSAGE
-        } else if (getItem(position).isOutgoing) {
-            OUTGOING_MESSAGE
-        } else if (getItem(position).isGroup) {
-            GROUP_INCOMING_MESSAGE
-        } else {
-            INCOMING_MESSAGE
+        return when {
+            getItem(position).displayType == MessageDisplayType.System -> {
+                SYSTEM_MESSAGE
+            }
+            getItem(position).isOutgoing -> {
+                OUTGOING_MESSAGE
+            }
+            getItem(position).isGroup -> {
+                GROUP_INCOMING_MESSAGE
+            }
+            else -> {
+                INCOMING_MESSAGE
+            }
         }
     }
 }

@@ -4,6 +4,7 @@ import android.content.Intent
 import android.content.res.Configuration
 import android.content.res.Resources
 import android.os.Bundle
+import android.provider.SyncStateContract
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.res.ResourcesCompat
@@ -12,6 +13,8 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.commit
 import androidx.slidingpanelayout.widget.SlidingPaneLayout
 import com.google.android.material.badge.BadgeDrawable
+import com.google.android.material.bottomsheet.BottomSheetDialog
+import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.xabber.R
 import com.xabber.presentation.application.util.AppConstants
 import com.xabber.data.util.dp
@@ -29,6 +32,7 @@ import com.xabber.presentation.application.fragments.settings.SettingsFragment
 import com.xabber.presentation.onboarding.activity.OnBoardingActivity
 import com.xabber.data.xmpp.account.AccountStorageItem
 import com.xabber.data.xmpp.presences.ResourceStorageItem
+import com.xabber.presentation.application.fragments.message.AttachDialog
 import io.realm.Realm
 import io.realm.RealmConfiguration
 import io.realm.query
@@ -177,6 +181,10 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
         binding.slidingPaneLayout.openPane()
     }
 
+    override fun showBottomSheetDialog(dialog: BottomSheetDialogFragment) {
+        dialog.show(supportFragmentManager, AppConstants.DIALOG_TAG)
+    }
+
     override fun closeDetail() {
         if (supportFragmentManager.backStackEntryCount > 0) supportFragmentManager.popBackStack()
         else {
@@ -185,6 +193,7 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
             if (binding.slidingPaneLayout.isOpen) binding.slidingPaneLayout.close()
         }
     }
+
 
     override fun onSupportNavigateUp(): Boolean {
         onBackPressed()

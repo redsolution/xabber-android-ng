@@ -209,7 +209,6 @@
     <string name="skip">Skip</string>
     <string name="record_cancel">slide to cancel</string>
 
-
     <!-- DISCOVER FRAGMENT -->
     <string name="discover_toolbar_title">Discover</string>
 
@@ -229,6 +228,11 @@
     <string name="button_add_to_contacts">add to contacts</string>
     <string name="im_description_close_board">close_board</string>
     <string name="im_description_downward">downward</string>
+    <string name="message_item_popup_menu_copy">Copy</string>
+    <string name="message_item_popup_menu_forward">Forward</string>
+    <string name="message_item_popup_menu_reply">Reply</string>
+    <string name="message_item_popup_menu_edit">Edit</string>
+    <string name="message_item_popup_menu_delete">Delete</string>
 
 
 </resources>

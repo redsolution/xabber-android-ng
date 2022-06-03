@@ -1,8 +1,12 @@
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:height="20dp"
-    android:width="20dp"
+    android:width="24dp"
+    android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
-    <path android:fillColor="?attr/contact_list_account_group_small_right_icon_color"
-        android:fillAlpha="0.5" android:pathData="M7.41,8.58L12,13.17L16.59,8.58L18,10L12,16L6,10L7.41,8.58Z" />
+  <path
+      android:pathData="M7.41,8.58l4.59,4.59l4.59,-4.59l1.41,1.42l-6,6l-6,-6z"
+      android:strokeWidth="1"
+      android:fillColor="@color/grey_600"
+      android:fillType="nonZero"
+      android:strokeColor="#00000000"/>
 </vector>

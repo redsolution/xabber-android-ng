@@ -9,7 +9,13 @@
     android:background="@color/blue_300"
     android:backgroundTint="#7F64B5F6"
     app:cardCornerRadius="8dp"
-    app:cardElevation="0dp">
+    app:cardElevation="0dp"
+    android:layout_gravity="center"
+    android:maxWidth="400dp"
+    android:layout_marginStart="16dp"
+    android:layout_marginBottom="6dp"
+    android:layout_marginTop="6dp"
+    android:layout_marginEnd="16dp">
 
 <androidx.constraintlayout.widget.ConstraintLayout
     android:id="@+id/cardview_about_chat"
@@ -17,7 +23,7 @@
     android:layout_height="wrap_content">
 
     <ImageView
-        android:id="@+id/imageView2"
+        android:id="@+id/image_view_chat_icon"
         android:layout_width="100dp"
         android:layout_height="100dp"
         android:layout_gravity="center"
@@ -38,7 +44,7 @@
         app:layout_constraintBottom_toTopOf="@+id/tv_about_chat_description"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/imageView2"
+        app:layout_constraintTop_toBottomOf="@+id/image_view_chat_icon"
         android:layout_marginBottom="12dp"/>
 
     <TextView
@@ -64,10 +70,10 @@
         app:layout_constraintStart_toStartOf="parent"
         android:background="@color/white"
         android:layout_marginBottom="8dp"
-        app:layout_constraintBottom_toTopOf="@id/link_about_messages"/>
+        app:layout_constraintBottom_toTopOf="@id/link_more"/>
 
     <TextView
-        android:id="@+id/link_about_messages"
+        android:id="@+id/link_more"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="more about messaging"

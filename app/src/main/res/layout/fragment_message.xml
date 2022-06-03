@@ -102,6 +102,17 @@
     </com.google.android.material.appbar.AppBarLayout>
 
 
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/message_list"
+        android:background="@drawable/chat_background"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:scrollbars="vertical"
+        app:layout_constraintBottom_toTopOf="@id/input_layout"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/appbar_messages" />
+
     <TextView
         android:id="@+id/tvTopDate"
         android:layout_width="wrap_content"
@@ -119,17 +130,6 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/appbar_messages" />
-
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/message_list"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:scrollbars="vertical"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintEnd_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/appbar_messages" />
-
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/answer"
@@ -225,7 +225,7 @@
             app:srcCompat="@drawable/ic_material_emoticon_outline_24"
             app:tint="@color/grey_500" />
 
-        <com.google.android.material.textfield.TextInputEditText
+        <EditText
             android:id="@+id/chat_input"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
