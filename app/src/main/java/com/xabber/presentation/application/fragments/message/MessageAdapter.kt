@@ -27,6 +27,10 @@ class MessageAdapter(
     }
 
     interface Listener {
+        fun copyText(text: String)
+        fun forwardMessage(messageDto: MessageDto)
+        fun replyMessage(messageDto: MessageDto)
+        fun deleteMessage(messageDto: MessageDto)
         fun editMessage(primary: String)
     }
 
@@ -68,8 +72,7 @@ class MessageAdapter(
                         LayoutInflater.from(parent.context),
                         parent,
                         false
-                    )
-                )
+                    ))
             }
             else -> {
                 throw IllegalStateException("Unsupported message view type!")

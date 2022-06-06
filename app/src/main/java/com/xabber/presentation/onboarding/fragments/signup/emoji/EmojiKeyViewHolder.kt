@@ -1,4 +1,4 @@
-package com.xabber.presentation.onboarding.fragments.signup
+package com.xabber.presentation.onboarding.fragments.signup.emoji
 
 import androidx.recyclerview.widget.RecyclerView
 import com.xabber.databinding.ItemEmojiKeyBinding

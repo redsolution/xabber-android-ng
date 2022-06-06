@@ -5,10 +5,12 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.bumptech.glide.Glide
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.xabber.databinding.AttachDialogBinding
+import com.xabber.presentation.application.contract.navigator
 
-class AttachDialog : BottomSheetDialogFragment() {
+class AttachDialog(private val listener: Listener) : BottomSheetDialogFragment() {
     private var _binding: AttachDialogBinding? = null
     private val binding get() = _binding!!
 
@@ -40,10 +42,19 @@ class AttachDialog : BottomSheetDialogFragment() {
 
     private fun initDialogActions() {
         with(binding) {
-            attachCameraButton.setOnClickListener { }
-            attachGalleryButton.setOnClickListener { }
-            attachFileButton.setOnClickListener { }
-            attachSendButton.setOnClickListener { }
+            attachCameraButton.setOnClickListener {
+            listener.onCameraClick()
+              dismiss()
+            }
+            attachGalleryButton.setOnClickListener {
+
+            }
+            attachFileButton.setOnClickListener {
+
+            }
+           attachCheckButton.setOnClickListener {
+               dismiss()
+           }
         }
     }
 

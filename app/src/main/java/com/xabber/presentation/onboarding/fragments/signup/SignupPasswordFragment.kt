@@ -30,7 +30,6 @@ class SignupPasswordFragment : Fragment() {
     ): View {
         _binding = FragmentSignupPasswordBinding.inflate(inflater)
         return binding.root
-        Log.d("password", "PasswordFragment")
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -62,9 +61,8 @@ class SignupPasswordFragment : Fragment() {
 
     private fun initButton() {
         binding.passwordBtnNext.setOnClickListener {
-            Log.d("ggg", "hhhh")
             viewModel.setPassword(binding.passwordEditText.text.toString())
-            navigator().registerAccount()
+         //   navigator().registerAccount()
             navigator().startSignupAvatarFragment()
         }
     }

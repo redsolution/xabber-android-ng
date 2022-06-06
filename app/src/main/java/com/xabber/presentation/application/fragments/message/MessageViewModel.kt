@@ -1,9 +1,10 @@
 package com.xabber.presentation.application.fragments.message
 
-import android.provider.Settings
+import android.graphics.Bitmap
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import com.xabber.data.dto.FileDto
 import com.xabber.data.dto.MessageDto
 import com.xabber.data.xmpp.messages.MessageDisplayType
 import com.xabber.data.xmpp.messages.MessageSendingState
@@ -12,6 +13,9 @@ class MessageViewModel : ViewModel() {
     private val _messages = MutableLiveData<ArrayList<MessageDto>>()
     val messages: LiveData<ArrayList<MessageDto>> = _messages
     private val messageList = ArrayList<MessageDto>()
+
+    private val _files = MutableLiveData<ArrayList<FileDto>>()
+    val files: LiveData<ArrayList<FileDto>> = _files
 
     fun initList() {
         for (i in 0..5000) {
@@ -198,9 +202,17 @@ class MessageViewModel : ViewModel() {
         _messages.value = messageList
     }
 
+    fun addFile(bitmap: Bitmap) {
+        _files.value!!.add(FileDto(1, "", bitmap))
+    }
 
     fun insertMessage(messageDto: MessageDto) {
         messageList.add(messageDto)
+        _messages.value = messageList
+    }
+
+    fun deleteMessage(messageDto: MessageDto) {
+        messageList.remove(messageDto)
         _messages.value = messageList
     }
 }

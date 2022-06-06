@@ -3,8 +3,9 @@ package com.xabber.presentation.application.activity
 import android.content.Intent
 import android.content.res.Configuration
 import android.content.res.Resources
+import android.graphics.Bitmap
 import android.os.Bundle
-import android.provider.SyncStateContract
+import android.util.Log
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.res.ResourcesCompat
@@ -13,11 +14,11 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.commit
 import androidx.slidingpanelayout.widget.SlidingPaneLayout
 import com.google.android.material.badge.BadgeDrawable
-import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.xabber.R
-import com.xabber.presentation.application.util.AppConstants
 import com.xabber.data.util.dp
+import com.xabber.data.xmpp.account.AccountStorageItem
+import com.xabber.data.xmpp.presences.ResourceStorageItem
 import com.xabber.databinding.ActivityApplicationBinding
 import com.xabber.presentation.application.contract.ApplicationNavigator
 import com.xabber.presentation.application.fragments.account.AccountFragment
@@ -29,16 +30,17 @@ import com.xabber.presentation.application.fragments.contacts.NewContactFragment
 import com.xabber.presentation.application.fragments.discover.DiscoverFragment
 import com.xabber.presentation.application.fragments.message.MessageFragment
 import com.xabber.presentation.application.fragments.settings.SettingsFragment
+import com.xabber.presentation.application.util.AppConstants
 import com.xabber.presentation.onboarding.activity.OnBoardingActivity
-import com.xabber.data.xmpp.account.AccountStorageItem
-import com.xabber.data.xmpp.presences.ResourceStorageItem
-import com.xabber.presentation.application.fragments.message.AttachDialog
 import io.realm.Realm
 import io.realm.RealmConfiguration
 import io.realm.query
 
 class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
     private val viewModel: ApplicationViewModel by viewModels()
+
+    //  private val messageViewModel: MessageViewModel by viewModels()
+    private var bitmap: Bitmap? = null
     private val binding: ActivityApplicationBinding by lazy {
         ActivityApplicationBinding.inflate(
             layoutInflater
@@ -47,6 +49,7 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
 
     private val activeFragment: Fragment?
         get() = supportFragmentManager.findFragmentById(R.id.application_container)
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -204,6 +207,12 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
         onBackPressed()
     }
 
+    override fun showChatFragment() {
+        if (slidingPaneLayoutIsOpen()) launchDetailInStack(ChatListFragment())
+        Log.d("sliding", "activity ${slidingPaneLayoutIsOpen()}")
+
+    }
+
     override fun showMessage(jid: String) {
         launchDetail(MessageFragment.newInstance(jid))
     }
@@ -244,6 +253,15 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
         super.onSaveInstanceState(outState)
         viewModel.unreadCount.value?.let { outState.putInt(AppConstants.UNREAD_MESSAGES_COUNT, it) }
     }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        //  requestCameraPermissionLauncher.unregister()
+
+    }
+
+
+    override fun slidingPaneLayoutIsOpen(): Boolean = binding.slidingPaneLayout.isOpen
 }
 
 

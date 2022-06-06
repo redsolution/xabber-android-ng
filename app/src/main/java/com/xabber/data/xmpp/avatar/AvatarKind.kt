@@ -4,5 +4,5 @@ enum class AvatarKind(val rawValue: String) {
     None("none"),
     Vcard("vcard"),
     Pep("pep"),
-    xabber("xabber")
+    Xabber("xabber")
 }

@@ -60,7 +60,7 @@ class ReplySwipeCallback(context: Context) : ItemTouchHelper.Callback(), View.On
     ): Int {
         return makeMovementFlags(
             0,
-            if (swipeEnabled) ItemTouchHelper.LEFT else 0
+            if (swipeEnabled && viewHolder.itemViewType != MessageAdapter.SYSTEM_MESSAGE) ItemTouchHelper.LEFT else 0
         )
     }
 

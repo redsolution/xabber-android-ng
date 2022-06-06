@@ -16,10 +16,10 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
 import com.soundcloud.android.crop.Crop
 import com.xabber.R
-import com.xabber.presentation.application.util.AppConstants.REQUEST_TAKE_PHOTO
-import com.xabber.presentation.application.util.AppConstants.TEMP_FILE_NAME
 import com.xabber.databinding.ActivityOnboardingBinding
 import com.xabber.presentation.application.activity.ApplicationActivity
+import com.xabber.presentation.application.util.AppConstants.REQUEST_TAKE_PHOTO
+import com.xabber.presentation.application.util.AppConstants.TEMP_FILE_NAME
 import com.xabber.presentation.onboarding.contract.Navigator
 import com.xabber.presentation.onboarding.contract.ToolbarChanger
 import com.xabber.presentation.onboarding.fragments.signin.SigninFragment
@@ -34,7 +34,7 @@ import kotlinx.coroutines.launch
 import java.io.File
 import java.io.IOException
 
-/** OnBoarding Activity is for reg
+/** OnBoarding Activity allows the user to log in or register in the application
  *
  */
 
@@ -118,7 +118,6 @@ class OnBoardingActivity : AppCompatActivity(), Navigator, ToolbarChanger {
 
     override fun goToApplicationActivity(isSignedIn: Boolean) {
         val intent = Intent(this, ApplicationActivity::class.java)
-        intent.putExtra("isSignedIn", true)
         startActivity(intent)
         finish()
         overridePendingTransition(R.animator.appearance, R.animator.disappearance)
@@ -126,6 +125,11 @@ class OnBoardingActivity : AppCompatActivity(), Navigator, ToolbarChanger {
 
     override fun goBack() {
         onBackPressed()
+    }
+
+    override fun onSupportNavigateUp(): Boolean {
+        onBackPressed()
+        return true
     }
 
     override fun openCamera() {
@@ -142,19 +146,14 @@ class OnBoardingActivity : AppCompatActivity(), Navigator, ToolbarChanger {
         }
     }
 
-    override fun onSupportNavigateUp(): Boolean {
-        onBackPressed()
-        return true
-    }
-
     private fun onGotCameraPermissionResult(granted: Boolean) {
         if (granted) {
             takePhoto()
         } else {
             if (!shouldShowRequestPermissionRationale(Manifest.permission.CAMERA)) {
-                askUserForOpeningAppSettings()
-            } else {
                 Toast.makeText(this, R.string.permission_denied_toast, Toast.LENGTH_SHORT).show()
+            } else {
+                askUserForOpeningAppSettings()
             }
         }
     }
@@ -236,6 +235,12 @@ class OnBoardingActivity : AppCompatActivity(), Navigator, ToolbarChanger {
     override fun setShowBack(isVisible: Boolean) {
         supportActionBar?.setDisplayHomeAsUpEnabled(isVisible)
         supportActionBar?.setDisplayShowHomeEnabled(isVisible)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        requestGalleryPermissionLauncher.unregister()
+        requestCameraPermissionLauncher.unregister()
     }
 
 //    private fun getFileUri(file: File): Uri {

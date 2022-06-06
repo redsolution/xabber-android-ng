@@ -1,4 +1,4 @@
-package com.xabber.presentation.onboarding.fragments.signup
+package com.xabber.presentation.onboarding.fragments.signup.emoji
 
 import android.content.Context
 import android.graphics.Bitmap

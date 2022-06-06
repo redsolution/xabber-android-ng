@@ -104,11 +104,11 @@
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/message_list"
-        android:background="@drawable/chat_background"
         android:layout_width="0dp"
         android:layout_height="0dp"
+        android:background="@drawable/chat_background"
         android:scrollbars="vertical"
-        app:layout_constraintBottom_toTopOf="@id/input_layout"
+        app:layout_constraintBottom_toTopOf="@id/answer"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/appbar_messages" />
@@ -131,14 +131,32 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/appbar_messages" />
 
+    <FrameLayout
+        android:id="@+id/frameLayout_attached_files"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:background="@color/white"
+        app:layout_constraintBottom_toTopOf="@id/input_layout"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/attached_files"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal" />
+
+    </FrameLayout>
+
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/answer"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
+        android:background="@color/white"
         android:padding="8dp"
         android:visibility="gone"
-        app:layout_constraintBottom_toTopOf="@id/line"
+        app:layout_constraintBottom_toTopOf="@id/frameLayout_attached_files"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent">
 
@@ -153,13 +171,14 @@
             app:layout_constraintTop_toTopOf="parent" />
 
         <TextView
-            android:id="@+id/answer_title"
+            android:id="@+id/reply_message_title"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginStart="8dp"
             android:layout_marginBottom="4dp"
+            android:ellipsize="end"
             android:gravity="start"
-            android:text="title"
+            android:maxLines="1"
             android:textColor="@color/blue_500"
             android:textSize="15sp"
             android:textStyle="bold"
@@ -168,28 +187,29 @@
             app:layout_constraintTop_toTopOf="parent" />
 
         <TextView
-            android:id="@+id/answer_content"
+            android:id="@+id/reply_message_content"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_below="@id/answer_title"
+            android:layout_below="@id/reply_message_title"
             android:layout_marginHorizontal="8dp"
             android:layout_marginBottom="8dp"
             android:layout_toStartOf="@id/close"
-            android:text="message"
+            android:ellipsize="end"
+            android:maxLines="1"
             android:textSize="13sp"
             app:layout_constraintEnd_toStartOf="@id/close"
             app:layout_constraintStart_toEndOf="@id/forward"
-            app:layout_constraintTop_toBottomOf="@id/answer_title" />
+            app:layout_constraintTop_toBottomOf="@id/reply_message_title" />
 
         <ImageView
             android:id="@+id/close"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_margin="8dp"
-            android:layout_toEndOf="@id/answer_content"
+            android:layout_toEndOf="@id/reply_message_content"
             android:src="@drawable/ic_material_close_24"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toEndOf="@id/answer_content"
+            app:layout_constraintStart_toEndOf="@id/reply_message_content"
             app:layout_constraintTop_toTopOf="parent" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>

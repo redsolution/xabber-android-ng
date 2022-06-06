@@ -14,6 +14,7 @@ import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.xabber.data.util.dp
 import com.xabber.databinding.BottomSheetAvatarBinding
 import com.xabber.presentation.onboarding.contract.navigator
+import com.xabber.presentation.onboarding.fragments.signup.emoji.EmojiAvatarBottomSheet
 
 
 class AvatarBottomSheet : BottomSheetDialogFragment() {

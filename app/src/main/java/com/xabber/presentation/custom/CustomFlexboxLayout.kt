@@ -8,6 +8,7 @@ import android.view.View
 import android.widget.FrameLayout
 import android.widget.TextView
 import com.xabber.R
+import com.xabber.data.util.dp
 
 class CustomFlexboxLayout @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null
@@ -110,7 +111,7 @@ class CustomFlexboxLayout @JvmOverloads constructor(
         }
         viewPartSlave?.layout(
             right - left - viewPartSlaveWidth - paddingRight,
-            bottom - top - paddingBottom - viewPartSlaveHeight,
+            bottom - top - paddingBottom - viewPartSlaveHeight + 1.dp,
             right - left - paddingRight,
             bottom - top - paddingBottom
         )

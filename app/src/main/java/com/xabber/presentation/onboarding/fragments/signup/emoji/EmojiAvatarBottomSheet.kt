@@ -1,4 +1,4 @@
-package com.xabber.presentation.onboarding.fragments.signup
+package com.xabber.presentation.onboarding.fragments.signup.emoji
 
 import android.app.Dialog
 import android.content.DialogInterface

@@ -17,19 +17,20 @@ import com.xabber.databinding.ItemGroupIncomingBinding
 class GroupIncomingMessageVH(
     private val binding: ItemGroupIncomingBinding
 ) : BasicViewHolder(
-    binding.root
+    binding.root,
+    null
 ) {
     private var needTail = false
     @RequiresApi(Build.VERSION_CODES.N)
-    override fun bind(message: MessageDto, isNeedTail: Boolean, needDay: Boolean) {
-        super.bind(message, isNeedTail, needDay)
-        binding.tvContactName.text = message.owner
-        binding.tvContent.text = message.messageBody
+    override fun bind(messageDto: MessageDto, isNeedTail: Boolean, needDay: Boolean) {
+        super.bind(messageDto, isNeedTail, needDay)
+        binding.tvContactName.text = messageDto.owner
+        binding.tvContent.text = messageDto.messageBody
         binding.tvSendingTime.text =
-            if (message.editTimestamp != null) message.editTimestamp.toString() else message.sentTimestamp.toString()
+            if (messageDto.editTimestamp != null) messageDto.editTimestamp.toString() else messageDto.sentTimestamp.toString()
 
-        setBackground(message)
-        setMargin(message, isNeedTail)
+        setBackground(messageDto)
+        setMargin(messageDto, isNeedTail)
         val popupMenu = getPopupMenu()
         binding.root.setOnClickListener {
             popupMenu.show()

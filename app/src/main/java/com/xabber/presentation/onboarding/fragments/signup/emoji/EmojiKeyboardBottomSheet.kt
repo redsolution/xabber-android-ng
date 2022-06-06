@@ -1,4 +1,4 @@
-package com.xabber.presentation.onboarding.fragments.signup
+package com.xabber.presentation.onboarding.fragments.signup.emoji
 
 import android.app.Dialog
 import android.content.DialogInterface
@@ -13,8 +13,8 @@ import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.xabber.R
 import com.xabber.databinding.FragmentEmojiKeyboardBinding
-import com.xabber.presentation.onboarding.fragments.signup.emoji.EmojiTypeAdapter
 import com.xabber.data.util.dp
+import com.xabber.presentation.onboarding.fragments.signup.EmojiKeyAdapter
 
 class EmojiKeyboardBottomSheet : BottomSheetDialogFragment() {
 

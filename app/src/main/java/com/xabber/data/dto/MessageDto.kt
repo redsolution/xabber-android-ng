@@ -17,7 +17,8 @@ data class MessageDto(
     val canEditMessage: Boolean?,
     val canDeleteMessage: Boolean?,
     val urlAvatar: Url?,
-    val isGroup: Boolean
+    val isGroup: Boolean,
+    val kind: MessageKind? = null
 ) : Comparable<MessageDto> {
     override fun compareTo(other: MessageDto): Int =
         other.sentTimestamp.compareTo(this.sentTimestamp)

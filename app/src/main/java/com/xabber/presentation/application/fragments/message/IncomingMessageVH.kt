@@ -7,7 +7,6 @@ import android.os.Build
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.ViewGroup
-import android.widget.ImageView
 import android.widget.LinearLayout
 import androidx.annotation.RequiresApi
 import androidx.appcompat.view.menu.MenuBuilder
@@ -16,34 +15,31 @@ import androidx.appcompat.widget.CustomPopupMenu
 import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.isVisible
-import com.bumptech.glide.Glide
 import com.xabber.R
 import com.xabber.data.dto.MessageDto
-import com.xabber.data.xmpp.messages.MessageSendingState
 import com.xabber.databinding.ItemMessageIncomingBinding
-import com.xabber.databinding.ItemMessageOutgoingBinding
 import com.xabber.presentation.application.util.StringUtils
 import java.util.*
 
 class IncomingMessageVH(
     private val binding: ItemMessageIncomingBinding,
     private val listener: MessageAdapter.Listener
-) : BasicViewHolder(binding.root) {
+) : BasicViewHolder(binding.root, listener) {
 
     @RequiresApi(Build.VERSION_CODES.N)
     @SuppressLint("RestrictedApi")
-    override fun bind(message: MessageDto, isNeedTail: Boolean, needDay: Boolean) {
+    override fun bind(messageDto: MessageDto, isNeedTail: Boolean, needDay: Boolean) {
         // text & appearance
-        binding.tvContent.isVisible = message.messageBody != null
-        if (message.messageBody != null) binding.tvContent.text = message.messageBody
+        binding.tvContent.isVisible = messageDto.messageBody != null
+        if (messageDto.messageBody != null) binding.tvContent.text = messageDto.messageBody
         //  tvContent.setTextAppearance(SettingsManager.chatsAppearanceStyle()) - берем из класса настроек
 
         // date
         binding.messageDate.tvDate.isVisible = needDay
-        binding.messageDate.tvDate.text = StringUtils.getDateStringForMessage(message.sentTimestamp)
+        binding.messageDate.tvDate.text = StringUtils.getDateStringForMessage(messageDto.sentTimestamp)
 
         // time
-        val date = Date(message.sentTimestamp)
+        val date = Date(messageDto.sentTimestamp)
         val time = StringUtils.getTimeText(binding.tvSendingTime.context, date)
         binding.tvSendingTime.text = time
 
@@ -80,7 +76,7 @@ class IncomingMessageVH(
 
         binding.root.setOnClickListener {
             val popup = CustomPopupMenu(it.context, it, Gravity.CENTER)
-            if (message.isOutgoing) popup.inflate(R.menu.context_menu_message_outgoing)
+            if (messageDto.isOutgoing) popup.inflate(R.menu.context_menu_message_outgoing)
             else popup.inflate(R.menu.context_menu_message_incoming)
 
             val menuHealper = MenuPopupHelper(it.context, popup.menu as MenuBuilder, binding.root)
@@ -99,7 +95,7 @@ class IncomingMessageVH(
             popup.show()
             true
         }
-        setBackground(message, isNeedTail)
+        setBackground(messageDto, isNeedTail)
     }
 
 

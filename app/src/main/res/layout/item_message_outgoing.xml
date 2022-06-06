@@ -5,7 +5,7 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_gravity="end"
-    android:gravity="right"
+    android:gravity="end"
     android:orientation="vertical"
     android:paddingTop="3dp"
     android:paddingEnd="2dp"
@@ -15,12 +15,51 @@
         android:id="@+id/message_date"
         layout="@layout/item_message_date" />
 
-    <RelativeLayout
+    <LinearLayout
         android:id="@+id/balloon"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_alignParentEnd="true"
-        android:layout_alignParentRight="true">
+        android:orientation="vertical">
+
+        <RelativeLayout
+            android:id="@+id/reply_message"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:visibility="gone">
+
+            <View
+                android:id="@+id/forward"
+                android:layout_width="2dp"
+                android:layout_height="40dp"
+                android:layout_marginStart="4dp"
+                android:background="@color/blue_500" />
+
+            <TextView
+                android:id="@+id/reply_message_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="4dp"
+                android:layout_marginBottom="2dp"
+                android:layout_toEndOf="@id/forward"
+                android:gravity="start"
+                android:textColor="@color/blue_500"
+                android:textSize="15sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/reply_message_content"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/reply_message_title"
+                android:layout_marginStart="4dp"
+                android:layout_marginBottom="8dp"
+                android:layout_toEndOf="@id/forward"
+                android:ellipsize="end"
+                android:lines="1"
+                android:maxLines="1"
+                android:textSize="13sp" />
+
+        </RelativeLayout>
 
         <com.xabber.presentation.custom.CustomFlexboxLayout
             android:layout_width="wrap_content"
@@ -28,14 +67,14 @@
             app:viewPartMain="@id/tv_content"
             app:viewPartSlave="@id/message_info">
 
-            <com.xabber.presentation.custom.CorrectlyTouchEventTextView
+            <TextView
                 android:id="@+id/tv_content"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="8dp"
                 android:maxWidth="300dp"
-                android:textSize="16sp"
                 android:textColor="@color/black"
+                android:textSize="16sp"
                 app:layout_constraintEnd_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent" />
 
@@ -49,20 +88,18 @@
                     android:id="@+id/tv_sending_time"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
+                    android:gravity="bottom"
                     android:singleLine="true"
                     android:textColor="@color/grey_600"
-                    android:textSize="10sp"
-                    android:gravity="bottom" />
+                    android:textSize="10sp" />
 
                 <ImageView
                     android:id="@+id/image_message_status"
                     android:layout_width="14dp"
                     android:layout_height="14dp"
                     android:layout_marginStart="4dp"
-                    android:layout_marginTop="8dp"
                     android:src="@drawable/ic_material_check_24" />
             </LinearLayout>
         </com.xabber.presentation.custom.CustomFlexboxLayout>
-    </RelativeLayout>
+    </LinearLayout>
 </LinearLayout>

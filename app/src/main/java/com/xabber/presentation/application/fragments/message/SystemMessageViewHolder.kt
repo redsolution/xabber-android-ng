@@ -10,14 +10,15 @@ import com.xabber.presentation.application.util.StringUtils
 class SystemMessageViewHolder(
     private val binding: ItemMessageSystemBinding
 ) : BasicViewHolder(
-    binding.root
+    binding.root,
+    null
 ) {
     @RequiresApi(Build.VERSION_CODES.N)
-    override fun bind(message: MessageDto, isNeedTail: Boolean, needDay: Boolean) {
-        super.bind(message, isNeedTail, needDay)
-        binding.messageText.isVisible = message.messageBody != null
-        if (message.messageBody != null) binding.messageText.text = message.messageBody
+    override fun bind(messageDto: MessageDto, isNeedTail: Boolean, needDay: Boolean) {
+        super.bind(messageDto, isNeedTail, needDay)
+        binding.messageText.isVisible = messageDto.messageBody != null
+        if (messageDto.messageBody != null) binding.messageText.text = messageDto.messageBody
         binding.messageDate.tvDate.isVisible = needDay
-        binding.messageDate.tvDate.text = StringUtils.getDateStringForMessage(message.sentTimestamp)
+        binding.messageDate.tvDate.text = StringUtils.getDateStringForMessage(messageDto.sentTimestamp)
     }
 }

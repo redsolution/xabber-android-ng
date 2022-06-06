@@ -1,6 +1,7 @@
 package com.xabber.presentation.application.fragments.message
 
 import android.annotation.SuppressLint
+import android.graphics.Color
 import android.graphics.PorterDuff
 import android.graphics.drawable.Drawable
 import android.os.Build
@@ -17,60 +18,57 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.isVisible
 import com.bumptech.glide.Glide
+import com.google.android.material.snackbar.Snackbar
 import com.xabber.R
 import com.xabber.data.dto.MessageDto
 import com.xabber.data.util.dp
-import com.xabber.presentation.application.fragments.message.MessageAdapter.Companion.INCOMING_MESSAGE
-import com.xabber.presentation.application.fragments.message.MessageAdapter.Companion.OUTGOING_MESSAGE
-import com.xabber.presentation.application.util.StringUtils
 import com.xabber.data.xmpp.messages.MessageSendingState
 import com.xabber.data.xmpp.messages.MessageSendingState.*
 import com.xabber.databinding.ItemMessageOutgoingBinding
+import com.xabber.presentation.application.util.StringUtils
 import java.util.*
-
 
 class OutgoingMessageVH(
     private val binding: ItemMessageOutgoingBinding,
     private val listener: MessageAdapter.Listener
-) : BasicViewHolder(binding.root) {
+) : BasicViewHolder(binding.root, listener) {
 
-   @RequiresApi(Build.VERSION_CODES.N)
-   @SuppressLint("RestrictedApi")
-   override fun bind(message: MessageDto, isNeedTail: Boolean, needDay: Boolean) {
-        // text & appearance
-       binding.tvContent.isVisible = message.messageBody != null
-        if (message.messageBody != null) binding.tvContent.text = message.messageBody
-       //  tvContent.setTextAppearance(SettingsManager.chatsAppearanceStyle()) - берем из класса настроек
+    @RequiresApi(Build.VERSION_CODES.N)
+    @SuppressLint("RestrictedApi")
+    override fun bind(messageDto: MessageDto, isNeedTail: Boolean, needDay: Boolean) {
+// text & appearance
+        binding.tvContent.isVisible = messageDto.messageBody != null
+        if (messageDto.messageBody != null) binding.tvContent.text = messageDto.messageBody
+// tvContent.setTextAppearance(SettingsManager.chatsAppearanceStyle()) - берем из класса настроек
 
-       // date
+// date
         binding.messageDate.tvDate.isVisible = needDay
-        binding.messageDate.tvDate.text = StringUtils.getDateStringForMessage(message.sentTimestamp)
+        binding.messageDate.tvDate.text = StringUtils.getDateStringForMessage(messageDto.sentTimestamp)
 
-        // time
-        val date = Date(message.sentTimestamp)
+// time
+        val date = Date(messageDto.sentTimestamp)
         val time = StringUtils.getTimeText(binding.tvSendingTime.context, date)
-        binding.tvSendingTime. text = time
+        binding.tvSendingTime.text = time
 
-        // status
-        if (message.isOutgoing) setStatus(
-           binding.imageMessageStatus,
-            message.messageSendingState
+// status
+        if (messageDto.isOutgoing) setStatus(
+            binding.imageMessageStatus,
+            messageDto.messageSendingState
         )
 
 
 //dateMessage.isVisible = need
 
-        //  val nextMessage = getMessage(position + 1)
-        //   if (nextMessage != null)
+// val nextMessage = getMessage(position + 1)
+// if (nextMessage != null)
 
-            val params = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            )
-            params.setMargins(50.dp, 2.dp, if (isNeedTail) 2.dp else 11.dp, 2.dp)
-            binding.balloon.layoutParams = params
-            binding.balloon.setPadding(16.dp, 8.dp, if (isNeedTail) 14.dp else 8.dp, 10.dp)
-
+        val params = LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        )
+        params.setMargins(50.dp, 2.dp, if (isNeedTail) 2.dp else 11.dp, 2.dp)
+        binding.balloon.layoutParams = params
+        binding.balloon.setPadding(16.dp, 8.dp, if (isNeedTail) 14.dp else 8.dp, 10.dp)
 
 
         val typedValue = TypedValue()
@@ -82,32 +80,52 @@ class OutgoingMessageVH(
             PorterDuff.Mode.MULTIPLY
         )
 
-            binding.balloon.setBackgroundDrawable(
-                ContextCompat.getDrawable(
-                    binding.root.context,
-                    if (isNeedTail) R.drawable.msg_out else R.drawable.msg
-                ))
+        binding.balloon.setBackgroundDrawable(
+            ContextCompat.getDrawable(
+                binding.root.context,
+                if (isNeedTail) R.drawable.msg_out else R.drawable.msg
+            )
+        )
 
+        if (messageDto.kind == null) {
+            binding.replyMessage.isVisible = false
+        } else {
+            binding.replyMessage.isVisible = true
+            binding.replyMessageTitle.text = messageDto.kind.owner
+            binding.replyMessageContent.text = messageDto.kind.content
+        }
 
+// tvContent.marginStart = if (needTail) 20 else 11
 
-            // tvContent.marginStart = if (needTail) 20 else 11
-
-          binding.root.setOnClickListener {
+        binding.root.setOnClickListener {
             val popup = CustomPopupMenu(it.context, it, Gravity.CENTER)
-              if (message.isOutgoing) popup.inflate(R.menu.context_menu_message_outgoing)
-              else popup.inflate(R.menu.context_menu_message_incoming)
+            if (messageDto.isOutgoing) popup.inflate(R.menu.context_menu_message_outgoing)
+            else popup.inflate(R.menu.context_menu_message_incoming)
 
-              val menuHealper = MenuPopupHelper(it.context, popup.menu as MenuBuilder, binding.root)
-              menuHealper.setForceShowIcon(true)
-          menuHealper.show()
+            val menuHealper = MenuPopupHelper(it.context, popup.menu as MenuBuilder, binding.root)
+            menuHealper.setForceShowIcon(true)
+            menuHealper.show()
 
-            popup.setOnMenuItemClickListener {
-                when (it.itemId) {
-                    R.id.copy -> {}
-                    R.id.forward -> {}
-                   R.id.reply -> {}
-                    R.id.delete_message -> {}
-                    R.id.edit -> { listener.editMessage(message.primary) }
+            popup.setOnMenuItemClickListener { menuItem ->
+                when (menuItem.itemId) {
+                    R.id.copy -> {
+                        val text = binding.tvContent.text.toString()
+                        listener.copyText(text)
+                        showSnackbar(itemView)
+
+                    }
+                    R.id.forward -> {
+                        listener.forwardMessage(messageDto)
+                    }
+                    R.id.reply -> {
+                        listener.replyMessage(messageDto)
+                    }
+                    R.id.delete_message -> {
+                        listener.deleteMessage(messageDto)
+                    }
+                    R.id.edit -> {
+                        listener.editMessage(messageDto.primary)
+                    }
                 }
                 true
             }
@@ -117,8 +135,19 @@ class OutgoingMessageVH(
 
     }
 
+    private fun showSnackbar(view: View) {
+        var snackbar: Snackbar? = null
 
-
+        snackbar = view.let {
+            Snackbar.make(
+                it,
+                "The message has copied to the clipboard",
+                Snackbar.LENGTH_SHORT
+            )
+        }
+        snackbar.setTextColor(Color.YELLOW)
+        snackbar.show()
+    }
 
     private fun setStatus(imageView: ImageView, messageSendingState: MessageSendingState) {
         var image: Int? = null
@@ -176,7 +205,7 @@ class OutgoingMessageVH(
         val balloonDrawable = ResourcesCompat.getDrawable(
             itemView.resources,
             if (isMessageNeedTail)
-                    R.drawable.msg_out
+                R.drawable.msg_out
             else
                 R.drawable.msg,
             itemView.context.theme
@@ -201,21 +230,21 @@ class OutgoingMessageVH(
                 R.drawable.msg_shadow,
             itemView.context.theme
         )!!
-//            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-//                shadowDrawable.colorFilter = BlendModeColorFilterCompat.createBlendModeColorFilterCompat(
-//                    itemView.resources.getColor(R.color.grey_300, itemView.context.theme),
-//                    BlendModeCompat.MULTIPLY
-//                )
-//            }
-//            else {
+// if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+// shadowDrawable.colorFilter = BlendModeColorFilterCompat.createBlendModeColorFilterCompat(
+// itemView.resources.getColor(R.color.grey_300, itemView.context.theme),
+// BlendModeCompat.MULTIPLY
+// )
+// }
+// else {
         shadowDrawable.setColorFilter(
             itemView.resources.getColor(
                 R.color.black,
                 itemView.context.theme
             ), PorterDuff.Mode.MULTIPLY
         )
-//            }
-        //     messageShadow.background = shadowDrawable
+// }
+// messageShadow.background = shadowDrawable
 
 
     }
