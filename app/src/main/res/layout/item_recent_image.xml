@@ -12,7 +12,7 @@
         android:paddingRight="4dp"
         android:src="@drawable/ic_recent_image_placeholder" />
 
-    <CheckBox
+    <androidx.appcompat.widget.AppCompatCheckBox
         android:id="@+id/recent_image_item_checkbox"
         android:layout_width="28dp"
         android:layout_height="28dp"

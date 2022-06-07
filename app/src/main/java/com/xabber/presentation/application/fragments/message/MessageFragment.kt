@@ -320,7 +320,7 @@ class MessageFragment : DetailBaseFragment(R.layout.fragment_message), MessageAd
         messageAdapter?.notifyDataSetChanged()
     }
 
-    override fun onRecentPhotosSend(paths: List<String>) {
+    override fun onRecentPhotosSend(paths: HashSet<String>?) {
 
     }
 

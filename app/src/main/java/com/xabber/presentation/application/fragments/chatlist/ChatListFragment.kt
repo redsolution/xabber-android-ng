@@ -1,10 +1,12 @@
 package com.xabber.presentation.application.fragments.chatlist
 
 import android.annotation.SuppressLint
+import android.database.Cursor
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
+import android.provider.MediaStore
 import android.util.Log
 import android.util.TypedValue
 import android.view.Gravity
@@ -50,43 +52,48 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat), ChatListAdapter.C
 
 
     private fun initToolbarActions() {
-        binding.avatarContainer.setOnClickListener {
-            navigator().showAccount()
-        }
 
-        binding.imPlus.setOnClickListener {
-            navigator().showNewChat()
-        }
 
-        val popup = PopupMenu(context, binding.tvChatTitle, Gravity.RIGHT)
-        popup.inflate(R.menu.context_menu_title_chat)
-        popup.setOnMenuItemClickListener {
-            val list = viewModel.chatList.value
-            val sortedList = ArrayList<ChatListDto>()
-            when (it.itemId) {
-                R.id.recent_chats -> {
-                    for (i in 0 until list!!.size) {
-                        if (!list[i].isArchived) sortedList.add(list[i])
-                    }
-                    sortedList.sort()
-                    chatAdapter?.submitList(sortedList)
-                }
-                R.id.unread -> {
-                    for (i in 0 until list!!.size) {
-                        if (list[i].unreadString!!.isNotEmpty()) sortedList.add(list[i])
-                    }
-                    chatAdapter?.submitList(sortedList)
-                }
-                R.id.archive -> {
-                    for (i in 0 until list!!.size) {
-                        if (list[i].isArchived) sortedList.add(list[i])
-                    }
-                    chatAdapter?.submitList(sortedList)
-                }
+
+
+            binding.avatarContainer.setOnClickListener {
+                navigator().showAccount()
             }
-            true
-        }
-        binding.tvChatTitle.setOnClickListener { popup.show() }
+
+            binding.imPlus.setOnClickListener {
+                navigator().showNewChat()
+            }
+
+            val popup = PopupMenu(context, binding.tvChatTitle, Gravity.RIGHT)
+            popup.inflate(R.menu.context_menu_title_chat)
+            popup.setOnMenuItemClickListener {
+                val list = viewModel.chatList.value
+                val sortedList = ArrayList<ChatListDto>()
+                when (it.itemId) {
+                    R.id.recent_chats -> {
+                        for (i in 0 until list!!.size) {
+                            if (!list[i].isArchived) sortedList.add(list[i])
+                        }
+                        sortedList.sort()
+                        chatAdapter?.submitList(sortedList)
+                    }
+                    R.id.unread -> {
+                        for (i in 0 until list!!.size) {
+                            if (list[i].unreadString!!.isNotEmpty()) sortedList.add(list[i])
+                        }
+                        chatAdapter?.submitList(sortedList)
+                    }
+                    R.id.archive -> {
+                        for (i in 0 until list!!.size) {
+                            if (list[i].isArchived) sortedList.add(list[i])
+                        }
+                        chatAdapter?.submitList(sortedList)
+                    }
+                }
+                true
+            }
+            binding.tvChatTitle.setOnClickListener { popup.show() }
+
     }
 
     private fun subscribeOnViewModelData() {
