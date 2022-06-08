@@ -5,12 +5,9 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_gravity="end"
-    android:layout_marginStart="2dp"
     android:gravity="left"
     android:orientation="vertical"
     android:paddingTop="3dp"
-    android:paddingEnd="50dp"
-    android:paddingRight="50dp"
     android:paddingBottom="3dp">
 
     <include
@@ -21,61 +18,101 @@
         android:id="@+id/message_date"
         layout="@layout/item_message_date" />
 
-    <RelativeLayout
-        android:id="@+id/balloon"
+    <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_alignParentEnd="true"
-        android:layout_alignParentRight="true"
-        android:background="@color/blue_50"
-        android:backgroundTint="@color/blue_50">
+        android:orientation="horizontal">
+
+        <androidx.appcompat.widget.AppCompatCheckBox
+            android:id="@+id/checkbox_incoming"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:layout_gravity="bottom"
+            android:layout_marginStart="6dp"
+            android:layout_marginEnd="4dp"
+            android:layout_marginBottom="4dp"
+            android:button="@drawable/checkbox"
+            android:gravity="bottom"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent" />
 
         <androidx.cardview.widget.CardView
-            android:id="@+id/cv"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:visibility="gone"
-            app:cardCornerRadius="16dp">
+            android:layout_marginStart="6dp"
+            android:id="@+id/avatar_contact"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:layout_gravity="bottom"
+            app:cardCornerRadius="24dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toEndOf="@id/checkbox_incoming">
 
             <ImageView
-                android:id="@+id/image_mes"
                 android:layout_width="match_parent"
-                android:layout_height="match_parent" />
+                android:layout_height="match_parent"
+                android:src="@drawable/transparency_demonstration" />
         </androidx.cardview.widget.CardView>
 
-        <com.xabber.presentation.custom.CustomFlexboxLayout
+        <RelativeLayout
+            android:id="@+id/balloon"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_below="@id/cv"
-            app:viewPartMain="@id/tv_content"
-            app:viewPartSlave="@id/message_info">
+            android:layout_marginEnd="8dp"
+            android:background="@color/blue_50"
+            android:backgroundTint="@color/blue_50"
+            android:maxWidth="300dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toEndOf="@id/avatar_contact">
 
-            <com.xabber.presentation.custom.CorrectlyTouchEventTextView
-                android:id="@+id/tv_content"
+            <TextView
+                android:id="@+id/tv_contact_name"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginEnd="8dp"
-                android:maxWidth="300dp"
-                android:textColor="@color/black"
-                app:layout_constraintEnd_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent" />
+                android:layout_marginBottom="2dp"
+                android:gravity="start"
+                android:text="Maxim Ivanov"
+                android:textColor="@color/blue_500"
+                android:textStyle="bold" />
 
-            <LinearLayout
-                android:id="@+id/message_info"
+            <com.xabber.presentation.custom.CustomFlexboxLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal">
+                android:layout_below="@id/tv_contact_name"
+                app:viewPartMain="@id/tv_content"
+                app:viewPartSlave="@id/message_info">
 
                 <TextView
-                    android:id="@+id/tv_sending_time"
+                    android:id="@+id/tv_content"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:textColor="@color/grey_600"
-                    android:textSize="10sp" />
+                    android:layout_marginEnd="8dp"
+                    android:maxWidth="300dp"
+                    android:textColor="@color/black"
+                    app:layout_constraintEnd_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent" />
 
-            </LinearLayout>
-        </com.xabber.presentation.custom.CustomFlexboxLayout>
+                <LinearLayout
+                    android:id="@+id/message_info"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
 
-    </RelativeLayout>
+                    <TextView
+                        android:id="@+id/tv_sending_time"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:textColor="@color/grey_600"
+                        android:textSize="10sp" />
+
+                </LinearLayout>
+            </com.xabber.presentation.custom.CustomFlexboxLayout>
+
+        </RelativeLayout>
+    </LinearLayout>
+    <FrameLayout
+        android:id="@+id/frameLayout_blackout"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/transparent"/>
 </LinearLayout>

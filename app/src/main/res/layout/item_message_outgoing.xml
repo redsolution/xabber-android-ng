@@ -15,91 +15,110 @@
         android:id="@+id/message_date"
         layout="@layout/item_message_date" />
 
-    <LinearLayout
-        android:id="@+id/balloon"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:orientation="vertical">
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
 
-        <RelativeLayout
-            android:id="@+id/reply_message"
+        <androidx.appcompat.widget.AppCompatCheckBox
+            android:id="@+id/checkbox_incoming"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:layout_gravity="bottom"
+            android:layout_marginStart="6dp"
+            android:layout_marginEnd="4dp"
+            android:button="@drawable/checkbox"
+            android:gravity="start"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent" />
+
+        <LinearLayout
+            android:id="@+id/balloon"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:visibility="gone">
+            android:orientation="vertical"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent">
 
-            <View
-                android:id="@+id/forward"
-                android:layout_width="2dp"
-                android:layout_height="40dp"
-                android:layout_marginStart="4dp"
-                android:background="@color/blue_500" />
-
-            <TextView
-                android:id="@+id/reply_message_title"
+            <RelativeLayout
+                android:id="@+id/reply_message"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="4dp"
-                android:layout_marginBottom="2dp"
-                android:layout_toEndOf="@id/forward"
-                android:gravity="start"
-                android:textColor="@color/blue_500"
-                android:textSize="15sp"
-                android:textStyle="bold" />
+                android:visibility="gone">
 
-            <TextView
-                android:id="@+id/reply_message_content"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_below="@id/reply_message_title"
-                android:layout_marginStart="4dp"
-                android:layout_marginBottom="8dp"
-                android:layout_toEndOf="@id/forward"
-                android:ellipsize="end"
-                android:lines="1"
-                android:maxLines="1"
-                android:textSize="13sp" />
-
-        </RelativeLayout>
-
-        <com.xabber.presentation.custom.CustomFlexboxLayout
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            app:viewPartMain="@id/tv_content"
-            app:viewPartSlave="@id/message_info">
-
-            <TextView
-                android:id="@+id/tv_content"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginEnd="8dp"
-                android:maxWidth="300dp"
-                android:textColor="@color/black"
-                android:textSize="16sp"
-                app:layout_constraintEnd_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent" />
-
-            <LinearLayout
-                android:id="@+id/message_info"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal">
+                <View
+                    android:id="@+id/forward"
+                    android:layout_width="2dp"
+                    android:layout_height="40dp"
+                    android:layout_marginStart="4dp"
+                    android:background="@color/blue_500" />
 
                 <TextView
-                    android:id="@+id/tv_sending_time"
+                    android:id="@+id/reply_message_title"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:gravity="bottom"
-                    android:singleLine="true"
-                    android:textColor="@color/grey_600"
-                    android:textSize="10sp" />
-
-                <ImageView
-                    android:id="@+id/image_message_status"
-                    android:layout_width="14dp"
-                    android:layout_height="14dp"
                     android:layout_marginStart="4dp"
-                    android:src="@drawable/ic_material_check_24" />
-            </LinearLayout>
-        </com.xabber.presentation.custom.CustomFlexboxLayout>
-    </LinearLayout>
+                    android:layout_marginBottom="2dp"
+                    android:layout_toEndOf="@id/forward"
+                    android:gravity="start"
+                    android:textColor="@color/blue_500"
+                    android:textSize="15sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/reply_message_content"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_below="@id/reply_message_title"
+                    android:layout_marginStart="4dp"
+                    android:layout_marginBottom="8dp"
+                    android:layout_toEndOf="@id/forward"
+                    android:ellipsize="end"
+                    android:lines="1"
+                    android:maxLines="1"
+                    android:textSize="13sp" />
+
+            </RelativeLayout>
+
+            <com.xabber.presentation.custom.CustomFlexboxLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                app:viewPartMain="@id/tv_content"
+                app:viewPartSlave="@id/message_info">
+
+                <TextView
+                    android:id="@+id/tv_content"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="8dp"
+                    android:maxWidth="300dp"
+                    android:textColor="@color/black"
+                    android:textSize="16sp"
+                    app:layout_constraintEnd_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent" />
+
+                <LinearLayout
+                    android:id="@+id/message_info"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:id="@+id/tv_sending_time"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:gravity="bottom"
+                        android:singleLine="true"
+                        android:textColor="@color/grey_600"
+                        android:textSize="10sp" />
+
+                    <ImageView
+                        android:id="@+id/image_message_status"
+                        android:layout_width="14dp"
+                        android:layout_height="14dp"
+                        android:layout_marginStart="4dp"
+                        android:src="@drawable/ic_material_check_24" />
+                </LinearLayout>
+            </com.xabber.presentation.custom.CustomFlexboxLayout>
+        </LinearLayout>
+    </androidx.constraintlayout.widget.ConstraintLayout>
 </LinearLayout>

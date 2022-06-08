@@ -14,6 +14,7 @@ import androidx.annotation.RequiresApi
 import androidx.appcompat.view.menu.MenuBuilder
 import androidx.appcompat.view.menu.MenuPopupHelper
 import androidx.appcompat.widget.CustomPopupMenu
+import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.isVisible
@@ -35,7 +36,7 @@ class OutgoingMessageVH(
 
     @RequiresApi(Build.VERSION_CODES.N)
     @SuppressLint("RestrictedApi")
-    override fun bind(messageDto: MessageDto, isNeedTail: Boolean, needDay: Boolean) {
+    override fun bind(messageDto: MessageDto, isNeedTail: Boolean, needDay: Boolean, showCheckbox: Boolean) {
 // text & appearance
         binding.tvContent.isVisible = messageDto.messageBody != null
         if (messageDto.messageBody != null) binding.tvContent.text = messageDto.messageBody
@@ -62,12 +63,12 @@ class OutgoingMessageVH(
 // val nextMessage = getMessage(position + 1)
 // if (nextMessage != null)
 
-        val params = LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.WRAP_CONTENT,
-            ViewGroup.LayoutParams.WRAP_CONTENT
-        )
-        params.setMargins(50.dp, 2.dp, if (isNeedTail) 2.dp else 11.dp, 2.dp)
-        binding.balloon.layoutParams = params
+//        val params = LinearLayout.LayoutParams(
+//            ViewGroup.LayoutParams.WRAP_CONTENT,
+//            ViewGroup.LayoutParams.WRAP_CONTENT
+//        )
+//        params.setMargins(50.dp, 2.dp, if (isNeedTail) 2.dp else 11.dp, 2.dp)
+//        binding.balloon.layoutParams = params
         binding.balloon.setPadding(16.dp, 8.dp, if (isNeedTail) 14.dp else 8.dp, 10.dp)
 
 

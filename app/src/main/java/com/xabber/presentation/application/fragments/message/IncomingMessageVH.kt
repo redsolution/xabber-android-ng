@@ -1,11 +1,12 @@
 package com.xabber.presentation.application.fragments.message
 
 import android.annotation.SuppressLint
+import android.content.res.Resources
 import android.graphics.PorterDuff
-import android.graphics.drawable.Drawable
 import android.os.Build
-import android.util.TypedValue
+import android.util.Log
 import android.view.Gravity
+import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
 import androidx.annotation.RequiresApi
@@ -15,6 +16,7 @@ import androidx.appcompat.widget.CustomPopupMenu
 import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.isVisible
+import androidx.core.view.marginStart
 import com.xabber.R
 import com.xabber.data.dto.MessageDto
 import com.xabber.databinding.ItemMessageIncomingBinding
@@ -23,127 +25,144 @@ import java.util.*
 
 class IncomingMessageVH(
     private val binding: ItemMessageIncomingBinding,
-    private val listener: MessageAdapter.Listener
+    private val listener: MessageAdapter.Listener,
 ) : BasicViewHolder(binding.root, listener) {
 
     @RequiresApi(Build.VERSION_CODES.N)
-    @SuppressLint("RestrictedApi")
-    override fun bind(messageDto: MessageDto, isNeedTail: Boolean, needDay: Boolean) {
+    @SuppressLint("RestrictedApi", "ResourceAsColor")
+    override fun bind(
+        messageDto: MessageDto,
+        isNeedTail: Boolean,
+        needDay: Boolean,
+        showCheckbox: Boolean
+    ) {
+
         // text & appearance
         binding.tvContent.isVisible = messageDto.messageBody != null
-        if (messageDto.messageBody != null) binding.tvContent.text = messageDto.messageBody
+        binding.tvContent.text = messageDto.messageBody
+        binding.tvContent.setTextIsSelectable(showCheckbox)
+
         //  tvContent.setTextAppearance(SettingsManager.chatsAppearanceStyle()) - берем из класса настроек
 
         // date
         binding.messageDate.tvDate.isVisible = needDay
-        binding.messageDate.tvDate.text = StringUtils.getDateStringForMessage(messageDto.sentTimestamp)
+        if (binding.messageDate.tvDate.isVisible) {
+            binding.messageDate.tvDate.text =
+                StringUtils.getDateStringForMessage(messageDto.sentTimestamp)
+        }
 
         // time
         val date = Date(messageDto.sentTimestamp)
         val time = StringUtils.getTimeText(binding.tvSendingTime.context, date)
         binding.tvSendingTime.text = time
 
+        // for group chat
+        binding.tvContactName.isVisible = messageDto.isGroup && isNeedTail
+        if (binding.tvContactName.isVisible) binding.tvContactName.text = messageDto.owner
+        binding.avatarContact.isVisible = false
 
-        //  val nextMessage = getMessage(position + 1)
-        //   if (nextMessage != null)
+        // checkbox
+          binding.checkboxIncoming.isVisible = showCheckbox
 
-
+        // margins and paddings
         val params = LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.WRAP_CONTENT,
+            ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.WRAP_CONTENT
         )
-        params.setMargins(if (isNeedTail) 2 else 24, 0, 0, 0)
+     binding.balloon.marginStart
+            params.setMargins(
+                if (isNeedTail) 2 else 24,
+                0,
+                   if (binding.checkboxIncoming.isVisible) 28 else 40,
+                0
+            )
         binding.balloon.layoutParams = params
         binding.balloon.setPadding(if (isNeedTail) 54 else 26, 26, 26, 26)
 
-        val typedValue = TypedValue()
-        binding.root.context.theme.resolveAttribute(R.attr.message_background, typedValue, true)
-        val shadowDrawable: Drawable =
-            ContextCompat.getDrawable(binding.root.context, R.drawable.fwd_out_shadow)!!
-        shadowDrawable.setColorFilter(
-            ContextCompat.getColor(binding.root.context, R.color.black),
-            PorterDuff.Mode.MULTIPLY
-        )
 
-
-        // tvContent.marginStart = if (needTail) 20 else 11
-        binding.balloon.setBackgroundDrawable(
-            ContextCompat.getDrawable(
-                binding.root.context,
-                if (isNeedTail) R.drawable.msg_in else R.drawable.msg
-            )
-        )
-
-        binding.root.setOnClickListener {
-            val popup = CustomPopupMenu(it.context, it, Gravity.CENTER)
-            if (messageDto.isOutgoing) popup.inflate(R.menu.context_menu_message_outgoing)
-            else popup.inflate(R.menu.context_menu_message_incoming)
-
-            val menuHealper = MenuPopupHelper(it.context, popup.menu as MenuBuilder, binding.root)
-            menuHealper.setForceShowIcon(true)
-            menuHealper.show()
-
-            popup.setOnMenuItemClickListener {
-                when (it.itemId) {
-                    R.id.copy -> {}
-                    R.id.forward -> {}
-                    R.id.reply -> {}
-                    R.id.delete_message -> {}
-                }
-                true
-            }
-            popup.show()
-            true
-        }
-        setBackground(messageDto, isNeedTail)
-    }
-
-
-    private fun setBackground(
-        messageDto: MessageDto,
-        isMessageNeedTail: Boolean
-    ) {
+        // background
         val balloonDrawable = ResourcesCompat.getDrawable(
             itemView.resources,
-            if (isMessageNeedTail)
-                    R.drawable.msg_in
+            if (isNeedTail)
+                R.drawable.msg_in
             else
                 R.drawable.msg,
             itemView.context.theme
         )!!
-            balloonDrawable.setColorFilter(
-                itemView.resources.getColor(
-                    R.color.blue_100,
-                    itemView.context.theme
-                ), PorterDuff.Mode.MULTIPLY
-            )
-       binding.balloon.background = balloonDrawable
+        balloonDrawable.setColorFilter(
+            itemView.resources.getColor(
+                R.color.blue_100,
+                itemView.context.theme
+            ), PorterDuff.Mode.MULTIPLY
+        )
+        binding.balloon.background = balloonDrawable
 
+        // shadow
         val shadowDrawable = ResourcesCompat.getDrawable(
             itemView.resources,
-            if (isMessageNeedTail)
-                    R.drawable.msg_in_shadow
+            if (isNeedTail)
+                R.drawable.msg_in_shadow
             else
                 R.drawable.msg_shadow,
             itemView.context.theme
         )
-//            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-//                shadowDrawable.colorFilter = BlendModeColorFilterCompat.createBlendModeColorFilterCompat(
-//                    itemView.resources.getColor(R.color.grey_300, itemView.context.theme),
-//                    BlendModeCompat.MULTIPLY
-//                )
-//            }
-//            else {
         shadowDrawable?.setColorFilter(
             itemView.resources.getColor(
                 R.color.black,
                 itemView.context.theme
             ), PorterDuff.Mode.MULTIPLY
         )
-//            }
-        //     messageShadow.background = shadowDrawable
 
 
+        //   val popupMenu = createPopupMenu(messageDto, binding.root)
+
+        binding.root.setOnClickListener {
+          binding.frameLayoutBlackout.background = ResourcesCompat.getColor(Resources, R.color.yellow_100, itemView.)
+            // if (!showCheckbox) popupMenu.show()
+            // else {
+            // binding.checkboxIncoming.isChecked = !binding.checkboxIncoming.isChecked
+        }
+
+
+        binding.root.setOnLongClickListener {
+            if (!showCheckbox) {
+                listener.onLongClick(messageDto.primary)
+            } else {
+                //    binding.checkboxIncoming.isChecked = !binding.checkboxIncoming.isChecked
+            }
+
+            true
+        }
     }
 
+    @SuppressLint("RestrictedApi")
+    private fun createPopupMenu(messageDto: MessageDto, view: View): CustomPopupMenu {
+        val popup = CustomPopupMenu(view.context, view, Gravity.CENTER)
+        if (messageDto.isOutgoing) popup.inflate(R.menu.context_menu_message_outgoing)
+        else popup.inflate(R.menu.context_menu_message_incoming)
+
+        val menuHelper = MenuPopupHelper(view.context, popup.menu as MenuBuilder, binding.root)
+        menuHelper.setForceShowIcon(true)
+        menuHelper.show()
+
+        popup.setOnMenuItemClickListener { menuItem ->
+            when (menuItem.itemId) {
+                R.id.copy -> {
+                    val text = binding.tvContent.text.toString()
+                    listener.copyText(text)
+                }
+                R.id.forward -> {
+                    listener.forwardMessage(messageDto)
+                }
+                R.id.reply -> {
+                    listener.replyMessage(messageDto)
+                }
+                R.id.delete_message -> {
+                    listener.deleteMessage(messageDto)
+                }
+            }
+            true
+        }
+        return popup
+    }
 }

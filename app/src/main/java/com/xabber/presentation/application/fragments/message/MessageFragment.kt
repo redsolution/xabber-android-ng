@@ -315,6 +315,12 @@ class MessageFragment : DetailBaseFragment(R.layout.fragment_message), MessageAd
 // binding.chatInput.text = primary
     }
 
+    @SuppressLint("NotifyDataSetChanged")
+    override fun onLongClick(primary: String) {
+       messageAdapter?.showCheckbox(true)
+        messageAdapter?.notifyDataSetChanged()
+    }
+
     override fun deleteMessage(messageDto: MessageDto) {
         viewModel.deleteMessage(messageDto)
         messageAdapter?.notifyDataSetChanged()

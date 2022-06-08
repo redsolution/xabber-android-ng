@@ -7,4 +7,5 @@
     <integer name="details_content_container_wrapper_horihontal_width">0</integer>
     <dimen name="account_status_border">1dp</dimen>
     <dimen name="account_status">12dp</dimen>
+    <dimen name="avatar_chat_size">44dp</dimen>
 </resources>

@@ -12,8 +12,8 @@ class InformationMessageVH(
    null
 ) {
     @RequiresApi(Build.VERSION_CODES.N)
-    override fun bind(messageDto: MessageDto, isNeedTail: Boolean, needDay: Boolean) {
-        super.bind(messageDto, isNeedTail, needDay)
+    override fun bind(messageDto: MessageDto, isNeedTail: Boolean, needDay: Boolean, showCheckbox: Boolean) {
+        super.bind(messageDto, isNeedTail, needDay, showCheckbox)
         binding.messageText.text = messageDto.messageBody
     }
 }

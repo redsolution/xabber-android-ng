@@ -18,12 +18,12 @@ import com.xabber.presentation.application.util.StringUtils
 class MessageAdapter(
     private val listener: Listener
 ) : ListAdapter<MessageDto, BasicViewHolder>(DiffUtilCallback) {
+    private var checkBoxVisible = false
 
     companion object {
         const val SYSTEM_MESSAGE = 0
         const val INCOMING_MESSAGE = 1
         const val OUTGOING_MESSAGE = 2
-        const val GROUP_INCOMING_MESSAGE = 3
     }
 
     interface Listener {
@@ -32,6 +32,7 @@ class MessageAdapter(
         fun replyMessage(messageDto: MessageDto)
         fun deleteMessage(messageDto: MessageDto)
         fun editMessage(primary: String)
+        fun onLongClick(primary: String)
     }
 
 
@@ -66,14 +67,6 @@ class MessageAdapter(
                 )
 
             }
-            GROUP_INCOMING_MESSAGE -> {
-                GroupIncomingMessageVH(
-                    ItemGroupIncomingBinding.inflate(
-                        LayoutInflater.from(parent.context),
-                        parent,
-                        false
-                    ))
-            }
             else -> {
                 throw IllegalStateException("Unsupported message view type!")
             }
@@ -83,15 +76,17 @@ class MessageAdapter(
 
     @RequiresApi(Build.VERSION_CODES.N)
     override fun onBindViewHolder(holder: BasicViewHolder, position: Int) {
-
         var isNeedTail = true
         if (position - 1 != null && position != 0) {
             isNeedTail =
                 getItem(position - 1).owner != getItem(position).owner || getIsNeedDay(position - 1)
         }
 
-        return holder.bind(getItem(position), isNeedTail, getIsNeedDay(position))
+       holder.itemView.setOnClickListener {  }
+        return holder.bind(getItem(position), isNeedTail, getIsNeedDay(position), checkBoxVisible)
     }
+
+
 
     private fun getIsNeedDay(chekedPosition: Int): Boolean {
         var needDay = true
@@ -104,6 +99,10 @@ class MessageAdapter(
         return needDay
     }
 
+    fun showCheckbox(isShow: Boolean) {
+        checkBoxVisible = isShow
+        notifyDataSetChanged()
+    }
 
     override fun getItemViewType(position: Int): Int {
         return when {
@@ -112,9 +111,6 @@ class MessageAdapter(
             }
             getItem(position).isOutgoing -> {
                 OUTGOING_MESSAGE
-            }
-            getItem(position).isGroup -> {
-                GROUP_INCOMING_MESSAGE
             }
             else -> {
                 INCOMING_MESSAGE

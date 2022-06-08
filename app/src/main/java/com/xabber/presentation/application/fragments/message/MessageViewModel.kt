@@ -130,7 +130,7 @@ class MessageViewModel : ViewModel() {
                     MessageDisplayType.Text,
                     false,
                     false,
-                    null, false
+                    null, true
                 )
             )
             messageList.add(MessageDto(
@@ -145,7 +145,7 @@ class MessageViewModel : ViewModel() {
                 MessageDisplayType.Text,
                 false,
                 false,
-                null, false
+                null, true
             )
             )
              messageList.add(
@@ -161,7 +161,7 @@ class MessageViewModel : ViewModel() {
                     MessageDisplayType.Text,
                     false,
                     false,
-                    null, false
+                    null, true
                 )
             )
              messageList.add(

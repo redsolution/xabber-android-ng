@@ -56,7 +56,7 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(binding.root)
-        if (checkUserIsRegister()) {
+        if (true) {
             if (getWidthWindowSizeClass() == WidthWindowSize.MEDIUM || getWidthWindowSizeClass() == WidthWindowSize.EXPANDED) setContainerWidth()
             if (savedInstanceState == null) {
                 launchFragment(ChatListFragment.newInstance(""))
