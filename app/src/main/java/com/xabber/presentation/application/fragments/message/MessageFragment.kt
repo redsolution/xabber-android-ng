@@ -4,25 +4,32 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity.RESULT_OK
 import android.content.*
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.net.Uri
 import android.os.Bundle
 import android.os.SystemClock
 import android.provider.MediaStore
+import android.provider.Settings
 import android.text.Editable
+import android.text.SpannableStringBuilder
 import android.text.TextWatcher
-import android.util.Log
 import android.view.MotionEvent
 import android.view.View
 import android.widget.Toast
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.content.ContextCompat
+import androidx.appcompat.app.AlertDialog
+import androidx.core.content.res.ResourcesCompat
+import androidx.core.text.bold
 import androidx.core.view.isVisible
 import androidx.core.view.marginBottom
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import by.kirich1409.viewbindingdelegate.viewBinding
+import com.bumptech.glide.Glide
 import com.xabber.R
 import com.xabber.data.dto.FileDto
 import com.xabber.data.dto.MessageDto
@@ -32,42 +39,47 @@ import com.xabber.data.xmpp.messages.MessageSendingState
 import com.xabber.databinding.FragmentMessageBinding
 import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.application.fragments.DetailBaseFragment
+import com.xabber.presentation.application.fragments.chatlist.NotificationBottomSheet
+import com.xabber.presentation.application.fragments.chatlist.SwitchNotifications
 
 class MessageFragment : DetailBaseFragment(R.layout.fragment_message), MessageAdapter.Listener,
-    AttachDialog.Listener, ReplySwipeCallback.SwipeAction, FileAdapter.Listener {
+    AttachDialog.Listener, ReplySwipeCallback.SwipeAction, FileAdapter.Listener,
+    SwitchNotifications {
     private val binding by viewBinding(FragmentMessageBinding::bind)
     private var messageAdapter: MessageAdapter? = null
     private var fileAdapter: FileAdapter? = null
     private val viewModel = MessageViewModel()
     var name: String = ""
+    var isGroup = false
 
     private val requestCameraPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission(), ::onGotCameraPermissionResult
     )
-  private fun onGotCameraPermissionResult(granted: Boolean) {
+
+    private fun onGotCameraPermissionResult(granted: Boolean) {
         if (granted) {
             takePhoto()
         } else {
             if (!shouldShowRequestPermissionRationale(Manifest.permission.CAMERA)) {
-               // askUserForOpeningAppSettings()
-            } else {
                 Toast.makeText(context, R.string.permission_denied_toast, Toast.LENGTH_SHORT).show()
+            } else {
             }
         }
     }
 
-  override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode == 1 && resultCode == RESULT_OK) {
-        val   bitmap = data?.extras?.get("data") as Bitmap
-   val files = ArrayList<FileDto>()
+            val bitmap = data?.extras?.get("data") as Bitmap
+            val files = ArrayList<FileDto>()
             files.add(0, FileDto(1, "", bitmap))
 
             binding.frameLayoutAttachedFiles.isVisible = true
             fileAdapter?.submitList(files)
             binding.buttonSendMessage.isVisible = files.size > 0
-       //     Log.d("files", "${files.size}, ${binding.attachedFiles.adapter}")
-        //    fileAdapter?.updateAdapter(files)
+            //     Log.d("files", "${files.size}, ${binding.attachedFiles.adapter}")
+            //    fileAdapter?.updateAdapter(files)
 
         }
     }
@@ -76,8 +88,10 @@ class MessageFragment : DetailBaseFragment(R.layout.fragment_message), MessageAd
         val takePictureIntent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
         try {
             startActivityForResult(takePictureIntent, 1)
-        } catch(e: ActivityNotFoundException) {}
+        } catch (e: ActivityNotFoundException) {
+        }
     }
+
     companion object {
         fun newInstance(_name: String) = MessageFragment().apply {
             arguments = Bundle().apply {
@@ -90,6 +104,8 @@ class MessageFragment : DetailBaseFragment(R.layout.fragment_message), MessageAd
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        requireActivity().onBackPressedDispatcher.addCallback(onBackPressedCallback)
+Glide.with(view).load(R.drawable.images).into(binding.imAvatar)
         if (savedInstanceState != null) {
             name = savedInstanceState.getString("name", "")
         }
@@ -102,25 +118,60 @@ class MessageFragment : DetailBaseFragment(R.layout.fragment_message), MessageAd
 
         binding.attachedFiles.adapter = fileAdapter
         binding.attachedFiles.layoutManager =
-           LinearLayoutManager(context)
+            LinearLayoutManager(context)
     }
 
     private fun initToolbarActions() {
-        Log.d("sliding", "fragmentToolbar ${navigator().slidingPaneLayoutIsOpen()}")
-        if (navigator().slidingPaneLayoutIsOpen()) binding.messageIconBack.setImageDrawable(
-            ContextCompat.getDrawable(binding.root.context, R.drawable.ic_material_close_24)
-        )
-        else binding.messageIconBack.setImageDrawable(
-            ContextCompat.getDrawable(
-                binding.root.context,
-                R.drawable.ic_arrow_left
-            )
-        )
+        binding.messageToolbar.setOnClickListener { navigator().showEditContact(name) }
         binding.messageIconBack.setOnClickListener {
             navigator().closeDetail()
         }
-        Log.d("sliding", "fragmentToolbar 2 ${navigator().slidingPaneLayoutIsOpen()}")
+        binding.messageToolbar.setOnMenuItemClickListener {
+            when (it.itemId) {
+                R.id.call_out -> {}
+                R.id.disable_notifications -> {
+                    val dialog = NotificationBottomSheet()
+                    navigator().showBottomSheetDialog(dialog)
+                }
+                R.id.clear_message_history -> {
+                    val dialogMessage =
+                        if (isGroup) resources.getString(R.string.clear_group_chat_history_dialog_message) else
+                            SpannableStringBuilder().append(resources.getString(R.string.dialog_message_clear_history))
+                                .bold { append(" $name") }.append("?")
+                                .append(resources.getString(R.string.chat_dialog_sub_message))
+                    val dialog = AlertDialog.Builder(requireContext())
+                    dialog.setTitle(R.string.dialog_clear_history_chat_title)
+                        .setMessage(dialogMessage)
+                        .setPositiveButton(R.string.dialog_chat_positive_button) { _, _ ->
+
+                        }
+                        .setNegativeButton(R.string.dialog_chat_negative_button) { _, _ ->
+
+                        }
+                    dialog.show()
+                }
+                R.id.delete_chat -> {
+                    val dialogMessage =
+                        SpannableStringBuilder().append(resources.getString(R.string.dialog_delete_chat_description))
+                            .bold { append(" $name") }.append("?")
+                            .append(resources.getString(R.string.dialog_delete_chat_sub_message))
+                    val dialog = AlertDialog.Builder(requireContext())
+                    dialog.setTitle(R.string.dialog_delete_chat_title)
+                        .setMessage(dialogMessage)
+                        .setPositiveButton(R.string.dialog_delete_chat_button_positive) { _, _ ->
+
+                        }
+                        .setNegativeButton(R.string.dialog_delete_chat_button_cancel) { _, _ ->
+
+                        }
+                    dialog.show()
+                }
+
+            }
+            true
+        }
     }
+
 
     private fun initRecyclerView() {
         messageAdapter = MessageAdapter(this)
@@ -152,7 +203,7 @@ class MessageFragment : DetailBaseFragment(R.layout.fragment_message), MessageAd
             messageAdapter?.submitList(it)
         }
         viewModel.files.observe(viewLifecycleOwner) {
-         //   fileAdapter?.updateAdapter(it)
+            //   fileAdapter?.updateAdapter(it)
         }
     }
 
@@ -162,6 +213,7 @@ class MessageFragment : DetailBaseFragment(R.layout.fragment_message), MessageAd
         binding.buttonEmoticon.setOnClickListener { }
 
         binding.buttonAttach.setOnClickListener {
+
             val dialog = AttachDialog(this)
             navigator().showBottomSheetDialog(dialog)
         }
@@ -281,6 +333,7 @@ class MessageFragment : DetailBaseFragment(R.layout.fragment_message), MessageAd
         super.onDestroy()
         messageAdapter = null
         fileAdapter = null
+        onBackPressedCallback.remove()
         AudioRecorder.releaseRecorder()
     }
 
@@ -317,7 +370,7 @@ class MessageFragment : DetailBaseFragment(R.layout.fragment_message), MessageAd
 
     @SuppressLint("NotifyDataSetChanged")
     override fun onLongClick(primary: String) {
-       messageAdapter?.showCheckbox(true)
+        messageAdapter?.showCheckbox(true)
         messageAdapter?.notifyDataSetChanged()
     }
 
@@ -374,4 +427,40 @@ class MessageFragment : DetailBaseFragment(R.layout.fragment_message), MessageAd
 //
 //    }
 
+
+    override fun disableNotifications() {
+        binding.imNotificationsIsDisable.isVisible = true
+        binding.imNotificationsIsDisable.setImageDrawable(
+            ResourcesCompat.getDrawable(
+                resources,
+                R.drawable.ic_bell_sleep,
+                context?.theme
+            )
+        )
+    }
+
+    override fun disableNotificationsForever() {
+        binding.imNotificationsIsDisable.isVisible = true
+        binding.imNotificationsIsDisable.setImageDrawable(
+            ResourcesCompat.getDrawable(
+                resources,
+                R.drawable.ic_bell_off_forever,
+                context?.theme
+            )
+        )
+
+
+    }
+
+    override fun enableNotifications() {
+        binding.imNotificationsIsDisable.isVisible = false
+    }
+
+    private val onBackPressedCallback = object : OnBackPressedCallback(true) {
+       override fun handleOnBackPressed() {
+           if (messageAdapter?.getCheckBoxIsVisible() == true) messageAdapter?.showCheckbox(false)
+           else
+               navigator().closeDetail()
+       }
+    }
 }

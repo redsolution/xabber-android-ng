@@ -1,14 +1,19 @@
 package com.xabber.presentation.application.activity
 
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.content.res.Resources
 import android.database.Cursor
 import android.graphics.Bitmap
+import android.net.Uri
 import android.os.Bundle
 import android.provider.MediaStore
+import android.provider.Settings
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.viewModels
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.updateLayoutParams
@@ -52,6 +57,30 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
     private val activeFragment: Fragment?
         get() = supportFragmentManager.findFragmentById(R.id.application_container)
 
+
+
+    private fun askUserForOpeningAppSettings() {
+        val appSettingsIntent = Intent(
+            Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+            Uri.fromParts("package", packageName, null)
+        )
+        if (packageManager.resolveActivity(
+                appSettingsIntent,
+                PackageManager.MATCH_DEFAULT_ONLY
+            ) == null
+        ) {
+            Toast.makeText(this, "Permissions denied forever", Toast.LENGTH_SHORT).show()
+        } else {
+            AlertDialog.Builder(this)
+                .setTitle("Permission denied")
+                .setMessage(R.string.offer_to_open_settings)
+                .setPositiveButton(R.string.dialog_button_open) { _, _ ->
+                    startActivity(appSettingsIntent)
+                }
+                .create()
+                .show()
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -244,7 +273,7 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
     }
 
     override fun showEditContact(name: String) {
-        launchDetail(EditContactFragment.newInstance(name))
+        launchDetailInStack(EditContactFragment.newInstance(name))
     }
 
     override fun showChatSettings() {

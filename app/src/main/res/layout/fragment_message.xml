@@ -18,7 +18,7 @@
             android:id="@+id/message_toolbar"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            app:menu="@menu/message_menu">
+            app:menu="@menu/message_toolbar_menu">
 
             <ImageView
                 android:id="@+id/message_icon_back"
@@ -28,17 +28,18 @@
                 android:src="@drawable/ic_material_close_24" />
 
             <androidx.constraintlayout.widget.ConstraintLayout
+                android:id="@+id/message_constraint"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content">
 
                 <com.google.android.material.card.MaterialCardView
                     android:id="@+id/avatar_container"
-                    android:layout_width="32dp"
-                    android:layout_height="32dp"
-                    android:layout_marginStart="12dp"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:layout_marginStart="20dp"
                     android:focusable="false"
                     android:theme="@style/Theme.MaterialComponents.NoActionBar"
-                    app:cardCornerRadius="16dp"
+                    app:cardCornerRadius="24dp"
                     app:cardElevation="0dp"
                     app:layout_constraintBottom_toBottomOf="parent"
                     app:layout_constraintStart_toStartOf="parent"
@@ -59,7 +60,7 @@
                     android:id="@+id/avatar_status"
                     android:layout_width="8dp"
                     android:layout_height="8dp"
-                    android:layout_margin="23dp"
+                    android:layout_margin="30dp"
                     android:elevation="0dp"
                     android:theme="@style/Theme.MaterialComponents.Light.NoActionBar"
                     android:visibility="visible"
@@ -76,23 +77,41 @@
                 <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="16dp"
+                    android:layout_marginStart="20dp"
                     android:orientation="vertical"
                     app:layout_constraintEnd_toEndOf="parent"
                     app:layout_constraintStart_toEndOf="@id/avatar_container"
                     app:layout_constraintTop_toTopOf="parent">
 
-                    <TextView
-                        android:id="@+id/message_user_name"
+                    <LinearLayout
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:textColor="@color/black"
-                        android:textSize="19sp" />
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:id="@+id/message_user_name"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:ellipsize="end"
+                            android:textColor="@color/black"
+                            android:textSize="19sp"
+                            android:textStyle="bold" />
+
+                        <ImageView
+                            android:id="@+id/im_notifications_is_disable"
+                            android:layout_width="16dp"
+                            android:layout_height="16dp"
+                            android:layout_gravity="center_vertical"
+                            android:layout_marginStart="8dp"
+                            android:src="@drawable/ic_bell_off_forever"
+                            android:visibility="gone" />
+                    </LinearLayout>
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Available"
+                        android:ellipsize="end"
+                        android:text="available"
                         android:textSize="13sp" />
 
 
@@ -395,7 +414,7 @@
         android:backgroundTint="@color/white"
         android:contentDescription="@string/im_description_downward"
         android:src="@drawable/ic_downward_grey"
-
+        android:visibility="gone"
         app:borderWidth="0dp"
         app:fabCustomSize="40dp"
         app:layout_constraintBottom_toTopOf="@id/input_layout"

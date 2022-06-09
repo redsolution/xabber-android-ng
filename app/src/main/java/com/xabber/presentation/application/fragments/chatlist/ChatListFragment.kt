@@ -286,5 +286,33 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat), ChatListAdapter.C
         chatAdapter = null
     }
 
+//    private fun showSnackbar(deletedItem: AbstractChat, previousState: ChatListState) {
+//        snackbar?.dismiss()
+//
+//        val abstractChat =
+//            ChatManager.getInstance().getChat(deletedItem.account, deletedItem.contactJid)
+//                ?: return
+//        val archived = abstractChat.isArchived
+//
+//        snackbar = view?.let {
+//            Snackbar.make(
+//                it,
+//                if (!archived) R.string.chat_was_unarchived else R.string.chat_was_archived,
+//                Snackbar.LENGTH_LONG
+//            )
+//        }
+//
+//        snackbar?.setAction(
+//            R.string.undo
+//        ) {
+//            abstractChat.isArchived = !archived
+//            onStateSelected(previousState)
+//            updateRequest.onNext(null)
+//        }
+//
+//        snackbar?.setActionTextColor(Color.YELLOW)
+//        snackbar?.show()
+//    }
+
 
 }

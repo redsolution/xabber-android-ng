@@ -12,11 +12,15 @@ import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.xabber.databinding.BottomSheetTurnOffNotificationsBinding
+import com.xabber.presentation.application.fragments.message.RecentImagesAdapter
 
 class NotificationBottomSheet : BottomSheetDialogFragment() {
     private var _binding: BottomSheetTurnOffNotificationsBinding? = null
     private val binding get() = _binding!!
 
+    companion object {
+        fun newInstance(listener: SwitchNotifications) = NotificationBottomSheet()
+    }
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -85,4 +89,6 @@ class NotificationBottomSheet : BottomSheetDialogFragment() {
         super.onDestroy()
         _binding = null
     }
+
+
 }

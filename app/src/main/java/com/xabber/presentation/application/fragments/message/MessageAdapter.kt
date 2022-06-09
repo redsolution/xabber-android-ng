@@ -104,6 +104,8 @@ class MessageAdapter(
         notifyDataSetChanged()
     }
 
+    fun getCheckBoxIsVisible() : Boolean = checkBoxVisible
+
     override fun getItemViewType(position: Int): Int {
         return when {
             getItem(position).displayType == MessageDisplayType.System -> {

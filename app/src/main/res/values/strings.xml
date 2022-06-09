@@ -127,7 +127,8 @@
 
     <!-- Dialog Deleting Chat -->
     <string name="dialog_delete_chat_title">Deleting chat</string>
-    <string name="dialog_delete_chat_description">Are you shure you want to delete chat with $s? It will be impossible to undo this action</string>
+    <string name="dialog_delete_chat_description">Are you sure you want to delete chat with</string>
+    <string name="dialog_delete_chat_sub_message">\n\nIt will be impossible to undo this action.</string>
     <string name="dialog_delete_chat_button_positive">Delete</string>
     <string name="dialog_delete_chat_button_cancel">Cancel</string>
 
@@ -208,6 +209,21 @@
     <string name="edited">(edited at %s)</string>
     <string name="skip">Skip</string>
     <string name="record_cancel">slide to cancel</string>
+    <string name="message_item_popup_menu_copy">Copy</string>
+    <string name="message_item_popup_menu_forward">Forward</string>
+    <string name="message_item_popup_menu_reply">Reply</string>
+    <string name="message_item_popup_menu_edit">Edit</string>
+    <string name="message_item_popup_menu_delete">Delete</string>
+    <string name="toolbar_menu_item_call_out">Call out</string>
+    <string name="toolbar_menu_item_disable_notifications">Disable notifications</string>
+    <string name="toolbar_menu_item_clear_message_history">Clear message history</string>
+    <string name="toolbar_menu_item_delete_chat">Delete chat</string>
+    <string name="dialog_clear_history_chat_title">Clear history</string>
+    <string name="dialog_message_clear_history">Are you sure you want to clear your chat history with</string>
+    <string name="chat_dialog_sub_message">\n\nThis action can not be undone.</string>
+    <string name="dialog_chat_positive_button">Clear</string>
+    <string name="dialog_chat_negative_button">Cancel</string>
+    <string name="clear_group_chat_history_dialog_message">All message history in this chat will be cleared. This action can not be undone.</string>
 
     <!-- DISCOVER FRAGMENT -->
     <string name="discover_toolbar_title">Discover</string>
@@ -228,11 +244,6 @@
     <string name="button_add_to_contacts">add to contacts</string>
     <string name="im_description_close_board">close_board</string>
     <string name="im_description_downward">downward</string>
-    <string name="message_item_popup_menu_copy">Copy</string>
-    <string name="message_item_popup_menu_forward">Forward</string>
-    <string name="message_item_popup_menu_reply">Reply</string>
-    <string name="message_item_popup_menu_edit">Edit</string>
-    <string name="message_item_popup_menu_delete">Delete</string>
 
 
 </resources>

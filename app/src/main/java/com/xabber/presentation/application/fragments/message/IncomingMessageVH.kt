@@ -9,16 +9,17 @@ import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
+import androidx.activity.OnBackPressedCallback
 import androidx.annotation.RequiresApi
 import androidx.appcompat.view.menu.MenuBuilder
 import androidx.appcompat.view.menu.MenuPopupHelper
 import androidx.appcompat.widget.CustomPopupMenu
-import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.isVisible
 import androidx.core.view.marginStart
 import com.xabber.R
 import com.xabber.data.dto.MessageDto
+import com.xabber.data.util.dp
 import com.xabber.databinding.ItemMessageIncomingBinding
 import com.xabber.presentation.application.util.StringUtils
 import java.util.*
@@ -27,7 +28,6 @@ class IncomingMessageVH(
     private val binding: ItemMessageIncomingBinding,
     private val listener: MessageAdapter.Listener,
 ) : BasicViewHolder(binding.root, listener) {
-
     @RequiresApi(Build.VERSION_CODES.N)
     @SuppressLint("RestrictedApi", "ResourceAsColor")
     override fun bind(
@@ -36,11 +36,11 @@ class IncomingMessageVH(
         needDay: Boolean,
         showCheckbox: Boolean
     ) {
-
+        Log.d("show", "$showCheckbox")
         // text & appearance
         binding.tvContent.isVisible = messageDto.messageBody != null
         binding.tvContent.text = messageDto.messageBody
-        binding.tvContent.setTextIsSelectable(showCheckbox)
+
 
         //  tvContent.setTextAppearance(SettingsManager.chatsAppearanceStyle()) - берем из класса настроек
 
@@ -59,23 +59,35 @@ class IncomingMessageVH(
         // for group chat
         binding.tvContactName.isVisible = messageDto.isGroup && isNeedTail
         if (binding.tvContactName.isVisible) binding.tvContactName.text = messageDto.owner
-        binding.avatarContact.isVisible = false
+        binding.avatarContact.isVisible = messageDto.isGroup && isNeedTail
 
         // checkbox
-          binding.checkboxIncoming.isVisible = showCheckbox
+        binding.checkboxIncoming.isVisible = showCheckbox
 
         // margins and paddings
         val params = LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.WRAP_CONTENT
         )
-     binding.balloon.marginStart
+
+        val marginRight =
+            if (messageDto.isGroup && !showCheckbox) 46.dp else if (messageDto.isGroup && showCheckbox) 12.dp else 40.dp
+        if (!messageDto.isGroup || binding.avatarContact.isVisible) {
             params.setMargins(
                 if (isNeedTail) 2 else 24,
                 0,
-                   if (binding.checkboxIncoming.isVisible) 28 else 40,
+                marginRight,
                 0
             )
+        } else if (messageDto.isGroup && !binding.avatarContact.isVisible) {
+            params.setMargins(
+                58.dp,
+                0,
+                marginRight,
+                0
+            )
+        }
+
         binding.balloon.layoutParams = params
         binding.balloon.setPadding(if (isNeedTail) 54 else 26, 26, 26, 26)
 
@@ -117,26 +129,32 @@ class IncomingMessageVH(
         //   val popupMenu = createPopupMenu(messageDto, binding.root)
 
         binding.root.setOnClickListener {
-          binding.frameLayoutBlackout.background = ResourcesCompat.getColor(Resources, R.color.yellow_100, itemView.)
-            // if (!showCheckbox) popupMenu.show()
-            // else {
-            // binding.checkboxIncoming.isChecked = !binding.checkboxIncoming.isChecked
+            if (showCheckbox) {
+                binding.frameLayoutBlackout.setBackgroundResource(R.color.selected)
+                binding.tvContent.setTextIsSelectable(showCheckbox)
+            } else {
+                //  binding.checkboxIncoming.isChecked = !binding.checkboxIncoming.isChecked
+            }
+
         }
 
 
         binding.root.setOnLongClickListener {
+
             if (!showCheckbox) {
+
                 listener.onLongClick(messageDto.primary)
             } else {
-                //    binding.checkboxIncoming.isChecked = !binding.checkboxIncoming.isChecked
+                binding.checkboxIncoming.isChecked = !binding.checkboxIncoming.isChecked
+                binding.frameLayoutBlackout.setBackgroundResource(R.color.selected)
+                binding.tvContent.setTextIsSelectable(showCheckbox)
             }
-
             true
         }
     }
 
     @SuppressLint("RestrictedApi")
-    private fun createPopupMenu(messageDto: MessageDto, view: View): CustomPopupMenu {
+    fun createPopupMenu(messageDto: MessageDto, view: View): CustomPopupMenu {
         val popup = CustomPopupMenu(view.context, view, Gravity.CENTER)
         if (messageDto.isOutgoing) popup.inflate(R.menu.context_menu_message_outgoing)
         else popup.inflate(R.menu.context_menu_message_incoming)
@@ -166,3 +184,6 @@ class IncomingMessageVH(
         return popup
     }
 }
+
+
+
