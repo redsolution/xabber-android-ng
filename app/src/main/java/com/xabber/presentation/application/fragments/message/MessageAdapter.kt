@@ -1,15 +1,20 @@
 package com.xabber.presentation.application.fragments.message
 
+import android.annotation.SuppressLint
 import android.os.Build
+import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.annotation.RequiresApi
+import androidx.appcompat.view.menu.MenuBuilder
+import androidx.appcompat.view.menu.MenuPopupHelper
+import androidx.appcompat.widget.CustomPopupMenu
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
+import com.xabber.R
 import com.xabber.data.dto.MessageDto
 import com.xabber.data.xmpp.messages.MessageDisplayType
-import com.xabber.databinding.ItemGroupIncomingBinding
 import com.xabber.databinding.ItemMessageIncomingBinding
 import com.xabber.databinding.ItemMessageOutgoingBinding
 import com.xabber.databinding.ItemMessageSystemBinding
@@ -74,6 +79,7 @@ class MessageAdapter(
     }
 
 
+    @SuppressLint("RestrictedApi")
     @RequiresApi(Build.VERSION_CODES.N)
     override fun onBindViewHolder(holder: BasicViewHolder, position: Int) {
         var isNeedTail = true
@@ -81,9 +87,9 @@ class MessageAdapter(
             isNeedTail =
                 getItem(position - 1).owner != getItem(position).owner || getIsNeedDay(position - 1)
         }
+        val isNeedTitle = getItem(position + 1).owner != getItem(position).owner || getIsNeedDay(position + 1)
 
-       holder.itemView.setOnClickListener {  }
-        return holder.bind(getItem(position), isNeedTail, getIsNeedDay(position), checkBoxVisible)
+        return holder.bind(getItem(position), isNeedTail, getIsNeedDay(position), checkBoxVisible, isNeedTitle)
     }
 
 

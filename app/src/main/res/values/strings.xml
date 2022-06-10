@@ -245,5 +245,8 @@
     <string name="im_description_close_board">close_board</string>
     <string name="im_description_downward">downward</string>
 
+    <!-- SearcFragment -->
+
+
 
 </resources>

@@ -12,15 +12,16 @@ import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.xabber.databinding.BottomSheetTurnOffNotificationsBinding
-import com.xabber.presentation.application.fragments.message.RecentImagesAdapter
 
 class NotificationBottomSheet : BottomSheetDialogFragment() {
     private var _binding: BottomSheetTurnOffNotificationsBinding? = null
     private val binding get() = _binding!!
+    var behavior: BottomSheetBehavior<*>? = null
 
     companion object {
         fun newInstance(listener: SwitchNotifications) = NotificationBottomSheet()
     }
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -31,8 +32,11 @@ class NotificationBottomSheet : BottomSheetDialogFragment() {
     }
 
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
+
         val dialog = super.onCreateDialog(savedInstanceState) as BottomSheetDialog
-        dialog.setOnShowListener { setupBottomSheet(it) }
+        dialog.setOnShowListener {
+            setupBottomSheet(it)
+        }
         return dialog
     }
 
@@ -43,14 +47,15 @@ class NotificationBottomSheet : BottomSheetDialogFragment() {
         )
             ?: return
         bottomSheet.setBackgroundColor(Color.TRANSPARENT)
-        val behavior: BottomSheetBehavior<*> = BottomSheetBehavior.from(
-            bottomSheet
-        )
+        behavior = BottomSheetBehavior.from(bottomSheet)
+        behavior?.skipCollapsed = true
+        behavior?.state = BottomSheetBehavior.STATE_EXPANDED
 
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        if (savedInstanceState != null) behavior?.state = BottomSheetBehavior.STATE_EXPANDED
         with(binding) {
             rl15min.setOnClickListener {
                 Toast.makeText(
@@ -58,7 +63,7 @@ class NotificationBottomSheet : BottomSheetDialogFragment() {
                 ).show()
                 dismiss()
             }
-           rl1hour.setOnClickListener {
+            rl1hour.setOnClickListener {
                 Toast.makeText(
                     context, "Notifications are disabled for 1 hour", Toast.LENGTH_SHORT
                 ).show()
@@ -89,6 +94,5 @@ class NotificationBottomSheet : BottomSheetDialogFragment() {
         super.onDestroy()
         _binding = null
     }
-
 
 }

@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+<LinearLayout
     android:id="@+id/message_shadow"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
@@ -15,9 +18,10 @@
         android:id="@+id/message_date"
         layout="@layout/item_message_date" />
 
-    <androidx.constraintlayout.widget.ConstraintLayout
+    <FrameLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content">
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
 
         <androidx.appcompat.widget.AppCompatCheckBox
             android:id="@+id/checkbox_incoming"
@@ -25,13 +29,14 @@
             android:layout_height="28dp"
             android:layout_gravity="bottom"
             android:layout_marginStart="6dp"
-            android:button="@drawable/checkbox"
+            android:button="@drawable/checkbox_selector"
             android:gravity="start"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent" />
 
         <LinearLayout
             android:id="@+id/balloon"
+            android:layout_gravity="end"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:orientation="vertical"
@@ -79,6 +84,7 @@
             </RelativeLayout>
 
             <com.xabber.presentation.custom.CustomFlexboxLayout
+                android:id="@+id/flex_box_layout"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 app:viewPartMain="@id/tv_content"
@@ -117,7 +123,41 @@
                         android:layout_marginStart="4dp"
                         android:src="@drawable/ic_material_check_24" />
                 </LinearLayout>
+
             </com.xabber.presentation.custom.CustomFlexboxLayout>
+            <LinearLayout
+                android:id="@+id/info"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_gravity="bottom|end">
+
+                <TextView
+                    android:id="@+id/tv_time"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:gravity="top"
+                    android:layout_gravity="top"
+                    android:singleLine="true"
+                    android:text="15:20"
+                    android:textColor="@color/grey_600"
+                    android:textSize="10sp" />
+
+                <ImageView
+                    android:layout_gravity="top"
+                    android:id="@+id/status"
+                    android:layout_width="14dp"
+                    android:layout_height="14dp"
+                    android:layout_marginStart="4dp"
+                    android:src="@drawable/ic_material_check_24" /></LinearLayout>
         </LinearLayout>
-    </androidx.constraintlayout.widget.ConstraintLayout>
+
+
+    </FrameLayout>
 </LinearLayout>
+  <FrameLayout
+        android:id="@+id/frameLayout_blackout"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/transparent" />
+</FrameLayout>

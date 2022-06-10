@@ -105,7 +105,7 @@ class MessageFragment : DetailBaseFragment(R.layout.fragment_message), MessageAd
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         requireActivity().onBackPressedDispatcher.addCallback(onBackPressedCallback)
-Glide.with(view).load(R.drawable.images).into(binding.imAvatar)
+        Glide.with(view).load(R.drawable.images).into(binding.imAvatar)
         if (savedInstanceState != null) {
             name = savedInstanceState.getString("name", "")
         }
@@ -134,333 +134,313 @@ Glide.with(view).load(R.drawable.images).into(binding.imAvatar)
                     navigator().showBottomSheetDialog(dialog)
                 }
                 R.id.clear_message_history -> {
-                    val dialogMessage =
-                        if (isGroup) resources.getString(R.string.clear_group_chat_history_dialog_message) else
-                            SpannableStringBuilder().append(resources.getString(R.string.dialog_message_clear_history))
-                                .bold { append(" $name") }.append("?")
-                                .append(resources.getString(R.string.chat_dialog_sub_message))
-                    val dialog = AlertDialog.Builder(requireContext())
-                    dialog.setTitle(R.string.dialog_clear_history_chat_title)
-                        .setMessage(dialogMessage)
-                        .setPositiveButton(R.string.dialog_chat_positive_button) { _, _ ->
-
-                        }
-                        .setNegativeButton(R.string.dialog_chat_negative_button) { _, _ ->
-
-                        }
-                    dialog.show()
+                    val dialog = ChatHistoryClearDialog.newInstance(name)
+                    navigator().showDialogFragment(dialog)
                 }
                 R.id.delete_chat -> {
-                    val dialogMessage =
-                        SpannableStringBuilder().append(resources.getString(R.string.dialog_delete_chat_description))
-                            .bold { append(" $name") }.append("?")
-                            .append(resources.getString(R.string.dialog_delete_chat_sub_message))
-                    val dialog = AlertDialog.Builder(requireContext())
-                    dialog.setTitle(R.string.dialog_delete_chat_title)
-                        .setMessage(dialogMessage)
-                        .setPositiveButton(R.string.dialog_delete_chat_button_positive) { _, _ ->
+                   val dialog = DeletingChatDialog.newInstance(name)
+                    navigator().showDialogFragment(dialog)
 
-                        }
-                        .setNegativeButton(R.string.dialog_delete_chat_button_cancel) { _, _ ->
-
-                        }
-                    dialog.show()
                 }
-
-            }
-            true
+            };  true
         }
     }
 
 
-    private fun initRecyclerView() {
-        messageAdapter = MessageAdapter(this)
-        binding.messageList.adapter = messageAdapter
-        val linearLayoutManager = LinearLayoutManager(context)
-        linearLayoutManager.reverseLayout = true
-        binding.messageList.layoutManager = linearLayoutManager
-        addSwipeCallback()
-    }
+        private fun initRecyclerView() {
+            messageAdapter = MessageAdapter(this)
+            binding.messageList.adapter = messageAdapter
+            val linearLayoutManager = LinearLayoutManager(context)
+            linearLayoutManager.reverseLayout = true
+            binding.messageList.layoutManager = linearLayoutManager
+            addSwipeCallback()
+        }
 
-    private fun addSwipeCallback() {
-        val replySwipeCallback = ReplySwipeCallback(binding.messageList.context)
-        replySwipeCallback.setSwipeEnabled(true)
-        replySwipeCallback.replySwipeCallback()
-        ItemTouchHelper(replySwipeCallback).attachToRecyclerView(binding.messageList)
+        private fun addSwipeCallback() {
+            val replySwipeCallback = ReplySwipeCallback(binding.messageList.context)
+            replySwipeCallback.setSwipeEnabled(true)
+            replySwipeCallback.replySwipeCallback()
+            ItemTouchHelper(replySwipeCallback).attachToRecyclerView(binding.messageList)
 
-        binding.messageList.addItemDecoration(
-            object : RecyclerView.ItemDecoration() {
-                override fun onDraw(c: Canvas, parent: RecyclerView, state: RecyclerView.State) {
-                    replySwipeCallback.onDraw(c)
+            binding.messageList.addItemDecoration(
+                object : RecyclerView.ItemDecoration() {
+                    override fun onDraw(
+                        c: Canvas,
+                        parent: RecyclerView,
+                        state: RecyclerView.State
+                    ) {
+                        replySwipeCallback.onDraw(c)
+                    }
+                })
+        }
+
+        private fun subscribeViewModelData() {
+            viewModel.initList()
+            viewModel.messages.observe(viewLifecycleOwner) {
+                it.sort()
+                messageAdapter?.submitList(it)
+            }
+            viewModel.files.observe(viewLifecycleOwner) {
+                //   fileAdapter?.updateAdapter(it)
+            }
+        }
+
+        @SuppressLint("ClickableViewAccessibility")
+        private fun initInputLayoutActions() {
+            chatInputAddListener()
+            binding.buttonEmoticon.setOnClickListener { }
+
+            binding.buttonAttach.setOnClickListener {
+
+                val dialog = AttachDialog(this)
+                navigator().showBottomSheetDialog(dialog)
+            }
+
+            binding.buttonSendMessage.setOnClickListener {
+                var messageKindDto: MessageKind? = null
+                if (binding.answer.isVisible) {
+                    messageKindDto = MessageKind(
+                        "id",
+                        binding.replyMessageTitle.text.toString(),
+                        binding.replyMessageContent.text.toString()
+                    )
+                }
+                val text = binding.chatInput.text.toString().trim()
+                binding.chatInput.text?.clear()
+                val timeStamp = System.currentTimeMillis()
+                viewModel.insertMessage(
+                    MessageDto(
+                        "151515",
+                        true,
+                        "Алексей Иванов",
+                        "Геннадий Белов",
+                        text,
+                        MessageSendingState.Deliver,
+                        timeStamp,
+                        null,
+                        MessageDisplayType.Text,
+                        false,
+                        false,
+                        null,
+                        false, messageKindDto
+                    )
+                )
+                binding.answer.isVisible = false
+                messageAdapter?.notifyDataSetChanged()
+                scrollDown()
+            }
+            binding.buttonRecord.setOnTouchListener { _, motionEvent ->
+                if (motionEvent.action == MotionEvent.ACTION_DOWN) {
+                    binding.groupRecord.isVisible = true
+                    binding.buttonEmoticon.isVisible = false
+                    binding.buttonAttach.isVisible = false
+                    binding.chatInput.isVisible = false
+                    binding.recordChronometer.base = SystemClock.elapsedRealtime()
+                    binding.recordChronometer.start()
+                    AudioRecorder.startRecord()
+                } else if (motionEvent.action == MotionEvent.ACTION_UP) {
+                    binding.groupRecord.isVisible = false
+                    binding.buttonEmoticon.isVisible = true
+                    binding.buttonAttach.isVisible = true
+                    binding.chatInput.isVisible = true
+
+                    binding.recordChronometer.stop()
+                    binding.recordChronometer.base = SystemClock.elapsedRealtime()
+                    AudioRecorder.stopRecord { file ->
+                        Toast.makeText(context, "${file == null}", Toast.LENGTH_SHORT).show()
+                    }
+                }
+                true
+            }
+
+            binding.messageList.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+                override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                    if (dy < 0) binding.btnDownward.animate()
+                        .translationY(binding.btnDownward.height + binding.btnDownward.marginBottom.toFloat())
+                    else if (dy > 0) binding.btnDownward.animate()
+                        .translationY(0f)
                 }
             })
-    }
-
-    private fun subscribeViewModelData() {
-        viewModel.initList()
-        viewModel.messages.observe(viewLifecycleOwner) {
-            it.sort()
-            messageAdapter?.submitList(it)
-        }
-        viewModel.files.observe(viewLifecycleOwner) {
-            //   fileAdapter?.updateAdapter(it)
-        }
-    }
-
-    @SuppressLint("ClickableViewAccessibility")
-    private fun initInputLayoutActions() {
-        chatInputAddListener()
-        binding.buttonEmoticon.setOnClickListener { }
-
-        binding.buttonAttach.setOnClickListener {
-
-            val dialog = AttachDialog(this)
-            navigator().showBottomSheetDialog(dialog)
-        }
-
-        binding.buttonSendMessage.setOnClickListener {
-            var messageKindDto: MessageKind? = null
-            if (binding.answer.isVisible) {
-                messageKindDto = MessageKind(
-                    "id",
-                    binding.replyMessageTitle.text.toString(),
-                    binding.replyMessageContent.text.toString()
-                )
+            binding.btnDownward.setOnClickListener {
+                scrollDown()
             }
-            val text = binding.chatInput.text.toString().trim()
-            binding.chatInput.text?.clear()
-            val timeStamp = System.currentTimeMillis()
-            viewModel.insertMessage(
-                MessageDto(
-                    "151515",
-                    true,
-                    "Алексей Иванов",
-                    "Геннадий Белов",
-                    text,
-                    MessageSendingState.Deliver,
-                    timeStamp,
-                    null,
-                    MessageDisplayType.Text,
-                    false,
-                    false,
-                    null,
-                    false, messageKindDto
-                )
-            )
-            binding.answer.isVisible = false
-            messageAdapter?.notifyDataSetChanged()
-            scrollDown()
-        }
-        binding.buttonRecord.setOnTouchListener { _, motionEvent ->
-            if (motionEvent.action == MotionEvent.ACTION_DOWN) {
-                binding.groupRecord.isVisible = true
-                binding.buttonEmoticon.isVisible = false
-                binding.buttonAttach.isVisible = false
-                binding.chatInput.isVisible = false
-                binding.recordChronometer.base = SystemClock.elapsedRealtime()
-                binding.recordChronometer.start()
-                AudioRecorder.startRecord()
-            } else if (motionEvent.action == MotionEvent.ACTION_UP) {
-                binding.groupRecord.isVisible = false
-                binding.buttonEmoticon.isVisible = true
-                binding.buttonAttach.isVisible = true
-                binding.chatInput.isVisible = true
 
-                binding.recordChronometer.stop()
-                binding.recordChronometer.base = SystemClock.elapsedRealtime()
-                AudioRecorder.stopRecord { file ->
-                    Toast.makeText(context, "${file == null}", Toast.LENGTH_SHORT).show()
-                }
-            }
-            true
         }
 
-        binding.messageList.addOnScrollListener(object : RecyclerView.OnScrollListener() {
-            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
-                if (dy < 0) binding.btnDownward.animate()
-                    .translationY(binding.btnDownward.height + binding.btnDownward.marginBottom.toFloat())
-                else if (dy > 0) binding.btnDownward.animate()
-                    .translationY(0f)
-            }
-        })
-        binding.btnDownward.setOnClickListener {
-            scrollDown()
+        private fun scrollDown() {
+            binding.messageList.scrollToPosition(0)
         }
 
-    }
-
-    private fun scrollDown() {
-        binding.messageList.scrollToPosition(0)
-    }
-
-    private fun updateTopDateIfNeed() {
-        val layoutManager = binding.messageList.layoutManager as LinearLayoutManager
-        val position = layoutManager.findFirstVisibleItemPosition()
+        private fun updateTopDateIfNeed() {
+            val layoutManager = binding.messageList.layoutManager as LinearLayoutManager
+            val position = layoutManager.findFirstVisibleItemPosition()
 // val message : MessageDto = messageAdapter!!.getItem(position)
 // if (message != null)
 // binding.tvTopDate.setText(StringUtils.getDateStringForMessage(message.t)
-    }
+        }
 
 
-    private fun chatInputAddListener() {
-        with(binding) {
-            chatInput.addTextChangedListener(object : TextWatcher {
-                override fun beforeTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {
-                }
-
-                override fun onTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {
-
-                }
-
-                override fun afterTextChanged(p0: Editable?) {
-                    if (p0.toString().trim().isNotEmpty()) {
-                        buttonRecord.isVisible = false
-                        buttonAttach.isVisible = false
-                        buttonSendMessage.isVisible = true
-                    } else {
-                        buttonRecord.isVisible = true
-                        buttonAttach.isVisible = true
-                        buttonSendMessage.isVisible = false
+        private fun chatInputAddListener() {
+            with(binding) {
+                chatInput.addTextChangedListener(object : TextWatcher {
+                    override fun beforeTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {
                     }
-                }
-            })
+
+                    override fun onTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {
+
+                    }
+
+                    override fun afterTextChanged(p0: Editable?) {
+                        if (p0.toString().trim().isNotEmpty()) {
+                            buttonRecord.isVisible = false
+                            buttonAttach.isVisible = false
+                            buttonSendMessage.isVisible = true
+                        } else {
+                            buttonRecord.isVisible = true
+                            buttonAttach.isVisible = true
+                            buttonSendMessage.isVisible = false
+                        }
+                    }
+                })
+            }
+
         }
 
-    }
 
-
-    override fun onDestroy() {
-        super.onDestroy()
-        messageAdapter = null
-        fileAdapter = null
-        onBackPressedCallback.remove()
-        AudioRecorder.releaseRecorder()
-    }
-
-
-    override fun onSaveInstanceState(outState: Bundle) {
-        super.onSaveInstanceState(outState)
-        outState.putString("name", name)
-    }
-
-    override fun copyText(text: String) {
-        val clipBoard = context?.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        val clipData = ClipData.newPlainText("", text)
-        clipBoard.setPrimaryClip(clipData)
-    }
-
-    override fun forwardMessage(messageDto: MessageDto) {
-        //    navigator().showChatFragment()
-    }
-
-    override fun replyMessage(messageDto: MessageDto) {
-        binding.answer.isVisible = true
-        binding.replyMessageTitle.text = messageDto.owner
-        binding.replyMessageContent.text = messageDto.messageBody
-        binding.close.setOnClickListener {
-            binding.replyMessageTitle.text = ""
-            binding.replyMessageContent.text = ""
-            binding.answer.isVisible = false
+        override fun onDestroy() {
+            super.onDestroy()
+            messageAdapter = null
+            fileAdapter = null
+            onBackPressedCallback.remove()
+            AudioRecorder.releaseRecorder()
         }
-    }
 
-    override fun editMessage(primary: String) {
+
+        override fun onSaveInstanceState(outState: Bundle) {
+            super.onSaveInstanceState(outState)
+            outState.putString("name", name)
+        }
+
+        override fun copyText(text: String) {
+            val clipBoard = context?.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            val clipData = ClipData.newPlainText("", text)
+            clipBoard.setPrimaryClip(clipData)
+        }
+
+        override fun forwardMessage(messageDto: MessageDto) {
+            //    navigator().showChatFragment()
+        }
+
+        override fun replyMessage(messageDto: MessageDto) {
+            binding.answer.isVisible = true
+            binding.replyMessageTitle.text = messageDto.owner
+            binding.replyMessageContent.text = messageDto.messageBody
+            binding.close.setOnClickListener {
+                binding.replyMessageTitle.text = ""
+                binding.replyMessageContent.text = ""
+                binding.answer.isVisible = false
+            }
+        }
+
+        override fun editMessage(primary: String) {
 // binding.chatInput.text = primary
-    }
+        }
 
-    @SuppressLint("NotifyDataSetChanged")
-    override fun onLongClick(primary: String) {
-        messageAdapter?.showCheckbox(true)
-        messageAdapter?.notifyDataSetChanged()
-    }
+        @SuppressLint("NotifyDataSetChanged")
+        override fun onLongClick(primary: String) {
+            messageAdapter?.showCheckbox(true)
+            messageAdapter?.notifyDataSetChanged()
+        }
 
-    override fun deleteMessage(messageDto: MessageDto) {
-        viewModel.deleteMessage(messageDto)
-        messageAdapter?.notifyDataSetChanged()
-    }
+        override fun deleteMessage(messageDto: MessageDto) {
+            viewModel.deleteMessage(messageDto)
+            messageAdapter?.notifyDataSetChanged()
+        }
 
-    override fun onRecentPhotosSend(paths: HashSet<String>?) {
+        override fun onRecentPhotosSend(paths: HashSet<String>?) {
 
-    }
+        }
 
-    override fun onGalleryClick() {
+        override fun onGalleryClick() {
 
-    }
+        }
 
-    override fun onFilesClick() {
+        override fun onFilesClick() {
 
-    }
+        }
 
-    override fun onCameraClick() {
-        requestCameraPermissionLauncher.launch(Manifest.permission.CAMERA)
-    }
+        override fun onCameraClick() {
+            requestCameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+        }
 
-    override fun onLocationClick() {
+        override fun onLocationClick() {
 
-    }
+        }
 
-    override fun onFullSwipe(position: Int) {
+        override fun onFullSwipe(position: Int) {
 
-        replyMessage(
-            MessageDto(
-                "22222",
-                true,
-                "Ann",
-                "Геннадий Белов",
-                "Алексей присоединился к чату",
-                MessageSendingState.Read,
-                1654234345585,
-                null,
-                MessageDisplayType.System,
-                false,
-                false,
-                null, false
+            replyMessage(
+                MessageDto(
+                    "22222",
+                    true,
+                    "Ann",
+                    "Геннадий Белов",
+                    "Алексей присоединился к чату",
+                    MessageSendingState.Read,
+                    1654234345585,
+                    null,
+                    MessageDisplayType.System,
+                    false,
+                    false,
+                    null, false
+                )
             )
-        )
-    }
+        }
 
-    override fun deleteFile() {
+        override fun deleteFile() {
 
-    }
+        }
 
 //    override fun deleteFile() {
 //
 //    }
 
 
-    override fun disableNotifications() {
-        binding.imNotificationsIsDisable.isVisible = true
-        binding.imNotificationsIsDisable.setImageDrawable(
-            ResourcesCompat.getDrawable(
-                resources,
-                R.drawable.ic_bell_sleep,
-                context?.theme
+        override fun disableNotifications() {
+            binding.imNotificationsIsDisable.isVisible = true
+            binding.imNotificationsIsDisable.setImageDrawable(
+                ResourcesCompat.getDrawable(
+                    resources,
+                    R.drawable.ic_bell_sleep,
+                    context?.theme
+                )
             )
-        )
-    }
+        }
 
-    override fun disableNotificationsForever() {
-        binding.imNotificationsIsDisable.isVisible = true
-        binding.imNotificationsIsDisable.setImageDrawable(
-            ResourcesCompat.getDrawable(
-                resources,
-                R.drawable.ic_bell_off_forever,
-                context?.theme
+        override fun disableNotificationsForever() {
+            binding.imNotificationsIsDisable.isVisible = true
+            binding.imNotificationsIsDisable.setImageDrawable(
+                ResourcesCompat.getDrawable(
+                    resources,
+                    R.drawable.ic_bell_off_forever,
+                    context?.theme
+                )
             )
-        )
 
 
+        }
+
+        override fun enableNotifications() {
+            binding.imNotificationsIsDisable.isVisible = false
+        }
+
+        private val onBackPressedCallback = object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                if (messageAdapter?.getCheckBoxIsVisible() == true) messageAdapter?.showCheckbox(
+                    false
+                )
+                else
+                    navigator().closeDetail()
+            }
+        }
     }
-
-    override fun enableNotifications() {
-        binding.imNotificationsIsDisable.isVisible = false
-    }
-
-    private val onBackPressedCallback = object : OnBackPressedCallback(true) {
-       override fun handleOnBackPressed() {
-           if (messageAdapter?.getCheckBoxIsVisible() == true) messageAdapter?.showCheckbox(false)
-           else
-               navigator().closeDetail()
-       }
-    }
-}

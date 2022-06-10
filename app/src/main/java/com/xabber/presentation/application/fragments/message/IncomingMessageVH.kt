@@ -1,7 +1,7 @@
 package com.xabber.presentation.application.fragments.message
 
 import android.annotation.SuppressLint
-import android.content.res.Resources
+import android.graphics.Color
 import android.graphics.PorterDuff
 import android.os.Build
 import android.util.Log
@@ -9,14 +9,13 @@ import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
-import androidx.activity.OnBackPressedCallback
 import androidx.annotation.RequiresApi
 import androidx.appcompat.view.menu.MenuBuilder
 import androidx.appcompat.view.menu.MenuPopupHelper
 import androidx.appcompat.widget.CustomPopupMenu
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.isVisible
-import androidx.core.view.marginStart
+import com.google.android.material.snackbar.Snackbar
 import com.xabber.R
 import com.xabber.data.dto.MessageDto
 import com.xabber.data.util.dp
@@ -34,7 +33,8 @@ class IncomingMessageVH(
         messageDto: MessageDto,
         isNeedTail: Boolean,
         needDay: Boolean,
-        showCheckbox: Boolean
+        showCheckbox: Boolean,
+        isNeedTitle: Boolean
     ) {
         Log.d("show", "$showCheckbox")
         // text & appearance
@@ -57,7 +57,7 @@ class IncomingMessageVH(
         binding.tvSendingTime.text = time
 
         // for group chat
-        binding.tvContactName.isVisible = messageDto.isGroup && isNeedTail
+        binding.tvContactName.isVisible = messageDto.isGroup && isNeedTitle
         if (binding.tvContactName.isVisible) binding.tvContactName.text = messageDto.owner
         binding.avatarContact.isVisible = messageDto.isGroup && isNeedTail
 
@@ -74,7 +74,7 @@ class IncomingMessageVH(
             if (messageDto.isGroup && !showCheckbox) 46.dp else if (messageDto.isGroup && showCheckbox) 12.dp else 40.dp
         if (!messageDto.isGroup || binding.avatarContact.isVisible) {
             params.setMargins(
-                if (isNeedTail) 2 else 24,
+                if (isNeedTail) 2.dp else 11.dp,
                 0,
                 marginRight,
                 0
@@ -130,9 +130,43 @@ class IncomingMessageVH(
 
         binding.root.setOnClickListener {
             if (showCheckbox) {
-                binding.frameLayoutBlackout.setBackgroundResource(R.color.selected)
-                binding.tvContent.setTextIsSelectable(showCheckbox)
+               binding.checkboxIncoming.isChecked = !binding.checkboxIncoming.isChecked
+                if (binding.checkboxIncoming.isChecked) { binding.frameLayoutBlackout.setBackgroundResource(R.color.selected)
+                    binding.tvContent.setTextIsSelectable(true)
+                }
+              else { binding.frameLayoutBlackout.setBackgroundResource(R.color.transparent)
+                  binding.tvContent.setTextIsSelectable(false) }
             } else {
+                 val popup = CustomPopupMenu(it.context, it, Gravity.CENTER)
+           popup.inflate(R.menu.context_menu_message_incoming)
+
+            val menuHealper = MenuPopupHelper(it.context, popup.menu as MenuBuilder, binding.root)
+            menuHealper.setForceShowIcon(true)
+            menuHealper.show()
+
+            popup.setOnMenuItemClickListener { menuItem ->
+                when (menuItem.itemId) {
+                    R.id.copy -> {
+                        val text = binding.tvContent.text.toString()
+                        listener.copyText(text)
+                        showSnackbar(itemView)
+
+                    }
+                    R.id.forward -> {
+                        listener.forwardMessage(messageDto)
+                    }
+                    R.id.reply -> {
+                        listener.replyMessage(messageDto)
+                    }
+                    R.id.delete_message -> {
+                        listener.deleteMessage(messageDto)
+                    }
+                }
+                true
+            }
+            popup.show()
+            true
+
                 //  binding.checkboxIncoming.isChecked = !binding.checkboxIncoming.isChecked
             }
 
@@ -151,6 +185,21 @@ class IncomingMessageVH(
             }
             true
         }
+    }
+
+
+     private fun showSnackbar(view: View) {
+        var snackbar: Snackbar? = null
+
+        snackbar = view.let {
+            Snackbar.make(
+                it,
+                "The message has copied to the clipboard",
+                Snackbar.LENGTH_SHORT
+            )
+        }
+        snackbar.setTextColor(Color.YELLOW)
+        snackbar.show()
     }
 
     @SuppressLint("RestrictedApi")

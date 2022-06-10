@@ -17,6 +17,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.updateLayoutParams
+import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.commit
 import androidx.slidingpanelayout.widget.SlidingPaneLayout
@@ -217,6 +218,10 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
 
     override fun showBottomSheetDialog(dialog: BottomSheetDialogFragment) {
         dialog.show(supportFragmentManager, AppConstants.DIALOG_TAG)
+    }
+
+    override fun showDialogFragment(dialog: DialogFragment) {
+       dialog.show(supportFragmentManager, AppConstants.DIALOG_TAG)
     }
 
     override fun closeDetail() {

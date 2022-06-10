@@ -11,6 +11,7 @@ import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.RecyclerView
 import com.xabber.R
+import com.xabber.data.util.dp
 import kotlin.math.max
 import kotlin.math.min
 
@@ -20,7 +21,7 @@ class ReplySwipeCallback(context: Context) : ItemTouchHelper.Callback(), View.On
 
     private val replyIcon: Drawable =
         ContextCompat.getDrawable(context, R.drawable.reply)!!
-    private val fullSize = 72
+    private val fullSize = 32.dp
     private val paddingRight = 28
     private val maxSwipeDistanceRatio = 0.18f
     private val activeSwipeDistanceRatio = 0.13f

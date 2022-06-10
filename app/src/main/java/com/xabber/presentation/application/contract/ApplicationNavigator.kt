@@ -1,6 +1,7 @@
 package com.xabber.presentation.application.contract
 
 import android.graphics.Bitmap
+import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.Fragment
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 
@@ -34,7 +35,11 @@ interface ApplicationNavigator {
 
     fun showBottomSheetDialog(dialog: BottomSheetDialogFragment)
 
+    fun showDialogFragment(dialog: DialogFragment)
+
     fun slidingPaneLayoutIsOpen(): Boolean
+
+
 
     //fun openCamera(): Bitmap?
 }

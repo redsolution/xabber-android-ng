@@ -10,7 +10,13 @@ abstract class BasicViewHolder(view: View, listener: MessageAdapter.Listener? = 
 
 
     @RequiresApi(Build.VERSION_CODES.N)
-    open fun bind(messageDto: MessageDto, isNeedTail: Boolean = true, needDay: Boolean = true, showCheckbox: Boolean = false) {
+    open fun bind(
+        messageDto: MessageDto,
+        isNeedTail: Boolean = true,
+        needDay: Boolean = true,
+        showCheckbox: Boolean = false,
+        isNeedTitle: Boolean
+    ) {
 
 
     }
