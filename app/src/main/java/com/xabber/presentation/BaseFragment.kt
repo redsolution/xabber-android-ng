@@ -1,4 +1,4 @@
-package com.xabber.presentation.application.fragments
+package com.xabber.presentation
 
 import androidx.annotation.LayoutRes
 import androidx.fragment.app.Fragment

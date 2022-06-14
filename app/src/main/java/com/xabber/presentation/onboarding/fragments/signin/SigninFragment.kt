@@ -6,17 +6,16 @@ import android.text.*
 import android.text.method.LinkMovementMethod
 import android.text.style.ClickableSpan
 import android.text.style.ForegroundColorSpan
-import android.view.LayoutInflater
 import android.view.View
-import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.isVisible
-import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
+import by.kirich1409.viewbindingdelegate.viewBinding
 import com.xabber.R
 import com.xabber.databinding.FragmentSigninBinding
+import com.xabber.presentation.BaseFragment
 import com.xabber.presentation.onboarding.contract.navigator
 import com.xabber.presentation.onboarding.contract.toolbarChanger
 import com.xabber.presentation.onboarding.fragments.signin.feature.FeatureAdapter
@@ -25,24 +24,14 @@ import io.reactivex.rxjava3.disposables.CompositeDisposable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-class SigninFragment : Fragment() {
+class SigninFragment : BaseFragment(R.layout.fragment_signin) {
+    private val binding by viewBinding(FragmentSigninBinding::bind)
     private val compositeDisposable = CompositeDisposable()
-    private var _binding: FragmentSigninBinding? = null
-    private val binding get() = _binding!!
     private val password = "1"
     private val featureAdapter = FeatureAdapter()
     private val viewModel = SigninViewModel()
     var host: String = "dev.xabber.org"
 
-
-    override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View {
-        _binding = FragmentSigninBinding.inflate(inflater, container, false)
-        return binding.root
-    }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         toolbarChanger().setShowBack(true)
@@ -262,6 +251,11 @@ class SigninFragment : Fragment() {
             Spannable.SPAN_EXCLUSIVE_INCLUSIVE
         )
         return spannable
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        compositeDisposable.clear()
     }
 
 }

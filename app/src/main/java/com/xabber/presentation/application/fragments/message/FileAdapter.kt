@@ -5,10 +5,11 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import com.xabber.data.dto.FileDto
+import com.xabber.data.dto.ImageDto
 import com.xabber.databinding.ItemAttachedFileBinding
 
 
-class FileAdapter(private val listener: Listener) : ListAdapter<FileDto, FileViewHolder>(
+class FileAdapter(private val listener: Listener) : ListAdapter<ImageDto, FileViewHolder>(
     DiffUtilCallback
 ) {
 
@@ -29,12 +30,12 @@ class FileAdapter(private val listener: Listener) : ListAdapter<FileDto, FileVie
         holder.bind(getItem(position), listener)
     }
 
-    private object DiffUtilCallback : DiffUtil.ItemCallback<FileDto>() {
+    private object DiffUtilCallback : DiffUtil.ItemCallback<ImageDto>() {
 
-    override fun areItemsTheSame(oldItem: FileDto, newItem: FileDto) =
-        oldItem.id == newItem.id
+    override fun areItemsTheSame(oldItem: ImageDto, newItem: ImageDto) =
+        oldItem == newItem
 
-    override fun areContentsTheSame(oldItem: FileDto, newItem: FileDto) =
+    override fun areContentsTheSame(oldItem: ImageDto, newItem: ImageDto) =
         oldItem.bitmap!!.equals(newItem.bitmap)
 }
 }

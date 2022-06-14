@@ -10,11 +10,13 @@ import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
-import android.widget.*
+import android.widget.FrameLayout
+import android.widget.ImageView
 import androidx.annotation.RequiresApi
 import androidx.appcompat.view.menu.MenuBuilder
 import androidx.appcompat.view.menu.MenuPopupHelper
 import androidx.appcompat.widget.CustomPopupMenu
+import androidx.cardview.widget.CardView
 import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.isVisible
@@ -43,6 +45,19 @@ class OutgoingMessageVH(
         showCheckbox: Boolean,
         isNeedTitle: Boolean
     ) {
+        if (messageDto.images != null) {
+
+            when (messageDto.images!!.size) {
+                1 -> {
+                    binding.frameImages.layoutResource = R.layout.image_grid_1
+                    val inflated = binding.frameImages.inflate()
+                 val im = inflated.findViewById<ImageView>(R.id.ivImage0)
+                    Glide.with(im.context).load(messageDto.images!![0].bitmap).centerCrop().into(im)
+                }
+            }
+
+        } else binding.frameImages.isVisible = false
+
 // text & appearance
         binding.tvContent.isVisible = messageDto.messageBody != null
         if (messageDto.messageBody != null) binding.tvContent.text = messageDto.messageBody
@@ -65,8 +80,9 @@ class OutgoingMessageVH(
         )
 
 
-        binding.messageInfo.isVisible = messageDto.kind == null
-        binding.info.isVisible = messageDto.kind != null
+        binding.messageInfo.isVisible = messageDto.kind == null && messageDto.images == null
+        binding.info.isVisible =
+            messageDto.kind != null || (messageDto.images != null && messageDto.messageBody!!.isNotEmpty())
 
 
         binding.checkboxIncoming.isVisible = showCheckbox
@@ -79,10 +95,14 @@ class OutgoingMessageVH(
             ViewGroup.LayoutParams.WRAP_CONTENT,
             ViewGroup.LayoutParams.WRAP_CONTENT
         )
-        params.setMargins(0, 0, if (isNeedTail) 2.dp else 11.dp, 0)
+        params.setMargins(0, 0, if (isNeedTail && messageDto.images == null) 2.dp else 11.dp, 0)
         params.gravity = Gravity.END
         binding.balloon.layoutParams = params
-        binding.balloon.setPadding(16.dp, 8.dp, if (isNeedTail) 14.dp else 8.dp, 10.dp)
+        if (messageDto.images != null) {
+            binding.balloon.setPadding(2.dp, 2.dp, 2.dp, 2.dp)
+        } else {
+            binding.balloon.setPadding(16.dp, 8.dp, if (isNeedTail) 14.dp else 8.dp, 10.dp)
+        }
 
 
         val typedValue = TypedValue()
@@ -94,12 +114,20 @@ class OutgoingMessageVH(
             PorterDuff.Mode.MULTIPLY
         )
 
-        binding.balloon.setBackgroundDrawable(
-            ContextCompat.getDrawable(
-                binding.root.context,
-                if (isNeedTail) R.drawable.msg_out else R.drawable.msg
+        if (messageDto.images != null) {
+            binding.balloon.setBackgroundDrawable(
+                ContextCompat.getDrawable(
+                    binding.root.context, R.drawable.message_with_images
+                )
             )
-        )
+        } else {
+            binding.balloon.setBackgroundDrawable(
+                ContextCompat.getDrawable(
+                    binding.root.context,
+                    if (isNeedTail && messageDto.images == null) R.drawable.msg_out else R.drawable.msg
+                )
+            )
+        }
 
         if (messageDto.kind == null) {
             binding.replyMessage.isVisible = false
@@ -114,64 +142,64 @@ class OutgoingMessageVH(
         binding.root.setOnClickListener {
             Log.d("show", "$showCheckbox")
             if (showCheckbox) {
-                        binding.checkboxIncoming.isChecked = !binding.checkboxIncoming.isChecked
-                        if (binding.checkboxIncoming.isChecked) {
-                            binding.frameLayoutBlackout.setBackgroundResource(R.color.selected)
-                            binding.tvContent.setTextIsSelectable(true)
-                        } else {
-                            binding.frameLayoutBlackout.setBackgroundResource(R.color.transparent)
-                            binding.tvContent.setTextIsSelectable(false)
-                        }
-                    } else {
-                        val popup = CustomPopupMenu(it.context, it, Gravity.CENTER)
-                        if (messageDto.isOutgoing) popup.inflate(R.menu.context_menu_message_outgoing)
-                        else popup.inflate(R.menu.context_menu_message_incoming)
-
-                        val menuHealper =
-                            MenuPopupHelper(it.context, popup.menu as MenuBuilder, binding.root)
-                        menuHealper.setForceShowIcon(true)
-                        menuHealper.show()
-
-                        popup.setOnMenuItemClickListener { menuItem ->
-                            when (menuItem.itemId) {
-                                R.id.copy -> {
-                                    val text = binding.tvContent.text.toString()
-                                    listener.copyText(text)
-                                    showSnackbar(itemView)
-
-                                }
-                                R.id.forward -> {
-                                    listener.forwardMessage(messageDto)
-                                }
-                                R.id.reply -> {
-                                    listener.replyMessage(messageDto)
-                                }
-                                R.id.delete_message -> {
-                                    listener.deleteMessage(messageDto)
-                                }
-                                R.id.edit -> {
-                                    listener.editMessage(messageDto.primary)
-                                }
-                            }
-                            true
-                        }
-                        popup.show()
-                        true
-                    }
+                binding.checkboxIncoming.isChecked = !binding.checkboxIncoming.isChecked
+                if (binding.checkboxIncoming.isChecked) {
+                    binding.frameLayoutBlackout.setBackgroundResource(R.color.selected)
+                    binding.tvContent.setTextIsSelectable(true)
+                } else {
+                    binding.frameLayoutBlackout.setBackgroundResource(R.color.transparent)
+                    binding.tvContent.setTextIsSelectable(false)
                 }
+            } else {
+                val popup = CustomPopupMenu(it.context, it, Gravity.CENTER)
+                if (messageDto.isOutgoing) popup.inflate(R.menu.context_menu_message_outgoing)
+                else popup.inflate(R.menu.context_menu_message_incoming)
+
+                val menuHealper =
+                    MenuPopupHelper(it.context, popup.menu as MenuBuilder, binding.root)
+                menuHealper.setForceShowIcon(true)
+                menuHealper.show()
+
+                popup.setOnMenuItemClickListener { menuItem ->
+                    when (menuItem.itemId) {
+                        R.id.copy -> {
+                            val text = binding.tvContent.text.toString()
+                            listener.copyText(text)
+                            showSnackbar(itemView)
+
+                        }
+                        R.id.forward -> {
+                            listener.forwardMessage(messageDto)
+                        }
+                        R.id.reply -> {
+                            listener.replyMessage(messageDto)
+                        }
+                        R.id.delete_message -> {
+                            listener.deleteMessage(messageDto)
+                        }
+                        R.id.edit -> {
+                            listener.editMessage(messageDto.primary)
+                        }
+                    }
+                    true
+                }
+                popup.show()
+                true
+            }
+        }
 
 
-            binding.root.setOnLongClickListener {
+        binding.root.setOnLongClickListener {
 
-                if (!showCheckbox) listener.onLongClick(messageDto.primary)
+            if (!showCheckbox) listener.onLongClick(messageDto.primary)
 //                } else {
 //                    binding.checkboxIncoming.isChecked = !binding.checkboxIncoming.isChecked
 //                    binding.balloon.setBackgroundResource(R.color.selected)
 //                    binding.tvContent.setTextIsSelectable(showCheckbox)
 //                }
-                true
-            }
+            true
         }
+    }
 
 
     private fun showSnackbar(view: View) {

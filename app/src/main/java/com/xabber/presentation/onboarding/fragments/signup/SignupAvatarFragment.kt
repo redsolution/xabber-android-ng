@@ -3,29 +3,26 @@ package com.xabber.presentation.onboarding.fragments.signup
 import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Bundle
-import android.view.LayoutInflater
 import android.view.View
-import android.view.ViewGroup
 import android.widget.Toast
 import androidx.core.net.toUri
 import androidx.core.view.setPadding
-import androidx.fragment.app.Fragment
+import by.kirich1409.viewbindingdelegate.viewBinding
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.bumptech.glide.request.RequestOptions
 import com.xabber.R
+import com.xabber.data.util.dp
 import com.xabber.databinding.FragmentSignupAvatarBinding
-import com.xabber.presentation.onboarding.contract.navigator
-import com.xabber.presentation.onboarding.contract.toolbarChanger
+import com.xabber.presentation.BaseFragment
 import com.xabber.presentation.application.util.AppConstants
 import com.xabber.presentation.application.util.AppConstants.TEMP_FILE_NAME
-import com.xabber.data.util.dp
+import com.xabber.presentation.onboarding.contract.navigator
+import com.xabber.presentation.onboarding.contract.toolbarChanger
 import java.io.File
 
-class SignupAvatarFragment : Fragment() {
-    private var _binding : FragmentSignupAvatarBinding? = null
-    private val binding get() = _binding!!
-
+class SignupAvatarFragment : BaseFragment(R.layout.fragment_signup_avatar) {
+    private val binding by viewBinding(FragmentSignupAvatarBinding::bind)
 
     private val newAvatarImageUri: Uri by lazy {
         File(requireContext().cacheDir, AppConstants.TEMP_FILE_NAME).toUri()
@@ -40,15 +37,6 @@ class SignupAvatarFragment : Fragment() {
 
     private var isImageSaved = false
 
-    override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View {
-        _binding = FragmentSignupAvatarBinding.inflate(inflater)
-        return binding.root
-    }
-
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         toolbarChanger().setTitle(R.string.signup_avatar_toolbar_title)
@@ -62,16 +50,15 @@ class SignupAvatarFragment : Fragment() {
                 setAvatar(Uri.fromFile(file))
             else
                 binding.profileImageEmoji.setPadding(21.dp)
-        }
-        else {
+        } else {
             if (file.exists())
                 file.delete()
         }
-       binding.avatarBtnNext.isEnabled = isImageSaved
+        binding.avatarBtnNext.isEnabled = isImageSaved
 
-       // btnNextContainer.updateLayoutParams<ConstraintLayout.LayoutParams> {
-      //      verticalBias = 1.0f
-    //    }
+        // btnNextContainer.updateLayoutParams<ConstraintLayout.LayoutParams> {
+        //      verticalBias = 1.0f
+        //    }
 
         binding.profileImageBackground.setOnClickListener {
             AvatarBottomSheet().show(parentFragmentManager, null)
@@ -90,9 +77,7 @@ class SignupAvatarFragment : Fragment() {
     }
 
 
-
-
- private fun setAvatar(uri: Uri?) {
+    private fun setAvatar(uri: Uri?) {
         with(binding) {
             profileImageEmoji.setPadding(0.dp)
             Glide.with(this@SignupAvatarFragment)
@@ -112,7 +97,7 @@ class SignupAvatarFragment : Fragment() {
     private fun setAvatar(bitmap: Bitmap) {
         with(binding) {
             profileImageEmoji.setPadding(0.dp)
-            Glide.with(this@SignupAvatarFragment)
+            Glide.with(requireContext())
                 .load(bitmap)
                 .apply(
                     RequestOptions()
@@ -133,8 +118,4 @@ class SignupAvatarFragment : Fragment() {
         }
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        _binding = null
-    }
 }

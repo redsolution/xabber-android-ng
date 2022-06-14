@@ -1,16 +1,13 @@
 package com.xabber.presentation.application.fragments.chatlist
 
 import android.annotation.SuppressLint
-import android.database.Cursor
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
-import android.provider.MediaStore
 import android.util.Log
 import android.util.TypedValue
 import android.view.Gravity
-import android.view.MotionEvent
 import android.view.View
 import android.widget.PopupMenu
 import android.widget.Toast
@@ -24,7 +21,7 @@ import com.xabber.data.dto.ChatListDto
 import com.xabber.databinding.FragmentChatBinding
 import com.xabber.presentation.application.contract.navigator
 
-import com.xabber.presentation.application.fragments.BaseFragment
+import com.xabber.presentation.BaseFragment
 
 class ChatListFragment : BaseFragment(R.layout.fragment_chat), ChatListAdapter.ChatListener {
     private val binding by viewBinding(FragmentChatBinding::bind)

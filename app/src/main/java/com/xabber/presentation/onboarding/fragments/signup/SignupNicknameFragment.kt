@@ -3,32 +3,20 @@ package com.xabber.presentation.onboarding.fragments.signup
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
-import android.view.LayoutInflater
 import android.view.View
-import android.view.ViewGroup
-import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
+import by.kirich1409.viewbindingdelegate.viewBinding
 import com.xabber.R
 import com.xabber.databinding.FragmentSignupNicknameBinding
+import com.xabber.presentation.BaseFragment
 import com.xabber.presentation.onboarding.activity.OnboardingViewModel
 import com.xabber.presentation.onboarding.contract.navigator
 import com.xabber.presentation.onboarding.contract.toolbarChanger
 
 
-class SignupNicknameFragment : Fragment() {
-    private var _binding: FragmentSignupNicknameBinding? = null
-    private val binding get() = _binding!!
+class SignupNicknameFragment : BaseFragment(R.layout.fragment_signup_nickname) {
+    private val binding by viewBinding(FragmentSignupNicknameBinding::bind)
     private val viewModel: OnboardingViewModel by activityViewModels()
-
-
-    override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View {
-        _binding = FragmentSignupNicknameBinding.inflate(inflater, container, false)
-        return binding.root
-    }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -61,12 +49,6 @@ class SignupNicknameFragment : Fragment() {
             navigator().startSignupUserNameFragment()
         }
     }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        _binding = null
-    }
-
 
 }
 

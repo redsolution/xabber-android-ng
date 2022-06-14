@@ -11,7 +11,7 @@ import com.bumptech.glide.Glide
 import com.xabber.R
 import com.xabber.databinding.FragmentContactBinding
 import com.xabber.presentation.application.contract.navigator
-import com.xabber.presentation.application.fragments.BaseFragment
+import com.xabber.presentation.BaseFragment
 
 class ContactsFragment : BaseFragment(R.layout.fragment_contact), ContactAdapter.Listener {
     private val binding by viewBinding(FragmentContactBinding::bind)

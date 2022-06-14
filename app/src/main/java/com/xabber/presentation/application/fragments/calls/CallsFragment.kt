@@ -6,7 +6,7 @@ import android.view.View
 import by.kirich1409.viewbindingdelegate.viewBinding
 import com.xabber.R
 import com.xabber.databinding.FragmentCallsBinding
-import com.xabber.presentation.application.fragments.BaseFragment
+import com.xabber.presentation.BaseFragment
 
 class CallsFragment : BaseFragment(R.layout.fragment_calls) {
     private val binding by viewBinding(FragmentCallsBinding::bind)

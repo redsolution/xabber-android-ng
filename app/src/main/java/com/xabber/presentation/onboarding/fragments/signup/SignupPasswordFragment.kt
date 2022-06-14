@@ -3,34 +3,23 @@ package com.xabber.presentation.onboarding.fragments.signup
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
-import android.util.Log
-import android.view.LayoutInflater
 import android.view.View
-import android.view.ViewGroup
-import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
+import by.kirich1409.viewbindingdelegate.viewBinding
 import com.xabber.R
 import com.xabber.databinding.FragmentSignupPasswordBinding
+import com.xabber.presentation.BaseFragment
 import com.xabber.presentation.onboarding.activity.OnboardingViewModel
 import com.xabber.presentation.onboarding.contract.navigator
 import com.xabber.presentation.onboarding.contract.toolbarChanger
 import kotlin.properties.Delegates
 
 
-class SignupPasswordFragment : Fragment() {
-    private var _binding: FragmentSignupPasswordBinding? = null
-    private val binding get() = _binding!!
+class SignupPasswordFragment : BaseFragment(R.layout.fragment_signup_password) {
+    private val binding by viewBinding(FragmentSignupPasswordBinding::bind)
     private val viewModel: OnboardingViewModel by activityViewModels()
     private var password by Delegates.notNull<String>()
 
-    override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View {
-        _binding = FragmentSignupPasswordBinding.inflate(inflater)
-        return binding.root
-    }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -62,7 +51,7 @@ class SignupPasswordFragment : Fragment() {
     private fun initButton() {
         binding.passwordBtnNext.setOnClickListener {
             viewModel.setPassword(binding.passwordEditText.text.toString())
-         //   navigator().registerAccount()
+            //   navigator().registerAccount()
             navigator().startSignupAvatarFragment()
         }
     }

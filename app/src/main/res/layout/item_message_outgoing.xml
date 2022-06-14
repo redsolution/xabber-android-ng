@@ -83,6 +83,10 @@
 
             </RelativeLayout>
 
+            <ViewStub
+                android:id="@+id/frame_images"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"/>
             <com.xabber.presentation.custom.CustomFlexboxLayout
                 android:id="@+id/flex_box_layout"
                 android:layout_width="wrap_content"
