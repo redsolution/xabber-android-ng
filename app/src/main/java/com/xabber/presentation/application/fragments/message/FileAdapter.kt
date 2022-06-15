@@ -4,7 +4,6 @@ import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
-import com.xabber.data.dto.FileDto
 import com.xabber.data.dto.ImageDto
 import com.xabber.databinding.ItemAttachedFileBinding
 
@@ -22,7 +21,7 @@ class FileAdapter(private val listener: Listener) : ListAdapter<ImageDto, FileVi
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): FileViewHolder {
         val inflater = LayoutInflater.from(parent.context)
         val binding = ItemAttachedFileBinding.inflate(inflater, parent, false)
-        return FileViewHolder(binding)
+        return FileViewHolder(binding.root)
     }
 
 

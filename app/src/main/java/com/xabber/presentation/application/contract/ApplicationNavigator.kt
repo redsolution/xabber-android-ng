@@ -39,6 +39,10 @@ interface ApplicationNavigator {
 
     fun slidingPaneLayoutIsOpen(): Boolean
 
+    fun requestPermissionToRecord()
+
+    fun lockScreenRotation(isLock: Boolean)
+
 
 
     //fun openCamera(): Bitmap?

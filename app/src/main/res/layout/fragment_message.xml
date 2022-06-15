@@ -305,7 +305,7 @@
         android:orientation="horizontal"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"/>
+        app:layout_constraintStart_toStartOf="parent" />
 
     <androidx.constraintlayout.widget.Group
         android:id="@+id/group_normal"
@@ -367,13 +367,13 @@
         android:id="@+id/button_attach"
         android:layout_width="24dp"
         android:layout_height="24dp"
-        android:layout_margin="16dp"
-        app:layout_goneMarginEnd="50dp"
+        android:layout_margin="20dp"
         android:background="?attr/selectableItemBackgroundBorderless"
         android:src="@drawable/ic_material_attach_24"
         app:layout_constraintBottom_toBottomOf="@id/input_layout"
         app:layout_constraintEnd_toStartOf="@id/button_record"
         app:layout_constraintTop_toTopOf="@id/input_layout"
+        app:layout_goneMarginEnd="50dp"
         app:tint="@color/grey_500" />
 
     <ImageButton
@@ -398,48 +398,6 @@
         app:layout_constraintEnd_toEndOf="@id/button_record"
         app:layout_constraintTop_toTopOf="@id/button_record" />
 
-    <ImageView
-        android:id="@+id/icon_record"
-        android:layout_width="10dp"
-        android:layout_height="10dp"
-        android:layout_marginStart="16dp"
-        android:src="@drawable/red_circle"
-        app:layout_constraintBottom_toBottomOf="@id/input_layout"
-        app:layout_constraintStart_toStartOf="@id/input_layout"
-        app:layout_constraintTop_toTopOf="@id/input_layout" />
-
-    <Chronometer
-        android:id="@+id/record_chronometer"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="4dp"
-        android:alpha="0.7"
-        android:textColor="@color/grey_700"
-        app:layout_constraintBottom_toBottomOf="@id/input_layout"
-        app:layout_constraintStart_toEndOf="@id/icon_record"
-        app:layout_constraintTop_toTopOf="@id/input_layout" />
-
-    <ImageView
-        android:id="@+id/im_record_cancel"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="2dp"
-        android:src="@drawable/ic_chevron_left_grey"
-        app:layout_constraintEnd_toStartOf="@id/tv_record_cancel"
-        app:layout_constraintTop_toTopOf="@id/tv_record_cancel" />
-
-    <TextView
-        android:id="@+id/tv_record_cancel"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="@string/record_cancel"
-        android:textColor="@color/grey_700"
-        android:textSize="18sp"
-        app:layout_constraintBottom_toBottomOf="@id/input_layout"
-        app:layout_constraintEnd_toEndOf="@id/input_layout"
-        app:layout_constraintStart_toStartOf="@id/input_layout"
-        app:layout_constraintTop_toTopOf="@id/input_layout" />
-
     <LinearLayout
         android:id="@+id/lin_record_lock"
         android:layout_width="wrap_content"
@@ -450,15 +408,18 @@
         android:orientation="vertical"
         android:padding="2dp"
         app:layout_constraintBottom_toTopOf="@id/input_layout"
-        app:layout_constraintEnd_toEndOf="parent">
+        app:layout_constraintEnd_toEndOf="parent"
+        android:visibility="gone">
 
         <ImageView
+            android:id="@+id/im_lock"
             android:layout_width="24dp"
             android:layout_height="24dp"
             android:layout_marginTop="6dp"
             android:src="@drawable/ic_lock_outline" />
 
         <ImageView
+            android:id="@+id/im_chevron"
             android:layout_width="24dp"
             android:layout_height="24dp"
             android:src="@drawable/ic_chevron_up" />
@@ -515,13 +476,6 @@
     </LinearLayout>
 
 
-    <androidx.constraintlayout.widget.Group
-        android:id="@+id/group_record"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:visibility="gone"
-        app:constraint_referenced_ids="icon_record, record_chronometer, im_record_cancel, tv_record_cancel, lin_record_lock" />
-
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/btn_downward"
         android:layout_width="40dp"
@@ -537,5 +491,29 @@
         app:layout_constraintBottom_toTopOf="@id/input_layout"
         app:layout_constraintEnd_toEndOf="parent"
         app:tint="@color/grey_600" />
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/record_float_button"
+        android:layout_width="80dp"
+        android:layout_height="80dp"
+        android:layout_alignParentEnd="true"
+        android:layout_alignParentBottom="true"
+        android:layout_marginEnd="-14dp"
+        android:layout_marginBottom="-12dp"
+        android:backgroundTint="@color/blue_500"
+        android:baselineAlignBottom="false"
+        android:clickable="false"
+        android:tint="@color/white"
+        android:visibility="invisible"
+        app:fabCustomSize="78dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:srcCompat="@drawable/ic_microphone_white"
+        app:tint="@color/white" />
+
+    <include layout="@layout/view_chat_record"
+        android:id="@+id/include_record"
+       android:visibility="gone"/>
+
 
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -1,6 +1,7 @@
 package com.xabber.data.dto
 
 import com.xabber.data.xmpp.messages.MessageDisplayType
+import com.xabber.data.xmpp.messages.MessageReferenceStorageItem
 import com.xabber.data.xmpp.messages.MessageSendingState
 import retrofit2.http.Url
 
@@ -20,7 +21,7 @@ data class MessageDto(
     val isGroup: Boolean,
     val kind: MessageKind? = null,
     var isSelected: Boolean = false,
-    var images: ArrayList<ImageDto>? = null
+    val references: ArrayList<MessageReferenceStorageItem>? = null
 ) : Comparable<MessageDto> {
     override fun compareTo(other: MessageDto): Int =
         other.sentTimestamp.compareTo(this.sentTimestamp)

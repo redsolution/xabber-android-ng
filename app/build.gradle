@@ -114,7 +114,8 @@ dependencies {
     // Open street map
     implementation 'org.osmdroid:osmdroid-android:6.1.11'
 
-   
+
+
 implementation 'com.squareup.retrofit2:converter-gson:2.9.0'
 
 }

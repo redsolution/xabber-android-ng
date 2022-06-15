@@ -16,7 +16,6 @@ import androidx.annotation.RequiresApi
 import androidx.appcompat.view.menu.MenuBuilder
 import androidx.appcompat.view.menu.MenuPopupHelper
 import androidx.appcompat.widget.CustomPopupMenu
-import androidx.cardview.widget.CardView
 import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.isVisible
@@ -24,7 +23,9 @@ import com.bumptech.glide.Glide
 import com.google.android.material.snackbar.Snackbar
 import com.xabber.R
 import com.xabber.data.dto.MessageDto
+import com.xabber.data.dto.MessageVHExtraData
 import com.xabber.data.util.dp
+import com.xabber.data.xmpp.messages.MessageReferenceStorageItem
 import com.xabber.data.xmpp.messages.MessageSendingState
 import com.xabber.data.xmpp.messages.MessageSendingState.*
 import com.xabber.databinding.ItemMessageOutgoingBinding
@@ -35,6 +36,7 @@ class OutgoingMessageVH(
     private val binding: ItemMessageOutgoingBinding,
     private val listener: MessageAdapter.Listener
 ) : BasicViewHolder(binding.root, listener) {
+
 
     @RequiresApi(Build.VERSION_CODES.N)
     @SuppressLint("RestrictedApi")
@@ -69,9 +71,9 @@ class OutgoingMessageVH(
         )
 
 
-        binding.messageInfo.isVisible = messageDto.kind == null && messageDto.images == null
+        binding.messageInfo.isVisible = messageDto.kind == null
         binding.info.isVisible =
-            messageDto.kind != null || (messageDto.images != null && messageDto.messageBody!!.isNotEmpty())
+            messageDto.kind != null || (messageDto.messageBody!!.isNotEmpty())
 
 
         binding.checkboxIncoming.isVisible = showCheckbox
@@ -84,14 +86,12 @@ class OutgoingMessageVH(
             ViewGroup.LayoutParams.WRAP_CONTENT,
             ViewGroup.LayoutParams.WRAP_CONTENT
         )
-        params.setMargins(0, 0, if (isNeedTail && messageDto.images == null) 2.dp else 11.dp, 0)
+        params.setMargins(0, 0, if (isNeedTail) 2.dp else 11.dp, 0)
         params.gravity = Gravity.END
         binding.balloon.layoutParams = params
-        if (messageDto.images != null) {
-            binding.balloon.setPadding(2.dp, 2.dp, 2.dp, 2.dp)
-        } else {
+
             binding.balloon.setPadding(16.dp, 8.dp, if (isNeedTail) 14.dp else 8.dp, 10.dp)
-        }
+
 
 
         val typedValue = TypedValue()
@@ -103,20 +103,14 @@ class OutgoingMessageVH(
             PorterDuff.Mode.MULTIPLY
         )
 
-        if (messageDto.images != null) {
-            binding.balloon.setBackgroundDrawable(
-                ContextCompat.getDrawable(
-                    binding.root.context, R.drawable.message_with_images
-                )
-            )
-        } else {
+
             binding.balloon.setBackgroundDrawable(
                 ContextCompat.getDrawable(
                     binding.root.context,
-                    if (isNeedTail && messageDto.images == null) R.drawable.msg_out else R.drawable.msg
+                    if (isNeedTail) R.drawable.msg_out else R.drawable.msg
                 )
             )
-        }
+
 
         if (messageDto.kind == null) {
             binding.replyMessage.isVisible = false
@@ -305,40 +299,61 @@ class OutgoingMessageVH(
 
     }
 
-    private fun setupReferences(messageDto: MessageDto, vhExtraData: MessageVhExtraData) {
+    private fun setupReferences(messageDto: MessageDto, vhExtraData: MessageVHExtraData) {
         binding.fileListRv.visibility = View.GONE
         binding.imageGridContainerFl.removeAllViews()
         binding.imageGridContainerFl.visibility = View.GONE
-        if (messageDto.a) {
+        if (messageDto.references != null) {
             setUpImage(messageDto, vhExtraData)
-            setUpFile(messageRealmObject.referencesRealmObjects, vhExtraData)
-            setupNonExternalGeo(messageRealmObject)
+          //  setUpFile(messageDto.references, vhExtraData)
+         //   setupNonExternalGeo(messageDto)
         }
     }
 
-     private fun setUpImage(messageDto: MessageDto, messageVhExtraData: MessageVhExtraData) {
-        if (!SettingsManager.connectionLoadImages()) {
-            return
-        }
-        messageDto.referencesRealmObjects
-            ?.filter { it.isImage }
-            ?.also { imageCount = it.size }
-            ?.takeIf { it.isNotEmpty() }
-            ?.let {
-                RealmList<ReferenceRealmObject>().apply {
-                    addAll(it)
-                }
-            }
-            ?.let {
-                val gridBuilder = ImageGrid()
-                val imageGridView = gridBuilder.inflateView(imageGridContainer, it.size)
-                gridBuilder.bindView(imageGridView, message, this, messageVhExtraData) { v: View ->
-                    onLongClick(v)
-                    true
-                }
-                imageGridContainer.addView(imageGridView)
-                imageGridContainer.visibility = View.VISIBLE
-            }
+     private fun setUpImage(messageDto: MessageDto, messageVhExtraData: MessageVHExtraData) {
+//        messageDto.references
+//            ?.filter { it.isImage }
+//            ?.also { imageCount = it.size }
+//            ?.takeIf { it.isNotEmpty() }
+//            ?.let {
+//                RealmList<>().apply {
+//                    addAll(it)
+//                }
+//            }
+//            ?.let {
+//                val gridBuilder = ImageGrid()
+//                val imageGridView = gridBuilder.inflateView(binding.imageGridContainerFl, it.size)
+//                gridBuilder.bindView(imageGridView, message, this, messageVhExtraData) { v: View ->
+//                    onLongClick(v)
+//                    true
+//                }
+//                binding.imageGridContainerFl.addView(imageGridView)
+//                binding.imageGridContainerFl.visibility = View.VISIBLE
+//            }
     }
+
+     private fun setUpFile(
+    //   referenceRealmObjects: RealmList<ReferenceRealmObject>, vhExtraData: MessageVhExtraData
+   ) {
+//        referenceRealmObjects
+//            .filter { !it.isImage && !it.isGeo }
+//            .also { fileCount = it.size }
+//            .takeIf { it.isNotEmpty() }
+//            ?.let {
+//                RealmList<ReferenceRealmObject>().apply { addAll(it) }
+//            }
+//            ?.let {
+//                rvFileList.apply {
+//                    layoutManager = LinearLayoutManager(itemView.context)
+//                    adapter = FilesAdapter(it, vhExtraData.mainMessageTimestamp, this@MessageVH)
+//                    visibility = View.VISIBLE
+//                }
+//            }
+    }
+
+
+
+
+
 
 }

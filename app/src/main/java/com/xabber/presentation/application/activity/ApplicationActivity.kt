@@ -1,17 +1,21 @@
 package com.xabber.presentation.application.activity
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.content.res.Resources
-import android.database.Cursor
 import android.graphics.Bitmap
+import android.graphics.Point
 import android.net.Uri
 import android.os.Bundle
-import android.provider.MediaStore
 import android.provider.Settings
 import android.util.Log
+import android.view.Display
+import android.view.Surface
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -36,7 +40,7 @@ import com.xabber.presentation.application.fragments.contacts.ContactsFragment
 import com.xabber.presentation.application.fragments.contacts.EditContactFragment
 import com.xabber.presentation.application.fragments.contacts.NewContactFragment
 import com.xabber.presentation.application.fragments.discover.DiscoverFragment
-import com.xabber.presentation.application.fragments.message.MessageFragment
+import com.xabber.presentation.application.fragments.message.ChatFragment
 import com.xabber.presentation.application.fragments.settings.SettingsFragment
 import com.xabber.presentation.application.util.AppConstants
 import com.xabber.presentation.onboarding.activity.OnBoardingActivity
@@ -46,6 +50,11 @@ import io.realm.query
 
 class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
     private val viewModel: ApplicationViewModel by viewModels()
+
+    private val requestRecordAudioPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission(), ::onGotRecordAudioPermissionResult
+    )
+
 
     //  private val messageViewModel: MessageViewModel by viewModels()
     private var bitmap: Bitmap? = null
@@ -58,7 +67,18 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
     private val activeFragment: Fragment?
         get() = supportFragmentManager.findFragmentById(R.id.application_container)
 
-
+    private fun onGotRecordAudioPermissionResult(granted: Boolean): Boolean {
+        return if (granted) {
+            true
+        } else {
+            if (!shouldShowRequestPermissionRationale(Manifest.permission.RECORD_AUDIO)) {
+                askUserForOpeningAppSettings()
+            } else {
+                Toast.makeText(this, "Permission denied", Toast.LENGTH_SHORT).show()
+            }
+            false
+        }
+    }
 
     private fun askUserForOpeningAppSettings() {
         val appSettingsIntent = Intent(
@@ -103,6 +123,7 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
         }
         subscribeViewModelData()
         initBottomNavigation()
+
     }
 
     private fun checkUserIsRegister(): Boolean {
@@ -221,7 +242,7 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
     }
 
     override fun showDialogFragment(dialog: DialogFragment) {
-       dialog.show(supportFragmentManager, AppConstants.DIALOG_TAG)
+        dialog.show(supportFragmentManager, AppConstants.DIALOG_TAG)
     }
 
     override fun closeDetail() {
@@ -250,7 +271,7 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
     }
 
     override fun showMessage(jid: String) {
-        launchDetail(MessageFragment.newInstance(jid))
+        launchDetail(ChatFragment.newInstance(jid))
     }
 
     override fun showAccount() {
@@ -292,12 +313,67 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
 
     override fun onDestroy() {
         super.onDestroy()
+        requestRecordAudioPermissionLauncher.unregister()
         //  requestCameraPermissionLauncher.unregister()
 
     }
 
+    override fun requestPermissionToRecord() {
+       requestRecordAudioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+    }
+
 
     override fun slidingPaneLayoutIsOpen(): Boolean = binding.slidingPaneLayout.isOpen
+
+
+    override fun lockScreenRotation(isLock: Boolean) {
+      this.requestedOrientation =
+        if (isLock) {
+            val display: Display = this.windowManager.defaultDisplay
+            val rotation = display.rotation
+            val size = Point()
+            display.getSize(size)
+            if (rotation == Surface.ROTATION_0 || rotation == Surface.ROTATION_180) {
+                if (size.x > size.y) {
+                    //rotation is 0 or 180 deg, and the size of x is greater than y,
+                    //so we have a tablet
+                    if (rotation == Surface.ROTATION_0) {
+                        ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+                    } else {
+                        ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE
+                    }
+                } else {
+                    //rotation is 0 or 180 deg, and the size of y is greater than x,
+                    //so we have a phone
+                    if (rotation == Surface.ROTATION_0) {
+                        ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                    } else {
+                        ActivityInfo.SCREEN_ORIENTATION_REVERSE_PORTRAIT
+                    }
+                }
+            } else {
+                if (size.x > size.y) {
+                    //rotation is 90 or 270, and the size of x is greater than y,
+                    //so we have a phone
+                    if (rotation == Surface.ROTATION_90) {
+                        ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+                    } else {
+                        ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE
+                    }
+                } else {
+                    //rotation is 90 or 270, and the size of y is greater than x,
+                    //so we have a tablet
+                    if (rotation == Surface.ROTATION_90) {
+                        ActivityInfo.SCREEN_ORIENTATION_REVERSE_PORTRAIT
+                    } else {
+                        ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                    }
+                }
+            }
+        } else {
+            ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+        }
+    }
 }
 
 
