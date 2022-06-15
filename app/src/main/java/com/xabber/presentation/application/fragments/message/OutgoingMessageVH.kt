@@ -45,18 +45,7 @@ class OutgoingMessageVH(
         showCheckbox: Boolean,
         isNeedTitle: Boolean
     ) {
-        if (messageDto.images != null) {
 
-            when (messageDto.images!!.size) {
-                1 -> {
-                    binding.frameImages.layoutResource = R.layout.image_grid_1
-                    val inflated = binding.frameImages.inflate()
-                 val im = inflated.findViewById<ImageView>(R.id.ivImage0)
-                    Glide.with(im.context).load(messageDto.images!![0].bitmap).centerCrop().into(im)
-                }
-            }
-
-        } else binding.frameImages.isVisible = false
 
 // text & appearance
         binding.tvContent.isVisible = messageDto.messageBody != null
@@ -314,6 +303,42 @@ class OutgoingMessageVH(
 // messageShadow.background = shadowDrawable
 
 
+    }
+
+    private fun setupReferences(messageDto: MessageDto, vhExtraData: MessageVhExtraData) {
+        binding.fileListRv.visibility = View.GONE
+        binding.imageGridContainerFl.removeAllViews()
+        binding.imageGridContainerFl.visibility = View.GONE
+        if (messageDto.a) {
+            setUpImage(messageDto, vhExtraData)
+            setUpFile(messageRealmObject.referencesRealmObjects, vhExtraData)
+            setupNonExternalGeo(messageRealmObject)
+        }
+    }
+
+     private fun setUpImage(messageDto: MessageDto, messageVhExtraData: MessageVhExtraData) {
+        if (!SettingsManager.connectionLoadImages()) {
+            return
+        }
+        messageDto.referencesRealmObjects
+            ?.filter { it.isImage }
+            ?.also { imageCount = it.size }
+            ?.takeIf { it.isNotEmpty() }
+            ?.let {
+                RealmList<ReferenceRealmObject>().apply {
+                    addAll(it)
+                }
+            }
+            ?.let {
+                val gridBuilder = ImageGrid()
+                val imageGridView = gridBuilder.inflateView(imageGridContainer, it.size)
+                gridBuilder.bindView(imageGridView, message, this, messageVhExtraData) { v: View ->
+                    onLongClick(v)
+                    true
+                }
+                imageGridContainer.addView(imageGridView)
+                imageGridContainer.visibility = View.VISIBLE
+            }
     }
 
 }
