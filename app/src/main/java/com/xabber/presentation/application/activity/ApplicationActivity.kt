@@ -1,6 +1,7 @@
 package com.xabber.presentation.application.activity
 
 import android.Manifest
+import android.app.Activity
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
@@ -8,8 +9,11 @@ import android.content.res.Configuration
 import android.content.res.Resources
 import android.graphics.Bitmap
 import android.graphics.Point
+import android.media.MediaScannerConnection
 import android.net.Uri
 import android.os.Bundle
+import android.os.Environment
+import android.provider.MediaStore
 import android.provider.Settings
 import android.util.Log
 import android.view.Display
@@ -35,49 +39,204 @@ import com.xabber.databinding.ActivityApplicationBinding
 import com.xabber.presentation.application.contract.ApplicationNavigator
 import com.xabber.presentation.application.fragments.account.AccountFragment
 import com.xabber.presentation.application.fragments.calls.CallsFragment
+import com.xabber.presentation.application.fragments.chat.ChatFragment
+import com.xabber.presentation.application.fragments.chat.ChatViewModel
+import com.xabber.presentation.application.fragments.chat.FileManager
 import com.xabber.presentation.application.fragments.chatlist.*
 import com.xabber.presentation.application.fragments.contacts.ContactsFragment
 import com.xabber.presentation.application.fragments.contacts.EditContactFragment
 import com.xabber.presentation.application.fragments.contacts.NewContactFragment
 import com.xabber.presentation.application.fragments.discover.DiscoverFragment
-import com.xabber.presentation.application.fragments.message.ChatFragment
 import com.xabber.presentation.application.fragments.settings.SettingsFragment
 import com.xabber.presentation.application.util.AppConstants
 import com.xabber.presentation.onboarding.activity.OnBoardingActivity
 import io.realm.Realm
 import io.realm.RealmConfiguration
 import io.realm.query
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.*
 
 class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
-    private val viewModel: ApplicationViewModel by viewModels()
-
-    private val requestRecordAudioPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission(), ::onGotRecordAudioPermissionResult
-    )
-
-
-    //  private val messageViewModel: MessageViewModel by viewModels()
-    private var bitmap: Bitmap? = null
     private val binding: ActivityApplicationBinding by lazy {
         ActivityApplicationBinding.inflate(
             layoutInflater
         )
     }
 
+    var currentPath = ""
     private val activeFragment: Fragment?
         get() = supportFragmentManager.findFragmentById(R.id.application_container)
+    private val viewModel: ApplicationViewModel by viewModels()
+    private val chatViewModel: ChatViewModel by viewModels()
+    private var recordAudioPermissionGranted = false
+    private val requestRecordAudioPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission(), ::onGotRecordAudioPermissionResult
+    )
+    private val requestCameraPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+        ::onGotCameraPermissionResult
+    )
+    private val requestExternalStoragePermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+        ::onGotExternalStoragePermissionResult
+    )
 
-    private fun onGotRecordAudioPermissionResult(granted: Boolean): Boolean {
+    private val cameraResultLauncher =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            if (result.resultCode == Activity.RESULT_OK) {
+                val data = result.data
+                if (data != null) {
+                    val bitmap = data?.extras?.get("data") as Bitmap
+val image = generatePicturePath()
+intent.putExtra(MediaStore.EXTRA_OUTPUT, Uri.fromFile(image))
+               startActivityForResult(intent, 3)
+               //   galleryAddPick()
+                    // val bitmapData = data.extras?.get("data") as Bitmap
+                }
+            }
+
+        }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        galleryAddPick()
+    }
+
+    private fun galleryAddPick() {
+       //  val image = generatePicturePath()
+      //  val currentPhotoPath = image?.absolutePath
+        val file = generatePicturePath()
+       Log.d("camera", "$file")
+MediaScannerConnection.scanFile(this, arrayOf(file.toString()),
+      null, null)
+        Log.d("camera", "123")
+
+//        Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE).also { mediaScanIntent ->
+//            val photoFile = generatePicturePath()
+//           // Log.d("mmm", "$currentPhotoPath")
+//            mediaScanIntent.data = Uri.fromFile(photoFile)
+//            sendBroadcast(mediaScanIntent)
+//            Log.d("camera", "addGallery")
+        }
+
+
+
+     private fun addMediaToGallery(fromPath: String) {
+         val f = File(fromPath)
+       val contentUri = Uri.fromFile(f)
+        addMediaUriToGallery(contentUri)
+    }
+
+     private fun addMediaUriToGallery(uri: Uri) {
+         try {
+           val mediaScanIntent = Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE)
+             mediaScanIntent.data = uri
+            this.sendBroadcast(mediaScanIntent);
+        } catch ( e: Exception) {
+
+        }
+    }
+
+
+    override fun openFiles() {
+        val intent =
+            Intent(Intent.ACTION_GET_CONTENT).setType("*/*").addCategory(Intent.CATEGORY_OPENABLE)
+        intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
+        //  startActivityForResult(intent, FILE_SELECT_ACTIVITY_REQUEST_CODE);
+    }
+
+    override fun openGallery() {
+        requestExternalStoragePermissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
+        //     startActivityForResult(intent, FILE_SELECT_ACTIVITY_REQUEST_CODE);
+    }
+
+    private fun onGotRecordAudioPermissionResult(granted: Boolean) {
         return if (granted) {
-            true
+            recordAudioPermissionGranted = true
         } else {
             if (!shouldShowRequestPermissionRationale(Manifest.permission.RECORD_AUDIO)) {
-                askUserForOpeningAppSettings()
-            } else {
+                recordAudioPermissionGranted = false
                 Toast.makeText(this, "Permission denied", Toast.LENGTH_SHORT).show()
+            } else {
+                recordAudioPermissionGranted = false
             }
-            false
         }
+    }
+
+    private fun onGotCameraPermissionResult(granted: Boolean) {
+        return if (granted) {
+            takePhoto()
+        } else {
+            if (!shouldShowRequestPermissionRationale(Manifest.permission.CAMERA)) {
+                recordAudioPermissionGranted = false
+                Toast.makeText(this, "Permission denied", Toast.LENGTH_SHORT).show()
+            } else {
+                recordAudioPermissionGranted = false
+            }
+        }
+    }
+
+    private fun onGotExternalStoragePermissionResult(granted: Boolean) {
+        return if (granted) {
+            takePhotoFromGallery()
+
+        } else {
+            if (!shouldShowRequestPermissionRationale(Manifest.permission.READ_EXTERNAL_STORAGE)) {
+                Toast.makeText(this, "Permission denied", Toast.LENGTH_SHORT).show()
+            } else {
+
+            }
+        }
+    }
+
+    private fun takePhotoFromGallery() {
+        val intent = Intent(Intent.ACTION_GET_CONTENT).setType("image/*")
+            .addCategory(Intent.CATEGORY_OPENABLE)
+        intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
+        cameraResultLauncher.launch(intent)
+    }
+
+    private fun takePhoto() {
+        val takePictureIntent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
+        cameraResultLauncher.launch(takePictureIntent)
+    }
+
+    private fun generatePicturePath(): File? {
+        try {
+            val storageDir = getExternalFilesDir(Environment.DIRECTORY_PICTURES)
+           // val storageDir = getAlbumDir()
+            val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
+            return File(storageDir, "IMG_" + timeStamp + ".jpg")
+        } catch (e: java.lang.Exception) {
+
+        }
+        return null
+    }
+
+    private fun getAlbumDir(): File? {
+        Log.d("data photo", "name = ${this.applicationInfo.labelRes}")
+        var storageDir: File? = null
+        if (Environment.MEDIA_MOUNTED == Environment.getExternalStorageState()) {
+            storageDir = File(
+                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES),
+                this.applicationInfo.labelRes.toString()
+            )
+            if (!storageDir.mkdirs()) {
+                if (!storageDir.exists()) {
+                    Log.d("data photo", "failed to create directory")
+                    return null
+                }
+            }
+        } else {
+            Log.d("data photo", "External storage is not mounted READ/WRITE.")
+        }
+
+        return storageDir
+    }
+
+    override fun openCamera() {
+        requestCameraPermissionLauncher.launch(Manifest.permission.CAMERA)
     }
 
     private fun askUserForOpeningAppSettings() {
@@ -90,11 +249,12 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
                 PackageManager.MATCH_DEFAULT_ONLY
             ) == null
         ) {
-            Toast.makeText(this, "Permissions denied forever", Toast.LENGTH_SHORT).show()
+
         } else {
             AlertDialog.Builder(this)
                 .setTitle("Permission denied")
                 .setMessage(R.string.offer_to_open_settings)
+                .setNegativeButton(R.string.cancel) { dialog, _ -> dialog.dismiss() }
                 .setPositiveButton(R.string.dialog_button_open) { _, _ ->
                     startActivity(appSettingsIntent)
                 }
@@ -105,6 +265,7 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Log.d("data photo", "result.resultCode}")
         setContentView(binding.root)
         if (true) {
             if (getWidthWindowSizeClass() == WidthWindowSize.MEDIUM || getWidthWindowSizeClass() == WidthWindowSize.EXPANDED) setContainerWidth()
@@ -314,12 +475,15 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
     override fun onDestroy() {
         super.onDestroy()
         requestRecordAudioPermissionLauncher.unregister()
-        //  requestCameraPermissionLauncher.unregister()
+        requestCameraPermissionLauncher.unregister()
+        requestExternalStoragePermissionLauncher.unregister()
+        cameraResultLauncher.unregister()
 
     }
 
-    override fun requestPermissionToRecord() {
-       requestRecordAudioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+    override fun requestPermissionToRecord(): Boolean {
+        requestRecordAudioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+        return recordAudioPermissionGranted
     }
 
 
@@ -327,52 +491,52 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
 
 
     override fun lockScreenRotation(isLock: Boolean) {
-      this.requestedOrientation =
-        if (isLock) {
-            val display: Display = this.windowManager.defaultDisplay
-            val rotation = display.rotation
-            val size = Point()
-            display.getSize(size)
-            if (rotation == Surface.ROTATION_0 || rotation == Surface.ROTATION_180) {
-                if (size.x > size.y) {
-                    //rotation is 0 or 180 deg, and the size of x is greater than y,
-                    //so we have a tablet
-                    if (rotation == Surface.ROTATION_0) {
-                        ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+        this.requestedOrientation =
+            if (isLock) {
+                val display: Display = this.windowManager.defaultDisplay
+                val rotation = display.rotation
+                val size = Point()
+                display.getSize(size)
+                if (rotation == Surface.ROTATION_0 || rotation == Surface.ROTATION_180) {
+                    if (size.x > size.y) {
+                        //rotation is 0 or 180 deg, and the size of x is greater than y,
+                        //so we have a tablet
+                        if (rotation == Surface.ROTATION_0) {
+                            ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+                        } else {
+                            ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE
+                        }
                     } else {
-                        ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE
+                        //rotation is 0 or 180 deg, and the size of y is greater than x,
+                        //so we have a phone
+                        if (rotation == Surface.ROTATION_0) {
+                            ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                        } else {
+                            ActivityInfo.SCREEN_ORIENTATION_REVERSE_PORTRAIT
+                        }
                     }
                 } else {
-                    //rotation is 0 or 180 deg, and the size of y is greater than x,
-                    //so we have a phone
-                    if (rotation == Surface.ROTATION_0) {
-                        ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                    if (size.x > size.y) {
+                        //rotation is 90 or 270, and the size of x is greater than y,
+                        //so we have a phone
+                        if (rotation == Surface.ROTATION_90) {
+                            ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+                        } else {
+                            ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE
+                        }
                     } else {
-                        ActivityInfo.SCREEN_ORIENTATION_REVERSE_PORTRAIT
+                        //rotation is 90 or 270, and the size of y is greater than x,
+                        //so we have a tablet
+                        if (rotation == Surface.ROTATION_90) {
+                            ActivityInfo.SCREEN_ORIENTATION_REVERSE_PORTRAIT
+                        } else {
+                            ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                        }
                     }
                 }
             } else {
-                if (size.x > size.y) {
-                    //rotation is 90 or 270, and the size of x is greater than y,
-                    //so we have a phone
-                    if (rotation == Surface.ROTATION_90) {
-                        ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
-                    } else {
-                        ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE
-                    }
-                } else {
-                    //rotation is 90 or 270, and the size of y is greater than x,
-                    //so we have a tablet
-                    if (rotation == Surface.ROTATION_90) {
-                        ActivityInfo.SCREEN_ORIENTATION_REVERSE_PORTRAIT
-                    } else {
-                        ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-                    }
-                }
+                ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
             }
-        } else {
-            ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-        }
     }
 }
 

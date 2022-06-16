@@ -1,6 +1,6 @@
 package com.xabber.data.dto
 
-import android.content.ContentResolver
 import android.graphics.Bitmap
+import android.net.Uri
 
-class FileDto(val id: Int, val type: String, val bitmap: Bitmap? = null)
+class FileDto(val bitmap: Bitmap, val uri: Uri)

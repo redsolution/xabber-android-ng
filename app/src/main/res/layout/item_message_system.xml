@@ -7,14 +7,6 @@
     android:gravity="center_horizontal"
     android:orientation="vertical">
 
-    <include
-        android:id="@+id/unread_messages"
-        layout="@layout/item_first_unread_message" />
-
-    <include
-        android:id="@+id/message_date"
-        layout="@layout/item_message_date" />
-
     <com.xabber.presentation.custom.CorrectlyTouchEventTextView
         android:id="@+id/message_text"
         android:layout_width="wrap_content"
