@@ -7,7 +7,7 @@ enum class FileCategory {
     companion object {
         fun determineFileCategory(mimeType: String?): FileCategory {
             if (mimeType == null) return FILE
-            return if (mimeType.contains("image/")) {
+            return if (mimeType.contains("image/") || mimeType.contains("IMG")) {
                 IMAGE
             } else if (mimeType.contains("audio/")) {
                 AUDIO

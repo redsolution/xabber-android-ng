@@ -61,10 +61,12 @@ class AttachDialog(private val listener: Listener) : BottomSheetDialogFragment()
 
             }
            attachCheckButton.setOnClickListener {
+               dismiss()
                val selectedImagesPath = recentImagesAdapter?.getSelectedImagePath()
-             if (selectedImagesPath != null && selectedImagesPath.size > 0)  listener.onRecentPhotosSend(selectedImagesPath)
+             if (selectedImagesPath != null && selectedImagesPath.size > 0) {  listener.onRecentPhotosSend(selectedImagesPath)
+               Log.d("uuu", "$selectedImagesPath")}
                else {
-                   dismiss()
+
              }
            }
         }

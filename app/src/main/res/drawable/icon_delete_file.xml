@@ -6,7 +6,7 @@
         </shape>
     </item>
     <item
-        android:drawable="@drawable/ic_close_grey"
+        android:drawable="@drawable/ic_material_close_24"
         android:height="32dp"
         android:width="32dp"
         android:bottom="12dp"

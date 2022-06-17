@@ -84,13 +84,35 @@
 
                 </RelativeLayout>
 
-                <FrameLayout
-                    android:id="@+id/image_grid_container_fl"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:visibility="gone">
+                <include
+                    android:id="@+id/grid_1"
+                    layout="@layout/image_grid_1"
+                    android:visibility="gone" />
 
-                </FrameLayout>
+                <include
+                    android:id="@+id/grid_2"
+                    layout="@layout/image_grid_2"
+                    android:visibility="gone" />
+
+                <include
+                    android:id="@+id/grid_3"
+                    layout="@layout/image_grid_3"
+                    android:visibility="gone" />
+
+                <include
+                    android:id="@+id/grid_4"
+                    layout="@layout/image_grid_4"
+                    android:visibility="gone" />
+
+                <include
+                    android:id="@+id/grid_5"
+                    layout="@layout/image_grid_5"
+                    android:visibility="gone" />
+
+                <include
+                    android:id="@+id/grid_6"
+                    layout="@layout/image_grid_6"
+                    android:visibility="gone" />
 
                 <com.xabber.presentation.custom.CustomFlexboxLayout
                     android:id="@+id/flex_box_layout"

@@ -4,6 +4,7 @@ import com.xabber.data.xmpp.messages.MessageDisplayType
 import com.xabber.data.xmpp.messages.MessageReferenceStorageItem
 import com.xabber.data.xmpp.messages.MessageSendingState
 import retrofit2.http.Url
+import java.io.File
 
 data class MessageDto(
     val primary: String,
@@ -21,7 +22,7 @@ data class MessageDto(
     val isGroup: Boolean,
     val kind: MessageKind? = null,
     var isSelected: Boolean = false,
-    val references: ArrayList<MessageReferenceStorageItem>? = null
+    val references: ArrayList<FileDto>? = null
 ) : Comparable<MessageDto> {
     override fun compareTo(other: MessageDto): Int =
         other.sentTimestamp.compareTo(this.sentTimestamp)

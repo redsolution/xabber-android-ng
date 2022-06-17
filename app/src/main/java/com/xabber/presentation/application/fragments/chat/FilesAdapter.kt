@@ -5,7 +5,7 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.xabber.R
-import com.xabber.data.xmpp.messages.MessageReferenceStorageItem
+import com.xabber.databinding.ItemAttachedFileBinding
 
 class FilesAdapter : RecyclerView.Adapter<FileViewHolder>() {
 
@@ -26,10 +26,13 @@ class FilesAdapter : RecyclerView.Adapter<FileViewHolder>() {
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): FileViewHolder {
-        val view: View = LayoutInflater.from(parent.context).inflate(
-            R.layout.item_file_message, parent, false
+        return FileViewHolder(
+            ItemAttachedFileBinding.inflate(
+                LayoutInflater.from(parent.context),
+                parent,
+                false
+            )
         )
-        return FileViewHolder(view)
     }
 
     override fun onBindViewHolder(holder: FileViewHolder, position: Int) {
@@ -169,6 +172,6 @@ class FilesAdapter : RecyclerView.Adapter<FileViewHolder>() {
     }
 
     override fun getItemCount(): Int {
-      return 0
+        return 0
     }
 }

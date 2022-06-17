@@ -4,24 +4,24 @@ import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
-import com.xabber.data.dto.ImageDto
+import com.xabber.data.dto.FileDto
 import com.xabber.databinding.ItemAttachedFileBinding
 
 
-class MiniatureAdapter(private val listener: Listener) : ListAdapter<ImageDto, FileViewHolder>(
+class MiniatureAdapter(private val listener: Listener) : ListAdapter<FileDto, FileViewHolder>(
     DiffUtilCallback
 ) {
 
     interface Listener {
-        fun deleteFile()
+        fun deleteFile(fileFto: FileDto)
 
     }
 
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): FileViewHolder {
         val inflater = LayoutInflater.from(parent.context)
-        val binding = ItemAttachedFileBinding.inflate(inflater, parent, false)
-        return FileViewHolder(binding.root)
+
+        return FileViewHolder(  ItemAttachedFileBinding.inflate(inflater, parent, false))
     }
 
 
@@ -29,12 +29,12 @@ class MiniatureAdapter(private val listener: Listener) : ListAdapter<ImageDto, F
         holder.bind(getItem(position), listener)
     }
 
-    private object DiffUtilCallback : DiffUtil.ItemCallback<ImageDto>() {
+    private object DiffUtilCallback : DiffUtil.ItemCallback<FileDto>() {
 
-    override fun areItemsTheSame(oldItem: ImageDto, newItem: ImageDto) =
+    override fun areItemsTheSame(oldItem: FileDto, newItem: FileDto) =
         oldItem == newItem
 
-    override fun areContentsTheSame(oldItem: ImageDto, newItem: ImageDto) =
+    override fun areContentsTheSame(oldItem: FileDto, newItem: FileDto) =
         oldItem.bitmap!!.equals(newItem.bitmap)
 }
 }

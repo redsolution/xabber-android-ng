@@ -116,7 +116,7 @@ MediaScannerConnection.scanFile(this, arrayOf(file.toString()),
 //            val photoFile = generatePicturePath()
 //           // Log.d("mmm", "$currentPhotoPath")
 //            mediaScanIntent.data = Uri.fromFile(photoFile)
-//            sendBroadcast(mediaScanIntent)
+//           sendBroadcast(mediaScanIntent)
 //            Log.d("camera", "addGallery")
         }
 
@@ -217,7 +217,6 @@ MediaScannerConnection.scanFile(this, arrayOf(file.toString()),
     private fun getAlbumDir(): File? {
         Log.d("data photo", "name = ${this.applicationInfo.labelRes}")
         var storageDir: File? = null
-        if (Environment.MEDIA_MOUNTED == Environment.getExternalStorageState()) {
             storageDir = File(
                 Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES),
                 this.applicationInfo.labelRes.toString()
@@ -228,9 +227,6 @@ MediaScannerConnection.scanFile(this, arrayOf(file.toString()),
                     return null
                 }
             }
-        } else {
-            Log.d("data photo", "External storage is not mounted READ/WRITE.")
-        }
 
         return storageDir
     }
@@ -265,7 +261,7 @@ MediaScannerConnection.scanFile(this, arrayOf(file.toString()),
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        Log.d("data photo", "result.resultCode}")
+        Log.d("data photo", "${this.checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)}, ${this.checkSelfPermission(Manifest.permission.CAMERA)}")
         setContentView(binding.root)
         if (true) {
             if (getWidthWindowSizeClass() == WidthWindowSize.MEDIUM || getWidthWindowSizeClass() == WidthWindowSize.EXPANDED) setContainerWidth()

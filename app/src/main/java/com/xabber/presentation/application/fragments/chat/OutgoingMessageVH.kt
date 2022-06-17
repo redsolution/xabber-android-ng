@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.graphics.Color
 import android.graphics.PorterDuff
 import android.graphics.drawable.Drawable
+import android.net.Uri
 import android.os.Build
 import android.util.Log
 import android.util.TypedValue
@@ -41,15 +42,15 @@ class OutgoingMessageVH(
     @SuppressLint("RestrictedApi")
     override fun bind(
         messageDto: MessageDto,
-        isNeedTail: Boolean,
+        _isNeedTail: Boolean,
         needDay: Boolean,
         showCheckbox: Boolean,
         isNeedTitle: Boolean
     ) {
-
-
+        val isNeedTail =
+            if (messageDto.messageBody!!.isEmpty() && messageDto.references != null) false else _isNeedTail
 // text & appearance
-        binding.tvContent.isVisible = messageDto.messageBody != null
+        binding.tvContent.isVisible = messageDto.messageBody.isNotEmpty()
         if (messageDto.messageBody != null) binding.tvContent.text = messageDto.messageBody
 // tvContent.setTextAppearance(SettingsManager.chatsAppearanceStyle()) - берем из класса настроек
 
@@ -61,6 +62,8 @@ class OutgoingMessageVH(
 // time
         val date = Date(messageDto.sentTimestamp)
         val time = StringUtils.getTimeText(binding.tvSendingTime.context, date)
+        binding.messageInfo.isVisible =
+            messageDto.messageBody.isNotEmpty() && messageDto.references == null && messageDto.kind == null
         binding.tvSendingTime.text = time
 
 // status
@@ -70,8 +73,9 @@ class OutgoingMessageVH(
         )
 
 
-        binding.messageInfo.isVisible = messageDto.kind == null
-        binding.info.isVisible = messageDto.kind != null
+        //  binding.messageInfo.isVisible = messageDto.kind == null
+        binding.info.isVisible =
+            messageDto.kind != null || (messageDto.references != null && messageDto.messageBody.isNotEmpty())
 
 
         binding.checkboxIncoming.isVisible = showCheckbox
@@ -84,12 +88,18 @@ class OutgoingMessageVH(
             ViewGroup.LayoutParams.WRAP_CONTENT,
             ViewGroup.LayoutParams.WRAP_CONTENT
         )
+
         params.setMargins(0, 0, if (isNeedTail) 2.dp else 11.dp, 0)
+
         params.gravity = Gravity.END
         binding.balloon.layoutParams = params
-
+        if (messageDto.references == null && messageDto.messageBody.isNotEmpty()) {
             binding.balloon.setPadding(16.dp, 8.dp, if (isNeedTail) 14.dp else 8.dp, 10.dp)
-
+        } else if (messageDto.references != null && messageDto.messageBody.isNotEmpty()) {
+            binding.balloon.setPadding(4.dp, 4.dp, if (isNeedTail) 12.dp else 8.dp, 10.dp)
+        } else {
+            binding.balloon.setPadding(4.dp, 4.dp, 4.dp, -17.dp)
+        }
 
 
         val typedValue = TypedValue()
@@ -102,12 +112,12 @@ class OutgoingMessageVH(
         )
 
 
-            binding.balloon.setBackgroundDrawable(
-                ContextCompat.getDrawable(
-                    binding.root.context,
-                    if (isNeedTail) R.drawable.msg_out else R.drawable.msg
-                )
+        binding.balloon.setBackgroundDrawable(
+            ContextCompat.getDrawable(
+                binding.root.context,
+                if (isNeedTail) R.drawable.msg_out else R.drawable.msg
             )
+        )
 
 
         if (messageDto.kind == null) {
@@ -169,7 +179,8 @@ class OutgoingMessageVH(
             }
         }
 
-
+        setBackground(messageDto, isNeedTail)
+        setupReferences(messageDto)
         binding.root.setOnLongClickListener {
 
             if (!showCheckbox) listener.onLongClick(messageDto.primary)
@@ -244,6 +255,7 @@ class OutgoingMessageVH(
                 PorterDuff.Mode.SRC_IN
             )
         }
+
     }
 
     private fun setBackground(
@@ -291,28 +303,137 @@ class OutgoingMessageVH(
                 itemView.context.theme
             ), PorterDuff.Mode.MULTIPLY
         )
+    }
 // }
 // messageShadow.background = shadowDrawable
 
 
-        val meas = MessageHeaderViewDecoration()
-        meas.
-    }
+    private fun setupReferences(messageDto: MessageDto) {
+        Log.d("uuu", "${messageDto.references}")
+        binding.grid1.grid1.isVisible = false
+        binding.grid2.grid2.isVisible = false
+        binding.grid3.grid3.isVisible = false
+        binding.grid4.grid4.isVisible = false
+        binding.grid5.grid5.isVisible = false
+        binding.grid6.grid6.isVisible = false
 
-    private fun setupReferences(messageDto: MessageDto, vhExtraData: MessageVhExtraData) {
-        binding.fileListRv.visibility = View.GONE
-        binding.imageGridContainerFl.removeAllViews()
-        binding.imageGridContainerFl.visibility = View.GONE
         if (messageDto.references != null) {
-            setUpImage(messageDto, vhExtraData)
-          //  setUpFile(messageDto.references, vhExtraData)
-         //   setupNonExternalGeo(messageDto)
+
+            when (messageDto.references.size) {
+                1 -> {
+                    binding.grid1.grid1.isVisible = true
+                    Glide.with(binding.root).load(Uri.fromFile(messageDto.references[0].file))
+                        .into(binding.grid1.ivImage0)
+                    binding.grid1.imageMessageInfo.isVisible = messageDto.messageBody!!.isEmpty()
+                    val date = Date(messageDto.sentTimestamp)
+                    val time = StringUtils.getTimeText(binding.tvSendingTime.context, date)
+                    binding.grid1.tvImageSendingTime.text = time
+                }
+                2 -> {
+                    binding.grid2.grid2.isVisible = true
+                    Glide.with(binding.root).load(Uri.fromFile(messageDto.references[0].file))
+                        .into(binding.grid2.ivImage0)
+                    Glide.with(binding.root).load(Uri.fromFile(messageDto.references[1].file))
+                        .into(binding.grid2.ivImage1)
+                    binding.grid2.imageMessageInfo.isVisible = messageDto.messageBody!!.isEmpty()
+                    val date = Date(messageDto.sentTimestamp)
+                    val time = StringUtils.getTimeText(binding.tvSendingTime.context, date)
+                    binding.grid2.tvImageSendingTime.text = time
+                }
+                3 -> {
+                    binding.grid3.grid3.isVisible = true
+                    Glide.with(binding.root).load(Uri.fromFile(messageDto.references[0].file))
+                        .into(binding.grid3.ivImage0)
+                    Glide.with(binding.root).load(Uri.fromFile(messageDto.references[1].file))
+                        .into(binding.grid3.ivImage1)
+                    Glide.with(binding.root).load(Uri.fromFile(messageDto.references[2].file))
+                        .into(binding.grid3.ivImage2)
+                    binding.grid3.imageMessageInfo.isVisible = messageDto.messageBody!!.isEmpty()
+                    val date = Date(messageDto.sentTimestamp)
+                    val time = StringUtils.getTimeText(binding.tvSendingTime.context, date)
+                    binding.grid3.tvImageSendingTime.text = time
+                }
+                4 -> {
+                    binding.grid4.grid4.isVisible = true
+                    Glide.with(binding.root).load(Uri.fromFile(messageDto.references[0].file))
+                        .into(binding.grid4.ivImage0)
+                    Glide.with(binding.root).load(Uri.fromFile(messageDto.references[1].file))
+                        .into(binding.grid4.ivImage1)
+                    Glide.with(binding.root).load(Uri.fromFile(messageDto.references[2].file))
+                        .into(binding.grid4.ivImage2)
+                    Glide.with(binding.root).load(Uri.fromFile(messageDto.references[3].file))
+                        .into(binding.grid4.ivImage3)
+
+                    binding.grid4.imageMessageInfo.isVisible = messageDto.messageBody!!.isEmpty()
+                    val date = Date(messageDto.sentTimestamp)
+                    val time = StringUtils.getTimeText(binding.tvSendingTime.context, date)
+                    binding.grid4.tvImageSendingTime.text = time
+                }
+                5 -> {
+                    binding.grid5.grid5.isVisible = true
+                    Glide.with(binding.root).load(Uri.fromFile(messageDto.references[0].file))
+                        .into(binding.grid5.ivImage0)
+                    Glide.with(binding.root).load(Uri.fromFile(messageDto.references[1].file))
+                        .into(binding.grid5.ivImage1)
+                    Glide.with(binding.root).load(Uri.fromFile(messageDto.references[2].file))
+                        .into(binding.grid5.ivImage2)
+                    Glide.with(binding.root).load(Uri.fromFile(messageDto.references[3].file))
+                        .into(binding.grid5.ivImage3)
+                    Glide.with(binding.root).load(Uri.fromFile(messageDto.references[4].file))
+                        .into(binding.grid5.ivImage4)
+
+                    binding.grid5.imageMessageInfo.isVisible = messageDto.messageBody!!.isEmpty()
+                    val date = Date(messageDto.sentTimestamp)
+                    val time = StringUtils.getTimeText(binding.tvSendingTime.context, date)
+                    binding.grid5.tvImageSendingTime.text = time
+                }
+                else -> {
+                    binding.grid6.grid6.isVisible = true
+                    Glide.with(binding.root).load(Uri.fromFile(messageDto.references[0].file))
+                        .into(binding.grid6.ivImage0)
+                    Glide.with(binding.root).load(Uri.fromFile(messageDto.references[1].file))
+                        .into(binding.grid6.ivImage1)
+                    Glide.with(binding.root).load(Uri.fromFile(messageDto.references[2].file))
+                        .into(binding.grid6.ivImage2)
+                    Glide.with(binding.root).load(Uri.fromFile(messageDto.references[3].file))
+                        .into(binding.grid6.ivImage3)
+                    Glide.with(binding.root).load(Uri.fromFile(messageDto.references[4].file))
+                        .into(binding.grid6.ivImage4)
+                    Glide.with(binding.root).load(Uri.fromFile(messageDto.references[5].file))
+                        .into(binding.grid6.ivImage5)
+                    val count = messageDto.references.size - 6
+                    if (count > 0) {
+                        binding.grid6.tvCounter.isVisible = true
+                        binding.grid6.tvCounter.text = "+ $count"
+                    }
+
+                     binding.grid6.imageMessageInfo.isVisible = messageDto.messageBody!!.isEmpty()
+                    val date = Date(messageDto.sentTimestamp)
+                    val time = StringUtils.getTimeText(binding.tvSendingTime.context, date)
+                    binding.grid6.tvImageSendingTime.text = time
+                }
+            }
+
+
+            //  setUpFile(messageDto.references, vhExtraData)
+            //   setupNonExternalGeo(messageDto)
+        }
+        else {
+            binding.grid1.grid1.isVisible = false
+        binding.grid2.grid2.isVisible = false
+        binding.grid3.grid3.isVisible = false
+        binding.grid4.grid4.isVisible = false
+        binding.grid5.grid5.isVisible = false
+        binding.grid6.grid6.isVisible = false
+
+
         }
     }
 
-     private fun setUpImage(messageDto: MessageDto, messageVhExtraData: MessageVhExtraData) {
-//        messageDto.references
-//            ?.filter { it.isImage }
+    private fun setUpImage(messageDto: MessageDto) {
+
+        //     messageDto.references
+        //         ?.filter { it.isImage }
 //            ?.also { imageCount = it.size }
 //            ?.takeIf { it.isNotEmpty() }
 //            ?.let {
@@ -322,19 +443,19 @@ class OutgoingMessageVH(
 //            }
 //            ?.let {
 //                val gridBuilder = ImageGrid()
-//                val imageGridView = gridBuilder.inflateView(binding.imageGridContainerFl, it.size)
-//                gridBuilder.bindView(imageGridView, message, this, messageVhExtraData) { v: View ->
-//                    onLongClick(v)
-//                    true
+//                val imageGridView = messageDto.references?.size?.let {
+//                    gridBuilder.inflateView(binding.imageGridContainerFl,
+//                        it
+//                    )
 //                }
-//                binding.imageGridContainerFl.addView(imageGridView)
-//                binding.imageGridContainerFl.visibility = View.VISIBLE
-//            }
-    }
 
-     private fun setUpFile(
+
+    }
+}
+
+private fun setUpFile(
     //   referenceRealmObjects: RealmList<ReferenceRealmObject>, vhExtraData: MessageVhExtraData
-   ) {
+) {
 //        referenceRealmObjects
 //            .filter { !it.isImage && !it.isGeo }
 //            .also { fileCount = it.size }
@@ -349,14 +470,14 @@ class OutgoingMessageVH(
 //                    visibility = View.VISIBLE
 //                }
 //            }
-    }
-
-
-
-
-
-
-
-
-
 }
+
+
+
+
+
+
+
+
+
+
