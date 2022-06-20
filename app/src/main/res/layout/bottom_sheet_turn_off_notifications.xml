@@ -3,17 +3,19 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="300dp"
-    android:orientation="vertical"
+    android:background="@drawable/bottom_sheet_backgroubd_white"
     android:minHeight="200dp"
-    android:padding="12dp"
-    android:background="@drawable/bottom_sheet_background">
+    android:orientation="vertical"
+    android:padding="12dp">
 
     <RelativeLayout
         android:id="@+id/rl_15min"
         android:layout_width="match_parent"
         android:layout_height="48dp"
+        android:layout_marginTop="12dp"
+        android:background="@drawable/item_bottom_sheet_background"
         android:clickable="true"
-        android:focusable="true" >
+        android:focusable="true">
 
         <ImageView
             android:id="@+id/im_15min"
@@ -38,8 +40,8 @@
             android:layout_toEndOf="@+id/im_15min"
             android:background="@color/transparent"
             android:gravity="center_vertical"
-            android:textColor="@color/black"
             android:text="Turn off for 15 minutes"
+            android:textColor="@color/black"
             android:textSize="17sp" />
     </RelativeLayout>
 
@@ -47,8 +49,9 @@
         android:id="@+id/rl_1hour"
         android:layout_width="match_parent"
         android:layout_height="48dp"
+        android:background="@drawable/item_bottom_sheet_background"
         android:clickable="true"
-        android:focusable="true" >
+        android:focusable="true">
 
         <ImageView
             android:id="@+id/im_1hour"
@@ -73,8 +76,8 @@
             android:layout_toEndOf="@+id/im_1hour"
             android:background="@color/transparent"
             android:gravity="center_vertical"
-             android:textColor="@color/black"
             android:text="Turn off for 1 hour"
+            android:textColor="@color/black"
             android:textSize="17sp" />
     </RelativeLayout>
 
@@ -82,9 +85,9 @@
         android:id="@+id/rl_2hour"
         android:layout_width="match_parent"
         android:layout_height="48dp"
-        android:layout_marginBottom="8dp"
         android:clickable="true"
-        android:focusable="true" >
+        android:focusable="true"
+        android:background="@drawable/item_bottom_sheet_background">
 
         <ImageView
             android:id="@+id/im_2hour"
@@ -109,8 +112,8 @@
             android:layout_toEndOf="@id/im_2hour"
             android:background="@color/transparent"
             android:gravity="center_vertical"
-             android:textColor="@color/black"
             android:text="Turn off for 2 hour"
+            android:textColor="@color/black"
             android:textSize="17sp" />
     </RelativeLayout>
 
@@ -118,9 +121,10 @@
         android:id="@+id/rl_1day"
         android:layout_width="match_parent"
         android:layout_height="48dp"
-        android:layout_marginBottom="8dp"
+        android:background="@drawable/item_bottom_sheet_background"
         android:clickable="true"
-        android:focusable="true" >
+        android:focusable="true"
+        >
 
         <ImageView
             android:id="@+id/im_1day"
@@ -145,19 +149,20 @@
             android:layout_toEndOf="@id/im_1day"
             android:background="@color/transparent"
             android:gravity="center_vertical"
-             android:textColor="@color/black"
             android:text="Turn off for 1 day"
+            android:textColor="@color/black"
             android:textSize="17sp" />
     </RelativeLayout>
 
 
-      <RelativeLayout
+    <RelativeLayout
         android:id="@+id/rl_forever"
         android:layout_width="match_parent"
         android:layout_height="48dp"
         android:layout_marginBottom="8dp"
         android:clickable="true"
-        android:focusable="true" >
+        android:focusable="true"
+           android:background="@drawable/item_bottom_sheet_background">
 
         <ImageView
             android:id="@+id/im_forever"
@@ -183,7 +188,7 @@
             android:background="@color/transparent"
             android:gravity="center_vertical"
             android:text="Turn off forever"
-             android:textColor="@color/black"
+            android:textColor="@color/black"
             android:textSize="17sp" />
     </RelativeLayout>
 

@@ -131,6 +131,10 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_message), MessageAdapt
             val messageText = savedInstanceState.getString("message_text", "")
             binding.chatInput.setText(messageText)
         }
+
+
+
+
         populateUiWithData()
         initToolbarActions()
         initRecyclerView()
@@ -138,6 +142,8 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_message), MessageAdapt
         initInputLayoutActions()
         miniatureAdapter = MiniatureAdapter(this)
         requireActivity().onBackPressedDispatcher.addCallback(onBackPressedCallback)
+
+
 
         binding.attachedFiles.adapter = miniatureAdapter
         binding.attachedFiles.layoutManager =
@@ -300,7 +306,8 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_message), MessageAdapt
     private fun initToolbarActions() {
         binding.messageToolbar.setOnClickListener { navigator().showEditContact(name) }
         binding.messageIconBack.setOnClickListener {
-            navigator().closeDetail()
+           // navigator().closeDetail()
+            navigator().showBottomSheetDialog(BottomSheet())
         }
         binding.messageToolbar.setOnMenuItemClickListener {
             when (it.itemId) {
@@ -572,7 +579,7 @@ binding.buttonSendMessage.isVisible = false
                 }
 
                 override fun afterTextChanged(p0: Editable?) {
-                    if (p0.toString().trim().isNotEmpty() || binding.frameLayoutAttachedFiles.isVisible) {
+                    if (p0.toString().trim().isNotEmpty()) {
                         buttonRecord.isVisible = false
                         buttonAttach.isVisible = false
                         buttonSendMessage.isVisible = true

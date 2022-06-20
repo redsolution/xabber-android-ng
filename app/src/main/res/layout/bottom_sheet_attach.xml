@@ -1,70 +1,77 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:id="@+id/bottom_sheet_coordinator"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-   >
+    android:background="@drawable/bottom_sheet_backgroubd_white"
+    android:minHeight="200dp"
+    android:orientation="vertical"
+    android:padding="12dp">
+
+    <com.google.android.material.imageview.ShapeableImageView
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:id="@+id/bottom_sheet_swipe"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="12dp"
+        android:layout_marginBottom="12dp"
+        android:src="@drawable/avatar_swipe" />
+
+   <androidx.recyclerview.widget.RecyclerView
+       android:id="@+id/images"
+       app:layout_constraintStart_toStartOf="parent"
+       app:layout_constraintEnd_toEndOf="parent"
+       app:layout_constraintTop_toBottomOf="@id/bottom_sheet_swipe"
+       android:layout_width="match_parent"
+       android:layout_height="wrap_content"/>
+
 
     <LinearLayout
-        android:id="@+id/li"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:background="@android:color/transparent"
-        android:orientation="vertical"
-        app:layout_behavior="@string/bottom_sheet_behavior">
+        android:id="@+id/input_layout"
+        android:layout_width="0dp"
+        android:layout_height="?attr/actionBarSize"
+        android:layout_gravity="center_horizontal"
+        android:background="@color/white"
+        android:gravity="center_horizontal"
+        android:orientation="horizontal"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
 
+       <ImageButton
+        android:id="@+id/button_emoticon"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:layout_gravity="center_vertical"
+        android:layout_margin="16dp"
+        android:background="@color/transparent"
+        app:layout_constraintBottom_toBottomOf="@id/input_layout"
+        app:layout_constraintStart_toStartOf="@id/input_layout"
+        app:layout_constraintTop_toTopOf="@id/input_layout"
+        app:srcCompat="@drawable/ic_material_emoticon_outline_24"
+        app:tint="@color/grey_500" />
+    <EditText
+        android:id="@+id/chat_input"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_vertical"
+        android:layout_marginStart="20dp"
+        android:background="@android:color/white"
+        android:cursorVisible="true"
+        android:fadingEdge="vertical"
+        android:filterTouchesWhenObscured="false"
+        android:gravity="center_vertical"
+        android:hint="@string/chat_input_hint"
+        android:imeOptions="actionSend|flagNoExtractUi"
+        android:inputType="textAutoCorrect|textCapSentences|textMultiLine"
+        android:maxLines="4"
+        android:minHeight="40dp"
+        android:scrollbars="vertical"
+        app:layout_constraintBottom_toBottomOf="@id/input_layout"
+        app:layout_constraintStart_toEndOf="@id/button_emoticon"
+        app:layout_constraintTop_toTopOf="@id/input_layout" />
 
-        <com.google.android.material.appbar.AppBarLayout
-            android:id="@+id/appBarLayout"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:orientation="horizontal">
-
-
-                <ImageButton
-                    android:id="@+id/cancelBtn"
-                    android:layout_width="?attr/actionBarSize"
-                    android:layout_height="?attr/actionBarSize"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    android:src="@drawable/ic_close_grey" />
-
-                <TextView
-                    android:id="@+id/nameToolbar"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="center_vertical"
-                    android:layout_marginStart="15dp"
-                    android:layout_weight="1"
-                    android:text="Name"
-                    android:textAppearance="@style/TextAppearance.AppCompat.Title"
-                    android:textColor="@android:color/white" />
-
-            </LinearLayout>
-
-
-        </com.google.android.material.appbar.AppBarLayout>
-
-        <androidx.core.widget.NestedScrollView
-            android:id="@+id/bottomSheet"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:fillViewport="true">
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="GALLERY" />
-
-        </androidx.core.widget.NestedScrollView>
-
-
-    </LinearLayout>
-
-</androidx.coordinatorlayout.widget.CoordinatorLayout>
-
-
+</androidx.constraintlayout.widget.ConstraintLayout>
