@@ -14,8 +14,11 @@ import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.xabber.R
-import com.xabber.databinding.FragmentEmojiAvatarBinding
 import com.xabber.data.util.dp
+import com.xabber.databinding.FragmentEmojiAvatarBinding
+import com.xabber.presentation.application.util.AppConstants
+import com.xabber.presentation.application.util.setFragmentResultListener
+import com.xabber.presentation.onboarding.fragments.signup.SignupAvatarFragment
 
 class EmojiAvatarBottomSheet : BottomSheetDialogFragment() {
 
@@ -106,9 +109,7 @@ class EmojiAvatarBottomSheet : BottomSheetDialogFragment() {
                 val avatar = avatarBackground
                 avatar.radius = 0F
                 val bitmap = viewModel.getBitmapFromView(requireContext(), avatar)
-                //    val fragment =
-                //     parentFragmentManager.findFragmentByTag(FragmentTag.Signup4.toString()) as SignupFragment
-                //  fragment.setAvatar(bitmap)
+                //setAvatar(bitmap)
                 viewModel.saveBitmapToFile(bitmap, requireContext().cacheDir)
                 dismiss()
             }
@@ -118,15 +119,16 @@ class EmojiAvatarBottomSheet : BottomSheetDialogFragment() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        //   setFragmentResultListener(EMOJI_KEY_REQUEST_KEY) { _, result ->
-        //       result.getString(EMOJI_KEY_RESPONSE_KEY)?.let { emoji ->
-        //           binding.emojiText.text = emoji
-        //       }
-        //  }
+        setFragmentResultListener(AppConstants.REQUEST_EMOJI_KEY) { _, result ->
+            result.getString(AppConstants.RESPONSE_EMOJI_KEY)?.let { emoji ->
+                binding.emojiText.text = emoji
+            }
+        }
     }
 
     override fun onDestroy() {
         super.onDestroy()
         _binding = null
     }
+
 }

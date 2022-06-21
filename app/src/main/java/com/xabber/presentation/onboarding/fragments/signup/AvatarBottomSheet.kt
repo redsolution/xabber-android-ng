@@ -16,7 +16,6 @@ import com.xabber.databinding.BottomSheetAvatarBinding
 import com.xabber.presentation.onboarding.contract.navigator
 import com.xabber.presentation.onboarding.fragments.signup.emoji.EmojiAvatarBottomSheet
 
-
 class AvatarBottomSheet : BottomSheetDialogFragment() {
     private var _binding: BottomSheetAvatarBinding? = null
     private val binding get() = _binding!!
@@ -55,15 +54,15 @@ class AvatarBottomSheet : BottomSheetDialogFragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         with(binding) {
-            btnEmoji.setOnClickListener {
-                EmojiAvatarBottomSheet().show(parentFragmentManager, null)
+            emojiViewGroup.setOnClickListener {
+               navigator().openBottomSheetDialogFragment(EmojiAvatarBottomSheet())
                 dismiss()
             }
-            btnSelfie.setOnClickListener {
+            selfieViewGroup.setOnClickListener {
                 navigator().openCamera()
                 dismiss()
             }
-            btnChoseImage.setOnClickListener {
+            choseImageViewGroup.setOnClickListener {
                 navigator().openGallery()
                 dismiss()
             }
@@ -74,4 +73,5 @@ class AvatarBottomSheet : BottomSheetDialogFragment() {
         super.onDestroy()
         _binding = null
     }
+
 }

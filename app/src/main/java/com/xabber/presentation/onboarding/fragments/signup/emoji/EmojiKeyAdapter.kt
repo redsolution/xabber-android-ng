@@ -1,11 +1,11 @@
-package com.xabber.presentation.onboarding.fragments.signup
+package com.xabber.presentation.onboarding.fragments.signup.emoji
 
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import com.xabber.databinding.ItemEmojiKeyBinding
-import com.xabber.presentation.onboarding.fragments.signup.emoji.EmojiKeyViewHolder
+
 
 class EmojiKeyAdapter(
     private val onKeyClick: (String) -> Unit

@@ -65,12 +65,13 @@
         app:layout_constraintTop_toBottomOf="@+id/avatar_title">
 
         <ImageView
-            android:id="@+id/profile_image_emoji"
+            android:id="@+id/profile_image"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:layout_gravity="center"
             android:padding="21dp"
-            app:srcCompat="@drawable/ic_avatar_placeholder" />
+            app:srcCompat="@drawable/ic_avatar_placeholder"
+            android:contentDescription="@string/image_view_description_profile_image" />
 
 
     </com.google.android.material.card.MaterialCardView>
@@ -90,6 +91,7 @@
             android:layout_height="match_parent"
             android:layout_gravity="center"
             android:layout_margin="14dp"
-            app:srcCompat="@drawable/ic_baseline_photo_camera_24" />
+            app:srcCompat="@drawable/ic_baseline_photo_camera_24"
+            android:contentDescription="@string/image_view_content_description_photo" />
     </com.google.android.material.card.MaterialCardView>
 </androidx.constraintlayout.widget.ConstraintLayout>

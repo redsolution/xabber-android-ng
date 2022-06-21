@@ -224,9 +224,9 @@
             android:layout_marginBottom="8dp"
             android:clickable="true"
             android:focusable="true"
-            app:cardElevation="0dp"
             app:cardBackgroundColor="@color/blue_100"
             app:cardCornerRadius="64dp"
+            app:cardElevation="0dp"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
@@ -246,11 +246,11 @@
         <androidx.cardview.widget.CardView
             android:layout_width="36dp"
             android:layout_height="36dp"
-            app:cardCornerRadius="18dp"
             android:layout_alignEnd="@id/avatarBackground"
             android:layout_alignBottom="@id/avatarBackground"
             android:layout_margin="4dp"
             app:cardBackgroundColor="@color/grey_100"
+            app:cardCornerRadius="18dp"
             app:cardElevation="0dp"
             app:layout_constraintBottom_toBottomOf="@+id/avatarBackground"
             app:layout_constraintEnd_toEndOf="@+id/avatarBackground">

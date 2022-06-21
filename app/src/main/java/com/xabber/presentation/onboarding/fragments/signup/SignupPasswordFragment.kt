@@ -24,7 +24,7 @@ class SignupPasswordFragment : BaseFragment(R.layout.fragment_signup_password) {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         toolbarChanger().setTitle(R.string.signup_password_toolbar_title)
-        toolbarChanger().setShowBack(true)
+        toolbarChanger().showArrowBack(true)
         initEditText()
         initButton()
     }
@@ -52,7 +52,8 @@ class SignupPasswordFragment : BaseFragment(R.layout.fragment_signup_password) {
         binding.passwordBtnNext.setOnClickListener {
             viewModel.setPassword(binding.passwordEditText.text.toString())
             //   navigator().registerAccount()
-            navigator().startSignupAvatarFragment()
+            navigator().clearBackStack()
+            navigator().openSignupAvatarFragment()
         }
     }
 

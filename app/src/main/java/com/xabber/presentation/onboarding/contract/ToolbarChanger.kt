@@ -9,7 +9,6 @@ interface ToolbarChanger {
 
     fun clearTitle()
 
-    fun setShowBack(isVisible: Boolean)
-
+    fun showArrowBack(isVisible: Boolean)
 
 }

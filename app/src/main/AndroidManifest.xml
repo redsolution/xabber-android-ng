@@ -46,11 +46,12 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity android:name="com.soundcloud.android.crop.CropImageActivity"/>
 
          <service android:name=".presentation.RecordService" />
         <provider
             android:name="androidx.core.content.FileProvider"
-            android:authorities="${applicationId}.provider"
+            android:authorities="Xabber.provider"
             android:exported="false"
             android:grantUriPermissions="true"
             tools:ignore="ExportedContentProvider">

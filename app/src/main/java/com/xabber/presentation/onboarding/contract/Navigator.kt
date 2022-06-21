@@ -1,23 +1,26 @@
 package com.xabber.presentation.onboarding.contract
 
 import androidx.fragment.app.Fragment
+import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 
 fun Fragment.navigator(): Navigator = requireActivity() as Navigator
 
 interface Navigator {
 
 
-    fun startSigninFragment()
+    fun openSigninFragment()
 
-    fun startSignupNicknameFragment()
+    fun openSignupNicknameFragment()
 
-    fun startSignupUserNameFragment()
+    fun openSignupUserNameFragment()
 
-    fun startSignupPasswordFragment()
+    fun openSignupPasswordFragment()
 
-    fun startSignupAvatarFragment()
+    fun openSignupAvatarFragment()
 
     fun goToApplicationActivity(isSignedIn: Boolean)
+
+    fun openBottomSheetDialogFragment(dialog: BottomSheetDialogFragment)
 
     fun goBack()
 
@@ -26,5 +29,7 @@ interface Navigator {
     fun openGallery()
 
     fun registerAccount()
+
+    fun clearBackStack()
 
 }

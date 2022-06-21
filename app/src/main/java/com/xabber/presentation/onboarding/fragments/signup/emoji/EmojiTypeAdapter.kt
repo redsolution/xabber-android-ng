@@ -8,7 +8,7 @@ import com.xabber.databinding.ItemEmojiTypeBinding
 
 class EmojiTypeAdapter(
     private val onTypeClick: (Int) -> Unit
-) : ListAdapter<Int, EmojiTypeViewHolder>(DiffUtilCallback) {
+) : ListAdapter<Int, EmojiTypeViewHolder>(DiffUtilCallbackEmoji) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): EmojiTypeViewHolder {
         val inflater = LayoutInflater.from(parent.context)
@@ -20,7 +20,7 @@ class EmojiTypeAdapter(
         holder.bind(getItem(position))
 }
 
-private object DiffUtilCallback : DiffUtil.ItemCallback<Int>() {
+private object DiffUtilCallbackEmoji : DiffUtil.ItemCallback<Int>() {
 
     override fun areItemsTheSame(oldItem: Int, newItem: Int) =
         oldItem == newItem

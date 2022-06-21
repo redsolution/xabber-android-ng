@@ -2,9 +2,10 @@
     <string name="app_name">Xabber NG</string>
 
     <!-- Permissions -->
-    <string name="permission_denied_toast">Permission denied</string>
+    <string name="dialog_title_permission_denied">Permission denied</string>
     <string name="offer_to_open_settings">Would you like to open app settings if change your mind?</string>
     <string name="dialog_button_open">Open</string>
+    <string name="dialog_button_cancel">Cancel</string>
 
     <!-- Onboarding -->
 
@@ -244,6 +245,11 @@
     <string name="button_add_to_contacts">add to contacts</string>
     <string name="im_description_close_board">close_board</string>
     <string name="im_description_downward">downward</string>
+    <string name="image_view_description_profile_image">Profile image</string>
+    <string name="image_view_content_description_photo">Photo</string>
+    <string name="image_view_content_description_use_emoji">Use emoji</string>
+    <string name="image_view_content_description_take_selfie">Take selfie</string>
+    <string name="image_view_content_description_choose_image">Choose image</string>
 
     <!-- SearcFragment -->
 

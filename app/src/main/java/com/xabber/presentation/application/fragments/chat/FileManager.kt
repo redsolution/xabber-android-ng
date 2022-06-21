@@ -11,7 +11,7 @@ import java.util.*
 
 class FileManager {
     companion object {
-        val LOG_TAG: String = FileManager::class.java.simpleName
+        private val LOG_TAG: String = FileManager::class.java.simpleName
         private val VALID_IMAGE_EXTENSIONS = arrayOf("webp", "jpeg", "jpg", "png", "jpe", "gif")
         val instance: FileManager? = null
         private const val XABBER_DIR = "Xabber"
@@ -178,13 +178,13 @@ class FileManager {
 //            return getFileUri(rotateImageFile)
 //        }
 
-//        fun getFileUri(file: File?): Uri {
-//            return FileProvider.getUriForFile(
-//                Application.getInstance(),
-//                BuildConfig.APPLICATION_ID.toString() + ".provider",
-//                file!!
-//            )
-//        }
+        fun getFileUri(context: Context, file: File?): Uri {
+            return FileProvider.getUriForFile(
+               context,
+                "Xabber" + ".provider",
+                file!!
+            )
+        }
 
 //        @Throws(IOException::class)
 //        fun createTempImageFile(name: String?): File {

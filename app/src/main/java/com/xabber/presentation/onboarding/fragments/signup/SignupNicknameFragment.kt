@@ -21,7 +21,7 @@ class SignupNicknameFragment : BaseFragment(R.layout.fragment_signup_nickname) {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         toolbarChanger().setTitle(R.string.signup_nickname_toolbar_title)
-        toolbarChanger().setShowBack(true)
+        toolbarChanger().showArrowBack(true)
         initEditText()
         initButton()
     }
@@ -46,7 +46,7 @@ class SignupNicknameFragment : BaseFragment(R.layout.fragment_signup_nickname) {
     private fun initButton() {
         binding.nicknameBtnNext.setOnClickListener {
             viewModel.setNickName(binding.nicknameEditText.text.toString())
-            navigator().startSignupUserNameFragment()
+            navigator().openSignupUserNameFragment()
         }
     }
 

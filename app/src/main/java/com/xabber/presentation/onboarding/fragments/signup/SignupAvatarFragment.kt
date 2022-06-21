@@ -28,6 +28,7 @@ class SignupAvatarFragment : BaseFragment(R.layout.fragment_signup_avatar) {
         File(requireContext().cacheDir, AppConstants.TEMP_FILE_NAME).toUri()
     }
 
+
     private var avatarData: ByteArray? = null
     private var imageFileType: String? = null
 
@@ -40,7 +41,7 @@ class SignupAvatarFragment : BaseFragment(R.layout.fragment_signup_avatar) {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         toolbarChanger().setTitle(R.string.signup_avatar_toolbar_title)
-        toolbarChanger().setShowBack(false)
+        toolbarChanger().showArrowBack(false)
         initButton()
 
 
@@ -49,22 +50,18 @@ class SignupAvatarFragment : BaseFragment(R.layout.fragment_signup_avatar) {
             if (file.exists())
                 setAvatar(Uri.fromFile(file))
             else
-                binding.profileImageEmoji.setPadding(21.dp)
+                binding.profileImage.setPadding(21.dp)
         } else {
             if (file.exists())
                 file.delete()
         }
         binding.avatarBtnNext.isEnabled = isImageSaved
 
-        // btnNextContainer.updateLayoutParams<ConstraintLayout.LayoutParams> {
-        //      verticalBias = 1.0f
-        //    }
-
         binding.profileImageBackground.setOnClickListener {
-            AvatarBottomSheet().show(parentFragmentManager, null)
+            navigator().openBottomSheetDialogFragment(AvatarBottomSheet())
         }
         binding.profilePhotoBackground.setOnClickListener {
-            AvatarBottomSheet().show(parentFragmentManager, null)
+            navigator().openBottomSheetDialogFragment(AvatarBottomSheet())
         }
 
         binding.avatarBtnNext.setOnClickListener {
@@ -76,10 +73,9 @@ class SignupAvatarFragment : BaseFragment(R.layout.fragment_signup_avatar) {
         }
     }
 
-
     private fun setAvatar(uri: Uri?) {
         with(binding) {
-            profileImageEmoji.setPadding(0.dp)
+            profileImage.setPadding(0.dp)
             Glide.with(this@SignupAvatarFragment)
                 .load(uri)
                 .apply(
@@ -89,14 +85,14 @@ class SignupAvatarFragment : BaseFragment(R.layout.fragment_signup_avatar) {
                         .skipMemoryCache(true)
                         .dontAnimate()
                 )
-                .into(profileImageEmoji)
+                .into(profileImage)
             avatarBtnNext.isEnabled = true
         }
     }
 
     private fun setAvatar(bitmap: Bitmap) {
         with(binding) {
-            profileImageEmoji.setPadding(0.dp)
+            profileImage.setPadding(0.dp)
             Glide.with(requireContext())
                 .load(bitmap)
                 .apply(
@@ -106,7 +102,7 @@ class SignupAvatarFragment : BaseFragment(R.layout.fragment_signup_avatar) {
                         .skipMemoryCache(true)
                         .dontAnimate()
                 )
-                .into(profileImageEmoji)
+                .into(profileImage)
             avatarBtnNext.isEnabled = true
         }
     }
@@ -117,5 +113,6 @@ class SignupAvatarFragment : BaseFragment(R.layout.fragment_signup_avatar) {
             navigator().goToApplicationActivity(true)
         }
     }
+
 
 }

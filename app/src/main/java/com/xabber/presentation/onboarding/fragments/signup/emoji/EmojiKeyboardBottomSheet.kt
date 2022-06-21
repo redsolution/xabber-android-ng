@@ -7,6 +7,7 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.core.os.bundleOf
 import androidx.core.view.updateLayoutParams
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
@@ -14,7 +15,8 @@ import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.xabber.R
 import com.xabber.databinding.FragmentEmojiKeyboardBinding
 import com.xabber.data.util.dp
-import com.xabber.presentation.onboarding.fragments.signup.EmojiKeyAdapter
+import com.xabber.presentation.application.util.AppConstants
+import com.xabber.presentation.application.util.setFragmentResult
 
 class EmojiKeyboardBottomSheet : BottomSheetDialogFragment() {
 
@@ -85,12 +87,12 @@ class EmojiKeyboardBottomSheet : BottomSheetDialogFragment() {
     }
 
     private fun onEmojiClick(emoji: String) {
-   //     setFragmentResult(EMOJI_KEY_REQUEST_KEY, bundleOf(EMOJI_KEY_RESPONSE_KEY to emoji))
+       setFragmentResult(AppConstants.REQUEST_EMOJI_KEY, bundleOf(AppConstants.RESPONSE_EMOJI_KEY to emoji))
         dismiss()
     }
 
     private fun onEmojiTypeClick(emojiType: Int) {
-        keysAdapter!!.submitList(dataset[emojiType])
+        keysAdapter?.submitList(dataset[emojiType])
     }
 
     companion object {

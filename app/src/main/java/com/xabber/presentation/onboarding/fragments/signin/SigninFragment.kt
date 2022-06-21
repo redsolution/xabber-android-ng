@@ -34,7 +34,7 @@ class SigninFragment : BaseFragment(R.layout.fragment_signin) {
 
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        toolbarChanger().setShowBack(true)
+        toolbarChanger().showArrowBack(true)
         toolbarChanger().setTitle(R.string.signin_toolbar_title_1)
         initEditText()
         initButton()
@@ -105,7 +105,7 @@ class SigninFragment : BaseFragment(R.layout.fragment_signin) {
 
                     textEnabled()
                     btnConnect.isEnabled = false
-                    binding.btnConnect.text = "Connecting..."
+                    binding.btnConnect.text = resources.getString(R.string.signin_connect_button_label_2)
 
                     val spannable =
                         SpannableStringBuilder(resources.getString(R.string.signin_subtitle_label_1))
@@ -133,7 +133,7 @@ class SigninFragment : BaseFragment(R.layout.fragment_signin) {
                                 if (list.filter { it.nameResId == R.string.feature_name_4 }
                                         .count() == 1) {
                                     toolbarChanger().setTitle(R.string.signin_toolbar_title_2)
-                                    toolbarChanger().setShowBack(false)
+                                    toolbarChanger().showArrowBack(false)
                                     signinTitle.text = String.format(
                                         resources.getString(R.string.signin_title_label_template_2),
                                         host
@@ -150,10 +150,10 @@ class SigninFragment : BaseFragment(R.layout.fragment_signin) {
                                 lifecycleScope.launch {
                                     delay(150)
                                     list[list.lastIndex].state =
-//                                if ((0..3).random() > 1)
-                                        State.Success
-//                                else
-//                                    State.Error
+                                        if ((0..3).random() > 1)
+                                            State.Success
+                                        else
+                                            State.Error
                                     if (viewModel.isServerFeatures) {
                                         featureAdapter.submitList(list)
                                         featureAdapter.notifyItemChanged(list.lastIndex)
@@ -238,7 +238,7 @@ class SigninFragment : BaseFragment(R.layout.fragment_signin) {
         spannable.setSpan(
             object : ClickableSpan() {
                 override fun onClick(p0: View) {
-                    navigator().startSignupNicknameFragment()
+                    navigator().openSignupNicknameFragment()
                 }
 
                 override fun updateDrawState(ds: TextPaint) {

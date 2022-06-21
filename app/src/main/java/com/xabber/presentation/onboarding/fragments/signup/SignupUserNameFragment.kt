@@ -24,7 +24,7 @@ class SignupUserNameFragment : BaseFragment(R.layout.fragment_signup_username) {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         toolbarChanger().setTitle(R.string.signup_username_toolbar_title)
-        toolbarChanger().setShowBack(true)
+        toolbarChanger().showArrowBack(true)
         initEditText()
         initButton()
         host = ""
@@ -84,7 +84,7 @@ class SignupUserNameFragment : BaseFragment(R.layout.fragment_signup_username) {
     private fun initButton() {
         binding.usernameBtnNext.setOnClickListener {
             viewModel.setUserName(binding.usernameEditText.text.toString())
-            navigator().startSignupPasswordFragment()
+            navigator().openSignupPasswordFragment()
         }
     }
 

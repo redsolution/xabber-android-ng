@@ -3,6 +3,7 @@ package com.xabber.presentation.onboarding.activity
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import com.xabber.data.dto.HostListDto
 import com.xabber.data.repository.AccountRepository
 import com.xabber.presentation.application.util.AppConstants
 import com.xabber.data.xmpp.account.AccountStorageItem
@@ -12,7 +13,7 @@ import io.realm.Realm
 import io.realm.RealmConfiguration
 
 class OnboardingViewModel : ViewModel() {
-    val accountRepository = AccountRepository()
+    private val accountRepository = AccountRepository()
 
     private val _nickName = MutableLiveData<String>()
     val nickName: LiveData<String> = _nickName
@@ -34,6 +35,7 @@ class OnboardingViewModel : ViewModel() {
         _password.value = password
     }
 
+     fun getHost(): Single<HostListDto> = accountRepository.getHostList()
 
     fun checkIfNameAvailable(username: String, host: String): Single<Any> =
         accountRepository.checkIfNameAvailable(
