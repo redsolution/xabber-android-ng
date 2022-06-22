@@ -4,6 +4,7 @@ import android.provider.MediaStore
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import android.widget.CompoundButton
+import androidx.camera.view.PreviewView
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.xabber.R
@@ -40,6 +41,7 @@ class GalleryAdapter(private val listener: Listener) :
     interface Listener {
         fun onRecentImagesSelected()
         fun tooManyFilesSelected()
+        fun cameraView(preview: PreviewView)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
@@ -58,7 +60,16 @@ class GalleryAdapter(private val listener: Listener) :
     }
 
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
-      if (position > 0) {
+        if (position == 0) {
+             val recentImageViewHolder = holder as CameraVH
+            val previewCamera = recentImageViewHolder.getCameraPreview()
+            listener.cameraView(previewCamera)
+
+
+
+
+
+        } else if (position > 0) {
           val recentImageViewHolder = holder as GalleryVH
           val path = imagePaths[position]
           val image = recentImageViewHolder.getImage()

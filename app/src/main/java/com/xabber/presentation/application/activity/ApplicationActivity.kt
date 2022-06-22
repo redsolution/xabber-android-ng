@@ -32,7 +32,7 @@ import androidx.slidingpanelayout.widget.SlidingPaneLayout
 import com.google.android.material.badge.BadgeDrawable
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.xabber.R
-import com.xabber.data.util.dp
+import com.xabber.presentation.application.util.dp
 import com.xabber.data.xmpp.account.AccountStorageItem
 import com.xabber.data.xmpp.presences.ResourceStorageItem
 import com.xabber.databinding.ActivityApplicationBinding
@@ -41,7 +41,6 @@ import com.xabber.presentation.application.fragments.account.AccountFragment
 import com.xabber.presentation.application.fragments.calls.CallsFragment
 import com.xabber.presentation.application.fragments.chat.ChatFragment
 import com.xabber.presentation.application.fragments.chat.ChatViewModel
-import com.xabber.presentation.application.fragments.chat.FileManager
 import com.xabber.presentation.application.fragments.chatlist.*
 import com.xabber.presentation.application.fragments.contacts.ContactsFragment
 import com.xabber.presentation.application.fragments.contacts.EditContactFragment
@@ -487,7 +486,7 @@ MediaScannerConnection.scanFile(this, arrayOf(file.toString()),
 
 
     override fun lockScreenRotation(isLock: Boolean) {
-        this.requestedOrientation =
+      this.requestedOrientation =
             if (isLock) {
                 val display: Display = this.windowManager.defaultDisplay
                 val rotation = display.rotation

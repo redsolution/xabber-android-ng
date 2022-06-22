@@ -1,4 +1,4 @@
-package com.xabber.data.util
+package com.xabber.presentation.application.util
 
 import android.content.res.Resources
 

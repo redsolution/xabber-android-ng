@@ -11,7 +11,7 @@ import androidx.core.view.updateLayoutParams
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
-import com.xabber.data.util.dp
+import com.xabber.presentation.application.util.dp
 import com.xabber.databinding.BottomSheetAvatarBinding
 import com.xabber.presentation.onboarding.contract.navigator
 import com.xabber.presentation.onboarding.fragments.signup.emoji.EmojiAvatarBottomSheet

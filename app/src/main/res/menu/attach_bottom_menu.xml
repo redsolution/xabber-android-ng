@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item
+        android:id="@+id/gallery"
+        android:enabled="true"
+        android:icon="@drawable/ic_gallery_circle"
+        android:title="Gallery" />
+
+    <item
+        android:id="@+id/file"
+        android:icon="@drawable/ic_file_circle"
+        android:title="File" />
+
+    <item
+        android:id="@+id/location"
+        android:icon="@drawable/ic_location_circle"
+        android:title="Location" />
+
+</menu>

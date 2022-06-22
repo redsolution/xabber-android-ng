@@ -11,7 +11,7 @@ import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.RecyclerView
 import com.xabber.R
-import com.xabber.data.util.dp
+import com.xabber.presentation.application.util.dp
 import kotlin.math.max
 import kotlin.math.min
 

@@ -12,7 +12,7 @@ import com.bumptech.glide.Glide
 import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.bumptech.glide.request.RequestOptions
 import com.xabber.R
-import com.xabber.data.util.dp
+import com.xabber.presentation.application.util.dp
 import com.xabber.databinding.FragmentSignupAvatarBinding
 import com.xabber.presentation.BaseFragment
 import com.xabber.presentation.application.util.AppConstants

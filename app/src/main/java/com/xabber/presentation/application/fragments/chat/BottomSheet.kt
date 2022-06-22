@@ -11,15 +11,19 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.GridLayout
 import android.widget.Toast
-import androidx.annotation.NonNull
+import androidx.camera.core.AspectRatio
+import androidx.camera.core.CameraSelector
+import androidx.camera.core.Preview
+import androidx.camera.core.UseCaseGroup
+import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.camera.view.PreviewView
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.GridLayoutManager
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
-import com.xabber.R
-import com.xabber.data.util.dp
+import com.xabber.presentation.application.util.dp
 import com.xabber.databinding.BottomSheetAttachBinding
 import com.xabber.presentation.application.fragments.chat.GalleryAdapter.Companion.projectionPhotos
 import java.util.*
@@ -119,7 +123,7 @@ val dialog = super.onCreateDialog(savedInstanceState) as BottomSheetDialog
             projectionPhotos,
             null,
             null,
-            null
+            MediaStore.Images.Media.DATE_TAKEN + " DESC"
         )?.use { cursor ->
             while (cursor.moveToNext()) {
                 val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
@@ -184,5 +188,24 @@ val dialog = super.onCreateDialog(savedInstanceState) as BottomSheetDialog
          Toast.makeText(context, "Too_many_files_at_once", Toast.LENGTH_SHORT).show()
 
     }
+
+   override fun cameraView(previewCamera: PreviewView) {
+      val cameraProviderFuture = ProcessCameraProvider.getInstance(requireContext())
+        cameraProviderFuture.addListener( Runnable {
+            try {
+                val cameraProvider = cameraProviderFuture.get()
+                 val preview = Preview.Builder().setTargetAspectRatio(AspectRatio.RATIO_4_3).setTargetRotation(previewCamera.display.rotation).build()
+        val cameraselector = CameraSelector.Builder().requireLensFacing(CameraSelector.LENS_FACING_BACK).build()
+        preview.setSurfaceProvider(previewCamera.surfaceProvider)
+        val useCaseGroup = UseCaseGroup.Builder().addUseCase(preview).build()
+        cameraProvider.bindToLifecycle(this, cameraselector, preview)
+            } catch (e: Exception) {
+
+            }
+        }, ContextCompat.getMainExecutor(requireContext()) )
+
+   }
+
+
 }
 

@@ -94,7 +94,7 @@ class AttachDialog(private val listener: Listener) : BottomSheetDialogFragment()
             projectionPhotos,
             null,
             null,
-            null
+            MediaStore.Images.Media.DATE_TAKEN + " DESC"
         )?.use { cursor ->
             while (cursor.moveToNext()) {
                 val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)

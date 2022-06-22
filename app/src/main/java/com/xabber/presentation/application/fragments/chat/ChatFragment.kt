@@ -26,18 +26,15 @@ import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.res.ResourcesCompat
-import androidx.core.net.toUri
 import androidx.core.view.isVisible
 import androidx.core.view.marginBottom
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.LinearLayoutManager.HORIZONTAL
 import androidx.recyclerview.widget.RecyclerView
 import by.kirich1409.viewbindingdelegate.viewBinding
 import com.bumptech.glide.Glide
 import com.xabber.R
 import com.xabber.data.dto.FileDto
-import com.xabber.data.dto.ImageDto
 import com.xabber.data.dto.MessageDto
 import com.xabber.data.dto.MessageKind
 import com.xabber.data.xmpp.messages.MessageDisplayType
@@ -84,9 +81,13 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_message), MessageAdapt
                     true
                 miniatureAdapter?.submitList(miniatures)
                 miniatureAdapter?.notifyDataSetChanged()
-                if (miniatures.size > 0) { binding.buttonSendMessage.isVisible = true
-                    binding.buttonRecord.isVisible = false } else {  binding.buttonSendMessage.isVisible = false
-                    binding.buttonRecord.isVisible = true  }
+                if (miniatures.size > 0) {
+                    binding.buttonSendMessage.isVisible = true
+                    binding.buttonRecord.isVisible = false
+                } else {
+                    binding.buttonSendMessage.isVisible = false
+                    binding.buttonRecord.isVisible = true
+                }
             }
         }
 
@@ -306,7 +307,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_message), MessageAdapt
     private fun initToolbarActions() {
         binding.messageToolbar.setOnClickListener { navigator().showEditContact(name) }
         binding.messageIconBack.setOnClickListener {
-           // navigator().closeDetail()
+            // navigator().closeDetail()
             navigator().showBottomSheetDialog(BottomSheet())
         }
         binding.messageToolbar.setOnMenuItemClickListener {
@@ -510,7 +511,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_message), MessageAdapt
             )
             binding.frameLayoutAttachedFiles.isVisible = false
             miniatures.clear()
-binding.buttonSendMessage.isVisible = false
+            binding.buttonSendMessage.isVisible = false
             binding.buttonAttach.isVisible = true
             binding.buttonRecord.isVisible = true
             binding.answer.isVisible = false
@@ -648,39 +649,40 @@ binding.buttonSendMessage.isVisible = false
     }
 
     override fun onRecentPhotosSend(paths: HashSet<String>?) {
-         var messageKindDto: MessageKind? = null
-            if (binding.answer.isVisible) {
-                messageKindDto = MessageKind(
-                    "id",
-                    binding.replyMessageTitle.text.toString(),
-                    binding.replyMessageContent.text.toString()
-                )
-            }
-            val imageList = ArrayList<FileDto>()
-            val text = binding.chatInput.text.toString().trim()
-            binding.chatInput.text?.clear()
-            val timeStamp = System.currentTimeMillis()
-        for (i in 0 until paths!!.size) {
-            imageList.add(FileDto(File(paths.elementAt(i)))) }
-
-
-viewModel.insertMessage(
-                MessageDto(
-                    "151515",
-                    true,
-                    "Алексей Иванов",
-                    "Геннадий Белов",
-                    text,
-                    MessageSendingState.Deliver,
-                    timeStamp,
-                    null,
-                    MessageDisplayType.Text,
-                    false,
-                    false,
-                    null,
-                    false, messageKindDto, false, imageList
-                )
+        var messageKindDto: MessageKind? = null
+        if (binding.answer.isVisible) {
+            messageKindDto = MessageKind(
+                "id",
+                binding.replyMessageTitle.text.toString(),
+                binding.replyMessageContent.text.toString()
             )
+        }
+        val imageList = ArrayList<FileDto>()
+        val text = binding.chatInput.text.toString().trim()
+        binding.chatInput.text?.clear()
+        val timeStamp = System.currentTimeMillis()
+        for (i in 0 until paths!!.size) {
+            imageList.add(FileDto(File(paths.elementAt(i))))
+        }
+
+
+        viewModel.insertMessage(
+            MessageDto(
+                "151515",
+                true,
+                "Алексей Иванов",
+                "Геннадий Белов",
+                text,
+                MessageSendingState.Deliver,
+                timeStamp,
+                null,
+                MessageDisplayType.Text,
+                false,
+                false,
+                null,
+                false, messageKindDto, false, imageList
+            )
+        )
 
 
     }
@@ -788,8 +790,6 @@ viewModel.insertMessage(
             binding.buttonSendMessage.isVisible = false
         }
     }
-
-
 
 
     override fun disableNotifications() {
