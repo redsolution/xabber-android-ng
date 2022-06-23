@@ -5,6 +5,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.view.View
 import android.widget.Toast
+import androidx.activity.OnBackPressedCallback
 import androidx.core.net.toUri
 import androidx.core.view.setPadding
 import by.kirich1409.viewbindingdelegate.viewBinding
@@ -38,11 +39,18 @@ class SignupAvatarFragment : BaseFragment(R.layout.fragment_signup_avatar) {
 
     private var isImageSaved = false
 
+      private val onBackPressedCallback = object : OnBackPressedCallback(true) {
+        override fun handleOnBackPressed() {
+                activity?.finish()
+            }
+        }
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         toolbarChanger().setTitle(R.string.signup_avatar_toolbar_title)
         toolbarChanger().showArrowBack(false)
         initButton()
+        requireActivity().onBackPressedDispatcher.addCallback(onBackPressedCallback)
 
 
         val file = File(requireContext().cacheDir, TEMP_FILE_NAME)
@@ -112,6 +120,11 @@ class SignupAvatarFragment : BaseFragment(R.layout.fragment_signup_avatar) {
         binding.avatarBtnNext.setOnClickListener {
             navigator().goToApplicationActivity(true)
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        onBackPressedCallback.remove()
     }
 
 

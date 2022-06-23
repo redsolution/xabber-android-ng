@@ -6,9 +6,11 @@ import android.text.*
 import android.text.method.LinkMovementMethod
 import android.text.style.ClickableSpan
 import android.text.style.ForegroundColorSpan
+import android.util.Log
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
+import androidx.activity.OnBackPressedCallback
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
@@ -32,6 +34,15 @@ class SigninFragment : BaseFragment(R.layout.fragment_signin) {
     private val viewModel = SigninViewModel()
     var host: String = "dev.xabber.org"
 
+    private val onBackPressedCallback = object : OnBackPressedCallback(true) {
+        override fun handleOnBackPressed() {
+            if (false) {
+                activity?.finish()
+            } else {
+                navigator().goBack()
+            }
+        }
+    }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         toolbarChanger().showArrowBack(true)
@@ -41,7 +52,7 @@ class SigninFragment : BaseFragment(R.layout.fragment_signin) {
         initRecyclerView()
         binding.signinSubtitle1.text = getSubtitleClickableSpan()
         binding.signinSubtitle1.movementMethod = LinkMovementMethod.getInstance()
-
+   //     requireActivity().onBackPressedDispatcher.addCallback(onBackPressedCallback)
     }
 
     private fun initEditText() {
@@ -105,7 +116,8 @@ class SigninFragment : BaseFragment(R.layout.fragment_signin) {
 
                     textEnabled()
                     btnConnect.isEnabled = false
-                    binding.btnConnect.text = resources.getString(R.string.signin_connect_button_label_2)
+                    binding.btnConnect.text =
+                        resources.getString(R.string.signin_connect_button_label_2)
 
                     val spannable =
                         SpannableStringBuilder(resources.getString(R.string.signin_subtitle_label_1))
@@ -173,6 +185,7 @@ class SigninFragment : BaseFragment(R.layout.fragment_signin) {
                                     ) {
                                         featureAdapter.submitList(list)
                                         featureAdapter.notifyItemChanged(list.lastIndex)
+                                      //  Log.d("ppp", "error")
                                     }
                                     if (viewModel._features[list.lastIndex].state == State.Success &&
                                         viewModel._features.filter { it.state == State.Error }
@@ -180,6 +193,7 @@ class SigninFragment : BaseFragment(R.layout.fragment_signin) {
                                     ) {
                                         featureAdapter.submitList(list)
                                         featureAdapter.notifyItemChanged(list.lastIndex)
+                                     //   Log.d("ppp", "2error")
                                     }
                                 }
                             }
@@ -256,6 +270,7 @@ class SigninFragment : BaseFragment(R.layout.fragment_signin) {
     override fun onDestroy() {
         super.onDestroy()
         compositeDisposable.clear()
+        onBackPressedCallback.remove()
     }
 
 }

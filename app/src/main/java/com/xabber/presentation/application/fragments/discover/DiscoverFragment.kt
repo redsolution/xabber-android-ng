@@ -22,6 +22,7 @@ setCameraProviderListener()
     }
 
      fun setCameraProviderListener() {
+
         val cameraProviderFuture = ProcessCameraProvider.getInstance(requireContext())
         cameraProviderFuture.addListener( Runnable {
             try {
@@ -34,11 +35,13 @@ setCameraProviderListener()
     }
 
     fun bindPreview(cameraProvider: ProcessCameraProvider) {
+
+
        val preview = Preview.Builder().setTargetAspectRatio(AspectRatio.RATIO_4_3).setTargetRotation(binding.previewCamera.display.rotation).build()
-        val cameraselector = CameraSelector.Builder().requireLensFacing(CameraSelector.LENS_FACING_BACK).build()
+        val cameraSelector = CameraSelector.Builder().requireLensFacing(CameraSelector.LENS_FACING_BACK).build()
        preview.setSurfaceProvider(binding.previewCamera.surfaceProvider)
         val useCaseGroup = UseCaseGroup.Builder().addUseCase(preview).build()
-        cameraProvider.bindToLifecycle(this, cameraselector, preview)
+        cameraProvider.bindToLifecycle(this, cameraSelector, preview)
 
 
     }

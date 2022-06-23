@@ -2,11 +2,11 @@
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item>
         <shape android:shape="oval">
-            <solid android:color="@color/green_400"/>
+            <solid android:color="@color/blue_400"/>
         </shape>
     </item>
     <item
-        android:drawable="@drawable/ic_send"
+        android:drawable="@drawable/ic_send_white"
         android:height="28dp"
         android:width="28dp"
         android:bottom="12dp"

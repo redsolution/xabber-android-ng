@@ -47,9 +47,10 @@ import com.xabber.presentation.application.fragments.chatlist.SwitchNotification
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
+import kotlin.collections.HashSet
 
 class ChatFragment : DetailBaseFragment(R.layout.fragment_message), MessageAdapter.Listener,
-    AttachDialog.Listener, MiniatureAdapter.Listener, ReplySwipeCallback.SwipeAction,
+    AttachDialog.Listener, MiniatureAdapter.Listener, ReplySwipeCallback.SwipeAction, BottomSheet.Send,
     SwitchNotifications {
     private val binding by viewBinding(FragmentMessageBinding::bind)
     private var messageAdapter: MessageAdapter? = null
@@ -308,7 +309,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_message), MessageAdapt
         binding.messageToolbar.setOnClickListener { navigator().showEditContact(name) }
         binding.messageIconBack.setOnClickListener {
             // navigator().closeDetail()
-            navigator().showBottomSheetDialog(BottomSheet())
+            navigator().showBottomSheetDialog(BottomSheet(this))
         }
         binding.messageToolbar.setOnMenuItemClickListener {
             when (it.itemId) {
@@ -663,6 +664,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_message), MessageAdapt
         val timeStamp = System.currentTimeMillis()
         for (i in 0 until paths!!.size) {
             imageList.add(FileDto(File(paths.elementAt(i))))
+            Log.d("ppp", "image ${FileDto(File(paths.elementAt(i)))}, file ${File(paths.elementAt(i))}")
         }
 
 
@@ -872,12 +874,53 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_message), MessageAdapt
             return
         }
         try {
-            val mediaScanIntent = Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE);
+            val mediaScanIntent = Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE)
             mediaScanIntent.setData(uri)
             activity?.sendBroadcast(mediaScanIntent);
         } catch (e: Exception) {
             Log.d("data", "error")
         }
+    }
+
+    override fun sendMessage(textMessage: String, imagePaths: HashSet<String>?) {
+        var messageKindDto: MessageKind? = null
+            if (binding.answer.isVisible) {
+                messageKindDto = MessageKind(
+                    "id",
+                    binding.replyMessageTitle.text.toString(),
+                    binding.replyMessageContent.text.toString()
+                )
+            }
+            val imageList = ArrayList<FileDto>()
+        imagePaths!!.forEach {
+                imageList.add(FileDto(File(it)))
+            Log.d("ppp", "${FileDto(File(it))}, ${File(it)}, $it")
+        }
+        val timeStamp = System.currentTimeMillis()
+
+            viewModel.insertMessage(
+                MessageDto(
+                    "151515",
+                    true,
+                    "Алексей Иванов",
+                    "Геннадий Белов",
+                    textMessage,
+                    MessageSendingState.Deliver,
+                    timeStamp,
+                    null,
+                    MessageDisplayType.Text,
+                    false,
+                    false,
+                    null,
+                    false, messageKindDto, false, imageList
+                )
+            )
+        messageAdapter?.notifyDataSetChanged()
+        binding.answer.isVisible = false
+    }
+
+    override fun openCamera() {
+        navigator().openCamera()
     }
 
 
