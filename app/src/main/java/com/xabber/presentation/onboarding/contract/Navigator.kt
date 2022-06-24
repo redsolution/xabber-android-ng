@@ -7,7 +7,6 @@ fun Fragment.navigator(): Navigator = requireActivity() as Navigator
 
 interface Navigator {
 
-
     fun openSigninFragment()
 
     fun openSignupNicknameFragment()
@@ -24,12 +23,8 @@ interface Navigator {
 
     fun goBack()
 
-    fun openCamera()
-
-    fun openGallery()
-
     fun registerAccount()
 
-    fun clearBackStack()
+    fun finishActivity()
 
 }

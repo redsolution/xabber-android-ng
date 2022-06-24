@@ -1,5 +1,7 @@
 package com.xabber.presentation.onboarding.activity
 
+import android.graphics.Bitmap
+import android.net.Uri
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
@@ -22,6 +24,11 @@ class OnboardingViewModel : ViewModel() {
     private val _password = MutableLiveData<String>()
     val password: LiveData<String> = _userName
 
+    private val _avatarBitmap = MutableLiveData<Bitmap>()
+    val avatarBitmap: LiveData<Bitmap> = _avatarBitmap
+
+    private val _avatarUri = MutableLiveData<Uri>()
+    val avatarUri : LiveData<Uri> = _avatarUri
 
     fun setNickName(nickName: String) {
         _nickName.value = nickName
@@ -35,7 +42,7 @@ class OnboardingViewModel : ViewModel() {
         _password.value = password
     }
 
-     fun getHost(): Single<HostListDto> = accountRepository.getHostList()
+    fun getHost(): Single<HostListDto> = accountRepository.getHostList()
 
     fun checkIfNameAvailable(username: String, host: String): Single<Any> =
         accountRepository.checkIfNameAvailable(
@@ -47,25 +54,31 @@ class OnboardingViewModel : ViewModel() {
         )
 
 
-     suspend fun registerAccount(
+    suspend fun registerAccount(
         username: String
     ) {
-         val config = RealmConfiguration.Builder(setOf(AccountStorageItem::class, ResourceStorageItem::class))
-             .build()
-         val realm = Realm.open(config)
-             realm.write {
-                 this.copyToRealm(AccountStorageItem().apply {
-                     jid = username
+        val config =
+            RealmConfiguration.Builder(setOf(AccountStorageItem::class, ResourceStorageItem::class))
+                .build()
+        val realm = Realm.open(config)
+        realm.write {
+            this.copyToRealm(AccountStorageItem().apply {
+                jid = username
 
-                 })
-             }
+            })
+        }
 
-realm.close()
-         }
-
-
+        realm.close()
+    }
 
 
+    fun setAvatarBitmap(bitmap: Bitmap) {
+        _avatarBitmap.value = bitmap
+    }
+
+ fun setAvatarUri(uri: Uri) {
+        _avatarUri.value = uri
+    }
 }
 
 

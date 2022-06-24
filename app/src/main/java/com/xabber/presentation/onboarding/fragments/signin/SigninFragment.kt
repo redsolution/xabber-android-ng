@@ -26,21 +26,20 @@ import io.reactivex.rxjava3.disposables.CompositeDisposable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+/** This fragment is intended for user authorization. If the authorization is successful
+ * and all the features are successful, too, the user gets into the application
+ */
+
 class SigninFragment : BaseFragment(R.layout.fragment_signin) {
     private val binding by viewBinding(FragmentSigninBinding::bind)
-    private val compositeDisposable = CompositeDisposable()
     private val password = "1"
     private val featureAdapter = FeatureAdapter()
     private val viewModel = SigninViewModel()
     var host: String = "dev.xabber.org"
+    private var compositeDisposable: CompositeDisposable? = CompositeDisposable()
 
     private val onBackPressedCallback = object : OnBackPressedCallback(true) {
         override fun handleOnBackPressed() {
-            if (false) {
-                activity?.finish()
-            } else {
-                navigator().goBack()
-            }
         }
     }
 
@@ -52,7 +51,7 @@ class SigninFragment : BaseFragment(R.layout.fragment_signin) {
         initRecyclerView()
         binding.signinSubtitle1.text = getSubtitleClickableSpan()
         binding.signinSubtitle1.movementMethod = LinkMovementMethod.getInstance()
-   //     requireActivity().onBackPressedDispatcher.addCallback(onBackPressedCallback)
+       // requireActivity().onBackPressedDispatcher.addCallback(onBackPressedCallback)
     }
 
     private fun initEditText() {
@@ -113,7 +112,6 @@ class SigninFragment : BaseFragment(R.layout.fragment_signin) {
                     signinSubtitle1.text =
                         resources.getString(R.string.signin_subtitle_error_message)
                 } else {
-
                     textEnabled()
                     btnConnect.isEnabled = false
                     binding.btnConnect.text =
@@ -136,11 +134,10 @@ class SigninFragment : BaseFragment(R.layout.fragment_signin) {
                     signinSubtitle1.text = spannable
                     signinSubtitle1.movementMethod = null
 
-                    //   signinScrollView.visibility = View.VISIBLE
                     rvFeature.visibility = View.VISIBLE
                     closeKeyboard()
                     if (viewModel.isJidValid(editTextLogin.text.toString()) || editTextPassword.text.length > 5) {
-                        compositeDisposable.add(viewModel.features
+                        compositeDisposable?.add(viewModel.features
                             .doOnNext { list ->
                                 if (list.filter { it.nameResId == R.string.feature_name_4 }
                                         .count() == 1) {
@@ -162,16 +159,13 @@ class SigninFragment : BaseFragment(R.layout.fragment_signin) {
                                 lifecycleScope.launch {
                                     delay(150)
                                     list[list.lastIndex].state =
-                                        if ((0..3).random() > 1)
-                                            State.Success
-                                        else
-                                            State.Error
+                                            State.Success   //    Здесь пока заглушка
                                     if (viewModel.isServerFeatures) {
                                         featureAdapter.submitList(list)
                                         featureAdapter.notifyItemChanged(list.lastIndex)
                                     }
                                     if (list.filter { it.nameResId == R.string.feature_name_10 }
-                                            .count() == 1) {
+                                            .count() == 1 && list.all { it.state != State.Error }) {
                                         signinSubtitle2.isVisible = true
 
                                         btnRock.isVisible = true
@@ -185,7 +179,6 @@ class SigninFragment : BaseFragment(R.layout.fragment_signin) {
                                     ) {
                                         featureAdapter.submitList(list)
                                         featureAdapter.notifyItemChanged(list.lastIndex)
-                                      //  Log.d("ppp", "error")
                                     }
                                     if (viewModel._features[list.lastIndex].state == State.Success &&
                                         viewModel._features.filter { it.state == State.Error }
@@ -193,7 +186,6 @@ class SigninFragment : BaseFragment(R.layout.fragment_signin) {
                                     ) {
                                         featureAdapter.submitList(list)
                                         featureAdapter.notifyItemChanged(list.lastIndex)
-                                     //   Log.d("ppp", "2error")
                                     }
                                 }
                             }
@@ -269,7 +261,9 @@ class SigninFragment : BaseFragment(R.layout.fragment_signin) {
 
     override fun onDestroy() {
         super.onDestroy()
-        compositeDisposable.clear()
+        binding.signinSubtitle1.movementMethod = null
+        compositeDisposable?.clear()
+        compositeDisposable = null
         onBackPressedCallback.remove()
     }
 

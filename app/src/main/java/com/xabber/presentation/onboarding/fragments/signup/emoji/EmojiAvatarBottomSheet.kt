@@ -10,29 +10,28 @@ import android.view.ViewGroup
 import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import androidx.core.view.updateLayoutParams
+import androidx.fragment.app.activityViewModels
+import by.kirich1409.viewbindingdelegate.viewBinding
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.xabber.R
-import com.xabber.presentation.application.util.dp
 import com.xabber.databinding.FragmentEmojiAvatarBinding
 import com.xabber.presentation.application.util.AppConstants
+import com.xabber.presentation.application.util.dp
 import com.xabber.presentation.application.util.setFragmentResultListener
+import com.xabber.presentation.onboarding.activity.OnboardingViewModel
 
 class EmojiAvatarBottomSheet : BottomSheetDialogFragment() {
-
-    private var _binding: FragmentEmojiAvatarBinding? = null
-    private val binding get() = _binding!!
+    private val binding by viewBinding(FragmentEmojiAvatarBinding::bind)
+    private val onboardingViewModel: OnboardingViewModel by activityViewModels()
     private val viewModel = EmojiAvatarViewModel()
 
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
-    ): View {
-        _binding = FragmentEmojiAvatarBinding.inflate(inflater, container, false)
-        return binding.root
-    }
+    ): View? = inflater.inflate(R.layout.fragment_emoji_avatar, container, false)
 
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
         val dialog = super.onCreateDialog(savedInstanceState) as BottomSheetDialog
@@ -99,16 +98,19 @@ class EmojiAvatarBottomSheet : BottomSheetDialogFragment() {
         with(binding) {
             toggles[blueTint]!!.isVisible = true
             avatarBackground.setOnClickListener {
+                dismiss()
                 EmojiKeyboardBottomSheet().show(parentFragmentManager, null)
             }
             editBackground.setOnClickListener {
+                dismiss()
                 EmojiKeyboardBottomSheet().show(parentFragmentManager, null)
+
             }
             saveButton.setOnClickListener {
                 val avatar = avatarBackground
                 avatar.radius = 0F
                 val bitmap = viewModel.getBitmapFromView(requireContext(), avatar)
-                //setAvatar(bitmap)
+                onboardingViewModel.setAvatarBitmap(bitmap)
                 viewModel.saveBitmapToFile(bitmap, requireContext().cacheDir)
                 dismiss()
             }
@@ -125,9 +127,5 @@ class EmojiAvatarBottomSheet : BottomSheetDialogFragment() {
         }
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        _binding = null
-    }
 
 }

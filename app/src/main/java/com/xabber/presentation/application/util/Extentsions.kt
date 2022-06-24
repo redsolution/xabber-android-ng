@@ -13,6 +13,7 @@ import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import com.xabber.R
 import com.xabber.data.dto.*
+import com.xabber.presentation.onboarding.fragments.signup.emoji.EmojiTypeDto
 
 
 fun Fragment.isPermissionGranted(permission: String) : Boolean {
@@ -64,5 +65,13 @@ fun AppCompatActivity.checkPermission(permission: String): Boolean {
 
 fun getRandomColor(): Int {
     return AccountColor.values().toList().shuffled().first().colorId
+}
+
+fun List<EmojiTypeDto>.toMap(): Map<String, List<List<String>>> {
+    val map = this.associate {
+        it.name to it.list
+    }
+
+    return map
 }
 

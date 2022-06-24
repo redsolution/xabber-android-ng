@@ -21,7 +21,7 @@ import kotlinx.coroutines.delay
 class StartFragment : BaseFragment(R.layout.fragment_start) {
     private val binding by viewBinding(FragmentStartBinding::bind)
     private val viewModel: OnboardingViewModel by activityViewModels()
-    private val compositeDisposable = CompositeDisposable()
+    private var compositeDisposable: CompositeDisposable? = CompositeDisposable()
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -45,7 +45,7 @@ class StartFragment : BaseFragment(R.layout.fragment_start) {
                 progressBar.isVisible = true
                 btnLogin.isVisible = false
                 btnSignup.isVisible = false
-                compositeDisposable.add(
+                compositeDisposable?.add(
                     viewModel.getHost()
                         .subscribeOn(Schedulers.io())
                         .observeOn(AndroidSchedulers.mainThread())
@@ -55,6 +55,7 @@ class StartFragment : BaseFragment(R.layout.fragment_start) {
                         }, @StartFragment ::showError)
                 )
             }
+            compositeDisposable?.clear()
 
 
         }
@@ -76,8 +77,10 @@ class StartFragment : BaseFragment(R.layout.fragment_start) {
 //        }
     }
 
-    override fun onDestroy() {
-        compositeDisposable.clear()
+ override fun onDestroy() {
         super.onDestroy()
+        compositeDisposable?.clear()
+        compositeDisposable = null
+
     }
 }

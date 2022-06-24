@@ -9,19 +9,18 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.core.os.bundleOf
 import androidx.core.view.updateLayoutParams
+import by.kirich1409.viewbindingdelegate.viewBinding
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.xabber.R
 import com.xabber.databinding.FragmentEmojiKeyboardBinding
-import com.xabber.presentation.application.util.dp
 import com.xabber.presentation.application.util.AppConstants
+import com.xabber.presentation.application.util.dp
 import com.xabber.presentation.application.util.setFragmentResult
 
 class EmojiKeyboardBottomSheet : BottomSheetDialogFragment() {
-
-    private var _binding : FragmentEmojiKeyboardBinding? = null
-    private val binding get() = _binding!!
+    private val binding by viewBinding(FragmentEmojiKeyboardBinding::bind)
     private val viewModel = EmojiKeyboardViewModel()
     private var keysAdapter: EmojiKeyAdapter? = null
     private var typesAdapter: EmojiTypeAdapter? = null
@@ -31,10 +30,7 @@ class EmojiKeyboardBottomSheet : BottomSheetDialogFragment() {
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
-    ): View {
-        _binding = FragmentEmojiKeyboardBinding.inflate(inflater, container, false)
-        return binding.root
-    }
+    ): View? = inflater.inflate(R.layout.fragment_emoji_keyboard, container, false)
 
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
         val dialog = super.onCreateDialog(savedInstanceState) as BottomSheetDialog
@@ -80,15 +76,18 @@ class EmojiKeyboardBottomSheet : BottomSheetDialogFragment() {
     }
 
     override fun onDestroy() {
-        _binding = null
         keysAdapter = null
         typesAdapter = null
         super.onDestroy()
     }
 
     private fun onEmojiClick(emoji: String) {
-       setFragmentResult(AppConstants.REQUEST_EMOJI_KEY, bundleOf(AppConstants.RESPONSE_EMOJI_KEY to emoji))
+        setFragmentResult(
+            AppConstants.REQUEST_EMOJI_KEY,
+            bundleOf(AppConstants.RESPONSE_EMOJI_KEY to emoji)
+        )
         dismiss()
+        EmojiAvatarBottomSheet().show(parentFragmentManager, null)
     }
 
     private fun onEmojiTypeClick(emojiType: Int) {
