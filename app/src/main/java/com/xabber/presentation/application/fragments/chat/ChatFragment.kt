@@ -1,6 +1,5 @@
 package com.xabber.presentation.application.fragments.chat
 
-import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity.RESULT_OK
 import android.content.ClipData
@@ -11,10 +10,8 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.net.Uri
 import android.os.Bundle
-import android.os.Environment
 import android.os.Handler
 import android.os.SystemClock
-import android.provider.MediaStore
 import android.text.Editable
 import android.text.TextWatcher
 import android.util.Log
@@ -22,9 +19,7 @@ import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import android.view.View
 import android.view.inputmethod.InputMethodManager
-import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.isVisible
 import androidx.core.view.marginBottom
@@ -45,12 +40,11 @@ import com.xabber.presentation.application.fragments.DetailBaseFragment
 import com.xabber.presentation.application.fragments.chatlist.NotificationBottomSheet
 import com.xabber.presentation.application.fragments.chatlist.SwitchNotifications
 import java.io.File
-import java.text.SimpleDateFormat
 import java.util.*
-import kotlin.collections.HashSet
 
 class ChatFragment : DetailBaseFragment(R.layout.fragment_message), MessageAdapter.Listener,
-    AttachDialog.Listener, MiniatureAdapter.Listener, ReplySwipeCallback.SwipeAction, BottomSheet.Send,
+    ReplySwipeCallback.SwipeAction,
+    BottomSheet.BottomSheetAttachListener,
     SwitchNotifications {
     private val binding by viewBinding(FragmentMessageBinding::bind)
     private var messageAdapter: MessageAdapter? = null
@@ -58,40 +52,6 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_message), MessageAdapt
     private val viewModel = ChatViewModel()
     var name: String = ""
     private val miniatures = ArrayList<FileDto>()
-    lateinit var currentPhotoPath: String
-    lateinit var photoUri: Uri
-
-    private val requestCameraPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission(),
-        ::onGotCameraPermissionResult
-    )
-
-    private val resultLauncher =
-        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-            var bitmap: Bitmap? = null
-            Log.d("ooo", "${result.resultCode}")
-            if (result.resultCode == RESULT_OK) {
-                val data = result.data
-                if (data != null) {
-                    bitmap = data?.extras?.get("data") as Bitmap
-                    Log.d("ooo", "$bitmap")
-
-                }
-                addMediaToGallery(currentPhotoPath, bitmap)
-                if (!binding.frameLayoutAttachedFiles.isVisible) binding.frameLayoutAttachedFiles.isVisible =
-                    true
-                miniatureAdapter?.submitList(miniatures)
-                miniatureAdapter?.notifyDataSetChanged()
-                if (miniatures.size > 0) {
-                    binding.buttonSendMessage.isVisible = true
-                    binding.buttonRecord.isVisible = false
-                } else {
-                    binding.buttonSendMessage.isVisible = false
-                    binding.buttonRecord.isVisible = true
-                }
-            }
-        }
-
 
     private val handler = Handler()
     private var currentVoiceRecordingState = VoiceRecordState.NotRecording
@@ -134,22 +94,13 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_message), MessageAdapt
             binding.chatInput.setText(messageText)
         }
 
-
-
-
         populateUiWithData()
         initToolbarActions()
         initRecyclerView()
         subscribeViewModelData()
         initInputLayoutActions()
-        miniatureAdapter = MiniatureAdapter(this)
+
         requireActivity().onBackPressedDispatcher.addCallback(onBackPressedCallback)
-
-
-
-        binding.attachedFiles.adapter = miniatureAdapter
-        binding.attachedFiles.layoutManager =
-            LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false)
 
         binding.inputLayout.setOnClickListener {
             //   binding.chatInput.isFocusable = true
@@ -308,8 +259,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_message), MessageAdapt
     private fun initToolbarActions() {
         binding.messageToolbar.setOnClickListener { navigator().showEditContact(name) }
         binding.messageIconBack.setOnClickListener {
-            // navigator().closeDetail()
-            navigator().showBottomSheetDialog(BottomSheet(this))
+            navigator().closeDetail()
         }
         binding.messageToolbar.setOnMenuItemClickListener {
             when (it.itemId) {
@@ -473,9 +423,11 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_message), MessageAdapt
 
         binding.buttonAttach.setOnClickListener {
 
-            val dialog = AttachDialog(this)
-            navigator().showBottomSheetDialog(dialog)
+            //   requestCameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+            //    requestExternalStoragePermissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+            navigator().showBottomSheetDialog(BottomSheet(this))
         }
+
 
         binding.buttonSendMessage.setOnClickListener {
             var messageKindDto: MessageKind? = null
@@ -510,8 +462,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_message), MessageAdapt
                     false, messageKindDto, false, imageList
                 )
             )
-            binding.frameLayoutAttachedFiles.isVisible = false
-            miniatures.clear()
+
             binding.buttonSendMessage.isVisible = false
             binding.buttonAttach.isVisible = true
             binding.buttonRecord.isVisible = true
@@ -603,6 +554,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_message), MessageAdapt
         miniatureAdapter = null
         onBackPressedCallback.remove()
         AudioRecorder.releaseRecorder()
+
     }
 
 
@@ -649,119 +601,58 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_message), MessageAdapt
         messageAdapter?.notifyDataSetChanged()
     }
 
-    override fun onRecentPhotosSend(paths: HashSet<String>?) {
-        var messageKindDto: MessageKind? = null
-        if (binding.answer.isVisible) {
-            messageKindDto = MessageKind(
-                "id",
-                binding.replyMessageTitle.text.toString(),
-                binding.replyMessageContent.text.toString()
-            )
-        }
-        val imageList = ArrayList<FileDto>()
-        val text = binding.chatInput.text.toString().trim()
-        binding.chatInput.text?.clear()
-        val timeStamp = System.currentTimeMillis()
-        for (i in 0 until paths!!.size) {
-            imageList.add(FileDto(File(paths.elementAt(i))))
-            Log.d("ppp", "image ${FileDto(File(paths.elementAt(i)))}, file ${File(paths.elementAt(i))}")
-        }
+//    override fun onRecentPhotosSend(paths: HashSet<Uri>?) {
+//        var messageKindDto: MessageKind? = null
+//        if (binding.answer.isVisible) {
+//            messageKindDto = MessageKind(
+//                "id",
+//                binding.replyMessageTitle.text.toString(),
+//                binding.replyMessageContent.text.toString()
+//            )
+//        }
+//        val imageList = ArrayList<FileDto>()
+//        val text = binding.chatInput.text.toString().trim()
+//        binding.chatInput.text?.clear()
+//        val timeStamp = System.currentTimeMillis()
+//        for (pat in paths!!) {
+//            imageList.add(FileDto(File(pat.path)))
+//        }
 
 
-        viewModel.insertMessage(
-            MessageDto(
-                "151515",
-                true,
-                "Алексей Иванов",
-                "Геннадий Белов",
-                text,
-                MessageSendingState.Deliver,
-                timeStamp,
-                null,
-                MessageDisplayType.Text,
-                false,
-                false,
-                null,
-                false, messageKindDto, false, imageList
-            )
-        )
-
-
-    }
-
-    override fun onGalleryClick() {
-        navigator().openGallery()
-    }
-
-    override fun onFilesClick() {
-        navigator().openFiles()
-    }
-
-    override fun onCameraClick() {
-        requestCameraPermissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-    }
-
-    private fun onGotCameraPermissionResult(granted: Boolean) {
-        return if (granted) {
-            takePhoto()
-        } else {
-            if (!shouldShowRequestPermissionRationale(Manifest.permission.CAMERA)) {
-                Toast.makeText(context, "Permission denied", Toast.LENGTH_SHORT).show()
-            } else {
-            }
-        }
-    }
-
-    private fun takePhoto() {
-        val takePictureIntent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
-        val image: File? = generatePicturePath()
-        if (image != null) {
-            takePictureIntent.putExtra(
-                MediaStore.EXTRA_OUTPUT,
-                FileManager.getFileUri(image, requireContext())
-            )
-            currentPhotoPath = image.absolutePath
-        }
-        resultLauncher.launch(takePictureIntent)
-    }
-
-
-    private fun generatePicturePath(): File? {
-        try {
-            // val storageDir = activity?.getExternalFilesDir(Environment.DIRECTORY_PICTURES)
-            val storageDir = getAlbumDir()
-            val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
-            return File(storageDir, "IMG_" + timeStamp + ".jpg")
-        } catch (e: java.lang.Exception) {
-
-        }
-        return null
-    }
-
-    private fun getAlbumDir(): File? {
-        var storageDir: File? = null
-        if (Environment.MEDIA_MOUNTED == Environment.getExternalStorageState()) {
-            storageDir = File(
-                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES),
-                "Xabber"
-            )
-            if (!storageDir.mkdirs()) {
-                if (!storageDir.exists()) {
-                    return null
-                }
-            }
-        } else {
-
-        }
-        Log.d("data", "$storageDir")
-        return storageDir
-    }
-
-
-    override fun onLocationClick() {
-
-    }
-
+//        viewModel.insertMessage(
+//            MessageDto(
+//                "151515",
+//                true,
+//                "Алексей Иванов",
+//                "Геннадий Белов",
+//                text,
+//                MessageSendingState.Deliver,
+//                timeStamp,
+//                null,
+//                MessageDisplayType.Text,
+//                false,
+//                false,
+//                null,
+//                false, messageKindDto, false, imageList
+//            )
+//        )
+//
+//
+//    }
+//
+//    override fun onGalleryClick() {
+//
+//    }
+//
+//    override fun onFilesClick() {
+//
+//    }
+//
+//
+//    override fun onLocationClick() {
+//
+//    }
+//
     override fun onFullSwipe(position: Int) {
 
         replyMessage(
@@ -782,16 +673,16 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_message), MessageAdapt
         )
     }
 
-    override fun deleteFile(fileDto: FileDto) {
-        miniatures.remove(fileDto)
-        miniatureAdapter?.submitList(miniatures)
-        miniatureAdapter?.notifyDataSetChanged()
-        if (miniatures.size < 0) {
-            binding.frameLayoutAttachedFiles.isVisible = false
-            binding.buttonRecord.isVisible = true
-            binding.buttonSendMessage.isVisible = false
-        }
-    }
+//    override fun deleteFile(fileDto: FileDto) {
+//        miniatures.remove(fileDto)
+//        miniatureAdapter?.submitList(miniatures)
+//        miniatureAdapter?.notifyDataSetChanged()
+//        if (miniatures.size < 0) {
+//            binding.frameLayoutAttachedFiles.isVisible = false
+//            binding.buttonRecord.isVisible = true
+//            binding.buttonSendMessage.isVisible = false
+//        }
+//    }
 
 
     override fun disableNotifications() {
@@ -859,68 +750,43 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_message), MessageAdapt
     }
 
 
-    private fun addMediaToGallery(fromPath: String, bitmap: Bitmap? = null) {
-        if (fromPath == null) {
-            return
-        }
-        val f = File(fromPath)
-        miniatures.add(FileDto(f, bitmap))
-        val contentUri = Uri.fromFile(f)
-        addMediaToGallery(contentUri)
-    }
 
-    private fun addMediaToGallery(uri: Uri) {
-        if (uri == null) {
-            return
-        }
-        try {
-            val mediaScanIntent = Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE)
-            mediaScanIntent.setData(uri)
-            activity?.sendBroadcast(mediaScanIntent);
-        } catch (e: Exception) {
-            Log.d("data", "error")
-        }
-    }
-
-    override fun sendMessage(textMessage: String, imagePaths: HashSet<String>?) {
+    override fun sendMessage(textMessage: String, imagePaths: HashSet<Uri>?) {
         var messageKindDto: MessageKind? = null
-            if (binding.answer.isVisible) {
-                messageKindDto = MessageKind(
-                    "id",
-                    binding.replyMessageTitle.text.toString(),
-                    binding.replyMessageContent.text.toString()
-                )
-            }
-            val imageList = ArrayList<FileDto>()
+        if (binding.answer.isVisible) {
+            messageKindDto = MessageKind(
+                "id",
+                binding.replyMessageTitle.text.toString(),
+                binding.replyMessageContent.text.toString()
+            )
+        }
+        val imageList = ArrayList<FileDto>()
         imagePaths!!.forEach {
-                imageList.add(FileDto(File(it)))
-            Log.d("ppp", "${FileDto(File(it))}, ${File(it)}, $it")
+
+            imageList.add(FileDto(File(it.path)))
+            Log.d("ppp", " ${it}")
         }
         val timeStamp = System.currentTimeMillis()
 
-            viewModel.insertMessage(
-                MessageDto(
-                    "151515",
-                    true,
-                    "Алексей Иванов",
-                    "Геннадий Белов",
-                    textMessage,
-                    MessageSendingState.Deliver,
-                    timeStamp,
-                    null,
-                    MessageDisplayType.Text,
-                    false,
-                    false,
-                    null,
-                    false, messageKindDto, false, imageList
-                )
+        viewModel.insertMessage(
+            MessageDto(
+                "151515",
+                true,
+                "Алексей Иванов",
+                "Геннадий Белов",
+                textMessage,
+                MessageSendingState.Deliver,
+                timeStamp,
+                null,
+                MessageDisplayType.Text,
+                false,
+                false,
+                null,
+                false, messageKindDto, false, imageList
             )
+        )
         messageAdapter?.notifyDataSetChanged()
         binding.answer.isVisible = false
-    }
-
-    override fun openCamera() {
-        navigator().openCamera()
     }
 
 

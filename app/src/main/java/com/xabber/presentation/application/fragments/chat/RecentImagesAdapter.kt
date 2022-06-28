@@ -1,5 +1,6 @@
 package com.xabber.presentation.application.fragments.chat
 
+import android.net.Uri
 import android.provider.MediaStore
 import android.view.LayoutInflater
 import android.view.ViewGroup
@@ -11,11 +12,11 @@ import com.xabber.databinding.ItemRecentImageBinding
 
 class RecentImagesAdapter( private val listener: Listener) :
     RecyclerView.Adapter<RecyclerView.ViewHolder>() {
-    private val selectedImagePaths = HashSet<String>()
+    private val selectedImagePaths = HashSet<Uri>()
 
     companion object {
 
-        private val imagePaths = ArrayList<String>()
+        private val imagePaths = ArrayList<Uri>()
         val projectionPhotos = arrayOf(
             MediaStore.Images.Media._ID,
             MediaStore.Images.Media.BUCKET_DISPLAY_NAME,
@@ -25,9 +26,9 @@ class RecentImagesAdapter( private val listener: Listener) :
 
     }
 
-    fun getSelectedImagePaths(): HashSet<String> = selectedImagePaths
+    fun getSelectedImagePaths(): HashSet<Uri> = selectedImagePaths
 
-    fun updateAdapter(newImagePaths: ArrayList<String>) {
+    fun updateAdapter(newImagePaths: ArrayList<Uri>) {
         imagePaths.clear()
         imagePaths.addAll(newImagePaths)
         selectedImagePaths.clear()
@@ -80,7 +81,7 @@ class RecentImagesAdapter( private val listener: Listener) :
 
     override fun getItemCount(): Int = imagePaths.size
 
-    fun getSelectedImagePath(): HashSet<String> = selectedImagePaths
+    fun getSelectedImagePath(): HashSet<Uri> = selectedImagePaths
 
 
 }

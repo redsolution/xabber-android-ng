@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import android.util.Log
 import androidx.core.content.FileProvider
+import com.xabber.BuildConfig
 import java.io.*
 import java.net.MalformedURLException
 import java.net.URL
@@ -68,9 +69,8 @@ class FileManager {
         }
 
 
-       fun getFileUri(file: File, context: Context): Uri {
-        return FileProvider.getUriForFile(context, "com.xabber.android.ng" + ".provider", file)
-    }
+       fun getFileUri(file: File, context: Context): Uri = FileProvider.getUriForFile(context, BuildConfig.APPLICATION_ID + ".provider", file)
+
 //        fun isImageSizeGreater(srcUri: Uri?, maxSize: Int): Boolean {
 //            val srcPath: String =
 //                FileUtils.getPath(Application.getInstance(), srcUri) ?: return false

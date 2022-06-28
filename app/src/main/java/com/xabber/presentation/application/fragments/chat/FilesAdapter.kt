@@ -1,160 +1,114 @@
 package com.xabber.presentation.application.fragments.chat
 
+import android.net.Uri
+import android.provider.MediaStore
 import android.view.LayoutInflater
-import android.view.View
 import android.view.ViewGroup
+import android.widget.CompoundButton
 import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
 import com.xabber.R
-import com.xabber.databinding.ItemAttachedFileBinding
+import com.xabber.databinding.ItemRecentFilesBinding
 
-class FilesAdapter : RecyclerView.Adapter<FileViewHolder>() {
+class FilesAdapter(private val listener: FileFragment.FilesListener) :
+RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+    private val selectedImagePaths = HashSet<Uri>()
+    val ITEM_CAMERA = 0
+    val ITEM_GALLERY_IMAGE = 1
 
-    interface FileListener {
-        fun onFileClick(position: Int)
-        fun onVoiceClick(position: Int, attachmentId: String, saved: Boolean, timestamp: Long)
-        fun onVoiceProgressClick(
-            position: Int,
-            attachmentId: String,
-            timestamp: Long,
-            current: Int,
-            max: Int
+
+    companion object {
+
+        private val imagePaths = ArrayList<Uri>()
+        val projectionPhotos = arrayOf(
+            MediaStore.Images.Media._ID,
+            MediaStore.Images.Media.BUCKET_DISPLAY_NAME,
+            MediaStore.Images.Media.DATE_TAKEN,
         )
 
-        fun onFileLongClick(caller: View)
-        fun onDownloadCancel()
-        fun onDownloadError(error: String)
     }
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): FileViewHolder {
-        return FileViewHolder(
-            ItemAttachedFileBinding.inflate(
-                LayoutInflater.from(parent.context),
-                parent,
-                false
-            )
-        )
+    fun getSelectedImagePaths(): HashSet<Uri> = selectedImagePaths
+
+    fun updateAdapter(newImagePaths: ArrayList<Uri>) {
+        imagePaths.clear()
+        imagePaths.addAll(newImagePaths)
+        selectedImagePaths.clear()
     }
 
-    override fun onBindViewHolder(holder: FileViewHolder, position: Int) {
-//        val messageReferenceStorageItem = holder.absoluteAdapterPosition(position)
-//        holder.attachmentId = referenceRealmObject.getUniqueId()
-//        if (referenceRealmObject.isVoice()) {
-//            holder.voiceMessage = true
-//            holder.subscribeForAudioProgress()
-//            val voiceText = StringBuilder()
-//            voiceText.append(
-//                Application.getInstance().getResources().getString(R.string.voice_message)
-//            )
-//            if (referenceRealmObject.getDuration() != null && referenceRealmObject.getDuration() !== 0) {
-//                voiceText.append(
-//                    java.lang.String.format(
-//                        Locale.getDefault(),
-//                        ", %s",
-//                        DatesUtilsKt.getDurationStringForVoiceMessage(
-//                            null,
-//                            referenceRealmObject.getDuration()
-//                        )
-//                    )
-//                )
-//                val lp: RelativeLayout.LayoutParams =
-//                    holder.fileInfoLayout.getLayoutParams() as RelativeLayout.LayoutParams
-//                val width: Int = dipToPx(140, holder.fileInfoLayout.getContext())
-//                if (referenceRealmObject.getDuration() < 10) {
-//                    lp.width = width + dipToPx(
-//                        6 * referenceRealmObject.getDuration(),
-//                        holder.fileInfoLayout.getContext()
-//                    )
-//                } else {
-//                    lp.width = width + dipToPx(60, holder.fileInfoLayout.getContext())
-//                }
-//                holder.fileInfoLayout.setLayoutParams(lp)
-//            }
-//            holder.tvFileName.setText(voiceText)
-//            val size: Long = referenceRealmObject.getFileSize()
-//            if (referenceRealmObject.getFilePath() != null) {
-//                holder.tvFileName.setVisibility(View.GONE)
-//                holder.tvFileSize.setText(
-//                    if (referenceRealmObject.getDuration() != null && referenceRealmObject.getDuration() !== 0) DatesUtilsKt.getDurationStringForVoiceMessage(
-//                        0L, referenceRealmObject.getDuration()
-//                    ) else FileUtils.byteCountToDisplaySize(size ?: 0)
-//                )
-//                VoiceMessagePresenterManager.getInstance()
-//                    .sendWaveDataIfSaved(referenceRealmObject.getFilePath(), holder.audioVisualizer)
-//                holder.audioVisualizer.setVisibility(View.VISIBLE)
-//                holder.audioVisualizer.setOnTouchListener(object : onProgressTouch() {
-//                    fun onTouch(view: View, motionEvent: MotionEvent): Boolean {
-//                        when (motionEvent.getAction()) {
-//                            MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> return if (VoiceManager.getInstance()
-//                                    .playbackInProgress(holder.attachmentId, timestamp)
-//                            ) {
-//                                LogManager.d("TOUCH", "down/move super")
-//                                super.onTouch(view, motionEvent)
-//                            } else {
-//                                LogManager.d("TOUCH", "down/move")
-//                                (view as PlayerVisualizerView).updatePlayerPercent(0, true)
-//                                true
-//                            }
-//                            MotionEvent.ACTION_UP -> {
-//                                if (VoiceManager.getInstance()
-//                                        .playbackInProgress(holder.attachmentId, timestamp)
-//                                ) listener.onVoiceProgressClick(
-//                                    holder.getAdapterPosition(),
-//                                    holder.attachmentId,
-//                                    timestamp,
-//                                    motionEvent.getX() as Int,
-//                                    view.getWidth()
-//                                )
-//                                LogManager.d("TOUCH", "up super")
-//                                return super.onTouch(view, motionEvent)
-//                            }
-//                        }
-//                        LogManager.d("TOUCH", "empty")
-//                        return super.onTouch(view, motionEvent)
-//                    }
-//                })
-//            } else {
-//                holder.tvFileSize.setText(FileUtils.byteCountToDisplaySize(size ?: 0))
-//                if (SettingsManager.chatsAutoDownloadVoiceMessage()) listener.onFileClick(position)
-//            }
-//            holder.ivFileIcon.setImageResource(R.drawable.ic_play)
-//        } else {
-//            // set file icon
-//            holder.voiceMessage = false
-//            holder.tvFileName.setText(referenceRealmObject.getTitle())
-//            val size: Long = referenceRealmObject.getFileSize()
-//            holder.tvFileSize.setText(FileUtils.byteCountToDisplaySize(size ?: 0))
-//            holder.ivFileIcon.setImageResource(
-//                if (referenceRealmObject.getFilePath() != null) getFileIconByCategory(
-//                    FileCategory.determineFileCategory(referenceRealmObject.getMimeType())
-//                ) else R.drawable.ic_download
-//            )
-//        }
-//        holder.ivFileIcon.setOnClickListener { view ->
-//            if (holder.voiceMessage) listener.onVoiceClick(
-//                holder.getAdapterPosition(),
-//                holder.attachmentId,
-//                referenceRealmObject.getFilePath() != null,
-//                timestamp
-//            ) else listener.onFileClick(position)
-//        }
-//        holder.itemView.setOnLongClickListener { v ->
-//            if (items.size() > position) listener.onFileLongClick(items.get(position), v)
-//            true
-//        }
-//        holder.ivCancelDownload.setOnClickListener { v -> listener.onDownloadCancel() }
-//        holder.itemView.addOnAttachStateChangeListener(object : OnAttachStateChangeListener() {
-//            fun onViewAttachedToWindow(view: View?) {
-//                holder.subscribeForDownloadProgress()
-//                holder.subscribeForAudioProgress()
-//            }
-//
-//            fun onViewDetachedFromWindow(v: View?) {
-//                holder.unsubscribeAll()
-//            }
-//        })
+    interface FilesListener {
+        fun onRecentImagesSelected()
+        fun tooManyFilesSelected()
+
     }
 
-//    override fun getItemCount(): Int = items.size()
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
+            return FileVH(
+                   ItemRecentFilesBinding.inflate(
+                        LayoutInflater.from(parent.context),
+                        parent,
+                        false
+                    )
+                )
+    }
+
+    override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
+
+            val recentImageViewHolder = holder as GalleryVH
+            val path = imagePaths[position]
+            val image = recentImageViewHolder.getImage()
+            Glide.with(image.context).load(path).centerCrop().placeholder(R.drawable.ic_image)
+                .into(image)
+            recentImageViewHolder.getImage().setOnClickListener {
+                recentImageViewHolder.getCheckBox().isChecked =
+                    !recentImageViewHolder.getCheckBox().isChecked
+            }
+            recentImageViewHolder.getCheckBox().setOnCheckedChangeListener(null)
+            recentImageViewHolder.getCheckBox().isChecked = selectedImagePaths.contains(path)
+
+            recentImageViewHolder.getCheckBox()
+                .setOnCheckedChangeListener(CompoundButton.OnCheckedChangeListener { buttonView, isChecked ->
+                    if (isChecked) {
+                        if (selectedImagePaths.size < 10)
+                            selectedImagePaths.add(path)
+                        else {
+                            buttonView.isChecked = false
+                            listener.tooManyFilesSelected()
+                        }
+                    } else {
+                        selectedImagePaths.remove(path)
+                    }
+
+                    listener.onRecentImagesSelected()
+                })
+        }
+        holder.itemView.setOnClickListener {
+            if (position == 0) listener.openCamera()
+            else {
+            }
+        }
+
+    override fun getItemCount(): Int {
+
+    }
+}
+
+    override fun getItemCount(): Int = imagePaths.size
+
+    fun getSelectedImagePath(): HashSet<Uri> = selectedImagePaths
+
+
+    override fun getItemViewType(position: Int): Int {
+        return when (position) {
+            0 -> {
+                ITEM_CAMERA
+            }
+            else -> {
+                ITEM_GALLERY_IMAGE
+            }
+        }
+
+    }
 
     private fun getFileIconByCategory(category: FileCategory): Int {
         return when (category) {

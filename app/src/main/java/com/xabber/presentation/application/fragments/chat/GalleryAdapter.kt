@@ -1,40 +1,40 @@
 package com.xabber.presentation.application.fragments.chat
 
+import android.net.Uri
 import android.provider.MediaStore
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import android.widget.CompoundButton
-import android.widget.RelativeLayout
+import android.widget.ImageView
+import android.widget.TextView
 import androidx.camera.view.PreviewView
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.xabber.R
 import com.xabber.databinding.ItemImageFromGalleryBinding
 import com.xabber.databinding.ItemPreviewCameraBinding
-import com.xabber.presentation.application.util.dp
 
 class GalleryAdapter(private val listener: Listener) :
     RecyclerView.Adapter<RecyclerView.ViewHolder>() {
-    private val selectedImagePaths = HashSet<String>()
+    private val selectedImagePaths = HashSet<Uri>()
     val ITEM_CAMERA = 0
     val ITEM_GALLERY_IMAGE = 1
 
 
     companion object {
 
-        private val imagePaths = ArrayList<String>()
+        private val imagePaths = ArrayList<Uri>()
         val projectionPhotos = arrayOf(
             MediaStore.Images.Media._ID,
             MediaStore.Images.Media.BUCKET_DISPLAY_NAME,
             MediaStore.Images.Media.DATE_TAKEN,
         )
 
-
     }
 
-    fun getSelectedImagePaths(): HashSet<String> = selectedImagePaths
+    fun getSelectedImagePaths(): HashSet<Uri> = selectedImagePaths
 
-    fun updateAdapter(newImagePaths: ArrayList<String>) {
+    fun updateAdapter(newImagePaths: ArrayList<Uri>) {
         imagePaths.clear()
         imagePaths.addAll(newImagePaths)
         selectedImagePaths.clear()
@@ -43,7 +43,7 @@ class GalleryAdapter(private val listener: Listener) :
     interface Listener {
         fun onRecentImagesSelected()
         fun tooManyFilesSelected()
-        fun cameraView(preview: PreviewView)
+        fun cameraView(preview: PreviewView, textView: TextView, imageView: ImageView)
         fun openCamera()
     }
 
@@ -74,7 +74,13 @@ class GalleryAdapter(private val listener: Listener) :
         if (position == 0) {
             val recentImageViewHolder = holder as CameraVH
             val previewCamera = recentImageViewHolder.getCameraPreview()
-            listener.cameraView(previewCamera)
+            val tvPreviewCamera = recentImageViewHolder.getTextViewPreview()
+            val imageViewPreviewCamera = recentImageViewHolder.getImageViewPreview()
+            listener.cameraView(previewCamera, tvPreviewCamera, imageViewPreviewCamera)
+            previewCamera.setOnClickListener {
+                listener.openCamera()
+            }
+            tvPreviewCamera.setOnClickListener { listener.openCamera() }
         } else {
             val recentImageViewHolder = holder as GalleryVH
             val path = imagePaths[position]
@@ -106,13 +112,14 @@ class GalleryAdapter(private val listener: Listener) :
         }
         holder.itemView.setOnClickListener {
             if (position == 0) listener.openCamera()
-            else {}
+            else {
+            }
         }
     }
 
     override fun getItemCount(): Int = imagePaths.size
 
-    fun getSelectedImagePath(): HashSet<String> = selectedImagePaths
+    fun getSelectedImagePath(): HashSet<Uri> = selectedImagePaths
 
 
     override fun getItemViewType(position: Int): Int {

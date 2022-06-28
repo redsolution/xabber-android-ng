@@ -23,6 +23,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.updateLayoutParams
 import androidx.fragment.app.DialogFragment
@@ -72,30 +73,6 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
     private val requestRecordAudioPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission(), ::onGotRecordAudioPermissionResult
     )
-    private val requestCameraPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission(),
-        ::onGotCameraPermissionResult
-    )
-    private val requestExternalStoragePermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission(),
-        ::onGotExternalStoragePermissionResult
-    )
-
-    private val cameraResultLauncher =
-        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-            if (result.resultCode == Activity.RESULT_OK) {
-                val data = result.data
-                if (data != null) {
-                    val bitmap = data?.extras?.get("data") as Bitmap
-val image = generatePicturePath()
-intent.putExtra(MediaStore.EXTRA_OUTPUT, Uri.fromFile(image))
-               startActivityForResult(intent, 3)
-               //   galleryAddPick()
-                    // val bitmapData = data.extras?.get("data") as Bitmap
-                }
-            }
-
-        }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
@@ -137,18 +114,14 @@ MediaScannerConnection.scanFile(this, arrayOf(file.toString()),
         }
     }
 
-
-    override fun openFiles() {
+ fun openFiles() {
         val intent =
             Intent(Intent.ACTION_GET_CONTENT).setType("*/*").addCategory(Intent.CATEGORY_OPENABLE)
         intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
         //  startActivityForResult(intent, FILE_SELECT_ACTIVITY_REQUEST_CODE);
     }
 
-    override fun openGallery() {
-        requestExternalStoragePermissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
-        //     startActivityForResult(intent, FILE_SELECT_ACTIVITY_REQUEST_CODE);
-    }
+
 
     private fun onGotRecordAudioPermissionResult(granted: Boolean) {
         return if (granted) {
@@ -163,43 +136,8 @@ MediaScannerConnection.scanFile(this, arrayOf(file.toString()),
         }
     }
 
-    private fun onGotCameraPermissionResult(granted: Boolean) {
-        return if (granted) {
-            takePhoto()
-        } else {
-            if (!shouldShowRequestPermissionRationale(Manifest.permission.CAMERA)) {
-                recordAudioPermissionGranted = false
-                Toast.makeText(this, "Permission denied", Toast.LENGTH_SHORT).show()
-            } else {
-                recordAudioPermissionGranted = false
-            }
-        }
-    }
 
-    private fun onGotExternalStoragePermissionResult(granted: Boolean) {
-        return if (granted) {
-            takePhotoFromGallery()
 
-        } else {
-            if (!shouldShowRequestPermissionRationale(Manifest.permission.READ_EXTERNAL_STORAGE)) {
-                Toast.makeText(this, "Permission denied", Toast.LENGTH_SHORT).show()
-            } else {
-
-            }
-        }
-    }
-
-    private fun takePhotoFromGallery() {
-        val intent = Intent(Intent.ACTION_GET_CONTENT).setType("image/*")
-            .addCategory(Intent.CATEGORY_OPENABLE)
-        intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
-        cameraResultLauncher.launch(intent)
-    }
-
-    private fun takePhoto() {
-        val takePictureIntent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
-        cameraResultLauncher.launch(takePictureIntent)
-    }
 
     private fun generatePicturePath(): File? {
         try {
@@ -230,9 +168,6 @@ MediaScannerConnection.scanFile(this, arrayOf(file.toString()),
         return storageDir
     }
 
-    override fun openCamera() {
-        requestCameraPermissionLauncher.launch(Manifest.permission.CAMERA)
-    }
 
     private fun askUserForOpeningAppSettings() {
         val appSettingsIntent = Intent(
@@ -470,9 +405,6 @@ MediaScannerConnection.scanFile(this, arrayOf(file.toString()),
     override fun onDestroy() {
         super.onDestroy()
         requestRecordAudioPermissionLauncher.unregister()
-        requestCameraPermissionLauncher.unregister()
-        requestExternalStoragePermissionLauncher.unregister()
-        cameraResultLauncher.unregister()
 
     }
 

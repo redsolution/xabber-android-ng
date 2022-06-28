@@ -1,18 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="vertical"
     android:layout_marginStart="2dp"
-    android:layout_marginEnd="2dp"
     android:layout_marginTop="2dp"
-    android:layout_marginBottom="2dp">
+    android:layout_marginEnd="2dp"
+    android:layout_marginBottom="2dp"
+    android:orientation="vertical">
 
     <ImageView
         android:id="@+id/recent_image_item_image"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:src="@drawable/ic_recent_image_placeholder" />
+        android:src="@drawable/ic_recent_image_placeholder"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
 
     <androidx.appcompat.widget.AppCompatCheckBox
         android:id="@+id/recent_image_item_checkbox"
@@ -24,6 +29,24 @@
         android:layout_marginTop="8dp"
         android:layout_marginEnd="8dp"
         android:layout_marginRight="8dp"
-        android:button="@drawable/circle_checkbox" />
+        android:button="@drawable/circle_checkbox"
+        app:layout_constraintEnd_toEndOf="@id/recent_image_item_image"
+        app:layout_constraintTop_toTopOf="@id/recent_image_item_image" />
 
-</RelativeLayout>
+    <TextView
+        android:id="@+id/tv_not_access_gallery"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:background="@color/blue_grey_50"
+        android:drawableBottom="@drawable/ic_image_red"
+        android:gravity="center"
+        android:paddingBottom="8dp"
+        android:text="Click to allow access to the camera"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        android:visibility="gone"/>
+
+
+</androidx.constraintlayout.widget.ConstraintLayout>

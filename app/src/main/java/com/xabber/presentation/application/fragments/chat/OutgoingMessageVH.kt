@@ -322,8 +322,9 @@ class OutgoingMessageVH(
             when (messageDto.references.size) {
                 1 -> {
                     binding.grid1.grid1.isVisible = true
-                    Glide.with(binding.root).load(Uri.fromFile(messageDto.references[0].file))
+                    Glide.with(binding.root).load("content://media" + messageDto.references[0].file)
                         .into(binding.grid1.ivImage0)
+                    Log.d("ppp", "holder ${messageDto.references[0].file}")
                     binding.grid1.imageMessageInfo.isVisible = messageDto.messageBody!!.isEmpty()
                     val date = Date(messageDto.sentTimestamp)
                     val time = StringUtils.getTimeText(binding.tvSendingTime.context, date)

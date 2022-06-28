@@ -50,7 +50,7 @@
         <service android:name=".presentation.RecordService" />
         <provider
             android:name="androidx.core.content.FileProvider"
-            android:authorities="Xabber.provider"
+            android:authorities="${applicationId}.provider"
             android:exported="false"
             android:grantUriPermissions="true"
             tools:ignore="ExportedContentProvider">

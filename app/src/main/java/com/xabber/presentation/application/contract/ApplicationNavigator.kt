@@ -39,12 +39,6 @@ interface ApplicationNavigator {
 
     fun slidingPaneLayoutIsOpen(): Boolean
 
-    fun openCamera()
-
-    fun openFiles()
-
-    fun openGallery()
-
     fun requestPermissionToRecord(): Boolean
 
     fun lockScreenRotation(isLock: Boolean)

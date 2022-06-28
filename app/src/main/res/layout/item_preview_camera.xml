@@ -19,9 +19,11 @@
         app:layout_constraintTop_toTopOf="parent" />
 
     <TextView
+        android:id="@+id/tv_camera_preview"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:text="Click to allow camera access"
+        android:gravity="center"
         android:textColor="@color/white"
         android:visibility="gone"
         app:layout_constraintBottom_toBottomOf="@id/preview_camera"
@@ -30,6 +32,7 @@
         app:layout_constraintTop_toTopOf="@id/preview_camera" />
 
     <ImageView
+        android:id="@+id/image_view_preview_camera"
         android:layout_width="40dp"
         android:layout_height="40dp"
         android:src="@drawable/ic_camera"

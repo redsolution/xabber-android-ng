@@ -2,9 +2,11 @@ package com.xabber.presentation.application.fragments.chat
 
 import android.view.View
 import androidx.recyclerview.widget.RecyclerView
+import com.xabber.databinding.FragmentFilesBinding
+import com.xabber.databinding.ItemRecentFilesBinding
 import rx.subscriptions.CompositeSubscription
 
-class FileVH(itemView: View) : RecyclerView.ViewHolder(itemView) {
+class FileVH(private val binding: ItemRecentFilesBinding) : RecyclerView.ViewHolder(binding.root) {
     private val  subscriptions = CompositeSubscription()
        private var attachmentId: String = ""
        private var voiceMessage = false

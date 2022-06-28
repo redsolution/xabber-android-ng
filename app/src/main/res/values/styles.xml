@@ -52,4 +52,21 @@
         <item name="shadow_with_content">true</item>
     </style>
 
+<style name="DialogStyle" parent="Theme.Design.Light.BottomSheetDialog">
+<item name="android:windowIsFloating">false</item>
+<item name="android:statusBarColor">@android:color/transparent</item>
+<item name="android:windowSoftInputMode">adjustResize</item>
+</style>
+
+    <style name="AttachRadioButtonStyle" parent="Widget.Material3.CompoundButton.RadioButton">
+        <item name="textFillColor">@color/blue_300</item>
+
+    </style>
+
+      <style name="TextStyle" parent="ThemeOverlay.Material3.AutoCompleteTextView">
+        <item name="android:textColor">@color/blue_300</item>
+          <item name="android:textSize">50sp</item>
+
+    </style>
+
 </resources>
