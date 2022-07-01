@@ -88,6 +88,14 @@
     <string name="open">Open</string>
     <string name="open_this_link">Open this link?</string>
     <string name="undefined_file">Undefined file</string>
+    <string name="smileysAndPeople">😀</string>
+    <string name="animalsAndNature">🐶</string>
+    <string name="foodAndDrink">🍏</string>
+    <string name="activity">⚽️</string>
+    <string name="travelAndPlaces">🚗</string>
+    <string name="objects">⌚️</string>
+    <string name="symbols">❤ </string>
+    <string name="flags">🏳</string>
 
 
     <!-- Application -->
@@ -250,6 +258,8 @@
     <string name="image_view_content_description_use_emoji">Use emoji</string>
     <string name="image_view_content_description_take_selfie">Take selfie</string>
     <string name="image_view_content_description_choose_image">Choose image</string>
+    <string name="click_to_allow_camera_access">Click to allow camera access</string>
+    <string name="preview_camera">preview camera</string>
 
     <!-- SearcFragment -->
 

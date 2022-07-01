@@ -1,22 +1,28 @@
 package com.xabber.presentation.application.fragments.chat
 
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import android.util.Log
 import androidx.core.content.FileProvider
+import androidx.fragment.app.Fragment
 import com.xabber.BuildConfig
+import com.xabber.R
+import com.xabber.presentation.BaseFragment
 import java.io.*
 import java.net.MalformedURLException
 import java.net.URL
 import java.util.*
 
-class FileManager {
+class FileManager: Fragment() {
     companion object {
         private val LOG_TAG: String = FileManager::class.java.simpleName
         private val VALID_IMAGE_EXTENSIONS = arrayOf("webp", "jpeg", "jpg", "png", "jpe", "gif")
         val instance: FileManager? = null
         private const val XABBER_DIR = "Xabber"
         private const val XABBER_AUDIO_DIR = "Xabber Audio"
+
+
         fun fileIsImage(file: File): Boolean {
             return extensionIsImage(extractRelevantExtension(file.path))
         }

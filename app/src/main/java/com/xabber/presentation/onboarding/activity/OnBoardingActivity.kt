@@ -65,7 +65,7 @@ class OnBoardingActivity : AppCompatActivity(), Navigator, ToolbarChanger {
 
     private fun openFragment(fragment: Fragment) {
         supportFragmentManager.beginTransaction()
-            .setCustomAnimations(R.animator.appearance, R.animator.disappearance)
+            .setCustomAnimations(R.anim.appearance, R.anim.disappearance)
             .addToBackStack(null)
             .replace(R.id.onboarding_container, fragment).commit()
     }
@@ -95,7 +95,7 @@ class OnBoardingActivity : AppCompatActivity(), Navigator, ToolbarChanger {
         val intent = Intent(this, ApplicationActivity::class.java)
         startActivity(intent)
         finish()
-        overridePendingTransition(R.animator.appearance, R.animator.disappearance)
+        overridePendingTransition(R.anim.appearance, R.anim.disappearance)
     }
 
     override fun openBottomSheetDialogFragment(dialog: BottomSheetDialogFragment) {

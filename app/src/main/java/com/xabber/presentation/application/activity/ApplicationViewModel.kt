@@ -21,4 +21,12 @@ open class ApplicationViewModel : ViewModel() {
     }
 
 
+       private val _selectedImagesCount = MutableLiveData<Int>()
+    val selectedImagesCount: LiveData<Int> = _selectedImagesCount
+
+    fun setSelectedImagesCount(count: Int) {
+        _selectedImagesCount.value = count
+    }
+
+
 }

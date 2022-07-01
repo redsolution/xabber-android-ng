@@ -30,6 +30,7 @@ import com.xabber.R
 import com.xabber.databinding.BottomSheetAvatarBinding
 import com.xabber.presentation.application.fragments.chat.FileManager.Companion.getFileUri
 import com.xabber.presentation.application.util.AppConstants
+import com.xabber.presentation.application.util.askUserForOpeningAppSettings
 import com.xabber.presentation.application.util.dp
 import com.xabber.presentation.onboarding.activity.OnboardingViewModel
 import com.xabber.presentation.onboarding.contract.navigator
@@ -55,14 +56,12 @@ class AvatarBottomSheet : BottomSheetDialogFragment() {
 
     private val resultLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-            Log.d("ppp", "result")
             if (result.resultCode == Activity.RESULT_OK) {
                 val imageUri = result.data?.data
                 context?.contentResolver?.takePersistableUriPermission(
                     imageUri!!,
                     Intent.FLAG_GRANT_READ_URI_PERMISSION
                 )
-                Log.d("ppp", "$imageUri")
                 if (imageUri != null) onboardingViewModel.setAvatarUri(imageUri)
             }
         }
@@ -142,34 +141,6 @@ class AvatarBottomSheet : BottomSheetDialogFragment() {
         intent.type = "image/*"
         resultLauncher.launch(intent)
     }
-
-
-// starting to pick the image
-
-    private fun askUserForOpeningAppSettings() {
-        val appSettingsIntent = Intent(
-            Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-            Uri.fromParts("package", requireActivity().packageName, null)
-        )
-        if (requireActivity().packageManager.resolveActivity(
-                appSettingsIntent,
-                PackageManager.MATCH_DEFAULT_ONLY
-            ) != null
-        ) {
-            val dialog = AlertDialog.Builder(requireContext())
-            dialog.setTitle(R.string.dialog_title_permission_denied)
-                .setMessage(R.string.offer_to_open_settings)
-                .setPositiveButton(R.string.dialog_button_open) { _, _ ->
-                    startActivity(appSettingsIntent)
-                }
-                .setNegativeButton(R.string.dialog_button_cancel) { dialog, _ ->
-                    dialog.dismiss()
-                }
-                .create()
-                .show()
-        }
-    }
-
 
     private fun takePhotoFromCamera() {
         val takePictureIntent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)

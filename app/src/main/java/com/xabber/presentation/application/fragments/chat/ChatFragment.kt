@@ -103,7 +103,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_message), MessageAdapt
         requireActivity().onBackPressedDispatcher.addCallback(onBackPressedCallback)
 
         binding.inputLayout.setOnClickListener {
-            //   binding.chatInput.isFocusable = true
+            binding.chatInput.isFocusable = true
             binding.chatInput.isFocusableInTouchMode = true
             binding.chatInput.requestFocus()
             val inputMethodManager: InputMethodManager =
@@ -422,10 +422,9 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_message), MessageAdapt
         binding.buttonEmoticon.setOnClickListener { }
 
         binding.buttonAttach.setOnClickListener {
-
-            //   requestCameraPermissionLauncher.launch(Manifest.permission.CAMERA)
-            //    requestExternalStoragePermissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-            navigator().showBottomSheetDialog(BottomSheet(this))
+            if (childFragmentManager.findFragmentByTag(BottomSheet.TAG) == null) {
+                BottomSheet().show(childFragmentManager, BottomSheet.TAG)
+            }
         }
 
 
@@ -619,7 +618,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_message), MessageAdapt
 //        }
 
 
-//        viewModel.insertMessage(
+    //        viewModel.insertMessage(
 //            MessageDto(
 //                "151515",
 //                true,
@@ -748,7 +747,6 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_message), MessageAdapt
             }
         }
     }
-
 
 
     override fun sendMessage(textMessage: String, imagePaths: HashSet<Uri>?) {

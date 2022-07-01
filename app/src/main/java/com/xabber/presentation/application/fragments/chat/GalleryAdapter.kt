@@ -17,8 +17,8 @@ import com.xabber.databinding.ItemPreviewCameraBinding
 class GalleryAdapter(private val listener: Listener) :
     RecyclerView.Adapter<RecyclerView.ViewHolder>() {
     private val selectedImagePaths = HashSet<Uri>()
-    val ITEM_CAMERA = 0
-    val ITEM_GALLERY_IMAGE = 1
+    private val ITEM_CAMERA = 0
+    private val ITEM_GALLERY_IMAGE = 1
 
 
     companion object {
@@ -34,7 +34,7 @@ class GalleryAdapter(private val listener: Listener) :
 
     fun getSelectedImagePaths(): HashSet<Uri> = selectedImagePaths
 
-    fun updateAdapter(newImagePaths: ArrayList<Uri>) {
+    fun updateAdapter(newImagePaths: java.util.ArrayList<Uri>) {
         imagePaths.clear()
         imagePaths.addAll(newImagePaths)
         selectedImagePaths.clear()
@@ -43,8 +43,8 @@ class GalleryAdapter(private val listener: Listener) :
     interface Listener {
         fun onRecentImagesSelected()
         fun tooManyFilesSelected()
-        fun cameraView(preview: PreviewView, textView: TextView, imageView: ImageView)
-        fun openCamera()
+        fun cameraView(previewCamera: PreviewView, textView: TextView, imageView: ImageView)
+        fun clickCameraPreview()
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
@@ -78,9 +78,9 @@ class GalleryAdapter(private val listener: Listener) :
             val imageViewPreviewCamera = recentImageViewHolder.getImageViewPreview()
             listener.cameraView(previewCamera, tvPreviewCamera, imageViewPreviewCamera)
             previewCamera.setOnClickListener {
-                listener.openCamera()
+                listener.clickCameraPreview()
             }
-            tvPreviewCamera.setOnClickListener { listener.openCamera() }
+            tvPreviewCamera.setOnClickListener { listener.clickCameraPreview() }
         } else {
             val recentImageViewHolder = holder as GalleryVH
             val path = imagePaths[position]
@@ -111,12 +111,15 @@ class GalleryAdapter(private val listener: Listener) :
                 })
         }
         holder.itemView.setOnClickListener {
-            if (position == 0) listener.openCamera()
+            if (position == 0) listener.clickCameraPreview()
             else {
             }
         }
     }
 
+    fun showPlug() {
+
+    }
     override fun getItemCount(): Int = imagePaths.size
 
     fun getSelectedImagePath(): HashSet<Uri> = selectedImagePaths

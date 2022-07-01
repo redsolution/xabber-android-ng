@@ -97,14 +97,14 @@ class EmojiKeyboardBottomSheet : BottomSheetDialogFragment() {
     companion object {
 
         val emojiTypes = mapOf(
-            "smileysAndPeople" to R.drawable.smileysandpeople,
-            "animalsAndNature" to R.drawable.animalsandnature,
-            "foodAndDrink" to R.drawable.foodanddrink,
-            "activity" to R.drawable.activity,
-            "travelAndPlaces" to R.drawable.travelandplaces,
-            "objects" to R.drawable.objects,
-            "symbols" to R.drawable.symbols,
-            "flags" to R.drawable.flags,
+            "smileysAndPeople" to R.string.smileysAndPeople,
+            "animalsAndNature" to R.string.animalsAndNature,
+            "foodAndDrink" to R.string.foodAndDrink,
+            "activity" to R.string.activity,
+            "travelAndPlaces" to R.string.travelAndPlaces,
+            "objects" to R.string.objects,
+            "symbols" to R.string.symbols,
+            "flags" to R.string.flags
         )
     }
 }

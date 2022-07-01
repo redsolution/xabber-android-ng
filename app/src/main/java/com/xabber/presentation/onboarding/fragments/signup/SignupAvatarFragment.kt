@@ -111,7 +111,6 @@ class SignupAvatarFragment : BaseFragment(R.layout.fragment_signup_avatar) {
 
     override fun onDestroy() {
         super.onDestroy()
-        Log.d("ppp", "$onBackPressedCallback")
         onBackPressedCallback.remove()
     }
 

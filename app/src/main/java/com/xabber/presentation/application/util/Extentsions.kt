@@ -1,13 +1,17 @@
 package com.xabber.presentation.application.util
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
 import android.graphics.Point
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.view.Display
 import android.view.Surface
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
@@ -16,8 +20,35 @@ import com.xabber.data.dto.*
 import com.xabber.presentation.onboarding.fragments.signup.emoji.EmojiTypeDto
 
 
-fun Fragment.isPermissionGranted(permission: String) : Boolean {
-    return ContextCompat.checkSelfPermission(activity as AppCompatActivity, permission) == PackageManager.PERMISSION_GRANTED
+fun Fragment.isPermissionGranted(permission: String): Boolean {
+    return ContextCompat.checkSelfPermission(
+        activity as AppCompatActivity,
+        permission
+    ) == PackageManager.PERMISSION_GRANTED
+}
+
+fun Fragment.askUserForOpeningAppSettings() {
+    val appSettingsIntent = Intent(
+        Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+        Uri.fromParts("package", requireActivity().packageName, null)
+    )
+    if (requireActivity().packageManager.resolveActivity(
+            appSettingsIntent,
+            PackageManager.MATCH_DEFAULT_ONLY
+        ) != null
+    ) {
+        val dialog = AlertDialog.Builder(requireContext())
+        dialog.setTitle(R.string.dialog_title_permission_denied)
+            .setMessage(R.string.offer_to_open_settings)
+            .setPositiveButton(R.string.dialog_button_open) { _, _ ->
+                startActivity(appSettingsIntent)
+            }
+            .setNegativeButton(R.string.dialog_button_cancel) { dialog, _ ->
+                dialog.dismiss()
+            }
+            .create()
+            .show()
+    }
 }
 
 fun Fragment.setFragmentResultListener(

@@ -19,7 +19,7 @@
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recycler_view_keys"
-        android:layout_width="match_parent"
+        android:layout_width="0dp"
         android:layout_height="256dp"
         android:layout_marginTop="12dp"
         android:background="@drawable/bottom_sheet_background"
@@ -35,9 +35,10 @@
         tools:listitem="@layout/item_emoji_key" />
 
     <androidx.recyclerview.widget.RecyclerView
+        android:background="@drawable/white_to_grey_backround"
         android:id="@+id/recycler_view_keys_types"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
         android:layout_margin="4dp"
         android:orientation="horizontal"
         android:overScrollMode="never"
@@ -46,6 +47,7 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/recycler_view_keys"
+        app:layout_constraintBottom_toBottomOf="parent"
         tools:ignore="SpeakableTextPresentCheck"
         tools:itemCount="16"
         tools:listitem="@layout/item_emoji_type" />

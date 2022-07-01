@@ -76,22 +76,14 @@
 
     </com.google.android.material.card.MaterialCardView>
 
-    <com.google.android.material.card.MaterialCardView
+    <ImageView
+        android:src="@drawable/ic_photo_circle"
         android:id="@+id/profile_photo_background"
         android:layout_width="58dp"
+        android:elevation="10dp"
         android:layout_height="58dp"
-        android:theme="@style/MinimumAvatarCardView"
-        app:cardCornerRadius="85dp"
         app:layout_constraintBottom_toBottomOf="@+id/profile_image_background"
-        app:layout_constraintEnd_toEndOf="@+id/profile_image_background">
+        app:layout_constraintEnd_toEndOf="@+id/profile_image_background"/>
 
-        <ImageView
-            android:id="@+id/profile_photo_camera"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:layout_gravity="center"
-            android:layout_margin="14dp"
-            app:srcCompat="@drawable/ic_baseline_photo_camera_24"
-            android:contentDescription="@string/image_view_content_description_photo" />
-    </com.google.android.material.card.MaterialCardView>
+
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -210,7 +210,7 @@ MediaScannerConnection.scanFile(this, arrayOf(file.toString()),
             val intent = Intent(this, OnBoardingActivity::class.java)
             startActivity(intent)
             finish()
-            overridePendingTransition(R.animator.appearance, R.animator.disappearance)
+            overridePendingTransition(R.anim.appearance, R.anim.disappearance)
         }
         subscribeViewModelData()
         initBottomNavigation()
@@ -329,7 +329,7 @@ MediaScannerConnection.scanFile(this, arrayOf(file.toString()),
     }
 
     override fun showBottomSheetDialog(dialog: BottomSheetDialogFragment) {
-        dialog.show(supportFragmentManager, AppConstants.DIALOG_TAG)
+        dialog.show(supportFragmentManager, dialog.tag)
     }
 
     override fun showDialogFragment(dialog: DialogFragment) {

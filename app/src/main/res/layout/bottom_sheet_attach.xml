@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/par"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/bottom_sheet_backgroubd_white"
+    android:background="@drawable/bottom_sheet_background_white"
     android:minHeight="200dp"
     android:orientation="vertical">
 
@@ -13,6 +14,7 @@
         android:layout_height="wrap_content"
         android:orientation="vertical">
 
+
         <com.google.android.material.imageview.ShapeableImageView
             android:id="@+id/swipe"
             android:layout_width="wrap_content"
@@ -20,61 +22,86 @@
             android:layout_gravity="center_horizontal"
             android:layout_marginTop="12dp"
             android:src="@drawable/bottom_sheet_swipe"
-            app:layout_constraintBottom_toTopOf="@id/images"
+            app:layout_constraintBottom_toTopOf="@id/bottom_sheet_container"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
 
-        <com.google.android.material.appbar.MaterialToolbar
-            android:id="@+id/appBarLayout"
-            android:layout_width="match_parent"
-            android:layout_height="?attr/actionBarSize"
-            android:layout_marginVertical="-4dp"
-            android:visibility="gone">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:orientation="horizontal">
-
-                <ImageView
-                    android:id="@+id/cancelBtn"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="center"
-                    android:src="@drawable/ic_material_close_24" />
-
-                <TextView
-
-                    android:id="@+id/nameToolbar"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="center_vertical"
-                    android:layout_marginStart="20dp"
-                    android:layout_weight="1"
-                    android:text="Gallery"
-                    android:textAppearance="@style/TextAppearance.AppCompat.Title" />
-            </LinearLayout>
-        </com.google.android.material.appbar.MaterialToolbar>
 
         <FrameLayout
             android:id="@+id/bottom_sheet_container"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginHorizontal="4dp">
+            android:layout_marginHorizontal="4dp" />
 
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/images"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:layout_marginTop="8dp"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/swipe"
-                android:visibility="gone"/>
-
-        </FrameLayout>
     </LinearLayout>
+
+
+    <HorizontalScrollView
+        android:id="@+id/attach_scroll_bar"
+        android:layout_width="match_parent"
+        android:layout_height="150dp"
+        android:layout_gravity="bottom"
+        android:background="@drawable/scroll_view_background"
+        android:elevation="1dp"
+        android:fillViewport="true"
+        android:scrollbars="none"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent">
+
+        <RadioGroup
+            android:id="@+id/attach_radio_group"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginVertical="4dp"
+            android:background="@color/white"
+            android:orientation="horizontal"
+            app:layout_constraintBottom_toBottomOf="@id/input_layout"
+            app:layout_constraintEnd_toEndOf="@id/input_layout"
+            app:layout_constraintStart_toStartOf="@id/input_layout"
+            app:layout_constraintTop_toTopOf="@id/input_layout">
+
+            <RadioButton
+                android:id="@+id/attach_gallery_button"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_margin="8dp"
+                android:layout_weight="1"
+                android:button="@null"
+                android:clickable="true"
+                android:drawableTop="@drawable/radio_button_location_selector"
+                android:focusable="true"
+                android:gravity="center"
+                android:text="Gallery"
+                android:textColor="@color/grey_text_2" />
+
+            <RadioButton
+                android:id="@+id/attach_file_button"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_margin="8dp"
+                android:layout_weight="1"
+                android:backgroundTint="@null"
+                android:button="@null"
+                android:drawableTop="@drawable/ic_file_circle"
+                android:gravity="center"
+                android:text="File" />
+
+            <RadioButton
+                android:id="@+id/attach_location_button"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_margin="8dp"
+                android:layout_weight="1"
+                android:button="@null"
+                android:drawableTop="@drawable/ic_location_circle"
+                android:gravity="center"
+                android:stateListAnimator="@null"
+                android:text="Location"
+                android:textColor="@color/grey_text_2" />
+        </RadioGroup>
+    </HorizontalScrollView>
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/input_layout"
@@ -82,7 +109,9 @@
         android:layout_height="wrap_content"
         android:layout_gravity="bottom"
         android:background="@color/white"
+        android:elevation="10dp"
         android:orientation="horizontal"
+        android:visibility="gone"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent">
@@ -153,69 +182,7 @@
             app:layout_constraintEnd_toEndOf="@id/badge"
             app:layout_constraintStart_toStartOf="@id/badge"
             app:layout_constraintTop_toTopOf="@id/badge" />
-
-        <HorizontalScrollView
-            android:id="@+id/attach_scroll_bar"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:fillViewport="true"
-            android:scrollbars="none"
-            app:layout_anchorGravity="bottom"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent">
-
-            <RadioGroup
-                android:id="@+id/attach_radio_group"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginVertical="4dp"
-                android:background="@color/white"
-                android:orientation="horizontal"
-                app:layout_constraintBottom_toBottomOf="@id/input_layout"
-                app:layout_constraintEnd_toEndOf="@id/input_layout"
-                app:layout_constraintStart_toStartOf="@id/input_layout"
-                app:layout_constraintTop_toTopOf="@id/input_layout">
-
-                <RadioButton
-                    android:id="@+id/attach_gallery_button"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_margin="8dp"
-                    android:layout_weight="1"
-                    android:button="@null"
-                    android:clickable="true"
-                    android:drawableTop="@drawable/ic_gallery_circle"
-                    android:focusable="true"
-                    android:gravity="center"
-                    android:text="Gallery"
-                    android:textColor="@color/grey_text_2" />
-
-                <RadioButton
-                    android:id="@+id/attach_file_button"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_margin="8dp"
-                    android:layout_weight="1"
-                    android:backgroundTint="@null"
-                    android:button="@null"
-                    android:drawableTop="@drawable/ic_file_circle"
-                    android:gravity="center"
-                    android:text="File" />
-
-                <RadioButton
-                    android:id="@+id/attach_location_button"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_margin="8dp"
-                    android:layout_weight="1"
-                    android:button="@null"
-                    android:drawableTop="@drawable/radio_button_location_selector"
-                    android:gravity="center"
-                    android:stateListAnimator="@null"
-                    android:text="Location"
-                    android:textColor="@color/grey_text_2" />
-            </RadioGroup>
-        </HorizontalScrollView>
     </androidx.constraintlayout.widget.ConstraintLayout>
+
+
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

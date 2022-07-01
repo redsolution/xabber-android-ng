@@ -249,7 +249,7 @@
             android:layout_alignEnd="@id/avatarBackground"
             android:layout_alignBottom="@id/avatarBackground"
             android:layout_margin="4dp"
-            app:cardBackgroundColor="@color/grey_100"
+            app:cardBackgroundColor="@color/white"
             app:cardCornerRadius="18dp"
             app:cardElevation="0dp"
             app:layout_constraintBottom_toBottomOf="@+id/avatarBackground"
@@ -267,20 +267,14 @@
 
     </RelativeLayout>
 
-    <net.orandja.shadowlayout.ShadowLayout
-        android:id="@+id/save_button_container"
-        style="@style/ShadowWrapper"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:layout_margin="32dp"
-        android:background="@drawable/round_corners"
-        app:layout_constraintBottom_toBottomOf="parent"
+        <com.google.android.material.button.MaterialButton
+             app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/palette">
-
-        <com.google.android.material.button.MaterialButton
+        app:layout_constraintTop_toBottomOf="@+id/palette"
+             android:layout_gravity="center"
+        android:layout_margin="32dp"
+        android:background="@drawable/round_corners"
             android:id="@+id/save_button"
             android:layout_width="match_parent"
             android:layout_height="48dp"
@@ -295,7 +289,6 @@
             android:textSize="17sp"
             android:theme="@style/SignUpButtonNext"
             app:cornerRadius="100dp" />
-    </net.orandja.shadowlayout.ShadowLayout>
 
 
     <androidx.constraintlayout.widget.Guideline
