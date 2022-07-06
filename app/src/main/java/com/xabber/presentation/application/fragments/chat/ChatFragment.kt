@@ -9,9 +9,7 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.net.Uri
-import android.os.Bundle
-import android.os.Handler
-import android.os.SystemClock
+import android.os.*
 import android.text.Editable
 import android.text.TextWatcher
 import android.util.Log
@@ -23,6 +21,7 @@ import androidx.activity.OnBackPressedCallback
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.isVisible
 import androidx.core.view.marginBottom
+import androidx.fragment.app.FragmentResultListener
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -41,10 +40,11 @@ import com.xabber.presentation.application.fragments.chatlist.NotificationBottom
 import com.xabber.presentation.application.fragments.chatlist.SwitchNotifications
 import java.io.File
 import java.util.*
+import kotlin.collections.ArrayList
+import kotlin.collections.HashSet
 
-class ChatFragment : DetailBaseFragment(R.layout.fragment_message), MessageAdapter.Listener,
+class ChatFragment : DetailBaseFragment(R.layout.fragment_message), FragmentResultListener, MessageAdapter.Listener,
     ReplySwipeCallback.SwipeAction,
-    BottomSheet.BottomSheetAttachListener,
     SwitchNotifications {
     private val binding by viewBinding(FragmentMessageBinding::bind)
     private var messageAdapter: MessageAdapter? = null
@@ -87,13 +87,16 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_message), MessageAdapt
     @SuppressLint("ClickableViewAccessibility")
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-
         if (savedInstanceState != null) {
             name = savedInstanceState.getString("name", "")
             val messageText = savedInstanceState.getString("message_text", "")
             binding.chatInput.setText(messageText)
         }
-
+ parentFragmentManager.setFragmentResultListener(
+                            "message_text",
+                            viewLifecycleOwner,
+                          this
+                    )
         populateUiWithData()
         initToolbarActions()
         initRecyclerView()
@@ -422,8 +425,13 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_message), MessageAdapt
         binding.buttonEmoticon.setOnClickListener { }
 
         binding.buttonAttach.setOnClickListener {
-            if (childFragmentManager.findFragmentByTag(BottomSheet.TAG) == null) {
-                BottomSheet().show(childFragmentManager, BottomSheet.TAG)
+            if (childFragmentManager.findFragmentByTag(AttachBottomSheet.TAG) == null) {
+                AttachBottomSheet { p1, p2 ->
+                    val y = HashSet<Uri>()
+                    y.add(Uri.fromFile(p2[0]))
+                    sendMessage(p1, y)
+                }.show(childFragmentManager, AttachBottomSheet.TAG)
+
             }
         }
 
@@ -722,6 +730,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_message), MessageAdapt
         }
     }
 
+
     private fun enableSelectionMode(enable: Boolean) {
         if (enable) {
             binding.messageToolbar.isVisible = false
@@ -749,7 +758,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_message), MessageAdapt
     }
 
 
-    override fun sendMessage(textMessage: String, imagePaths: HashSet<Uri>?) {
+ fun sendMessage(textMessage: String, imagePaths: HashSet<Uri>?) {
         var messageKindDto: MessageKind? = null
         if (binding.answer.isVisible) {
             messageKindDto = MessageKind(
@@ -786,6 +795,16 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_message), MessageAdapt
         messageAdapter?.notifyDataSetChanged()
         binding.answer.isVisible = false
     }
+
+    override fun onFragmentResult(requestKey: String, result: Bundle) {
+        when (requestKey) {
+                "y" -> {
+                    val resultFromBundle = result.getString("message_text")
+
+                }
+            }
+    }
+
 
 
 }

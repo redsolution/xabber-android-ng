@@ -19,31 +19,24 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <androidx.cardview.widget.CardView
-        android:id="@+id/chat_image_container"
-        android:layout_width="56dp"
-        android:layout_height="56dp"
-        android:layout_margin="12dp"
-        android:background="@color/blue_500"
-        app:cardCornerRadius="28dp"
-        app:cardElevation="0dp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
 
         <ImageView
             android:id="@+id/chat_image"
             android:layout_width="56dp"
             android:layout_height="56dp"
-            tools:background="@tools:sample/avatars" />
-    </androidx.cardview.widget.CardView>
+            android:layout_margin="12dp"
+            android:background="?attr/avatar_mask"
+             app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"/>
+
 
     <ImageView
         android:id="@+id/chat_status_16"
         android:layout_width="16dp"
         android:layout_height="16dp"
-        app:layout_constraintBottom_toBottomOf="@id/chat_image_container"
-        app:layout_constraintEnd_toEndOf="@id/chat_image_container"
+        app:layout_constraintBottom_toBottomOf="@id/chat_image"
+        app:layout_constraintEnd_toEndOf="@id/chat_image"
         tools:src="@drawable/ic_status_bot_online" />
 
     <ImageView
@@ -51,8 +44,8 @@
         android:layout_width="14dp"
         android:layout_height="14dp"
         android:src="@drawable/ic_status_online"
-        app:layout_constraintBottom_toBottomOf="@id/chat_image_container"
-        app:layout_constraintEnd_toEndOf="@id/chat_image_container" />
+        app:layout_constraintBottom_toBottomOf="@id/chat_image"
+        app:layout_constraintEnd_toEndOf="@id/chat_image" />
 
 
     <TextView
@@ -70,7 +63,8 @@
         android:textSize="16sp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0"
-        app:layout_constraintStart_toEndOf="@id/chat_image_container"
+        app:layout_constraintBottom_toTopOf="@id/chat_message"
+        app:layout_constraintStart_toEndOf="@id/chat_image"
         app:layout_constraintTop_toTopOf="parent" />
 
     <TextView
@@ -97,9 +91,11 @@
         android:textSize="14sp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0"
-        app:layout_constraintStart_toEndOf="@+id/chat_image_container"
+        app:layout_constraintStart_toEndOf="@+id/chat_image"
         app:layout_constraintTop_toBottomOf="@id/chat_name"
-        tools:text="@tools:sample/lorem/random" />
+        app:layout_constraintBottom_toBottomOf="parent"
+        tools:text="@tools:sample/lorem/random"
+        android:layout_marginBottom="4dp"/>
 
     <ImageView
         android:id="@+id/chat_muted"

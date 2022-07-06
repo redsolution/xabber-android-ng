@@ -21,36 +21,43 @@
             android:layout_height="wrap_content"
             android:layout_gravity="center_horizontal"
             android:layout_marginTop="12dp"
+            android:layout_marginBottom="4dp"
             android:src="@drawable/bottom_sheet_swipe"
-            app:layout_constraintBottom_toTopOf="@id/bottom_sheet_container"
+            app:layout_constraintBottom_toTopOf="@id/recent_images"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
 
 
-        <FrameLayout
-            android:id="@+id/bottom_sheet_container"
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/recent_images"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginHorizontal="4dp" />
 
     </LinearLayout>
 
+<androidx.constraintlayout.widget.ConstraintLayout
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@color/white"
+    android:id="@+id/frame_layout_action_container">
 
-    <HorizontalScrollView
+      <HorizontalScrollView
         android:id="@+id/attach_scroll_bar"
         android:layout_width="match_parent"
         android:layout_height="150dp"
         android:layout_gravity="bottom"
-        android:background="@drawable/scroll_view_background"
+        android:background="@color/transparent"
         android:elevation="1dp"
         android:fillViewport="true"
         android:scrollbars="none"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent">
 
-        <RadioGroup
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+          app:layout_constraintTop_toTopOf="parent">
+
+        <LinearLayout
             android:id="@+id/attach_radio_group"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -62,105 +69,135 @@
             app:layout_constraintStart_toStartOf="@id/input_layout"
             app:layout_constraintTop_toTopOf="@id/input_layout">
 
-            <RadioButton
+            <LinearLayout
                 android:id="@+id/attach_gallery_button"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_margin="8dp"
+                android:orientation="vertical"
                 android:layout_weight="1"
-                android:button="@null"
                 android:clickable="true"
-                android:drawableTop="@drawable/radio_button_location_selector"
                 android:focusable="true"
                 android:gravity="center"
-                android:text="Gallery"
-                android:textColor="@color/grey_text_2" />
+                android:layout_margin="8dp"  >
 
-            <RadioButton
-                android:id="@+id/attach_file_button"
+                <ImageView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:src="@drawable/radio_button_location_selector" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:text="Gallery" />
+            </LinearLayout>
+
+
+              <LinearLayout
+                  android:id="@+id/attach_file_button"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_margin="8dp"
+                android:orientation="vertical"
                 android:layout_weight="1"
-                android:backgroundTint="@null"
-                android:button="@null"
-                android:drawableTop="@drawable/ic_file_circle"
+                android:clickable="true"
+                android:focusable="true"
                 android:gravity="center"
-                android:text="File" />
+                android:layout_margin="8dp"  >
+            <ImageView
 
-            <RadioButton
-                android:id="@+id/attach_location_button"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_margin="8dp"
-                android:layout_weight="1"
-                android:button="@null"
-                android:drawableTop="@drawable/ic_location_circle"
+                android:src="@drawable/ic_file_circle" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
                 android:gravity="center"
-                android:stateListAnimator="@null"
+                android:text="File" /></LinearLayout>
+
+              <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_weight="1"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center"
+                android:layout_margin="8dp"
+                  android:id="@+id/attach_location_button" >
+            <ImageView
+
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:src="@drawable/ic_location_circle" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
                 android:text="Location"
-                android:textColor="@color/grey_text_2" />
-        </RadioGroup>
+                android:gravity="center" /></LinearLayout>
+        </LinearLayout>
     </HorizontalScrollView>
 
-    <androidx.constraintlayout.widget.ConstraintLayout
-        android:id="@+id/input_layout"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom"
-        android:background="@color/white"
-        android:elevation="10dp"
-        android:orientation="horizontal"
-        android:visibility="gone"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent">
-
-
+<androidx.constraintlayout.widget.Group
+    android:id="@+id/group_send"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+      android:visibility="gone"
+    app:constraint_referenced_ids="button_emoticon, chat_input" />
         <ImageButton
             android:id="@+id/button_emoticon"
             android:layout_width="24dp"
             android:layout_height="24dp"
             android:layout_gravity="center_vertical"
             android:layout_margin="16dp"
+            android:layout_marginBottom="8dp"
             android:background="@color/transparent"
-            app:layout_constraintBottom_toBottomOf="@id/input_layout"
-            app:layout_constraintStart_toStartOf="@id/input_layout"
-            app:layout_constraintTop_toTopOf="@id/input_layout"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
             app:srcCompat="@drawable/ic_material_emoticon_outline_24"
             app:tint="@color/grey_500" />
 
         <EditText
+            android:elevation="2dp"
+            android:outlineProvider="none"
             android:id="@+id/chat_input"
-            android:layout_width="0dp"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_gravity="center_vertical"
-            android:layout_marginStart="20dp"
-            android:background="@android:color/white"
+            android:layout_marginTop="8dp"
+            android:layout_marginStart="16dp"
+            android:background="@color/transparent"
             android:cursorVisible="true"
             android:fadingEdge="vertical"
             android:filterTouchesWhenObscured="false"
-            android:gravity="center_vertical"
             android:hint="Add a message..."
             android:imeOptions="actionSend|flagNoExtractUi"
             android:inputType="textAutoCorrect|textCapSentences|textMultiLine"
             android:maxLines="4"
             android:minHeight="40dp"
             android:scrollbars="vertical"
-            app:layout_constraintBottom_toBottomOf="@id/input_layout"
-            app:layout_constraintEnd_toStartOf="@id/btn_send"
-            app:layout_constraintStart_toEndOf="@id/button_emoticon"
-            app:layout_constraintTop_toTopOf="@id/input_layout" />
 
+            app:layout_constraintStart_toEndOf="@id/button_emoticon"
+            app:layout_constraintTop_toTopOf="parent" />
+<androidx.constraintlayout.widget.ConstraintLayout
+    android:id="@+id/send"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+            app:layout_constraintEnd_toEndOf="parent"
+    app:layout_constraintTop_toTopOf="parent"
+    android:layout_margin="2dp">
         <ImageView
             android:id="@+id/btn_send"
             android:layout_width="48dp"
             android:layout_height="48dp"
             android:layout_marginEnd="20dp"
             android:src="@drawable/ic_send_circle"
-            app:layout_constraintBottom_toBottomOf="@id/input_layout"
-            app:layout_constraintEnd_toEndOf="@id/input_layout"
-            app:layout_constraintTop_toTopOf="@id/input_layout" />
+            app:layout_constraintBottom_toBottomOf="parent"
+            android:layout_marginBottom="2dp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            android:visibility="gone"/>
 
         <ImageView
             android:id="@+id/badge"
@@ -183,6 +220,8 @@
             app:layout_constraintStart_toStartOf="@id/badge"
             app:layout_constraintTop_toTopOf="@id/badge" />
     </androidx.constraintlayout.widget.ConstraintLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>
 
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

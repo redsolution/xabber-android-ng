@@ -3,6 +3,7 @@ package com.xabber.presentation.application.fragments.contacts
 import android.annotation.SuppressLint
 import android.app.AlertDialog
 import android.os.Bundle
+import android.util.TypedValue
 import android.view.MotionEvent
 import android.view.View
 import androidx.core.view.isVisible
@@ -12,6 +13,7 @@ import com.xabber.R
 import com.xabber.databinding.FragmentContactBinding
 import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.BaseFragment
+import com.xabber.presentation.application.activity.MaskChanger
 
 class ContactsFragment : BaseFragment(R.layout.fragment_contact), ContactAdapter.Listener {
     private val binding by viewBinding(FragmentContactBinding::bind)
@@ -19,8 +21,11 @@ class ContactsFragment : BaseFragment(R.layout.fragment_contact), ContactAdapter
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+
+        binding.imAvatar.setBackgroundResource(MaskChanger.getMask().size32)
+
         val contactAdapter = ContactAdapter(this)
-        Glide.with(binding.imAvatar).load(R.drawable.img).into(binding.imAvatar)
+      //  Glide.with(binding.imAvatar).load(R.drawable.img).centerInside().into(binding.imAvatar)
 
         binding.recyclerView.adapter = contactAdapter
 
@@ -66,42 +71,42 @@ class ContactsFragment : BaseFragment(R.layout.fragment_contact), ContactAdapter
 
     @SuppressLint("ClickableViewAccessibility")
     fun movieRecyclerView() {
-        var flag = false
-        val dX = FloatArray(2)
-        val dY = FloatArray(2)
-        binding.recyclerView.setOnTouchListener { view, motionEvent ->
-            when (motionEvent.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    dX[0] = view.x
-                    dY[0] = view.y
-                    dX[1] = motionEvent.getRawX()
-                    dY[1] = motionEvent.getRawY()
-
-                }
-                MotionEvent.ACTION_MOVE -> {
-                    if (motionEvent.getRawY() + dY[0] > 0) {
-                        if (motionEvent.getRawY() > dY[1]) {
-                            view.animate().y(motionEvent.getRawY() - dY[1]).setDuration(0).start()
-                            binding.buttonArchive.isVisible = true
-                            flag = false
-                        }
-                    }
-                    if (motionEvent.getRawY() < dY[1]) {
-
-                        if (binding.buttonArchive.isVisible) binding.buttonArchive.isVisible = false
-                        flag = true
-                    }
-
-                }
-                MotionEvent.ACTION_UP -> {
-
-                }
-                else -> {
-                    false
-                }
-            }
-            true
-        }
+//        var flag = false
+//        val dX = FloatArray(2)
+//        val dY = FloatArray(2)
+//        binding.recyclerView.setOnTouchListener { view, motionEvent ->
+//            when (motionEvent.action) {
+//                MotionEvent.ACTION_DOWN -> {
+//                    dX[0] = view.x
+//                    dY[0] = view.y
+//                    dX[1] = motionEvent.getRawX()
+//                    dY[1] = motionEvent.getRawY()
+//
+//                }
+//                MotionEvent.ACTION_MOVE -> {
+//                    if (motionEvent.getRawY() + dY[0] > 0) {
+//                        if (motionEvent.getRawY() > dY[1]) {
+//                            view.animate().y(motionEvent.getRawY() - dY[1]).setDuration(0).start()
+//                            binding.buttonArchive.isVisible = true
+//                            flag = false
+//                        }
+//                    }
+//                    if (motionEvent.getRawY() < dY[1]) {
+//
+//                        if (binding.buttonArchive.isVisible) binding.buttonArchive.isVisible = false
+//                        flag = true
+//                    }
+//
+//                }
+//                MotionEvent.ACTION_UP -> {
+//
+//                }
+//                else -> {
+//                    false
+//                }
+//            }
+//            true
+//        }
 
     }
 

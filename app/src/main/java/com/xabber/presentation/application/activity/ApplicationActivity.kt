@@ -1,19 +1,18 @@
 package com.xabber.presentation.application.activity
 
 import android.Manifest
-import android.app.Activity
+import android.annotation.SuppressLint
+import android.content.Context
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.content.res.Resources
-import android.graphics.Bitmap
 import android.graphics.Point
 import android.media.MediaScannerConnection
 import android.net.Uri
 import android.os.Bundle
 import android.os.Environment
-import android.provider.MediaStore
 import android.provider.Settings
 import android.util.Log
 import android.view.Display
@@ -23,7 +22,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.updateLayoutParams
 import androidx.fragment.app.DialogFragment
@@ -33,7 +31,6 @@ import androidx.slidingpanelayout.widget.SlidingPaneLayout
 import com.google.android.material.badge.BadgeDrawable
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.xabber.R
-import com.xabber.presentation.application.util.dp
 import com.xabber.data.xmpp.account.AccountStorageItem
 import com.xabber.data.xmpp.presences.ResourceStorageItem
 import com.xabber.databinding.ActivityApplicationBinding
@@ -49,6 +46,7 @@ import com.xabber.presentation.application.fragments.contacts.NewContactFragment
 import com.xabber.presentation.application.fragments.discover.DiscoverFragment
 import com.xabber.presentation.application.fragments.settings.SettingsFragment
 import com.xabber.presentation.application.util.AppConstants
+import com.xabber.presentation.application.util.dp
 import com.xabber.presentation.onboarding.activity.OnBoardingActivity
 import io.realm.Realm
 import io.realm.RealmConfiguration
@@ -80,12 +78,14 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
     }
 
     private fun galleryAddPick() {
-       //  val image = generatePicturePath()
-      //  val currentPhotoPath = image?.absolutePath
+        //  val image = generatePicturePath()
+        //  val currentPhotoPath = image?.absolutePath
         val file = generatePicturePath()
-       Log.d("camera", "$file")
-MediaScannerConnection.scanFile(this, arrayOf(file.toString()),
-      null, null)
+        Log.d("camera", "$file")
+        MediaScannerConnection.scanFile(
+            this, arrayOf(file.toString()),
+            null, null
+        )
         Log.d("camera", "123")
 
 //        Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE).also { mediaScanIntent ->
@@ -94,33 +94,31 @@ MediaScannerConnection.scanFile(this, arrayOf(file.toString()),
 //            mediaScanIntent.data = Uri.fromFile(photoFile)
 //           sendBroadcast(mediaScanIntent)
 //            Log.d("camera", "addGallery")
-        }
+    }
 
 
-
-     private fun addMediaToGallery(fromPath: String) {
-         val f = File(fromPath)
-       val contentUri = Uri.fromFile(f)
+    private fun addMediaToGallery(fromPath: String) {
+        val f = File(fromPath)
+        val contentUri = Uri.fromFile(f)
         addMediaUriToGallery(contentUri)
     }
 
-     private fun addMediaUriToGallery(uri: Uri) {
-         try {
-           val mediaScanIntent = Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE)
-             mediaScanIntent.data = uri
+    private fun addMediaUriToGallery(uri: Uri) {
+        try {
+            val mediaScanIntent = Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE)
+            mediaScanIntent.data = uri
             this.sendBroadcast(mediaScanIntent);
-        } catch ( e: Exception) {
+        } catch (e: Exception) {
 
         }
     }
 
- fun openFiles() {
+    fun openFiles() {
         val intent =
             Intent(Intent.ACTION_GET_CONTENT).setType("*/*").addCategory(Intent.CATEGORY_OPENABLE)
         intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
         //  startActivityForResult(intent, FILE_SELECT_ACTIVITY_REQUEST_CODE);
     }
-
 
 
     private fun onGotRecordAudioPermissionResult(granted: Boolean) {
@@ -137,12 +135,10 @@ MediaScannerConnection.scanFile(this, arrayOf(file.toString()),
     }
 
 
-
-
     private fun generatePicturePath(): File? {
         try {
             val storageDir = getExternalFilesDir(Environment.DIRECTORY_PICTURES)
-           // val storageDir = getAlbumDir()
+            // val storageDir = getAlbumDir()
             val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
             return File(storageDir, "IMG_" + timeStamp + ".jpg")
         } catch (e: java.lang.Exception) {
@@ -154,16 +150,16 @@ MediaScannerConnection.scanFile(this, arrayOf(file.toString()),
     private fun getAlbumDir(): File? {
         Log.d("data photo", "name = ${this.applicationInfo.labelRes}")
         var storageDir: File? = null
-            storageDir = File(
-                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES),
-                this.applicationInfo.labelRes.toString()
-            )
-            if (!storageDir.mkdirs()) {
-                if (!storageDir.exists()) {
-                    Log.d("data photo", "failed to create directory")
-                    return null
-                }
+        storageDir = File(
+            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES),
+            this.applicationInfo.labelRes.toString()
+        )
+        if (!storageDir.mkdirs()) {
+            if (!storageDir.exists()) {
+                Log.d("data photo", "failed to create directory")
+                return null
             }
+        }
 
         return storageDir
     }
@@ -195,8 +191,22 @@ MediaScannerConnection.scanFile(this, arrayOf(file.toString()),
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        Log.d("data photo", "${this.checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)}, ${this.checkSelfPermission(Manifest.permission.CAMERA)}")
         setContentView(binding.root)
+        val maskName = getSharedPreferences(
+            AppConstants.MASK_KEY,
+            Context.MODE_PRIVATE
+        ).getString(AppConstants.MASK_KEY, "circle")
+        val mask = when (maskName) {
+            "Circle" -> Mask.Circle
+            "Hexagon" -> Mask.Hexagon
+            "Pentagon" -> Mask.Pentagon
+            "Squircle" -> Mask.Squircle
+            "Octagon" -> Mask.Octagon
+            "Rounded" -> Mask.Rounded
+            else -> Mask.Star
+        }
+        Log.d("shared", "$mask")
+        MaskChanger.setMask(mask)
         if (true) {
             if (getWidthWindowSizeClass() == WidthWindowSize.MEDIUM || getWidthWindowSizeClass() == WidthWindowSize.EXPANDED) setContainerWidth()
             if (savedInstanceState == null) {
@@ -402,10 +412,13 @@ MediaScannerConnection.scanFile(this, arrayOf(file.toString()),
         viewModel.unreadCount.value?.let { outState.putInt(AppConstants.UNREAD_MESSAGES_COUNT, it) }
     }
 
+    @SuppressLint("CommitPrefEdits")
     override fun onDestroy() {
         super.onDestroy()
         requestRecordAudioPermissionLauncher.unregister()
-
+        getSharedPreferences(AppConstants.MASK_KEY, Context.MODE_PRIVATE).edit()
+            .putString(AppConstants.MASK_KEY, MaskChanger.getMask().name).apply()
+        Log.d("shared", "${MaskChanger.getMask().name}")
     }
 
     override fun requestPermissionToRecord(): Boolean {
@@ -418,7 +431,7 @@ MediaScannerConnection.scanFile(this, arrayOf(file.toString()),
 
 
     override fun lockScreenRotation(isLock: Boolean) {
-      this.requestedOrientation =
+        this.requestedOrientation =
             if (isLock) {
                 val display: Display = this.windowManager.defaultDisplay
                 val rotation = display.rotation

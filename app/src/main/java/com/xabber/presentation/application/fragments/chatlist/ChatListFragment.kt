@@ -1,8 +1,7 @@
 package com.xabber.presentation.application.fragments.chatlist
 
 import android.annotation.SuppressLint
-import android.graphics.Canvas
-import android.graphics.Color
+import android.graphics.*
 import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
 import android.util.Log
@@ -11,17 +10,20 @@ import android.view.Gravity
 import android.view.View
 import android.widget.PopupMenu
 import android.widget.Toast
+import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.RecyclerView
 import by.kirich1409.viewbindingdelegate.viewBinding
+import com.bumptech.glide.Glide
 import com.google.android.material.snackbar.Snackbar
 import com.xabber.R
 import com.xabber.data.dto.ChatListDto
 import com.xabber.databinding.FragmentChatBinding
-import com.xabber.presentation.application.contract.navigator
-
 import com.xabber.presentation.BaseFragment
+import com.xabber.presentation.application.activity.MaskChanger
+import com.xabber.presentation.application.activity.MaskeDrawablePorterDuffSrcIn
+import com.xabber.presentation.application.contract.navigator
 
 class ChatListFragment : BaseFragment(R.layout.fragment_chat), ChatListAdapter.ChatListener {
     private val binding by viewBinding(FragmentChatBinding::bind)
@@ -40,6 +42,7 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat), ChatListAdapter.C
     @SuppressLint("ClickableViewAccessibility")
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+
         chatAdapter = ChatListAdapter(this)
         initToolbarActions()
         fillChat()
@@ -49,47 +52,53 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat), ChatListAdapter.C
 
 
     private fun initToolbarActions() {
+        val mPictureBitmap = BitmapFactory.decodeResource(resources, R.drawable.img)
+val mMaskBitmap = BitmapFactory.decodeResource(resources, R.drawable.star32).extractAlpha()
+       val maskDraw = MaskeDrawablePorterDuffSrcIn()
+        maskDraw.setMaskBitmap(mMaskBitmap)
 
+        maskDraw.setPictureBitmap(mPictureBitmap)
+        maskDraw.mPictureBitmap
+      // Glide.with(binding.imAvatar).load(R.drawable.img).centerInside().into(binding.imAvatar)
+//        binding.imAvatar.background = ResourcesCompat.getDrawable(
+//            binding.imAvatar.resources,MaskChanger.getMask().size32, binding.imAvatar.context.theme)
+        binding.imAvatar.setOnClickListener {
+            navigator().showAccount()
+        }
 
+        binding.imPlus.setOnClickListener {
+            navigator().showNewChat()
+        }
 
-
-            binding.avatarContainer.setOnClickListener {
-                navigator().showAccount()
-            }
-
-            binding.imPlus.setOnClickListener {
-                navigator().showNewChat()
-            }
-
-            val popup = PopupMenu(context, binding.tvChatTitle, Gravity.RIGHT)
-            popup.inflate(R.menu.context_menu_title_chat)
-            popup.setOnMenuItemClickListener {
-                val list = viewModel.chatList.value
-                val sortedList = ArrayList<ChatListDto>()
-                when (it.itemId) {
-                    R.id.recent_chats -> {
-                        for (i in 0 until list!!.size) {
-                            if (!list[i].isArchived) sortedList.add(list[i])
-                        }
-                        sortedList.sort()
-                        chatAdapter?.submitList(sortedList)
+        val popup = PopupMenu(context, binding.tvChatTitle, Gravity.RIGHT)
+        popup.inflate(R.menu.context_menu_title_chat)
+        popup.setOnMenuItemClickListener {
+            val list = viewModel.chatList.value
+            val sortedList = ArrayList<ChatListDto>()
+            when (it.itemId) {
+                R.id.recent_chats -> {
+                    for (i in 0 until list!!.size) {
+                        if (!list[i].isArchived) sortedList.add(list[i])
                     }
-                    R.id.unread -> {
-                        for (i in 0 until list!!.size) {
-                            if (list[i].unreadString!!.isNotEmpty()) sortedList.add(list[i])
-                        }
-                        chatAdapter?.submitList(sortedList)
-                    }
-                    R.id.archive -> {
-                        for (i in 0 until list!!.size) {
-                            if (list[i].isArchived) sortedList.add(list[i])
-                        }
-                        chatAdapter?.submitList(sortedList)
-                    }
+                    sortedList.sort()
+                    chatAdapter?.submitList(sortedList)
                 }
-                true
+                R.id.unread -> {
+                    for (i in 0 until list!!.size) {
+                        if (list[i].unreadString!!.isNotEmpty()) sortedList.add(list[i])
+                    }
+                    chatAdapter?.submitList(sortedList)
+                }
+                R.id.archive -> {
+                    for (i in 0 until list!!.size) {
+                        if (list[i].isArchived) sortedList.add(list[i])
+                    }
+                    chatAdapter?.submitList(sortedList)
+                }
             }
-            binding.tvChatTitle.setOnClickListener { popup.show() }
+            true
+        }
+        binding.tvChatTitle.setOnClickListener { popup.show() }
 
     }
 
@@ -242,7 +251,7 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat), ChatListAdapter.C
 
     override fun turnOfNotifications(id: String) {
         val dialog = NotificationBottomSheet()
-      navigator().showBottomSheetDialog(dialog)
+        navigator().showBottomSheetDialog(dialog)
         //  viewModel.turnOfNotifications(id)
     }
 
@@ -275,7 +284,6 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat), ChatListAdapter.C
         snackbar.setActionTextColor(Color.YELLOW)
         snackbar.show()
     }
-
 
 
     override fun onDestroy() {

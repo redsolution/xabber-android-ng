@@ -122,9 +122,6 @@ class GalleryAdapter(private val listener: Listener) :
     }
     override fun getItemCount(): Int = imagePaths.size
 
-    fun getSelectedImagePath(): HashSet<Uri> = selectedImagePaths
-
-
     override fun getItemViewType(position: Int): Int {
         return when (position) {
             0 -> {

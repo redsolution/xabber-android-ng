@@ -65,7 +65,7 @@ class EmojiKeyboardBottomSheet : BottomSheetDialogFragment() {
                     onEmojiClick(it)
                 }.also { keysAdapter = it }
             }
-            keysAdapter!!.submitList(dataset[R.drawable.smileysandpeople])
+            keysAdapter!!.submitList(dataset[R.string.smileysAndPeople])
             with(recyclerViewKeysTypes) {
                 adapter = EmojiTypeAdapter {
                     onEmojiTypeClick(it)

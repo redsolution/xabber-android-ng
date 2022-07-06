@@ -18,6 +18,8 @@ import com.xabber.presentation.application.util.DateFormatter
 import com.xabber.data.xmpp.messages.MessageSendingState
 import com.xabber.data.xmpp.presences.ResourceStatus
 import com.xabber.data.xmpp.presences.RosterItemEntity
+import com.xabber.presentation.application.activity.Mask
+import com.xabber.presentation.application.activity.MaskChanger
 
 class ChatViewHolder(
     private val binding: ItemChatBinding,
@@ -46,13 +48,14 @@ class ChatViewHolder(
 
                 chatMuted.isVisible = chatList.muteExpired > 0
                 chatPinned.isVisible = chatList.pinnedDate > 0
-                unreadMessagesWrapper.isVisible = chatList.unreadString!!.isNotEmpty()
-                unreadMessagesCount.text = chatList.unreadString
+                if (chatList.unreadString != null) {unreadMessagesWrapper.isVisible = chatList.unreadString.isNotEmpty()
+
+                unreadMessagesCount.text = chatList.unreadString }
 
 
                 var image: Int? = null
                 var tint: Int? = null
-                chatStatusImage.isVisible = (chatList.unreadString.isEmpty())
+             if (chatList.unreadString != null)     chatStatusImage.isVisible = (chatList.unreadString.isEmpty())
                 when (chatList.lastMessageState) {
                     MessageSendingState.Sending -> {
                         tint = R.color.grey_500
@@ -272,7 +275,8 @@ class ChatViewHolder(
 
                 }
 
-                chatImageContainer.setOnClickListener {
+                chatImage.setBackgroundResource(MaskChanger.getMask().size56)
+                chatImage.setOnClickListener {
                     listener.onClickAvatar(chatList.displayName)
                 }
 

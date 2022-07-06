@@ -26,5 +26,7 @@
         <item name="android:popupMenuStyle">@style/popupMenuStyle</item>
         <item name="popupMenuStyle">@style/popupMenuStyle</item>
         <item name="transparent_rounded_background">@drawable/rounded_background_grey_transparent</item>
+       <item name="avatar_mask">@drawable/circle56</item>
+
     </style>
 </resources>

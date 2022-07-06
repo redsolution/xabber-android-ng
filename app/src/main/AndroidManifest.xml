@@ -31,7 +31,6 @@
             android:exported="true"
             android:theme="@style/ThemeApplication">
 
-
         </activity>
         <activity
             android:name=".presentation.onboarding.activity.OnBoardingActivity"

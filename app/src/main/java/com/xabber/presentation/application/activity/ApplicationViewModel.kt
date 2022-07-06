@@ -20,13 +20,4 @@ open class ApplicationViewModel : ViewModel() {
         _chatListType.value = chatListType
     }
 
-
-       private val _selectedImagesCount = MutableLiveData<Int>()
-    val selectedImagesCount: LiveData<Int> = _selectedImagesCount
-
-    fun setSelectedImagesCount(count: Int) {
-        _selectedImagesCount.value = count
-    }
-
-
 }

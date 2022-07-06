@@ -118,7 +118,10 @@ class ContactViewHolder(
                 contactStatus16.setImageResource(icon)
             }
 
-            contactImageContainer.setOnClickListener {
+            contactImage.setBackgroundResource(R.drawable.star56)
+
+
+            contactImage.setOnClickListener {
                 listener.onAvatarClick()
             }
 
@@ -143,6 +146,11 @@ class ContactViewHolder(
                 popup.show()
                 true
             }
+            contactImage.setImageResource(R.drawable.ic_xabber_icon)
         }
+
+
     }
+
+
 }

@@ -18,35 +18,38 @@ class ChatListViewModel : ApplicationViewModel() {
 
     fun getChatList() {
         val realm = Realm.open(defaultRealmConfig())
+        val list = ArrayList<ChatListDto>()
+        list.add(ChatListDto("1", "Иван Сергеев", "Иван Сергеев", "Иван Сергеев", "когда? завтра?", System.currentTimeMillis(), MessageSendingState.Deliver, false, true, null, false, false, false, 0.0, 0.0, ResourceStatus.Chat, RosterItemEntity.Contact, null  ))
+ _chatList .value = list
 
-        val chatList = realm
-            .query<LastChatsStorageItem>()
-            .find()
-        _chatList.value = chatList.map { T ->
-            ChatListDto(
-                T.primary,
-                T.owner,
-                T.jid,
-                "",
-                T.lastMessage!!.body,
-                T.messageDate,
-                MessageSendingState.None,
-                T.isArchived,
-                T.isSynced,
-                T.draftMessage,
-                false, // hasAttachment
-                false, // isSystemMessage
-                false, //isMentioned
-                T.muteExpired,
-                T.pinnedPosition, // почему дабл?
-                ResourceStatus.Offline,
-                RosterItemEntity.Contact,
-                T.unread.toString()
-
-
-            )
-        }
-        realm.close()
+//        val chatList = realm
+//            .query<LastChatsStorageItem>()
+//            .find()
+//        _chatList.value = chatList.map { T ->
+//            ChatListDto(
+//                T.primary,
+//                T.owner,
+//                T.jid,
+//                "",
+//                T.lastMessage!!.body,
+//                T.messageDate,
+//                MessageSendingState.None,
+//                T.isArchived,
+//                T.isSynced,
+//                T.draftMessage,
+//                false, // hasAttachment
+//                false, // isSystemMessage
+//                false, //isMentioned
+//                T.muteExpired,
+//                T.pinnedPosition, // почему дабл?
+//                ResourceStatus.Offline,
+//                RosterItemEntity.Contact,
+//                T.unread.toString()
+//
+//
+//            )
+//        }
+//        realm.close()
     }
 
 
