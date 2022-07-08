@@ -18,12 +18,12 @@
         android:title="Pentagon" />
 
     <item
-        android:id="@+id/square"
-        android:title="Square" />
+        android:id="@+id/rounded"
+        android:title="Rounded" />
 
     <item
-        android:id="@+id/squirckle"
-        android:title="Squirkle" />
+        android:id="@+id/squirсle"
+        android:title="Squircle" />
 
     <item
         android:id="@+id/star"

@@ -1,7 +1,9 @@
 package com.xabber.presentation.application.fragments.chatlist
 
 import android.annotation.SuppressLint
-import android.graphics.*
+import android.graphics.BitmapFactory
+import android.graphics.Canvas
+import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
 import android.util.Log
@@ -10,19 +12,17 @@ import android.view.Gravity
 import android.view.View
 import android.widget.PopupMenu
 import android.widget.Toast
-import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.RecyclerView
 import by.kirich1409.viewbindingdelegate.viewBinding
-import com.bumptech.glide.Glide
 import com.google.android.material.snackbar.Snackbar
 import com.xabber.R
 import com.xabber.data.dto.ChatListDto
 import com.xabber.databinding.FragmentChatBinding
 import com.xabber.presentation.BaseFragment
 import com.xabber.presentation.application.activity.MaskChanger
-import com.xabber.presentation.application.activity.MaskeDrawablePorterDuffSrcIn
+import com.xabber.presentation.application.activity.MaskedDrawableBitmapShader
 import com.xabber.presentation.application.contract.navigator
 
 class ChatListFragment : BaseFragment(R.layout.fragment_chat), ChatListAdapter.ChatListener {
@@ -53,14 +53,13 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat), ChatListAdapter.C
 
     private fun initToolbarActions() {
         val mPictureBitmap = BitmapFactory.decodeResource(resources, R.drawable.img)
-val mMaskBitmap = BitmapFactory.decodeResource(resources, R.drawable.star32).extractAlpha()
-       val maskDraw = MaskeDrawablePorterDuffSrcIn()
-        maskDraw.setMaskBitmap(mMaskBitmap)
+        val mMaskBitmap = BitmapFactory.decodeResource(resources, MaskChanger.getMask().size32).extractAlpha()
+        val maskedDrawable = MaskedDrawableBitmapShader()
+        maskedDrawable.setPictureBitmap(mPictureBitmap)
+        maskedDrawable.setMaskBitmap(mMaskBitmap)
+        binding.imAvatar.setImageDrawable(maskedDrawable)
 
-        maskDraw.setPictureBitmap(mPictureBitmap)
-        maskDraw.mPictureBitmap
-      // Glide.with(binding.imAvatar).load(R.drawable.img).centerInside().into(binding.imAvatar)
-//        binding.imAvatar.background = ResourcesCompat.getDrawable(
+        //         ResourcesCompat.getDrawable(
 //            binding.imAvatar.resources,MaskChanger.getMask().size32, binding.imAvatar.context.theme)
         binding.imAvatar.setOnClickListener {
             navigator().showAccount()

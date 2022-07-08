@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="52dp"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:gravity="center_vertical">
 
     <RelativeLayout
@@ -12,64 +12,51 @@
         android:layout_marginLeft="16dp"
         android:layout_marginRight="16dp">
 
-        <de.hdodenhof.circleimageview.CircleImageView
-            android:id="@+id/avatarBorder"
-            android:layout_width="45dp"
-            android:layout_height="45dp"
-            android:layout_centerInParent="true"
-            app:civ_border_color="@color/transparent"
-            app:civ_border_width="2dp"
-            android:src="@color/transparent"
-            />
-
-        <de.hdodenhof.circleimageview.CircleImageView
+        <ImageView
             android:id="@+id/im_avatar"
-            android:layout_width="38dp"
-            android:layout_height="38dp"
-            android:background="@color/blue_300"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
             android:layout_centerInParent="true" />
 
     </RelativeLayout>
 
     <LinearLayout
-        android:orientation="vertical"
-        android:layout_weight="1"
         android:layout_width="0dp"
         android:layout_height="match_parent"
-        >
+        android:layout_weight="1"
+        android:orientation="vertical">
+
         <TextView
             android:id="@+id/item_account_name"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:singleLine="true"
             android:ellipsize="marquee"
             android:gravity="bottom"
-            android:textColor="?android:attr/textColorPrimary"
-            android:textStyle="bold"
+            android:singleLine="true"
             android:text="user.userov@redsolution.com"
-            />
+            android:textColor="?android:attr/textColorPrimary"
+            android:textStyle="bold" />
+
         <TextView
             android:id="@+id/item_account_status"
-            android:text="Online"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:singleLine="true"
             android:ellipsize="marquee"
             android:gravity="top"
-            android:textColor="?android:attr/textColorSecondary"
-            />
+            android:singleLine="true"
+            android:text="Online"
+            android:textColor="?android:attr/textColorSecondary" />
     </LinearLayout>
 
     <androidx.appcompat.widget.SwitchCompat
+        android:id="@+id/item_account_switch"
         android:layout_width="wrap_content"
         android:layout_height="match_parent"
-        android:id="@+id/item_account_switch"
-        android:paddingRight="12dp"
-        android:paddingLeft="12dp"
         android:focusable="false"
         android:focusableInTouchMode="false"
-        />
+        android:paddingLeft="12dp"
+        android:paddingRight="12dp" />
 
 </LinearLayout>

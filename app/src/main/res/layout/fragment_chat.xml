@@ -23,19 +23,17 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content">
 
-
-                    <ImageView
-                        android:scaleType="centerCrop"
-                        android:id="@+id/im_avatar"
-                        android:layout_width="32dp"
-                        android:layout_height="32dp"
-                        android:contentDescription="@string/avatar_account_content_description"
-                        android:focusable="false"
-                        app:srcCompat="@drawable/ic_location_circle"
-                        android:background="@drawable/star32"
-                        tools:src="@tools:sample/avatars" />
-
-
+                <ImageView
+                    android:id="@+id/im_avatar"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:layout_marginStart="8dp"
+                    android:contentDescription="@string/avatar_account_content_description"
+                    android:focusable="false"
+                    android:scaleType="centerCrop"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    tools:src="@tools:sample/avatars" />
 
 
                 <com.google.android.material.card.MaterialCardView

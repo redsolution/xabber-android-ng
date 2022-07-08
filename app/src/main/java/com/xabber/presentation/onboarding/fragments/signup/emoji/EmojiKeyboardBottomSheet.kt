@@ -9,6 +9,7 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.core.os.bundleOf
 import androidx.core.view.updateLayoutParams
+import androidx.recyclerview.widget.GridLayoutManager
 import by.kirich1409.viewbindingdelegate.viewBinding
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
@@ -57,7 +58,8 @@ class EmojiKeyboardBottomSheet : BottomSheetDialogFragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-
+        binding.recyclerViewKeys.layoutManager = GridLayoutManager(context, 8)
+        binding.recyclerViewKeysTypes.scrollBarFadeDuration = 0
         dataset = viewModel.getEmojiMap(resources)
         with(binding) {
             with(recyclerViewKeys) {

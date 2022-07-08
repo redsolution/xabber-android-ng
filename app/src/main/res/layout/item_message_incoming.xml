@@ -39,21 +39,15 @@
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintStart_toStartOf="parent" />
 
-            <androidx.cardview.widget.CardView
-                android:id="@+id/avatar_contact"
-                android:layout_width="44dp"
-                android:layout_height="44dp"
-                android:layout_gravity="bottom"
-                android:layout_marginStart="6dp"
-                app:cardCornerRadius="24dp"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintStart_toEndOf="@id/checkbox_incoming">
-
                 <ImageView
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:src="@drawable/transparency_demonstration" />
-            </androidx.cardview.widget.CardView>
+                    android:layout_width="44dp"
+                    android:layout_height="44dp"
+                    android:layout_gravity="bottom"
+                    android:layout_marginStart="6dp"
+                    android:id="@+id/avatar_contact"
+                    android:src="@drawable/transparency_demonstration"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toEndOf="@id/checkbox_incoming" />
 
             <RelativeLayout
                 android:id="@+id/balloon"

@@ -20,15 +20,14 @@
         app:layout_constraintTop_toTopOf="parent" />
 
 
-        <ImageView
-            android:id="@+id/chat_image"
-            android:layout_width="56dp"
-            android:layout_height="56dp"
-            android:layout_margin="12dp"
-            android:background="?attr/avatar_mask"
-             app:layout_constraintBottom_toBottomOf="parent"
+    <ImageView
+        android:id="@+id/chat_image"
+        android:layout_width="56dp"
+        android:layout_height="56dp"
+        android:layout_margin="12dp"
+        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"/>
+        app:layout_constraintTop_toTopOf="parent" />
 
 
     <ImageView
@@ -63,7 +62,6 @@
         android:textSize="16sp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0"
-        app:layout_constraintBottom_toTopOf="@id/chat_message"
         app:layout_constraintStart_toEndOf="@id/chat_image"
         app:layout_constraintTop_toTopOf="parent" />
 
@@ -93,9 +91,7 @@
         app:layout_constraintHorizontal_bias="0"
         app:layout_constraintStart_toEndOf="@+id/chat_image"
         app:layout_constraintTop_toBottomOf="@id/chat_name"
-        app:layout_constraintBottom_toBottomOf="parent"
-        tools:text="@tools:sample/lorem/random"
-        android:layout_marginBottom="4dp"/>
+        tools:text="@tools:sample/lorem/random" />
 
     <ImageView
         android:id="@+id/chat_muted"

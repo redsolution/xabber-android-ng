@@ -53,12 +53,10 @@ class SignupAvatarFragment : BaseFragment(R.layout.fragment_signup_avatar) {
             setAvatar(it)
         }
         requireActivity().onBackPressedDispatcher.addCallback(onBackPressedCallback)
-
     }
 
     private fun setAvatar(uri: Uri?) {
         with(binding) {
-            profileImage.setPadding(0.dp)
             Glide.with(this@SignupAvatarFragment)
                 .load(uri)
                 .apply(
@@ -90,7 +88,6 @@ class SignupAvatarFragment : BaseFragment(R.layout.fragment_signup_avatar) {
         }
     }
 
-
     private fun initButton() {
         binding.profileImageBackground.setOnClickListener {
             navigator().openBottomSheetDialogFragment(AvatarBottomSheet())
@@ -109,19 +106,17 @@ class SignupAvatarFragment : BaseFragment(R.layout.fragment_signup_avatar) {
         }
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        onBackPressedCallback.remove()
-    }
-
-
     private fun saveAvatar() {
         lifecycleScope.launch(Dispatchers.IO) {
             if (avatarData != null) {
-
                 isImageSaved = true
             }
         }
 
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        onBackPressedCallback.remove()
     }
 }

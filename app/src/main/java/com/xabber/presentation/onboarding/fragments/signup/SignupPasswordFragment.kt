@@ -30,6 +30,8 @@ class SignupPasswordFragment : BaseFragment(R.layout.fragment_signup_password) {
     }
 
     private fun initEditText() {
+        binding.passwordEditText.clearFocus()
+        binding.passwordEditText.requestFocus()
         binding.passwordEditText.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(
                 p0: CharSequence?,

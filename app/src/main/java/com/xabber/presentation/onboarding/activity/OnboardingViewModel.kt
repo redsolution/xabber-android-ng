@@ -2,6 +2,7 @@ package com.xabber.presentation.onboarding.activity
 
 import android.graphics.Bitmap
 import android.net.Uri
+import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
@@ -28,7 +29,7 @@ class OnboardingViewModel : ViewModel() {
     val avatarBitmap: LiveData<Bitmap> = _avatarBitmap
 
     private val _avatarUri = MutableLiveData<Uri>()
-    val avatarUri : LiveData<Uri> = _avatarUri
+    val avatarUri: LiveData<Uri> = _avatarUri
 
     fun setNickName(nickName: String) {
         _nickName.value = nickName
@@ -76,8 +77,9 @@ class OnboardingViewModel : ViewModel() {
         _avatarBitmap.value = bitmap
     }
 
- fun setAvatarUri(uri: Uri) {
+    fun setAvatarUri(uri: Uri) {
         _avatarUri.value = uri
+        Log.d("yyy", "$uri")
     }
 }
 

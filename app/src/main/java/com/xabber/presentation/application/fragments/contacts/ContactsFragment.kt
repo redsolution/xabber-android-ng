@@ -2,6 +2,7 @@ package com.xabber.presentation.application.fragments.contacts
 
 import android.annotation.SuppressLint
 import android.app.AlertDialog
+import android.graphics.BitmapFactory
 import android.os.Bundle
 import android.util.TypedValue
 import android.view.MotionEvent
@@ -14,6 +15,7 @@ import com.xabber.databinding.FragmentContactBinding
 import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.BaseFragment
 import com.xabber.presentation.application.activity.MaskChanger
+import com.xabber.presentation.application.activity.MaskedDrawableBitmapShader
 
 class ContactsFragment : BaseFragment(R.layout.fragment_contact), ContactAdapter.Listener {
     private val binding by viewBinding(FragmentContactBinding::bind)
@@ -21,11 +23,17 @@ class ContactsFragment : BaseFragment(R.layout.fragment_contact), ContactAdapter
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        val mPictureBitmap = BitmapFactory.decodeResource(resources, R.drawable.img)
+        val mMaskBitmap =
+            BitmapFactory.decodeResource(resources, MaskChanger.getMask().size32).extractAlpha()
+        val maskedDrawable = MaskedDrawableBitmapShader()
+        maskedDrawable.setPictureBitmap(mPictureBitmap)
+        maskedDrawable.setMaskBitmap(mMaskBitmap)
+        binding.imAvatar.setImageDrawable(maskedDrawable)
 
-        binding.imAvatar.setBackgroundResource(MaskChanger.getMask().size32)
 
         val contactAdapter = ContactAdapter(this)
-      //  Glide.with(binding.imAvatar).load(R.drawable.img).centerInside().into(binding.imAvatar)
+        //  Glide.with(binding.imAvatar).load(R.drawable.img).centerInside().into(binding.imAvatar)
 
         binding.recyclerView.adapter = contactAdapter
 

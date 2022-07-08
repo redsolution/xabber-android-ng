@@ -12,7 +12,8 @@
         android:id="@+id/settings_toolbar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@color/blue_300">
+        android:background="@color/blue_300"
+        app:menu="@menu/avatar_mask">
 
         <TextView
             android:id="@+id/tv_settings_toolbar_title"

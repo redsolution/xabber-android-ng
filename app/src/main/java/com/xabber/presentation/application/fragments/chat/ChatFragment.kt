@@ -7,6 +7,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.net.Uri
 import android.os.*
@@ -34,6 +35,8 @@ import com.xabber.data.dto.MessageKind
 import com.xabber.data.xmpp.messages.MessageDisplayType
 import com.xabber.data.xmpp.messages.MessageSendingState
 import com.xabber.databinding.FragmentMessageBinding
+import com.xabber.presentation.application.activity.MaskChanger
+import com.xabber.presentation.application.activity.MaskedDrawableBitmapShader
 import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.application.fragments.DetailBaseFragment
 import com.xabber.presentation.application.fragments.chatlist.NotificationBottomSheet
@@ -88,6 +91,9 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_message), FragmentResu
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         if (savedInstanceState != null) {
+
+
+
             name = savedInstanceState.getString("name", "")
             val messageText = savedInstanceState.getString("message_text", "")
             binding.chatInput.setText(messageText)
@@ -247,7 +253,13 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_message), FragmentResu
 
     private fun populateUiWithData() {
         binding.messageUserName.text = name
-        Glide.with(binding.imAvatar.context).load(R.drawable.images).into(binding.imAvatar)
+  val mPictureBitmap = BitmapFactory.decodeResource(resources, R.drawable.img)
+        val mMaskBitmap =
+            BitmapFactory.decodeResource(resources, MaskChanger.getMask().size48).extractAlpha()
+        val maskedDrawable = MaskedDrawableBitmapShader()
+        maskedDrawable.setPictureBitmap(mPictureBitmap)
+        maskedDrawable.setMaskBitmap(mMaskBitmap)
+        binding.imAvatar.setImageDrawable(maskedDrawable)
         if (binding.chatInput.text.trim().isNotEmpty()) {
             binding.buttonSendMessage.isVisible = true
             binding.buttonAttach.isVisible = false

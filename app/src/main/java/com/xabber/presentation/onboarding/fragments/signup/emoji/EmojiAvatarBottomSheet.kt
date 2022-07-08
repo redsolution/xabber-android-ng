@@ -85,7 +85,7 @@ class EmojiAvatarBottomSheet : BottomSheetDialogFragment() {
 
         palette.forEach { mapElem ->
             mapElem.key.setOnClickListener {
-                binding.avatarBackground.setCardBackgroundColor(
+                binding.avatarBackground.setBackgroundColor(
                     ContextCompat.getColor(requireContext(), mapElem.value)
                 )
                 for (t in toggles) {
@@ -107,9 +107,7 @@ class EmojiAvatarBottomSheet : BottomSheetDialogFragment() {
 
             }
             saveButton.setOnClickListener {
-                val avatar = avatarBackground
-                avatar.radius = 0F
-                val bitmap = viewModel.getBitmapFromView(requireContext(), avatar)
+                val bitmap = viewModel.getBitmapFromView(requireContext(), avatarBackground)
                 onboardingViewModel.setAvatarBitmap(bitmap)
                 viewModel.saveBitmapToFile(bitmap, requireContext().cacheDir)
                 dismiss()

@@ -31,6 +31,9 @@ class SignupUserNameFragment : BaseFragment(R.layout.fragment_signup_username) {
     }
 
     private fun initEditText() {
+ binding.usernameEditText.clearFocus()
+        binding.usernameEditText.requestFocus()
+
         with(binding) {
             usernameEditText.addTextChangedListener(object : TextWatcher {
                 override fun beforeTextChanged(

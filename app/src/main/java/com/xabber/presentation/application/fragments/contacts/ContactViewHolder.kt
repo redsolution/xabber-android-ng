@@ -1,5 +1,7 @@
 package com.xabber.presentation.application.fragments.contacts
 
+import android.content.res.Resources
+import android.graphics.BitmapFactory
 import android.view.Gravity
 import android.widget.PopupMenu
 import androidx.core.view.isVisible
@@ -10,6 +12,8 @@ import com.xabber.data.dto.ContactDto
 import com.xabber.databinding.ItemContactBinding
 import com.xabber.data.xmpp.presences.ResourceStatus
 import com.xabber.data.xmpp.presences.RosterItemEntity
+import com.xabber.presentation.application.activity.MaskChanger
+import com.xabber.presentation.application.activity.MaskedDrawableBitmapShader
 
 class ContactViewHolder(
     private val binding: ItemContactBinding
@@ -146,7 +150,12 @@ class ContactViewHolder(
                 popup.show()
                 true
             }
-            contactImage.setImageResource(R.drawable.ic_xabber_icon)
+
+
+
+
+              contactImage.setBackgroundResource(MaskChanger.getMask().size48)
+
         }
 
 

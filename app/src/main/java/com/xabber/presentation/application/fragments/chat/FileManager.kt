@@ -3,18 +3,19 @@ package com.xabber.presentation.application.fragments.chat
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Environment
 import android.util.Log
 import androidx.core.content.FileProvider
 import androidx.fragment.app.Fragment
 import com.xabber.BuildConfig
-import com.xabber.R
-import com.xabber.presentation.BaseFragment
+import com.xabber.presentation.XabberApplication
 import java.io.*
 import java.net.MalformedURLException
 import java.net.URL
+import java.text.SimpleDateFormat
 import java.util.*
 
-class FileManager: Fragment() {
+class FileManager : Fragment() {
     companion object {
         private val LOG_TAG: String = FileManager::class.java.simpleName
         private val VALID_IMAGE_EXTENSIONS = arrayOf("webp", "jpeg", "jpg", "png", "jpe", "gif")
@@ -22,6 +23,52 @@ class FileManager: Fragment() {
         private const val XABBER_DIR = "Xabber"
         private const val XABBER_AUDIO_DIR = "Xabber Audio"
 
+
+        fun addMediaToGallery(fromPath: String) {
+            val newFile = File(fromPath)
+            val contentUri = Uri.fromFile(newFile)
+            addMediaToGallery(contentUri)
+            Log.d("ylyly", "media")
+        }
+
+        fun addMediaToGallery(uri: Uri) {
+            try {
+                val mediaScanIntent = Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE)
+                mediaScanIntent.data = uri
+                XabberApplication.newInstance().sendBroadcast(mediaScanIntent)
+            } catch (e: Exception) {
+                Log.d("error", "${e.printStackTrace()}")
+            }
+        }
+
+
+        fun generatePicturePath(): File? {
+            try {
+                val storageDir = getAlbumDir()
+                val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
+                return File(storageDir, "IMG_" + timeStamp + ".jpg")
+            } catch (e: java.lang.Exception) {
+
+            }
+            return null
+        }
+
+
+        private fun getAlbumDir(): File? {
+            var storageDir: File? = null
+            if (Environment.MEDIA_MOUNTED == Environment.getExternalStorageState()) {
+                storageDir = File(
+                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES),
+                    "Xabber"
+                )
+                if (!storageDir.mkdirs()) {
+                    if (!storageDir.exists()) {
+                        return null
+                    }
+                }
+            }
+            return storageDir
+        }
 
         fun fileIsImage(file: File): Boolean {
             return extensionIsImage(extractRelevantExtension(file.path))
@@ -75,7 +122,8 @@ class FileManager: Fragment() {
         }
 
 
-       fun getFileUri(file: File, context: Context): Uri = FileProvider.getUriForFile(context, BuildConfig.APPLICATION_ID + ".provider", file)
+        fun getFileUri(file: File, context: Context): Uri =
+            FileProvider.getUriForFile(context, BuildConfig.APPLICATION_ID + ".provider", file)
 
 //        fun isImageSizeGreater(srcUri: Uri?, maxSize: Int): Boolean {
 //            val srcPath: String =
@@ -186,7 +234,7 @@ class FileManager: Fragment() {
 
         fun getFileUri(context: Context, file: File?): Uri {
             return FileProvider.getUriForFile(
-               context,
+                context,
                 "Xabber" + ".provider",
                 file!!
             )
@@ -308,10 +356,9 @@ class FileManager: Fragment() {
 //        }
 //    }
 
-         fun createTempOpusFile(name: String, context: Context) : File {
-        return File.createTempFile(name, ".opus", context.cacheDir)
-    }
-
+        fun createTempOpusFile(name: String, context: Context): File {
+            return File.createTempFile(name, ".opus", context.cacheDir)
+        }
 
 
 //        fun createAudioFile(name: String?): File? {
@@ -371,6 +418,6 @@ class FileManager: Fragment() {
 //            }
 //            return deletedAll
 //        }
-   }
+    }
 }
 

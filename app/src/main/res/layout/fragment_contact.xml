@@ -16,7 +16,7 @@
         <com.google.android.material.appbar.MaterialToolbar
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            app:menu="@menu/avatar_mask">
+            app:menu="@menu/contacts_fragment_toolbar_menu">
 
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:layout_width="match_parent"

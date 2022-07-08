@@ -7,8 +7,8 @@ enum class Mask(
     @DrawableRes val size32: Int,
     @DrawableRes val size48: Int,
     @DrawableRes val size56: Int,
-    @DrawableRes size128: Int,
-    @DrawableRes size176: Int
+    @DrawableRes val size128: Int,
+    @DrawableRes val size176: Int
 ) {
     Circle(
         R.drawable.circle32,

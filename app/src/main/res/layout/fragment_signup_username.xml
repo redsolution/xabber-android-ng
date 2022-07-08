@@ -27,7 +27,7 @@
         app:layout_constraintTop_toTopOf="parent" />
 
 
-    <EditText
+    <androidx.appcompat.widget.AppCompatEditText
         android:id="@+id/username_edit_text"
         android:layout_width="0dp"
         android:layout_height="44dp"

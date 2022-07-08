@@ -1,6 +1,7 @@
 package com.xabber.presentation.application.fragments.chat
 
 import android.annotation.SuppressLint
+import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.graphics.PorterDuff
 import android.os.Build
@@ -20,6 +21,8 @@ import com.xabber.R
 import com.xabber.data.dto.MessageDto
 import com.xabber.presentation.application.util.dp
 import com.xabber.databinding.ItemMessageIncomingBinding
+import com.xabber.presentation.application.activity.MaskChanger
+import com.xabber.presentation.application.activity.MaskedDrawableBitmapShader
 import com.xabber.presentation.application.util.StringUtils
 import java.util.*
 
@@ -125,7 +128,15 @@ class IncomingMessageVH(
             ), PorterDuff.Mode.MULTIPLY
         )
 
-
+if (binding.avatarContact.isVisible) {
+    val mPictureBitmap = BitmapFactory.decodeResource(binding.root.context.resources, R.drawable.img)
+        val mMaskBitmap =
+            BitmapFactory.decodeResource(binding.root.context.resources, MaskChanger.getMask().size48).extractAlpha()
+        val maskedDrawable = MaskedDrawableBitmapShader()
+        maskedDrawable.setPictureBitmap(mPictureBitmap)
+        maskedDrawable.setMaskBitmap(mMaskBitmap)
+        binding.avatarContact.setImageDrawable(maskedDrawable)
+}
         //   val popupMenu = createPopupMenu(messageDto, binding.root)
 
         binding.root.setOnClickListener {
