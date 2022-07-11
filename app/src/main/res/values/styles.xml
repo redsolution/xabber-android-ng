@@ -39,18 +39,7 @@
         <item name="android:textColor">@color/white</item>
     </style>
 
-    <style name="ShadowWrapper">
-        <item name="shadow_radius">8</item>
-        <item name="shadow_x_shift">0dp</item>
-        <item name="shadow_y_shift">0.5dp</item>
-        <item name="shadow_downscale">1</item>
-        <item name="shadow_color">@color/grey_200</item>
-        <item name="shadow_with_color">false</item>
-        <item name="shadow_with_dpi_scale">true</item>
-        <item name="shadow_with_css_scale">false</item>
-        <item name="shadow_cast_only_background">true</item>
-        <item name="shadow_with_content">true</item>
-    </style>
+
 
 <style name="DialogStyle" parent="Theme.Design.Light.BottomSheetDialog">
 <item name="android:windowIsFloating">false</item>

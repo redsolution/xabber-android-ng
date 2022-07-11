@@ -2,12 +2,16 @@ package com.xabber.presentation.onboarding.fragments.signup.emoji
 
 import android.app.Dialog
 import android.content.DialogInterface
+import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.RelativeLayout
 import androidx.core.content.ContextCompat
+import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.isVisible
 import androidx.core.view.updateLayoutParams
 import androidx.fragment.app.activityViewModels
@@ -17,6 +21,8 @@ import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.xabber.R
 import com.xabber.databinding.FragmentEmojiAvatarBinding
+import com.xabber.presentation.application.activity.Mask
+import com.xabber.presentation.application.activity.MaskedDrawableBitmapShader
 import com.xabber.presentation.application.util.AppConstants
 import com.xabber.presentation.application.util.dp
 import com.xabber.presentation.application.util.setFragmentResultListener
@@ -83,11 +89,23 @@ class EmojiAvatarBottomSheet : BottomSheetDialogFragment() {
             binding.amberTint to binding.amberTintToggle,
         )
 
+        val mMaskBitmap =
+            BitmapFactory.decodeResource(resources, Mask.Circle.size128).extractAlpha()
+        val maskedDrawable = MaskedDrawableBitmapShader()
+        maskedDrawable.setMaskBitmap(mMaskBitmap)
+Log.d("results", "${binding.avatarBackground.layoutParams.width}, ${binding.avatarBackground.width}")
+
         palette.forEach { mapElem ->
             mapElem.key.setOnClickListener {
                 binding.avatarBackground.setBackgroundColor(
                     ContextCompat.getColor(requireContext(), mapElem.value)
                 )
+                  Log.d("results", "${binding.avatarBackground.width}, ${binding.avatarBackground.height}")
+                val newBitmap =
+                    viewModel.getBitmapFromView(requireContext(), binding.avatarBackground)
+                maskedDrawable.setPictureBitmap(newBitmap)
+                binding.avatarBackground.setBackgroundDrawable(maskedDrawable)
+
                 for (t in toggles) {
                     t.value.isVisible = false
                 }
@@ -120,7 +138,7 @@ class EmojiAvatarBottomSheet : BottomSheetDialogFragment() {
 
         setFragmentResultListener(AppConstants.REQUEST_EMOJI_KEY) { _, result ->
             result.getString(AppConstants.RESPONSE_EMOJI_KEY)?.let { emoji ->
-                binding.emojiText.text = emoji
+                binding.avatarBackground.text = emoji
             }
         }
     }

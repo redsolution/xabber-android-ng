@@ -31,6 +31,7 @@
         android:layout_width="0dp"
         android:layout_height="56dp"
         android:layout_marginStart="56dp"
+        android:layout_marginTop="24dp"
         android:layout_marginEnd="56dp"
         android:enabled="false"
         android:gravity="center"
@@ -42,48 +43,31 @@
         android:textSize="17sp"
         android:theme="@style/SignUpButtonNext"
         app:cornerRadius="100dp"
-        android:layout_marginTop="24dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/profile_image_background" />
+        app:layout_constraintTop_toBottomOf="@id/profile_image" />
 
-
-    <com.google.android.material.card.MaterialCardView
-        android:id="@+id/profile_image_background"
-        android:layout_width="170dp"
-        android:layout_height="170dp"
-        android:layout_marginStart="92dp"
-        android:layout_marginLeft="92dp"
+    <ImageView
+        android:id="@+id/profile_image"
+        android:layout_width="176dp"
+        android:layout_height="176dp"
+        android:layout_gravity="center"
         android:layout_marginTop="45dp"
-        android:layout_marginEnd="92dp"
-        android:layout_marginRight="92dp"
-        android:theme="@style/LargeAvatarCardView"
-        app:cardCornerRadius="85dp"
+        android:contentDescription="@string/image_view_description_profile_image"
         app:layout_constraintDimensionRatio="1:1"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/avatar_title">
-
-        <ImageView
-            android:id="@+id/profile_image"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:layout_gravity="center"
-            android:padding="21dp"
-            app:srcCompat="@drawable/ic_avatar_placeholder"
-            android:contentDescription="@string/image_view_description_profile_image" />
-
-
-    </com.google.android.material.card.MaterialCardView>
+        app:layout_constraintTop_toBottomOf="@+id/avatar_title"
+        android:src="@drawable/avatar_place_holder"/>
 
     <ImageView
-        android:src="@drawable/ic_photo_circle"
         android:id="@+id/profile_photo_background"
         android:layout_width="58dp"
-        android:elevation="10dp"
         android:layout_height="58dp"
-        app:layout_constraintBottom_toBottomOf="@+id/profile_image_background"
-        app:layout_constraintEnd_toEndOf="@+id/profile_image_background"/>
+        android:elevation="10dp"
+        android:src="@drawable/ic_photo_circle"
+        app:layout_constraintBottom_toBottomOf="@+id/profile_image"
+        app:layout_constraintEnd_toEndOf="@+id/profile_image" />
 
 
 </androidx.constraintlayout.widget.ConstraintLayout>

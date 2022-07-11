@@ -6,6 +6,7 @@ import android.content.DialogInterface
 import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -22,6 +23,7 @@ import com.xabber.presentation.application.fragments.chat.FileManager
 import com.xabber.presentation.application.fragments.chat.FileManager.Companion.getFileUri
 import com.xabber.presentation.application.util.askUserForOpeningAppSettings
 import com.xabber.presentation.application.util.dp
+import com.xabber.presentation.application.util.isPermissionGranted
 import com.xabber.presentation.onboarding.activity.OnboardingViewModel
 import com.xabber.presentation.onboarding.contract.navigator
 import com.xabber.presentation.onboarding.fragments.signup.emoji.EmojiAvatarBottomSheet
@@ -33,17 +35,17 @@ class AvatarBottomSheet : BottomSheetDialogFragment() {
     private val onboardingViewModel: OnboardingViewModel by activityViewModels()
     private var currentPhotoUri: Uri? = null
 
-//    private val requestCameraPermissionLauncher = registerForActivityResult(
-//        ActivityResultContracts.RequestMultiplePermissions(), ::onGotCameraPermissionResult
-//    )
+    private val requestCameraPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions(), ::onGotCameraPermissionResult
+    )
 
     private val requestGalleryPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission(), ::onGotGalleryPermissionResult
     )
 
-//    private val cameraResultLauncher = registerForActivityResult(
-//        ActivityResultContracts.TakePicture(), ::onSaveImage
-//    )
+    private val cameraResultLauncher = registerForActivityResult(
+        ActivityResultContracts.TakePicture(), ::onSaveImage
+    )
 
     private val galleryResultLauncher = registerForActivityResult(
         ActivityResultContracts.GetContent(),
@@ -81,26 +83,26 @@ class AvatarBottomSheet : BottomSheetDialogFragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        galleryResultLauncher.launch("image/*")
+      //  if (isPermissionGranted(Manifest.permission.READ_EXTERNAL_STORAGE)) galleryResultLauncher.launch("image/*")
+     //  galleryResultLauncher.launch("image/*")
+
         with(binding) {
             emojiViewGroup.setOnClickListener {
                 navigator().openBottomSheetDialogFragment(EmojiAvatarBottomSheet())
                 dismiss()
             }
             selfieViewGroup.setOnClickListener {
-//                requestCameraPermissionLauncher.launch(
-//                    arrayOf(
-//                        Manifest.permission.CAMERA,
-//                        Manifest.permission.WRITE_EXTERNAL_STORAGE
-//                    )
-//                )
-                dismiss()
+                requestCameraPermissionLauncher.launch(
+                    arrayOf(
+                        Manifest.permission.CAMERA,
+                        Manifest.permission.WRITE_EXTERNAL_STORAGE
+                    )
+                )
             }
             choseImageViewGroup.setOnClickListener {
                 requestGalleryPermissionLauncher.launch(
                     Manifest.permission.READ_EXTERNAL_STORAGE,
                 )
-                dismiss()
             }
         }
     }
@@ -109,7 +111,7 @@ class AvatarBottomSheet : BottomSheetDialogFragment() {
         val image: File? = FileManager.generatePicturePath()
         if (image != null) {
             currentPhotoUri = getFileUri(image, requireContext())
-           // cameraResultLauncher.launch(currentPhotoUri)
+           cameraResultLauncher.launch(currentPhotoUri)
         }
 
     }
@@ -134,14 +136,17 @@ class AvatarBottomSheet : BottomSheetDialogFragment() {
         galleryResultLauncher.launch("image/*")
     }
 
-    private fun onTakePictureFromGallery(result: Uri) {
-        onboardingViewModel.setAvatarUri(result)
+    private fun onTakePictureFromGallery(result: Uri?) {
+        Log.d("resulturi", "$result")
+       onboardingViewModel.setAvatarUri(result!!)
+        dismiss()
     }
 
 
     private fun onSaveImage(result: Boolean) {
         if (result) {
             if (currentPhotoUri != null) onboardingViewModel.setAvatarUri(currentPhotoUri!!)
+            dismiss()
         }
     }
 

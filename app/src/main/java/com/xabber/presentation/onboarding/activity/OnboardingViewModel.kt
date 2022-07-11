@@ -79,7 +79,6 @@ class OnboardingViewModel : ViewModel() {
 
     fun setAvatarUri(uri: Uri) {
         _avatarUri.value = uri
-        Log.d("yyy", "$uri")
     }
 }
 
