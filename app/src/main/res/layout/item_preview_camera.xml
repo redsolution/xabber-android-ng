@@ -34,7 +34,7 @@
         android:id="@+id/image_view_preview_camera"
         android:layout_width="40dp"
         android:layout_height="40dp"
-        android:src="@drawable/ic_camera"
+        android:src="@drawable/ic_camera_icon"
         android:textColor="@color/white"
         app:layout_constraintBottom_toBottomOf="@id/preview_camera"
         app:layout_constraintEnd_toEndOf="@id/preview_camera"

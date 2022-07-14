@@ -67,7 +67,7 @@ class SigninFragment : BaseFragment(R.layout.fragment_signin) {
                 if (!jidText.contains('@'))
                     jidText += "@$host"
                 binding.btnConnect.isEnabled =
-                    p0.toString().isNotEmpty() && viewModel.isJidValid(jidText)
+                    p0.toString().isNotEmpty() && viewModel.isJidValid(jidText) && binding.editTextPassword.text.toString().isNotEmpty()
                 binding.signinSubtitle1.setTextColor(
                     ResourcesCompat.getColor(
                         resources,
@@ -98,7 +98,7 @@ class SigninFragment : BaseFragment(R.layout.fragment_signin) {
     private fun initButton() {
         with(binding) {
             btnConnect.setOnClickListener {
-                if (editTextPassword.text.trim()
+                if (editTextPassword.text?.trim()
                         .toString(
                         ) != password
                 ) {
@@ -136,7 +136,7 @@ class SigninFragment : BaseFragment(R.layout.fragment_signin) {
 
                     rvFeature.visibility = View.VISIBLE
                     closeKeyboard()
-                    if (viewModel.isJidValid(editTextLogin.text.toString()) || editTextPassword.text.length > 5) {
+                    if (viewModel.isJidValid(editTextLogin.text.toString()) || editTextPassword.text!!.length > 5) {
                         compositeDisposable?.add(viewModel.features
                             .doOnNext { list ->
                                 if (list.filter { it.nameResId == R.string.feature_name_4 }

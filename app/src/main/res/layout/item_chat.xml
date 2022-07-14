@@ -36,13 +36,13 @@
         android:layout_height="16dp"
         app:layout_constraintBottom_toBottomOf="@id/chat_image"
         app:layout_constraintEnd_toEndOf="@id/chat_image"
-        tools:src="@drawable/ic_status_bot_online" />
+        tools:src="@drawable/status_bot_online" />
 
     <ImageView
         android:id="@+id/chat_status_14"
         android:layout_width="14dp"
         android:layout_height="14dp"
-        android:src="@drawable/ic_status_online"
+        android:src="@drawable/status_online"
         app:layout_constraintBottom_toBottomOf="@id/chat_image"
         app:layout_constraintEnd_toEndOf="@id/chat_image" />
 
@@ -98,7 +98,7 @@
         android:layout_width="18dp"
         android:layout_height="18dp"
         android:layout_marginStart="4dp"
-        android:src="@drawable/ic_material_bell_off_24"
+        android:src="@drawable/ic_bell_off_light"
         android:visibility="gone"
         app:layout_constraintBottom_toBottomOf="@+id/chat_name"
         app:layout_constraintStart_toEndOf="@id/chat_name"
@@ -110,7 +110,7 @@
         android:layout_width="28dp"
         android:layout_height="28dp"
         android:layout_marginEnd="8dp"
-        android:src="@drawable/ic_material_pinned_24"
+        android:src="@drawable/ic_pinned"
         android:visibility="gone"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
@@ -122,7 +122,7 @@
         android:layout_width="13dp"
         android:layout_height="13dp"
         android:layout_marginEnd="8dp"
-        android:src="@drawable/ic_material_check_all_24"
+        android:src="@drawable/ic_check_all_green"
         android:visibility="gone"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toStartOf="@id/chat_pinned"

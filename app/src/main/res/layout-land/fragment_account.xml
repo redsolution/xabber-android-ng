@@ -62,7 +62,7 @@
                 android:focusable="true"
                 android:padding="3dp"
                 android:layout_marginLeft="18dp"
-                app:srcCompat="@drawable/ic_color_lens_white_24dp"
+                app:srcCompat="@drawable/ic_color_lens_white"
                 tools:layout_editor_absoluteX="16dp"
                 tools:layout_editor_absoluteY="12dp" />
 

@@ -63,14 +63,14 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        tools:src="@drawable/ic_status_bot_online" />
+        tools:src="@drawable/status_bot_online" />
 
     <ImageView
         android:id="@+id/contact_status_14"
         android:layout_width="14dp"
         android:layout_height="14dp"
         android:layout_marginEnd="16dp"
-        android:src="@drawable/ic_status_online"
+        android:src="@drawable/status_online"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="parent" />

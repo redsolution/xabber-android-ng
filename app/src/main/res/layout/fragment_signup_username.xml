@@ -2,19 +2,15 @@
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:clipChildren="false"
-    android:clipToPadding="false">
+    android:layout_height="match_parent">
 
     <TextView
         android:id="@+id/username_title"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="32dp"
-        android:layout_marginLeft="32dp"
         android:layout_marginTop="64dp"
         android:layout_marginEnd="32dp"
-        android:layout_marginRight="32dp"
         android:gravity="center"
         android:lineSpacingMultiplier="1.20"
         android:maxWidth="312dp"
@@ -26,28 +22,18 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-
     <androidx.appcompat.widget.AppCompatEditText
         android:id="@+id/username_edit_text"
         android:layout_width="0dp"
-        android:layout_height="44dp"
-        android:layout_marginHorizontal="24dp"
-        android:layout_marginStart="48dp"
         android:layout_marginTop="24dp"
-        android:layout_marginEnd="48dp"
-        android:background="@drawable/edit_text_background"
-        android:gravity="center"
         android:hint="@string/signup_username_edit_text_label"
         android:imeOptions="actionDone|flagNoExtractUi"
         android:inputType="textVisiblePassword"
-        android:textColor="@color/grey_900"
-        android:textColorHint="@color/grey_400"
-        android:textSize="20sp"
+        style="@style/OnboardingEditText"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/username_title"
         android:importantForAutofill="no" />
-
 
     <TextView
         android:id="@+id/username_subtitle"
@@ -55,14 +41,14 @@
         android:layout_height="wrap_content"
         android:layout_marginStart="56dp"
         android:layout_marginLeft="56dp"
-        android:layout_marginTop="16dp"
+        android:layout_marginTop="@dimen/margin_onboarding_standard"
         android:layout_marginEnd="56dp"
         android:layout_marginRight="56dp"
         android:gravity="center"
         android:lineSpacingMultiplier="1.1"
         android:text="@string/signup_username_subtitle"
         android:textColor="@color/grey_text_3"
-        android:textSize="13sp"
+        android:textSize="@dimen/onboarding_small_text_size"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/username_edit_text" />
@@ -70,11 +56,7 @@
     <com.google.android.material.button.MaterialButton
         android:id="@+id/username_btn_next"
         android:layout_width="0dp"
-        android:layout_height="56dp"
-        android:layout_marginHorizontal="24dp"
-        android:layout_marginStart="48dp"
         android:layout_marginTop="92dp"
-        android:layout_marginEnd="48dp"
         android:enabled="false"
         android:gravity="center"
         android:longClickable="false"
@@ -82,12 +64,11 @@
         android:text="@string/signup_next_button"
         android:textAllCaps="false"
         android:textIsSelectable="false"
-        android:textSize="17sp"
-        android:theme="@style/SignUpButtonNext"
+        android:textSize="@dimen/onboarding_button_font_size"
+        android:theme="@style/OnboardingButtonNext"
         app:cornerRadius="100dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/username_edit_text" />
-
 
 </androidx.constraintlayout.widget.ConstraintLayout>

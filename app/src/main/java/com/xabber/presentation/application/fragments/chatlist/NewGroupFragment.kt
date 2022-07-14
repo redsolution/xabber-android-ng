@@ -23,7 +23,7 @@ class NewGroupFragment : DetailBaseFragment(R.layout.fragment_new_group) {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         if (incognito) initIncognitoUi()
-        binding.newGroupToolbar.setNavigationIcon(R.drawable.ic_material_close_24)
+        binding.newGroupToolbar.setNavigationIcon(R.drawable.ic_close)
         binding.newGroupToolbar.setNavigationOnClickListener { navigator().closeDetail() }
     }
 

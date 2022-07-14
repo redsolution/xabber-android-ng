@@ -7,7 +7,7 @@
         <item name="android:windowLightStatusBar">true</item>
         <item name="android:statusBarColor">@color/white</item>
         <item name="colorPrimary">@color/white</item>
-        <item name="homeAsUpIndicator">@drawable/ic_material_chevron_left_variant_24</item>
+        <item name="homeAsUpIndicator">@drawable/ic_chevron_left_grey</item>
         <item name="bottomSheetDialogTheme">@style/BaseBottomSheetDialogTheme</item>
     </style>
 
@@ -19,7 +19,7 @@
         <item name="android:navigationBarColor">@color/white</item>
         <item name="colorPrimary">@color/blue_300</item>
         <item name="colorOnBackground">@color/grey_600</item>
-        <item name="homeAsUpIndicator">@drawable/ic_material_chevron_left_variant_24</item>
+        <item name="homeAsUpIndicator">@drawable/ic_chevron_left_grey</item>
         <item name="windowActionModeOverlay">true</item>
         <item name="transparent_rounded_background">@drawable/rounded_background_grey_transparent_dark</item>
     </style>

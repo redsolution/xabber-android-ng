@@ -4,17 +4,17 @@
     <item
         android:id="@+id/gallery"
         android:enabled="true"
-        android:icon="@drawable/ic_gallery_circle"
+        android:icon="@drawable/gallery_circle"
         android:title="Gallery" />
 
     <item
         android:id="@+id/file"
-        android:icon="@drawable/ic_file_circle"
+        android:icon="@drawable/file_circle"
         android:title="File" />
 
     <item
         android:id="@+id/location"
-        android:icon="@drawable/ic_location_circle"
+        android:icon="@drawable/location_circle"
         android:title="Location" />
 
 </menu>

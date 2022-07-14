@@ -11,6 +11,7 @@ import android.os.Bundle
 import android.provider.Settings
 import android.view.Display
 import android.view.Surface
+import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
@@ -19,6 +20,10 @@ import com.xabber.R
 import com.xabber.data.dto.*
 import com.xabber.presentation.onboarding.fragments.signup.emoji.EmojiTypeDto
 
+
+fun Fragment.showToast(message: String) {
+    Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+}
 
 fun Fragment.isPermissionGranted(permission: String): Boolean {
     return ContextCompat.checkSelfPermission(

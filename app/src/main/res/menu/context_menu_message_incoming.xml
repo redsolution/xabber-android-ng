@@ -3,17 +3,17 @@
 <item
         android:id="@+id/copy"
         android:title="   Copy"
-    android:icon="@drawable/ic_content_copy"/>
+    android:icon="@drawable/ic_content_copy_grey"/>
 
     <item
         android:id="@+id/forward"
         android:title="   Forward"
-        android:icon="@drawable/ic_forward"/>
+        android:icon="@drawable/ic_forward_grey"/>
 
     <item
         android:id="@+id/reply"
         android:title="   Reply"
-        android:icon="@drawable/ic_reply"/>
+        android:icon="@drawable/ic_reply_grey"/>
 
     <item
         android:id="@+id/delete_message"

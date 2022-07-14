@@ -27,7 +27,7 @@
         android:layout_alignParentEnd="true"
         android:layout_alignParentBottom="true"
         android:visibility="visible"
-        tools:src="@drawable/ic_material_check_circle_24" />
+        tools:src="@drawable/checkbox_checked_circle_green" />
 
     <ProgressBar
         android:id="@+id/feature_load"

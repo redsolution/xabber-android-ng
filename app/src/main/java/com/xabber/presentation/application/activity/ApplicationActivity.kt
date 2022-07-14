@@ -5,22 +5,16 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ActivityInfo
-import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.content.res.Resources
 import android.graphics.Point
-import android.media.MediaScannerConnection
-import android.net.Uri
 import android.os.Bundle
-import android.os.Environment
-import android.provider.Settings
 import android.util.Log
 import android.view.Display
 import android.view.Surface
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.updateLayoutParams
@@ -51,9 +45,6 @@ import com.xabber.presentation.onboarding.activity.OnBoardingActivity
 import io.realm.Realm
 import io.realm.RealmConfiguration
 import io.realm.query
-import java.io.File
-import java.text.SimpleDateFormat
-import java.util.*
 
 class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
     private val binding: ActivityApplicationBinding by lazy {
@@ -62,7 +53,6 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
         )
     }
 
-    var currentPath = ""
     private val activeFragment: Fragment?
         get() = supportFragmentManager.findFragmentById(R.id.application_container)
     private val viewModel: ApplicationViewModel by viewModels()
@@ -71,54 +61,6 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
     private val requestRecordAudioPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission(), ::onGotRecordAudioPermissionResult
     )
-
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        galleryAddPick()
-    }
-
-    private fun galleryAddPick() {
-        //  val image = generatePicturePath()
-        //  val currentPhotoPath = image?.absolutePath
-        val file = generatePicturePath()
-        Log.d("camera", "$file")
-        MediaScannerConnection.scanFile(
-            this, arrayOf(file.toString()),
-            null, null
-        )
-        Log.d("camera", "123")
-
-//        Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE).also { mediaScanIntent ->
-//            val photoFile = generatePicturePath()
-//           // Log.d("mmm", "$currentPhotoPath")
-//            mediaScanIntent.data = Uri.fromFile(photoFile)
-//           sendBroadcast(mediaScanIntent)
-//            Log.d("camera", "addGallery")
-    }
-
-
-    private fun addMediaToGallery(fromPath: String) {
-        val f = File(fromPath)
-        val contentUri = Uri.fromFile(f)
-        addMediaUriToGallery(contentUri)
-    }
-
-    private fun addMediaUriToGallery(uri: Uri) {
-        try {
-            val mediaScanIntent = Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE)
-            mediaScanIntent.data = uri
-            this.sendBroadcast(mediaScanIntent);
-        } catch (e: Exception) {
-
-        }
-    }
-
-    fun openFiles() {
-        val intent =
-            Intent(Intent.ACTION_GET_CONTENT).setType("*/*").addCategory(Intent.CATEGORY_OPENABLE)
-        intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
-        //  startActivityForResult(intent, FILE_SELECT_ACTIVITY_REQUEST_CODE);
-    }
 
 
     private fun onGotRecordAudioPermissionResult(granted: Boolean) {
@@ -134,60 +76,6 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
         }
     }
 
-
-    private fun generatePicturePath(): File? {
-        try {
-            val storageDir = getExternalFilesDir(Environment.DIRECTORY_PICTURES)
-            // val storageDir = getAlbumDir()
-            val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
-            return File(storageDir, "IMG_" + timeStamp + ".jpg")
-        } catch (e: java.lang.Exception) {
-
-        }
-        return null
-    }
-
-    private fun getAlbumDir(): File? {
-        Log.d("data photo", "name = ${this.applicationInfo.labelRes}")
-        var storageDir: File? = null
-        storageDir = File(
-            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES),
-            this.applicationInfo.labelRes.toString()
-        )
-        if (!storageDir.mkdirs()) {
-            if (!storageDir.exists()) {
-                Log.d("data photo", "failed to create directory")
-                return null
-            }
-        }
-
-        return storageDir
-    }
-
-
-    private fun askUserForOpeningAppSettings() {
-        val appSettingsIntent = Intent(
-            Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-            Uri.fromParts("package", packageName, null)
-        )
-        if (packageManager.resolveActivity(
-                appSettingsIntent,
-                PackageManager.MATCH_DEFAULT_ONLY
-            ) == null
-        ) {
-
-        } else {
-            AlertDialog.Builder(this)
-                .setTitle("Permission denied")
-                .setMessage(R.string.offer_to_open_settings)
-                .setNegativeButton(R.string.cancel) { dialog, _ -> dialog.dismiss() }
-                .setPositiveButton(R.string.dialog_button_open) { _, _ ->
-                    startActivity(appSettingsIntent)
-                }
-                .create()
-                .show()
-        }
-    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -206,7 +94,7 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
             else -> Mask.Star
         }
         Log.d("shared", "$mask")
-        MaskChanger.setMask(mask)
+        UiChanger.setMask(mask)
         if (true) {
             if (getWidthWindowSizeClass() == WidthWindowSize.MEDIUM || getWidthWindowSizeClass() == WidthWindowSize.EXPANDED) setContainerWidth()
             if (savedInstanceState == null) {
@@ -367,8 +255,6 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
 
     override fun showChatFragment() {
         if (slidingPaneLayoutIsOpen()) launchDetailInStack(ChatListFragment())
-        Log.d("sliding", "activity ${slidingPaneLayoutIsOpen()}")
-
     }
 
     override fun showMessage(jid: String) {
@@ -417,8 +303,8 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
         super.onDestroy()
         requestRecordAudioPermissionLauncher.unregister()
         getSharedPreferences(AppConstants.MASK_KEY, Context.MODE_PRIVATE).edit()
-            .putString(AppConstants.MASK_KEY, MaskChanger.getMask().name).apply()
-        Log.d("shared", "${MaskChanger.getMask().name}")
+            .putString(AppConstants.MASK_KEY, UiChanger.getMask().name).apply()
+        Log.d("shared", "${UiChanger.getMask().name}")
     }
 
     override fun requestPermissionToRecord(): Boolean {

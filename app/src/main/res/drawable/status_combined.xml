@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<level-list xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Regular chat -->
+    <item
+        android:drawable="@drawable/status_chat"
+        android:maxLevel="0"
+        android:minLevel="0" />
+    <item
+        android:drawable="@drawable/status_online"
+        android:maxLevel="1"
+        android:minLevel="1" />
+    <item
+        android:drawable="@drawable/status_away"
+        android:maxLevel="2"
+        android:minLevel="2" />
+    <item
+        android:drawable="@drawable/ic_status_xa"
+        android:maxLevel="3"
+        android:minLevel="3" />
+    <item
+        android:drawable="@drawable/status_dnd"
+        android:maxLevel="4"
+        android:minLevel="4" />
+
+
+    <!-- Public group -->
+    <item
+        android:drawable="@drawable/status_public_group_chat"
+        android:maxLevel="20"
+        android:minLevel="20" />
+
+
+    <!-- Incognito group -->
+    <item
+        android:drawable="@drawable/status_incognito_group_chat"
+        android:maxLevel="30"
+        android:minLevel="30" />
+    <item
+        android:drawable="@drawable/status_incognito_group_online"
+        android:maxLevel="31"
+        android:minLevel="31" />
+    <item
+        android:drawable="@drawable/status_incognito_group_away"
+        android:maxLevel="32"
+        android:minLevel="32" />
+    <item
+        android:drawable="@drawable/status_incognito_group_xa"
+        android:maxLevel="33"
+        android:minLevel="33" />
+    <item
+        android:drawable="@drawable/status_incognito_group_dnd"
+        android:maxLevel="34"
+        android:minLevel="34" />
+    <item
+        android:drawable="@drawable/status_incognito_group_unavailable"
+        android:maxLevel="35"
+        android:minLevel="35" />
+
+
+    <!-- Bot -->
+    <item
+        android:drawable="@drawable/status_bot_chat"
+        android:maxLevel="60"
+        android:minLevel="60" />
+    <item
+        android:drawable="@drawable/status_bot_online"
+        android:maxLevel="61"
+        android:minLevel="61" />
+    <item
+        android:drawable="@drawable/status_bot_away"
+        android:maxLevel="62"
+        android:minLevel="62" />
+    <item
+        android:drawable="@drawable/status_bot_xa"
+        android:maxLevel="63"
+        android:minLevel="63" />
+    <item
+        android:drawable="@drawable/status_bot_dnd"
+        android:maxLevel="64"
+        android:minLevel="64" />
+    <item
+        android:drawable="@drawable/status_bot_unavailable"
+        android:maxLevel="65"
+        android:minLevel="65" />
+
+
+</level-list>

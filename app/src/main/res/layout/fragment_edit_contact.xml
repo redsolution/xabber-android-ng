@@ -69,7 +69,7 @@
         android:layout_marginStart="24dp"
         android:layout_marginTop="48dp"
         android:contentDescription="@string/receiving_presence_updates"
-        android:src="@drawable/ic_subscription_to"
+        android:src="@drawable/ic_subscription_to_grey"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/contact_edit_image" />
 
@@ -94,7 +94,7 @@
         android:layout_marginStart="24dp"
         android:layout_marginTop="28dp"
         android:contentDescription="@string/sending_presence_updates"
-        android:src="@drawable/ic_subscription_from"
+        android:src="@drawable/ic_subscription_from_grey"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/im_receive" />
 

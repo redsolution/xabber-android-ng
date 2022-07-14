@@ -1,11 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <dimen name="button_font_size">17sp</dimen>
+    <dimen name="margin_onboarding_small">12dp</dimen>
+    <dimen name="margin_onboarding_standard">16dp</dimen>
+    <dimen name="margin_onboarding_large">36dp</dimen>
+    <dimen name="margin_onboarding_medium">32dp</dimen>
+    <dimen name="margin_onboarding_text">40dp</dimen>
+    <dimen name="margin_onboarding_extra_large">64dp</dimen>
+    <dimen name="margin_horizontal_onboarding">48dp</dimen>
+    <dimen name="button_next_height">56dp</dimen>
+    <dimen name="button_next_radius">100dp</dimen>
+    <dimen name="progress_bar_size">32dp</dimen>
     <dimen name="image_xabber_size">128dp</dimen>
     <dimen name="container_width_onboarding">360dp</dimen>
-    <integer name="container_container_wrapper_horizontal_width">1</integer>
-    <integer name="details_content_container_wrapper_horihontal_width">0</integer>
     <dimen name="account_status_border">1dp</dimen>
     <dimen name="account_status">12dp</dimen>
     <dimen name="avatar_chat_size">44dp</dimen>
+
+    <dimen name="extra_large_text_size">34sp</dimen>
+    <dimen name="onboarding_title_text_size">20sp</dimen>
+    <dimen name="onboarding_button_font_size">17sp</dimen>
+    <dimen name="onboarding_medium_text_size">15sp</dimen>
+    <dimen name="onboarding_small_text_size">13sp</dimen>
 </resources>

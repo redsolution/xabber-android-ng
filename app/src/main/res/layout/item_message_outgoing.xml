@@ -30,7 +30,7 @@
                 android:layout_height="28dp"
                 android:layout_gravity="bottom"
                 android:layout_marginStart="6dp"
-                android:button="@drawable/checkbox_selector"
+                android:button="@drawable/checkbox_selector_green_circle"
                 android:gravity="start"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintStart_toStartOf="parent" />
@@ -158,7 +158,7 @@
                             android:layout_width="14dp"
                             android:layout_height="14dp"
                             android:layout_marginStart="4dp"
-                            android:src="@drawable/ic_material_check_24" />
+                            android:src="@drawable/ic_check_green" />
                     </LinearLayout>
 
                 </com.xabber.presentation.custom.CustomFlexboxLayout>
@@ -188,7 +188,7 @@
                         android:layout_height="14dp"
                         android:layout_gravity="top"
                         android:layout_marginStart="4dp"
-                        android:src="@drawable/ic_material_check_24" />
+                        android:src="@drawable/ic_check_green" />
                 </LinearLayout>
             </LinearLayout>
 

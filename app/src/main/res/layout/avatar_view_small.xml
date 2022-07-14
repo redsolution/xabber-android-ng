@@ -21,7 +21,7 @@
         android:layout_width="16dp"
         android:layout_height="16dp"
         android:layout_gravity="bottom|right"
-        android:src="@drawable/ic_status_combined"
+        android:src="@drawable/status_combined"
         android:visibility="gone" />
 
     <ImageView
@@ -29,13 +29,13 @@
         android:layout_width="16dp"
         android:layout_height="16dp"
         android:layout_gravity="bottom|right"
-        android:src="@drawable/ic_status_combined" />
+        android:src="@drawable/status_combined" />
 
     <ImageView
         android:id="@+id/ivOnlyStatus"
         android:layout_width="16dp"
         android:layout_height="16dp"
-        android:src="@drawable/ic_status_combined"
+        android:src="@drawable/status_combined"
         android:visibility="gone" />
 
     <de.hdodenhof.circleimageview.CircleImageView

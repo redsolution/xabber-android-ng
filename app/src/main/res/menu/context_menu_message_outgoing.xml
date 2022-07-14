@@ -2,17 +2,17 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
     <item
         android:id="@+id/copy"
-        android:icon="@drawable/ic_content_copy"
+        android:icon="@drawable/ic_content_copy_grey"
         android:title="@string/message_item_popup_menu_copy" />
 
     <item
         android:id="@+id/forward"
-        android:icon="@drawable/ic_forward"
+        android:icon="@drawable/ic_forward_grey"
         android:title="@string/message_item_popup_menu_forward" />
 
     <item
         android:id="@+id/reply"
-        android:icon="@drawable/ic_reply"
+        android:icon="@drawable/ic_reply_grey"
         android:title="@string/message_item_popup_menu_reply" />
 
     <item

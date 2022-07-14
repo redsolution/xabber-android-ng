@@ -25,7 +25,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:contentDescription="@string/image_description_close"
-                android:src="@drawable/ic_material_close_24" />
+                android:src="@drawable/ic_close" />
 
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:id="@+id/message_constraint"
@@ -91,7 +91,7 @@
                             android:layout_height="16dp"
                             android:layout_gravity="center_vertical"
                             android:layout_marginStart="8dp"
-                            android:src="@drawable/ic_bell_off_forever"
+                            android:src="@drawable/ic_bell_off_forever_grey"
                             android:visibility="gone" />
                     </LinearLayout>
 
@@ -147,7 +147,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginHorizontal="14dp"
-                    android:src="@drawable/ic_content_copy" />
+                    android:src="@drawable/ic_content_copy_grey" />
 
                 <ImageView
                     android:id="@+id/im_delete_messages"
@@ -267,7 +267,7 @@
             android:layout_height="wrap_content"
             android:layout_margin="8dp"
             android:layout_toEndOf="@id/reply_message_content"
-            android:src="@drawable/ic_material_close_24"
+            android:src="@drawable/ic_close"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toEndOf="@id/reply_message_content"
             app:layout_constraintTop_toTopOf="parent" />
@@ -311,7 +311,7 @@
         app:layout_constraintBottom_toBottomOf="@id/input_layout"
         app:layout_constraintStart_toStartOf="@id/input_layout"
         app:layout_constraintTop_toTopOf="@id/input_layout"
-        app:srcCompat="@drawable/ic_material_emoticon_outline_24"
+        app:srcCompat="@drawable/ic_emoticon_outline"
         app:tint="@color/grey_500" />
 
     <EditText
@@ -357,7 +357,7 @@
         android:layout_height="24dp"
         android:layout_margin="20dp"
         android:background="?attr/selectableItemBackgroundBorderless"
-        android:src="@drawable/ic_material_attach_24"
+        android:src="@drawable/ic_attach"
         app:layout_constraintBottom_toBottomOf="@id/input_layout"
         app:layout_constraintEnd_toStartOf="@id/button_record"
         app:layout_constraintTop_toTopOf="@id/input_layout"
@@ -371,7 +371,7 @@
         android:layout_margin="16dp"
         android:background="?attr/selectableItemBackgroundBorderless"
         android:filterTouchesWhenObscured="false"
-        android:src="@drawable/ic_material_microphone_24"
+        android:src="@drawable/ic_microphone"
         app:layout_constraintBottom_toBottomOf="@id/input_layout"
         app:layout_constraintEnd_toEndOf="@id/input_layout"
         app:layout_constraintTop_toTopOf="@id/input_layout"
@@ -404,13 +404,13 @@
             android:layout_width="24dp"
             android:layout_height="24dp"
             android:layout_marginTop="6dp"
-            android:src="@drawable/ic_lock_outline" />
+            android:src="@drawable/ic_lock_outline_grey" />
 
         <ImageView
             android:id="@+id/im_chevron"
             android:layout_width="24dp"
             android:layout_height="24dp"
-            android:src="@drawable/ic_chevron_up" />
+            android:src="@drawable/ic_chevron_up_grey" />
 
     </LinearLayout>
 
@@ -429,7 +429,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="12dp"
-            android:src="@drawable/ic_reply" />
+            android:src="@drawable/ic_reply_grey" />
 
         <TextView
             android:layout_width="wrap_content"
@@ -460,7 +460,7 @@
             android:layout_height="wrap_content"
             android:layout_marginStart="12dp"
             android:layout_marginEnd="12dp"
-            android:src="@drawable/ic_forward" />
+            android:src="@drawable/ic_forward_grey" />
     </LinearLayout>
 
 
@@ -472,7 +472,7 @@
         android:layout_marginBottom="20dp"
         android:backgroundTint="@color/white"
         android:contentDescription="@string/im_description_downward"
-        android:src="@drawable/ic_downward_grey"
+        android:src="@drawable/ic_arrow_down_grey"
         android:visibility="gone"
         app:borderWidth="0dp"
         app:fabCustomSize="40dp"

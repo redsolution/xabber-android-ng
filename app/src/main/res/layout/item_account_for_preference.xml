@@ -1,62 +1,49 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="52dp"
-    android:gravity="center_vertical">
+    android:layout_height="78dp"
+    android:paddingHorizontal="12dp"
+    android:clickable="true"
+    android:background="@drawable/clickable_view_group_background"
+    android:focusable="true">
 
-    <RelativeLayout
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center_vertical"
-        android:layout_marginLeft="16dp"
-        android:layout_marginRight="16dp">
+    <ImageView
+        android:id="@+id/im__avatar_item_account"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:contentDescription="@string/im_account_avatar_content_description"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintBottom_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
 
-        <ImageView
-            android:id="@+id/im_avatar"
-            android:layout_width="32dp"
-            android:layout_height="32dp"
-            android:layout_centerInParent="true" />
-
-    </RelativeLayout>
-
-    <LinearLayout
+    <TextView
+        android:id="@+id/tv_item_account_name"
         android:layout_width="0dp"
-        android:layout_height="match_parent"
-        android:layout_weight="1"
-        android:orientation="vertical">
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:ellipsize="marquee"
+        android:gravity="start"
+        android:singleLine="true"
+        android:textColor="?android:attr/textColorPrimary"
+        android:textStyle="bold"
+        app:layout_constraintBottom_toTopOf="@id/tv_item_account_jid"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@id/im__avatar_item_account"
+        app:layout_constraintTop_toTopOf="parent" />
 
-        <TextView
-            android:id="@+id/item_account_name"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:ellipsize="marquee"
-            android:gravity="bottom"
-            android:singleLine="true"
-            android:text="user.userov@redsolution.com"
-            android:textColor="?android:attr/textColorPrimary"
-            android:textStyle="bold" />
+    <TextView
+        android:id="@+id/tv_item_account_jid"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:ellipsize="marquee"
+        android:gravity="start"
+        android:singleLine="true"
+        android:textColor="?android:attr/textColorSecondary"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@id/im__avatar_item_account"
+        app:layout_constraintTop_toBottomOf="@id/tv_item_account_name" />
 
-        <TextView
-            android:id="@+id/item_account_status"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:ellipsize="marquee"
-            android:gravity="top"
-            android:singleLine="true"
-            android:text="Online"
-            android:textColor="?android:attr/textColorSecondary" />
-    </LinearLayout>
-
-    <androidx.appcompat.widget.SwitchCompat
-        android:id="@+id/item_account_switch"
-        android:layout_width="wrap_content"
-        android:layout_height="match_parent"
-        android:focusable="false"
-        android:focusableInTouchMode="false"
-        android:paddingLeft="12dp"
-        android:paddingRight="12dp" />
-
-</LinearLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>

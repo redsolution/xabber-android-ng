@@ -24,7 +24,6 @@ import com.bumptech.glide.Glide
 import com.google.android.material.snackbar.Snackbar
 import com.xabber.R
 import com.xabber.data.dto.MessageDto
-import com.xabber.data.dto.MessageVhExtraData
 import com.xabber.presentation.application.util.dp
 import com.xabber.data.xmpp.messages.MessageSendingState
 import com.xabber.data.xmpp.messages.MessageSendingState.*
@@ -214,31 +213,31 @@ class OutgoingMessageVH(
         when (messageSendingState) {
             Sending -> {
                 tint = R.color.grey_500
-                image = R.drawable.ic_material_clock_outline_24
+                image = R.drawable.ic_clock_outline
             }
             Sended -> {
                 tint = R.color.grey_500
-                image = R.drawable.ic_material_check_24
+                image = R.drawable.ic_check_green
             }
             Deliver -> {
                 tint = R.color.green_500
-                image = R.drawable.ic_material_check_24
+                image = R.drawable.ic_check_green
             }
             Read -> {
                 tint = R.color.green_500
-                image = R.drawable.ic_material_check_all_24
+                image = R.drawable.ic_check_all_green
             }
             Error -> {
                 tint = R.color.red_500
-                image = R.drawable.ic_material_alert_circle_outline_24
+                image = R.drawable.ic_exclamation_mark_outline
             }
             NotSended -> {
                 tint = R.color.grey_500
-                image = R.drawable.ic_material_clock_outline_24
+                image = R.drawable.ic_clock_outline
             }
             Uploading -> {
                 tint = R.color.blue_500
-                image = R.drawable.ic_material_clock_outline_24
+                image = R.drawable.ic_clock_outline
             }
             None -> {
                 imageView.isVisible = false

@@ -4,17 +4,13 @@ import android.annotation.SuppressLint
 import android.app.AlertDialog
 import android.graphics.BitmapFactory
 import android.os.Bundle
-import android.util.TypedValue
-import android.view.MotionEvent
 import android.view.View
-import androidx.core.view.isVisible
 import by.kirich1409.viewbindingdelegate.viewBinding
-import com.bumptech.glide.Glide
 import com.xabber.R
 import com.xabber.databinding.FragmentContactBinding
 import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.BaseFragment
-import com.xabber.presentation.application.activity.MaskChanger
+import com.xabber.presentation.application.activity.UiChanger
 import com.xabber.presentation.application.activity.MaskedDrawableBitmapShader
 
 class ContactsFragment : BaseFragment(R.layout.fragment_contact), ContactAdapter.Listener {
@@ -25,7 +21,7 @@ class ContactsFragment : BaseFragment(R.layout.fragment_contact), ContactAdapter
         super.onViewCreated(view, savedInstanceState)
         val mPictureBitmap = BitmapFactory.decodeResource(resources, R.drawable.img)
         val mMaskBitmap =
-            BitmapFactory.decodeResource(resources, MaskChanger.getMask().size32).extractAlpha()
+            BitmapFactory.decodeResource(resources, UiChanger.getMask().size32).extractAlpha()
         val maskedDrawable = MaskedDrawableBitmapShader()
         maskedDrawable.setPictureBitmap(mPictureBitmap)
         maskedDrawable.setMaskBitmap(mMaskBitmap)

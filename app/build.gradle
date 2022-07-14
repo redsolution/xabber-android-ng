@@ -67,7 +67,6 @@ dependencies {
     implementation "io.reactivex.rxjava3:rxjava:3.1.2"
     implementation "io.reactivex.rxjava3:rxandroid:$rxAndroidVersion"
 
-
     // Retrofit
     implementation "com.squareup.retrofit2:retrofit:$retrofit_version"
     implementation "com.squareup.retrofit2:converter-gson:$retrofit_version"
@@ -118,5 +117,7 @@ dependencies {
     implementation 'androidx.camera:camera-lifecycle:1.1.0'
     implementation 'androidx.camera:camera-camera2:1.1.0'
 
+    // QR code
+   // implementation 'androidmads.library.qrgenerator:QEGenerator:1.0.3'
 
 }

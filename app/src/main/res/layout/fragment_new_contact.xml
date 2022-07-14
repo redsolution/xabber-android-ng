@@ -90,7 +90,7 @@
                 app:layout_constraintBottom_toBottomOf="parent"
                 android:clickable="true"
                 android:focusable="true"
-                app:srcCompat="@drawable/ic_qrcode_scan" />
+                app:srcCompat="@drawable/ic_qrcode_scan_grey" />
 
             <ImageView
                 android:id="@+id/imgCross"

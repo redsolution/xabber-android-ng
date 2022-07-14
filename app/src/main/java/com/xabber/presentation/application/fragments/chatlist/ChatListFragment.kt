@@ -21,7 +21,7 @@ import com.xabber.R
 import com.xabber.data.dto.ChatListDto
 import com.xabber.databinding.FragmentChatBinding
 import com.xabber.presentation.BaseFragment
-import com.xabber.presentation.application.activity.MaskChanger
+import com.xabber.presentation.application.activity.UiChanger
 import com.xabber.presentation.application.activity.MaskedDrawableBitmapShader
 import com.xabber.presentation.application.contract.navigator
 
@@ -53,7 +53,7 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat), ChatListAdapter.C
 
     private fun initToolbarActions() {
         val mPictureBitmap = BitmapFactory.decodeResource(resources, R.drawable.img)
-        val mMaskBitmap = BitmapFactory.decodeResource(resources, MaskChanger.getMask().size32).extractAlpha()
+        val mMaskBitmap = BitmapFactory.decodeResource(resources, UiChanger.getMask().size32).extractAlpha()
         val maskedDrawable = MaskedDrawableBitmapShader()
         maskedDrawable.setPictureBitmap(mPictureBitmap)
         maskedDrawable.setMaskBitmap(mMaskBitmap)
@@ -167,7 +167,7 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat), ChatListAdapter.C
                 )
 
                 val context = recyclerView.context
-                val icon = context.resources.getDrawable(R.drawable.ic_arcived)
+                val icon = context.resources.getDrawable(R.drawable.ic_arcived_white)
                 val itemView = viewHolder.itemView
                 val typedValue = TypedValue()
                 context.theme.resolveAttribute(R.attr.action_with_chat_background, typedValue, true)

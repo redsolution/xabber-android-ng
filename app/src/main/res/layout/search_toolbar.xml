@@ -47,7 +47,7 @@
             android:layout_marginRight="8dp"
             android:clickable="true"
             android:padding="8dp"
-            android:src="@drawable/ic_material_search_24" />
+            android:src="@drawable/ic_search" />
 
     </RelativeLayout>
 

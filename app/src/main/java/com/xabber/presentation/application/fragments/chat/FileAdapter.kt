@@ -3,13 +3,10 @@ package com.xabber.presentation.application.fragments.chat
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.ViewGroup
-import android.widget.CompoundButton
 import androidx.annotation.RequiresApi
 import androidx.core.view.isInvisible
-import androidx.core.view.isVisible
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.xabber.R
@@ -56,7 +53,7 @@ class FileAdapter(private val listener: FilesListener) :
  val recentImageViewHolder = holder as RecentFileVH
             val path = filePaths[position]
             val image = recentImageViewHolder.getImage()
-            Glide.with(image.context).load(path).centerCrop().placeholder(R.drawable.ic_image)
+            Glide.with(image.context).load(path).centerCrop().placeholder(R.drawable.ic_image_grey)
                 .into(image)
 
             recentImageViewHolder.getImage().setOnClickListener {
@@ -89,7 +86,7 @@ class FileAdapter(private val listener: FilesListener) :
 
     private fun getFileIconByCategory(category: FileCategory): Int {
         return when (category) {
-            FileCategory.IMAGE -> R.drawable.ic_image
+            FileCategory.IMAGE -> R.drawable.ic_image_grey
             FileCategory.AUDIO -> R.drawable.ic_audio
             FileCategory.VIDEO -> R.drawable.ic_video
             FileCategory.DOCUMENT -> R.drawable.ic_document

@@ -83,7 +83,7 @@
                 <ImageView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:src="@drawable/radio_button_location_selector" />
+                    android:src="@drawable/gallery_circle" />
 
                 <TextView
                     android:layout_width="wrap_content"
@@ -107,7 +107,7 @@
 
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:src="@drawable/ic_file_circle" />
+                android:src="@drawable/file_circle" />
 
             <TextView
                 android:layout_width="wrap_content"
@@ -129,7 +129,7 @@
 
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:src="@drawable/ic_location_circle" />
+                android:src="@drawable/location_circle" />
 
             <TextView
                 android:layout_width="wrap_content"
@@ -155,7 +155,7 @@
             android:background="@color/transparent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
-            app:srcCompat="@drawable/ic_material_emoticon_outline_24"
+            app:srcCompat="@drawable/ic_emoticon_outline"
             app:tint="@color/grey_500" />
 
         <EditText
@@ -191,7 +191,7 @@
             android:layout_width="48dp"
             android:layout_height="48dp"
             android:layout_marginEnd="20dp"
-            android:src="@drawable/ic_send_circle"
+            android:src="@drawable/ic_send_circle_blue"
             app:layout_constraintBottom_toBottomOf="parent"
             android:layout_marginBottom="2dp"
             app:layout_constraintEnd_toEndOf="parent"

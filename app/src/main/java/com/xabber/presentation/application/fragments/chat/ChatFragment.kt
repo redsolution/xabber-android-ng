@@ -27,7 +27,6 @@ import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import by.kirich1409.viewbindingdelegate.viewBinding
-import com.bumptech.glide.Glide
 import com.xabber.R
 import com.xabber.data.dto.FileDto
 import com.xabber.data.dto.MessageDto
@@ -35,7 +34,7 @@ import com.xabber.data.dto.MessageKind
 import com.xabber.data.xmpp.messages.MessageDisplayType
 import com.xabber.data.xmpp.messages.MessageSendingState
 import com.xabber.databinding.FragmentMessageBinding
-import com.xabber.presentation.application.activity.MaskChanger
+import com.xabber.presentation.application.activity.UiChanger
 import com.xabber.presentation.application.activity.MaskedDrawableBitmapShader
 import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.application.fragments.DetailBaseFragment
@@ -200,7 +199,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_message), FragmentResu
                                 //workaround for the https://issuetracker.google.com/issues/111316656 issue of
                                 //the button's image not updating after setting a background tint manually.
                                 binding.recordFloatButton.hide()
-                                binding.recordFloatButton.setImageResource(R.drawable.ic_send_black_24dp)
+                                binding.recordFloatButton.setImageResource(R.drawable.ic_send)
                                 binding.recordFloatButton.show()
                                 binding.recordFloatButton.animate()
                                     .y(rootViewHeight - (fabMicViewHeightSize + fabMicViewMarginBottom))
@@ -211,7 +210,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_message), FragmentResu
 //                                    .setDuration(100)
 //                                    .start()
                                 binding.includeRecord.cancelRecordLayout.visibility = View.VISIBLE
-                                binding.imLock.setImageResource(R.drawable.ic_stop)
+                                binding.imLock.setImageResource(R.drawable.ic_stop_red)
 //                                recordLockImage?.setPadding(0, 0, 0, 0)
 //                                recordLockImage?.setOnClickListener {
 //                                    if (currentVoiceRecordingState == VoiceRecordState.NoTouchRecording) {
@@ -255,7 +254,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_message), FragmentResu
         binding.messageUserName.text = name
   val mPictureBitmap = BitmapFactory.decodeResource(resources, R.drawable.img)
         val mMaskBitmap =
-            BitmapFactory.decodeResource(resources, MaskChanger.getMask().size48).extractAlpha()
+            BitmapFactory.decodeResource(resources, UiChanger.getMask().size48).extractAlpha()
         val maskedDrawable = MaskedDrawableBitmapShader()
         maskedDrawable.setPictureBitmap(mPictureBitmap)
         maskedDrawable.setMaskBitmap(mMaskBitmap)
@@ -709,7 +708,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_message), FragmentResu
         binding.imNotificationsIsDisable.setImageDrawable(
             ResourcesCompat.getDrawable(
                 resources,
-                R.drawable.ic_bell_sleep,
+                R.drawable.ic_bell_sleep_grey,
                 context?.theme
             )
         )
@@ -720,7 +719,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_message), FragmentResu
         binding.imNotificationsIsDisable.setImageDrawable(
             ResourcesCompat.getDrawable(
                 resources,
-                R.drawable.ic_bell_off_forever,
+                R.drawable.ic_bell_off_forever_grey,
                 context?.theme
             )
         )

@@ -21,7 +21,7 @@ import com.xabber.R
 import com.xabber.data.dto.MessageDto
 import com.xabber.presentation.application.util.dp
 import com.xabber.databinding.ItemMessageIncomingBinding
-import com.xabber.presentation.application.activity.MaskChanger
+import com.xabber.presentation.application.activity.UiChanger
 import com.xabber.presentation.application.activity.MaskedDrawableBitmapShader
 import com.xabber.presentation.application.util.StringUtils
 import java.util.*
@@ -131,7 +131,7 @@ class IncomingMessageVH(
 if (binding.avatarContact.isVisible) {
     val mPictureBitmap = BitmapFactory.decodeResource(binding.root.context.resources, R.drawable.img)
         val mMaskBitmap =
-            BitmapFactory.decodeResource(binding.root.context.resources, MaskChanger.getMask().size48).extractAlpha()
+            BitmapFactory.decodeResource(binding.root.context.resources, UiChanger.getMask().size48).extractAlpha()
         val maskedDrawable = MaskedDrawableBitmapShader()
         maskedDrawable.setPictureBitmap(mPictureBitmap)
         maskedDrawable.setMaskBitmap(mMaskBitmap)

@@ -8,7 +8,7 @@ import by.kirich1409.viewbindingdelegate.viewBinding
 import com.xabber.R
 import com.xabber.databinding.FragmentCallsBinding
 import com.xabber.presentation.BaseFragment
-import com.xabber.presentation.application.activity.MaskChanger
+import com.xabber.presentation.application.activity.UiChanger
 import com.xabber.presentation.application.activity.MaskedDrawableBitmapShader
 
 class CallsFragment : BaseFragment(R.layout.fragment_calls) {
@@ -18,7 +18,7 @@ class CallsFragment : BaseFragment(R.layout.fragment_calls) {
         super.onViewCreated(view, savedInstanceState)
         val mPictureBitmap = BitmapFactory.decodeResource(resources, R.drawable.img)
         val mMaskBitmap =
-            BitmapFactory.decodeResource(resources, MaskChanger.getMask().size32).extractAlpha()
+            BitmapFactory.decodeResource(resources, UiChanger.getMask().size32).extractAlpha()
         val maskedDrawable = MaskedDrawableBitmapShader()
         maskedDrawable.setPictureBitmap(mPictureBitmap)
         maskedDrawable.setMaskBitmap(mMaskBitmap)

@@ -35,7 +35,7 @@ class NewChatFragment : DetailBaseFragment(R.layout.fragment_new_chat) {
     }
 
     private fun initToolbarAction() {
-        binding.newChatToolbar.setNavigationIcon(R.drawable.ic_material_close_24)
+        binding.newChatToolbar.setNavigationIcon(R.drawable.ic_close)
         binding.newChatToolbar.setNavigationOnClickListener { navigator().closeDetail() }
 
     }

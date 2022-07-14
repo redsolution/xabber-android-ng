@@ -34,7 +34,7 @@ class EditContactFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        binding.editContactToolbar.setNavigationIcon(R.drawable.ic_material_close_24)
+        binding.editContactToolbar.setNavigationIcon(R.drawable.ic_close)
         binding.editContactToolbar.setNavigationOnClickListener { navigator().closeDetail() }
         binding.etName.setText(name)
     }

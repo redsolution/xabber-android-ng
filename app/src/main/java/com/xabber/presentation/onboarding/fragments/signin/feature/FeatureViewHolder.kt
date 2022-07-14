@@ -35,7 +35,7 @@ class FeatureViewHolder(private val binding: ItemFeatureBinding) :
                         )
                     )
                     featureLoad.visibility = View.GONE
-                    featureResult.setBackgroundResource(R.drawable.ic_material_check_circle_24)
+                    featureResult.setBackgroundResource(R.drawable.checkbox_checked_circle_green)
                     featureResult.visibility = View.VISIBLE
                 }
                 Error -> {
@@ -47,7 +47,7 @@ class FeatureViewHolder(private val binding: ItemFeatureBinding) :
                         )
                     )
                     featureLoad.visibility = View.GONE
-                    featureResult.setBackgroundResource(R.drawable.ic_material_alert_circle_24)
+                    featureResult.setBackgroundResource(R.drawable.exclamation_mark_red_circle)
                     featureResult.visibility = View.VISIBLE
                 }
             }

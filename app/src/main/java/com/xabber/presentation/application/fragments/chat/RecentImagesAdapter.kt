@@ -53,7 +53,7 @@ class RecentImagesAdapter( private val listener: Listener) :
         val recentImageViewHolder = holder as RecentImageViewHolder
         val path = imagePaths[position]
         val image = recentImageViewHolder.getImage()
-        Glide.with(image.context).load(path).centerCrop().placeholder(R.drawable.ic_image)
+        Glide.with(image.context).load(path).centerCrop().placeholder(R.drawable.ic_image_grey)
             .into(image)
         recentImageViewHolder.getImage().setOnClickListener {
             recentImageViewHolder.getCheckBox().isChecked =

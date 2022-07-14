@@ -30,7 +30,7 @@
         android:layout_marginTop="8dp"
         android:layout_marginEnd="8dp"
         android:layout_marginRight="8dp"
-        android:button="@drawable/circle_checkbox"
+        android:button="@drawable/checkbox_selector_red_circle"
         app:layout_constraintEnd_toEndOf="@id/recent_image_item_image"
         app:layout_constraintTop_toTopOf="@id/recent_image_item_image" />
 

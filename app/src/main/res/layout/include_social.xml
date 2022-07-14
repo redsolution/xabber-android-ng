@@ -40,7 +40,7 @@
             android:layout_width="48dp"
             android:layout_height="48dp"
             android:layout_weight="1"
-            android:src="@drawable/ic_google_plus" />
+            android:src="@drawable/google_plus_circle" />
 
         <ImageView
             android:id="@+id/ivFacebook"
@@ -48,7 +48,7 @@
             android:layout_height="48dp"
 
             android:layout_weight="1"
-            android:src="@drawable/ic_facebook" />
+            android:src="@drawable/facebook_circle" />
 
         <ImageView
             android:id="@+id/ivTwitter"

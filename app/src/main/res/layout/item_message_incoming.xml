@@ -34,7 +34,7 @@
                 android:layout_gravity="bottom"
                 android:layout_marginStart="6dp"
                 android:layout_marginBottom="4dp"
-                android:button="@drawable/checkbox_selector"
+                android:button="@drawable/checkbox_selector_green_circle"
                 android:gravity="bottom"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintStart_toStartOf="parent" />

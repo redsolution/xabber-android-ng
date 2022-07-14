@@ -7,7 +7,7 @@
         <item name="android:windowLightStatusBar">true</item>
         <item name="android:statusBarColor">@color/white</item>
         <item name="colorPrimary">@color/white</item>
-        <item name="homeAsUpIndicator">@drawable/ic_material_chevron_left_variant_24</item>
+        <item name="homeAsUpIndicator">@drawable/ic_chevron_left_grey</item>
         <item name="bottomSheetDialogTheme">@style/BaseBottomSheetDialogTheme</item>
 
     </style>
@@ -25,18 +25,19 @@
         <item name="android:navigationBarColor">@color/white</item>
         <item name="colorPrimary">@color/blue_300</item>
         <item name="colorOnBackground">@color/grey_600</item>
-        <item name="homeAsUpIndicator">@drawable/ic_material_chevron_left_variant_24</item>
+        <item name="homeAsUpIndicator">@drawable/ic_chevron_left_grey</item>
         <item name="windowActionModeOverlay">true</item>
         <item name="action_with_chat_background">@color/grey_800</item>
-         <item name="contact_list_contact_background">@color/white</item>
+        <item name="contact_list_contact_background">@color/white</item>
         <item name="android:popupMenuStyle">@style/popupMenuStyle</item>
         <item name="popupMenuStyle">@style/popupMenuStyle</item>
-        <item name="transparent_rounded_background">@drawable/rounded_background_grey_transparent</item>
- <item name="avatar_mask">@drawable/circle56</item>
+        <item name="transparent_rounded_background">@drawable/rounded_background_grey_transparent
+        </item>
+        <item name="avatar_mask">@drawable/circle56</item>
     </style>
 
 
-     <style name="ThemeApplication1" parent="Theme.AppCompat.Light.DarkActionBar">
+    <style name="ThemeApplication1" parent="Theme.AppCompat.Light.DarkActionBar">
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
         <item name="android:textColorPrimary">@color/black</item>
@@ -45,17 +46,18 @@
         <item name="android:navigationBarColor">@color/white</item>
         <item name="colorPrimary">@color/blue_300</item>
         <item name="colorOnBackground">@color/grey_600</item>
-        <item name="homeAsUpIndicator">@drawable/ic_material_chevron_left_variant_24</item>
+        <item name="homeAsUpIndicator">@drawable/ic_chevron_left_grey</item>
         <item name="windowActionModeOverlay">true</item>
         <item name="action_with_chat_background">@color/grey_800</item>
-         <item name="contact_list_contact_background">@color/white</item>
+        <item name="contact_list_contact_background">@color/white</item>
         <item name="android:popupMenuStyle">@style/popupMenuStyle</item>
         <item name="popupMenuStyle">@style/popupMenuStyle</item>
-        <item name="transparent_rounded_background">@drawable/rounded_background_grey_transparent</item>
- <item name="avatar_mask">@drawable/pentagon56</item>
+        <item name="transparent_rounded_background">@drawable/rounded_background_grey_transparent
+        </item>
+        <item name="avatar_mask">@drawable/pentagon56</item>
     </style>
 
-      <style name="ChatTheme" parent="Theme.AppCompat.Light.NoActionBar">
+    <style name="ChatTheme" parent="Theme.AppCompat.Light.NoActionBar">
         <item name="windowActionModeOverlay">true</item>
     </style>
 
@@ -342,9 +344,9 @@
         <item name="android:background">?android:attr/listDivider</item>
     </style>
 
-<style name="popupMenuStyle" parent="Theme.MaterialComponents.Light.DarkActionBar">
-    <item name="popupMenuBackground">@drawable/menu_background</item>
-    <item name="android:popupBackground">@drawable/menu_background</item>
-    <item name="android:dropDownHorizontalOffset">16dp</item>
-</style>
+    <style name="popupMenuStyle" parent="Theme.MaterialComponents.Light.DarkActionBar">
+        <item name="popupMenuBackground">@drawable/menu_background</item>
+        <item name="android:popupBackground">@drawable/menu_background</item>
+        <item name="android:dropDownHorizontalOffset">16dp</item>
+    </style>
 </resources>

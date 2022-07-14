@@ -32,7 +32,7 @@
                 android:layout_height="24dp"
                 android:layout_gravity="center_vertical"
                 android:visibility="visible"
-                app:srcCompat="@drawable/ic_material_chevron_left_variant_24" />
+                app:srcCompat="@drawable/ic_chevron_left_grey" />
 
             <TextView
                 android:layout_width="wrap_content"
@@ -147,7 +147,7 @@
                 android:layout_width="52dp"
                 android:layout_height="52dp"
                 android:background="@color/transparent"
-                app:srcCompat="@drawable/ic_send" />
+                app:srcCompat="@drawable/selector_send" />
 
 
         </LinearLayout>

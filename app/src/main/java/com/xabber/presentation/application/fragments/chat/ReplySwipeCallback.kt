@@ -20,7 +20,7 @@ class ReplySwipeCallback(context: Context) : ItemTouchHelper.Callback(), View.On
     private var currentReplyArrowState = ReplyArrowState.GONE
 
     private val replyIcon: Drawable =
-        ContextCompat.getDrawable(context, R.drawable.reply)!!
+        ContextCompat.getDrawable(context, R.drawable.reply_circle)!!
     private val fullSize = 32.dp
     private val paddingRight = 28
     private val maxSwipeDistanceRatio = 0.18f

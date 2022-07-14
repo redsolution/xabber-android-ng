@@ -37,13 +37,13 @@ class StartFragment : BaseFragment(R.layout.fragment_start) {
                 navigator().goToApplicationActivity(true)
             }
 
-            btnLogin.setOnClickListener {
+            btnSignin.setOnClickListener {
                 navigator().openSigninFragment()
             }
 
             btnSignup.setOnClickListener {
                 progressBar.isVisible = true
-                btnLogin.isVisible = false
+                btnSignin.isVisible = false
                 btnSignup.isVisible = false
                 compositeDisposable?.add(
                     viewModel.getHost()
@@ -74,9 +74,9 @@ class StartFragment : BaseFragment(R.layout.fragment_start) {
         with(binding) {
             progressBar.isVisible = false
             val anim = AnimationUtils.loadAnimation(context, R.anim.fade_in_200)
-            btnLogin.isVisible = true
+            btnSignin.isVisible = true
             btnSignup.isVisible = true
-            btnLogin.startAnimation(anim)
+            btnSignin.startAnimation(anim)
             btnSignup.startAnimation(anim)
          //
         //    btnSignup.isVisible = true

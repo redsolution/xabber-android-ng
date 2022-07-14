@@ -88,7 +88,7 @@
                         <ImageButton
                             android:layout_width="?attr/actionBarSize"
                             android:layout_height="?attr/actionBarSize"
-                            android:src="@drawable/ic_reply" />
+                            android:src="@drawable/ic_reply_grey" />
 
 
                         <LinearLayout
@@ -200,7 +200,7 @@
                         <ImageButton
                             android:layout_width="?attr/actionBarSize"
                             android:layout_height="?attr/actionBarSize"
-                            android:src="@drawable/ic_email" />
+                            android:src="@drawable/ic_email_white" />
 
 
                         <LinearLayout
@@ -291,7 +291,7 @@
                             android:layout_width="?attr/actionBarSize"
                             android:layout_height="?attr/actionBarSize"
                             android:background="?attr/selectableItemBackgroundBorderless"
-                            android:src="@drawable/ic_location" />
+                            android:src="@drawable/ic_location_white" />
 
 
                         <LinearLayout
