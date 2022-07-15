@@ -4,6 +4,7 @@ import android.graphics.Bitmap
 import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.Fragment
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
+import com.xabber.data.xmpp.account.Account
 
 fun Fragment.navigator(): ApplicationNavigator = requireActivity() as ApplicationNavigator
 
@@ -15,7 +16,7 @@ interface ApplicationNavigator {
 
     fun showMessage(jid: String)
 
-    fun showAccount()
+    fun showAccount(account: Account)
 
     fun showContacts()
 
@@ -32,6 +33,8 @@ interface ApplicationNavigator {
     fun showChatSettings()
 
     fun closeDetail()
+
+    fun showReorderAccountsFragment()
 
     fun showBottomSheetDialog(dialog: BottomSheetDialogFragment)
 

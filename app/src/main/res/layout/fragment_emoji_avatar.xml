@@ -13,7 +13,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center_horizontal"
-        android:layout_marginTop="12dp"
+        android:layout_marginTop="@dimen/margin_onboarding_small"
         android:src="@drawable/bottom_sheet_swipe_dark"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -23,7 +23,7 @@
         android:id="@+id/palette"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginStart="12dp"
+        android:layout_marginStart="@dimen/margin_onboarding_small"
         android:layout_marginTop="32dp"
         android:layout_marginEnd="24dp"
         app:layout_constraintEnd_toEndOf="parent"
@@ -36,8 +36,8 @@
 
             <RelativeLayout
                 android:id="@+id/green_tint"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
+                android:layout_width="@dimen/item_avatar_backround_size"
+                android:layout_height="@dimen/item_avatar_backround_size"
                 android:layout_margin="4dp"
                 android:background="@drawable/circle_green"
                 android:backgroundTint="@color/green_400">
@@ -53,8 +53,8 @@
 
             <RelativeLayout
                 android:id="@+id/orange_tint"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
+                android:layout_width="@dimen/item_avatar_backround_size"
+                android:layout_height="@dimen/item_avatar_backround_size"
                 android:layout_margin="4dp"
                 android:background="@drawable/circle_green"
                 android:backgroundTint="@color/orange_400">
@@ -70,8 +70,8 @@
 
             <RelativeLayout
                 android:id="@+id/red_tint"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
+                android:layout_width="@dimen/item_avatar_backround_size"
+                android:layout_height="@dimen/item_avatar_backround_size"
                 android:layout_margin="4dp"
                 android:background="@drawable/circle_green"
                 android:backgroundTint="@color/red_400">
@@ -216,12 +216,7 @@
             android:id="@+id/avatarBackground"
             android:layout_width="128dp"
             android:layout_height="128dp"
-            android:layout_marginStart="8dp"
-            android:layout_marginLeft="8dp"
-            android:layout_marginTop="8dp"
-            android:layout_marginEnd="8dp"
-            android:layout_marginRight="8dp"
-            android:layout_marginBottom="8dp"
+            android:layout_margin="8dp"
             android:background="@drawable/backround_blue"
             android:clickable="true"
             android:focusable="true"
@@ -234,7 +229,6 @@
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
-
 
         <androidx.cardview.widget.CardView
             android:layout_width="36dp"
@@ -262,27 +256,17 @@
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/save_button"
-        android:layout_width="match_parent"
+        android:layout_width="0dp"
         android:layout_height="48dp"
-        android:layout_gravity="center"
         android:layout_margin="32dp"
         android:background="@drawable/round_corners"
-        android:gravity="center"
-        android:insetLeft="0dp"
-        android:insetTop="0dp"
-        android:insetRight="0dp"
-        android:insetBottom="0dp"
-        android:stateListAnimator="@animator/shadow"
         android:text="@string/save_btn_label"
-        android:textAllCaps="false"
-        android:textSize="17sp"
+        style="@style/OnboardingButtonNext"
         android:theme="@style/OnboardingButtonNext"
-        app:cornerRadius="100dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/palette" />
-
 
     <androidx.constraintlayout.widget.Guideline
         android:id="@+id/center_guideline"
@@ -290,6 +274,5 @@
         android:layout_height="wrap_content"
         android:orientation="vertical"
         app:layout_constraintGuide_percent="0.5" />
-
 
 </androidx.constraintlayout.widget.ConstraintLayout>

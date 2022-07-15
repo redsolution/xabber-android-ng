@@ -52,6 +52,7 @@
         android:layout_width="0dp"
         android:layout_marginTop="92dp"
         android:text="@string/signup_next_button"
+        android:enabled="false"
         android:theme="@style/OnboardingButtonNext"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"

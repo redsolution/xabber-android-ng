@@ -300,6 +300,9 @@
     <string name="title_debug_settings">Debug</string>
     <string name="image_language_settings_description">Language settings</string>
     <string name="title_language_settings">Language</string>
+    <string name="tv_swap_account">To syncronize accounts order between devices you need to enable Syncronize all option in Xabber Account settings</string>
+    <string name="menu_item_check">Check</string>
+    <string name="im_anchor_description">Click and drag to move</string>
 
 
 </resources>

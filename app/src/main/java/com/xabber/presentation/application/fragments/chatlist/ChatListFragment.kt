@@ -62,7 +62,7 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat), ChatListAdapter.C
         //         ResourcesCompat.getDrawable(
 //            binding.imAvatar.resources,MaskChanger.getMask().size32, binding.imAvatar.context.theme)
         binding.imAvatar.setOnClickListener {
-            navigator().showAccount()
+            navigator().showAccount(UiChanger.getMainAccount())
         }
 
         binding.imPlus.setOnClickListener {

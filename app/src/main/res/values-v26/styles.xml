@@ -24,5 +24,11 @@
         <item name="android:textSize">@dimen/onboarding_button_font_size</item>
     </style>
 
+    <style name="AccountViewGroup" parent="Theme.MaterialComponents.Light.NoActionBar">
+        <item name="android:clickable">true</item>
+        <item name="android:background">@drawable/clickable_view_group_background</item>
+        <item name="android:paddingVertical">12dp</item>
+    </style>
+
 
 </resources>

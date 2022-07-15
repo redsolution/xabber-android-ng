@@ -41,7 +41,7 @@ class ContactsFragment : BaseFragment(R.layout.fragment_contact), ContactAdapter
     }
 
     override fun onAvatarClick() {
-        navigator().showAccount()
+        navigator().showAccount(UiChanger.getMainAccount())
     }
 
     override fun onContactClick(userName: String) {

@@ -6,23 +6,23 @@ import androidx.recyclerview.widget.RecyclerView
 import com.xabber.data.xmpp.account.Account
 import com.xabber.databinding.ItemAccountForPreferenceBinding
 
-class AccountAdapter(private val accountList: ArrayList<Account>) :
-    RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+class AccountAdapter(
+    private val accountList: ArrayList<Account>,
+    private val onAccountClick: (Account) -> Unit
+) :
+    RecyclerView.Adapter<AccountViewHolder>() {
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
-        return AccountViewHolder(
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): AccountViewHolder = AccountViewHolder(
             ItemAccountForPreferenceBinding.inflate(
                 LayoutInflater.from(parent.context),
                 parent,
                 false
-            )
+            ), onAccountClick
         )
-    }
 
-    override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
-        val colorViewHolder = holder as AccountViewHolder
-        colorViewHolder.initAccount(accountList[position])
-    }
+    override fun onBindViewHolder(holder: AccountViewHolder, position: Int) =
+        holder.bind(accountList[position])
+
 
     override fun getItemCount(): Int = accountList.size
 

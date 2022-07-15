@@ -25,11 +25,13 @@ import androidx.slidingpanelayout.widget.SlidingPaneLayout
 import com.google.android.material.badge.BadgeDrawable
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.xabber.R
+import com.xabber.data.xmpp.account.Account
 import com.xabber.data.xmpp.account.AccountStorageItem
 import com.xabber.data.xmpp.presences.ResourceStorageItem
 import com.xabber.databinding.ActivityApplicationBinding
 import com.xabber.presentation.application.contract.ApplicationNavigator
 import com.xabber.presentation.application.fragments.account.AccountFragment
+import com.xabber.presentation.application.fragments.account.ReorderAccountsFragment
 import com.xabber.presentation.application.fragments.calls.CallsFragment
 import com.xabber.presentation.application.fragments.chat.ChatFragment
 import com.xabber.presentation.application.fragments.chat.ChatViewModel
@@ -243,6 +245,10 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
         }
     }
 
+    override fun showReorderAccountsFragment() {
+        launchDetail(ReorderAccountsFragment())
+    }
+
 
     override fun onSupportNavigateUp(): Boolean {
         onBackPressed()
@@ -261,8 +267,8 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
         launchDetail(ChatFragment.newInstance(jid))
     }
 
-    override fun showAccount() {
-        launchDetail(AccountFragment())
+    override fun showAccount(account: Account) {
+        launchDetail(AccountFragment.newInstance(account))
     }
 
     override fun showContacts() {

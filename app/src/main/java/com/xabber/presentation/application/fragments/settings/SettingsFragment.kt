@@ -1,6 +1,5 @@
 package com.xabber.presentation.application.fragments.settings
 
-import android.graphics.BitmapFactory
 import android.os.Bundle
 import android.view.View
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -9,9 +8,7 @@ import com.xabber.R
 import com.xabber.data.xmpp.account.Account
 import com.xabber.databinding.FragmentSettingsBinding
 import com.xabber.presentation.BaseFragment
-import com.xabber.presentation.application.activity.Mask
-import com.xabber.presentation.application.activity.MaskedDrawableBitmapShader
-import com.xabber.presentation.application.activity.UiChanger
+import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.application.fragments.account.AccountAdapter
 
 class SettingsFragment : BaseFragment(R.layout.fragment_settings) {
@@ -26,7 +23,9 @@ class SettingsFragment : BaseFragment(R.layout.fragment_settings) {
                 R.id.add_account -> {
 
                 }
-                R.id.swap -> {}
+                R.id.swap -> {
+                    navigator().showReorderAccountsFragment()
+                }
 //                R.id.circle -> {
 //                    UiChanger.setMask(Mask.Circle)
 //                    updateMaskAvatar()
@@ -80,11 +79,13 @@ class SettingsFragment : BaseFragment(R.layout.fragment_settings) {
                 "nata@xmpp.ru",
                 "Nataly",
                 R.color.red_600,
-                R.drawable.transparency_demonstration
+                R.drawable.girl
             )
         )
         binding.rvAccounts.layoutManager = LinearLayoutManager(context)
-        accountAdapter = AccountAdapter(accountList)
+        accountAdapter = AccountAdapter(accountList) {
+            navigator().showAccount(it)
+        }
         binding.rvAccounts.adapter = accountAdapter
     }
 

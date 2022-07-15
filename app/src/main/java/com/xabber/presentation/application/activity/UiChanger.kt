@@ -1,9 +1,10 @@
 package com.xabber.presentation.application.activity
 
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
+import android.content.Context
+import com.xabber.data.xmpp.account.Account
 
 object UiChanger {
+    private var mainAccount: Account? = null
     private var mask: Mask? = null
     private var accountColor: Int? = null
 
@@ -13,6 +14,15 @@ object UiChanger {
         mask = newMask
     }
 
+
+    fun getMaskedDrawable(context: Context, size: Int) {
+
+    }
+    fun getMainAccount(): Account = mainAccount!!
+
+    fun setMainAccount(newMainAccount: Account) {
+        mainAccount = newMainAccount
+    }
 
     fun getAccountColor(): Int? = accountColor
 
