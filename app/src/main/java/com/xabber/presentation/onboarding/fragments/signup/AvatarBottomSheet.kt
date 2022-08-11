@@ -6,7 +6,6 @@ import android.content.DialogInterface
 import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -28,7 +27,6 @@ import com.xabber.presentation.onboarding.activity.OnboardingViewModel
 import com.xabber.presentation.onboarding.contract.navigator
 import com.xabber.presentation.onboarding.fragments.signup.emoji.EmojiAvatarBottomSheet
 import java.io.File
-
 
 class AvatarBottomSheet : BottomSheetDialogFragment() {
     private val binding by viewBinding(BottomSheetAvatarBinding::bind)
@@ -83,26 +81,31 @@ class AvatarBottomSheet : BottomSheetDialogFragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-      //  if (isPermissionGranted(Manifest.permission.READ_EXTERNAL_STORAGE)) galleryResultLauncher.launch("image/*")
-     //  galleryResultLauncher.launch("image/*")
-
         with(binding) {
             emojiViewGroup.setOnClickListener {
                 navigator().openBottomSheetDialogFragment(EmojiAvatarBottomSheet())
                 dismiss()
             }
             selfieViewGroup.setOnClickListener {
-                requestCameraPermissionLauncher.launch(
-                    arrayOf(
-                        Manifest.permission.CAMERA,
-                        Manifest.permission.WRITE_EXTERNAL_STORAGE
+                if (isPermissionGranted(Manifest.permission.CAMERA) && isPermissionGranted(Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
+                    takePhotoFromCamera()
+                } else {
+                    requestCameraPermissionLauncher.launch(
+                        arrayOf(
+                            Manifest.permission.CAMERA,
+                            Manifest.permission.WRITE_EXTERNAL_STORAGE
+                        )
                     )
-                )
+                }
             }
             choseImageViewGroup.setOnClickListener {
-                requestGalleryPermissionLauncher.launch(
-                    Manifest.permission.READ_EXTERNAL_STORAGE,
-                )
+                if (isPermissionGranted(Manifest.permission.READ_EXTERNAL_STORAGE)) {
+                    chooseImageFromGallery()
+                } else {
+                    requestGalleryPermissionLauncher.launch(
+                        Manifest.permission.READ_EXTERNAL_STORAGE
+                    )
+                }
             }
         }
     }
@@ -111,22 +114,21 @@ class AvatarBottomSheet : BottomSheetDialogFragment() {
         val image: File? = FileManager.generatePicturePath()
         if (image != null) {
             currentPhotoUri = getFileUri(image, requireContext())
-           cameraResultLauncher.launch(currentPhotoUri)
+            cameraResultLauncher.launch(currentPhotoUri)
         }
-
     }
 
     private fun onGotCameraPermissionResult(grantResults: Map<String, Boolean>) {
         if (grantResults.entries.all { it.value }) {
             takePhotoFromCamera()
-        }
+        } else askUserForOpeningAppSettings()
     }
 
     private fun onGotGalleryPermissionResult(granted: Boolean) {
         if (granted) {
             chooseImageFromGallery()
         } else {
-            if (shouldShowRequestPermissionRationale(Manifest.permission.READ_EXTERNAL_STORAGE)) {
+            if (!shouldShowRequestPermissionRationale(Manifest.permission.READ_EXTERNAL_STORAGE)) {
                 askUserForOpeningAppSettings()
             }
         }
@@ -137,9 +139,10 @@ class AvatarBottomSheet : BottomSheetDialogFragment() {
     }
 
     private fun onTakePictureFromGallery(result: Uri?) {
-        Log.d("resulturi", "$result")
-       onboardingViewModel.setAvatarUri(result!!)
-        dismiss()
+        if (result != null) {
+            onboardingViewModel.setAvatarUri(result)
+            dismiss()
+        }
     }
 
 
@@ -152,9 +155,9 @@ class AvatarBottomSheet : BottomSheetDialogFragment() {
 
     override fun onDestroy() {
         super.onDestroy()
-     //   requestCameraPermissionLauncher.unregister()
+        requestCameraPermissionLauncher.unregister()
         requestGalleryPermissionLauncher.unregister()
-      //  cameraResultLauncher.unregister()
+        cameraResultLauncher.unregister()
         galleryResultLauncher.unregister()
     }
 

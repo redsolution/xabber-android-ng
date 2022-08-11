@@ -5,14 +5,15 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import com.xabber.data.dto.ChatListDto
-import com.xabber.databinding.ItemChatBinding
+import com.xabber.data.dto.ContactDto
+import com.xabber.databinding.ItemChatListBinding
 
 class ChatListAdapter(
     private val listener: ChatListener
-) : ListAdapter<ChatListDto, ChatViewHolder>(DiffUtilCallback) {
+) : ListAdapter<ChatListDto, ChatListViewHolder>(DiffUtilCallback) {
 
     interface ChatListener {
-        fun onClickItem(name: String)
+        fun onClickItem(chatListDto: ChatListDto)
 
         fun pinChat(id: String)
 
@@ -26,18 +27,16 @@ class ChatListAdapter(
 
         fun openSpecialNotificationsFragment()
 
-        fun onClickAvatar(name: String)
-
+        fun onClickAvatar(contactDto: ContactDto)
     }
 
-
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ChatViewHolder {
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ChatListViewHolder {
         val inflater = LayoutInflater.from(parent.context)
-        val binding = ItemChatBinding.inflate(inflater, parent, false)
-        return ChatViewHolder(binding)
+        val binding = ItemChatListBinding.inflate(inflater, parent, false)
+        return ChatListViewHolder(binding)
     }
 
-    override fun onBindViewHolder(holder: ChatViewHolder, position: Int) {
+    override fun onBindViewHolder(holder: ChatListViewHolder, position: Int) {
 
 
         holder.bind(getItem(position), listener)

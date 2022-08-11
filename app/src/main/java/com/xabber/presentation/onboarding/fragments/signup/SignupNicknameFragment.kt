@@ -49,8 +49,8 @@ class SignupNicknameFragment : BaseFragment(R.layout.fragment_signup_nickname) {
             navigator().openSignupUserNameFragment()
         }
     }
-
 }
+
 
 
 

@@ -1,10 +1,12 @@
 package com.xabber.presentation.application.contract
 
-import android.graphics.Bitmap
 import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.Fragment
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
+import com.xabber.data.dto.ContactDto
 import com.xabber.data.xmpp.account.Account
+import com.xabber.presentation.application.fragments.account.QRCodeParams
+import com.xabber.presentation.application.fragments.chat.ChatParams
 
 fun Fragment.navigator(): ApplicationNavigator = requireActivity() as ApplicationNavigator
 
@@ -14,7 +16,7 @@ interface ApplicationNavigator {
 
     fun showChatFragment()
 
-    fun showMessage(jid: String)
+    fun showChat(chatParams: ChatParams)
 
     fun showAccount(account: Account)
 
@@ -28,7 +30,7 @@ interface ApplicationNavigator {
 
     fun showSpecialNotificationSettings()
 
-    fun showEditContact(name: String)
+    fun showEditContact(contactDto: ContactDto?)
 
     fun showChatSettings()
 
@@ -40,13 +42,14 @@ interface ApplicationNavigator {
 
     fun showDialogFragment(dialog: DialogFragment)
 
-    fun slidingPaneLayoutIsOpen(): Boolean
+    fun enableScreenRotationLock(isLock: Boolean)
 
-    fun requestPermissionToRecord(): Boolean
+    fun showSettings()
 
-    fun lockScreenRotation(isLock: Boolean)
+    fun showContactAccount(contactDto: ContactDto)
 
+    fun showQRCode(qrCodeParams: QRCodeParams)
 
+    fun showContactProfile(contactDto: ContactDto)
 
-    //fun openCamera(): Bitmap?
 }

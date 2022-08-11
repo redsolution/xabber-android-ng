@@ -1,104 +1,61 @@
 package com.xabber.presentation.application.activity
 
-import android.Manifest
-import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
-import android.content.pm.ActivityInfo
-import android.content.res.Configuration
-import android.content.res.Resources
-import android.graphics.Point
 import android.os.Bundle
-import android.util.Log
-import android.view.Display
-import android.view.Surface
-import android.widget.Toast
-import androidx.activity.result.contract.ActivityResultContracts
+import android.util.TypedValue
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.res.ResourcesCompat
+import androidx.constraintlayout.widget.ConstraintLayout
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
 import androidx.core.view.updateLayoutParams
 import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.commit
 import androidx.slidingpanelayout.widget.SlidingPaneLayout
-import com.google.android.material.badge.BadgeDrawable
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.xabber.R
+import com.xabber.data.dto.ContactDto
 import com.xabber.data.xmpp.account.Account
-import com.xabber.data.xmpp.account.AccountStorageItem
-import com.xabber.data.xmpp.presences.ResourceStorageItem
 import com.xabber.databinding.ActivityApplicationBinding
+import com.xabber.presentation.application.activity.DisplayManager.getMainContainerWidth
+import com.xabber.presentation.application.activity.DisplayManager.isDualScreenMode
 import com.xabber.presentation.application.contract.ApplicationNavigator
-import com.xabber.presentation.application.fragments.account.AccountFragment
-import com.xabber.presentation.application.fragments.account.ReorderAccountsFragment
+import com.xabber.presentation.application.fragments.account.*
 import com.xabber.presentation.application.fragments.calls.CallsFragment
 import com.xabber.presentation.application.fragments.chat.ChatFragment
+import com.xabber.presentation.application.fragments.chat.ChatParams
 import com.xabber.presentation.application.fragments.chat.ChatViewModel
 import com.xabber.presentation.application.fragments.chatlist.*
+import com.xabber.presentation.application.fragments.contacts.ContactAccountFragment
 import com.xabber.presentation.application.fragments.contacts.ContactsFragment
 import com.xabber.presentation.application.fragments.contacts.EditContactFragment
 import com.xabber.presentation.application.fragments.contacts.NewContactFragment
 import com.xabber.presentation.application.fragments.discover.DiscoverFragment
 import com.xabber.presentation.application.fragments.settings.SettingsFragment
 import com.xabber.presentation.application.util.AppConstants
-import com.xabber.presentation.application.util.dp
+import com.xabber.presentation.application.util.lockScreenRotation
 import com.xabber.presentation.onboarding.activity.OnBoardingActivity
-import io.realm.Realm
-import io.realm.RealmConfiguration
-import io.realm.query
 
 class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
+
     private val binding: ActivityApplicationBinding by lazy {
         ActivityApplicationBinding.inflate(
             layoutInflater
         )
     }
-
+    private var assist: SoftInputAssist? = null
     private val activeFragment: Fragment?
         get() = supportFragmentManager.findFragmentById(R.id.application_container)
     private val viewModel: ApplicationViewModel by viewModels()
     private val chatViewModel: ChatViewModel by viewModels()
-    private var recordAudioPermissionGranted = false
-    private val requestRecordAudioPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission(), ::onGotRecordAudioPermissionResult
-    )
-
-
-    private fun onGotRecordAudioPermissionResult(granted: Boolean) {
-        return if (granted) {
-            recordAudioPermissionGranted = true
-        } else {
-            if (!shouldShowRequestPermissionRationale(Manifest.permission.RECORD_AUDIO)) {
-                recordAudioPermissionGranted = false
-                Toast.makeText(this, "Permission denied", Toast.LENGTH_SHORT).show()
-            } else {
-                recordAudioPermissionGranted = false
-            }
-        }
-    }
-
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(binding.root)
-        val maskName = getSharedPreferences(
-            AppConstants.MASK_KEY,
-            Context.MODE_PRIVATE
-        ).getString(AppConstants.MASK_KEY, "circle")
-        val mask = when (maskName) {
-            "Circle" -> Mask.Circle
-            "Hexagon" -> Mask.Hexagon
-            "Pentagon" -> Mask.Pentagon
-            "Squircle" -> Mask.Squircle
-            "Octagon" -> Mask.Octagon
-            "Rounded" -> Mask.Rounded
-            else -> Mask.Star
-        }
-        Log.d("shared", "$mask")
-        UiChanger.setMask(mask)
         if (true) {
-            if (getWidthWindowSizeClass() == WidthWindowSize.MEDIUM || getWidthWindowSizeClass() == WidthWindowSize.EXPANDED) setContainerWidth()
+            updateUiDependingOnMode(isDualScreenMode())
             if (savedInstanceState == null) {
                 launchFragment(ChatListFragment.newInstance(""))
             } else {
@@ -106,56 +63,88 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
                     savedInstanceState.getInt(AppConstants.UNREAD_MESSAGES_COUNT)
                 showBadge(unreadMessagesCount)
             }
-        } else {
-            val intent = Intent(this, OnBoardingActivity::class.java)
-            startActivity(intent)
-            finish()
-            overridePendingTransition(R.anim.appearance, R.anim.disappearance)
-        }
-        subscribeViewModelData()
-        initBottomNavigation()
-
+            setFullScreenMode()
+            setHeightStatusBar()
+            assist = SoftInputAssist(this)
+            subscribeViewModelData()
+            initBottomNavigation()
+            determinateMask()
+            determinateAccountList()
+        } else goToOnboarding()
     }
 
-    private fun checkUserIsRegister(): Boolean {
-        val config =
-            RealmConfiguration.Builder(setOf(AccountStorageItem::class, ResourceStorageItem::class))
-                .build()
-        val realm = Realm.open(config)
-        val accountCollection = realm
-            .query<AccountStorageItem>()
-            .find()
-        val comparsionResult = accountCollection.size > 0
-        realm.close()
-        return comparsionResult
+    override fun onResume() {
+        super.onResume()
+        assist?.onResume()
     }
 
-    private fun getWidthWindowSizeClass(): WidthWindowSize {
-        val widthDp =
-            (Resources.getSystem().displayMetrics.widthPixels / Resources.getSystem().displayMetrics.density).toInt()
-        val widthWindowSize = when {
-            widthDp >= 900f -> WidthWindowSize.EXPANDED
-            widthDp >= 600f && widthDp < 900f -> WidthWindowSize.MEDIUM
-            else -> WidthWindowSize.COMPACT
+    private fun goToOnboarding() {
+        val intent = Intent(this, OnBoardingActivity::class.java)
+        startActivity(intent)
+        finish()
+        overridePendingTransition(R.anim.appearance, R.anim.disappearance)
+    }
+
+    private fun setFullScreenMode() {
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+    }
+
+    private fun setHeightStatusBar() {
+        ViewCompat.setOnApplyWindowInsetsListener(findViewById(android.R.id.content)) { _, insets ->
+            DisplayManager.setHeightStatusBar(insets.systemWindowInsetTop)
+            setDelimiters(insets.systemWindowInsetTop)
+            insets.consumeSystemWindowInsets()
         }
-        return widthWindowSize
+    }
+
+    private fun setDelimiters(prolongation: Int) {
+        var actionBarHeight = 0
+        val typedValue = TypedValue()
+        if (this.theme.resolveAttribute(
+                android.R.attr.actionBarSize,
+                typedValue,
+                true
+            )
+        ) actionBarHeight =
+            TypedValue.complexToDimensionPixelSize(typedValue.data, resources.displayMetrics)
+
+        binding.delimiterToolbar.updateLayoutParams<ConstraintLayout.LayoutParams> {
+            this.height = actionBarHeight + prolongation
+        }
+    }
+
+    private fun updateUiDependingOnMode(isDualScreenMode: Boolean) {
+        if (isDualScreenMode) {
+            setContainerWidth()
+        }
     }
 
     private fun setContainerWidth() {
-        val widthPx = Resources.getSystem().displayMetrics.widthPixels
-        val density = Resources.getSystem().displayMetrics.density
-        val widthDp = widthPx / density
-
         binding.mainContainer.updateLayoutParams<SlidingPaneLayout.LayoutParams> {
-            val maxSize = 400
-            val newWidth = (widthDp / 100 * 40.dp).toInt()
-            this.width =
-                if (Resources.getSystem().configuration.orientation == Configuration.ORIENTATION_LANDSCAPE && getWidthWindowSizeClass() == WidthWindowSize.EXPANDED) {
-                    val landWidth = (widthDp / 100 * 40.dp).toInt()
-                    if (landWidth > maxSize) maxSize else landWidth
-                } else
-                    newWidth
+            this.width = getMainContainerWidth()
         }
+    }
+
+    private fun determinateMask() {
+        val maskName = getSharedPreferences(
+            AppConstants.MASK_KEY,
+            Context.MODE_PRIVATE
+        ).getString(AppConstants.MASK_KEY, "Circle")
+        val mask = when (maskName) {
+            "Circle" -> Mask.Circle
+            "Hexagon" -> Mask.Hexagon
+            "Pentagon" -> Mask.Pentagon
+            "Squircle" -> Mask.Squircle
+            "Octagon" -> Mask.Octagon
+            "Rounded" -> Mask.Rounded
+            "Star" -> Mask.Star
+            else -> Mask.Circle
+        }
+        UiChanger.setMask(mask)
+    }
+
+    private fun determinateAccountList() {
+        //    val accountList = getSharedPreferences(AppConstants.SHARED_PREF_ACCOUNT_LIST_KEY)
     }
 
     private fun subscribeViewModelData() {
@@ -165,13 +154,13 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
     }
 
     private fun showBadge(count: Int) {
-        if (count > 0) {
-            val creator = binding.bottomNavBar.getOrCreateBadge(R.id.chats)
-            creator.backgroundColor =
-                ResourcesCompat.getColor(binding.bottomNavBar.resources, R.color.green_500, null)
-            creator.badgeGravity = BadgeDrawable.BOTTOM_END
-            creator.number = count
-        } else binding.bottomNavBar.removeBadge(R.id.chats)
+//        if (count > 0) {
+//            val creator = binding.bottomNavBar.getOrCreateBadge(R.id.chats)
+//            creator.backgroundColor =
+//                ResourcesCompat.getColor(binding.bottomNavBar.resources, R.color.green_500, null)
+//            creator.badgeGravity = BadgeDrawable.BOTTOM_END
+//            creator.number = count
+//        } else binding.bottomNavBar.removeBadge(R.id.chats)
     }
 
     private fun initBottomNavigation() {
@@ -180,27 +169,50 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
                 R.id.chats -> {
                     if (activeFragment !is ChatListFragment) {
                         launchFragment(ChatListFragment.newInstance("name.surname@redsolution.com"))
+                        saveAndClearDetailStack()
                     } else {
-                        if (viewModel.unreadCount.value != null && viewModel.unreadCount.value != 0) {
-                            menuItem.setIcon(R.drawable.ic_chat_alert)
-                        }
+                        //  if (viewModel.unreadCount.value != null && viewModel.unreadCount.value != 0) {
+                        menuItem.setIcon(R.drawable.ic_chat_alert)
+                        //viewModel.chatListType.set = ChatListType.UNREAD
+                        //  }
                     }
                 }
-                R.id.calls -> if (activeFragment !is CallsFragment) launchFragment(CallsFragment())
-                R.id.contacts -> if (activeFragment !is ContactsFragment) launchFragment(
-                    ContactsFragment()
-                )
-                R.id.discover -> if (activeFragment !is DiscoverFragment) launchFragment(
-                    DiscoverFragment()
-                )
-                R.id.settings -> if (activeFragment !is SettingsFragment) launchFragment(
-                    SettingsFragment()
-                )
+                R.id.calls -> {
+                    if (activeFragment !is CallsFragment) launchFragment(CallsFragment())
+                    saveAndClearDetailStack()
+                }
+                R.id.contacts -> if (activeFragment !is ContactsFragment) {
+                    launchFragment(ContactsFragment())
+                    saveAndClearDetailStack()
+                }
+                R.id.discover -> if (activeFragment !is DiscoverFragment) {
+                    launchFragment(DiscoverFragment())
+                    saveAndClearDetailStack()
+                }
+                R.id.settings -> if (activeFragment !is AccountFragment) {
+                    launchFragment(
+                        AccountFragment.newInstance(
+                            Account(
+                                "Natalia Barabanshikova",
+                                "Natalia Barabanshikova",
+                                "natalia.barabanshikova@redsolution.com",
+                                R.color.blue_500,
+                                R.drawable.img, 1
+                            )
+                        )
+                    )
+                    saveAndClearDetailStack()
+                }
             }
             true
         }
     }
 
+    private fun saveAndClearDetailStack() {
+        if (supportFragmentManager.findFragmentById(R.id.detail_container) != null) supportFragmentManager.beginTransaction()
+            .remove(supportFragmentManager.findFragmentById(R.id.detail_container)!!)
+            .commit()
+    }
 
     private fun launchFragment(fragment: Fragment) {
         supportFragmentManager.beginTransaction()
@@ -249,7 +261,6 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
         launchDetail(ReorderAccountsFragment())
     }
 
-
     override fun onSupportNavigateUp(): Boolean {
         onBackPressed()
         return true
@@ -263,8 +274,8 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
         if (slidingPaneLayoutIsOpen()) launchDetailInStack(ChatListFragment())
     }
 
-    override fun showMessage(jid: String) {
-        launchDetail(ChatFragment.newInstance(jid))
+    override fun showChat(chatParams: ChatParams) {
+        launchDetail(ChatFragment.newInstance(chatParams))
     }
 
     override fun showAccount(account: Account) {
@@ -291,8 +302,8 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
         launchDetail(SpecialNotificationsFragment())
     }
 
-    override fun showEditContact(name: String) {
-        launchDetailInStack(EditContactFragment.newInstance(name))
+    override fun showEditContact(contactDto: ContactDto?) {
+        launchDetailInStack(EditContactFragment.newInstance(contactDto))
     }
 
     override fun showChatSettings() {
@@ -304,72 +315,44 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
         viewModel.unreadCount.value?.let { outState.putInt(AppConstants.UNREAD_MESSAGES_COUNT, it) }
     }
 
-    @SuppressLint("CommitPrefEdits")
+
+    fun slidingPaneLayoutIsOpen(): Boolean = binding.slidingPaneLayout.isOpen
+
+
+    override fun enableScreenRotationLock(isLock: Boolean) {
+        lockScreenRotation(isLock)
+    }
+
+    override fun showSettings() {
+        launchDetail(SettingsFragment())
+    }
+
+    override fun showContactAccount(contactDto: ContactDto) {
+        launchDetail(ContactAccountFragment.newInstance(contactDto))
+    }
+
+    private fun isTablet(): Boolean = resources.getBoolean(R.bool.isTablet)
+
+    override fun showQRCode(qrCodeParams: QRCodeParams) {
+        if (isTablet()) {
+            showDialogFragment(QRCodeDialogFragment.newInstance(qrCodeParams))
+        } else {
+            launchDetail(QRCodeFragment.newInstance(qrCodeParams))
+        }
+    }
+
+    override fun showContactProfile(contactDto: ContactDto) {
+        launchDetailInStack(ContactProfileFragment.newInstance(contactDto))
+    }
+
+    override fun onPause() {
+        super.onPause()
+        assist?.onPause()
+    }
+
     override fun onDestroy() {
         super.onDestroy()
-        requestRecordAudioPermissionLauncher.unregister()
-        getSharedPreferences(AppConstants.MASK_KEY, Context.MODE_PRIVATE).edit()
-            .putString(AppConstants.MASK_KEY, UiChanger.getMask().name).apply()
-        Log.d("shared", "${UiChanger.getMask().name}")
+        assist?.onDestroy()
     }
 
-    override fun requestPermissionToRecord(): Boolean {
-        requestRecordAudioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-        return recordAudioPermissionGranted
-    }
-
-
-    override fun slidingPaneLayoutIsOpen(): Boolean = binding.slidingPaneLayout.isOpen
-
-
-    override fun lockScreenRotation(isLock: Boolean) {
-        this.requestedOrientation =
-            if (isLock) {
-                val display: Display = this.windowManager.defaultDisplay
-                val rotation = display.rotation
-                val size = Point()
-                display.getSize(size)
-                if (rotation == Surface.ROTATION_0 || rotation == Surface.ROTATION_180) {
-                    if (size.x > size.y) {
-                        //rotation is 0 or 180 deg, and the size of x is greater than y,
-                        //so we have a tablet
-                        if (rotation == Surface.ROTATION_0) {
-                            ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
-                        } else {
-                            ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE
-                        }
-                    } else {
-                        //rotation is 0 or 180 deg, and the size of y is greater than x,
-                        //so we have a phone
-                        if (rotation == Surface.ROTATION_0) {
-                            ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-                        } else {
-                            ActivityInfo.SCREEN_ORIENTATION_REVERSE_PORTRAIT
-                        }
-                    }
-                } else {
-                    if (size.x > size.y) {
-                        //rotation is 90 or 270, and the size of x is greater than y,
-                        //so we have a phone
-                        if (rotation == Surface.ROTATION_90) {
-                            ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
-                        } else {
-                            ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE
-                        }
-                    } else {
-                        //rotation is 90 or 270, and the size of y is greater than x,
-                        //so we have a tablet
-                        if (rotation == Surface.ROTATION_90) {
-                            ActivityInfo.SCREEN_ORIENTATION_REVERSE_PORTRAIT
-                        } else {
-                            ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-                        }
-                    }
-                }
-            } else {
-                ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-            }
-    }
 }
-
-

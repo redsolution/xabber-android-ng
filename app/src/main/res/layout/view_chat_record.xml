@@ -97,6 +97,7 @@
             android:visibility="gone">
 
             <ImageButton
+                android:src="@drawable/ic_close_grey"
                 android:id="@+id/voice_presenter_delete"
                 android:layout_width="52dp"
                 android:layout_height="52dp"
@@ -108,19 +109,10 @@
                 android:layout_height="match_parent"
                 android:layout_marginTop="6dp"
                 android:layout_marginBottom="6dp"
-                android:layout_weight="8"
                 android:background="@drawable/rounded_background_grey"
                 android:gravity="center_vertical"
                 android:orientation="horizontal">
 
-                <ImageButton
-                    android:id="@+id/voice_presenter_play"
-                    android:layout_width="32dp"
-                    android:layout_height="32dp"
-                    android:layout_weight="1"
-                    android:background="@color/transparent"
-                    app:srcCompat="@drawable/ic_play"
-                    app:tint="@color/white" />
 
                 <com.xabber.presentation.custom.PlayerVisualizerView
                     android:id="@+id/voice_presenter_visualizer"
@@ -142,12 +134,6 @@
                     tools:text="1:23" />
             </LinearLayout>
 
-            <ImageButton
-                android:id="@+id/voice_presenter_send"
-                android:layout_width="52dp"
-                android:layout_height="52dp"
-                android:background="@color/transparent"
-                app:srcCompat="@drawable/selector_send" />
 
 
         </LinearLayout>

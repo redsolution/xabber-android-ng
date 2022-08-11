@@ -5,7 +5,8 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import com.xabber.presentation.application.fragments.chatlist.ChatListType
 
-open class ApplicationViewModel : ViewModel() {
+open class ApplicationViewModel() : ViewModel() {
+    private val BdCommunicator = BdCommunicator()
     private val _unreadCount = MutableLiveData<Int>()
     val unreadCount: LiveData<Int> = _unreadCount
 
@@ -20,5 +21,8 @@ open class ApplicationViewModel : ViewModel() {
     fun setChatListType(chatListType: ChatListType) {
         _chatListType.value = chatListType
     }
+
+
+
 
 }

@@ -12,31 +12,28 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center_horizontal"
-        android:layout_marginTop="12dp"
-        android:layout_marginBottom="12dp"
+        android:layout_marginVertical="@dimen/margin_onboarding_small"
         android:src="@drawable/bottom_sheet_swipe_dark" />
 
     <RelativeLayout
         android:id="@+id/emoji_view_group"
+        style="@style/AvatarBottomSheetItem"
         android:layout_width="match_parent"
-        android:layout_height="48dp"
-        android:background="@drawable/item_bottom_sheet_background_dark"
         android:clickable="true"
         android:focusable="true">
 
         <ImageView
             android:id="@+id/image_view_emoji"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
+            android:layout_width="@dimen/icon_bottom_sheet_avatar_size"
+            android:layout_height="@dimen/icon_bottom_sheet_avatar_size"
             android:layout_alignParentStart="true"
             android:layout_alignParentTop="true"
             android:layout_alignParentBottom="true"
+            android:layout_marginVertical="@dimen/margin_onboarding_small"
             android:layout_marginStart="20dp"
-            android:layout_marginTop="12dp"
-            android:layout_marginEnd="32dp"
-            android:layout_marginBottom="12dp"
-            app:srcCompat="@drawable/ic_emoticon_blue"
-            android:contentDescription="@string/image_view_content_description_use_emoji" />
+            android:layout_marginEnd="@dimen/margin_onboarding_medium"
+            android:contentDescription="@string/image_view_content_description_use_emoji"
+            app:srcCompat="@drawable/ic_emoticon_blue" />
 
         <TextView
             android:id="@+id/tvEmoji"
@@ -51,30 +48,28 @@
             android:text="@string/signup_bottom_sheet_button_emoji_label"
             android:textAppearance="@style/TextAppearance.AppCompat.Title"
             android:textColor="@color/grey_600"
-            android:textSize="20sp" />
+            android:textSize="@dimen/onboarding_title_font_size" />
     </RelativeLayout>
 
     <RelativeLayout
         android:id="@+id/selfie_view_group"
+        style="@style/AvatarBottomSheetItem"
         android:layout_width="match_parent"
-        android:layout_height="48dp"
-        android:background="@drawable/item_bottom_sheet_background_dark"
         android:clickable="true"
         android:focusable="true">
 
         <ImageView
             android:id="@+id/image_view_selfie"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
+            android:layout_width="@dimen/icon_bottom_sheet_avatar_size"
+            android:layout_height="@dimen/icon_bottom_sheet_avatar_size"
             android:layout_alignParentStart="true"
             android:layout_alignParentTop="true"
             android:layout_alignParentBottom="true"
+            android:layout_marginVertical="@dimen/margin_onboarding_small"
             android:layout_marginStart="20dp"
-            android:layout_marginTop="12dp"
-            android:layout_marginEnd="32dp"
-            android:layout_marginBottom="12dp"
-            app:srcCompat="@drawable/ic_camera_yellow"
-            android:contentDescription="@string/image_view_content_description_take_selfie" />
+            android:layout_marginEnd="@dimen/margin_onboarding_medium"
+            android:contentDescription="@string/image_view_content_description_take_selfie"
+            app:srcCompat="@drawable/ic_camera_yellow" />
 
         <TextView
             android:id="@+id/tvSelfie"
@@ -88,33 +83,30 @@
             android:gravity="center_vertical"
             android:text="@string/signup_bottom_sheet_button_selfie_label"
             android:textAppearance="@style/TextAppearance.AppCompat.Title"
-
             android:textColor="@color/grey_600"
-            android:textSize="20sp" />
+            android:textSize="@dimen/onboarding_title_font_size" />
     </RelativeLayout>
 
     <RelativeLayout
         android:id="@+id/chose_image_view_group"
+        style="@style/AvatarBottomSheetItem"
         android:layout_width="match_parent"
-        android:layout_height="48dp"
         android:layout_marginBottom="8dp"
-        android:background="@drawable/item_bottom_sheet_background_dark"
         android:clickable="true"
         android:focusable="true">
 
         <ImageView
             android:id="@+id/image_view_chose_image"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
+            android:layout_width="@dimen/icon_bottom_sheet_avatar_size"
+            android:layout_height="@dimen/icon_bottom_sheet_avatar_size"
             android:layout_alignParentStart="true"
             android:layout_alignParentTop="true"
             android:layout_alignParentBottom="true"
+            android:layout_marginVertical="@dimen/margin_onboarding_small"
             android:layout_marginStart="20dp"
-            android:layout_marginTop="12dp"
-            android:layout_marginEnd="32dp"
-            android:layout_marginBottom="12dp"
-            app:srcCompat="@drawable/ic_image_red"
-            android:contentDescription="@string/image_view_content_description_choose_image" />
+            android:layout_marginEnd="@dimen/margin_onboarding_medium"
+            android:contentDescription="@string/image_view_content_description_choose_image"
+            app:srcCompat="@drawable/ic_image_red" />
 
         <TextView
             android:id="@+id/tvChoseImage"
@@ -129,6 +121,6 @@
             android:textAllCaps="false"
             android:textAppearance="@style/TextAppearance.AppCompat.Title"
             android:textColor="@color/grey_600"
-            android:textSize="20sp" />
+            android:textSize="@dimen/onboarding_title_font_size" />
     </RelativeLayout>
 </LinearLayout>

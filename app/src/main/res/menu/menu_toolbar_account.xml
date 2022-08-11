@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <item
+        android:id="@+id/menu_item_color"
+        android:icon="@drawable/ic_color_lens_white"
+        android:title="@string/menu_item_choose_account_color"
+        app:showAsAction="always" />
+
+    <item
+        android:id="@+id/menu_item_generate_qr_code"
+        android:icon="@drawable/ic_qr_code_generate_white"
+        android:title="@string/menu_item_generate_qr_code"
+        app:showAsAction="always" />
+
+    <item
+        android:id="@+id/menu_item_add_account"
+        android:title="@string/menu_item_add_account"
+        app:showAsAction="never" />
+</menu>

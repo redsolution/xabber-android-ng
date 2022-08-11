@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <com.google.android.material.appbar.AppBarLayout
+        android:id="@+id/appbar"
+        android:layout_width="match_parent"
+        android:layout_height="424dp">
+
+        <com.google.android.material.appbar.CollapsingToolbarLayout
+            android:id="@+id/collapsing_toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            app:collapsedTitleTextAppearance="@style/CollapsingToolbarTitle"
+            app:collapsedTitleTextColor="@color/white"
+            app:layout_scrollFlags="scroll|snap|exitUntilCollapsed">
+
+            <ImageView
+                android:id="@+id/im_backdrop"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:contentDescription="@string/avatar_background_image_description"
+                android:scaleType="centerCrop" />
+
+            <ImageView
+                android:id="@+id/im_photo"
+                android:layout_width="@dimen/mask256"
+                android:layout_height="@dimen/mask256"
+                android:layout_gravity="start|center_vertical"
+                android:layout_marginStart="@dimen/margin_larger_medium"
+                android:layout_marginBottom="@dimen/margin_medium"
+                android:contentDescription="@string/account_photo_image_description"
+                app:layout_collapseMode="none" />
+
+            <com.google.android.material.appbar.MaterialToolbar
+                android:id="@+id/toolbar"
+                android:layout_width="match_parent"
+                android:layout_height="?attr/actionBarSize"
+                android:theme="@style/ToolbarAccountColorTheme"
+                app:layout_collapseMode="none" />
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="bottom"
+                android:layout_marginEnd="8dp"
+                android:layout_marginBottom="20dp"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/tv_title"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="@dimen/margin_larger_medium"
+                    android:layout_marginBottom="4dp"
+                    android:gravity="start"
+                    android:maxLines="1"
+                    android:textColor="@color/white"
+                    android:textSize="24sp"
+                    app:layout_collapseMode="none" />
+
+                <TextView
+                    android:id="@+id/tv_subtitle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="bottom"
+                    android:layout_marginStart="@dimen/margin_larger_medium"
+                    android:alpha="0.8"
+                    android:gravity="start"
+                    android:maxLines="1"
+                    android:textColor="@color/white"
+                    android:textSize="@dimen/font_size_16"
+                    app:layout_collapseMode="none" />
+            </LinearLayout>
+        </com.google.android.material.appbar.CollapsingToolbarLayout>
+
+    </com.google.android.material.appbar.AppBarLayout>
+
+</layout>

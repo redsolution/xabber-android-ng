@@ -131,7 +131,7 @@ class ContactViewHolder(
 
             itemView.setOnLongClickListener {
                 val popup = PopupMenu(itemView.context, itemView, Gravity.RIGHT)
-                popup.inflate(R.menu.contact_context_menu)
+                popup.inflate(R.menu.popup_menu_contact_item)
 
                 popup.setOnMenuItemClickListener {
 

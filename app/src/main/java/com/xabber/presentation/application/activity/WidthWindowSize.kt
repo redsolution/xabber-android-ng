@@ -1,3 +1,3 @@
 package com.xabber.presentation.application.activity
 
-enum class WidthWindowSize { COMPACT, MEDIUM, EXPANDED }
+enum class WidthWindowSize { STANDARD, EXPANDED }

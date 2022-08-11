@@ -15,7 +15,7 @@
         android:maxLines="2"
         android:text="@string/signup__avatar_title_label"
         android:textColor="@color/grey_text_1"
-        android:textSize="@dimen/onboarding_title_text_size"
+        android:textSize="@dimen/onboarding_title_font_size"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
@@ -47,10 +47,10 @@
 
     <ImageView
         android:id="@+id/profile_photo_background"
-        android:layout_width="60dp"
-        android:layout_height="60dp"
+        android:layout_width="@dimen/photo_icon_size"
+        android:layout_height="@dimen/photo_icon_size"
         android:contentDescription="@string/im_avatar_content_description"
-        android:elevation="10dp"
+        android:elevation="@dimen/big_elevation"
         android:src="@drawable/photo_circle_blue"
         app:layout_constraintBottom_toBottomOf="@+id/profile_image"
         app:layout_constraintEnd_toEndOf="@+id/profile_image" />

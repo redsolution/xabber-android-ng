@@ -51,7 +51,7 @@ class SigninFragment : BaseFragment(R.layout.fragment_signin) {
         initRecyclerView()
         binding.signinSubtitle1.text = getSubtitleClickableSpan()
         binding.signinSubtitle1.movementMethod = LinkMovementMethod.getInstance()
-       // requireActivity().onBackPressedDispatcher.addCallback(onBackPressedCallback)
+        // requireActivity().onBackPressedDispatcher.addCallback(onBackPressedCallback)
     }
 
     private fun initEditText() {
@@ -67,7 +67,9 @@ class SigninFragment : BaseFragment(R.layout.fragment_signin) {
                 if (!jidText.contains('@'))
                     jidText += "@$host"
                 binding.btnConnect.isEnabled =
-                    p0.toString().isNotEmpty() && viewModel.isJidValid(jidText) && binding.editTextPassword.text.toString().isNotEmpty()
+                    p0.toString()
+                        .isNotEmpty() && viewModel.isJidValid(jidText) && binding.editTextPassword.text.toString()
+                        .isNotEmpty()
                 binding.signinSubtitle1.setTextColor(
                     ResourcesCompat.getColor(
                         resources,
@@ -159,7 +161,7 @@ class SigninFragment : BaseFragment(R.layout.fragment_signin) {
                                 lifecycleScope.launch {
                                     delay(150)
                                     list[list.lastIndex].state =
-                                            State.Success   //    Здесь пока заглушка
+                                        State.Success   //    Здесь пока заглушка
                                     if (viewModel.isServerFeatures) {
                                         featureAdapter.submitList(list)
                                         featureAdapter.notifyItemChanged(list.lastIndex)
@@ -200,10 +202,8 @@ class SigninFragment : BaseFragment(R.layout.fragment_signin) {
                             )
                         )
 
-
                     }
                 }
-
             }
         }
     }

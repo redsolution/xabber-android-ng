@@ -15,8 +15,8 @@
         android:src="@drawable/circle_green"
         android:visibility="gone"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toStartOf="@id/chat_pinned"
-        app:layout_constraintTop_toBottomOf="@id/chat_timestamp"
+        app:layout_constraintEnd_toStartOf="@id/im_chat_list_pinned"
+        app:layout_constraintTop_toBottomOf="@id/tv_chat_list_timestamp"
         tools:visibility="visible"/>
 
         <TextView

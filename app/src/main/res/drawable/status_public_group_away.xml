@@ -14,5 +14,5 @@
             <solid android:color="@color/amber_700" />
         </shape>
     </item>
-    <item android:drawable="@drawable/ic_group_public" />
+    <item android:drawable="@drawable/ic_group_public_white" />
 </layer-list>

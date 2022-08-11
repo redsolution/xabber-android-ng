@@ -1,28 +1,38 @@
 package com.xabber.presentation.application.fragments.account
 
 import android.os.Bundle
+import android.util.Log
 import android.view.View
+import android.view.ViewGroup
+import androidx.constraintlayout.widget.ConstraintLayout
+import androidx.core.view.marginTop
+import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import by.kirich1409.viewbindingdelegate.viewBinding
 import com.xabber.R
 import com.xabber.data.xmpp.account.Account
 import com.xabber.databinding.FragmentReorderAccountBinding
 import com.xabber.presentation.BaseFragment
+import com.xabber.presentation.application.activity.DisplayManager
 import com.xabber.presentation.application.activity.ReorderAccountAdapter
 import com.xabber.presentation.application.contract.navigator
+import com.xabber.presentation.application.util.dp
 
 class ReorderAccountsFragment : BaseFragment(R.layout.fragment_reorder_account) {
     private val binding by viewBinding(FragmentReorderAccountBinding::bind)
-    private val reorderAccountAdapter: ReorderAccountAdapter? = null
+    private var reorderAccountAdapter: ReorderAccountAdapter? = null
+    private var touchHelper: ItemTouchHelper? = null
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         initToolbarActions()
         initReorderAccountList()
+        binding.appbar.setPadding(0, DisplayManager.getHeightStatusBar(), 0, 0)
     }
 
     private fun initToolbarActions() {
-        binding.toolbarReorderAccounts.setNavigationIcon(R.drawable.ic_close)
+        binding.toolbarReorderAccounts.setNavigationIcon(R.drawable.ic_close_white)
         binding.toolbarReorderAccounts.setNavigationOnClickListener { navigator().closeDetail() }
         binding.toolbarReorderAccounts.setOnMenuItemClickListener {
             when (it.itemId) {
@@ -33,32 +43,43 @@ class ReorderAccountsFragment : BaseFragment(R.layout.fragment_reorder_account) 
             true
         }
     }
-    private fun saveOrderAccounts(){
+
+    private fun saveOrderAccounts() {
 
     }
 
     private fun initReorderAccountList() {
+
         binding.rvReorderAccounts.layoutManager = LinearLayoutManager(context)
-           val accountList = ArrayList<Account>()
+        val accountList = ArrayList<Account>()
         accountList.add(
             Account(
+                "Natalia Barabanshikova",
                 "Natalia Barabanshikova",
                 "natalia.barabanshikova@redsolution.com",
-                "Natalia Barabanshikova",
                 R.color.blue_100,
-                R.drawable.img
+                R.drawable.img, 1
             )
         )
         accountList.add(
             Account(
                 "Natalia Barabanshikova",
+                "Nataliy",
                 "nata@xmpp.ru",
-                "Nataly",
                 R.color.red_600,
-                R.drawable.girl
+                R.drawable.girl, 2
             )
         )
-        binding.rvReorderAccounts.adapter = ReorderAccountAdapter(accountList)
+reorderAccountAdapter = ReorderAccountAdapter(accountList) { onStartDrag(it) }
+        binding.rvReorderAccounts.adapter = reorderAccountAdapter
+        val callback = SimpleItemTouchHelperCallback(reorderAccountAdapter)
+        touchHelper = ItemTouchHelper(callback)
+        touchHelper?.attachToRecyclerView(binding.rvReorderAccounts)
+    }
+
+    private fun onStartDrag(viewHolder: RecyclerView.ViewHolder) {
+        Log.d("drag", "$touchHelper")
+        touchHelper?.startDrag(viewHolder)
     }
 
     override fun onDestroy() {

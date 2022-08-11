@@ -2,6 +2,7 @@ package com.xabber.presentation.onboarding.fragments.start
 
 import android.graphics.*
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.view.animation.AnimationUtils
 import androidx.core.view.isVisible
@@ -55,32 +56,33 @@ class StartFragment : BaseFragment(R.layout.fragment_start) {
                         }, @StartFragment ::showError)
                 )
             }
+            Log.d("uuu", "$compositeDisposable, ${viewModel.getHost()}")
             compositeDisposable?.clear()
-
 
         }
 
     }
 
     private fun showError(e: Throwable) {
-            val snack = Snackbar.make(
-                   binding.root,
-                    "There is no internet connection",
-                    Snackbar.LENGTH_SHORT
-                )
-            snack.setTextColor(Color.YELLOW)
-            snack.show()
-
-        with(binding) {
-            progressBar.isVisible = false
-            val anim = AnimationUtils.loadAnimation(context, R.anim.fade_in_200)
-            btnSignin.isVisible = true
-            btnSignup.isVisible = true
-            btnSignin.startAnimation(anim)
-            btnSignup.startAnimation(anim)
-         //
+        navigator().openSignupNicknameFragment()
+//        Log.d("uuu", "${e.printStackTrace()}")
+//            val snack = Snackbar.make(
+//                   binding.root,
+//                    "There is no internet connection",
+//                    Snackbar.LENGTH_SHORT
+//                )
+//            snack.setTextColor(Color.YELLOW)
+//            snack.show()
+//
+//        with(binding) {
+//            progressBar.isVisible = false
+//            val anim = AnimationUtils.loadAnimation(context, R.anim.fade_in)
+//            btnSignin.isVisible = true
+//            btnSignup.isVisible = true
+//            btnSignin.startAnimation(anim)
+//            btnSignup.startAnimation(anim)
         //    btnSignup.isVisible = true
-        }
+    //    }
     }
 
  override fun onDestroy() {

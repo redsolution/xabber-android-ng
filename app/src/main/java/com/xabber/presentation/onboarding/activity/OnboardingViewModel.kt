@@ -2,15 +2,14 @@ package com.xabber.presentation.onboarding.activity
 
 import android.graphics.Bitmap
 import android.net.Uri
-import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import com.xabber.data.dto.HostListDto
 import com.xabber.data.repository.AccountRepository
-import com.xabber.presentation.application.util.AppConstants
 import com.xabber.data.xmpp.account.AccountStorageItem
 import com.xabber.data.xmpp.presences.ResourceStorageItem
+import com.xabber.presentation.application.util.AppConstants
 import io.reactivex.rxjava3.core.Single
 import io.realm.Realm
 import io.realm.RealmConfiguration
@@ -81,5 +80,3 @@ class OnboardingViewModel : ViewModel() {
         _avatarUri.value = uri
     }
 }
-
-

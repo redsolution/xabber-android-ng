@@ -2,10 +2,12 @@
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="@color/white">
 
     <com.google.android.material.appbar.AppBarLayout
-        android:id="@+id/swap_accounts_appbar"
+        android:id="@+id/appbar"
+        style="@style/ApplicationAppbar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         app:layout_constraintEnd_toEndOf="parent"
@@ -15,9 +17,11 @@
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/toolbar_reorder_accounts"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="?attr/actionBarSize"
             app:menu="@menu/menu_check"
-            app:title="Reorder accounts">
+            app:titleTextColor="@color/white"
+            app:title="Reorder accounts"
+            style="@style/ApplicationToolbar">
 
         </com.google.android.material.appbar.MaterialToolbar>
     </com.google.android.material.appbar.AppBarLayout>
@@ -25,19 +29,25 @@
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rv_reorder_accounts"
         android:layout_width="0dp"
-        android:layout_height="wrap_content"
+        android:elevation="@dimen/big_elevation"
+        android:layout_height="0dp"
+        android:layout_marginBottom="8dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/swap_accounts_appbar" />
+        app:layout_constraintTop_toBottomOf="@id/appbar"
+        app:layout_constraintBottom_toBottomOf="parent"
+        android:background="@color/transparent"/>
 
     <TextView
+        android:id="@+id/tv_reorder_description"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="16dp"
-        android:layout_marginTop="16dp"
+        android:layout_marginTop="164dp"
+        android:elevation="0dp"
         android:gravity="center"
         android:text="@string/tv_swap_account"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/rv_reorder_accounts" />
+        app:layout_constraintTop_toBottomOf="@id/appbar"  />
 </androidx.constraintlayout.widget.ConstraintLayout>

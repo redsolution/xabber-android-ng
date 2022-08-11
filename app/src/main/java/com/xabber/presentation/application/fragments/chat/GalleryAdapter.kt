@@ -17,19 +17,14 @@ import com.xabber.databinding.ItemPreviewCameraBinding
 class GalleryAdapter(private val listener: Listener) :
     RecyclerView.Adapter<RecyclerView.ViewHolder>() {
     private val selectedImagePaths = HashSet<Uri>()
-    private val ITEM_CAMERA = 0
-    private val ITEM_GALLERY_IMAGE = 1
-
 
     companion object {
-
         private val imagePaths = ArrayList<Uri>()
         val projectionPhotos = arrayOf(
             MediaStore.Images.Media._ID,
             MediaStore.Images.Media.BUCKET_DISPLAY_NAME,
             MediaStore.Images.Media.DATE_TAKEN,
         )
-
     }
 
     fun getSelectedImagePaths(): HashSet<Uri> = selectedImagePaths
@@ -43,23 +38,11 @@ class GalleryAdapter(private val listener: Listener) :
     interface Listener {
         fun onRecentImagesSelected()
         fun tooManyFilesSelected()
-        fun cameraView(previewCamera: PreviewView, textView: TextView, imageView: ImageView)
-        fun clickCameraPreview()
+        fun cameraView(previewCamera: PreviewView, textView: ImageView, imageView: ImageView)
     }
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
-        return when (viewType) {
-            ITEM_CAMERA -> {
-                CameraVH(
-                    ItemPreviewCameraBinding.inflate(
-                        LayoutInflater.from(parent.context),
-                        parent,
-                        false
-                    )
-                )
-            }
-            else -> {
-                GalleryVH(
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): GalleryVH {
+        return GalleryVH(
                     ItemImageFromGalleryBinding.inflate(
                         LayoutInflater.from(parent.context),
                         parent,
@@ -67,21 +50,8 @@ class GalleryAdapter(private val listener: Listener) :
                     )
                 )
             }
-        }
-    }
 
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
-        if (position == 0) {
-            val recentImageViewHolder = holder as CameraVH
-            val previewCamera = recentImageViewHolder.getCameraPreview()
-            val tvPreviewCamera = recentImageViewHolder.getTextViewPreview()
-            val imageViewPreviewCamera = recentImageViewHolder.getImageViewPreview()
-            listener.cameraView(previewCamera, tvPreviewCamera, imageViewPreviewCamera)
-            previewCamera.setOnClickListener {
-                listener.clickCameraPreview()
-            }
-            tvPreviewCamera.setOnClickListener { listener.clickCameraPreview() }
-        } else {
             val recentImageViewHolder = holder as GalleryVH
             val path = imagePaths[position]
             val image = recentImageViewHolder.getImage()
@@ -95,7 +65,7 @@ class GalleryAdapter(private val listener: Listener) :
             recentImageViewHolder.getCheckBox().isChecked = selectedImagePaths.contains(path)
 
             recentImageViewHolder.getCheckBox()
-                .setOnCheckedChangeListener(CompoundButton.OnCheckedChangeListener { buttonView, isChecked ->
+                .setOnCheckedChangeListener { buttonView, isChecked ->
                     if (isChecked) {
                         if (selectedImagePaths.size < 10)
                             selectedImagePaths.add(path)
@@ -108,32 +78,9 @@ class GalleryAdapter(private val listener: Listener) :
                     }
 
                     listener.onRecentImagesSelected()
-                })
-        }
-        holder.itemView.setOnClickListener {
-            if (position == 0) listener.clickCameraPreview()
-            else {
-            }
-        }
+                }
     }
 
-    fun showPlug() {
-
-    }
     override fun getItemCount(): Int = imagePaths.size
 
-    override fun getItemViewType(position: Int): Int {
-        return when (position) {
-            0 -> {
-                ITEM_CAMERA
-            }
-            else -> {
-                ITEM_GALLERY_IMAGE
-            }
-        }
-
-    }
-
-
 }
-

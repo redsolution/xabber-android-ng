@@ -7,11 +7,13 @@ import android.os.Bundle
 import android.view.View
 import by.kirich1409.viewbindingdelegate.viewBinding
 import com.xabber.R
+import com.xabber.data.xmpp.account.Account
 import com.xabber.databinding.FragmentContactBinding
-import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.BaseFragment
-import com.xabber.presentation.application.activity.UiChanger
+import com.xabber.presentation.application.activity.DisplayManager
 import com.xabber.presentation.application.activity.MaskedDrawableBitmapShader
+import com.xabber.presentation.application.activity.UiChanger
+import com.xabber.presentation.application.contract.navigator
 
 class ContactsFragment : BaseFragment(R.layout.fragment_contact), ContactAdapter.Listener {
     private val binding by viewBinding(FragmentContactBinding::bind)
@@ -19,6 +21,7 @@ class ContactsFragment : BaseFragment(R.layout.fragment_contact), ContactAdapter
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        binding.appbar.setPadding(0, DisplayManager.getHeightStatusBar(),0, 0)
         val mPictureBitmap = BitmapFactory.decodeResource(resources, R.drawable.img)
         val mMaskBitmap =
             BitmapFactory.decodeResource(resources, UiChanger.getMask().size32).extractAlpha()
@@ -26,7 +29,17 @@ class ContactsFragment : BaseFragment(R.layout.fragment_contact), ContactAdapter
         maskedDrawable.setPictureBitmap(mPictureBitmap)
         maskedDrawable.setMaskBitmap(mMaskBitmap)
         binding.imAvatar.setImageDrawable(maskedDrawable)
-
+        binding.imAvatar.setOnClickListener {
+            navigator().showAccount(
+                Account(
+                    "Natalia Barabanshikova",
+                    "Natalia Barabanshikova",
+                    "natalia.barabanshikova@redsolution.com",
+                    R.color.blue_100,
+                    R.drawable.img, 1
+                )
+            )
+        }
 
         val contactAdapter = ContactAdapter(this)
         //  Glide.with(binding.imAvatar).load(R.drawable.img).centerInside().into(binding.imAvatar)
@@ -45,11 +58,11 @@ class ContactsFragment : BaseFragment(R.layout.fragment_contact), ContactAdapter
     }
 
     override fun onContactClick(userName: String) {
-        navigator().showMessage(userName)
+    //    navigator().showChat(userName)
     }
 
     override fun editContact() {
-        navigator().showEditContact("")
+     //   navigator().showContactAccount(con)
     }
 
     override fun deleteContact() {

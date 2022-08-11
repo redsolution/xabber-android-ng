@@ -8,16 +8,17 @@ class Account(
     val name: String?,
     val jid: String?,
     val colorResId: Int,
-    val avatar: Int
-) : Parcelable {
+    val avatar: Int,
+    var order: Int
+) : Parcelable, Comparable<Account> {
     constructor(parcel: Parcel) : this(
         parcel.readString(),
         parcel.readString(),
         parcel.readString(),
         parcel.readInt(),
+        parcel.readInt(),
         parcel.readInt()
-    ) {
-    }
+    )
 
     override fun writeToParcel(parcel: Parcel, flags: Int) {
         parcel.writeString(owner)
@@ -25,6 +26,7 @@ class Account(
         parcel.writeString(jid)
         parcel.writeInt(colorResId)
         parcel.writeInt(avatar)
+        parcel.writeInt(order)
     }
 
     override fun describeContents(): Int {
@@ -39,5 +41,9 @@ class Account(
         override fun newArray(size: Int): Array<Account?> {
             return arrayOfNulls(size)
         }
+    }
+
+    override fun compareTo(other: Account): Int {
+        return order - other.order
     }
 }

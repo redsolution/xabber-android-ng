@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="78dp"
+    android:background="@color/grey_100"
+    android:clickable="true"
+    android:elevation="4dp"
+    android:focusable="true"
+    android:paddingHorizontal="12dp">
+
+    <ImageView
+        android:id="@+id/im_avatar_item_account"
+        android:layout_width="@dimen/mask48"
+        android:layout_height="@dimen/mask48"
+        android:contentDescription="@string/im_account_avatar_content_description"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <TextView
+        android:id="@+id/tv_item_account_name"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="12dp"
+        android:ellipsize="marquee"
+        android:gravity="start"
+        android:singleLine="true"
+        android:layout_marginTop="16dp"
+        android:textColor="?android:attr/textColorPrimary"
+        android:textSize="20sp"
+        app:layout_constraintBottom_toTopOf="@id/tv_item_account_jid"
+        app:layout_constraintEnd_toStartOf="@id/im_account_anchor"
+        app:layout_constraintStart_toEndOf="@id/im_avatar_item_account"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <TextView
+        android:id="@+id/tv_item_account_jid"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="12dp"
+        android:ellipsize="marquee"
+        android:gravity="start"
+        android:singleLine="true"
+        android:textColor="?android:attr/textColorSecondary"
+        android:textSize="12sp"
+        app:layout_constraintEnd_toStartOf="@id/im_account_anchor"
+        app:layout_constraintStart_toEndOf="@id/im_avatar_item_account"
+        app:layout_constraintTop_toBottomOf="@id/tv_item_account_name" />
+
+    <ImageView
+        android:id="@+id/im_account_anchor"
+        android:layout_width="30dp"
+        android:layout_height="30dp"
+        android:contentDescription="@string/im_anchor_description"
+        android:src="@drawable/ic_drag_vertical_grey"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@id/tv_item_account_name"
+        app:layout_constraintTop_toTopOf="parent" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

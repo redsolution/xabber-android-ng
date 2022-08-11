@@ -149,7 +149,7 @@ if (binding.avatarContact.isVisible) {
                   binding.tvContent.setTextIsSelectable(false) }
             } else {
                  val popup = CustomPopupMenu(it.context, it, Gravity.CENTER)
-           popup.inflate(R.menu.context_menu_message_incoming)
+           popup.inflate(R.menu.popup_menu_message_incoming)
 
             val menuHealper = MenuPopupHelper(it.context, popup.menu as MenuBuilder, binding.root)
             menuHealper.setForceShowIcon(true)
@@ -216,8 +216,8 @@ if (binding.avatarContact.isVisible) {
     @SuppressLint("RestrictedApi")
     fun createPopupMenu(messageDto: MessageDto, view: View): CustomPopupMenu {
         val popup = CustomPopupMenu(view.context, view, Gravity.CENTER)
-        if (messageDto.isOutgoing) popup.inflate(R.menu.context_menu_message_outgoing)
-        else popup.inflate(R.menu.context_menu_message_incoming)
+        if (messageDto.isOutgoing) popup.inflate(R.menu.popup_menu_message_outgoing)
+        else popup.inflate(R.menu.popup_menu_message_incoming)
 
         val menuHelper = MenuPopupHelper(view.context, popup.menu as MenuBuilder, binding.root)
         menuHelper.setForceShowIcon(true)

@@ -136,6 +136,3 @@ class OnBoardingActivity : AppCompatActivity(), Navigator, ToolbarChanger {
     }
 
 }
-
-
-

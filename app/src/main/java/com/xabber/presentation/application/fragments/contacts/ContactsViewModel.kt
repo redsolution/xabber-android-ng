@@ -11,17 +11,17 @@ class ContactsViewModel : ViewModel() {
 
     init {
         contacts.value = java.util.ArrayList<ContactDto>()
-      contacts.value!!.addAll(mutableListOf(
-          ContactDto(
-              "Иван Иванов", "Иван Иванов", "группа 1", "Иван Иванов", "Подзаголовок",
-              ResourceStatus.Xa, RosterItemEntity.Server), ContactDto(
-              "Олег Олегов", "Олег Олегов", "группа 1", "Подзаголовок", "Подзаголовок",
-              ResourceStatus.Online, RosterItemEntity.Contact), ContactDto(
-              "Иван Иванов", "Иван Иванов", "группа 1", "Арина Артемонова", "Подзаголовок",
-              ResourceStatus.Offline, RosterItemEntity.Contact),ContactDto(
-              "Иван Иванов", "Иван Иванов", "группа 1", "Ирина Меньшикова", "Подзаголовок",
-              ResourceStatus.Online, RosterItemEntity.Groupchat),ContactDto(
-              "Иван Иванов", "Иван Иванов", "группа 1", "Карина Румянцева", "Подзаголовок",
-              ResourceStatus.Xa, RosterItemEntity.Server)))
+//      contacts.value!!.addAll(mutableListOf(
+//          ContactDto(
+//              "Иван Иванов", "Иван Иванов", "группа 1", "Иван Иванов", "Подзаголовок",
+//              ResourceStatus.Xa, RosterItemEntity.Server), ContactDto(
+//              "Олег Олегов", "Олег Олегов", "группа 1", "Подзаголовок", "Подзаголовок",
+//              ResourceStatus.Online, RosterItemEntity.Contact), ContactDto(
+//              "Иван Иванов", "Иван Иванов", "группа 1", "Арина Артемонова", "Подзаголовок",
+//              ResourceStatus.Offline, RosterItemEntity.Contact),ContactDto(
+//              "Иван Иванов", "Иван Иванов", "группа 1", "Ирина Меньшикова", "Подзаголовок",
+//              ResourceStatus.Online, RosterItemEntity.Groupchat),ContactDto(
+//              "Иван Иванов", "Иван Иванов", "группа 1", "Карина Румянцева", "Подзаголовок",
+//              ResourceStatus.Xa, RosterItemEntity.Server)))
     }
 }

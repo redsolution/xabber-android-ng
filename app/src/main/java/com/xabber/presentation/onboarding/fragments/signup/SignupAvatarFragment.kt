@@ -8,7 +8,6 @@ import android.provider.MediaStore
 import android.util.Log
 import android.view.View
 import androidx.activity.OnBackPressedCallback
-import androidx.core.view.setPadding
 import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.lifecycleScope
 import by.kirich1409.viewbindingdelegate.viewBinding
@@ -20,7 +19,6 @@ import com.xabber.databinding.FragmentSignupAvatarBinding
 import com.xabber.presentation.BaseFragment
 import com.xabber.presentation.application.activity.Mask
 import com.xabber.presentation.application.activity.MaskedDrawableBitmapShader
-import com.xabber.presentation.application.util.dp
 import com.xabber.presentation.onboarding.activity.OnboardingViewModel
 import com.xabber.presentation.onboarding.contract.navigator
 import com.xabber.presentation.onboarding.contract.toolbarChanger
@@ -118,6 +116,7 @@ class SignupAvatarFragment : BaseFragment(R.layout.fragment_signup_avatar) {
 
         binding.avatarBtnNext.isEnabled = isImageSaved
         binding.avatarBtnNext.setOnClickListener {
+            saveAvatarInInternalStorage()
             navigator().goToApplicationActivity(true)
         }
     }
@@ -129,7 +128,10 @@ class SignupAvatarFragment : BaseFragment(R.layout.fragment_signup_avatar) {
                 isImageSaved = true
             }
         }
+    }
 
+    private fun saveAvatarInInternalStorage(){
+        Log.d("avatar", "$avatarData")
     }
 
     override fun onDestroy() {

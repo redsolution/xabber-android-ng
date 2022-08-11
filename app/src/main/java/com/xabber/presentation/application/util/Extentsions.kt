@@ -1,12 +1,11 @@
 package com.xabber.presentation.application.util
 
-import android.Manifest
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
+import android.content.res.Resources
 import android.graphics.Point
 import android.net.Uri
-import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.view.Display
@@ -17,7 +16,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import com.xabber.R
-import com.xabber.data.dto.*
+import com.xabber.data.dto.AccountColor
 import com.xabber.presentation.onboarding.fragments.signup.emoji.EmojiTypeDto
 
 
@@ -68,37 +67,6 @@ fun Fragment.setFragmentResult(
     result: Bundle
 ) = parentFragmentManager.setFragmentResult(requestKey, result)
 
-fun AppCompatActivity.requestCameraPermissionIfNeeded(requestCode: Int) =
-    this.checkAndRequestPermission(
-        Manifest.permission.CAMERA,
-        requestCode
-    )
-
-fun AppCompatActivity.requestFileReadPermissionIfNeeded(requestCode: Int) =
-    this.checkAndRequestPermission(
-        Manifest.permission.READ_EXTERNAL_STORAGE,
-        requestCode
-    )
-
-fun AppCompatActivity.checkAndRequestPermission(permission: String, requestCode: Int): Boolean {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
-        return true
-    }
-
-    if (this.checkPermission(permission)) {
-        return true
-    } else {
-        this.requestPermissions(arrayOf(permission), requestCode)
-    }
-    return false
-}
-
-fun AppCompatActivity.checkPermission(permission: String): Boolean {
-    val permissionCheck = ContextCompat.checkSelfPermission(application, permission)
-    return permissionCheck == PackageManager.PERMISSION_GRANTED
-}
-
-
 fun getRandomColor(): Int {
     return AccountColor.values().toList().shuffled().first().colorId
 }
@@ -107,7 +75,52 @@ fun List<EmojiTypeDto>.toMap(): Map<String, List<List<String>>> {
     val map = this.associate {
         it.name to it.list
     }
-
     return map
 }
 
+fun AppCompatActivity.lockScreenRotation(isLock: Boolean) {
+    this.requestedOrientation =
+        if (isLock) {
+            val display: Display = this.windowManager.defaultDisplay
+            val rotation = display.rotation
+            val size = Point()
+            display.getSize(size)
+            if (rotation == Surface.ROTATION_0 || rotation == Surface.ROTATION_180) {
+                if (size.x > size.y) {
+                    if (rotation == Surface.ROTATION_0) {
+                        ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+                    } else {
+                        ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE
+                    }
+                } else {
+                    if (rotation == Surface.ROTATION_0) {
+                        ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                    } else {
+                        ActivityInfo.SCREEN_ORIENTATION_REVERSE_PORTRAIT
+                    }
+                }
+            } else {
+                if (size.x > size.y) {
+                    if (rotation == Surface.ROTATION_90) {
+                        ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+                    } else {
+                        ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE
+                    }
+                } else {
+                    if (rotation == Surface.ROTATION_90) {
+                        ActivityInfo.SCREEN_ORIENTATION_REVERSE_PORTRAIT
+                    } else {
+                        ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                    }
+                }
+            }
+        } else {
+            ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+        }
+}
+
+val Int.dp: Int
+    get() = (this * Resources.getSystem().displayMetrics.density + 0.5f).toInt()
+
+val Int.px: Float
+    get() = ((this - 0.5f) / Resources.getSystem().displayMetrics.density)

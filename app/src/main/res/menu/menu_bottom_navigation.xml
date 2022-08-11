@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item
+        android:id="@+id/chats"
+        android:enabled="true"
+        android:icon="@drawable/ic_chat"
+        android:title="@string/menu_item_chat_list" />
+
+    <item
+        android:id="@+id/calls"
+        android:icon="@drawable/ic_call"
+        android:title="@string/menu_item_call" />
+
+    <item
+        android:id="@+id/contacts"
+        android:icon="@drawable/ic_contact_grey"
+        android:title="@string/menu_item_contact_list" />
+
+    <item
+        android:id="@+id/discover"
+        android:icon="@drawable/ic_discover"
+        android:title="@string/menu_item_discover" />
+
+    <item
+        android:id="@+id/settings"
+        android:icon="@drawable/ic_standard_menu"
+        android:title="@string/menu_item_settings" />
+</menu>

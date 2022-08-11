@@ -1,5 +1,6 @@
 package com.xabber.presentation.application.fragments.chat
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity.RESULT_OK
 import android.content.ClipData
@@ -9,16 +10,17 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
-import android.net.Uri
-import android.os.*
+import android.os.Bundle
+import android.os.Handler
+import android.os.SystemClock
 import android.text.Editable
 import android.text.TextWatcher
 import android.util.Log
 import android.view.HapticFeedbackConstants
-import android.view.MotionEvent
 import android.view.View
 import android.view.inputmethod.InputMethodManager
 import androidx.activity.OnBackPressedCallback
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.isVisible
 import androidx.core.view.marginBottom
@@ -33,28 +35,33 @@ import com.xabber.data.dto.MessageDto
 import com.xabber.data.dto.MessageKind
 import com.xabber.data.xmpp.messages.MessageDisplayType
 import com.xabber.data.xmpp.messages.MessageSendingState
-import com.xabber.databinding.FragmentMessageBinding
-import com.xabber.presentation.application.activity.UiChanger
+import com.xabber.databinding.FragmentChatBinding
+import com.xabber.presentation.application.activity.DisplayManager
 import com.xabber.presentation.application.activity.MaskedDrawableBitmapShader
+import com.xabber.presentation.application.activity.StickyBottomSheet
+import com.xabber.presentation.application.activity.UiChanger
 import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.application.fragments.DetailBaseFragment
+import com.xabber.presentation.application.fragments.account.QRCodeFragment
+import com.xabber.presentation.application.fragments.account.QRCodeParams
 import com.xabber.presentation.application.fragments.chatlist.NotificationBottomSheet
 import com.xabber.presentation.application.fragments.chatlist.SwitchNotifications
-import java.io.File
+import com.xabber.presentation.application.util.AppConstants
+import com.xabber.presentation.application.util.askUserForOpeningAppSettings
+import com.xabber.presentation.application.util.showToast
 import java.util.*
-import kotlin.collections.ArrayList
-import kotlin.collections.HashSet
 
-class ChatFragment : DetailBaseFragment(R.layout.fragment_message), FragmentResultListener, MessageAdapter.Listener,
+class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), FragmentResultListener,
+    MessageAdapter.Listener,
     ReplySwipeCallback.SwipeAction,
     SwitchNotifications {
-    private val binding by viewBinding(FragmentMessageBinding::bind)
+    private val binding by viewBinding(FragmentChatBinding::bind)
     private var messageAdapter: MessageAdapter? = null
     private var miniatureAdapter: MiniatureAdapter? = null
     private val viewModel = ChatViewModel()
     var name: String = ""
     private val miniatures = ArrayList<FileDto>()
-
+    private var keyboard = false
     private val handler = Handler()
     private var currentVoiceRecordingState = VoiceRecordState.NotRecording
     private var recordSaveAllowed = false
@@ -77,11 +84,37 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_message), FragmentResu
     private val record = Runnable { context?.let { VoiceManager.startRecording(it) } }
 
     companion object {
-        fun newInstance(_name: String) = ChatFragment().apply {
-            arguments = Bundle().apply {
-                putString("_name", _name)
-                name = _name
+        fun newInstance(params: ChatParams): ChatFragment {
+            val args = Bundle().apply {
+                putParcelable(AppConstants.CHAT_PARAMS, params)
             }
+            val fragment = ChatFragment()
+            fragment.arguments = args
+            return fragment
+        }
+    }
+
+    private fun getParams(): ChatParams =
+        requireArguments().getParcelable(AppConstants.CHAT_PARAMS)!!
+
+
+    private val requestGalleryPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions(),
+        ::onGotGalleryPermissionResult
+    )
+
+    private fun onGotGalleryPermissionResult(grantResults: Map<String, Boolean>) {
+        if (grantResults.entries.all { it.value }) {
+
+            context?.let {
+                if (childFragmentManager.findFragmentByTag(AttachBottomSheet.TAG) == null) {
+                    AttachBottomSheet().show(childFragmentManager, AttachBottomSheet.TAG)
+                }
+            }
+//            val dialog = StickyBottomSheet()
+//            navigator().showBottomSheetDialog(dialog)
+        } else {
+            askUserForOpeningAppSettings()
         }
     }
 
@@ -89,19 +122,19 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_message), FragmentResu
     @SuppressLint("ClickableViewAccessibility")
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        binding.appbar.setPadding(0, DisplayManager.getHeightStatusBar(), 0, 0)
+
         if (savedInstanceState != null) {
-
-
 
             name = savedInstanceState.getString("name", "")
             val messageText = savedInstanceState.getString("message_text", "")
             binding.chatInput.setText(messageText)
         }
- parentFragmentManager.setFragmentResultListener(
-                            "message_text",
-                            viewLifecycleOwner,
-                          this
-                    )
+        parentFragmentManager.setFragmentResultListener(
+            "message_text",
+            viewLifecycleOwner,
+            this
+        )
         populateUiWithData()
         initToolbarActions()
         initRecyclerView()
@@ -111,6 +144,8 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_message), FragmentResu
         requireActivity().onBackPressedDispatcher.addCallback(onBackPressedCallback)
 
         binding.inputLayout.setOnClickListener {
+
+
             binding.chatInput.isFocusable = true
             binding.chatInput.isFocusableInTouchMode = true
             binding.chatInput.requestFocus()
@@ -127,132 +162,131 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_message), FragmentResu
             binding.buttonAttach.isVisible = true
             binding.buttonRecord.isVisible = true
         }
-        binding.buttonRecord.setOnTouchListener { _: View?, motionEvent: MotionEvent ->
-            when (motionEvent.action and MotionEvent.ACTION_MASK) {
-                MotionEvent.ACTION_DOWN -> {
-                    Log.d("lll", "${navigator().requestPermissionToRecord()}")
-                    if (navigator().requestPermissionToRecord()) {
-                        if (currentVoiceRecordingState == VoiceRecordState.NotRecording) {
-                            recordSaveAllowed = false
-                            //   handler.postDelayed(record, 500)
-                            handler.postDelayed(timer, 500)
-                            AudioRecorder.startRecord()
-                            currentVoiceRecordingState = VoiceRecordState.InitiatedRecording
-                            navigator().lockScreenRotation(true)
-                        }
-                    }
-                }
-                MotionEvent.ACTION_UP -> {
-                    Log.d("lll", "$currentVoiceRecordingState")
-                    if (currentVoiceRecordingState == VoiceRecordState.TouchRecording) {
-                        sendVoiceMessage()
-                        navigator().lockScreenRotation(false)
-                    } else if (currentVoiceRecordingState == VoiceRecordState.InitiatedRecording) {
-                        //                      handler.removeCallbacks(record)
-                        handler.removeCallbacks(timer)
-                        AudioRecorder.stopRecord { }
-                        currentVoiceRecordingState = VoiceRecordState.NotRecording
-                        navigator().lockScreenRotation(false)
-                    }
-                }
-                MotionEvent.ACTION_MOVE -> {
-                    //FAB movement
-//                    val lockParams =
-//                        recordLockChevronImage?.layoutParams as LinearLayout.LayoutParams
-//                    val yRecordDiff = rootViewHeight
-//                    -(fabMicViewHeightSize + fabMicViewMarginBottom) + motionEvent.y
-//                    val yLockDiff = rootViewHeight
-//                    -(lockViewMarginBottom + lockViewHeightSize) + motionEvent.y
-                    if (currentVoiceRecordingState == VoiceRecordState.TouchRecording) {
-                        when {
-                            motionEvent.y > 0 -> {
-                                binding.recordFloatButton.animate()
-                                    .y(rootViewHeight - (fabMicViewHeightSize + fabMicViewMarginBottom))
-                                    .setDuration(0)
-                                    .start()
-                                binding.linRecordLock.animate()
-                                    .y(rootViewHeight - (lockViewMarginBottom + lockViewHeightSize))
-                                    .setDuration(0)
-                                    .start()
-//                                recordLockChevronImage?.alpha = 1f
-                            }
-                            motionEvent.y > -200 -> { //200 = height to the "locked" state
-                                binding.recordFloatButton.animate()
-                                    .y(10f)
-                                    .setDuration(0)
-                                    .start()
-//                               binding.linRecordLock.animate()
-//                                    .y(yLockDiff)
+//        binding.buttonRecord.setOnTouchListener { _: View?, motionEvent: MotionEvent ->
+//            when (motionEvent.action and MotionEvent.ACTION_MASK) {
+//                MotionEvent.ACTION_DOWN -> {
+//                    if (true) {
+//                        if (currentVoiceRecordingState == VoiceRecordState.NotRecording) {
+//                            recordSaveAllowed = false
+//                            //   handler.postDelayed(record, 500)
+//                            handler.postDelayed(timer, 500)
+//                            AudioRecorder.startRecord()
+//                            currentVoiceRecordingState = VoiceRecordState.InitiatedRecording
+//                            navigator().lockScreenRotation(true)
+//                        }
+//                    }
+//                }
+//                MotionEvent.ACTION_UP -> {
+//                    Log.d("lll", "$currentVoiceRecordingState")
+//                    if (currentVoiceRecordingState == VoiceRecordState.TouchRecording) {
+//                        sendVoiceMessage()
+//                        navigator().lockScreenRotation(false)
+//                    } else if (currentVoiceRecordingState == VoiceRecordState.InitiatedRecording) {
+//                        //                      handler.removeCallbacks(record)
+//                        handler.removeCallbacks(timer)
+//                        AudioRecorder.stopRecord { }
+//                        currentVoiceRecordingState = VoiceRecordState.NotRecording
+//                        navigator().lockScreenRotation(false)
+//                    }
+//                }
+//                MotionEvent.ACTION_MOVE -> {
+//                    //FAB movement
+////                    val lockParams =
+////                        recordLockChevronImage?.layoutParams as LinearLayout.LayoutParams
+////                    val yRecordDiff = rootViewHeight
+////                    -(fabMicViewHeightSize + fabMicViewMarginBottom) + motionEvent.y
+////                    val yLockDiff = rootViewHeight
+////                    -(lockViewMarginBottom + lockViewHeightSize) + motionEvent.y
+//                    if (currentVoiceRecordingState == VoiceRecordState.TouchRecording) {
+//                        when {
+//                            motionEvent.y > 0 -> {
+//                                binding.recordFloatButton.animate()
+//                                    .y(rootViewHeight - (fabMicViewHeightSize + fabMicViewMarginBottom))
 //                                    .setDuration(0)
 //                                    .start()
-
-//                                //lockParams.topMargin = (int) motionEvent.getY() / 3;
-//                                lockParams.topMargin = (motionEvent.y.toInt()
-//                                        * (recordLockChevronImage!!.height - recordLockImage!!.paddingTop)
-//                                        / 200)
-//                                recordLockChevronImage?.alpha = 1f + motionEvent.y / 200f
-//                                recordLockChevronImage?.layoutParams = lockParams
-                            }
-                            else -> {
-                                currentVoiceRecordingState = VoiceRecordState.NoTouchRecording
-
-                                //workaround for the https://issuetracker.google.com/issues/111316656 issue of
-                                //the button's image not updating after setting a background tint manually.
-                                binding.recordFloatButton.hide()
-                                binding.recordFloatButton.setImageResource(R.drawable.ic_send)
-                                binding.recordFloatButton.show()
-                                binding.recordFloatButton.animate()
-                                    .y(rootViewHeight - (fabMicViewHeightSize + fabMicViewMarginBottom))
-                                    .setDuration(100)
-                                    .start()
-//                                recordLockView.animate()
-//                                    .y(rootViewHeight - (lockViewMarginBottom + lockViewHeightSize) + 50) // 50=temporary offset
+//                                binding.linRecordLock.animate()
+//                                    .y(rootViewHeight - (lockViewMarginBottom + lockViewHeightSize))
+//                                    .setDuration(0)
+//                                    .start()
+////                                recordLockChevronImage?.alpha = 1f
+//                            }
+//                            motionEvent.y > -200 -> { //200 = height to the "locked" state
+//                                binding.recordFloatButton.animate()
+//                                    .y(10f)
+//                                    .setDuration(0)
+//                                    .start()
+////                               binding.linRecordLock.animate()
+////                                    .y(yLockDiff)
+////                                    .setDuration(0)
+////                                    .start()
+//
+////                                //lockParams.topMargin = (int) motionEvent.getY() / 3;
+////                                lockParams.topMargin = (motionEvent.y.toInt()
+////                                        * (recordLockChevronImage!!.height - recordLockImage!!.paddingTop)
+////                                        / 200)
+////                                recordLockChevronImage?.alpha = 1f + motionEvent.y / 200f
+////                                recordLockChevronImage?.layoutParams = lockParams
+//                            }
+//                            else -> {
+//                                currentVoiceRecordingState = VoiceRecordState.NoTouchRecording
+//
+//                                //workaround for the https://issuetracker.google.com/issues/111316656 issue of
+//                                //the button's image not updating after setting a background tint manually.
+//                                binding.recordFloatButton.hide()
+//                                binding.recordFloatButton.setImageResource(R.drawable.ic_send)
+//                                binding.recordFloatButton.show()
+//                                binding.recordFloatButton.animate()
+//                                    .y(rootViewHeight - (fabMicViewHeightSize + fabMicViewMarginBottom))
 //                                    .setDuration(100)
 //                                    .start()
-                                binding.includeRecord.cancelRecordLayout.visibility = View.VISIBLE
-                                binding.imLock.setImageResource(R.drawable.ic_stop_red)
-//                                recordLockImage?.setPadding(0, 0, 0, 0)
-//                                recordLockImage?.setOnClickListener {
-//                                    if (currentVoiceRecordingState == VoiceRecordState.NoTouchRecording) {
-//                                        shortVibrate()
-//                                        stopRecording()
-//                                    }
-//                                }
-//                                lockParams.topMargin = -recordLockChevronImage!!.height
-//                                recordLockChevronImage?.layoutParams = lockParams
-//                                recordLockChevronImage?.alpha = 0f
-                                shortVibrate()
-                            }
-                        }
-                    }
-                    //"Slide To Cancel" movement;
-                    val alpha = 1f + motionEvent.x / 400f
-                    if (currentVoiceRecordingState == VoiceRecordState.TouchRecording) {
+////                                recordLockView.animate()
+////                                    .y(rootViewHeight - (lockViewMarginBottom + lockViewHeightSize) + 50) // 50=temporary offset
+////                                    .setDuration(100)
+////                                    .start()
+//                                binding.includeRecord.cancelRecordLayout.visibility = View.VISIBLE
+//                                binding.imLock.setImageResource(R.drawable.ic_stop_red)
+////                                recordLockImage?.setPadding(0, 0, 0, 0)
+////                                recordLockImage?.setOnClickListener {
+////                                    if (currentVoiceRecordingState == VoiceRecordState.NoTouchRecording) {
+////                                        shortVibrate()
+////                                        stopRecording()
+////                                    }
+////                                }
+////                                lockParams.topMargin = -recordLockChevronImage!!.height
+////                                recordLockChevronImage?.layoutParams = lockParams
+////                                recordLockChevronImage?.alpha = 0f
+//                                shortVibrate()
+//                            }
+//                        }
+//                    }
+        //"Slide To Cancel" movement;
+//                    val alpha = 1f + motionEvent.x / 400f
+//                    if (currentVoiceRecordingState == VoiceRecordState.TouchRecording) {
+//
+//                        if (motionEvent.x < 0) {
+//                            binding.includeRecord.cancelRecordLayout.animate().x(motionEvent.x)
+//                                .setDuration(0).start()
+//                        } else binding.includeRecord.cancelRecordLayout.animate().x(0f)
+//                            .setDuration(0).start()
+//
+//                        binding.includeRecord.cancelRecordLayout.alpha = alpha
+//
+//                        //since alpha and slide are tied together, we can cancel recording by checking transparency value
+//                        if (alpha <= 0) {
+//                            clearVoiceMessage()
+//
+//                        }
+//                    }
+//                }
+//            }; true
+//        }
 
-                        if (motionEvent.x < 0) {
-                            binding.includeRecord.cancelRecordLayout.animate().x(motionEvent.x)
-                                .setDuration(0).start()
-                        } else binding.includeRecord.cancelRecordLayout.animate().x(0f)
-                            .setDuration(0).start()
-
-                        binding.includeRecord.cancelRecordLayout.alpha = alpha
-
-                        //since alpha and slide are tied together, we can cancel recording by checking transparency value
-                        if (alpha <= 0) {
-                            clearVoiceMessage()
-
-                        }
-                    }
-                }
-            }; true
-        }
-
-
+        binding.buttonRecord.setOnClickListener { showToast("This feature is not implemented") }
     }
 
     private fun populateUiWithData() {
-        binding.messageUserName.text = name
-  val mPictureBitmap = BitmapFactory.decodeResource(resources, R.drawable.img)
+        binding.messageUserName.text = getParams().chatListDto.displayName
+        val mPictureBitmap = BitmapFactory.decodeResource(resources, getParams().chatListDto.drawableId)
         val mMaskBitmap =
             BitmapFactory.decodeResource(resources, UiChanger.getMask().size48).extractAlpha()
         val maskedDrawable = MaskedDrawableBitmapShader()
@@ -271,10 +305,14 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_message), FragmentResu
     }
 
     private fun initToolbarActions() {
-        binding.messageToolbar.setOnClickListener { navigator().showEditContact(name) }
-        binding.messageIconBack.setOnClickListener {
-            navigator().closeDetail()
+        if (!DisplayManager.isDualScreenMode()) {
+            binding.messageToolbar.setNavigationIcon(R.drawable.ic_arrow_left_white)
+            binding.messageToolbar.setNavigationOnClickListener { navigator().closeDetail() }
+        } else binding.messageToolbar.navigationIcon = null
+        binding.messageToolbar.setOnClickListener {
+            //   navigator().showContactAccount(ContactDto())
         }
+
         binding.messageToolbar.setOnMenuItemClickListener {
             when (it.itemId) {
                 R.id.call_out -> {}
@@ -436,15 +474,15 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_message), FragmentResu
         binding.buttonEmoticon.setOnClickListener { }
 
         binding.buttonAttach.setOnClickListener {
-            if (childFragmentManager.findFragmentByTag(AttachBottomSheet.TAG) == null) {
-                AttachBottomSheet { p1, p2 ->
-                    val y = HashSet<Uri>()
-                    y.add(Uri.fromFile(p2[0]))
-                    sendMessage(p1, y)
-                }.show(childFragmentManager, AttachBottomSheet.TAG)
+            requestGalleryPermissionLauncher.launch(
+                arrayOf(
+                    Manifest.permission.READ_EXTERNAL_STORAGE,
+                    Manifest.permission.WRITE_EXTERNAL_STORAGE
+                )
+            )
 
-            }
         }
+
 
 
         binding.buttonSendMessage.setOnClickListener {
@@ -456,13 +494,11 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_message), FragmentResu
                     binding.replyMessageContent.text.toString()
                 )
             }
-            val imageList = ArrayList<FileDto>()
+
             val text = binding.chatInput.text.toString().trim()
             binding.chatInput.text?.clear()
             val timeStamp = System.currentTimeMillis()
-            if (binding.frameLayoutAttachedFiles.isVisible && miniatures.size > 0) {
-                imageList.addAll(miniatures)
-            }
+
             viewModel.insertMessage(
                 MessageDto(
                     "151515",
@@ -477,7 +513,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_message), FragmentResu
                     false,
                     false,
                     null,
-                    false, messageKindDto, false, imageList
+                    false, messageKindDto, false, null
                 )
             )
 
@@ -572,7 +608,6 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_message), FragmentResu
         miniatureAdapter = null
         onBackPressedCallback.remove()
         AudioRecorder.releaseRecorder()
-
     }
 
 
@@ -733,6 +768,11 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_message), FragmentResu
 
     private val onBackPressedCallback = object : OnBackPressedCallback(true) {
         override fun handleOnBackPressed() {
+            Log.d("iii", "$keyboard, ${messageAdapter?.getCheckBoxIsVisible()}")
+            if (keyboard) {
+                binding.root.setPadding(0, 0, 0, 0)
+                keyboard = false
+            }
             if (messageAdapter?.getCheckBoxIsVisible() == true) {
                 enableSelectionMode(false)
             } else {
@@ -769,7 +809,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_message), FragmentResu
     }
 
 
- fun sendMessage(textMessage: String, imagePaths: HashSet<Uri>?) {
+    fun sendMessage(textMessage: String, imagePaths: HashSet<String>?) {
         var messageKindDto: MessageKind? = null
         if (binding.answer.isVisible) {
             messageKindDto = MessageKind(
@@ -778,11 +818,11 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_message), FragmentResu
                 binding.replyMessageContent.text.toString()
             )
         }
-        val imageList = ArrayList<FileDto>()
+        val imageList = ArrayList<String>()
         imagePaths!!.forEach {
 
-            imageList.add(FileDto(File(it.path)))
-            Log.d("ppp", " ${it}")
+            imageList.add(it)
+
         }
         val timeStamp = System.currentTimeMillis()
 
@@ -800,7 +840,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_message), FragmentResu
                 false,
                 false,
                 null,
-                false, messageKindDto, false, imageList
+                false, messageKindDto, false, null, imageList
             )
         )
         messageAdapter?.notifyDataSetChanged()
@@ -809,13 +849,12 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_message), FragmentResu
 
     override fun onFragmentResult(requestKey: String, result: Bundle) {
         when (requestKey) {
-                "y" -> {
-                    val resultFromBundle = result.getString("message_text")
+            "y" -> {
+                val resultFromBundle = result.getString("message_text")
 
-                }
             }
+        }
     }
-
 
 
 }

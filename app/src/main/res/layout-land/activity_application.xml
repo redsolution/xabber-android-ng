@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.slidingpanelayout.widget.SlidingPaneLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/sliding_pane_layout"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".presentation.application.activity.ApplicationActivity">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/main_container"
+        android:layout_width="900dp"
+        android:layout_height="match_parent">
+
+        <androidx.fragment.app.FragmentContainerView
+            android:id="@+id/application_container"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            app:layout_constraintBottom_toTopOf="@id/bottom_nav_bar"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+
+        <com.google.android.material.bottomnavigation.BottomNavigationView
+            android:id="@+id/bottom_nav_bar"
+            android:elevation="@dimen/bottom_panel_elevation"
+            android:layout_width="0dp"
+            android:layout_height="?attr/actionBarSize"
+            android:background="@color/white"
+            app:itemIconTint="@drawable/bottom_icon_color"
+            app:labelVisibilityMode="unlabeled"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/delimiter_navbar"
+            app:layout_constraintStart_toStartOf="parent"
+            app:menu="@menu/menu_bottom_navigation" />
+
+        <View
+            android:id="@+id/delimiter_toolbar"
+            android:layout_width="0.1dp"
+            android:layout_height="?attr/actionBarSize"
+            android:alpha="0.2"
+            android:background="@color/grey_700"
+            app:layout_constraintBottom_toTopOf="@id/delimiter"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <View
+            android:id="@+id/delimiter"
+            android:layout_width="0.5dp"
+            android:layout_height="0dp"
+            android:alpha="0.3"
+            android:background="@color/blue_grey_200"
+            app:layout_constraintBottom_toTopOf="@id/delimiter_navbar"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/delimiter_toolbar" />
+
+        <View
+            android:id="@+id/delimiter_navbar"
+            android:layout_width="0.5dp"
+            android:layout_height="0dp"
+            android:alpha="0.3"
+            android:background="@color/grey_200"
+            app:layout_constraintBottom_toBottomOf="@id/bottom_nav_bar"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="@id/bottom_nav_bar" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <androidx.fragment.app.FragmentContainerView
+        android:id="@+id/detail_container"
+        android:layout_width="@dimen/detail_container_width"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:background="@drawable/chat_background_repeat" />
+
+</androidx.slidingpanelayout.widget.SlidingPaneLayout>

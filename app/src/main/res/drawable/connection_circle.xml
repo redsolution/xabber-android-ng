@@ -6,9 +6,9 @@
         </shape>
     </item>
     <item
-        android:bottom="6dp"
+        android:bottom="12dp"
         android:drawable="@drawable/ic_index_white"
-        android:end="6dp"
-        android:start="6dp"
-        android:top="6dp" />
+        android:end="12dp"
+        android:start="12dp"
+        android:top="12dp" />
 </layer-list>

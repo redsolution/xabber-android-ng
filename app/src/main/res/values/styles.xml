@@ -27,6 +27,40 @@
         <item name="android:background">@drawable/edit_text_background</item>
     </style>
 
+    <style name="CollapsingToolbarTitle" parent="Theme.MaterialComponents.Light.NoActionBar">
+        <item name="android:textSize">19sp</item>
+    </style>
+
+    <style name="AvatarBottomSheetItem" parent="Theme.MaterialComponents.Light.NoActionBar">
+        <item name="android:layout_height">@dimen/avatar_bottom_sheet_item_height</item>
+        <item name="android:background">@drawable/item_bottom_sheet_background_dark</item>
+    </style>
+
+    <style name="ApplicationToolbar" parent="Theme.MaterialComponents.Light.NoActionBar">
+        <item name="android:background">@color/transparent</item>
+        <item name="android:theme">@style/ToolbarAccountColorTheme</item>
+    </style>
+
+    <style name="ApplicationAppbar" parent="Theme.MaterialComponents.Light.NoActionBar">
+        <item name="android:background">@color/blue_500</item>
+    </style>
+
+    <style name="AvatarToolbar" parent="Theme.MaterialComponents.Light.NoActionBar">
+        <item name="android:layout_height">@dimen/mask32</item>
+        <item name="android:layout_width">@dimen/mask32</item>
+        <item name="android:layout_marginStart">8dp</item>
+    </style>
+
+    <style name="ApplicationToolbarTitle" parent="Theme.MaterialComponents.Light.NoActionBar">
+        <item name="android:textColor">@color/white</item>
+        <item name="android:textSize">20sp</item>
+        <item name="android:layout_marginStart">16dp</item>
+    </style>
+
+    <style name="ToolbarAccountColorTheme" parent="Theme.MaterialComponents.Light.NoActionBar">
+        <item name="android:textColorSecondary">@color/white</item>
+    </style>
+
     <style name="AccountViewGroup" parent="Theme.MaterialComponents.Light.NoActionBar">
         <item name="android:clickable">true</item>
         <item name="android:background">@drawable/clickable_view_group_background</item>
@@ -53,23 +87,11 @@
         <item name="android:textColor">@color/gray_text_600</item>
     </style>
 
-    <style name="LargeAvatarCardView" parent="Theme.MaterialComponents.Light.NoActionBar">
-        <item name="colorSurface">#BBDEFB</item>
-    </style>
-
     <style name="AccountSettingsViewGroupStyle" parent="ThemeApplication">
         <item name="background">@drawable/clickable_view_group_background</item>
         <item name="android:padding">12dp</item>
         <item name="android:focusable">true</item>
         <item name="android:clickable">true</item>
-    </style>
-
-    <style name="MinimumAvatarCardView" parent="Theme.MaterialComponents.Light.NoActionBar">
-        <item name="colorSurface">#2962FF</item>
-    </style>
-
-    <style name="ProgressBar" parent="Theme.AppCompat">
-        <item name="colorAccent">#BDBDBD</item>
     </style>
 
     <style name="ContactViewCollapsingToolbar" parent="@style/TextAppearance.Widget.AppCompat.Toolbar.Title">
@@ -78,22 +100,21 @@
         <item name="android:textColor">@color/white</item>
     </style>
 
-
     <style name="DialogStyle" parent="Theme.Design.Light.BottomSheetDialog">
         <item name="android:windowIsFloating">false</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:windowSoftInputMode">adjustResize</item>
     </style>
 
-    <style name="AttachRadioButtonStyle" parent="Widget.Material3.CompoundButton.RadioButton">
-        <item name="textFillColor">@color/blue_300</item>
-
+    <style name="ContactAccountPanelImage" parent="ThemeApplication">
+        <item name="android:layout_marginTop">@dimen/margin_medium</item>
+        <item name="tint">@color/blue_500</item>
     </style>
 
-    <style name="TextStyle" parent="ThemeOverlay.Material3.AutoCompleteTextView">
-        <item name="android:textColor">@color/blue_300</item>
-        <item name="android:textSize">50sp</item>
-
+    <style name="ContactAccountPanelTextview" parent="ThemeApplication">
+        <item name="android:layout_marginTop">@dimen/margin_small</item>
+        <item name="android:layout_marginBottom">@dimen/margin_extra_small</item>
+        <item name="android:gravity">center</item>
     </style>
 
 </resources>

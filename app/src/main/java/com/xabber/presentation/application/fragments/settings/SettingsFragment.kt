@@ -8,6 +8,7 @@ import com.xabber.R
 import com.xabber.data.xmpp.account.Account
 import com.xabber.databinding.FragmentSettingsBinding
 import com.xabber.presentation.BaseFragment
+import com.xabber.presentation.application.activity.DisplayManager
 import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.application.fragments.account.AccountAdapter
 
@@ -17,7 +18,7 @@ class SettingsFragment : BaseFragment(R.layout.fragment_settings) {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-
+   binding.appbar.setPadding(0, DisplayManager.getHeightStatusBar(),0, 0)
         binding.toolbarSettings.setOnMenuItemClickListener {
             when (it.itemId) {
                 R.id.add_account -> {
@@ -67,19 +68,19 @@ class SettingsFragment : BaseFragment(R.layout.fragment_settings) {
         accountList.add(
             Account(
                 "Natalia Barabanshikova",
-                "natalia.barabanshikova@redsolution.com",
                 "Natalia Barabanshikova",
+                "natalia.barabanshikova@redsolution.com",
                 R.color.blue_100,
-                R.drawable.img
+                R.drawable.img, 1
             )
         )
         accountList.add(
             Account(
                 "Natalia Barabanshikova",
-                "nata@xmpp.ru",
                 "Nataly",
+                "nata@xmpp.ru",
                 R.color.red_600,
-                R.drawable.girl
+                R.drawable.girl, 2
             )
         )
         binding.rvAccounts.layoutManager = LinearLayoutManager(context)

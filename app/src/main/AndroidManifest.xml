@@ -8,7 +8,8 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.READ_INTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
@@ -19,6 +20,7 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 
     <application
+        android:windowSoftInputMode="adjustResize"
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
@@ -30,20 +32,20 @@
             android:name=".presentation.application.activity.ApplicationActivity"
             android:exported="true"
             android:theme="@style/ThemeApplication">
-
-        </activity>
-        <activity
-            android:name=".presentation.onboarding.activity.OnBoardingActivity"
-            android:exported="true"
-            android:screenOrientation="sensorPortrait"
-            android:theme="@style/ThemeOnboarding"
-            tools:ignore="LockedOrientationActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity
+            android:name=".presentation.onboarding.activity.OnBoardingActivity"
+            android:screenOrientation="sensorPortrait"
+            android:theme="@style/ThemeOnboarding"
+            tools:ignore="LockedOrientationActivity" >
+
+            </activity>
+
         <activity android:name="com.soundcloud.android.crop.CropImageActivity" />
 
         <service android:name=".presentation.RecordService" />

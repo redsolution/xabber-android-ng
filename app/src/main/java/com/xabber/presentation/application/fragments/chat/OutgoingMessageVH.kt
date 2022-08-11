@@ -4,7 +4,6 @@ import android.annotation.SuppressLint
 import android.graphics.Color
 import android.graphics.PorterDuff
 import android.graphics.drawable.Drawable
-import android.net.Uri
 import android.os.Build
 import android.util.Log
 import android.util.TypedValue
@@ -88,7 +87,7 @@ class OutgoingMessageVH(
             ViewGroup.LayoutParams.WRAP_CONTENT
         )
 
-        params.setMargins(0, 0, if (isNeedTail) 2.dp else 11.dp, 0)
+        params.setMargins(24.dp, 0, if (isNeedTail) 2.dp else 11.dp, 0)
 
         params.gravity = Gravity.END
         binding.balloon.layoutParams = params
@@ -142,8 +141,8 @@ class OutgoingMessageVH(
                 }
             } else {
                 val popup = CustomPopupMenu(it.context, it, Gravity.CENTER)
-                if (messageDto.isOutgoing) popup.inflate(R.menu.context_menu_message_outgoing)
-                else popup.inflate(R.menu.context_menu_message_incoming)
+                if (messageDto.isOutgoing) popup.inflate(R.menu.popup_menu_message_outgoing)
+                else popup.inflate(R.menu.popup_menu_message_incoming)
 
                 val menuHealper =
                     MenuPopupHelper(it.context, popup.menu as MenuBuilder, binding.root)
@@ -316,14 +315,13 @@ class OutgoingMessageVH(
         binding.grid5.grid5.isVisible = false
         binding.grid6.grid6.isVisible = false
 
-        if (messageDto.references != null) {
+        if (messageDto.uries != null) {
 
-            when (messageDto.references.size) {
+            when (messageDto.uries.size) {
                 1 -> {
                     binding.grid1.grid1.isVisible = true
-                    Glide.with(binding.root).load("content://media" + messageDto.references[0].file)
+                    Glide.with(binding.root).load( messageDto.uries[0])
                         .into(binding.grid1.ivImage0)
-                    Log.d("ppp", "holder ${messageDto.references[0].file}")
                     binding.grid1.imageMessageInfo.isVisible = messageDto.messageBody!!.isEmpty()
                     val date = Date(messageDto.sentTimestamp)
                     val time = StringUtils.getTimeText(binding.tvSendingTime.context, date)
@@ -331,9 +329,9 @@ class OutgoingMessageVH(
                 }
                 2 -> {
                     binding.grid2.grid2.isVisible = true
-                    Glide.with(binding.root).load(Uri.fromFile(messageDto.references[0].file))
+                    Glide.with(binding.root).load(messageDto.uries[0])
                         .into(binding.grid2.ivImage0)
-                    Glide.with(binding.root).load(Uri.fromFile(messageDto.references[1].file))
+                    Glide.with(binding.root).load(messageDto.uries[1])
                         .into(binding.grid2.ivImage1)
                     binding.grid2.imageMessageInfo.isVisible = messageDto.messageBody!!.isEmpty()
                     val date = Date(messageDto.sentTimestamp)
@@ -342,11 +340,11 @@ class OutgoingMessageVH(
                 }
                 3 -> {
                     binding.grid3.grid3.isVisible = true
-                    Glide.with(binding.root).load(Uri.fromFile(messageDto.references[0].file))
+                    Glide.with(binding.root).load(messageDto.uries[0])
                         .into(binding.grid3.ivImage0)
-                    Glide.with(binding.root).load(Uri.fromFile(messageDto.references[1].file))
+                    Glide.with(binding.root).load( messageDto.uries[1])
                         .into(binding.grid3.ivImage1)
-                    Glide.with(binding.root).load(Uri.fromFile(messageDto.references[2].file))
+                    Glide.with(binding.root).load( messageDto.uries[2])
                         .into(binding.grid3.ivImage2)
                     binding.grid3.imageMessageInfo.isVisible = messageDto.messageBody!!.isEmpty()
                     val date = Date(messageDto.sentTimestamp)
@@ -355,13 +353,13 @@ class OutgoingMessageVH(
                 }
                 4 -> {
                     binding.grid4.grid4.isVisible = true
-                    Glide.with(binding.root).load(Uri.fromFile(messageDto.references[0].file))
+                    Glide.with(binding.root).load( messageDto.uries[0])
                         .into(binding.grid4.ivImage0)
-                    Glide.with(binding.root).load(Uri.fromFile(messageDto.references[1].file))
+                    Glide.with(binding.root).load( messageDto.uries[1])
                         .into(binding.grid4.ivImage1)
-                    Glide.with(binding.root).load(Uri.fromFile(messageDto.references[2].file))
+                    Glide.with(binding.root).load( messageDto.uries[2])
                         .into(binding.grid4.ivImage2)
-                    Glide.with(binding.root).load(Uri.fromFile(messageDto.references[3].file))
+                    Glide.with(binding.root).load( messageDto.uries[3])
                         .into(binding.grid4.ivImage3)
 
                     binding.grid4.imageMessageInfo.isVisible = messageDto.messageBody!!.isEmpty()
@@ -371,15 +369,15 @@ class OutgoingMessageVH(
                 }
                 5 -> {
                     binding.grid5.grid5.isVisible = true
-                    Glide.with(binding.root).load(Uri.fromFile(messageDto.references[0].file))
+                    Glide.with(binding.root).load(messageDto.uries[0])
                         .into(binding.grid5.ivImage0)
-                    Glide.with(binding.root).load(Uri.fromFile(messageDto.references[1].file))
+                    Glide.with(binding.root).load( messageDto.uries[1])
                         .into(binding.grid5.ivImage1)
-                    Glide.with(binding.root).load(Uri.fromFile(messageDto.references[2].file))
+                    Glide.with(binding.root).load( messageDto.uries[2])
                         .into(binding.grid5.ivImage2)
-                    Glide.with(binding.root).load(Uri.fromFile(messageDto.references[3].file))
+                    Glide.with(binding.root).load(messageDto.uries[3])
                         .into(binding.grid5.ivImage3)
-                    Glide.with(binding.root).load(Uri.fromFile(messageDto.references[4].file))
+                    Glide.with(binding.root).load( messageDto.uries[4])
                         .into(binding.grid5.ivImage4)
 
                     binding.grid5.imageMessageInfo.isVisible = messageDto.messageBody!!.isEmpty()
@@ -389,19 +387,19 @@ class OutgoingMessageVH(
                 }
                 else -> {
                     binding.grid6.grid6.isVisible = true
-                    Glide.with(binding.root).load(Uri.fromFile(messageDto.references[0].file))
+                    Glide.with(binding.root).load( messageDto.uries[0])
                         .into(binding.grid6.ivImage0)
-                    Glide.with(binding.root).load(Uri.fromFile(messageDto.references[1].file))
+                    Glide.with(binding.root).load( messageDto.uries[1])
                         .into(binding.grid6.ivImage1)
-                    Glide.with(binding.root).load(Uri.fromFile(messageDto.references[2].file))
+                    Glide.with(binding.root).load( messageDto.uries[2])
                         .into(binding.grid6.ivImage2)
-                    Glide.with(binding.root).load(Uri.fromFile(messageDto.references[3].file))
+                    Glide.with(binding.root).load( messageDto.uries[3])
                         .into(binding.grid6.ivImage3)
-                    Glide.with(binding.root).load(Uri.fromFile(messageDto.references[4].file))
+                    Glide.with(binding.root).load( messageDto.uries[4])
                         .into(binding.grid6.ivImage4)
-                    Glide.with(binding.root).load(Uri.fromFile(messageDto.references[5].file))
+                    Glide.with(binding.root).load( messageDto.uries[5])
                         .into(binding.grid6.ivImage5)
-                    val count = messageDto.references.size - 6
+                    val count = messageDto.uries.size - 6
                     if (count > 0) {
                         binding.grid6.tvCounter.isVisible = true
                         binding.grid6.tvCounter.text = "+ $count"

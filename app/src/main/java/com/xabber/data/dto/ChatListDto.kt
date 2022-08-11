@@ -1,38 +1,42 @@
 package com.xabber.data.dto
 
+import android.os.Parcelable
+import androidx.annotation.ColorRes
 import com.xabber.data.xmpp.messages.MessageSendingState
 import com.xabber.data.xmpp.presences.ResourceStatus
 import com.xabber.data.xmpp.presences.RosterItemEntity
+import kotlinx.parcelize.Parcelize
 
+@Parcelize
 data class ChatListDto(
     val id: String,
     val owner: String,
-    var jid: String,   // xmpp
+    val jid: String,   // xmpp
     val displayName: String, // для групповых или обычных чатов (когда пересылаем сообщение)
-    val lastMessageBody: String,
-    val lastMessageDate: Long,
-    val lastMessageState: MessageSendingState,
+    val lastMessageBody: String? = null,
+    val lastMessageDate: Long = 0,
+    val lastMessageState: MessageSendingState? = null,
     val isArchived: Boolean,
     val isSynced: Boolean,
-    val DraftMessage: String?, // черновик
-    val hasAttachment: Boolean,  // вложения
-    val isSystemMessage: Boolean, // курсивом
-    val isMentioned: Boolean, // @ упомянули в чате
-    val muteExpired: Double,
-    val pinnedDate: Double,
+    val DraftMessage: String? = null, // черновик
+    val hasAttachment: Boolean = false,  // вложения
+    val isSystemMessage: Boolean = false, // курсивом
+    val isMentioned: Boolean = false, // @ упомянули в чате
+    val muteExpired: Double = 0.0,
+    val pinnedDate: Double = 0.0,
     val status: ResourceStatus,
     val entity: RosterItemEntity,
     val unreadString: String?,
-    val lastPosition: Int = 0
- //   @ColorRes
- //   val colorId: Int,
-  //  val userNickname: String?, // имя в чате
-) : Comparable<ChatListDto> {
+    val lastPosition: Int = 0,
+    @ColorRes
+    val colorId: Int,
+    val drawableId: Int,
+    val contactDto: ContactDto
+) : Comparable<ChatListDto>, Parcelable {
     override fun compareTo(other: ChatListDto): Int {
         var result = other.pinnedDate.compareTo(this.pinnedDate)
-        if (!this.pinnedDate.equals(0) && !other.pinnedDate.equals(0)) result = other.lastMessageDate.compareTo(this.lastMessageDate)
-        if (this.pinnedDate.equals(0) && other.pinnedDate.equals(0)) result =
-            other.lastMessageDate.compareTo(this.lastMessageDate)
-        return result
+        if (this.pinnedDate == 0.0 && other.pinnedDate == 0.0) {
+            result = other.lastMessageDate.compareTo(this.lastMessageDate)
+        }; return result
     }
 }

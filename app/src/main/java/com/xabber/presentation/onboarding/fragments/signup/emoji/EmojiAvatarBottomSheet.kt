@@ -123,10 +123,9 @@ class EmojiAvatarBottomSheet : BottomSheetDialogFragment() {
                 dismiss()
                 EmojiKeyboardBottomSheet().show(parentFragmentManager, null)
             }
-            editBackground.setOnClickListener {
+            imEditSmile.setOnClickListener {
                 dismiss()
                 EmojiKeyboardBottomSheet().show(parentFragmentManager, null)
-
             }
             saveButton.setOnClickListener {
                 val bitmap = viewModel.getBitmapFromView(requireContext(), avatarBackground)

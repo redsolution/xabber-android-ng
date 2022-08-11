@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:background="@drawable/bottom_sheet_background"
@@ -36,8 +35,8 @@
 
             <RelativeLayout
                 android:id="@+id/green_tint"
-                android:layout_width="@dimen/item_avatar_backround_size"
-                android:layout_height="@dimen/item_avatar_backround_size"
+                android:layout_width="@dimen/item_avatar_background_size"
+                android:layout_height="@dimen/item_avatar_background_size"
                 android:layout_margin="4dp"
                 android:background="@drawable/circle_green"
                 android:backgroundTint="@color/green_400">
@@ -53,8 +52,8 @@
 
             <RelativeLayout
                 android:id="@+id/orange_tint"
-                android:layout_width="@dimen/item_avatar_backround_size"
-                android:layout_height="@dimen/item_avatar_backround_size"
+                android:layout_width="@dimen/item_avatar_background_size"
+                android:layout_height="@dimen/item_avatar_background_size"
                 android:layout_margin="4dp"
                 android:background="@drawable/circle_green"
                 android:backgroundTint="@color/orange_400">
@@ -70,8 +69,8 @@
 
             <RelativeLayout
                 android:id="@+id/red_tint"
-                android:layout_width="@dimen/item_avatar_backround_size"
-                android:layout_height="@dimen/item_avatar_backround_size"
+                android:layout_width="@dimen/item_avatar_background_size"
+                android:layout_height="@dimen/item_avatar_background_size"
                 android:layout_margin="4dp"
                 android:background="@drawable/circle_green"
                 android:backgroundTint="@color/red_400">
@@ -214,8 +213,8 @@
 
         <TextView
             android:id="@+id/avatarBackground"
-            android:layout_width="128dp"
-            android:layout_height="128dp"
+            android:layout_width="@dimen/mask128"
+            android:layout_height="@dimen/mask128"
             android:layout_margin="8dp"
             android:background="@drawable/backround_blue"
             android:clickable="true"
@@ -230,38 +229,26 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
 
-        <androidx.cardview.widget.CardView
+        <ImageView
+            android:id="@+id/im_edit_smile"
             android:layout_width="36dp"
             android:layout_height="36dp"
             android:layout_alignEnd="@id/avatarBackground"
             android:layout_alignBottom="@id/avatarBackground"
             android:layout_margin="4dp"
-            app:cardBackgroundColor="@color/white"
-            app:cardCornerRadius="18dp"
-            app:cardElevation="0dp"
             app:layout_constraintBottom_toBottomOf="@+id/avatarBackground"
-            app:layout_constraintEnd_toEndOf="@+id/avatarBackground">
-
-            <ImageButton
-                android:id="@+id/edit_background"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:layout_gravity="center"
-                android:background="@null"
-                app:srcCompat="@drawable/ic_edit_grey"
-                tools:ignore="SpeakableTextPresentCheck" />
-        </androidx.cardview.widget.CardView>
+            app:layout_constraintEnd_toEndOf="@+id/avatarBackground"
+            android:contentDescription="@string/edit_smile_avatar_image_description"
+            app:srcCompat="@drawable/edit_grey_in_white_circle"/>
 
     </RelativeLayout>
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/save_button"
-        android:layout_width="0dp"
-        android:layout_height="48dp"
-        android:layout_margin="32dp"
-        android:background="@drawable/round_corners"
-        android:text="@string/save_btn_label"
         style="@style/OnboardingButtonNext"
+        android:layout_width="0dp"
+        android:layout_margin="@dimen/margin_onboarding_medium"
+        android:text="@string/save_btn_label"
         android:theme="@style/OnboardingButtonNext"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"

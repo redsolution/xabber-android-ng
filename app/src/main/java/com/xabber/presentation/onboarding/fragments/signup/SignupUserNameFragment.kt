@@ -91,5 +91,4 @@ class SignupUserNameFragment : BaseFragment(R.layout.fragment_signup_username) {
         }
     }
 
-
 }

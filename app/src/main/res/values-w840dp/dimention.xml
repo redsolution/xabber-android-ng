@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <dimen name="container_width_onboarding">544dp</dimen>
-    <integer name="container_container_wrapper_horizontal_width">4</integer>
-</resources>

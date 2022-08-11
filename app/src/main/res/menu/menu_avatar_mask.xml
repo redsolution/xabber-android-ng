@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/circle"
+        android:enabled="true"
+        android:title="@string/menu_item_circle" />
+
+    <item
+        android:id="@+id/hexagon"
+        android:title="@string/menu_item_hexagon" />
+
+    <item
+        android:id="@+id/octagon"
+        android:title="@string/menu_item_octagon" />
+
+    <item
+        android:id="@+id/pentagon"
+        android:title="@string/menu_item_pentagon" />
+
+    <item
+        android:id="@+id/rounded"
+        android:title="@string/menu_item_rounded" />
+
+    <item
+        android:id="@+id/squirсle"
+        android:title="@string/menu_item_squircle" />
+
+    <item
+        android:id="@+id/star"
+        android:title="@string/menu_item_star" />
+</menu>

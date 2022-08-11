@@ -5,26 +5,25 @@
     android:layout_height="match_parent">
 
     <com.google.android.material.appbar.AppBarLayout
-        android:id="@+id/appbar_discover"
+        style="@style/ApplicationAppbar"
+        android:id="@+id/appbar"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        app:elevation="6dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
 
         <com.google.android.material.appbar.MaterialToolbar
+            style="@style/ApplicationToolbar"
             android:layout_width="match_parent"
             android:layout_height="wrap_content">
 
             <TextView
                 android:id="@+id/tv_discover_toolbar_title"
+                style="@style/ApplicationToolbarTitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="16dp"
-                android:text="@string/discover_toolbar_title"
-                android:textColor="@color/black"
-                android:textSize="19sp" />
+                android:text="@string/discover_toolbar_title" />
         </com.google.android.material.appbar.MaterialToolbar>
     </com.google.android.material.appbar.AppBarLayout>
 

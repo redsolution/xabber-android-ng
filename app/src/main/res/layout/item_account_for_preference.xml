@@ -24,11 +24,12 @@
         android:layout_marginHorizontal="12dp"
         android:ellipsize="marquee"
         android:gravity="start"
+        android:layout_marginTop="16dp"
         android:singleLine="true"
         android:textColor="?android:attr/textColorPrimary"
         android:textSize="20sp"
         app:layout_constraintBottom_toTopOf="@id/tv_item_account_jid"
-        app:layout_constraintEnd_toStartOf="@id/im_account_anchor"
+        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toEndOf="@id/im_avatar_item_account"
         app:layout_constraintTop_toTopOf="parent" />
 
@@ -42,21 +43,10 @@
         android:singleLine="true"
         android:textColor="?android:attr/textColorSecondary"
         android:textSize="12sp"
-        app:layout_constraintEnd_toStartOf="@id/im_account_anchor"
+        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toEndOf="@id/im_avatar_item_account"
         app:layout_constraintTop_toBottomOf="@id/tv_item_account_name"
-        app:layout_constraintBottom_toBottomOf="parent"/>
+      />
 
-    <ImageView
-        android:id="@+id/im_account_anchor"
-        android:src="@drawable/ic_drag_vertical_grey"
-        android:layout_width="30dp"
-        android:layout_height="30dp"
-        android:visibility="gone"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toEndOf="@id/tv_item_account_name"
-        android:contentDescription="@string/im_anchor_description" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

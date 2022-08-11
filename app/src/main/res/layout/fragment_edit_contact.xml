@@ -3,37 +3,29 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="@color/white">
 
     <com.google.android.material.appbar.MaterialToolbar
+        android:paddingTop="13dp"
         android:id="@+id/edit_contact_toolbar"
         android:layout_width="0dp"
-        android:layout_height="wrap_content"
         android:background="@color/blue_300"
+        android:layout_height="wrap_content"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        app:title="@string/edit_contact_toolbar_title">
-
-
-        <ImageView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="end"
-            android:layout_marginEnd="16dp"
-            android:contentDescription="@string/image_changes_save_description"
-            android:src="@drawable/ic_check" />
-    </com.google.android.material.appbar.MaterialToolbar>
-
+        app:menu="@menu/menu_check"
+        app:title="@string/edit_contact_toolbar_title"
+        app:titleTextColor="@color/white"/>
 
     <ImageView
-        android:id="@+id/contact_edit_image"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="24dp"
+        android:id="@+id/im_avatar_edit_contact"
+        android:layout_width="@dimen/mask48"
+        android:layout_height="@dimen/mask48"
+        android:layout_marginStart="12dp"
         android:layout_marginTop="32dp"
         android:contentDescription="@string/description_image_contact_photo"
-        android:src="@drawable/ic_account_outline"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/edit_contact_toolbar"
         tools:background="@tools:sample/avatars" />
@@ -41,16 +33,16 @@
     <androidx.cardview.widget.CardView
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginStart="24dp"
+        android:layout_marginStart="12dp"
         android:layout_marginEnd="28dp"
-        android:layout_toEndOf="@id/contact_edit_image"
+        android:layout_toEndOf="@id/im_avatar_edit_contact"
         app:cardBackgroundColor="@color/grey_200"
         app:cardCornerRadius="8dp"
         app:contentPadding="4dp"
-        app:layout_constraintBottom_toBottomOf="@id/contact_edit_image"
+        app:layout_constraintBottom_toBottomOf="@id/im_avatar_edit_contact"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toEndOf="@id/contact_edit_image"
-        app:layout_constraintTop_toTopOf="@id/contact_edit_image">
+        app:layout_constraintStart_toEndOf="@id/im_avatar_edit_contact"
+        app:layout_constraintTop_toTopOf="@id/im_avatar_edit_contact">
 
         <EditText
             android:id="@+id/et_name"
@@ -62,106 +54,124 @@
             android:maxLines="1" />
     </androidx.cardview.widget.CardView>
 
-    <ImageView
-        android:id="@+id/im_receive"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="24dp"
-        android:layout_marginTop="48dp"
-        android:contentDescription="@string/receiving_presence_updates"
-        android:src="@drawable/ic_subscription_to_grey"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/contact_edit_image" />
-
-    <TextView
-        android:id="@+id/tv_receiving"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="24dp"
-        android:layout_marginEnd="12dp"
-        android:text="@string/receiving_presence_updates"
-        android:textColor="@color/red_500"
-        android:textSize="17sp"
-        android:textStyle="bold"
-        app:layout_constraintBottom_toBottomOf="@id/im_receive"
-        app:layout_constraintStart_toEndOf="@id/im_receive"
-        app:layout_constraintTop_toTopOf="@id/im_receive" />
-
-    <ImageView
-        android:id="@+id/im_sending"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="24dp"
-        android:layout_marginTop="28dp"
-        android:contentDescription="@string/sending_presence_updates"
-        android:src="@drawable/ic_subscription_from_grey"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/im_receive" />
-
-    <TextView
-        android:id="@+id/tv_sending"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="24dp"
-        android:text="@string/sending_presence_updates"
-        android:textColor="@color/red_500"
-        android:textSize="17sp"
-        android:textStyle="bold"
-        app:layout_constraintBottom_toBottomOf="@id/im_sending"
-        app:layout_constraintStart_toEndOf="@id/im_sending"
-        app:layout_constraintTop_toTopOf="@id/im_sending" />
-
-
-    <ImageView
-        android:id="@+id/im_sharing"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="24dp"
-        android:layout_marginTop="28dp"
-        android:contentDescription="@string/information_with_contact_connecting"
-        android:src="@drawable/ic_information_outline_grey"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/im_sending" />
-
-    <TextView
-        android:id="@+id/tv_sharing"
+    <LinearLayout
+        android:id="@+id/lin_receiving"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginStart="24dp"
-        android:layout_marginEnd="48dp"
-        android:text="@string/information_with_contact_connecting"
-        android:textColor="@color/gray_text_600"
-        app:layout_constraintBottom_toBottomOf="@id/im_sharing"
+        android:background="@drawable/clickable_view_group_background"
+        android:orientation="horizontal"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toEndOf="@id/im_sharing"
-        app:layout_constraintTop_toTopOf="@id/im_sharing" />
-
-
-    <ImageView
-        android:id="@+id/im_trash"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="24dp"
-        android:layout_marginTop="28dp"
-        android:contentDescription="@string/delete_contact"
-        android:src="@drawable/ic_trash_red"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/im_sharing" />
+        app:layout_constraintTop_toBottomOf="@id/im_avatar_edit_contact">
 
-    <TextView
-        android:id="@+id/tv_trash"
-        android:layout_width="wrap_content"
+        <ImageView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="24dp"
+            android:layout_marginTop="48dp"
+            android:contentDescription="@string/receiving_presence_updates"
+            android:src="@drawable/ic_subscription_to_grey"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/im_avatar_edit_contact" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="24dp"
+            android:layout_marginTop="48dp"
+            android:layout_marginEnd="12dp"
+            android:text="@string/receiving_presence_updates"
+            android:textColor="@color/red_500"
+            android:textSize="17sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/lin_sending"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginStart="24dp"
-        android:text="@string/delete_contact"
-        android:textColor="@color/red_500"
-        android:textSize="17sp"
-        android:textStyle="bold"
-        app:layout_constraintBottom_toBottomOf="@id/im_trash"
-        app:layout_constraintStart_toEndOf="@id/im_trash"
-        app:layout_constraintTop_toTopOf="@id/im_trash" />
+        android:background="@drawable/clickable_view_group_background"
+        android:orientation="horizontal"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/lin_receiving">
 
+        <ImageView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="24dp"
+            android:layout_marginTop="28dp"
+            android:contentDescription="@string/sending_presence_updates"
+            android:src="@drawable/ic_subscription_from_grey" />
 
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="24dp"
+            android:layout_marginTop="28dp"
+            android:text="@string/sending_presence_updates"
+            android:textColor="@color/red_500"
+            android:textSize="17sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/lin_information"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:background="@drawable/clickable_view_group_background"
+        android:orientation="horizontal"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/lin_sending">
+
+        <ImageView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="24dp"
+            android:layout_marginTop="28dp"
+            android:contentDescription="@string/information_with_contact_connecting"
+            android:src="@drawable/ic_information_outline_grey" />
+
+        <TextView
+            android:id="@+id/tv_sharing"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="24dp"
+            android:layout_marginTop="28dp"
+            android:layout_marginEnd="48dp"
+            android:text="@string/information_with_contact_connecting"
+            android:textColor="@color/gray_text_600" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/lin_delete_contact"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/clickable_view_group_background"
+        android:orientation="horizontal"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/lin_information">
+
+        <ImageView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="24dp"
+            android:layout_marginTop="28dp"
+            android:contentDescription="@string/delete_contact"
+            android:src="@drawable/ic_trash_red" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="24dp"
+            android:layout_marginTop="28dp"
+            android:text="@string/delete_contact"
+            android:textColor="@color/red_500"
+            android:textSize="17sp"
+            android:textStyle="bold" />
+    </LinearLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>
 
 

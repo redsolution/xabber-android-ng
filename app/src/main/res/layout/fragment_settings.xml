@@ -2,10 +2,12 @@
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="@color/white">
 
     <com.google.android.material.appbar.AppBarLayout
-        android:id="@+id/appbar_settings"
+        style="@style/ApplicationAppbar"
+        android:id="@+id/appbar"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         app:layout_constraintEnd_toEndOf="parent"
@@ -16,8 +18,8 @@
             android:id="@+id/toolbar_settings"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="@color/blue_300"
-            app:menu="@menu/settings_toolbar_menu">
+            app:menu="@menu/menu_toolbar_settings"
+            style="@style/ApplicationToolbar">
 
             <TextView
                 android:id="@+id/tv_settings_toolbar_title"
@@ -25,8 +27,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginStart="16dp"
                 android:text="@string/settings_toolbar_title"
-                android:textColor="@color/black"
-                android:textSize="19sp" />
+                style="@style/ApplicationToolbarTitle" />
 
         </com.google.android.material.appbar.MaterialToolbar>
     </com.google.android.material.appbar.AppBarLayout>
@@ -34,10 +35,9 @@
     <androidx.core.widget.NestedScrollView
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/appbar_settings">
+        app:layout_constraintTop_toBottomOf="@id/appbar">
 
         <androidx.appcompat.widget.LinearLayoutCompat
             android:layout_width="match_parent"
@@ -52,13 +52,16 @@
                 android:layout_gravity="start"
                 android:layout_marginStart="16dp"
                 android:text="@string/accounts"
+                android:textStyle="bold"
+                android:layout_marginTop="16dp"
+                android:textColor="@color/blue_500"
                 android:textSize="14sp" />
 
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/rv_accounts"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="16dp" />
+                android:layout_marginTop="8dp" />
 
             <include
                 layout="@layout/include_settings" />

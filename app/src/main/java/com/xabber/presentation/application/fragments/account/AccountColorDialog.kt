@@ -1,45 +1,35 @@
 package com.xabber.presentation.application.fragments.account
 
-import android.annotation.SuppressLint
 import android.app.AlertDialog
 import android.app.Dialog
 import android.os.Bundle
-import android.util.Log
-import android.view.LayoutInflater
-import android.view.View
-import android.view.ViewGroup
 import androidx.fragment.app.DialogFragment
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.xabber.R
-import com.xabber.databinding.DialogColorPickerBinding
-import com.xabber.presentation.application.activity.UiChanger
 
 class AccountColorDialog : DialogFragment() {
-    private var _binding: DialogColorPickerBinding? = null
-    private val binding get() = _binding!!
 
+    override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
+        val dialog = AlertDialog.Builder(context)
+        dialog.setTitle(getString(R.string.account_color))
+        val view = layoutInflater.inflate(R.layout.dialog_color_picker, null)
+        val colors =
+            resources.obtainTypedArray(R.array.account_500)
 
-    override fun onCreateView(
-        inflater: LayoutInflater, container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View {
-        _binding = DialogColorPickerBinding.inflate(inflater, container, false)
-        return binding.root
-    }
-
-    @SuppressLint("Recycle")
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
-        val colors = resources.obtainTypedArray(R.array.account_500)
-        val colorIndex = if (UiChanger.getAccountColor() == null) R.color.red_500 else UiChanger.getAccountColor()
-        binding.colorList.layoutManager = LinearLayoutManager(context)
         val adapter = AccountColorPickerAdapter(
             resources.getStringArray(R.array.account_color_names),
-                 colors, colorIndex!!
-        ) { UiChanger.setAccountColor(it) }
-        binding.colorList.adapter = adapter
+            colors, 10
+        ) {
+            // UiChanger.setAccountColor(it)
+            dismiss()
+        }
+        val colorList = view.findViewById<RecyclerView>(R.id.color_list)
+        colorList.layoutManager = LinearLayoutManager(context)
+        colorList.adapter = adapter
+        dialog.setView(view)
+        dialog.setNegativeButton(android.R.string.cancel, null)
+        return dialog.create()
     }
-
-
 
 }

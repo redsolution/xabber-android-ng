@@ -1,6 +1,6 @@
 package com.xabber.presentation.application.fragments.account
 
-import android.util.Log
+import android.widget.RadioButton
 import androidx.recyclerview.widget.RecyclerView
 import com.xabber.databinding.DialogColorPickerItemBinding
 
@@ -12,4 +12,6 @@ class AccountColorViewHolder(
         binding.colorItem.text = colorName
         binding.colorItemVisual.setImageResource(color)
     }
+
+    fun getColorRadioButton(): RadioButton = binding.colorItem
 }

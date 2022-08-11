@@ -6,10 +6,13 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
+import android.os.Handler
 import android.util.Log
 import android.util.TypedValue
 import android.view.Gravity
+import android.view.LayoutInflater
 import android.view.View
+import android.view.ViewGroup
 import android.widget.PopupMenu
 import android.widget.Toast
 import androidx.core.view.isVisible
@@ -19,74 +22,112 @@ import by.kirich1409.viewbindingdelegate.viewBinding
 import com.google.android.material.snackbar.Snackbar
 import com.xabber.R
 import com.xabber.data.dto.ChatListDto
-import com.xabber.databinding.FragmentChatBinding
+import com.xabber.data.dto.ContactDto
+import com.xabber.data.xmpp.account.Account
+import com.xabber.databinding.FragmentChatListBinding
 import com.xabber.presentation.BaseFragment
-import com.xabber.presentation.application.activity.UiChanger
+import com.xabber.presentation.application.activity.DisplayManager
 import com.xabber.presentation.application.activity.MaskedDrawableBitmapShader
+import com.xabber.presentation.application.activity.UiChanger
 import com.xabber.presentation.application.contract.navigator
+import com.xabber.presentation.application.fragments.chat.ChatParams
 
-class ChatListFragment : BaseFragment(R.layout.fragment_chat), ChatListAdapter.ChatListener {
-    private val binding by viewBinding(FragmentChatBinding::bind)
+class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdapter.ChatListener {
+    private val binding by viewBinding(FragmentChatListBinding::bind)
     private val viewModel = ChatListViewModel()
     private var chatAdapter: ChatListAdapter? = null
 
     companion object {
         fun newInstance(_jid: String) = ChatListFragment().apply {
             arguments = Bundle().apply {
-
             }
         }
     }
 
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View? {
+        return super.onCreateView(inflater, container, savedInstanceState)
+
+
+    }
 
     @SuppressLint("ClickableViewAccessibility")
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
 
-        chatAdapter = ChatListAdapter(this)
+        super.onViewCreated(view, savedInstanceState)
+        var actionBarHeight = 0
+        val tv = TypedValue()
+        if (requireActivity().theme.resolveAttribute(
+                android.R.attr.actionBarSize,
+                tv,
+                true
+            )
+        ) actionBarHeight =
+            TypedValue.complexToDimensionPixelSize(tv.data, resources.displayMetrics)
+
+        Log.d("ooo", "hei ${binding.chatToolbar.height}")
+//        val params = AppBarLayout.LayoutParams(
+//            ActionBar.LayoutParams.MATCH_PARENT, actionBarHeight
+//        )
+//
+//        params.setMargins(0, DisplayManager.getHeightStatusBar(), 0, 0)
+
+// binding.chatToolbar.updateLayoutParams<AppBarLayout.LayoutParams> {
+//            setMargins(0,DisplayManager.getHeightStatusBar(),0,0)
+//        }
+
+        binding.root.forceLayout()
+Handler().post( { binding.appbar.setPadding(0, DisplayManager.getHeightStatusBar(), 0, 0) })
         initToolbarActions()
         fillChat()
         initButton()
         subscribeOnViewModelData()
+        binding.appbar.setPadding(0, DisplayManager.getHeightStatusBar(),0, 0)
+        //  binding.chatToolbar.layoutParams = params
+        binding.root.requestLayout()
     }
 
-
     private fun initToolbarActions() {
-        val mPictureBitmap = BitmapFactory.decodeResource(resources, R.drawable.img)
-        val mMaskBitmap = BitmapFactory.decodeResource(resources, UiChanger.getMask().size32).extractAlpha()
-        val maskedDrawable = MaskedDrawableBitmapShader()
-        maskedDrawable.setPictureBitmap(mPictureBitmap)
-        maskedDrawable.setMaskBitmap(mMaskBitmap)
-        binding.imAvatar.setImageDrawable(maskedDrawable)
-
-        //         ResourcesCompat.getDrawable(
-//            binding.imAvatar.resources,MaskChanger.getMask().size32, binding.imAvatar.context.theme)
+        loadAvatarWithMask()
         binding.imAvatar.setOnClickListener {
-            navigator().showAccount(UiChanger.getMainAccount())
+            navigator().showAccount(
+                Account(
+                    "Natalia Barabanshikova",
+                    "Natalia Barabanshikova",
+                    "natalia.barabanshikova@redsolution.com",
+                    R.color.blue_100,
+                    R.drawable.img, 1
+                )
+            )
         }
-
-        binding.imPlus.setOnClickListener {
-            navigator().showNewChat()
-        }
-
+//        binding.imPlus.setOnClickListener {
+//            navigator().showNewChat()
+//        }
         val popup = PopupMenu(context, binding.tvChatTitle, Gravity.RIGHT)
-        popup.inflate(R.menu.context_menu_title_chat)
+        popup.inflate(R.menu.popup_menu_title_toolbar_chatlist)
         popup.setOnMenuItemClickListener {
             val list = viewModel.chatList.value
             val sortedList = ArrayList<ChatListDto>()
+            Log.d("sort", "$sortedList")
             when (it.itemId) {
                 R.id.recent_chats -> {
                     for (i in 0 until list!!.size) {
                         if (!list[i].isArchived) sortedList.add(list[i])
                     }
                     sortedList.sort()
+                    Log.d("sort", "$sortedList")
                     chatAdapter?.submitList(sortedList)
                 }
                 R.id.unread -> {
-                    for (i in 0 until list!!.size) {
-                        if (list[i].unreadString!!.isNotEmpty()) sortedList.add(list[i])
+                    if (list != null) {
+                        for (i in 0 until list.size) {
+                            if (list[i].unreadString != null) sortedList.add(list[i])
+                        }
+                        chatAdapter?.submitList(sortedList)
                     }
-                    chatAdapter?.submitList(sortedList)
                 }
                 R.id.archive -> {
                     for (i in 0 until list!!.size) {
@@ -98,7 +139,16 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat), ChatListAdapter.C
             true
         }
         binding.tvChatTitle.setOnClickListener { popup.show() }
+    }
 
+    private fun loadAvatarWithMask() {
+        val mPictureBitmap = BitmapFactory.decodeResource(resources, R.drawable.img)
+        val mMaskBitmap =
+            BitmapFactory.decodeResource(resources, UiChanger.getMask().size32).extractAlpha()
+        val maskedDrawable = MaskedDrawableBitmapShader()
+        maskedDrawable.setPictureBitmap(mPictureBitmap)
+        maskedDrawable.setMaskBitmap(mMaskBitmap)
+        binding.imAvatar.setImageDrawable(maskedDrawable)
     }
 
     private fun subscribeOnViewModelData() {
@@ -123,12 +173,10 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat), ChatListAdapter.C
     }
 
     private fun fillChat() {
+        chatAdapter = ChatListAdapter(this)
         binding.chatList.adapter = chatAdapter
-
-        Log.d("chatListSize", "ttt")
         viewModel.chatList.observe(viewLifecycleOwner) {
-            binding.groupChatEmpty.isVisible = it.size == 0 || it == null
-            Log.d("chatListSize", "${it.size}")
+            binding.groupChatEmpty.isVisible = it.isEmpty() || (it == null)
             val sortedList = ArrayList<ChatListDto>()
             for (i in 0 until it!!.size) {
                 if (!it[i].isArchived) sortedList.add(it[i])
@@ -145,7 +193,6 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat), ChatListAdapter.C
                 viewHolder: RecyclerView.ViewHolder,
                 target: RecyclerView.ViewHolder
             ): Boolean = false
-
 
             override fun onChildDraw(
                 c: Canvas,
@@ -231,9 +278,8 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat), ChatListAdapter.C
         viewModel.movieChatToArchive(id)
     }
 
-
-    override fun onClickItem(name: String) {
-        navigator().showMessage(name)
+    override fun onClickItem(chatListDto: ChatListDto) {
+        navigator().showChat(ChatParams(chatListDto))
     }
 
     override fun pinChat(id: String) {
@@ -258,8 +304,8 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat), ChatListAdapter.C
         navigator().showSpecialNotificationSettings()
     }
 
-    override fun onClickAvatar(name: String) {
-        navigator().showEditContact(name)
+    override fun onClickAvatar(contactDto: ContactDto) {
+        navigator().showContactAccount(contactDto)
     }
 
     private fun showSnackbar(view: View) {
@@ -288,6 +334,7 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat), ChatListAdapter.C
     override fun onDestroy() {
         super.onDestroy()
         chatAdapter = null
+
     }
 
 //    private fun showSnackbar(deletedItem: AbstractChat, previousState: ChatListState) {
@@ -317,6 +364,7 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat), ChatListAdapter.C
 //        snackbar?.setActionTextColor(Color.YELLOW)
 //        snackbar?.show()
 //    }
+
 
 
 }

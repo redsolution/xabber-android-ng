@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <item
+        android:id="@+id/contact_qr_code"
+        android:icon="@drawable/ic_qr_code_generate_white"
+        android:title="@string/menu_item_contact_qr_code"
+        app:showAsAction="always" />
+
+    <item
+        android:id="@+id/edit_contact_account"
+        android:title="@string/menu_item_edit_contact_account"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/send_contact"
+        android:title="@string/menu_item_send_contact"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/delete_contact_account"
+        android:title="@string/menu_item_delete_contact_account"
+        app:showAsAction="never" />
+</menu>

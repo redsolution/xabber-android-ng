@@ -15,7 +15,7 @@
         android:lineSpacingMultiplier="1.20"
         android:text="@string/signin_title_label_1"
         android:textColor="@color/grey_text_1"
-        android:textSize="@dimen/onboarding_title_text_size"
+        android:textSize="@dimen/onboarding_title_font_size"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
@@ -27,7 +27,8 @@
         android:layout_marginTop="@dimen/margin_onboarding_large"
         android:hint="@string/signin_edit_text_login_label"
         android:imeOptions="actionNext"
-        android:inputType="textVisiblePassword"
+        android:autofillHints="emailAddress"
+        android:inputType="textEmailAddress"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/signin_title" />
@@ -57,7 +58,7 @@
         android:text="@string/signin_subtitle_label_1"
         android:textColor="@color/grey_text_3"
         android:textColorHighlight="@color/transparent"
-        android:textSize="@dimen/onboarding_small_text_size"
+        android:textSize="@dimen/onboarding_small_font_size"
         app:layout_constraintEnd_toEndOf="@id/edit_text_password"
         app:layout_constraintStart_toStartOf="@id/edit_text_password"
         app:layout_constraintTop_toBottomOf="@+id/edit_text_password" />
@@ -102,7 +103,7 @@
         android:lineSpacingMultiplier="1.1"
         android:text="@string/signin_subtitle_label_2"
         android:textColor="@color/green_600"
-        android:textSize="@dimen/onboarding_small_text_size"
+        android:textSize="@dimen/onboarding_small_font_size"
         android:visibility="gone"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"

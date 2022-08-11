@@ -15,7 +15,7 @@
         android:maxLines="2"
         android:text="@string/signup_nickname_title_label"
         android:textColor="@color/grey_text_1"
-        android:textSize="@dimen/onboarding_title_text_size"
+        android:textSize="@dimen/onboarding_title_font_size"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
@@ -41,7 +41,7 @@
         android:lineSpacingMultiplier="1.1"
         android:text="@string/signup_nickname_subtitle"
         android:textColor="@color/grey_text_3"
-        android:textSize="@dimen/onboarding_small_text_size"
+        android:textSize="@dimen/onboarding_small_font_size"
         app:layout_constraintEnd_toEndOf="@id/nickname_edit_text"
         app:layout_constraintStart_toStartOf="@id/nickname_edit_text"
         app:layout_constraintTop_toBottomOf="@id/nickname_edit_text" />
@@ -50,7 +50,7 @@
         android:id="@+id/nickname_btn_next"
         style="@style/OnboardingButtonNext"
         android:layout_width="0dp"
-        android:layout_marginTop="92dp"
+        android:layout_marginTop="@dimen/margin_top_above_button_next"
         android:text="@string/signup_next_button"
         android:enabled="false"
         android:theme="@style/OnboardingButtonNext"
