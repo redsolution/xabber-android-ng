@@ -5,11 +5,11 @@ import android.net.Uri
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
-import com.xabber.data.dto.HostListDto
-import com.xabber.data.repository.AccountRepository
-import com.xabber.data.xmpp.account.AccountStorageItem
-import com.xabber.data.xmpp.presences.ResourceStorageItem
-import com.xabber.presentation.application.util.AppConstants
+import com.xabber.model.dto.HostListDto
+import com.xabber.repository.AccountRepository
+import com.xabber.model.xmpp.account.AccountStorageItem
+import com.xabber.model.xmpp.presences.ResourceStorageItem
+import com.xabber.presentation.AppConstants
 import io.reactivex.rxjava3.core.Single
 import io.realm.Realm
 import io.realm.RealmConfiguration

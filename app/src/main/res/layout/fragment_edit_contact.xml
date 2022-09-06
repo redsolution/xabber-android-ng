@@ -6,18 +6,22 @@
     android:layout_height="match_parent"
     android:background="@color/white">
 
-    <com.google.android.material.appbar.MaterialToolbar
-        android:paddingTop="13dp"
-        android:id="@+id/edit_contact_toolbar"
+    <com.google.android.material.appbar.AppBarLayout
+        android:id="@+id/appbar"
         android:layout_width="0dp"
-        android:background="@color/blue_300"
         android:layout_height="wrap_content"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:menu="@menu/menu_check"
-        app:title="@string/edit_contact_toolbar_title"
-        app:titleTextColor="@color/white"/>
+        app:layout_constraintTop_toTopOf="parent">
+
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/edit_contact_toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:menu="@menu/menu_check"
+            app:title="@string/edit_contact_toolbar_title"
+            app:titleTextColor="@color/white" />
+    </com.google.android.material.appbar.AppBarLayout>
 
     <ImageView
         android:id="@+id/im_avatar_edit_contact"
@@ -27,7 +31,7 @@
         android:layout_marginTop="32dp"
         android:contentDescription="@string/description_image_contact_photo"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/edit_contact_toolbar"
+        app:layout_constraintTop_toBottomOf="@id/appbar"
         tools:background="@tools:sample/avatars" />
 
     <androidx.cardview.widget.CardView

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.slidingpanelayout.widget.SlidingPaneLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<com.xabber.presentation.custom.NoSwipingSlidingPaneLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/sliding_pane_layout"
@@ -74,4 +74,4 @@
         android:layout_weight="1"
         android:background="@drawable/chat_background_repeat" />
 
-</androidx.slidingpanelayout.widget.SlidingPaneLayout>
+</com.xabber.presentation.custom.NoSwipingSlidingPaneLayout>

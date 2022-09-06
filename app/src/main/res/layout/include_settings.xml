@@ -54,7 +54,7 @@
 
         <TextView
             android:id="@+id/tv_subtitle_interface"
-            style="@style/AccAccountSettingsSubtitle"
+            style="@style/AccountSettingsSubtitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Appearance settings"
@@ -88,7 +88,7 @@
 
         <TextView
             android:id="@+id/tv_subtitle_notifications"
-            style="@style/AccAccountSettingsSubtitle"
+            style="@style/AccountSettingsSubtitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Private chats, groups, channels"
@@ -122,7 +122,7 @@
 
         <TextView
             android:id="@+id/tv_subtitle_data"
-            style="@style/AccAccountSettingsSubtitle"
+            style="@style/AccountSettingsSubtitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Private chats, groups, channels"
@@ -156,7 +156,7 @@
 
         <TextView
             android:id="@+id/tv_subtitle_privacy"
-            style="@style/AccAccountSettingsSubtitle"
+            style="@style/AccountSettingsSubtitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Media loading, typing notifications, etc"
@@ -190,7 +190,7 @@
 
         <TextView
             android:id="@+id/tv_subtitle_connection"
-            style="@style/AccAccountSettingsSubtitle"
+            style="@style/AccountSettingsSubtitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Battery mode, WIFI, Sleep"
@@ -224,7 +224,7 @@
 
         <TextView
             android:id="@+id/tv_subtitle_debug"
-            style="@style/AccAccountSettingsSubtitle"
+            style="@style/AccountSettingsSubtitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Debugging options, logs"
@@ -258,7 +258,7 @@
 
         <TextView
             android:id="@+id/tv_subtitle_language"
-            style="@style/AccAccountSettingsSubtitle"
+            style="@style/AccountSettingsSubtitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="English (Default)"

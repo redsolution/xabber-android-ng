@@ -9,6 +9,7 @@ import android.view.View
 
 class ClickSpan(val url: String, val type: String, private val context: Context) :
     ClickableSpan() {
+
     override fun onClick(view: View) {
         if (TYPE_HYPERLINK == type) {
             val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(url))

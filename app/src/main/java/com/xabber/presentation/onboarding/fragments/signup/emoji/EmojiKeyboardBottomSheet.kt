@@ -16,7 +16,7 @@ import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.xabber.R
 import com.xabber.databinding.FragmentEmojiKeyboardBinding
-import com.xabber.presentation.application.util.AppConstants
+import com.xabber.presentation.AppConstants
 import com.xabber.presentation.application.util.dp
 import com.xabber.presentation.application.util.setFragmentResult
 

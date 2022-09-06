@@ -2,8 +2,8 @@ package com.xabber.presentation.application.activity
 
 import android.content.res.Configuration
 import android.content.res.Resources
+import android.util.Log
 import androidx.fragment.app.Fragment
-import com.xabber.R
 import com.xabber.presentation.application.util.dp
 
 object DisplayManager : Fragment() {
@@ -11,11 +11,12 @@ object DisplayManager : Fragment() {
     private const val MAX_HEIGHT = 900
     private var heightStatusBar = 0
 
-    private fun getWidthDp(): Int =
+    fun getWidthDp(): Int =
         (Resources.getSystem().displayMetrics.widthPixels / Resources.getSystem().displayMetrics.density).toInt()
 
     fun isDualScreenMode(): Boolean {
         val widthDp = getWidthDp()
+        Log.d("ooo", "$widthDp")
         return (
                 widthDp >= MAX_WIDTH && Resources.getSystem().configuration.orientation ==
                         Configuration.ORIENTATION_PORTRAIT) || (

@@ -174,6 +174,7 @@ class ReplySwipeCallback(context: Context) : ItemTouchHelper.Callback(), View.On
                 iconSize = fullSize
                 isAnimating = false
             }
+            else -> {}
         }
         return iconSize
     }

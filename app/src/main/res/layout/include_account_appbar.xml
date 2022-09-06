@@ -5,22 +5,49 @@
     <com.google.android.material.appbar.AppBarLayout
         android:id="@+id/appbar"
         android:layout_width="match_parent"
-        android:layout_height="424dp">
+        android:layout_height="424dp"
+        android:background="@color/transparent">
 
         <com.google.android.material.appbar.CollapsingToolbarLayout
             android:id="@+id/collapsing_toolbar"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
+            android:background="@color/transparent"
             app:collapsedTitleTextAppearance="@style/CollapsingToolbarTitle"
             app:collapsedTitleTextColor="@color/white"
             app:layout_scrollFlags="scroll|snap|exitUntilCollapsed">
 
-            <ImageView
-                android:id="@+id/im_backdrop"
+            <FrameLayout
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:contentDescription="@string/avatar_background_image_description"
-                android:scaleType="centerCrop" />
+                android:layout_height="match_parent">
+
+                <androidx.constraintlayout.utils.widget.ImageFilterView
+                    android:id="@+id/im_backdrop"
+                    android:layout_width="match_parent"
+
+                    android:layout_height="match_parent"
+                    android:alpha="1"
+                    android:contentDescription="@string/avatar_background_image_description"
+                    android:scaleType="centerCrop" />
+
+                <ImageView
+                    android:id="@+id/im_backdrop2"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:alpha="0"
+                    android:background="@color/grey_900"
+                    android:contentDescription="@string/avatar_background_image_description"
+                    android:scaleType="centerCrop" />
+
+                <ImageView
+                    android:id="@+id/im_backdrop3"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:alpha="0"
+                    android:background="@color/transparent"
+                    android:contentDescription="@string/avatar_background_image_description"
+                    android:scaleType="centerCrop" />
+            </FrameLayout>
 
             <ImageView
                 android:id="@+id/im_photo"
@@ -28,7 +55,8 @@
                 android:layout_height="@dimen/mask256"
                 android:layout_gravity="start|center_vertical"
                 android:layout_marginStart="@dimen/margin_larger_medium"
-                android:layout_marginBottom="@dimen/margin_medium"
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="24dp"
                 android:contentDescription="@string/account_photo_image_description"
                 app:layout_collapseMode="none" />
 
@@ -36,15 +64,17 @@
                 android:id="@+id/toolbar"
                 android:layout_width="match_parent"
                 android:layout_height="?attr/actionBarSize"
+                android:background="@color/transparent"
                 android:theme="@style/ToolbarAccountColorTheme"
                 app:layout_collapseMode="none" />
 
             <LinearLayout
+                android:id="@+id/lin_text"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="bottom"
                 android:layout_marginEnd="8dp"
-                android:layout_marginBottom="20dp"
+                android:layout_marginBottom="28dp"
                 android:orientation="vertical">
 
                 <TextView
@@ -52,7 +82,6 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="@dimen/margin_larger_medium"
-                    android:layout_marginBottom="4dp"
                     android:gravity="start"
                     android:maxLines="1"
                     android:textColor="@color/white"

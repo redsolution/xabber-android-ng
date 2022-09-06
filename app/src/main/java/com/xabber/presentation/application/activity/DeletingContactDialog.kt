@@ -9,8 +9,7 @@ import androidx.core.text.bold
 import androidx.fragment.app.DialogFragment
 import com.xabber.R
 import com.xabber.databinding.FragmentDialogStandartBinding
-import com.xabber.presentation.application.fragments.chat.DeletingChatDialog
-import com.xabber.presentation.application.util.AppConstants
+import com.xabber.presentation.AppConstants
 
 class DeletingContactDialog: DialogFragment() {
     private var _binding: FragmentDialogStandartBinding? = null

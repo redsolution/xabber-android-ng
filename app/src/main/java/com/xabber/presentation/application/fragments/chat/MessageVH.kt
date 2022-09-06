@@ -9,10 +9,8 @@ import androidx.annotation.StyleRes
 import androidx.appcompat.widget.LinearLayoutCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.xabber.R
-import com.xabber.data.dto.MessageDto
-import com.xabber.data.dto.MessageVhExtraData
-import com.xabber.presentation.application.util.StringUtils.getDateStringForMessage
-import com.xabber.presentation.custom.CorrectlyTouchEventTextView
+import com.xabber.model.dto.MessageDto
+import com.xabber.model.dto.MessageVhExtraData
 import com.xabber.presentation.custom.CustomFlexboxLayout
 import rx.subscriptions.CompositeSubscription
 

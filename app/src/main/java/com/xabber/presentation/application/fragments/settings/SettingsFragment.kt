@@ -5,7 +5,7 @@ import android.view.View
 import androidx.recyclerview.widget.LinearLayoutManager
 import by.kirich1409.viewbindingdelegate.viewBinding
 import com.xabber.R
-import com.xabber.data.xmpp.account.Account
+import com.xabber.model.xmpp.account.Account
 import com.xabber.databinding.FragmentSettingsBinding
 import com.xabber.presentation.BaseFragment
 import com.xabber.presentation.application.activity.DisplayManager

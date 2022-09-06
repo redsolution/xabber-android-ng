@@ -8,12 +8,13 @@ import android.view.ViewGroup
 import androidx.annotation.RequiresApi
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
-import com.xabber.data.dto.MessageDto
-import com.xabber.data.xmpp.messages.MessageDisplayType
+import com.xabber.model.dto.MessageDto
+import com.xabber.model.xmpp.messages.MessageDisplayType
 import com.xabber.databinding.ItemMessageIncomingBinding
 import com.xabber.databinding.ItemMessageOutgoingBinding
 import com.xabber.databinding.ItemMessageSystemBinding
-import com.xabber.presentation.application.util.StringUtils
+import com.xabber.presentation.application.fragments.chat.message.BasicMessageVH
+import com.xabber.utils.StringUtils
 
 class MessageAdapter(
     private val listener: Listener

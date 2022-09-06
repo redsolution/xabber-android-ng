@@ -1,6 +1,7 @@
 package com.xabber.presentation.application.activity
 
-import com.xabber.data.xmpp.account.Account
+import com.xabber.model.xmpp.account.Account
+import com.xabber.utils.mask.Mask
 
 object UiChanger {
     private var isTablet = false

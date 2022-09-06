@@ -1,28 +1,8 @@
 package com.xabber.presentation.application.fragments.chat
 
-import android.app.Application
-import android.content.Intent
-import android.graphics.Bitmap
-import android.graphics.drawable.Drawable
-import android.net.Uri
-import android.text.format.DateFormat.getTimeFormat
-import android.view.LayoutInflater
 import android.view.View
-import android.view.ViewGroup
-import android.widget.ImageView
-import android.widget.TextView
-import androidx.annotation.LayoutRes
-import androidx.databinding.adapters.ViewBindingAdapter.setOnLongClickListener
-import com.bumptech.glide.Glide
-import com.bumptech.glide.load.MultiTransformation
-import com.bumptech.glide.load.resource.bitmap.BitmapTransformation
-import com.bumptech.glide.load.resource.bitmap.CenterCrop
-import com.bumptech.glide.load.resource.bitmap.RoundedCorners
-import com.bumptech.glide.request.target.CustomTarget
-import com.xabber.R
-import com.xabber.data.dto.MessageDto
-import com.xabber.data.dto.MessageVhExtraData
-import java.text.DateFormat
+import com.xabber.model.dto.MessageDto
+import com.xabber.model.dto.MessageVhExtraData
 
 class ImageGrid {
 

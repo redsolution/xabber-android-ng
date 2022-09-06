@@ -112,7 +112,7 @@
     <string name="no_internet_title">Connecting…</string>
 
 
-    <!-- CHAT FRAGMENT -->
+    <!-- CHAT LIST FRAGMENT -->
 
     <string name="avatar_account_content_description">Account avatar</string>
     <string name="image_plus_content_description">Add chat</string>
@@ -350,6 +350,7 @@
     <string name="menu_item_choose_from_gallery">Choose from gallery</string>
     <string name="menu_item_take_a_photo">Take a photo</string>
     <string name="menu_item_delete_avatar">Delete avatar</string>
+    <string name="encryption_settings_toolbar_title">Encryption and keys</string>
 
     <plurals name="estimated_in_seconds">
         <item quantity="one">in %1$d second</item>

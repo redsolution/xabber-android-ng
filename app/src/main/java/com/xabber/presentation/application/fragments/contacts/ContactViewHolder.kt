@@ -6,11 +6,15 @@ import androidx.core.view.isVisible
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.xabber.R
-import com.xabber.data.dto.ContactDto
-import com.xabber.data.xmpp.presences.ResourceStatus
-import com.xabber.data.xmpp.presences.RosterItemEntity
 import com.xabber.databinding.ItemContactBinding
+import com.xabber.model.dto.ChatListDto
+import com.xabber.model.dto.ContactDto
+import com.xabber.model.xmpp.messages.MessageSendingState
+import com.xabber.model.xmpp.presences.ResourceStatus
+import com.xabber.model.xmpp.presences.RosterItemEntity
 import com.xabber.presentation.application.activity.UiChanger
+import com.xabber.presentation.application.fragments.chat.ChatParams
+import com.xabber.utils.mask.MaskPrepare
 
 class ContactViewHolder(
     private val binding: ItemContactBinding
@@ -18,17 +22,12 @@ class ContactViewHolder(
 
     fun bind(contact: ContactDto, listener: ContactAdapter.Listener) {
         with(binding) {
-            Glide.with(itemView)
-                .load(R.drawable.ic_avatar_placeholder)
-                .centerCrop()
-                .skipMemoryCache(true)
-                .into(contactImage)
             contactName.text = contact.userName
             contactSubtitle.text = contact.subtitle
 
             if (contact.entity == RosterItemEntity.Contact) {
                 val icon = when (contact.status) {
-                    ResourceStatus.Offline -> R.drawable.status_online
+                    ResourceStatus.Offline -> R.drawable.status_offline
                     ResourceStatus.Away -> R.drawable.status_away
                     ResourceStatus.Online -> R.drawable.status_online
                     ResourceStatus.Xa -> R.drawable.ic_status_xa
@@ -118,19 +117,55 @@ class ContactViewHolder(
                 contactStatus16.setImageResource(icon)
             }
 
-            contactImage.setBackgroundResource(R.drawable.star56)
 
+            // avatar
+            val maskedDrawable = MaskPrepare.getDrawableMask(
+                itemView.resources,
+                contact.avatar,
+                UiChanger.getMask().size48
+            )
+            Glide.with(itemView)
+                .load(maskedDrawable)
+                .centerCrop()
+                .skipMemoryCache(true)
+                .into(binding.contactImage)
 
             contactImage.setOnClickListener {
-                listener.onAvatarClick()
+                listener.onAvatarClick(contact)
             }
 
             binding.root.setOnClickListener {
-                listener.onContactClick(contact.userName!!)
+                listener.onContactClick(
+                    ChatParams(
+                        ChatListDto(
+                            "1",
+                            contact.jid!!,
+                            contact.owner,
+                            contact.userName!!,
+                            "",
+                            System.currentTimeMillis(),
+                            MessageSendingState.NotSended,
+                            false,
+                            true,
+                            "скоро буду",
+                            false,
+                            false,
+                            false,
+                            0.0,
+                            7.0,
+                            ResourceStatus.Chat,
+                            RosterItemEntity.Contact,
+                            null,
+                            0,
+                            contact.color,
+                            contact.avatar, contact
+                        )
+                    )
+                )
             }
 
             itemView.setOnLongClickListener {
-                val popup = PopupMenu(itemView.context, itemView, Gravity.RIGHT)
+                val popup = PopupMenu(itemView.context, itemView, Gravity.CENTER)
                 popup.inflate(R.menu.popup_menu_contact_item)
 
                 popup.setOnMenuItemClickListener {
@@ -146,13 +181,7 @@ class ContactViewHolder(
                 popup.show()
                 true
             }
-
-              contactImage.setBackgroundResource(UiChanger.getMask().size48)
-
         }
-
-
     }
-
 
 }

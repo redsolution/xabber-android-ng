@@ -4,8 +4,8 @@ import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
-import com.xabber.data.dto.ChatListDto
-import com.xabber.data.dto.ContactDto
+import com.xabber.model.dto.ChatListDto
+import com.xabber.model.dto.ContactDto
 import com.xabber.databinding.ItemChatListBinding
 
 class ChatListAdapter(
@@ -26,8 +26,6 @@ class ChatListAdapter(
         fun turnOfNotifications(id: String)
 
         fun openSpecialNotificationsFragment()
-
-        fun onClickAvatar(contactDto: ContactDto)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ChatListViewHolder {

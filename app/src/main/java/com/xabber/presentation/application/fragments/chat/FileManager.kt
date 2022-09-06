@@ -1,5 +1,6 @@
 package com.xabber.presentation.application.fragments.chat
 
+import android.app.Application
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -124,6 +125,11 @@ class FileManager : Fragment() {
 
         fun getFileUri(file: File, context: Context): Uri =
             FileProvider.getUriForFile(context, BuildConfig.APPLICATION_ID + ".provider", file)
+
+
+        fun createTempOpusFile(name: String): File =
+            File.createTempFile(name, ".opus")
+
 
 //        fun isImageSizeGreater(srcUri: Uri?, maxSize: Int): Boolean {
 //            val srcPath: String =

@@ -8,8 +8,8 @@
     tools:context=".presentation.application.fragments.chatlist.ChatListFragment">
 
     <com.google.android.material.appbar.AppBarLayout
-        style="@style/ApplicationAppbar"
         android:id="@+id/appbar"
+        style="@style/ApplicationAppbar"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         app:layout_constraintEnd_toEndOf="parent"
@@ -59,8 +59,8 @@
                     tools:visibility="visible" />
 
                 <TextView
-                    style="@style/ApplicationToolbarTitle"
                     android:id="@+id/tv_chat_title"
+                    style="@style/ApplicationToolbarTitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/application_title"

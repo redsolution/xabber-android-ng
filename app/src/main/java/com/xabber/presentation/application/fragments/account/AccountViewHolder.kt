@@ -2,10 +2,10 @@ package com.xabber.presentation.application.fragments.account
 
 import android.graphics.BitmapFactory
 import androidx.recyclerview.widget.RecyclerView
-import com.xabber.data.xmpp.account.Account
+import com.xabber.model.xmpp.account.Account
 import com.xabber.databinding.ItemAccountForPreferenceBinding
-import com.xabber.presentation.application.activity.MaskedDrawable
-import com.xabber.presentation.application.activity.MaskedDrawableBitmapShader
+import com.xabber.utils.mask.MaskedDrawable
+import com.xabber.utils.mask.MaskedDrawableBitmapShader
 import com.xabber.presentation.application.activity.UiChanger
 
 class AccountViewHolder(

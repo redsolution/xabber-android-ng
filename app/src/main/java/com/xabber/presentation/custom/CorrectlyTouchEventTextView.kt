@@ -1,5 +1,6 @@
 package com.xabber.presentation.custom
 
+import android.annotation.SuppressLint
 import android.app.AlertDialog
 import android.content.Context
 import android.content.DialogInterface
@@ -22,6 +23,7 @@ open class CorrectlyTouchEventTextView @JvmOverloads constructor(
 
     var clickableSpanClicked = false
 
+    @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(event: MotionEvent): Boolean {
         clickableSpanClicked = false
         super.onTouchEvent(event)
@@ -121,4 +123,3 @@ open class CorrectlyTouchEventTextView @JvmOverloads constructor(
         }
     }
 }
-

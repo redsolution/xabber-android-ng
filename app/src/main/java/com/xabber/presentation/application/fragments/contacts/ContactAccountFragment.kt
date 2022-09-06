@@ -1,39 +1,46 @@
 package com.xabber.presentation.application.fragments.contacts
 
+import android.annotation.SuppressLint
+import android.content.Context
 import android.content.Intent
-import android.graphics.BitmapFactory
+import android.graphics.Bitmap
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.util.Log
 import android.util.TypedValue
-import android.view.Menu
-import android.view.MenuInflater
-import android.view.MenuItem
-import android.view.View
+import android.view.*
 import android.view.animation.AnimationUtils
-import androidx.activity.OnBackPressedCallback
+import android.widget.ImageView
+import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.MenuProvider
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.GridLayoutManager
 import by.kirich1409.viewbindingdelegate.viewBinding
 import com.bumptech.glide.Glide
-import com.bumptech.glide.load.MultiTransformation
-import com.bumptech.glide.load.resource.bitmap.CenterCrop
+import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.google.android.material.appbar.AppBarLayout
 import com.google.android.material.appbar.CollapsingToolbarLayout
 import com.google.android.material.tabs.TabLayout
 import com.xabber.R
-import com.xabber.data.dto.ContactDto
 import com.xabber.databinding.FragmentContactAccountBinding
-import com.xabber.presentation.BaseFragment
-import com.xabber.presentation.application.activity.*
+import com.xabber.model.dto.ContactDto
+import com.xabber.presentation.AppConstants
+import com.xabber.presentation.application.activity.DeletingContactDialog
+import com.xabber.presentation.application.activity.DisplayManager
+import com.xabber.presentation.application.activity.MediaAdapter
+import com.xabber.presentation.application.activity.UiChanger
 import com.xabber.presentation.application.contract.navigator
-import com.xabber.presentation.application.fragments.account.QRCodeParams
+import com.xabber.presentation.application.dialogs.BlockContactDialog
+import com.xabber.presentation.application.fragments.DetailBaseFragment
+import com.xabber.presentation.application.fragments.account.qrcode.QRCodeParams
 import com.xabber.presentation.application.fragments.chatlist.NotificationBottomSheet
-import com.xabber.presentation.application.util.AppConstants
-import com.xabber.presentation.application.util.BlurTransformation
 import com.xabber.presentation.application.util.showToast
+import com.xabber.utils.blur.BlurTransformation
+import com.xabber.utils.mask.MaskPrepare
 
-class ContactAccountFragment : BaseFragment(R.layout.fragment_contact_account) {
+class ContactAccountFragment : DetailBaseFragment(R.layout.fragment_contact_account) {
     private val binding by viewBinding(FragmentContactAccountBinding::bind)
     private var mediaAdapter: MediaAdapter? = null
 
@@ -50,8 +57,17 @@ class ContactAccountFragment : BaseFragment(R.layout.fragment_contact_account) {
     private fun getContact(): ContactDto =
         requireArguments().getParcelable(AppConstants.PARAMS_CONTACT_ACCOUNT)!!
 
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        setToolbarPadding()
+        changeUiWidthData()
+        initToolbarActions()
+        initPanelActions()
+        initTabLayout()
+    }
+
+    private fun setToolbarPadding() {
         var actionBarHeight = 0
         val tv = TypedValue()
         if (requireActivity().theme.resolveAttribute(
@@ -68,21 +84,16 @@ class ContactAccountFragment : BaseFragment(R.layout.fragment_contact_account) {
         params.topMargin = DisplayManager.getHeightStatusBar()
         params.collapseMode = CollapsingToolbarLayout.LayoutParams.COLLAPSE_MODE_PIN
         binding.accountAppbar.toolbar.layoutParams = params
-        requireActivity().onBackPressedDispatcher.addCallback(onBackPressedCallback)
-        changeUiWidthData()
-        initToolbarActions()
-        initPanelActions()
-        initTabLayout()
     }
 
+    @SuppressLint("ResourceAsColor")
     private fun changeUiWidthData() {
         loadBackground()
-        loadAvatar()
         defineColor()
+        loadAvatar()
         with(binding.accountAppbar) {
             tvTitle.text = getContact().userName
             tvSubtitle.text = getContact().jid
-            collapsingToolbar.setBackgroundColor(getContact().color)
         }
         binding.tvJid.text = getContact().jid
         binding.tvFullName.text = getContact().name
@@ -90,31 +101,26 @@ class ContactAccountFragment : BaseFragment(R.layout.fragment_contact_account) {
     }
 
     private fun loadBackground() {
-        val blurTransformation = BlurTransformation(
-            25, 8, ResourcesCompat.getColor(
-                resources,
-                getContact().color,
-                requireContext().theme
-            )
-        )
-        Glide.with(context!!)
-            .load(getContact().avatar)
-            .transform(
-                MultiTransformation(
-                    CenterCrop(),
-                    blurTransformation
+        Glide.with(requireContext())
+            .load(getContact().avatar).transform(
+                BlurTransformation(
+                    25,
+                    4,
+                    ContextCompat.getColor(requireContext(), getContact().color)
                 )
-            ).into(binding.accountAppbar.imBackdrop)
+            )
+            .diskCacheStrategy(DiskCacheStrategy.ALL).error(getContact().color)
+            .into(binding.accountAppbar.imBackdrop as ImageView)
+
+        binding.accountAppbar.imBackdrop3?.setBackgroundResource(getContact().color)
     }
 
     private fun loadAvatar() {
-        val mPictureBitmap = BitmapFactory.decodeResource(resources, getContact().avatar)
-        val mMaskBitmap =
-            BitmapFactory.decodeResource(resources, UiChanger.getMask().size176).extractAlpha()
-        val maskedDrawable = MaskedDrawableBitmapShader()
-        maskedDrawable.setPictureBitmap(mPictureBitmap)
-        maskedDrawable.setMaskBitmap(mMaskBitmap)
-        binding.accountAppbar.imPhoto.setImageDrawable(maskedDrawable)
+        val maskedDrawable =
+            MaskPrepare.getDrawableMask(resources, getContact().avatar, UiChanger.getMask().size176)
+        Glide.with(requireContext())
+            .load(maskedDrawable).diskCacheStrategy(DiskCacheStrategy.ALL).error(getContact().color)
+            .into(binding.accountAppbar.imPhoto)
     }
 
     private fun defineColor() {
@@ -127,6 +133,7 @@ class ContactAccountFragment : BaseFragment(R.layout.fragment_contact_account) {
         )
     }
 
+
     private fun shareContact(name: String) {
         val shareIntent = Intent()
         shareIntent.action = Intent.ACTION_SEND
@@ -136,8 +143,6 @@ class ContactAccountFragment : BaseFragment(R.layout.fragment_contact_account) {
     }
 
     private fun initToolbarActions() {
-        binding.accountAppbar.toolbar.setNavigationIcon(R.drawable.ic_arrow_left_white)
-        binding.accountAppbar.toolbar.setNavigationOnClickListener { navigator().closeDetail() }
 
         binding.accountAppbar.toolbar.addMenuProvider(object : MenuProvider {
             override fun onCreateMenu(menu: Menu, menuInflater: MenuInflater) {
@@ -172,11 +177,11 @@ class ContactAccountFragment : BaseFragment(R.layout.fragment_contact_account) {
 
         var isShow = true
         var scrollRange = -1
-        with(binding.accountAppbar) {
+        with(binding!!.accountAppbar) {
             appbar.addOnOffsetChangedListener(AppBarLayout.OnOffsetChangedListener { bar, verticalOffset ->
                 if (scrollRange + verticalOffset < 170) {
                     val anim =
-                        AnimationUtils.loadAnimation(context, R.animator.disappearance_long)
+                        AnimationUtils.loadAnimation(context, R.anim.disappearance_300)
                     if (tvTitle.isVisible) {
                         tvTitle.startAnimation(anim)
                         tvSubtitle.startAnimation(anim)
@@ -226,7 +231,7 @@ class ContactAccountFragment : BaseFragment(R.layout.fragment_contact_account) {
 
     private fun initPanelActions() {
         binding.rlOpenChat.setOnClickListener {
-          //  navigator().showChat(getContact().userName!!)
+            //  navigator().showChat(getContact().userName!!)
         }
 
         binding.rlCall.setOnClickListener { showToast("This feature is not implemented") }
@@ -310,17 +315,6 @@ class ContactAccountFragment : BaseFragment(R.layout.fragment_contact_account) {
             override fun onTabUnselected(tab: TabLayout.Tab) {}
             override fun onTabReselected(tab: TabLayout.Tab) {}
         })
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        onBackPressedCallback.remove()
-    }
-
-    private val onBackPressedCallback = object : OnBackPressedCallback(true) {
-        override fun handleOnBackPressed() {
-            navigator().closeDetail()
-        }
     }
 
 }

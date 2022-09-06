@@ -8,19 +8,20 @@ import android.text.SpannableString
 import android.text.style.ForegroundColorSpan
 import android.view.Gravity
 import androidx.appcompat.widget.PopupMenu
+import androidx.constraintlayout.helper.widget.Layer
 import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.xabber.R
-import com.xabber.data.dto.ChatListDto
-import com.xabber.data.xmpp.messages.MessageSendingState
-import com.xabber.data.xmpp.presences.ResourceStatus
-import com.xabber.data.xmpp.presences.RosterItemEntity
+import com.xabber.model.dto.ChatListDto
+import com.xabber.model.xmpp.messages.MessageSendingState
+import com.xabber.model.xmpp.presences.ResourceStatus
+import com.xabber.model.xmpp.presences.RosterItemEntity
 import com.xabber.databinding.ItemChatListBinding
-import com.xabber.presentation.application.activity.MaskedDrawableBitmapShader
+import com.xabber.utils.mask.MaskedDrawableBitmapShader
 import com.xabber.presentation.application.activity.UiChanger
-import com.xabber.presentation.application.util.DateFormatter
+import com.xabber.utils.DateFormatter
 
 class ChatListViewHolder(
     private val binding: ItemChatListBinding,
@@ -42,7 +43,8 @@ class ChatListViewHolder(
             val mMaskBitmap =
                 BitmapFactory.decodeResource(itemView.resources, UiChanger.getMask().size56)
                     .extractAlpha()
-            val maskedDrawable = MaskedDrawableBitmapShader()
+            val maskedDrawable =
+                MaskedDrawableBitmapShader()
             maskedDrawable.setPictureBitmap(mPictureBitmap)
             maskedDrawable.setMaskBitmap(mMaskBitmap)
 
@@ -51,7 +53,6 @@ class ChatListViewHolder(
                 .centerCrop()
                 .skipMemoryCache(true)
                 .into(imChatListItemAvatar)
-
             // name
             tvChatListName.text = chatList.displayName
 
@@ -93,9 +94,7 @@ class ChatListViewHolder(
             // message status
             var image: Int? = null
             var tint: Int? = null
-            if (chatList.unreadString != null) (chatList.unreadString.isEmpty()).also {
-                imChatListStatusMessage.isVisible = it
-            }
+            imChatListStatusMessage.isVisible = chatList.unreadString == null || chatList.unreadString.isEmpty()
             when (chatList.lastMessageState) {
                 MessageSendingState.Sending -> {
                     tint = R.color.grey_500
@@ -266,13 +265,9 @@ class ChatListViewHolder(
                 listener.onClickItem(chatList)
             }
 
-            imChatListItemAvatar.setOnClickListener {
-                listener.onClickAvatar(chatList.contactDto)
-            }
-
             // popup menu
             itemView.setOnLongClickListener {
-                val popup = PopupMenu(itemView.context, itemView, Gravity.RIGHT)
+                val popup = PopupMenu(itemView.context, itemView, Gravity.CENTER)
                 if (chatList.pinnedDate > 0) popup.inflate(R.menu.popup_menu_chatlist_item_pinned)
                 else popup.inflate(R.menu.popup_menu_chat_item_unpinned)
 

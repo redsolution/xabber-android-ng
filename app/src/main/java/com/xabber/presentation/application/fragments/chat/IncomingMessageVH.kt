@@ -13,17 +13,18 @@ import android.widget.LinearLayout
 import androidx.annotation.RequiresApi
 import androidx.appcompat.view.menu.MenuBuilder
 import androidx.appcompat.view.menu.MenuPopupHelper
-import androidx.appcompat.widget.CustomPopupMenu
+import androidx.appcompat.widget.PopupMenu
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.isVisible
 import com.google.android.material.snackbar.Snackbar
 import com.xabber.R
-import com.xabber.data.dto.MessageDto
+import com.xabber.model.dto.MessageDto
 import com.xabber.presentation.application.util.dp
 import com.xabber.databinding.ItemMessageIncomingBinding
 import com.xabber.presentation.application.activity.UiChanger
-import com.xabber.presentation.application.activity.MaskedDrawableBitmapShader
-import com.xabber.presentation.application.util.StringUtils
+import com.xabber.utils.mask.MaskedDrawableBitmapShader
+import com.xabber.presentation.application.fragments.chat.message.BasicMessageVH
+import com.xabber.utils.StringUtils
 import java.util.*
 
 class IncomingMessageVH(
@@ -39,7 +40,7 @@ class IncomingMessageVH(
         showCheckbox: Boolean,
         isNeedTitle: Boolean
     ) {
-        Log.d("show", "$showCheckbox")
+        Log.wtf("show", "$showCheckbox")
         // text & appearance
         binding.tvContent.isVisible = messageDto.messageBody != null
         binding.tvContent.text = messageDto.messageBody
@@ -77,7 +78,7 @@ class IncomingMessageVH(
             if (messageDto.isGroup && !showCheckbox) 46.dp else if (messageDto.isGroup && showCheckbox) 12.dp else 40.dp
         if (!messageDto.isGroup || binding.avatarContact.isVisible) {
             params.setMargins(
-                if (isNeedTail) 2.dp else 11.dp,
+                if (isNeedTail) 2.dp else 10.dp,
                 0,
                 marginRight,
                 0
@@ -148,7 +149,8 @@ if (binding.avatarContact.isVisible) {
               else { binding.frameLayoutBlackout.setBackgroundResource(R.color.transparent)
                   binding.tvContent.setTextIsSelectable(false) }
             } else {
-                 val popup = CustomPopupMenu(it.context, it, Gravity.CENTER)
+                 val popup = PopupMenu(it.context, it, Gravity.CENTER)
+                popup.setForceShowIcon(true)
            popup.inflate(R.menu.popup_menu_message_incoming)
 
             val menuHealper = MenuPopupHelper(it.context, popup.menu as MenuBuilder, binding.root)
@@ -214,8 +216,9 @@ if (binding.avatarContact.isVisible) {
     }
 
     @SuppressLint("RestrictedApi")
-    fun createPopupMenu(messageDto: MessageDto, view: View): CustomPopupMenu {
-        val popup = CustomPopupMenu(view.context, view, Gravity.CENTER)
+    fun createPopupMenu(messageDto: MessageDto, view: View): PopupMenu {
+        val popup = PopupMenu(view.context, view, Gravity.CENTER)
+        popup.setForceShowIcon(true)
         if (messageDto.isOutgoing) popup.inflate(R.menu.popup_menu_message_outgoing)
         else popup.inflate(R.menu.popup_menu_message_incoming)
 

@@ -1,9 +1,11 @@
 package com.xabber.presentation.application.fragments.chat
 
 import android.content.Context
-import com.xabber.presentation.RecordService
+import android.util.Log
+import androidx.fragment.app.Fragment
+import com.xabber.presentation.XabberApplication
+import com.xabber.service.RecordService
 import java.io.File
-import java.lang.Exception
 
 object VoiceManager {
     private var tempOpusPath: String? = null
@@ -12,6 +14,7 @@ object VoiceManager {
         var tempOpusFile: File? = null
         try {
             tempOpusFile = FileManager.createTempOpusFile("tempOpusFile", context)
+            Log.d("file", "${tempOpusFile.length()}")
             RecordService.record(context, tempOpusFile.path)
             deleteRecordedFile()
             tempOpusPath = tempOpusFile.path
@@ -20,11 +23,21 @@ object VoiceManager {
         }
     }
 
-   private fun deleteRecordedFile() {
+    fun stopRecording(deleteTempFile: Boolean): Boolean {
+        RecordService.stopRecording(XabberApplication.newInstance().baseContext);
+        if (deleteTempFile)
+            deleteRecordedFile();
+        return true;
+
+        return false;
+    }
+
+
+    private fun deleteRecordedFile() {
         if (tempOpusPath != null) {
-             FileManager.deleteTempFile(tempOpusPath)
+            FileManager.deleteTempFile(tempOpusPath)
         }
-        tempOpusPath = null;
+        tempOpusPath = null
     }
 
 }

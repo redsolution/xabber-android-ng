@@ -7,7 +7,7 @@
 
     <com.google.android.material.appbar.AppBarLayout
         style="@style/ApplicationAppbar"
-        android:id="@+id/appbar_calls"
+        android:id="@+id/appbar"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         app:layout_constraintEnd_toEndOf="parent"
@@ -63,7 +63,7 @@
     </com.google.android.material.appbar.AppBarLayout>
 
     <TextView
-        android:id="@+id/tv_adt"
+        android:id="@+id/tv_advertisement"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="@dimen/margin_less_than_medium"
@@ -73,6 +73,6 @@
         android:textSize="@dimen/font_size_18"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/appbar_calls" />
+        app:layout_constraintTop_toBottomOf="@id/appbar" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

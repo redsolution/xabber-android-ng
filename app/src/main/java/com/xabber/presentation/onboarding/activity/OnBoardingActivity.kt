@@ -9,7 +9,7 @@ import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.xabber.R
 import com.xabber.databinding.ActivityOnboardingBinding
 import com.xabber.presentation.application.activity.ApplicationActivity
-import com.xabber.presentation.application.util.AppConstants
+import com.xabber.presentation.AppConstants
 import com.xabber.presentation.onboarding.contract.Navigator
 import com.xabber.presentation.onboarding.contract.ToolbarChanger
 import com.xabber.presentation.onboarding.fragments.signin.SigninFragment
@@ -90,12 +90,11 @@ class OnBoardingActivity : AppCompatActivity(), Navigator, ToolbarChanger {
         openFragment(SigninFragment())
     }
 
-
     override fun goToApplicationActivity(isSignedIn: Boolean) {
-        val intent = Intent(this, ApplicationActivity::class.java)
+        val intent = Intent(applicationContext, ApplicationActivity::class.java)
         startActivity(intent)
         finish()
-        overridePendingTransition(R.anim.appearance, R.anim.disappearance)
+     //   overridePendingTransition(R.anim.appearance, R.anim.disappearance)
     }
 
     override fun openBottomSheetDialogFragment(dialog: BottomSheetDialogFragment) {
@@ -103,11 +102,11 @@ class OnBoardingActivity : AppCompatActivity(), Navigator, ToolbarChanger {
     }
 
     override fun goBack() {
-        onBackPressed()
+     //   onBackPressed()
     }
 
     override fun onSupportNavigateUp(): Boolean {
-        onBackPressed()
+      //  onBackPressed()
         return true
     }
 

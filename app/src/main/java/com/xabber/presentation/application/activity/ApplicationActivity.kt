@@ -1,5 +1,6 @@
 package com.xabber.presentation.application.activity
 
+import SoftInputAssist
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
@@ -7,6 +8,7 @@ import android.util.TypedValue
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.constraintlayout.widget.ConstraintLayout
+import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.updateLayoutParams
@@ -14,29 +16,39 @@ import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.commit
 import androidx.slidingpanelayout.widget.SlidingPaneLayout
+import com.google.android.material.badge.BadgeDrawable
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.xabber.R
-import com.xabber.data.dto.ContactDto
-import com.xabber.data.xmpp.account.Account
 import com.xabber.databinding.ActivityApplicationBinding
+import com.xabber.model.dto.ContactDto
+import com.xabber.model.xmpp.account.Account
+import com.xabber.presentation.AppConstants
 import com.xabber.presentation.application.activity.DisplayManager.getMainContainerWidth
 import com.xabber.presentation.application.activity.DisplayManager.isDualScreenMode
 import com.xabber.presentation.application.contract.ApplicationNavigator
-import com.xabber.presentation.application.fragments.account.*
+import com.xabber.presentation.application.fragments.account.AccountFragment
+import com.xabber.presentation.application.fragments.account.qrcode.QRCodeDialogFragment
+import com.xabber.presentation.application.fragments.account.qrcode.QRCodeFragment
+import com.xabber.presentation.application.fragments.account.qrcode.QRCodeParams
+import com.xabber.presentation.application.fragments.account.reorder.ReorderAccountsFragment
 import com.xabber.presentation.application.fragments.calls.CallsFragment
 import com.xabber.presentation.application.fragments.chat.ChatFragment
 import com.xabber.presentation.application.fragments.chat.ChatParams
 import com.xabber.presentation.application.fragments.chat.ChatViewModel
-import com.xabber.presentation.application.fragments.chatlist.*
+import com.xabber.presentation.application.fragments.chatlist.ChatListFragment
+import com.xabber.presentation.application.fragments.chatlist.ChatSettingsFragment
+import com.xabber.presentation.application.fragments.chatlist.SpecialNotificationsFragment
+import com.xabber.presentation.application.fragments.chatlist.add.NewChatFragment
+import com.xabber.presentation.application.fragments.chatlist.add.NewGroupFragment
 import com.xabber.presentation.application.fragments.contacts.ContactAccountFragment
 import com.xabber.presentation.application.fragments.contacts.ContactsFragment
 import com.xabber.presentation.application.fragments.contacts.EditContactFragment
 import com.xabber.presentation.application.fragments.contacts.NewContactFragment
 import com.xabber.presentation.application.fragments.discover.DiscoverFragment
-import com.xabber.presentation.application.fragments.settings.SettingsFragment
-import com.xabber.presentation.application.util.AppConstants
+import com.xabber.presentation.application.fragments.settings.*
 import com.xabber.presentation.application.util.lockScreenRotation
 import com.xabber.presentation.onboarding.activity.OnBoardingActivity
+import com.xabber.utils.mask.Mask
 
 class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
 
@@ -52,17 +64,11 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
     private val chatViewModel: ChatViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        setTheme(R.style.ThemeApplication)
         super.onCreate(savedInstanceState)
         setContentView(binding.root)
         if (true) {
             updateUiDependingOnMode(isDualScreenMode())
-            if (savedInstanceState == null) {
-                launchFragment(ChatListFragment.newInstance(""))
-            } else {
-                val unreadMessagesCount =
-                    savedInstanceState.getInt(AppConstants.UNREAD_MESSAGES_COUNT)
-                showBadge(unreadMessagesCount)
-            }
             setFullScreenMode()
             setHeightStatusBar()
             assist = SoftInputAssist(this)
@@ -70,6 +76,15 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
             initBottomNavigation()
             determinateMask()
             determinateAccountList()
+            binding.slidingPaneLayout.lockMode = SlidingPaneLayout.LOCK_MODE_LOCKED_CLOSED
+            binding.slidingPaneLayout.clearAnimation()
+            if (savedInstanceState == null) {
+                launchFragment(ChatListFragment.newInstance(""))
+            } else {
+                val unreadMessagesCount =
+                    savedInstanceState.getInt(AppConstants.UNREAD_MESSAGES_COUNT)
+                showBadge(unreadMessagesCount)
+            }
         } else goToOnboarding()
     }
 
@@ -79,7 +94,7 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
     }
 
     private fun goToOnboarding() {
-        val intent = Intent(this, OnBoardingActivity::class.java)
+        val intent = Intent(applicationContext, OnBoardingActivity::class.java)
         startActivity(intent)
         finish()
         overridePendingTransition(R.anim.appearance, R.anim.disappearance)
@@ -90,9 +105,11 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
     }
 
     private fun setHeightStatusBar() {
+        val height = resources.getIdentifier("status_bar_height", "dimen", "android")
+        val statusBarHeight = resources.getDimensionPixelSize(height)
+        setDelimiters(statusBarHeight)
+        DisplayManager.setHeightStatusBar(statusBarHeight)
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(android.R.id.content)) { _, insets ->
-            DisplayManager.setHeightStatusBar(insets.systemWindowInsetTop)
-            setDelimiters(insets.systemWindowInsetTop)
             insets.consumeSystemWindowInsets()
         }
     }
@@ -154,13 +171,13 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
     }
 
     private fun showBadge(count: Int) {
-//        if (count > 0) {
-//            val creator = binding.bottomNavBar.getOrCreateBadge(R.id.chats)
-//            creator.backgroundColor =
-//                ResourcesCompat.getColor(binding.bottomNavBar.resources, R.color.green_500, null)
-//            creator.badgeGravity = BadgeDrawable.BOTTOM_END
-//            creator.number = count
-//        } else binding.bottomNavBar.removeBadge(R.id.chats)
+        if (count > 0) {
+            val creator = binding.bottomNavBar.getOrCreateBadge(R.id.chats)
+            creator.backgroundColor =
+                ResourcesCompat.getColor(binding.bottomNavBar.resources, R.color.green_500, null)
+            creator.badgeGravity = BadgeDrawable.BOTTOM_END
+            creator.number = count
+        } else binding.bottomNavBar.removeBadge(R.id.chats)
     }
 
     private fun initBottomNavigation() {
@@ -230,12 +247,7 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
     private fun launchDetailInStack(fragment: Fragment) {
         supportFragmentManager.commit {
             setReorderingAllowed(true)
-            replace(R.id.detail_container, fragment).addToBackStack(null).setCustomAnimations(
-                R.animator.in_right,
-                R.animator.out_left,
-                R.animator.in_left,
-                R.animator.out_right
-            )
+            replace(R.id.detail_container, fragment).addToBackStack(null)
         }
         binding.slidingPaneLayout.openPane()
     }
@@ -315,9 +327,7 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
         viewModel.unreadCount.value?.let { outState.putInt(AppConstants.UNREAD_MESSAGES_COUNT, it) }
     }
 
-
     fun slidingPaneLayoutIsOpen(): Boolean = binding.slidingPaneLayout.isOpen
-
 
     override fun enableScreenRotationLock(isLock: Boolean) {
         lockScreenRotation(isLock)
@@ -337,12 +347,40 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
         if (isTablet()) {
             showDialogFragment(QRCodeDialogFragment.newInstance(qrCodeParams))
         } else {
+            launchDetailInStack(QRCodeFragment.newInstance(qrCodeParams))
+        }
+    }
+
+    override fun showMyQRCode(qrCodeParams: QRCodeParams) {
+        if (isTablet()) {
+            showDialogFragment(QRCodeDialogFragment.newInstance(qrCodeParams))
+        } else {
             launchDetail(QRCodeFragment.newInstance(qrCodeParams))
         }
     }
 
     override fun showContactProfile(contactDto: ContactDto) {
         launchDetailInStack(ContactProfileFragment.newInstance(contactDto))
+    }
+
+    override fun showProfileSettings() {
+        launchDetail(ProfileSettingsFragment())
+    }
+
+    override fun showCloudStorageSettings() {
+        launchDetail(CloudStorageSettingsFragment())
+    }
+
+    override fun showEncryptionAndKeysSettings() {
+        launchDetail(EncryptionSettingsFragment())
+    }
+
+    override fun showDevicesSettings() {
+        launchDetail(DevicesSettingsFragment())
+    }
+
+    override fun lockScreen(lock: Boolean) {
+        lockScreenRotation(lock)
     }
 
     override fun onPause() {

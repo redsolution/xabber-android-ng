@@ -4,17 +4,18 @@ import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
-import com.xabber.data.dto.ContactDto
+import com.xabber.model.dto.ContactDto
 import com.xabber.databinding.ItemContactBinding
+import com.xabber.presentation.application.fragments.chat.ChatParams
 
 class ContactAdapter(
     private val listener: Listener
 ) : ListAdapter<ContactDto, ContactViewHolder>(DiffUtilCallback) {
 
     interface Listener {
-        fun onAvatarClick()
+        fun onAvatarClick(contactDto: ContactDto)
 
-        fun onContactClick(userName: String)
+        fun onContactClick(chatParams: ChatParams)
 
         fun editContact()
 

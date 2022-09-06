@@ -15,19 +15,20 @@ import android.widget.ImageView
 import androidx.annotation.RequiresApi
 import androidx.appcompat.view.menu.MenuBuilder
 import androidx.appcompat.view.menu.MenuPopupHelper
-import androidx.appcompat.widget.CustomPopupMenu
+import androidx.appcompat.widget.PopupMenu
 import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.isVisible
 import com.bumptech.glide.Glide
 import com.google.android.material.snackbar.Snackbar
 import com.xabber.R
-import com.xabber.data.dto.MessageDto
+import com.xabber.model.dto.MessageDto
 import com.xabber.presentation.application.util.dp
-import com.xabber.data.xmpp.messages.MessageSendingState
-import com.xabber.data.xmpp.messages.MessageSendingState.*
+import com.xabber.model.xmpp.messages.MessageSendingState
+import com.xabber.model.xmpp.messages.MessageSendingState.*
 import com.xabber.databinding.ItemMessageOutgoingBinding
-import com.xabber.presentation.application.util.StringUtils
+import com.xabber.presentation.application.fragments.chat.message.BasicMessageVH
+import com.xabber.utils.StringUtils
 import java.util.*
 
 class OutgoingMessageVH(
@@ -87,12 +88,12 @@ class OutgoingMessageVH(
             ViewGroup.LayoutParams.WRAP_CONTENT
         )
 
-        params.setMargins(24.dp, 0, if (isNeedTail) 2.dp else 11.dp, 0)
+        params.setMargins(24.dp, 0, if (isNeedTail) 2.dp else 10.dp, 0)
 
         params.gravity = Gravity.END
         binding.balloon.layoutParams = params
         if (messageDto.references == null && messageDto.messageBody.isNotEmpty()) {
-            binding.balloon.setPadding(16.dp, 8.dp, if (isNeedTail) 14.dp else 8.dp, 10.dp)
+            binding.balloon.setPadding(16.dp, 8.dp, if (isNeedTail) 16.dp else 8.dp, 10.dp)
         } else if (messageDto.references != null && messageDto.messageBody.isNotEmpty()) {
             binding.balloon.setPadding(4.dp, 4.dp, if (isNeedTail) 12.dp else 8.dp, 10.dp)
         } else {
@@ -140,7 +141,8 @@ class OutgoingMessageVH(
                     binding.tvContent.setTextIsSelectable(false)
                 }
             } else {
-                val popup = CustomPopupMenu(it.context, it, Gravity.CENTER)
+                val popup = PopupMenu(it.context, it, Gravity.CENTER)
+                popup.setForceShowIcon(true)
                 if (messageDto.isOutgoing) popup.inflate(R.menu.popup_menu_message_outgoing)
                 else popup.inflate(R.menu.popup_menu_message_incoming)
 
@@ -193,8 +195,7 @@ class OutgoingMessageVH(
 
 
     private fun showSnackbar(view: View) {
-        var snackbar: Snackbar? = null
-
+        val snackbar: Snackbar?
         snackbar = view.let {
             Snackbar.make(
                 it,
@@ -318,6 +319,7 @@ class OutgoingMessageVH(
         if (messageDto.uries != null) {
 
             when (messageDto.uries.size) {
+                0 -> {}
                 1 -> {
                     binding.grid1.grid1.isVisible = true
                     Glide.with(binding.root).load( messageDto.uries[0])

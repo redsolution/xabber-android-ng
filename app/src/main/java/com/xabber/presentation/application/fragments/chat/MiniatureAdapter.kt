@@ -4,7 +4,7 @@ import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
-import com.xabber.data.dto.FileDto
+import com.xabber.model.dto.FileDto
 import com.xabber.databinding.ItemAttachedFileBinding
 
 

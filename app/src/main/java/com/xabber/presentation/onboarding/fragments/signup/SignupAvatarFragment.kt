@@ -17,8 +17,8 @@ import com.bumptech.glide.request.RequestOptions
 import com.xabber.R
 import com.xabber.databinding.FragmentSignupAvatarBinding
 import com.xabber.presentation.BaseFragment
-import com.xabber.presentation.application.activity.Mask
-import com.xabber.presentation.application.activity.MaskedDrawableBitmapShader
+import com.xabber.utils.mask.Mask
+import com.xabber.utils.mask.MaskedDrawableBitmapShader
 import com.xabber.presentation.onboarding.activity.OnboardingViewModel
 import com.xabber.presentation.onboarding.contract.navigator
 import com.xabber.presentation.onboarding.contract.toolbarChanger

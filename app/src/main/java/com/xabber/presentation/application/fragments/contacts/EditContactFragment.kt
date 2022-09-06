@@ -5,15 +5,16 @@ import android.os.Bundle
 import android.view.View
 import by.kirich1409.viewbindingdelegate.viewBinding
 import com.xabber.R
-import com.xabber.data.dto.ContactDto
 import com.xabber.databinding.FragmentEditContactBinding
-import com.xabber.presentation.BaseFragment
-import com.xabber.presentation.application.activity.MaskedDrawableBitmapShader
+import com.xabber.model.dto.ContactDto
+import com.xabber.presentation.AppConstants
 import com.xabber.presentation.application.activity.UiChanger.getMask
 import com.xabber.presentation.application.contract.navigator
-import com.xabber.presentation.application.util.AppConstants
+import com.xabber.presentation.application.fragments.DetailBaseFragment
+import com.xabber.utils.mask.MaskPrepare
+import com.xabber.utils.mask.MaskedDrawableBitmapShader
 
-class EditContactFragment : BaseFragment(R.layout.fragment_edit_contact) {
+class EditContactFragment : DetailBaseFragment(R.layout.fragment_edit_contact) {
     private val binding by viewBinding(FragmentEditContactBinding::bind)
 
     companion object {
@@ -26,13 +27,13 @@ class EditContactFragment : BaseFragment(R.layout.fragment_edit_contact) {
         }
     }
 
-    private fun getContact(): ContactDto? =
-        requireArguments().getParcelable(AppConstants.EDIT_CONTACT_PARAMS)
+    private fun getContact(): ContactDto =
+        requireArguments().getParcelable(AppConstants.EDIT_CONTACT_PARAMS)!!
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        initToolbarActions()
         changeUiWithData()
+        initToolbarActions()
     }
 
     private fun initToolbarActions() {
@@ -42,22 +43,17 @@ class EditContactFragment : BaseFragment(R.layout.fragment_edit_contact) {
             when (it.itemId) {
                 R.id.check -> {
                     // сохранить изменения в базе
+                    navigator().closeDetail()
                 }
             }; true
         }
     }
 
     private fun changeUiWithData() {
-        if (getContact() != null) {
-            binding.etName.setText(getContact()?.userName)
-            val mPictureBitmap = BitmapFactory.decodeResource(resources, getContact()!!.avatar)
-            val mMaskBitmap =
-                BitmapFactory.decodeResource(resources, getMask().size48).extractAlpha()
-            val maskedDrawable = MaskedDrawableBitmapShader()
-            maskedDrawable.setPictureBitmap(mPictureBitmap)
-            maskedDrawable.setMaskBitmap(mMaskBitmap)
-            binding.imAvatarEditContact.setImageDrawable(maskedDrawable)
-        }
+        binding.appbar.setBackgroundResource(getContact().color)
+        binding.etName.setText(getContact().userName)
+        val maskedDrawable = MaskPrepare.getDrawableMask(resources, getContact().avatar, getMask().size48)
+        binding.imAvatarEditContact.setImageDrawable(maskedDrawable)
     }
 
 }

@@ -17,6 +17,7 @@
     </style>
 
     <style name="ThemeApplication" parent="Theme.AppCompat.Light.DarkActionBar">
+        <item name="android:windowBackground">@color/white</item>
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
         <item name="android:textColorPrimary">@color/black</item>
@@ -35,6 +36,7 @@
         <item name="transparent_rounded_background">@drawable/rounded_background_grey_transparent
         </item>
         <item name="avatar_mask">@drawable/circle56</item>
+        <item name="chat_input_background">@color/white</item>
     </style>
 
 
@@ -56,6 +58,20 @@
         <item name="transparent_rounded_background">@drawable/rounded_background_grey_transparent
         </item>
         <item name="avatar_mask">@drawable/pentagon56</item>
+    </style>
+
+    <style name="DetailSettings" parent="Theme.AppCompat.Light.DarkActionBar">
+        <item name="android:layout_marginStart">36dp</item>
+    </style>
+
+    <style name="DetailSettingsTitle" parent="Theme.AppCompat.Light.DarkActionBar">
+        <item name="android:textSize">24sp</item>
+        <item name="android:textColor">@color/black</item>
+    </style>
+
+    <style name="DetailSettingsValueText" parent="Theme.AppCompat.Light.DarkActionBar">
+        <item name="android:textSize">18sp</item>
+        <item name="android:textColor">@color/grey_600</item>
     </style>
 
     <style name="ChatTheme" parent="Theme.AppCompat.Light.NoActionBar">
@@ -111,7 +127,10 @@
         <item name="android:gravity">center</item>
     </style>
 
-
+    <style name="SplashScreen" parent="ThemeApplication">
+        <item name="android:windowBackground">@drawable/splash_background</item>
+        <item name="android:screenOrientation">sensorPortrait</item>
+    </style>
     <!--        <item name="bars_color">#eeeeee</item>-->
 
     <!--for text selection toolbar to be above usual toolbar -->

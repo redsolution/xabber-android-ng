@@ -7,10 +7,10 @@ import android.view.MotionEvent
 import android.view.ViewGroup
 import androidx.core.view.MotionEventCompat
 import androidx.recyclerview.widget.RecyclerView
-import com.xabber.data.xmpp.account.Account
+import com.xabber.model.xmpp.account.Account
 import com.xabber.databinding.ItemAccountForReorderBinding
-import com.xabber.presentation.application.fragments.account.ItemTouchHelperAdapter
-import com.xabber.presentation.application.fragments.account.ReorderAccountViewHolder
+import com.xabber.presentation.application.fragments.account.reorder.ItemTouchHelperAdapter
+import com.xabber.presentation.application.fragments.account.reorder.ReorderAccountViewHolder
 import java.util.*
 
 class ReorderAccountAdapter(

@@ -2,9 +2,7 @@ package com.xabber.presentation.application.fragments.chat
 
 import android.widget.CheckBox
 import android.widget.ImageView
-import androidx.recyclerview.widget.RecyclerView
 import com.xabber.databinding.ItemImageFromGalleryBinding
-import com.xabber.databinding.ItemRecentImageBinding
 import java.util.ArrayList
 
 class GalleryVH(private val binding: ItemImageFromGalleryBinding): BaseImageVH(binding.root) {

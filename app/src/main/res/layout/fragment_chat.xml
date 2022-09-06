@@ -2,6 +2,7 @@
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/cl_chat"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
@@ -44,7 +45,6 @@
                     android:layout_margin="30dp"
                     android:elevation="0dp"
                     android:theme="@style/Theme.MaterialComponents.Light.NoActionBar"
-                    android:visibility="visible"
                     app:cardBackgroundColor="@color/green_500"
                     app:cardCornerRadius="6dp"
                     app:cardElevation="0dp"
@@ -52,8 +52,7 @@
                     app:layout_constraintStart_toStartOf="@id/im_avatar"
                     app:layout_constraintTop_toTopOf="@id/im_avatar"
                     app:strokeColor="@color/white"
-                    app:strokeWidth="1dp"
-                    tools:visibility="visible" />
+                    app:strokeWidth="1dp" />
 
                 <TextView
                     android:id="@+id/message_user_name"
@@ -62,7 +61,6 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="20dp"
                     android:ellipsize="end"
-                    android:textStyle="bold"
                     app:layout_constraintStart_toEndOf="@id/im_avatar"
                     app:layout_constraintTop_toTopOf="parent" />
 
@@ -92,57 +90,10 @@
             </androidx.constraintlayout.widget.ConstraintLayout>
         </com.google.android.material.appbar.MaterialToolbar>
 
-        <com.google.android.material.appbar.MaterialToolbar
-            android:id="@+id/toolbar_selected_messages"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:background="@color/white"
-            android:visibility="gone">
-
-            <ImageView
-                android:id="@+id/im_close_toolbar_selected_messages"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:src="@drawable/ic_close_grey" />
-
-            <TextView
-                android:id="@+id/tv_messages_count"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="40dp"
-                android:text="1"
-                android:textSize="24sp" />
-
-            <LinearLayout
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="end"
-                android:orientation="horizontal">
-
-                <ImageView
-                    android:id="@+id/im_edit_message"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginHorizontal="14dp"
-                    android:src="@drawable/ic_edit_grey" />
-
-                <ImageView
-                    android:id="@+id/im_copy_messages"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginHorizontal="14dp"
-                    android:src="@drawable/ic_content_copy_grey" />
-
-                <ImageView
-                    android:id="@+id/im_delete_messages"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginHorizontal="14dp"
-                    android:src="@drawable/ic_trash_grey" />
-
-            </LinearLayout>
-        </com.google.android.material.appbar.MaterialToolbar>
-
+        <include
+            android:id="@+id/select_messages_toolbar"
+            layout="@layout/include_select_messages_toolbar"
+            android:visibility="gone" />
     </com.google.android.material.appbar.AppBarLayout>
 
     <androidx.recyclerview.widget.RecyclerView
@@ -150,7 +101,7 @@
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:scrollbars="vertical"
-        app:layout_constraintBottom_toTopOf="@id/answer"
+        app:layout_constraintBottom_toTopOf="@id/input_layout"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/appbar" />
@@ -173,23 +124,6 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/appbar" />
 
-    <FrameLayout
-        android:id="@+id/frameLayout_attached_files"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:background="@color/white"
-        app:layout_constraintBottom_toTopOf="@id/input_layout"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent">
-
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/attached_files"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal" />
-
-    </FrameLayout>
-
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/answer"
         android:layout_width="0dp"
@@ -198,7 +132,7 @@
         android:background="@color/white"
         android:padding="8dp"
         android:visibility="gone"
-        app:layout_constraintBottom_toTopOf="@id/frameLayout_attached_files"
+        app:layout_constraintBottom_toTopOf="@id/input_layout"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent">
 
@@ -258,69 +192,79 @@
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/input_layout"
-        android:minHeight="?attr/actionBarSize"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:background="@color/white"
         android:elevation="6dp"
-        android:paddingVertical="6dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent">
 
         <androidx.constraintlayout.widget.Group
-            android:id="@+id/group_normal"
+            android:id="@+id/chat_panel_group"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            app:constraint_referenced_ids="button_emoticon, chat_input, button_attach, button_record" />
+            app:constraint_referenced_ids="standard_panel, button_emoticon, chat_input,  button_attach, btn_record" />
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/standard_panel"
+            android:layout_width="0dp"
+            android:layout_height="?attr/actionBarSize"
+            android:background="@color/white"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent">
+
+            <ImageButton
+                android:id="@+id/button_send_message"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_gravity="center_vertical"
+                android:layout_marginHorizontal="16dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@drawable/ic_material_send_24"
+                android:visibility="gone"
+                app:layout_constraintBottom_toBottomOf="@id/standard_panel"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="@id/standard_panel"
+                app:tint="@color/blue_300" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <EditText
+            android:id="@+id/chat_input"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:layout_marginEnd="12dp"
+            android:background="@android:color/transparent"
+            android:cursorVisible="true"
+            android:fadingEdge="vertical"
+            android:filterTouchesWhenObscured="false"
+            android:hint="@string/chat_input_hint"
+            android:imeOptions="actionSend|flagNoExtractUi"
+            android:inputType="textAutoCorrect|textCapSentences|textMultiLine"
+            android:maxLines="6"
+            android:paddingTop="8dp"
+            android:scrollbars="vertical"
+            app:layout_constraintBottom_toBottomOf="@id/button_emoticon"
+            app:layout_constraintEnd_toStartOf="@id/button_attach"
+            app:layout_constraintStart_toEndOf="@id/button_emoticon"
+            app:layout_goneMarginEnd="52dp" />
 
         <ImageButton
             android:id="@+id/button_emoticon"
             android:layout_width="24dp"
             android:layout_height="24dp"
             android:layout_gravity="center_vertical"
-            android:layout_marginHorizontal="16dp"
+            android:layout_marginStart="16dp"
             android:background="@color/transparent"
-            app:layout_constraintBottom_toBottomOf="@id/input_layout"
-            app:layout_constraintStart_toStartOf="@id/input_layout"
-            app:layout_constraintTop_toTopOf="@id/input_layout"
+            app:layout_constraintBottom_toBottomOf="@id/standard_panel"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="@id/standard_panel"
             app:srcCompat="@drawable/ic_emoticon_outline"
             app:tint="@color/grey_500" />
 
-        <EditText
-            android:id="@+id/chat_input"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center_vertical"
-            android:layout_marginStart="20dp"
-            android:background="@android:color/white"
-            android:cursorVisible="true"
-            android:fadingEdge="vertical"
-            android:filterTouchesWhenObscured="false"
-            android:gravity="center_vertical"
-            android:hint="@string/chat_input_hint"
-            android:imeOptions="actionSend|flagNoExtractUi"
-            android:inputType="textAutoCorrect|textCapSentences|textMultiLine"
-            android:maxLines="4"
-            android:scrollbars="vertical"
-            app:layout_constraintBottom_toBottomOf="@id/input_layout"
-            app:layout_constraintEnd_toStartOf="@id/button_send_message"
-            app:layout_constraintStart_toEndOf="@id/button_emoticon"
-            app:layout_constraintTop_toTopOf="@id/input_layout" />
-
-        <ImageButton
-            android:id="@+id/button_send_message"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:layout_gravity="center_vertical"
-            android:layout_marginHorizontal="16dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:src="@drawable/ic_material_send_24"
-            android:visibility="gone"
-            app:layout_constraintBottom_toBottomOf="@id/input_layout"
-            app:layout_constraintEnd_toEndOf="@id/input_layout"
-            app:layout_constraintTop_toTopOf="@id/input_layout"
-            app:tint="@color/blue_300" />
 
         <ImageButton
             android:id="@+id/button_attach"
@@ -329,148 +273,148 @@
             android:layout_marginHorizontal="20dp"
             android:background="@color/transparent"
             android:src="@drawable/ic_attach"
-            app:layout_constraintBottom_toBottomOf="@id/input_layout"
-            app:layout_constraintEnd_toStartOf="@id/button_record"
-            app:layout_constraintTop_toTopOf="@id/input_layout"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/btn_record"
+            app:layout_constraintTop_toTopOf="parent"
             app:layout_goneMarginEnd="50dp"
             app:tint="@color/grey_500" />
 
         <ImageButton
-            android:id="@+id/button_record"
+            android:id="@+id/btn_record"
             android:layout_width="24dp"
             android:layout_height="24dp"
+            android:clickable="false"
             android:layout_marginHorizontal="16dp"
             android:background="@color/transparent"
             android:filterTouchesWhenObscured="false"
             android:src="@drawable/ic_microphone"
-            app:layout_constraintBottom_toBottomOf="@id/input_layout"
-            app:layout_constraintEnd_toEndOf="@id/input_layout"
-            app:layout_constraintTop_toTopOf="@id/input_layout"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
             app:tint="@color/grey_500" />
 
-        <LinearLayout
+        <include
+            android:id="@+id/interaction"
+            layout="@layout/view_bottom_chat_interaction"
+            android:visibility="gone"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            tools:visibility="visible" />
+
+        <include
+            android:id="@+id/record"
+            layout="@layout/view_chat_record"
+            android:visibility="gone"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent" />
+
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <FrameLayout
+        android:id="@+id/space_lock"
+        android:layout_width="wrap_content"
+        android:layout_height="match_parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="@id/btn_record_expanded"
+        app:layout_constraintStart_toStartOf="@id/btn_record_expanded">
+
+        <androidx.constraintlayout.widget.ConstraintLayout
             android:id="@+id/lin_record_lock"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginEnd="16dp"
-            android:layout_marginBottom="36dp"
+            android:layout_gravity="bottom"
+            android:layout_marginBottom="80dp"
             android:background="@drawable/linear_background"
             android:orientation="vertical"
-            android:padding="2dp"
+            android:paddingHorizontal="4dp"
+            android:paddingVertical="8dp"
             android:visibility="gone"
-            app:layout_constraintBottom_toTopOf="@id/input_layout"
-            app:layout_constraintEnd_toEndOf="parent">
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <ImageView
+                android:id="@+id/im_lock_bar"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="1dp"
+                android:src="@drawable/ic_lock_bar"
+                app:layout_constraintBottom_toBottomOf="@id/im_lock"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent" />
 
             <ImageView
                 android:id="@+id/im_lock"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:layout_marginTop="6dp"
-                android:src="@drawable/ic_lock_outline_grey" />
-
-            <ImageView
-                android:id="@+id/im_chevron"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:src="@drawable/ic_chevron_up_grey" />
-
-        </LinearLayout>
-
-        <LinearLayout
-            android:id="@+id/linear_reply"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:visibility="gone"
-            app:layout_constraintBottom_toBottomOf="@id/input_layout"
-            app:layout_constraintStart_toStartOf="@id/input_layout"
-            app:layout_constraintTop_toTopOf="@id/input_layout">
-
-            <ImageView
-                android:id="@+id/im_reply_message"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="12dp"
-                android:src="@drawable/ic_reply_grey" />
+                android:src="@drawable/ic_lock_base"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent" />
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="12dp"
-                android:text="Reply"
-                android:textSize="18sp" />
-        </LinearLayout>
 
-        <LinearLayout
-            android:id="@+id/linear_forward"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:visibility="gone"
-            app:layout_constraintBottom_toBottomOf="@id/input_layout"
-            app:layout_constraintEnd_toEndOf="@id/input_layout"
-            app:layout_constraintTop_toTopOf="@id/input_layout">
+        </androidx.constraintlayout.widget.ConstraintLayout>
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Forward"
-                android:textSize="18sp" />
 
-            <ImageView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="12dp"
-                android:layout_marginEnd="12dp"
-                android:src="@drawable/ic_forward_grey" />
-        </LinearLayout>
+    </FrameLayout>
 
-        <com.google.android.material.floatingactionbutton.FloatingActionButton
-            android:id="@+id/btn_downward"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:layout_marginEnd="20dp"
-            android:layout_marginBottom="20dp"
-            android:backgroundTint="@color/white"
-            android:contentDescription="@string/im_description_downward"
-            android:src="@drawable/ic_arrow_down_grey"
-            android:visibility="gone"
-            app:borderWidth="0dp"
-            app:fabCustomSize="40dp"
-            app:layout_constraintBottom_toTopOf="@id/input_layout"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:tint="@color/grey_600" />
+    <FrameLayout
+        android:id="@+id/frame_stop"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_marginBottom="80dp"
+        android:background="@drawable/circle_grey_backround"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="@id/btn_record_expanded"
+        app:layout_constraintStart_toStartOf="@id/btn_record_expanded">
 
-        <com.google.android.material.floatingactionbutton.FloatingActionButton
-            android:id="@+id/record_float_button"
-            android:layout_width="80dp"
-            android:layout_height="80dp"
-            android:layout_alignParentEnd="true"
-            android:layout_alignParentBottom="true"
-            android:layout_marginEnd="-14dp"
-            android:layout_marginBottom="-12dp"
-            android:backgroundTint="@color/blue_500"
-            android:baselineAlignBottom="false"
-            android:clickable="false"
-            android:tint="@color/white"
-            android:visibility="gone"
-            app:fabCustomSize="78dp"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:srcCompat="@drawable/ic_microphone_white"
-            app:tint="@color/white" />
+        <ImageView
+            android:id="@+id/imStop"
+            android:padding="10dp"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_gravity="center"
+            android:src="@drawable/stop" />
 
-        <include
-            android:id="@+id/include_record"
-            layout="@layout/view_chat_record"
-            android:visibility="gone" />
-    </androidx.constraintlayout.widget.ConstraintLayout>
+    </FrameLayout>
 
     <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/btn_downward"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_marginEnd="20dp"
+        android:layout_marginBottom="20dp"
+        android:backgroundTint="@color/white"
+        android:contentDescription="@string/im_description_downward"
+        android:src="@drawable/ic_arrow_down_grey"
+        android:visibility="gone"
+        app:borderWidth="0dp"
+        app:fabCustomSize="40dp"
+        app:layout_constraintBottom_toTopOf="@id/input_layout"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:tint="@color/grey_600" />
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/btn_record_expanded"
         android:layout_width="84dp"
         android:layout_height="84dp"
-        android:backgroundTint="@color/blue_400"
-        android:visibility="gone"
-        app:layout_constraintBottom_toBottomOf="@id/input_layout"
-        app:layout_constraintEnd_toEndOf="@id/input_layout" />
+        android:layout_alignParentEnd="true"
+        android:layout_alignParentBottom="true"
+        android:layout_marginEnd="-14dp"
+        android:layout_marginBottom="-12dp"
+        android:background="@color/blue_500"
+        android:baselineAlignBottom="false"
+        android:clickable="false"
+        android:visibility="invisible"
+        app:fabCustomSize="84dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:tint="@color/white"
+        tools:visibility="visible" />
+
 </androidx.constraintlayout.widget.ConstraintLayout>

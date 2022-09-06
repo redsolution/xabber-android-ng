@@ -3,7 +3,7 @@ package com.xabber.presentation.application.fragments.account
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
-import com.xabber.data.xmpp.account.Account
+import com.xabber.model.xmpp.account.Account
 import com.xabber.databinding.ItemAccountForPreferenceBinding
 
 class AccountAdapter(

@@ -3,18 +3,123 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@android:color/background_light"
-
-    android:windowTranslucentStatus="true">
+    android:background="@android:color/background_light">
 
     <include
         android:id="@+id/account_appbar"
         layout="@layout/include_account_appbar" />
 
+    <LinearLayout
+        android:id="@+id/lin_panel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/white"
+        android:baselineAligned="false"
+        android:elevation="2dp"
+        android:orientation="horizontal"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <RelativeLayout
+            android:id="@+id/rl_open_chat"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:background="@drawable/clickable_view_group_background">
+
+            <ImageView
+                android:id="@+id/im_chat"
+                style="@style/ContactAccountPanelImage"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:contentDescription="@string/contact_chat_image_description"
+                android:src="@drawable/ic_chat" />
+
+            <TextView
+                style="@style/ContactAccountPanelTextview"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/im_chat"
+                android:text="@string/contact_account_chat" />
+        </RelativeLayout>
+
+        <RelativeLayout
+            android:id="@+id/rl_call"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:background="@drawable/clickable_view_group_background">
+
+            <ImageView
+                android:id="@+id/im_call"
+                style="@style/ContactAccountPanelImage"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:contentDescription="@string/contact_avatar_call_image_description"
+                android:src="@drawable/ic_call" />
+
+            <TextView
+                style="@style/ContactAccountPanelTextview"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/im_call"
+                android:text="@string/contact_avatar_call" />
+        </RelativeLayout>
+
+        <RelativeLayout
+            android:id="@+id/rl_notifications"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:background="@drawable/clickable_view_group_background">
+
+            <ImageView
+                android:id="@+id/im_notifications"
+                style="@style/ContactAccountPanelImage"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:contentDescription="@string/contact_avatar_notifications_image_description"
+                android:src="@drawable/ic_bell" />
+
+            <TextView
+                style="@style/ContactAccountPanelTextview"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/im_notifications"
+                android:text="@string/contact_avatar_notifications" />
+        </RelativeLayout>
+
+        <RelativeLayout
+            android:id="@+id/rl_block"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:background="@drawable/clickable_view_group_background">
+
+            <ImageView
+                android:id="@+id/im_block"
+                style="@style/ContactAccountPanelImage"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:contentDescription="@string/block_contact_image_description"
+                android:src="@drawable/ic_cancel"
+                app:tint="@color/red_500" />
+
+            <TextView
+                style="@style/ContactAccountPanelTextview"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/im_block"
+                android:text="@string/contact_avatar_block" />
+        </RelativeLayout>
+    </LinearLayout>
 
     <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_marginTop="68dp"
         app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
         <androidx.constraintlayout.widget.ConstraintLayout
@@ -22,110 +127,6 @@
             android:layout_height="wrap_content"
             android:orientation="vertical">
 
-            <LinearLayout
-                android:id="@+id/lin_panel"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:background="@drawable/border_one_side"
-                android:baselineAligned="false"
-                android:orientation="horizontal"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent">
-
-                <RelativeLayout
-                    android:id="@+id/rl_open_chat"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:background="@drawable/clickable_view_group_background">
-
-                    <ImageView
-                        android:id="@+id/im_chat"
-                        style="@style/ContactAccountPanelImage"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:contentDescription="@string/contact_chat_image_description"
-                        android:src="@drawable/ic_chat" />
-
-                    <TextView
-                        style="@style/ContactAccountPanelTextview"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_below="@id/im_chat"
-                        android:text="@string/contact_account_chat" />
-                </RelativeLayout>
-
-                <RelativeLayout
-                    android:id="@+id/rl_call"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:background="@drawable/clickable_view_group_background">
-
-                    <ImageView
-                        android:id="@+id/im_call"
-                        style="@style/ContactAccountPanelImage"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:contentDescription="@string/contact_avatar_call_image_description"
-                        android:src="@drawable/ic_call" />
-
-                    <TextView
-                        style="@style/ContactAccountPanelTextview"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_below="@id/im_call"
-                        android:text="@string/contact_avatar_call" />
-                </RelativeLayout>
-
-                <RelativeLayout
-                    android:id="@+id/rl_notifications"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:background="@drawable/clickable_view_group_background">
-
-                    <ImageView
-                        android:id="@+id/im_notifications"
-                        style="@style/ContactAccountPanelImage"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:contentDescription="@string/contact_avatar_notifications_image_description"
-                        android:src="@drawable/ic_bell" />
-
-                    <TextView
-                        style="@style/ContactAccountPanelTextview"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_below="@id/im_notifications"
-                        android:text="@string/contact_avatar_notifications" />
-                </RelativeLayout>
-
-                <RelativeLayout
-                    android:id="@+id/rl_block"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:background="@drawable/clickable_view_group_background">
-
-                    <ImageView
-                        android:id="@+id/im_block"
-                        style="@style/ContactAccountPanelImage"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:contentDescription="@string/block_contact_image_description"
-                        android:src="@drawable/ic_cancel"
-                        app:tint="@color/red_500" />
-
-                    <TextView
-                        style="@style/ContactAccountPanelTextview"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_below="@id/im_block"
-                        android:text="@string/contact_avatar_block" />
-                </RelativeLayout>
-            </LinearLayout>
 
             <LinearLayout
                 android:id="@+id/actions"
@@ -135,7 +136,7 @@
                 android:orientation="vertical"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/lin_panel">
+                app:layout_constraintTop_toTopOf="parent">
 
                 <androidx.constraintlayout.widget.ConstraintLayout
                     android:layout_width="match_parent"
@@ -445,8 +446,7 @@
                 <androidx.constraintlayout.widget.ConstraintLayout
                     android:id="@+id/cl_description"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    >
+                    android:layout_height="wrap_content">
 
                     <ImageView
                         android:id="@+id/im_description"

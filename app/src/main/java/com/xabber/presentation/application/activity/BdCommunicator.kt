@@ -1,7 +1,7 @@
 package com.xabber.presentation.application.activity
 
-import com.xabber.data.xmpp.account.AccountStorageItem
-import com.xabber.data.xmpp.presences.ResourceStorageItem
+import com.xabber.model.xmpp.account.AccountStorageItem
+import com.xabber.model.xmpp.presences.ResourceStorageItem
 import io.realm.Realm
 import io.realm.RealmConfiguration
 import io.realm.query

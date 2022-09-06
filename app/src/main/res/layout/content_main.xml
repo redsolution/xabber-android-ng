@@ -35,7 +35,7 @@
                     />
 
                 <TextView
-                    style="@style/AccAccountSettingsSubtitle"
+                    style="@style/AccountSettingsSubtitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Status, avatar, password, etc"
@@ -70,7 +70,7 @@
 
                 <TextView
 
-                    style="@style/AccAccountSettingsSubtitle"
+                    style="@style/AccountSettingsSubtitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Used 112 MB out of 2 GB"
@@ -103,7 +103,7 @@
                     app:layout_constraintTop_toTopOf="parent" />
 
                 <TextView
-                    style="@style/AccAccountSettingsSubtitle"
+                    style="@style/AccountSettingsSubtitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Encryption enabled"
@@ -137,7 +137,7 @@
 
                 <TextView
 
-                    style="@style/AccAccountSettingsSubtitle"
+                    style="@style/AccountSettingsSubtitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="3 connected devices"

@@ -28,7 +28,7 @@ class PlayerVisualizerView : View {
     private var denseness = 0f
     private val playedStatePainting = Paint()
     private val notPlayedStatePainting = Paint()
-   private var myWidth = 0
+    private var myWidth = 0
     private var myHeight = 0
     private var manualInputMode = false
 
