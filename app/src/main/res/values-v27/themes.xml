@@ -29,4 +29,5 @@
         <item name="android:windowContentOverlay">@null</item>
         <item name="avatar_mask">@drawable/circle56</item>
     </style>
+
 </resources>

@@ -19,12 +19,9 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.animation.AnimationUtils
-import android.widget.ImageView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.camera.view.PreviewView
 import androidx.constraintlayout.widget.ConstraintLayout
-import androidx.core.view.isVisible
 import androidx.recyclerview.widget.GridLayoutManager
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
@@ -35,6 +32,7 @@ import com.xabber.presentation.application.fragments.chat.FileManager
 import com.xabber.presentation.application.fragments.chat.FileManager.Companion.getFileUri
 import com.xabber.presentation.application.fragments.chat.GalleryAdapter
 import com.xabber.presentation.application.fragments.chat.GalleryAdapter.Companion.projectionPhotos
+import com.xabber.presentation.application.fragments.chat.geo.PickGeolocationActivity
 import com.xabber.presentation.application.util.askUserForOpeningAppSettings
 import com.xabber.presentation.application.util.isPermissionGranted
 import java.io.File
@@ -54,7 +52,6 @@ class AttachBottomSheet : BottomSheetDialogFragment(), GalleryAdapter.Listener {
     var buttonHeight = 0
     var expandedHeight = 0
 
-
     private val requestCameraPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(), ::onGotCameraPermissionResult
     )
@@ -73,12 +70,10 @@ class AttachBottomSheet : BottomSheetDialogFragment(), GalleryAdapter.Listener {
         ::onTakePictureFromGallery
     )
 
-
     private val fileResultLauncher = registerForActivityResult(
         ActivityResultContracts.OpenDocument(),
         ::onTakePictureFromFile
     )
-
 
     private fun onTakePictureFromGallery(result: Uri?) {
         if (result != null) {
@@ -115,7 +110,7 @@ class AttachBottomSheet : BottomSheetDialogFragment(), GalleryAdapter.Listener {
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
-      //  setStyle(DialogFragment.STYLE_NORMAL, R.style.DialogStyle)
+        //  setStyle(DialogFragment.STYLE_NORMAL, R.style.DialogStyle)
         _binding = BottomSheetAttachBinding.inflate(inflater, container, false)
         return binding.root
     }
@@ -130,7 +125,7 @@ class AttachBottomSheet : BottomSheetDialogFragment(), GalleryAdapter.Listener {
             override fun onSlide(bottomSheet: View, slideOffset: Float) {
                 if (slideOffset > 0) //Sliding happens from 0 (Collapsed) to 1 (Expanded) - if so, calculate margins
                     buttonLayoutParams!!.topMargin =
-                        ((expandedHeight - buttonHeight - collapsedMargin) * slideOffset + collapsedMargin).toInt()  else  //If not sliding above expanded, set initial margin
+                        ((expandedHeight - buttonHeight - collapsedMargin) * slideOffset + collapsedMargin).toInt() else  //If not sliding above expanded, set initial margin
                     buttonLayoutParams!!.topMargin = collapsedMargin
                 binding.frameLayoutActionContainer.layoutParams =
                     buttonLayoutParams //Set layout params to button (margin from top)
@@ -300,7 +295,9 @@ class AttachBottomSheet : BottomSheetDialogFragment(), GalleryAdapter.Listener {
                 if (isPermissionGranted(Manifest.permission.READ_EXTERNAL_STORAGE)) openFiles()
                 else requestGalleryPermissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
             }
-            attachLocationButton.setOnClickListener { openLocation() }
+            attachLocationButton.setOnClickListener {
+                openLocation()
+            }
         }
 
     }
@@ -314,9 +311,16 @@ class AttachBottomSheet : BottomSheetDialogFragment(), GalleryAdapter.Listener {
     }
 
     private fun openLocation() {
-        Toast.makeText(context, "This feature has not been implemented yet", Toast.LENGTH_SHORT)
-            .show()
+        val intent = Intent(requireContext(), PickGeolocationActivity::class.java)
+        startActivityForResult(
+            intent,
+            PICK_LOCATION_REQUEST_CODE
+        )
+    }
 
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        dismiss()
     }
 
     private fun generatePicturePath(): File? {
@@ -430,32 +434,6 @@ class AttachBottomSheet : BottomSheetDialogFragment(), GalleryAdapter.Listener {
         Toast.makeText(context, "Too_many_files_at_once", Toast.LENGTH_SHORT).show()
     }
 
-    override fun cameraView(previewCamera: PreviewView, textView: ImageView, imageView: ImageView) {
-//        if (this.isPermissionGranted(Manifest.permission.CAMERA)) {
-        textView.isVisible = false
-        imageView.isVisible = true
-//            val cameraProviderFuture = ProcessCameraProvider.getInstance(requireContext())
-//            cameraProviderFuture.addListener(Runnable {
-//                try {
-//                    val cameraProvider = cameraProviderFuture.get()
-//                    val preview = Preview.Builder().setTargetAspectRatio(AspectRatio.RATIO_4_3)
-//                        .setTargetRotation(previewCamera.display.rotation).build()
-//                    val cameraSelector =
-//                        CameraSelector.Builder().requireLensFacing(CameraSelector.LENS_FACING_BACK)
-//                            .build()
-//                    preview.setSurfaceProvider(previewCamera.surfaceProvider)
-//                    cameraProvider.bindToLifecycle(this, cameraSelector, preview)
-//                } catch (e: Exception) {
-//
-//                }
-//            }, ContextCompat.getMainExecutor(requireContext()))
-//
-//        } else {
-//            textView.isVisible = true
-//            imageView.isVisible = false
-//        }
-    }
-
 
     private fun takePhotoFromCamera() {
         val image: File? = FileManager.generatePicturePath()
@@ -491,6 +469,7 @@ class AttachBottomSheet : BottomSheetDialogFragment(), GalleryAdapter.Listener {
 
     companion object {
         const val TAG = "BottomSheet"
+        const val PICK_LOCATION_REQUEST_CODE = 10
     }
 
 }

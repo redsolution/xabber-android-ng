@@ -1,35 +1,17 @@
 package com.xabber.presentation.application.fragments.chatlist
 
 import android.os.Bundle
-import android.view.LayoutInflater
 import android.view.View
-import android.view.ViewGroup
-import androidx.fragment.app.Fragment
+import by.kirich1409.viewbindingdelegate.viewBinding
 import com.xabber.R
 import com.xabber.databinding.FragmentChatSettingsBinding
-import com.xabber.presentation.application.contract.navigator
+import com.xabber.presentation.application.fragments.DetailBaseFragment
 
-class ChatSettingsFragment : Fragment() {
-    private var _binding : FragmentChatSettingsBinding? = null
-    private val binding get() = _binding!!
-
-    override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View {
-       _binding = FragmentChatSettingsBinding.inflate(inflater, container, false)
-        return binding.root
-    }
+class ChatSettingsFragment : DetailBaseFragment(R.layout.fragment_chat_settings) {
+    private val binding by viewBinding(FragmentChatSettingsBinding::bind)
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        binding.chatSettingsToolbar.setNavigationIcon(R.drawable.ic_arrow_left)
-        binding.chatSettingsToolbar.setNavigationOnClickListener { navigator().goBack() }
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        _binding = null
-    }
 }

@@ -12,9 +12,7 @@ import android.util.Log;
 
 import androidx.annotation.Nullable;
 
-import com.theeasiestway.opus.Constants;
 import com.theeasiestway.opus.Opus;
-import com.xabber.presentation.application.fragments.chat.VoiceManager;
 
 public class RecordService extends Service {
 

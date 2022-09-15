@@ -32,6 +32,8 @@ interface ApplicationNavigator {
 
     fun showEditContact(contactDto: ContactDto?)
 
+    fun showEditContactFromContacts(contactDto: ContactDto?)
+
     fun showChatSettings()
 
     fun closeDetail()

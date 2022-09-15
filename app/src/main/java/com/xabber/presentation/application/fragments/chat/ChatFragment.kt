@@ -43,9 +43,12 @@ import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.application.fragments.DetailBaseFragment
 import com.xabber.presentation.application.fragments.chat.attach.AttachBottomSheet
 import com.xabber.presentation.application.fragments.chat.audio.AudioRecorder
-import com.xabber.presentation.application.fragments.chat.dialogs.ChatHistoryClearDialog
-import com.xabber.presentation.application.fragments.chat.dialogs.DeletingChatDialog
-import com.xabber.presentation.application.fragments.chatlist.NotificationBottomSheet
+import com.xabber.presentation.application.dialogs.ChatHistoryClearDialog
+import com.xabber.presentation.application.dialogs.DeletingChatDialog
+import com.xabber.presentation.application.bottomsheet.NotificationBottomSheet
+import com.xabber.presentation.application.fragments.chat.audio.VoiceManager
+import com.xabber.presentation.application.fragments.chat.message.MessageAdapter
+import com.xabber.presentation.application.fragments.chat.message.MessageHeaderViewDecoration
 import com.xabber.presentation.application.fragments.chatlist.SwitchNotifications
 import com.xabber.presentation.application.util.askUserForOpeningAppSettings
 import com.xabber.presentation.application.util.isPermissionGranted

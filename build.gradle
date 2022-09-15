@@ -6,10 +6,9 @@ buildscript {
         kotlinVersion = '1.6.21'
         retrofit_version = "2.9.0"
         okhttp_version = "5.0.0-alpha.6"
-        nav_version = "2.5.1"
         rxAndroidVersion = '3.0.0'
-        cameraVersion = "1.2.0-alpha03"
     }
+
     dependencies {
         repositories {
             mavenCentral()
@@ -21,9 +20,10 @@ buildscript {
 
     dependencies {
         classpath 'com.android.tools.build:gradle:7.2.1'
-        classpath "androidx.navigation:navigation-safe-args-gradle-plugin:$nav_version"
         classpath "io.realm:realm-gradle-plugin:10.9.0"
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion"
+        classpath "org.jetbrains.kotlin:kotlin-serialization:$kotlinVersion"
+        classpath 'com.google.gms:google-services:4.3.13'
     }
 }
 
@@ -37,4 +37,3 @@ plugins {
 task clean(type: Delete) {
     delete rootProject.buildDir
 }
-

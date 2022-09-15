@@ -21,34 +21,32 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
 
-
         <com.google.android.material.bottomnavigation.BottomNavigationView
             android:id="@+id/bottom_nav_bar"
             android:layout_width="0dp"
             android:layout_height="?attr/actionBarSize"
             android:background="@color/white"
-            app:itemIconSize="20dp"
             android:elevation="@dimen/bottom_panel_elevation"
             app:itemIconTint="@drawable/bottom_icon_color"
             app:labelVisibilityMode="unlabeled"
             app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toStartOf="@id/delimiter_navbar"
+            app:layout_constraintEnd_toStartOf="@id/delimiter"
             app:layout_constraintStart_toStartOf="parent"
             app:menu="@menu/menu_bottom_navigation" />
 
         <View
             android:id="@+id/delimiter_toolbar"
-            android:layout_width="0.1dp"
+            android:layout_width="@dimen/delimiter_width"
             android:layout_height="?attr/actionBarSize"
             android:alpha="0.4"
-            android:background="@color/grey_700"
+            android:background="@color/grey_600"
             app:layout_constraintBottom_toTopOf="@id/delimiter"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
 
         <View
             android:id="@+id/delimiter"
-            android:layout_width="0.5dp"
+            android:layout_width="@dimen/delimiter_width"
             android:layout_height="0dp"
             android:alpha="0.3"
             android:background="@color/blue_grey_200"
@@ -58,13 +56,14 @@
 
         <View
             android:id="@+id/delimiter_navbar"
-            android:layout_width="0.5dp"
+            android:layout_width="@dimen/delimiter_width"
             android:layout_height="0dp"
-            android:alpha="0.3"
-            android:background="@color/grey_200"
+            android:alpha="0.2"
+            android:background="@color/grey_100"
             app:layout_constraintBottom_toBottomOf="@id/bottom_nav_bar"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="@id/bottom_nav_bar" />
+
     </androidx.constraintlayout.widget.ConstraintLayout>
 
     <androidx.fragment.app.FragmentContainerView

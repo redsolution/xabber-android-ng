@@ -132,38 +132,3 @@ data class XmppBinding(
 )
 
 
-data class Place(
-    @SerializedName("display_name") val displayName: String,
-    val lon: Double,
-    val lat: Double,
-    val address: Address? = null,
-)
-
-fun Place.toGeoPoint() = GeoPoint(lat, lon)
-
-val Place.prettyName: String
-get() = address?.prettyAddress?.takeIf { it.isNotEmpty() } ?: displayName
-
-
-data class Address(
-    @SerializedName("house_number") val houseNumber: String? = null,
-    val road: String? = null,
-    val state: String? = null,
-    val neighbourhood: String? = null,
-    val allotments: String? = null,
-    val village: String? = null,
-    val city: String? = null,
-    val country: String? = null,
-)
-
-private val Address.prettyAddress: String
-    get() = listOfNotNull(
-        road,
-        houseNumber?.takeIf { !road.isNullOrEmpty() },
-        neighbourhood,
-        allotments,
-        village,
-        city,
-        state,
-        country?.takeIf { road.isNullOrEmpty() }
-    ).joinToString(separator = ", ")

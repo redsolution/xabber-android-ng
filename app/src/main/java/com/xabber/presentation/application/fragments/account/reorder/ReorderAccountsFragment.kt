@@ -13,7 +13,6 @@ import com.xabber.model.xmpp.account.Account
 import com.xabber.databinding.FragmentReorderAccountBinding
 import com.xabber.presentation.BaseFragment
 import com.xabber.presentation.application.activity.DisplayManager
-import com.xabber.presentation.application.activity.ReorderAccountAdapter
 import com.xabber.presentation.application.contract.navigator
 
 class ReorderAccountsFragment : BaseFragment(R.layout.fragment_reorder_account) {

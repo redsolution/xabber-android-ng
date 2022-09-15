@@ -46,8 +46,8 @@
             tools:ignore="LockedOrientationActivity" >
 
             </activity>
-
-        <activity android:name="com.soundcloud.android.crop.CropImageActivity" />
+           <activity android:name=".presentation.application.fragments.chat.geo.PickGeolocationActivity"
+               android:theme="@style/PickGeolocationActivity"/>
 
         <service android:name=".service.RecordService" />
         <provider

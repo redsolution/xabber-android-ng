@@ -1,25 +1,17 @@
 package com.xabber.presentation.application.fragments.contacts
 
-import android.app.AlertDialog
-import android.graphics.Bitmap
-import android.graphics.drawable.Drawable
 import android.os.Bundle
-import android.transition.Transition
 import android.view.View
-import androidx.core.content.ContextCompat
 import by.kirich1409.viewbindingdelegate.viewBinding
-import com.bumptech.glide.Glide
-import com.bumptech.glide.RequestBuilder
-import com.bumptech.glide.load.engine.DiskCacheStrategy
-import com.bumptech.glide.request.target.CustomTarget
 import com.xabber.R
 import com.xabber.databinding.FragmentContactBinding
 import com.xabber.model.dto.ContactDto
 import com.xabber.presentation.BaseFragment
+import com.xabber.presentation.application.dialogs.DeletingContactDialog
 import com.xabber.presentation.application.activity.UiChanger
 import com.xabber.presentation.application.contract.navigator
+import com.xabber.presentation.application.dialogs.BlockContactDialog
 import com.xabber.presentation.application.fragments.chat.ChatParams
-import com.xabber.utils.blur.BlurTransformation
 import com.xabber.utils.mask.MaskPrepare
 
 class ContactsFragment : BaseFragment(R.layout.fragment_contact), ContactAdapter.Listener {
@@ -32,7 +24,6 @@ class ContactsFragment : BaseFragment(R.layout.fragment_contact), ContactAdapter
         loadAvatarWithMask()
         initContactList()
         subscribeViewModel()
-
     }
 
     private fun loadAvatarWithMask() {
@@ -49,7 +40,7 @@ class ContactsFragment : BaseFragment(R.layout.fragment_contact), ContactAdapter
 
     private fun subscribeViewModel() {
         viewModel.contacts.observe(viewLifecycleOwner) {
-            contactAdapter!!.submitList(it)
+            contactAdapter?.submitList(it)
         }
     }
 
@@ -62,26 +53,16 @@ class ContactsFragment : BaseFragment(R.layout.fragment_contact), ContactAdapter
             navigator().showChat(chatParams)
     }
 
-    override fun editContact() {
-        //   navigator().showContactAccount(con)
+    override fun editContact(contactDto: ContactDto) {
+     navigator().showEditContactFromContacts(contactDto)
     }
 
-    override fun deleteContact() {
-        val alertDialog = AlertDialog.Builder(context)
-        alertDialog.setTitle("Delete contact?")
-        alertDialog.setMessage("Are you sure you want to delete the contact?")
-        alertDialog.setNegativeButton("Cancel") { dialog, _ ->
-            dialog.dismiss()
-        }
-        alertDialog.setPositiveButton("Delete") { dialog, _ ->
-            dialog.dismiss()
-            val alert = AlertDialog.Builder(context)
-            alert.setView(R.layout.dialog_block_contact)
-        }
-        alertDialog.show()
+    override fun deleteContact(userName: String) {
+          navigator().showDialogFragment(DeletingContactDialog.newInstance(userName))
     }
 
-    override fun blockContact() {
+    override fun blockContact(userName: String) {
+        navigator().showDialogFragment(BlockContactDialog.newInstance(userName))
     }
 
     override fun onDestroy() {

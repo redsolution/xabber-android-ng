@@ -13,7 +13,9 @@
     <dimen name="chat_status_14_size">14dp</dimen>
     <dimen name="chat_status_16_size">16dp</dimen>
     <dimen name="container_width_onboarding">360dp</dimen>
+    <dimen name="delimiter_width">0.5dp</dimen>
     <dimen name="detail_container_width">300dp</dimen>
+    <dimen name="detail_container_width_land">900dp</dimen>
     <dimen name="display_delimiter_width">0.1dp</dimen>
     <dimen name="extra_large_font_size">34sp</dimen>
     <dimen name="font_size_16">16sp</dimen>
@@ -46,6 +48,7 @@
     <dimen name="onboarding_medium_font_size">15sp</dimen>
     <dimen name="onboarding_small_font_size">13sp</dimen>
     <dimen name="onboarding_title_font_size">20sp</dimen>
+    <dimen name="padding_standard">8dp</dimen>
     <dimen name="photo_icon_size">60dp</dimen>
     <dimen name="progress_bar_size">32dp</dimen>
     <dimen name="toolbar_avatar_margin">8dp</dimen>

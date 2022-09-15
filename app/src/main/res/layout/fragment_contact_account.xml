@@ -10,11 +10,11 @@
         layout="@layout/include_account_appbar" />
 
     <LinearLayout
+        android:baselineAligned="true"
         android:id="@+id/lin_panel"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="@color/white"
-        android:elevation="2dp"
         android:orientation="horizontal"
         app:layout_behavior="@string/appbar_scrolling_view_behavior"
         app:layout_constraintEnd_toEndOf="parent"
@@ -185,7 +185,7 @@
                         android:id="@+id/item_divider"
                         android:layout_width="0dp"
                         android:layout_height="0.5dp"
-                        android:background="@color/grey_400"
+                        android:background="@color/grey_300"
                         app:layout_constraintBottom_toBottomOf="parent"
                         app:layout_constraintEnd_toEndOf="parent"
                         app:layout_constraintStart_toStartOf="@id/lin_jid" />
@@ -240,7 +240,7 @@
                     <View
                         android:layout_width="0dp"
                         android:layout_height="0.5dp"
-                        android:background="@color/grey_400"
+                        android:background="@color/grey_300"
                         app:layout_constraintBottom_toBottomOf="parent"
                         app:layout_constraintEnd_toEndOf="parent"
                         app:layout_constraintStart_toStartOf="@id/lin_name" />
@@ -282,7 +282,7 @@
                     <View
                         android:layout_width="0dp"
                         android:layout_height="0.5dp"
-                        android:background="@color/grey_400"
+                        android:background="@color/grey_300"
                         app:layout_constraintBottom_toBottomOf="parent"
                         app:layout_constraintEnd_toEndOf="parent"
                         app:layout_constraintStart_toStartOf="@id/lin_surnamame" />
@@ -337,7 +337,7 @@
                     <View
                         android:layout_width="0dp"
                         android:layout_height="0.5dp"
-                        android:background="@color/grey_400"
+                        android:background="@color/grey_300"
                         app:layout_constraintBottom_toBottomOf="parent"
                         app:layout_constraintEnd_toEndOf="parent"
                         app:layout_constraintStart_toStartOf="@id/lin_birthday" />
@@ -392,29 +392,41 @@
                             android:id="@+id/web_delimiter"
                             android:layout_width="0dp"
                             android:layout_height="0.5dp"
-                            android:background="@color/grey_400"
+                            android:background="@color/grey_300"
                             app:layout_constraintBottom_toBottomOf="parent"
                             app:layout_constraintEnd_toEndOf="parent"
                             app:layout_constraintStart_toStartOf="@id/lin_web" />
                     </LinearLayout>
                 </androidx.constraintlayout.widget.ConstraintLayout>
 
+                <androidx.constraintlayout.widget.ConstraintLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="72dp"
+                     android:layout_marginTop="12dp"
+                    android:layout_marginBottom="12dp">
+
                 <TextView
                     android:id="@+id/tv_view_full_profile"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="20dp"
-                    android:layout_marginTop="12dp"
-                    android:layout_marginBottom="12dp"
                     android:clickable="true"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
                     android:focusable="true"
                     android:text="view full profile"
                     android:textColor="@color/grey_500"
-                    android:textStyle=""
-                    app:layout_constraintStart_toStartOf="@id/lin_web"
-                    app:layout_constraintTop_toBottomOf="@id/lin_web" />
+                  />
 
-
+                    <View
+                        android:layout_width="0dp"
+                        android:layout_height="4dp"
+                        app:layout_constraintStart_toStartOf="@id/tv_view_full_profile"
+                        app:layout_constraintEnd_toEndOf="@id/tv_view_full_profile"
+                        app:layout_constraintTop_toBottomOf="@id/tv_view_full_profile"
+                        android:background="@drawable/dashed"
+                         android:layerType="software" />
+        </androidx.constraintlayout.widget.ConstraintLayout>
                 <androidx.constraintlayout.widget.ConstraintLayout
                     android:id="@+id/cl_geo"
                     android:layout_width="match_parent"
@@ -451,7 +463,7 @@
                         <View
                             android:layout_width="0dp"
                             android:layout_height="0.5dp"
-                            android:background="@color/grey_400"
+                            android:background="@color/grey_300"
                             app:layout_constraintBottom_toBottomOf="parent"
                             app:layout_constraintEnd_toEndOf="parent"
                             app:layout_constraintStart_toStartOf="@id/lin_geo" />
@@ -507,7 +519,7 @@
                         <View
                             android:layout_width="0dp"
                             android:layout_height="0.5dp"
-                            android:background="@color/grey_400"
+                            android:background="@color/grey_300"
                             app:layout_constraintBottom_toBottomOf="parent"
                             app:layout_constraintEnd_toEndOf="parent"
                             app:layout_constraintStart_toStartOf="@id/lin_description" />
@@ -563,7 +575,7 @@
                         <View
                             android:layout_width="0dp"
                             android:layout_height="0.5dp"
-                            android:background="@color/grey_400"
+                            android:background="@color/grey_300"
                             app:layout_constraintBottom_toBottomOf="parent"
                             app:layout_constraintEnd_toEndOf="parent"
                             app:layout_constraintStart_toStartOf="@id/lin_mail" />

@@ -1,15 +1,21 @@
 package com.xabber.presentation.application.util
 
+import android.app.Activity
+import android.content.Context
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
 import android.content.res.Resources
+import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.graphics.Point
+import android.graphics.drawable.Drawable
 import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
 import android.view.Display
 import android.view.Surface
+import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -124,3 +130,26 @@ val Int.dp: Int
 
 val Int.px: Float
     get() = ((this - 0.5f) / Resources.getSystem().displayMetrics.density)
+
+fun Activity.tryToHideKeyboardIfNeed() {
+    this.currentFocus?.let { focusedView ->
+        (this.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager)
+            ?.hideSoftInputFromWindow(
+                focusedView.windowToken,
+                InputMethodManager.HIDE_NOT_ALWAYS
+            )
+    }
+}
+
+ fun Drawable.getBitmap(): Bitmap {
+    val bitmap: Bitmap = Bitmap.createBitmap(
+        intrinsicWidth, intrinsicHeight, Bitmap.Config.ARGB_8888
+    )
+    val canvas = Canvas(bitmap)
+    setBounds(0, 0, canvas.width, canvas.height)
+    draw(canvas)
+    return bitmap
+}
+
+
+

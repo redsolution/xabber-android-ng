@@ -17,11 +17,11 @@ class ContactAdapter(
 
         fun onContactClick(chatParams: ChatParams)
 
-        fun editContact()
+        fun editContact(contactDto: ContactDto)
 
-        fun deleteContact()
+        fun deleteContact(userName: String)
 
-        fun blockContact()
+        fun blockContact(userName: String)
     }
 
 

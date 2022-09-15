@@ -7,25 +7,17 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
+import by.kirich1409.viewbindingdelegate.viewBinding
 import com.xabber.R
 import com.xabber.databinding.FragmentSpecialNotificationsBinding
+import com.xabber.presentation.application.fragments.DetailBaseFragment
 
-class SpecialNotificationsFragment : Fragment() {
-    private var _binding: FragmentSpecialNotificationsBinding? = null
-    private val binding get() = _binding!!
-
-    override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View {
-        _binding = FragmentSpecialNotificationsBinding.inflate(inflater, container, false)
-        return binding.root
-    }
+class SpecialNotificationsFragment : DetailBaseFragment(R.layout.fragment_special_notifications) {
+private val binding by viewBinding(FragmentSpecialNotificationsBinding::bind)
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        binding.toolbar.setNavigationIcon(R.drawable.ic_arrow_left)
+
         with(binding) {
             relativeUse.setOnClickListener {
                 switchUse.isChecked = !switchUse.isChecked
@@ -49,8 +41,4 @@ class SpecialNotificationsFragment : Fragment() {
         }
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        _binding = null
-    }
 }

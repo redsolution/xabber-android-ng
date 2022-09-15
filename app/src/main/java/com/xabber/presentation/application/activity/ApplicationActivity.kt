@@ -40,10 +40,7 @@ import com.xabber.presentation.application.fragments.chatlist.ChatSettingsFragme
 import com.xabber.presentation.application.fragments.chatlist.SpecialNotificationsFragment
 import com.xabber.presentation.application.fragments.chatlist.add.NewChatFragment
 import com.xabber.presentation.application.fragments.chatlist.add.NewGroupFragment
-import com.xabber.presentation.application.fragments.contacts.ContactAccountFragment
-import com.xabber.presentation.application.fragments.contacts.ContactsFragment
-import com.xabber.presentation.application.fragments.contacts.EditContactFragment
-import com.xabber.presentation.application.fragments.contacts.NewContactFragment
+import com.xabber.presentation.application.fragments.contacts.*
 import com.xabber.presentation.application.fragments.discover.DiscoverFragment
 import com.xabber.presentation.application.fragments.settings.*
 import com.xabber.presentation.application.util.lockScreenRotation
@@ -124,7 +121,6 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
             )
         ) actionBarHeight =
             TypedValue.complexToDimensionPixelSize(typedValue.data, resources.displayMetrics)
-
         binding.delimiterToolbar.updateLayoutParams<ConstraintLayout.LayoutParams> {
             this.height = actionBarHeight + prolongation
         }
@@ -316,6 +312,10 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
 
     override fun showEditContact(contactDto: ContactDto?) {
         launchDetailInStack(EditContactFragment.newInstance(contactDto))
+    }
+
+    override fun showEditContactFromContacts(contactDto: ContactDto?) {
+        launchDetail(EditContactFragment.newInstance(contactDto))
     }
 
     override fun showChatSettings() {

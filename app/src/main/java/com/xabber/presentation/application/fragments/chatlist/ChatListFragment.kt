@@ -18,10 +18,10 @@ import com.google.android.material.snackbar.Snackbar
 import com.xabber.R
 import com.xabber.databinding.FragmentChatListBinding
 import com.xabber.model.dto.ChatListDto
-import com.xabber.model.dto.ContactDto
 import com.xabber.presentation.AppConstants
 import com.xabber.presentation.BaseFragment
 import com.xabber.presentation.application.activity.UiChanger
+import com.xabber.presentation.application.bottomsheet.NotificationBottomSheet
 import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.application.fragments.chat.ChatParams
 import com.xabber.presentation.application.util.showToast

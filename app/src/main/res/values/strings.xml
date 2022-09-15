@@ -368,4 +368,13 @@
         <item quantity="one">in %1$d day</item>
         <item quantity="other">in %1$d days</item>
     </plurals>
+      <string name="chat_screen__dialog_title__pick_location">Pick location</string>
+        <string name="use_external_dialog_title">Mapping service disabled</string>
+    <string name="use_external_dialog_body">Location picker requires external mapping services, which are currently disabled.</string>
+    <string name="enable_geolocation_dialog_body">Location tracking disabled</string>
+    <string name="use_external_dialog_enable_button">Enable</string>
+    <string name="im_my_geolocation_content_description">My geolocation</string>
+    <string name="im_button_plus_content_description">Zoom in</string>
+    <string name="im_button_minus_content_description">Zoom out</string>
+
 </resources>

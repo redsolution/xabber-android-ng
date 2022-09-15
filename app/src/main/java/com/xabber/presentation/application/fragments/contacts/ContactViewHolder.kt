@@ -171,9 +171,9 @@ class ContactViewHolder(
                 popup.setOnMenuItemClickListener {
 
                     when (it.itemId) {
-                        R.id.edit_contact -> listener.editContact()
-                        R.id.delete_contact -> listener.deleteContact()
-                        R.id.block_contact -> listener.blockContact()
+                        R.id.edit_contact -> listener.editContact(contact)
+                        R.id.delete_contact -> listener.deleteContact(contact.userName!!)
+                        R.id.block_contact -> listener.blockContact(contact.userName!!)
 
                     }
                     true

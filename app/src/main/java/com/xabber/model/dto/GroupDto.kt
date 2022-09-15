@@ -1,7 +1,5 @@
 package com.xabber.model.dto
 
-import com.xabber.presentation.application.fragments.chatlist.Indexing
-
 data class GroupDto(
     val name: String,
     val identifier: String,

@@ -1,17 +1,14 @@
 package com.xabber.presentation.application.fragments.contacts
 
 import android.annotation.SuppressLint
-import android.content.Context
 import android.content.Intent
-import android.graphics.Bitmap
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
-import android.util.Log
 import android.util.TypedValue
-import android.view.*
+import android.view.Menu
+import android.view.MenuInflater
+import android.view.MenuItem
+import android.view.View
 import android.view.animation.AnimationUtils
-import android.widget.ImageView
 import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.MenuProvider
@@ -19,7 +16,7 @@ import androidx.core.view.isVisible
 import androidx.recyclerview.widget.GridLayoutManager
 import by.kirich1409.viewbindingdelegate.viewBinding
 import com.bumptech.glide.Glide
-import com.bumptech.glide.load.engine.DiskCacheStrategy
+import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions
 import com.google.android.material.appbar.AppBarLayout
 import com.google.android.material.appbar.CollapsingToolbarLayout
 import com.google.android.material.tabs.TabLayout
@@ -27,15 +24,14 @@ import com.xabber.R
 import com.xabber.databinding.FragmentContactAccountBinding
 import com.xabber.model.dto.ContactDto
 import com.xabber.presentation.AppConstants
-import com.xabber.presentation.application.activity.DeletingContactDialog
+import com.xabber.presentation.application.dialogs.DeletingContactDialog
 import com.xabber.presentation.application.activity.DisplayManager
-import com.xabber.presentation.application.activity.MediaAdapter
 import com.xabber.presentation.application.activity.UiChanger
 import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.application.dialogs.BlockContactDialog
 import com.xabber.presentation.application.fragments.DetailBaseFragment
 import com.xabber.presentation.application.fragments.account.qrcode.QRCodeParams
-import com.xabber.presentation.application.fragments.chatlist.NotificationBottomSheet
+import com.xabber.presentation.application.bottomsheet.NotificationBottomSheet
 import com.xabber.presentation.application.util.showToast
 import com.xabber.utils.blur.BlurTransformation
 import com.xabber.utils.mask.MaskPrepare
@@ -88,9 +84,9 @@ class ContactAccountFragment : DetailBaseFragment(R.layout.fragment_contact_acco
 
     @SuppressLint("ResourceAsColor")
     private fun changeUiWidthData() {
+        loadAvatar()
         loadBackground()
         defineColor()
-        loadAvatar()
         with(binding.accountAppbar) {
             tvTitle.text = getContact().userName
             tvSubtitle.text = getContact().jid
@@ -101,25 +97,25 @@ class ContactAccountFragment : DetailBaseFragment(R.layout.fragment_contact_acco
     }
 
     private fun loadBackground() {
-        Glide.with(requireContext())
+
+        Glide.with(this)
             .load(getContact().avatar).transform(
                 BlurTransformation(
                     25,
-                    4,
+                    6,
                     ContextCompat.getColor(requireContext(), getContact().color)
                 )
+            ).placeholder(getContact().color).transition(
+                DrawableTransitionOptions.withCrossFade()
             )
-            .diskCacheStrategy(DiskCacheStrategy.ALL).error(getContact().color)
-            .into(binding.accountAppbar.imBackdrop as ImageView)
-
-        binding.accountAppbar.imBackdrop3?.setBackgroundResource(getContact().color)
+            .into(binding.accountAppbar.imBackdrop)
     }
 
     private fun loadAvatar() {
         val maskedDrawable =
             MaskPrepare.getDrawableMask(resources, getContact().avatar, UiChanger.getMask().size176)
         Glide.with(requireContext())
-            .load(maskedDrawable).diskCacheStrategy(DiskCacheStrategy.ALL).error(getContact().color)
+            .load(maskedDrawable).error(getContact().color)
             .into(binding.accountAppbar.imPhoto)
     }
 
@@ -132,7 +128,6 @@ class ContactAccountFragment : DetailBaseFragment(R.layout.fragment_contact_acco
             )
         )
     }
-
 
     private fun shareContact(name: String) {
         val shareIntent = Intent()
@@ -177,7 +172,7 @@ class ContactAccountFragment : DetailBaseFragment(R.layout.fragment_contact_acco
 
         var isShow = true
         var scrollRange = -1
-        with(binding!!.accountAppbar) {
+        with(binding.accountAppbar) {
             appbar.addOnOffsetChangedListener(AppBarLayout.OnOffsetChangedListener { bar, verticalOffset ->
                 if (scrollRange + verticalOffset < 170) {
                     val anim =

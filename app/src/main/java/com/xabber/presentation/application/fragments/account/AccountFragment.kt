@@ -23,6 +23,7 @@ import com.bumptech.glide.Glide
 import com.bumptech.glide.load.MultiTransformation
 import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.bumptech.glide.load.resource.bitmap.CenterCrop
+import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions
 import com.google.android.material.appbar.AppBarLayout
 import com.google.android.material.appbar.CollapsingToolbarLayout
 import com.xabber.R
@@ -42,7 +43,6 @@ import com.xabber.presentation.application.util.*
 import com.xabber.utils.blur.BlurTransformation
 import com.xabber.utils.mask.MaskPrepare
 import java.io.File
-
 
 class AccountFragment : BaseFragment(R.layout.fragment_account) {
     private val binding by viewBinding(FragmentAccountBinding::bind)
@@ -80,7 +80,6 @@ class AccountFragment : BaseFragment(R.layout.fragment_account) {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        Log.d("kkk","${Build.VERSION.SDK_INT}, ${Build.VERSION_CODES.O}")
         var actionBarHeight = 0
         val tv = TypedValue()
         if (requireActivity().theme.resolveAttribute(
@@ -131,22 +130,21 @@ class AccountFragment : BaseFragment(R.layout.fragment_account) {
             .transform(
                     BlurTransformation(
                         25,
-                        4,
+                        6,
                        ContextCompat.getColor(requireContext(),
                             getAccount().colorResId
                         )
                     )
-            ).diskCacheStrategy(DiskCacheStrategy.ALL).error(getAccount().colorResId)
-            .into(binding.accountAppbar.imBackdrop as ImageView)
-        binding.accountAppbar.imBackdrop.animate().alphaBy(0f).alpha(1f).setDuration(500L).start()
-
+            ).placeholder(getAccount().colorResId).transition(
+                DrawableTransitionOptions.withCrossFade()
+            )
+            .into(binding.accountAppbar.imBackdrop)
     }
 
     private fun loadAvatar() {
         val maskedDrawable = MaskPrepare.getDrawableMask(resources, getAccount().avatar, UiChanger.getMask().size176)
         Glide.with(requireContext())
-            .load(maskedDrawable)
-           .diskCacheStrategy(DiskCacheStrategy.ALL).error(getAccount().colorResId)
+            .load(maskedDrawable).error(getAccount().colorResId)
             .into(binding.accountAppbar.imPhoto)
     }
 

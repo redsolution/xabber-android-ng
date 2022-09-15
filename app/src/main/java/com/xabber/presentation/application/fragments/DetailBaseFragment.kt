@@ -1,10 +1,7 @@
 package com.xabber.presentation.application.fragments
 
 import android.os.Bundle
-import android.view.LayoutInflater
 import android.view.View
-import android.view.ViewGroup
-import android.widget.Toolbar
 import androidx.activity.OnBackPressedCallback
 import androidx.annotation.LayoutRes
 import com.google.android.material.appbar.MaterialToolbar

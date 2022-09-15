@@ -1,6 +1,5 @@
 package com.xabber.presentation.application.fragments.chat
 
-import android.app.Application
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -53,7 +52,6 @@ class FileManager : Fragment() {
             }
             return null
         }
-
 
         private fun getAlbumDir(): File? {
             var storageDir: File? = null
@@ -366,7 +364,6 @@ class FileManager : Fragment() {
             return File.createTempFile(name, ".opus", context.cacheDir)
         }
 
-
 //        fun createAudioFile(name: String?): File? {
 //            // create dir
 //            var directory = File(downloadDirPath)
@@ -426,4 +423,3 @@ class FileManager : Fragment() {
 //        }
     }
 }
-
