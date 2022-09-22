@@ -40,8 +40,8 @@ class SearchToolbar : ConstraintLayout {
     var onBackPressedListener: OnBackPressedListener? = null
     var onTextChangedListener: OnTextChangedListener? = null
 
-    private lateinit var greetingsView: RelativeLayout
-    private lateinit var searchView: RelativeLayout
+    private lateinit var greetingsView: ConstraintLayout
+    private lateinit var searchView: ConstraintLayout
     lateinit var searchEditText: EditText
     private lateinit var clearButton: ImageView
     private lateinit var searchButton: ImageView
@@ -96,14 +96,12 @@ class SearchToolbar : ConstraintLayout {
 
     private fun init(context: Context) {
         inflate(context, R.layout.search_toolbar, this)
-
         greetingsView = findViewById(R.id.search_toolbar_greetings_view)
         searchView = findViewById(R.id.search_toolbar_search_view)
         searchEditText = findViewById(R.id.search_toolbar_edittext)
         clearButton = findViewById(R.id.search_toolbar_clear_button)
         backButton = findViewById(R.id.toolbar_search_back_button)
         searchButton = findViewById(R.id.search_toolbar_search_button)
-
         addListenersForButtons()
         addEditTextListener()
     }

@@ -7,7 +7,7 @@ import com.xabber.R
 import com.xabber.databinding.FragmentProfileSettingsBinding
 import com.xabber.presentation.application.activity.DisplayManager
 import com.xabber.presentation.application.fragments.DetailBaseFragment
-import com.xabber.presentation.application.util.dp
+import com.xabber.utils.dp
 
 class ProfileSettingsFragment : DetailBaseFragment(R.layout.fragment_profile_settings) {
     private val binding by viewBinding(FragmentProfileSettingsBinding::bind)

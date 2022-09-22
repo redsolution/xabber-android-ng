@@ -8,7 +8,7 @@ import androidx.lifecycle.ViewModel
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.xabber.R
-import com.xabber.presentation.application.util.toMap
+import com.xabber.utils.toMap
 import java.io.BufferedReader
 import java.io.InputStream
 import java.io.InputStreamReader

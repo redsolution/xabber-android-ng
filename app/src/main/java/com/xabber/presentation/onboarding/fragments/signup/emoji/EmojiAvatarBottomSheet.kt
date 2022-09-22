@@ -22,8 +22,8 @@ import com.xabber.databinding.FragmentEmojiAvatarBinding
 import com.xabber.utils.mask.Mask
 import com.xabber.utils.mask.MaskedDrawableBitmapShader
 import com.xabber.presentation.AppConstants
-import com.xabber.presentation.application.util.dp
-import com.xabber.presentation.application.util.setFragmentResultListener
+import com.xabber.utils.dp
+import com.xabber.utils.setFragmentResultListener
 import com.xabber.presentation.onboarding.activity.OnboardingViewModel
 
 class EmojiAvatarBottomSheet : BottomSheetDialogFragment() {

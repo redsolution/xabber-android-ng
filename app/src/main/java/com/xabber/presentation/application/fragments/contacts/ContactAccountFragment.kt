@@ -32,7 +32,7 @@ import com.xabber.presentation.application.dialogs.BlockContactDialog
 import com.xabber.presentation.application.fragments.DetailBaseFragment
 import com.xabber.presentation.application.fragments.account.qrcode.QRCodeParams
 import com.xabber.presentation.application.bottomsheet.NotificationBottomSheet
-import com.xabber.presentation.application.util.showToast
+import com.xabber.utils.showToast
 import com.xabber.utils.blur.BlurTransformation
 import com.xabber.utils.mask.MaskPrepare
 

@@ -39,19 +39,19 @@ import com.xabber.model.xmpp.messages.MessageSendingState
 import com.xabber.presentation.AppConstants
 import com.xabber.presentation.application.activity.DisplayManager
 import com.xabber.presentation.application.activity.UiChanger
+import com.xabber.presentation.application.bottomsheet.NotificationBottomSheet
 import com.xabber.presentation.application.contract.navigator
+import com.xabber.presentation.application.dialogs.ChatHistoryClearDialog
+import com.xabber.presentation.application.dialogs.DeletingChatDialog
 import com.xabber.presentation.application.fragments.DetailBaseFragment
 import com.xabber.presentation.application.fragments.chat.attach.AttachBottomSheet
 import com.xabber.presentation.application.fragments.chat.audio.AudioRecorder
-import com.xabber.presentation.application.dialogs.ChatHistoryClearDialog
-import com.xabber.presentation.application.dialogs.DeletingChatDialog
-import com.xabber.presentation.application.bottomsheet.NotificationBottomSheet
 import com.xabber.presentation.application.fragments.chat.audio.VoiceManager
 import com.xabber.presentation.application.fragments.chat.message.MessageAdapter
 import com.xabber.presentation.application.fragments.chat.message.MessageHeaderViewDecoration
 import com.xabber.presentation.application.fragments.chatlist.SwitchNotifications
-import com.xabber.presentation.application.util.askUserForOpeningAppSettings
-import com.xabber.presentation.application.util.isPermissionGranted
+import com.xabber.utils.askUserForOpeningAppSettings
+import com.xabber.utils.isPermissionGranted
 import com.xabber.utils.mask.MaskPrepare
 import java.util.*
 
@@ -312,8 +312,9 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
             chatInput.addTextChangedListener(object : TextWatcher {
 
                 override fun beforeTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {
-                      Log.d("ooo", "po before ${binding.btnRecord.isVisible}")
+                    Log.d("ooo", "po before ${binding.btnRecord.isVisible}")
                 }
+
                 override fun onTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {}
                 override fun afterTextChanged(p0: Editable?) {
                     Log.d("ooo", "p0 after${p0.toString()}")

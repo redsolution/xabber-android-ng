@@ -19,7 +19,7 @@ import androidx.core.view.isVisible
 import com.google.android.material.snackbar.Snackbar
 import com.xabber.R
 import com.xabber.model.dto.MessageDto
-import com.xabber.presentation.application.util.dp
+import com.xabber.utils.dp
 import com.xabber.databinding.ItemMessageIncomingBinding
 import com.xabber.presentation.application.activity.UiChanger
 import com.xabber.utils.mask.MaskedDrawableBitmapShader

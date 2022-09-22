@@ -122,7 +122,7 @@
     <style name="MapControllerButtonStyle" parent="PickGeolocationActivity">
         <item name="android:background">@drawable/white_rectangle_corners</item>
         <item name="android:padding">@dimen/padding_standard</item>
-        <item name="elevation">0dp</item>
+        <item name="android:elevation">10dp</item>
     </style>
 
 </resources>

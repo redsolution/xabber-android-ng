@@ -1,19 +1,24 @@
 package com.xabber.presentation.application.fragments.chat.geo
 
+import android.Manifest
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
-import android.location.LocationManager
+import android.graphics.Rect
+import android.os.Build
 import android.os.Bundle
+import android.os.Handler
 import android.os.PersistableBundle
 import android.preference.PreferenceManager
 import android.provider.Settings
 import android.util.Log
+import android.view.PixelCopy
 import android.view.View
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.annotation.DrawableRes
+import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
@@ -26,12 +31,13 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.xabber.R
 import com.xabber.databinding.ActivityPickGeolocationBinding
 import com.xabber.presentation.application.fragments.chat.CustomMyLocationOsmOverlay
-import com.xabber.presentation.application.util.getBitmap
 import com.xabber.presentation.custom.SearchToolbar
 import com.xabber.remote.NominatimRetrofitModule
 import com.xabber.remote.Place
 import com.xabber.remote.prettyName
 import com.xabber.remote.toGeoPoint
+import com.xabber.utils.getBitmap
+import com.xabber.utils.hideSoftKeyboard
 import io.reactivex.rxjava3.subjects.PublishSubject
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.cancel
@@ -42,9 +48,9 @@ import org.osmdroid.events.MapEventsReceiver
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.CustomZoomButtonsController
+import org.osmdroid.views.drawing.MapSnapshot
 import org.osmdroid.views.overlay.MapEventsOverlay
 import org.osmdroid.views.overlay.Marker
-import org.osmdroid.views.overlay.gestures.RotationGestureOverlay
 import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay
 import java.util.*
 import java.util.concurrent.TimeUnit
@@ -70,14 +76,16 @@ class PickGeolocationActivity : AppCompatActivity() {
     private val pZoom = 16.5
     private val pSpeed = 1L
     private var isBubbleShow = false
-    private lateinit var pointer: Bitmap
 
     private val foundPlacesAdapter = FoundPlacesRecyclerViewAdapter(
         onPlaceClickListener = {
             myLocationOverlay?.disableFollowLocation()
             binding.mapView.controller.animateTo(it.toGeoPoint(), pZoom, pSpeed)
+            updatePickMarker(it.toGeoPoint())
             binding.mapView.invalidate()
             binding.rvLocations.isVisible = false
+            binding.searchToolbar.collapseSearchBar(true)
+            hideSoftKeyboard(binding.root)
             if (pickMarker != null) {
                 binding.bottomBubble.isVisible = true
             }
@@ -88,7 +96,8 @@ class PickGeolocationActivity : AppCompatActivity() {
         searchObservable.debounce(500, TimeUnit.MILLISECONDS)
             .subscribe {
                 lifecycleScope.launch {
-                    binding.progressbarSearchLocations.isVisible = true
+                    binding.progressbarSearchLocations.isVisible =
+                        binding.searchToolbar.isOpenSearchBar()
                     val foundPlacesList = NominatimRetrofitModule.api.search(it)
                     setupSearchList(foundPlacesList)
                     binding.progressbarSearchLocations.isVisible = false
@@ -97,6 +106,8 @@ class PickGeolocationActivity : AppCompatActivity() {
     }
 
     private fun onGotLocationPermissionResult(granted: Boolean) {
+        if (granted) tryToGetMyLocation()
+        else if (shouldShowRequestPermissionRationale(Manifest.permission.ACCESS_FINE_LOCATION)) showDialogNeedToEnableLocations()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -106,21 +117,17 @@ class PickGeolocationActivity : AppCompatActivity() {
         setHeightStatusBar()
         if (savedInstanceState != null) {
             isBubbleShow = savedInstanceState.getBoolean(IS_BUBBLE_SHOW_KEY)
-            Log.d("bu", "$isBubbleShow")
         }
-        if (savedInstanceState == null && PermissionsRequester.hasLocationPermission(this)) {
+        if (savedInstanceState == null && checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
             tryToGetMyLocation()
-
         }
 
         binding.bottomBubble.isVisible = isBubbleShow
         binding.frameSnack.isVisible = !isBubbleShow
-
         initToolbarActions()
         initSearchRecycler()
-
         setupMap()
-
+        initMapButtons()
     }
 
     private fun setFullScreenMode() {
@@ -176,15 +183,53 @@ class PickGeolocationActivity : AppCompatActivity() {
         }
     }
 
+    override fun onBackPressed() {
+
+        if (binding.bottomBubble.isVisible) {
+            binding.tvLocationTitle.text = ""
+            binding.tvLocationCoordinates.text = ""
+            binding.bottomBubble.isVisible = false
+            binding.frameSnack.isVisible = true
+        } else {
+            super.onBackPressed()
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.O)
     private fun initMapButtons() {
         binding.imSendLocation.setOnClickListener {
-            setResult(RESULT_CANCELED)
-            finish()
+
+         val a = getBitmapFromView(binding.mapView, this, {   Log.d("aaa", "$it") })
+
+         //   setResult(RESULT_CANCELED)
+       //     finish()
         }
 
-        binding.imMyGeolocation.setOnClickListener { tryToGetMyLocation()
-            binding.bottomBubble.isVisible = true
-            binding.frameSnack.isVisible = false
+        binding.imMyGeolocation.setOnClickListener {
+            if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                tryToGetMyLocation()
+            } else requestGeolocationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.O)
+    fun getBitmapFromView(view: View, activity: Activity, callback: (Bitmap) -> Unit) {
+        activity.window?.let { window ->
+            val bitmap = Bitmap.createBitmap(view.width, view.height, Bitmap.Config.ARGB_8888)
+            val locationOfViewInWindow = IntArray(2)
+            view.getLocationInWindow(locationOfViewInWindow)
+            try {
+                PixelCopy.request(window, Rect(locationOfViewInWindow[0], locationOfViewInWindow[1], locationOfViewInWindow[0] + view.width, locationOfViewInWindow[1] + view.height), bitmap, { copyResult ->
+                    if (copyResult == PixelCopy.SUCCESS) {
+                        callback(bitmap)
+                    }
+                    // possible to handle other result codes ...
+                }, Handler())
+            } catch (e: IllegalArgumentException) {
+                // PixelCopy may throw IllegalArgumentException, make sure to handle it
+                e.printStackTrace()
+            }
         }
     }
 
@@ -206,14 +251,12 @@ class PickGeolocationActivity : AppCompatActivity() {
     }
 
     private fun tryToGetMyLocation() {
+
         fun createMyLocationsOverlay() {
             val locationsProvider = ObservableOsmLocationProvider(
                 binding.mapView.context
             )
 
-            locationsProvider.stateLiveData.observe(this) { state ->
-                updateMyLocationButton(state)
-            }
             val pointer =
                 ContextCompat.getDrawable(this, R.drawable.ic_my_location_circle)!!.getBitmap()
             initMapButtons()
@@ -228,14 +271,16 @@ class PickGeolocationActivity : AppCompatActivity() {
         }
 
         fun centerOnMyLocation() {
+            Log.d("uuu", "centerLoc")
+            var x = ""
+            var y = ""
             lifecycleScope.launch {
                 repeat(15) {
                     if (myLocationOverlay?.myLocation != null) {
                         myLocationOverlay?.enableFollowLocation()
                         binding.mapView.controller.setZoom(16.5)
                         cancel()
-//                        binding.frameSnack.isVisible = false
-//                        binding.bottomBubble.isVisible = true
+//
                         binding.tvLocationTitle.text = "Send current location "
                         val location = myLocationOverlay?.myLocation.toString()
                         val list = location.split(",")
@@ -245,7 +290,16 @@ class PickGeolocationActivity : AppCompatActivity() {
                         val listb = list[0].split(".")
                         val y = listb[0] + "," + listb[1].substring(0..3)
                         binding.tvLocationCoordinates.text = x + ", " + y
-                        binding.tvLocationCoordinates.setTextColor(ContextCompat.getColor(this@PickGeolocationActivity, R.color.blue_400))
+                        binding.tvLocationCoordinates.setTextColor(
+                            ContextCompat.getColor(
+                                this@PickGeolocationActivity,
+                                R.color.blue_400
+                            )
+                        )
+                        binding.frameSnack.isVisible = false
+                        if (binding.tvLocationTitle.text.isNotEmpty() && binding.tvLocationCoordinates.text.isNotEmpty()) binding.bottomBubble.isVisible =
+                            true
+
                     }
                     delay(300)
                 }
@@ -255,17 +309,22 @@ class PickGeolocationActivity : AppCompatActivity() {
         }
 
 
+        //       binding.frameSnack.isVisible = false
+//        binding.bottomBubble.isVisible = true
 
         if (PermissionsRequester.requestLocationPermissionIfNeeded(
                 this,
                 REQUEST_LOCATION_PERMISSION_CODE
             )
         ) {
-            if (isLocationAllowed()) {
+            if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
                 if (myLocationOverlay == null) {
                     createMyLocationsOverlay()
                 }
                 centerOnMyLocation()
+                Log.d("uuu", "завершение")
+
+
             } else {
                 showDialogNeedToEnableLocations()
             }
@@ -304,11 +363,11 @@ class PickGeolocationActivity : AppCompatActivity() {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
     }
 
-    private fun isLocationAllowed(): Boolean {
-        return (getSystemService(LOCATION_SERVICE) as? LocationManager)?.getProviders(true)
-            ?.isNotEmpty()
-            ?: false
-    }
+//    private fun isLocationAllowed(): Boolean {
+//        return (getSystemService(LOCATION_SERVICE) as? LocationManager)?.getProviders(true)
+//            ?.isNotEmpty()
+//            ?: false
+//    }
 
     private fun setupMap() {
         Configuration.getInstance().load(this, PreferenceManager.getDefaultSharedPreferences(this))
@@ -337,31 +396,9 @@ class PickGeolocationActivity : AppCompatActivity() {
                 setZoom(5.0)
                 minZoomLevel = 3.5
             }
-
             setHasTransientState(true)
         }
 
-       val mRotationGestureOverlay = RotationGestureOverlay(this@PickGeolocationActivity, binding.mapView)
-        mRotationGestureOverlay.setEnabled(true)
-        binding.mapView.setMultiTouchControls(true)
-        binding.mapView.getOverlays().add(mRotationGestureOverlay)
-
-    }
-
-    private fun updateMyLocationButton(locationStatus: ObservableOsmLocationProvider.LocationState) {
-        fun updateButton(@DrawableRes drawableId: Int) {
-            binding.imMyGeolocation.setImageResource(drawableId)
-        }
-        updateButton(
-            when (locationStatus) {
-                ObservableOsmLocationProvider.LocationState.LocationReceived -> {
-                    R.drawable.ic_crosshairs_gps
-                }
-                ObservableOsmLocationProvider.LocationState.LocationNotFound -> {
-                    R.drawable.ic_crosshairs_question
-                }
-            }
-        )
     }
 
     private fun updatePickMarker(location: GeoPoint) {
@@ -381,11 +418,22 @@ class PickGeolocationActivity : AppCompatActivity() {
         updateLocationInfoBubble(location)
     }
 
+   val mapSnapshot = MapSnapshot( {
+          fun callback(pMapSnapshot: MapSnapshot) {
+                if (pMapSnapshot.status != MapSnapshot.Status.CANVAS_OK) {
+                    return
+                }
+               val bitmap = Bitmap.createBitmap(pMapSnapshot.bitmap)
+            }
+        }, MapSnapshot.INCLUDE_FLAG_UPTODATE, binding.mapView)
+
+
     @SuppressLint("SetTextI18n")
     private fun updateLocationInfoBubble(location: GeoPoint?) {
+
         if (location != null) {
             binding.progressbarSearchLocations.visibility = View.VISIBLE
-            lifecycleScope.launch(CoroutineExceptionHandler { _, ex ->
+            lifecycleScope.launch(CoroutineExceptionHandler { _, _ ->
                 binding.progressbarSearchLocations.visibility = View.INVISIBLE
                 binding.tvLocationTitle.visibility = View.GONE
             }) {
@@ -393,10 +441,16 @@ class PickGeolocationActivity : AppCompatActivity() {
                 val place = NominatimRetrofitModule.api.fromLonLat(
                     location.longitude, location.latitude, lang
                 )
-                binding.tvLocationTitle.text = place.prettyName
+                binding.tvLocationTitle.text =
+                    if (place.prettyName != null) place.prettyName else "Location not defined"
                 binding.progressbarSearchLocations.isVisible = false
                 val coordFormatString = "%.4f"
-                binding.tvLocationCoordinates.setTextColor(ContextCompat.getColor(this@PickGeolocationActivity, R.color.black))
+                binding.tvLocationCoordinates.setTextColor(
+                    ContextCompat.getColor(
+                        this@PickGeolocationActivity,
+                        R.color.grey_600
+                    )
+                )
                 binding.tvLocationCoordinates.text =
                     "${coordFormatString.format(location.longitude)}, ${
                         coordFormatString.format(

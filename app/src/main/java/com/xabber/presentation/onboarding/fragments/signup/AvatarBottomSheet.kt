@@ -20,9 +20,9 @@ import com.xabber.R
 import com.xabber.databinding.BottomSheetAvatarBinding
 import com.xabber.presentation.application.fragments.chat.FileManager
 import com.xabber.presentation.application.fragments.chat.FileManager.Companion.getFileUri
-import com.xabber.presentation.application.util.askUserForOpeningAppSettings
-import com.xabber.presentation.application.util.dp
-import com.xabber.presentation.application.util.isPermissionGranted
+import com.xabber.utils.askUserForOpeningAppSettings
+import com.xabber.utils.dp
+import com.xabber.utils.isPermissionGranted
 import com.xabber.presentation.onboarding.activity.OnboardingViewModel
 import com.xabber.presentation.onboarding.contract.navigator
 import com.xabber.presentation.onboarding.fragments.signup.emoji.EmojiAvatarBottomSheet

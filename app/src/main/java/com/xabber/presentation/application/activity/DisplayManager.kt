@@ -4,7 +4,7 @@ import android.content.res.Configuration
 import android.content.res.Resources
 import android.util.Log
 import androidx.fragment.app.Fragment
-import com.xabber.presentation.application.util.dp
+import com.xabber.utils.dp
 
 object DisplayManager : Fragment() {
     private const val MAX_WIDTH = 800

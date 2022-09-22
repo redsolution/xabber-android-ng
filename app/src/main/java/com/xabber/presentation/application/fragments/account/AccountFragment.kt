@@ -4,7 +4,6 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.graphics.BitmapFactory
 import android.net.Uri
-import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.util.TypedValue
@@ -21,7 +20,6 @@ import androidx.core.view.isVisible
 import by.kirich1409.viewbindingdelegate.viewBinding
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.MultiTransformation
-import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.bumptech.glide.load.resource.bitmap.CenterCrop
 import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions
 import com.google.android.material.appbar.AppBarLayout
@@ -39,8 +37,10 @@ import com.xabber.presentation.application.fragments.account.color.AccountColorD
 import com.xabber.presentation.application.fragments.account.qrcode.QRCodeParams
 import com.xabber.presentation.application.fragments.chat.FileManager
 import com.xabber.presentation.application.fragments.chat.FileManager.Companion.getFileUri
-import com.xabber.presentation.application.util.*
+import com.xabber.utils.askUserForOpeningAppSettings
 import com.xabber.utils.blur.BlurTransformation
+import com.xabber.utils.dp
+import com.xabber.utils.isPermissionGranted
 import com.xabber.utils.mask.MaskPrepare
 import java.io.File
 

@@ -1,7 +1,6 @@
-package com.xabber.presentation.application.util
+package com.xabber.utils
 
-import android.app.Activity
-import android.content.Context
+import android.content.Context.INPUT_METHOD_SERVICE
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
@@ -15,6 +14,7 @@ import android.os.Bundle
 import android.provider.Settings
 import android.view.Display
 import android.view.Surface
+import android.view.View
 import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
@@ -22,7 +22,6 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import com.xabber.R
-import com.xabber.model.dto.AccountColor
 import com.xabber.presentation.onboarding.fragments.signup.emoji.EmojiTypeDto
 
 
@@ -73,9 +72,6 @@ fun Fragment.setFragmentResult(
     result: Bundle
 ) = parentFragmentManager.setFragmentResult(requestKey, result)
 
-fun getRandomColor(): Int {
-    return AccountColor.values().toList().shuffled().first().colorId
-}
 
 fun List<EmojiTypeDto>.toMap(): Map<String, List<List<String>>> {
     val map = this.associate {
@@ -131,17 +127,12 @@ val Int.dp: Int
 val Int.px: Float
     get() = ((this - 0.5f) / Resources.getSystem().displayMetrics.density)
 
-fun Activity.tryToHideKeyboardIfNeed() {
-    this.currentFocus?.let { focusedView ->
-        (this.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager)
-            ?.hideSoftInputFromWindow(
-                focusedView.windowToken,
-                InputMethodManager.HIDE_NOT_ALWAYS
-            )
-    }
+fun AppCompatActivity.hideSoftKeyboard(view: View) {
+    val inputMethodManager = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
+    inputMethodManager.hideSoftInputFromWindow(view.windowToken, 0)
 }
 
- fun Drawable.getBitmap(): Bitmap {
+fun Drawable.getBitmap(): Bitmap {
     val bitmap: Bitmap = Bitmap.createBitmap(
         intrinsicWidth, intrinsicHeight, Bitmap.Config.ARGB_8888
     )
@@ -150,6 +141,3 @@ fun Activity.tryToHideKeyboardIfNeed() {
     draw(canvas)
     return bitmap
 }
-
-
-

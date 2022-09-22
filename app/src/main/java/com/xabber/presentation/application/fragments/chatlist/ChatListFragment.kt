@@ -24,7 +24,7 @@ import com.xabber.presentation.application.activity.UiChanger
 import com.xabber.presentation.application.bottomsheet.NotificationBottomSheet
 import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.application.fragments.chat.ChatParams
-import com.xabber.presentation.application.util.showToast
+import com.xabber.utils.showToast
 import com.xabber.utils.mask.MaskPrepare
 
 class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdapter.ChatListener {

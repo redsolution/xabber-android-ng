@@ -33,8 +33,10 @@ import com.xabber.presentation.application.fragments.chat.FileManager.Companion.
 import com.xabber.presentation.application.fragments.chat.GalleryAdapter
 import com.xabber.presentation.application.fragments.chat.GalleryAdapter.Companion.projectionPhotos
 import com.xabber.presentation.application.fragments.chat.geo.PickGeolocationActivity
-import com.xabber.presentation.application.util.askUserForOpeningAppSettings
-import com.xabber.presentation.application.util.isPermissionGranted
+import com.xabber.presentation.application.fragments.chat.geo.PickGeolocationActivity.Companion.LAT_RESULT
+import com.xabber.presentation.application.fragments.chat.geo.PickGeolocationActivity.Companion.LON_RESULT
+import com.xabber.utils.askUserForOpeningAppSettings
+import com.xabber.utils.isPermissionGranted
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
@@ -98,7 +100,6 @@ class AttachBottomSheet : BottomSheetDialogFragment(), GalleryAdapter.Listener {
             if (currentPhotoUri != null) {
                 val list = HashSet<String>()
                 list.add(currentPhotoUri.toString())
-                //   onSend("", list)
             }
             dismiss()
         }
@@ -116,7 +117,6 @@ class AttachBottomSheet : BottomSheetDialogFragment(), GalleryAdapter.Listener {
     }
 
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
-        Log.d("ooo", "onCreateDialog")
         val dialog = super.onCreateDialog(savedInstanceState)
         dialog.setOnShowListener { dialogInterface: DialogInterface -> setupRatio(dialogInterface as BottomSheetDialog) }
         (dialog as BottomSheetDialog).behavior.addBottomSheetCallback(object :
@@ -320,8 +320,33 @@ class AttachBottomSheet : BottomSheetDialogFragment(), GalleryAdapter.Listener {
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
+        when (requestCode) {
+            PICK_LOCATION_REQUEST_CODE -> {
+                val lon = data?.getDoubleExtra(LON_RESULT, 0.0)
+                val lat = data?.getDoubleExtra(LAT_RESULT, 0.0)
+                sendGeolocation(lon, lat)
+            }
+        }
         dismiss()
     }
+
+
+    fun sendGeolocation(lon: Double?, lat: Double?) {
+        sendMessage(lon, lat)
+    }
+
+
+    fun sendMessage(lon: Double? = null, lat: Double? = null) {
+
+//         if (lon != null && lat != null) {
+//             MessageManager.getInstance().sendGeolocationMessage(
+//                 accountJid, contactJid, text, markupText, lon, lat
+//             )
+//         } else {
+//             MessageManager.getInstance().sendMessage(accountJid, contactJid, text, markupText)
+//         }
+    }
+
 
     private fun generatePicturePath(): File? {
         try {

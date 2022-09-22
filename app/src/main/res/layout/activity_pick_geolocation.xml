@@ -17,6 +17,8 @@
     <com.xabber.presentation.custom.SearchToolbar
         android:id="@+id/search_toolbar"
         android:layout_width="0dp"
+        android:clickable="true"
+        android:focusable="true"
         android:layout_height="wrap_content"
         android:background="@drawable/light_gradient"
         app:layout_constraintEnd_toEndOf="parent"
@@ -60,12 +62,15 @@
         style="@style/MapControllerButtonStyle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:clickable="true"
         android:contentDescription="@string/im_my_geolocation_content_description"
-        android:src="@drawable/ic_crosshairs_question"
+        android:focusable="true"
+        android:src="@drawable/ic_crosshairs_gps"
         app:layout_constraintBottom_toTopOf="@id/im_zoom_in"
         app:layout_constraintEnd_toEndOf="@id/guide_line"
         app:layout_constraintTop_toBottomOf="@id/search_toolbar"
         app:layout_constraintVertical_bias="0.2" />
+
 
     <ImageView
         android:id="@+id/im_zoom_in"
@@ -101,15 +106,18 @@
         android:id="@+id/bottom_bubble"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginHorizontal="36dp"
-        android:layout_marginBottom="24dp"
         android:background="@drawable/white_rectangle_corners"
-        android:elevation="@dimen/big_elevation"
+        android:clickable="true"
+        android:elevation="4dp"
+        android:focusable="true"
         android:padding="4dp"
         android:visibility="gone"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="0.9"
+        app:layout_constraintWidth_percent="0.8"
         tools:visibility="visible">
 
         <TextView
@@ -134,14 +142,14 @@
 
         <TextView
             android:id="@+id/tv_location_coordinates"
-            android:layout_width="0dp"
+            android:layout_width="wrap_content"
+
             android:layout_height="wrap_content"
             android:ellipsize="marquee"
             android:paddingStart="8dp"
             android:paddingEnd="8dp"
             android:paddingBottom="4dp"
             android:singleLine="true"
-            app:layout_constraintEnd_toStartOf="@id/im_send_location"
             app:layout_constraintLeft_toLeftOf="parent"
             app:layout_constraintRight_toLeftOf="@id/im_send_location"
             app:layout_constraintStart_toStartOf="parent"
@@ -167,12 +175,14 @@
         android:id="@+id/frame_snack"
         android:layout_width="wrap_content"
         android:layout_height="48dp"
-        android:layout_marginBottom="40dp"
-        android:paddingHorizontal="16dp"
         android:background="@drawable/snackbar_background"
+        android:elevation="16dp"
+        android:paddingHorizontal="16dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent">
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="@dimen/snackbar_vertical_bias">
 
         <TextView
             android:layout_width="wrap_content"
@@ -182,6 +192,14 @@
             android:textColor="@color/white"
             android:textSize="18sp" />
     </FrameLayout>
+
+    <ImageView
+        android:id="@+id/ii"
+        android:elevation="20dp"
+        android:layout_width="100dp"
+        android:layout_height="100dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"/>
 
 
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -23,7 +23,7 @@ import com.bumptech.glide.Glide
 import com.google.android.material.snackbar.Snackbar
 import com.xabber.R
 import com.xabber.model.dto.MessageDto
-import com.xabber.presentation.application.util.dp
+import com.xabber.utils.dp
 import com.xabber.model.xmpp.messages.MessageSendingState
 import com.xabber.model.xmpp.messages.MessageSendingState.*
 import com.xabber.databinding.ItemMessageOutgoingBinding

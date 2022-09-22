@@ -43,8 +43,8 @@ import com.xabber.presentation.application.fragments.chatlist.add.NewGroupFragme
 import com.xabber.presentation.application.fragments.contacts.*
 import com.xabber.presentation.application.fragments.discover.DiscoverFragment
 import com.xabber.presentation.application.fragments.settings.*
-import com.xabber.presentation.application.util.lockScreenRotation
 import com.xabber.presentation.onboarding.activity.OnBoardingActivity
+import com.xabber.utils.lockScreenRotation
 import com.xabber.utils.mask.Mask
 
 class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
@@ -228,8 +228,9 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
     }
 
     private fun launchFragment(fragment: Fragment) {
-        supportFragmentManager.beginTransaction()
-            .replace(R.id.application_container, fragment).commit()
+        supportFragmentManager.commit {
+            replace(R.id.application_container, fragment)
+        }
     }
 
     private fun launchDetail(fragment: Fragment) {
@@ -279,7 +280,7 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
     }
 
     override fun showChatFragment() {
-        if (slidingPaneLayoutIsOpen()) launchDetailInStack(ChatListFragment())
+        launchDetailInStack(ChatListFragment())
     }
 
     override fun showChat(chatParams: ChatParams) {
@@ -326,8 +327,6 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
         super.onSaveInstanceState(outState)
         viewModel.unreadCount.value?.let { outState.putInt(AppConstants.UNREAD_MESSAGES_COUNT, it) }
     }
-
-    fun slidingPaneLayoutIsOpen(): Boolean = binding.slidingPaneLayout.isOpen
 
     override fun enableScreenRotationLock(isLock: Boolean) {
         lockScreenRotation(isLock)

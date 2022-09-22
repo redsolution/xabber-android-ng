@@ -17,8 +17,8 @@ import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.xabber.R
 import com.xabber.databinding.FragmentEmojiKeyboardBinding
 import com.xabber.presentation.AppConstants
-import com.xabber.presentation.application.util.dp
-import com.xabber.presentation.application.util.setFragmentResult
+import com.xabber.utils.dp
+import com.xabber.utils.setFragmentResult
 
 class EmojiKeyboardBottomSheet : BottomSheetDialogFragment() {
     private val binding by viewBinding(FragmentEmojiKeyboardBinding::bind)

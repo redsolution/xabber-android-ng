@@ -8,7 +8,7 @@ import android.view.View
 import android.widget.FrameLayout
 import android.widget.TextView
 import com.xabber.R
-import com.xabber.presentation.application.util.dp
+import com.xabber.utils.dp
 
 class CustomFlexboxLayout @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null
