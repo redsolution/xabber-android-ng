@@ -47,6 +47,7 @@ import com.xabber.presentation.application.fragments.DetailBaseFragment
 import com.xabber.presentation.application.fragments.chat.attach.AttachBottomSheet
 import com.xabber.presentation.application.fragments.chat.audio.AudioRecorder
 import com.xabber.presentation.application.fragments.chat.audio.VoiceManager
+import com.xabber.presentation.application.fragments.chat.message.Location
 import com.xabber.presentation.application.fragments.chat.message.MessageAdapter
 import com.xabber.presentation.application.fragments.chat.message.MessageHeaderViewDecoration
 import com.xabber.presentation.application.fragments.chatlist.SwitchNotifications
@@ -358,7 +359,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
                 )
             }
 
-            val text = binding.chatInput.text.toString().trim()
+         val text = binding.chatInput.text.toString().trim()
             binding.chatInput.text?.clear()
             val timeStamp = System.currentTimeMillis()
 
@@ -368,7 +369,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
                     true,
                     "Алексей Иванов",
                     "Геннадий Белов",
-                    text,
+                    null,
                     MessageSendingState.Deliver,
                     timeStamp,
                     null,
@@ -376,7 +377,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
                     false,
                     false,
                     null,
-                    false, messageKindDto, false, null
+                    false, messageKindDto, false, null, null, Location(2.8604, 14.540)
                 )
             )
 

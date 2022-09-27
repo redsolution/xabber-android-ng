@@ -1,4 +1,4 @@
-package com.xabber.presentation.application.fragments.chat
+package com.xabber.presentation.application.fragments.chat.message
 
 enum class FileCategory {
     IMAGE, AUDIO, VIDEO, DOCUMENT, PDF, TABLE, PRESENTATION, ARCHIVE, FILE;

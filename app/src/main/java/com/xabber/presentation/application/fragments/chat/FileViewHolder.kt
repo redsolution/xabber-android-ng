@@ -7,6 +7,7 @@ import com.bumptech.glide.Glide
 import com.xabber.R
 import com.xabber.model.dto.FileDto
 import com.xabber.databinding.ItemAttachedFileBinding
+import com.xabber.presentation.application.fragments.chat.message.FileCategory
 
 class FileViewHolder(
     private val binding: ItemAttachedFileBinding

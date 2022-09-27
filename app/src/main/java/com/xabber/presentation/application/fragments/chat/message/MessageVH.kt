@@ -1,5 +1,6 @@
 package com.xabber.presentation.application.fragments.chat.message
 
+import android.content.res.ColorStateList
 import android.os.Build
 import android.view.View
 import android.view.ViewGroup
@@ -7,27 +8,24 @@ import android.widget.*
 import androidx.annotation.RequiresApi
 import androidx.annotation.StyleRes
 import androidx.appcompat.widget.LinearLayoutCompat
+import androidx.core.graphics.drawable.DrawableCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.xabber.R
 import com.xabber.model.dto.MessageDto
 import com.xabber.model.dto.MessageVhExtraData
+import com.xabber.presentation.custom.CorrectlyTouchEventTextView
 import com.xabber.presentation.custom.CustomFlexboxLayout
-
-
 
 abstract class MessageVH(
     itemView: View,
     private val listener: MessageClickListener,
     private val longClickListener: MessageLongClickListener,
-    private val fileListener: FileListener?,
-    @StyleRes appearance: Int
-) :  View.OnClickListener,
-    View.OnLongClickListener {
+    private val fileListener: FileListener?
+) :  BasicMessageVH(itemView), View.OnClickListener,
+    View.OnLongClickListener, FilesAdapter.FileListListener {
 
     var isUnread = false
     var messageId: String? = null
-
-
 
     protected val messageTime: TextView = itemView.findViewById(R.id.message_time)
     protected val messageHeader: TextView = itemView.findViewById(R.id.message_sender_tv)
@@ -84,6 +82,7 @@ abstract class MessageVH(
 
     @RequiresApi(Build.VERSION_CODES.N)
     open fun bind(messageDto: MessageDto, vhExtraData: MessageVhExtraData) {
+
 //        val chat = ChatManager.getInstance().getChat(
 //            messageRealmObject.account, messageRealmObject.user
 //        )
@@ -117,13 +116,13 @@ abstract class MessageVH(
 //            messageHeader.visibility = View.GONE
 //        }
 //
-//        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.M) {
-//            if (SettingsManager.interfaceTheme() == SettingsManager.InterfaceTheme.dark) {
-//                messageTextTv.setTextColor(itemView.context.getColor(R.color.grey_200))
-//            } else {
-//                messageTextTv.setTextColor(itemView.context.getColor(R.color.black))
-//            }
-//        }
+        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.M) {
+            if (SettingsManager.interfaceTheme() == SettingsManager.InterfaceTheme.dark) {
+                messageTextTv.setTextColor(itemView.context.getColor(R.color.grey_200))
+            } else {
+                messageTextTv.setTextColor(itemView.context.getColor(R.color.black))
+            }
+        }
 
         // Added .concat("&zwj;") and .concat(String.valueOf(Character.MIN_VALUE)
         // to avoid click by empty space after ClickableSpan
@@ -177,14 +176,14 @@ abstract class MessageVH(
             )
         }
 
-      //  messageTextTv.movementMethod = CorrectlyTouchEventTextView.LocalLinkMovementMethod
+         messageTextTv.movementMethod = CorrectlyTouchEventTextView.LocalLinkMovementMethod
 
         // set unread status
         isUnread = vhExtraData.isUnread
 
         // set date
-       // needDate = vhExtraData.isNeedDate
-     //   date = getDateStringForMessage(messageDto.sentTimestamp)
+        // needDate = vhExtraData.isNeedDate
+        //   date = getDateStringForMessage(messageDto.sentTimestamp)
         if (!vhExtraData.isNeedName) {
             messageHeader.visibility = View.GONE
         }
@@ -210,6 +209,7 @@ abstract class MessageVH(
 //        setupTime(messageRealmObject)
 //        setupReferences(messageRealmObject, vhExtraData)
 //    }
+    }
 
         fun setupTime(messageDto: MessageDto) {
 //        var time = getTimeText(Date(messageDto.sentTimestamp)).toString()
@@ -239,7 +239,7 @@ abstract class MessageVH(
 //            setUpFile(messageRealmObject.referencesRealmObjects, vhExtraData)
 //            setupNonExternalGeo(messageRealmObject)
 //        }
-//    }
+   }
 //
 //    private fun setupNonExternalGeo(messageRealmObject: MessageRealmObject){
 //        messageRealmObject.referencesRealmObjects?.firstOrNull { it.isGeo }?.let {
@@ -508,7 +508,7 @@ abstract class MessageVH(
 //        }
 //    }
 //
-//    fun setupForwarded(messageRealmObject: MessageRealmObject, vhExtraData: MessageVhExtraData) {
+    fun setupForwarded(messageRealmObject: MessageDto, vhExtraData: MessageVhExtraData) {
 //        val forwardedIDs = messageRealmObject.forwardedIdsAsArray
 //        if (!forwardedIDs.contains(null)) {
 //            DatabaseManager.getInstance().defaultRealmInstance
@@ -551,20 +551,20 @@ abstract class MessageVH(
 //        }
 //    }
 //
-//    protected fun setUpMessageBalloonBackground(view: View, colorList: ColorStateList?) {
-//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-//            view.background.setTintList(colorList)
-//        } else {
-//            val wrapDrawable = DrawableCompat.wrap(view.background)
-//            DrawableCompat.setTintList(wrapDrawable, colorList)
-//            val pL = view.paddingLeft
-//            val pT = view.paddingTop
-//            val pR = view.paddingRight
-//            val pB = view.paddingBottom
-//            view.background = wrapDrawable
-//            view.setPadding(pL, pT, pR, pB)
-//        }
-//    }
+  fun setUpMessageBalloonBackground(view: View, colorList: ColorStateList?) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            view.background.setTintList(colorList)
+        } else {
+            val wrapDrawable = DrawableCompat.wrap(view.background)
+            DrawableCompat.setTintList(wrapDrawable, colorList)
+            val pL = view.paddingLeft
+            val pT = view.paddingTop
+            val pR = view.paddingRight
+            val pB = view.paddingBottom
+            view.background = wrapDrawable
+            view.setPadding(pL, pT, pR, pB)
+        }
+    }
 //
 //    private fun modifySpannableWithCustomQuotes(
 //        spannable: SpannableStringBuilder, displayMetrics: DisplayMetrics, color: Int
@@ -652,4 +652,3 @@ abstract class MessageVH(
 
         }
     }
-}

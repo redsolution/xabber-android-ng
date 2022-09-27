@@ -3,8 +3,9 @@
     <color name="transparent">#00FFFFFF</color>
     <color name="dialog_divider">#ebebeb</color>
     <color name="selected">#2F2196f3</color>
+    <color name="forwarded_background_color">#007aff</color>
 
-     <array name="account_500">
+    <array name="account_500">
         <item>@color/red_500</item>
         <item>@color/deep_orange_500</item>
         <item>@color/orange_500</item>
@@ -24,7 +25,7 @@
         <item>@color/brown_500</item>
     </array>
 
-     <array name="account_color_names">
+    <array name="account_color_names">
         <item>@string/account_color_name_red</item>
         <item>@string/account_color_name_deep_orange</item>
         <item>@string/account_color_name_orange</item>

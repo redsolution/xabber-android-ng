@@ -2,7 +2,6 @@ package com.xabber.presentation.application.fragments.chat.geo
 
 import android.content.Context
 import android.graphics.Bitmap
-import android.graphics.PorterDuff
 import android.preference.PreferenceManager
 import android.util.TypedValue
 import android.view.WindowManager

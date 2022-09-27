@@ -1,5 +1,6 @@
 package com.xabber.utils
 
+import android.content.Context
 import android.content.Context.INPUT_METHOD_SERVICE
 import android.content.Intent
 import android.content.pm.ActivityInfo
@@ -12,6 +13,7 @@ import android.graphics.drawable.Drawable
 import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
+import android.util.TypedValue
 import android.view.Display
 import android.view.Surface
 import android.view.View
@@ -141,3 +143,16 @@ fun Drawable.getBitmap(): Bitmap {
     draw(canvas)
     return bitmap
 }
+
+fun dipToPx(dip: Float, context: Context): Int {
+    return dipToPxFloat(dip, context).toInt()
+}
+
+fun dipToPxFloat(dip: Float, context: Context): Float {
+    return TypedValue.applyDimension(
+        TypedValue.COMPLEX_UNIT_DIP,
+        dip,
+        context.resources.displayMetrics
+    )
+}
+

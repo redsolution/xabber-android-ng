@@ -11,6 +11,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.xabber.R
 import com.xabber.databinding.ItemRecentFileBinding
+import com.xabber.presentation.application.fragments.chat.message.FileCategory
 
 class FileAdapter(private val listener: FilesListener) :
     RecyclerView.Adapter<RecyclerView.ViewHolder>() {

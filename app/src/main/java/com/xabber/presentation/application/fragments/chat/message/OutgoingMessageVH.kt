@@ -27,28 +27,38 @@ import com.xabber.utils.dp
 import com.xabber.model.xmpp.messages.MessageSendingState
 import com.xabber.model.xmpp.messages.MessageSendingState.*
 import com.xabber.databinding.ItemMessageOutgoingBinding
+import com.xabber.model.dto.MessageVhExtraData
 import com.xabber.utils.StringUtils
 import java.util.*
 
 class OutgoingMessageVH(
-    private val binding: ItemMessageOutgoingBinding,
-    private val listener: MessageAdapter.Listener
-) : BasicMessageVH(binding.root, listener) {
+    private val itemView: View,
+    private val messageClickListener: MessageClickListener,
+    private val messageLongClickListener: MessageLongClickListener,
+    private val fileListener: FileListener
+) : MessageVH(itemView, messageClickListener, messageLongClickListener, fileListener) {
 
 
     @RequiresApi(Build.VERSION_CODES.N)
     @SuppressLint("RestrictedApi")
     override fun bind(
         messageDto: MessageDto,
-        _isNeedTail: Boolean,
-        needDay: Boolean,
-        showCheckbox: Boolean,
-        isNeedTitle: Boolean
+        extraData: MessageVhExtraData
     ) {
+        super.bind(messageDto, extraData)
+        val needTail = extraData.isNeedTail
+
+        setStatusIcon(messageDto)
+
+        binding.includeNonExternalGeolocation.location.isVisible = (messageDto.location != null)
+        if (messageDto.location != null) binding.includeNonExternalGeolocation.locationCoordinates.text =
+            messageDto.location.latitude.toString() + ", " + messageDto.location.longitude.toString()
+
+
         val isNeedTail =
-            if (messageDto.messageBody!!.isEmpty() && messageDto.references != null) false else _isNeedTail
+            if ((messageDto.messageBody == null || messageDto.messageBody.isNotEmpty()) && messageDto.references != null) false else _isNeedTail
 // text & appearance
-        binding.tvContent.isVisible = messageDto.messageBody.isNotEmpty()
+        binding.tvContent.isVisible = messageDto.messageBody != null
         if (messageDto.messageBody != null) binding.tvContent.text = messageDto.messageBody
 // tvContent.setTextAppearance(SettingsManager.chatsAppearanceStyle()) - берем из класса настроек
 
@@ -61,7 +71,7 @@ class OutgoingMessageVH(
         val date = Date(messageDto.sentTimestamp)
         val time = StringUtils.getTimeText(binding.tvSendingTime.context, date)
         binding.messageInfo.isVisible =
-            messageDto.messageBody.isNotEmpty() && messageDto.references == null && messageDto.kind == null
+            (messageDto.messageBody != null && messageDto.references == null && messageDto.kind == null) || (messageDto.location != null)
         binding.tvSendingTime.text = time
 
 // status
@@ -73,7 +83,7 @@ class OutgoingMessageVH(
 
         //  binding.messageInfo.isVisible = messageDto.kind == null
         binding.info.isVisible =
-            messageDto.kind != null || (messageDto.references != null && messageDto.messageBody.isNotEmpty())
+            messageDto.kind != null || (messageDto.references != null && messageDto.messageBody != null) || messageDto.location != null
 
 
         binding.checkboxIncoming.isVisible = showCheckbox
@@ -91,9 +101,9 @@ class OutgoingMessageVH(
 
         params.gravity = Gravity.END
         binding.balloon.layoutParams = params
-        if (messageDto.references == null && messageDto.messageBody.isNotEmpty()) {
+        if (messageDto.references == null && messageDto.messageBody != null) {
             binding.balloon.setPadding(16.dp, 8.dp, if (isNeedTail) 16.dp else 8.dp, 10.dp)
-        } else if (messageDto.references != null && messageDto.messageBody.isNotEmpty()) {
+        } else if (messageDto.references != null && messageDto.messageBody != null) {
             binding.balloon.setPadding(4.dp, 4.dp, if (isNeedTail) 12.dp else 8.dp, 10.dp)
         } else {
             binding.balloon.setPadding(4.dp, 4.dp, 4.dp, -17.dp)
@@ -116,7 +126,7 @@ class OutgoingMessageVH(
                 if (isNeedTail) R.drawable.msg_out else R.drawable.msg
             )
         )
-
+        Log.d("aaa", "${binding.info.isVisible}")
 
         if (messageDto.kind == null) {
             binding.replyMessage.isVisible = false
@@ -192,6 +202,49 @@ class OutgoingMessageVH(
         }
     }
 
+    override fun onClick(p0: View?) {
+    super
+    }
+
+    override fun onLongClick(p0: View?): Boolean {
+        TODO("Not yet implemented")
+    }
+
+    override fun onFileClick(position: Int) {
+        TODO("Not yet implemented")
+    }
+
+    override fun onVoiceClick(
+        position: Int,
+        attachmentId: String,
+        saved: Boolean,
+        timeStamp: Long
+    ) {
+        TODO("Not yet implemented")
+    }
+
+    override fun onVoiceProgressClick(
+        position: Int,
+        attachmentId: String,
+        timestamp: Long,
+        current: Int,
+        max: Int
+    ) {
+        TODO("Not yet implemented")
+    }
+
+    override fun onFileLongClick(caller: View) {
+        TODO("Not yet implemented")
+    }
+
+    override fun onDownLoadCancel() {
+        TODO("Not yet implemented")
+    }
+
+    override fun onDownLoadError(error: String) {
+        TODO("Not yet implemented")
+    }
+
 
     private fun showSnackbar(view: View) {
         val snackbar: Snackbar?
@@ -206,10 +259,29 @@ class OutgoingMessageVH(
         snackbar.show()
     }
 
-    private fun setStatus(imageView: ImageView, messageSendingState: MessageSendingState) {
+    private fun setStatusIcon(messageDto: MessageDto) {
+       statusIcon.isVisible = true
+        bottomStatusIcon.isVisible = true
+        progressBar.isVisible = false
+
+        if (messageDto.messageSendingState == Uploading) {
+            messageTextTv.text = ""
+            statusIcon.isVisible = false
+            bottomStatusIcon.isVisible = false
+        } else {
+            MessageDeliveryStatusHelper.INSTANCE.setupStatusImageView(
+                    messageRealmObject, getStatusIcon()
+            );
+            MessageDeliveryStatusHelper.INSTANCE.setupStatusImageView(
+                    messageRealmObject, getBottomStatusIcon()
+            );
+        }
+    }
+
+    private fun setStatusIcon(messageDto: MessageDto) {
         var image: Int? = null
         var tint: Int? = null
-        when (messageSendingState) {
+        when (messageDto.messageSendingState) {
             Sending -> {
                 tint = R.color.grey_500
                 image = R.drawable.ic_clock_outline
@@ -321,7 +393,7 @@ class OutgoingMessageVH(
                 0 -> {}
                 1 -> {
                     binding.grid1.grid1.isVisible = true
-                    Glide.with(binding.root).load( messageDto.uries[0])
+                    Glide.with(binding.root).load(messageDto.uries[0])
                         .into(binding.grid1.ivImage0)
                     binding.grid1.imageMessageInfo.isVisible = messageDto.messageBody!!.isEmpty()
                     val date = Date(messageDto.sentTimestamp)
@@ -343,9 +415,9 @@ class OutgoingMessageVH(
                     binding.grid3.grid3.isVisible = true
                     Glide.with(binding.root).load(messageDto.uries[0])
                         .into(binding.grid3.ivImage0)
-                    Glide.with(binding.root).load( messageDto.uries[1])
+                    Glide.with(binding.root).load(messageDto.uries[1])
                         .into(binding.grid3.ivImage1)
-                    Glide.with(binding.root).load( messageDto.uries[2])
+                    Glide.with(binding.root).load(messageDto.uries[2])
                         .into(binding.grid3.ivImage2)
                     binding.grid3.imageMessageInfo.isVisible = messageDto.messageBody!!.isEmpty()
                     val date = Date(messageDto.sentTimestamp)
@@ -354,13 +426,13 @@ class OutgoingMessageVH(
                 }
                 4 -> {
                     binding.grid4.grid4.isVisible = true
-                    Glide.with(binding.root).load( messageDto.uries[0])
+                    Glide.with(binding.root).load(messageDto.uries[0])
                         .into(binding.grid4.ivImage0)
-                    Glide.with(binding.root).load( messageDto.uries[1])
+                    Glide.with(binding.root).load(messageDto.uries[1])
                         .into(binding.grid4.ivImage1)
-                    Glide.with(binding.root).load( messageDto.uries[2])
+                    Glide.with(binding.root).load(messageDto.uries[2])
                         .into(binding.grid4.ivImage2)
-                    Glide.with(binding.root).load( messageDto.uries[3])
+                    Glide.with(binding.root).load(messageDto.uries[3])
                         .into(binding.grid4.ivImage3)
 
                     binding.grid4.imageMessageInfo.isVisible = messageDto.messageBody!!.isEmpty()
@@ -372,13 +444,13 @@ class OutgoingMessageVH(
                     binding.grid5.grid5.isVisible = true
                     Glide.with(binding.root).load(messageDto.uries[0])
                         .into(binding.grid5.ivImage0)
-                    Glide.with(binding.root).load( messageDto.uries[1])
+                    Glide.with(binding.root).load(messageDto.uries[1])
                         .into(binding.grid5.ivImage1)
-                    Glide.with(binding.root).load( messageDto.uries[2])
+                    Glide.with(binding.root).load(messageDto.uries[2])
                         .into(binding.grid5.ivImage2)
                     Glide.with(binding.root).load(messageDto.uries[3])
                         .into(binding.grid5.ivImage3)
-                    Glide.with(binding.root).load( messageDto.uries[4])
+                    Glide.with(binding.root).load(messageDto.uries[4])
                         .into(binding.grid5.ivImage4)
 
                     binding.grid5.imageMessageInfo.isVisible = messageDto.messageBody!!.isEmpty()
@@ -388,17 +460,17 @@ class OutgoingMessageVH(
                 }
                 else -> {
                     binding.grid6.grid6.isVisible = true
-                    Glide.with(binding.root).load( messageDto.uries[0])
+                    Glide.with(binding.root).load(messageDto.uries[0])
                         .into(binding.grid6.ivImage0)
-                    Glide.with(binding.root).load( messageDto.uries[1])
+                    Glide.with(binding.root).load(messageDto.uries[1])
                         .into(binding.grid6.ivImage1)
-                    Glide.with(binding.root).load( messageDto.uries[2])
+                    Glide.with(binding.root).load(messageDto.uries[2])
                         .into(binding.grid6.ivImage2)
-                    Glide.with(binding.root).load( messageDto.uries[3])
+                    Glide.with(binding.root).load(messageDto.uries[3])
                         .into(binding.grid6.ivImage3)
-                    Glide.with(binding.root).load( messageDto.uries[4])
+                    Glide.with(binding.root).load(messageDto.uries[4])
                         .into(binding.grid6.ivImage4)
-                    Glide.with(binding.root).load( messageDto.uries[5])
+                    Glide.with(binding.root).load(messageDto.uries[5])
                         .into(binding.grid6.ivImage5)
                     val count = messageDto.uries.size - 6
                     if (count > 0) {
@@ -406,7 +478,7 @@ class OutgoingMessageVH(
                         binding.grid6.tvCounter.text = "+ $count"
                     }
 
-                     binding.grid6.imageMessageInfo.isVisible = messageDto.messageBody!!.isEmpty()
+                    binding.grid6.imageMessageInfo.isVisible = messageDto.messageBody!!.isEmpty()
                     val date = Date(messageDto.sentTimestamp)
                     val time = StringUtils.getTimeText(binding.tvSendingTime.context, date)
                     binding.grid6.tvImageSendingTime.text = time
@@ -416,14 +488,13 @@ class OutgoingMessageVH(
 
             //  setUpFile(messageDto.references, vhExtraData)
             //   setupNonExternalGeo(messageDto)
-        }
-        else {
+        } else {
             binding.grid1.grid1.isVisible = false
-        binding.grid2.grid2.isVisible = false
-        binding.grid3.grid3.isVisible = false
-        binding.grid4.grid4.isVisible = false
-        binding.grid5.grid5.isVisible = false
-        binding.grid6.grid6.isVisible = false
+            binding.grid2.grid2.isVisible = false
+            binding.grid3.grid3.isVisible = false
+            binding.grid4.grid4.isVisible = false
+            binding.grid5.grid5.isVisible = false
+            binding.grid6.grid6.isVisible = false
 
 
         }

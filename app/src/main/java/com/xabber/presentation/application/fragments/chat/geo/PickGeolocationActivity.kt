@@ -2,23 +2,17 @@ package com.xabber.presentation.application.fragments.chat.geo
 
 import android.Manifest
 import android.annotation.SuppressLint
-import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
-import android.graphics.Rect
-import android.os.Build
 import android.os.Bundle
-import android.os.Handler
 import android.os.PersistableBundle
 import android.preference.PreferenceManager
 import android.provider.Settings
 import android.util.Log
-import android.view.PixelCopy
 import android.view.View
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
@@ -195,14 +189,10 @@ class PickGeolocationActivity : AppCompatActivity() {
         }
     }
 
-    @RequiresApi(Build.VERSION_CODES.O)
     private fun initMapButtons() {
         binding.imSendLocation.setOnClickListener {
-
-         val a = getBitmapFromView(binding.mapView, this, {   Log.d("aaa", "$it") })
-
-         //   setResult(RESULT_CANCELED)
-       //     finish()
+            setResult(RESULT_CANCELED)
+            finish()
         }
 
         binding.imMyGeolocation.setOnClickListener {
@@ -213,25 +203,6 @@ class PickGeolocationActivity : AppCompatActivity() {
         }
     }
 
-    @RequiresApi(Build.VERSION_CODES.O)
-    fun getBitmapFromView(view: View, activity: Activity, callback: (Bitmap) -> Unit) {
-        activity.window?.let { window ->
-            val bitmap = Bitmap.createBitmap(view.width, view.height, Bitmap.Config.ARGB_8888)
-            val locationOfViewInWindow = IntArray(2)
-            view.getLocationInWindow(locationOfViewInWindow)
-            try {
-                PixelCopy.request(window, Rect(locationOfViewInWindow[0], locationOfViewInWindow[1], locationOfViewInWindow[0] + view.width, locationOfViewInWindow[1] + view.height), bitmap, { copyResult ->
-                    if (copyResult == PixelCopy.SUCCESS) {
-                        callback(bitmap)
-                    }
-                    // possible to handle other result codes ...
-                }, Handler())
-            } catch (e: IllegalArgumentException) {
-                // PixelCopy may throw IllegalArgumentException, make sure to handle it
-                e.printStackTrace()
-            }
-        }
-    }
 
     @SuppressLint("NotifyDataSetChanged")
     private fun setupSearchList(list: List<Place>) {
@@ -417,15 +388,6 @@ class PickGeolocationActivity : AppCompatActivity() {
         binding.frameSnack.isVisible = false
         updateLocationInfoBubble(location)
     }
-
-   val mapSnapshot = MapSnapshot( {
-          fun callback(pMapSnapshot: MapSnapshot) {
-                if (pMapSnapshot.status != MapSnapshot.Status.CANVAS_OK) {
-                    return
-                }
-               val bitmap = Bitmap.createBitmap(pMapSnapshot.bitmap)
-            }
-        }, MapSnapshot.INCLUDE_FLAG_UPTODATE, binding.mapView)
 
 
     @SuppressLint("SetTextI18n")

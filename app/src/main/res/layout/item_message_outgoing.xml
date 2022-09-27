@@ -44,6 +44,9 @@
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintEnd_toEndOf="parent">
 
+
+
+
                 <RelativeLayout
                     android:id="@+id/reply_message"
                     android:layout_width="wrap_content"
@@ -82,7 +85,6 @@
                         android:maxLines="1"
                         android:textSize="13sp" />
 
-                </RelativeLayout>
 
                 <include
                     android:id="@+id/grid_1"
@@ -114,6 +116,11 @@
                     layout="@layout/image_grid_6"
                     android:visibility="gone" />
 
+                </RelativeLayout>
+ <include android:id="@+id/include_non_external_geolocation"
+            layout="@layout/non_external_location_item"
+                          android:layout_width="400dp"
+                          android:layout_height="wrap_content"/>
                 <com.xabber.presentation.custom.CustomFlexboxLayout
                     android:id="@+id/flex_box_layout"
                     android:layout_width="wrap_content"
