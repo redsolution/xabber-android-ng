@@ -5,7 +5,7 @@ import com.xabber.presentation.application.fragments.chat.message.MessageVH
 
 data class MessageVhExtraData(
     val listener: MessageVH.FileListener?,
-    val fwdListener: ForwardedAdapter.ForwardListener?,
+   // val fwdListener: ForwardedAdapter.ForwardListener?,
     val colors: MessageBalloonColors,
     val mainMessageTimestamp: Long?,
     val isUnread: Boolean,

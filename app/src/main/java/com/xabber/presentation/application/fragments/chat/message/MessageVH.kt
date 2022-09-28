@@ -2,26 +2,30 @@ package com.xabber.presentation.application.fragments.chat.message
 
 import android.content.res.ColorStateList
 import android.os.Build
+import android.text.format.DateFormat
+import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import android.widget.*
 import androidx.annotation.RequiresApi
-import androidx.annotation.StyleRes
 import androidx.appcompat.widget.LinearLayoutCompat
 import androidx.core.graphics.drawable.DrawableCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.xabber.R
 import com.xabber.model.dto.MessageDto
 import com.xabber.model.dto.MessageVhExtraData
+import com.xabber.presentation.XabberApplication
+import com.xabber.presentation.application.fragments.chat.audio.VoiceManager
 import com.xabber.presentation.custom.CorrectlyTouchEventTextView
 import com.xabber.presentation.custom.CustomFlexboxLayout
+import java.util.*
 
-abstract class MessageVH(
+open class MessageVH(
     itemView: View,
     private val listener: MessageClickListener,
     private val longClickListener: MessageLongClickListener,
     private val fileListener: FileListener?
-) :  BasicMessageVH(itemView), View.OnClickListener,
+) : BasicMessageVH(itemView), View.OnClickListener,
     View.OnLongClickListener, FilesAdapter.FileListListener {
 
     var isUnread = false
@@ -116,13 +120,13 @@ abstract class MessageVH(
 //            messageHeader.visibility = View.GONE
 //        }
 //
-        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.M) {
-            if (SettingsManager.interfaceTheme() == SettingsManager.InterfaceTheme.dark) {
-                messageTextTv.setTextColor(itemView.context.getColor(R.color.grey_200))
-            } else {
-                messageTextTv.setTextColor(itemView.context.getColor(R.color.black))
-            }
-        }
+       // if (Build.VERSION.SDK_INT > Build.VERSION_CODES.M) {
+       //     if (SettingsManager.interfaceTheme() == SettingsManager.InterfaceTheme.dark) {
+       //         messageTextTv.setTextColor(itemView.context.getColor(R.color.grey_200))
+       //     } else {
+         //       messageTextTv.setTextColor(itemView.context.getColor(R.color.black))
+     //       }
+    //    }
 
         // Added .concat("&zwj;") and .concat(String.valueOf(Character.MIN_VALUE)
         // to avoid click by empty space after ClickableSpan
@@ -176,7 +180,7 @@ abstract class MessageVH(
             )
         }
 
-         messageTextTv.movementMethod = CorrectlyTouchEventTextView.LocalLinkMovementMethod
+     //   messageTextTv.movementMethod = CorrectlyTouchEventTextView.LocalLinkMovementMethod
 
         // set unread status
         isUnread = vhExtraData.isUnread
@@ -211,7 +215,7 @@ abstract class MessageVH(
 //    }
     }
 
-        fun setupTime(messageDto: MessageDto) {
+    fun setupTime(messageDto: MessageDto) {
 //        var time = getTimeText(Date(messageDto.sentTimestamp)).toString()
 //        messageRealmObject.delayTimestamp?.let {
 //            val delay = itemView.context.getString(
@@ -239,10 +243,15 @@ abstract class MessageVH(
 //            setUpFile(messageRealmObject.referencesRealmObjects, vhExtraData)
 //            setupNonExternalGeo(messageRealmObject)
 //        }
-   }
-//
-//    private fun setupNonExternalGeo(messageRealmObject: MessageRealmObject){
-//        messageRealmObject.referencesRealmObjects?.firstOrNull { it.isGeo }?.let {
+    }
+
+
+  private fun setupNonExternalGeo(messageDto: MessageDto){ }
+    override fun onFileClick(position: Int) {
+        TODO("Not yet implemented")
+    }
+
+    //        messageRealmObject.referencesRealmObjects?.firstOrNull { it.isGeo }?.let {
 //
 //
 //            itemView.findViewById<RelativeLayout>(R.id.include_non_external_geolocation).apply {
@@ -325,51 +334,64 @@ abstract class MessageVH(
 //        fileListener?.onFileClick(messagePosition, attachmentPosition, messageId)
 //    }
 //
-//    override fun onVoiceClick(
-//        attachmentPosition: Int,
-//        attachmentId: String,
-//        saved: Boolean,
-//        mainMessageTimestamp: Long
-//    ) {
-//        val messagePosition = adapterPosition
-//        if (messagePosition == RecyclerView.NO_POSITION) {
-//            LogManager.w(this, "onClick: no position")
-//            return
-//        }
-//        if (!saved) {
-//            fileListener?.onVoiceClick(
-//                messagePosition,
-//                attachmentPosition,
-//                attachmentId,
-//                messageId,
-//                mainMessageTimestamp
-//            )
-//        } else {
-//            VoiceManager.getInstance().voiceClicked(
+    override fun onVoiceClick(
+        attachmentPosition: Int,
+       attachmentId: String,
+       saved: Boolean,
+       mainMessageTimestamp: Long
+    ) {
+        val messagePosition = adapterPosition
+        if (messagePosition == RecyclerView.NO_POSITION) {
+            Log.w("tag", "onClick: no position")
+          return
+        }
+        if (!saved) {
+           fileListener?.onVoiceClick(
+                messagePosition,
+               attachmentPosition,
+                attachmentId,
+               messageId,
+               mainMessageTimestamp
+           )
+       } else {
+         //  VoiceManager.getInstance().voiceClicked(
 //                messageId, attachmentPosition, mainMessageTimestamp
 //            )
-//        }
-//    }
+       }
+    }
 //
-//    override fun onVoiceProgressClick(
-//        attachmentPosition: Int,
-//        attachmentId: String,
-//        timestamp: Long,
-//        current: Int,
-//        max: Int
-//    ) {
-//        val messagePosition = adapterPosition
-//        if (messagePosition == RecyclerView.NO_POSITION) {
-//
-//            return
-//        }
+    override fun onVoiceProgressClick(
+        attachmentPosition: Int,
+        attachmentId: String,
+        timestamp: Long,
+        current: Int,
+        max: Int
+    ) {
+    val messagePosition = adapterPosition
+    if (messagePosition == RecyclerView.NO_POSITION) {
+
+        return
+    }
+}
+
+    override fun onFileLongClick(caller: View) {
+
+    }
+
+    override fun onDownLoadCancel() {
+
+    }
+
+    override fun onDownLoadError(error: String) {
+
+    }
 //        VoiceManager.seekAudioPlaybackTo(attachmentId, timestamp, current, max)
 //    }
 //
-//    override fun onFileLongClick(referenceRealmObject: ReferenceRealmObject, caller: View) {
-//        fileListener?.onFileLongClick(referenceRealmObject, caller)
+//   override fun onFileLongClick(messageDto: MessageDto, caller: View) {
+//        fileListener?.onFileLongClick(messageDto, caller)
 //    }
-//
+
 //    override fun onDownloadCancel() {
 //        fileListener?.onDownloadCancel()
 //    }
@@ -377,25 +399,25 @@ abstract class MessageVH(
 //    override fun onDownloadError(error: String) {
 //        fileListener?.onDownloadError(error)
 //    }
-//
-//    override fun onClick(v: View) {
-//        val adapterPosition = adapterPosition
-//        if (adapterPosition == RecyclerView.NO_POSITION) {
-//            LogManager.w(this, "onClick: no position")
-//            return
-//        }
-//        when (v.id) {
-//            R.id.ivImage0 -> fileListener?.onImageClick(adapterPosition, 0, messageId)
-//            R.id.ivImage1 -> fileListener?.onImageClick(adapterPosition, 1, messageId)
-//            R.id.ivImage2 -> fileListener?.onImageClick(adapterPosition, 2, messageId)
-//            R.id.ivImage3 -> fileListener?.onImageClick(adapterPosition, 3, messageId)
-//            R.id.ivImage4 -> fileListener?.onImageClick(adapterPosition, 4, messageId)
-//            R.id.ivImage5 -> fileListener?.onImageClick(adapterPosition, 5, messageId)
-//            R.id.ivCancelUpload -> fileListener?.onUploadCancel()
-//            else -> listener.onMessageClick(messageBalloon, adapterPosition)
-//        }
-//    }
-//
+
+    override fun onClick(v: View) {
+        val adapterPosition = adapterPosition
+        if (adapterPosition == RecyclerView.NO_POSITION) {
+            Log.w("tag", "onClick: no position")
+            return
+        }
+        when (v.id) {
+            R.id.ivImage0 -> fileListener?.onImageClick(adapterPosition, 0, messageId)
+            R.id.ivImage1 -> fileListener?.onImageClick(adapterPosition, 1, messageId)
+            R.id.ivImage2 -> fileListener?.onImageClick(adapterPosition, 2, messageId)
+            R.id.ivImage3 -> fileListener?.onImageClick(adapterPosition, 3, messageId)
+            R.id.ivImage4 -> fileListener?.onImageClick(adapterPosition, 4, messageId)
+            R.id.ivImage5 -> fileListener?.onImageClick(adapterPosition, 5, messageId)
+            R.id.ivCancelUpload -> fileListener?.onUploadCancel()
+            else -> listener.onMessageClick(messageBalloon, adapterPosition)
+        }
+    }
+
 //    /** Upload progress subscription  */
 //    protected fun subscribeForUploadProgress() {
 //        fun setUpProgress(progressData: HttpFileUploadManager.ProgressData?) {
@@ -509,7 +531,7 @@ abstract class MessageVH(
 //    }
 //
     fun setupForwarded(messageRealmObject: MessageDto, vhExtraData: MessageVhExtraData) {
-//        val forwardedIDs = messageRealmObject.forwardedIdsAsArray
+    //        val forwardedIDs = messageRealmObject.forwardedIdsAsArray
 //        if (!forwardedIDs.contains(null)) {
 //            DatabaseManager.getInstance().defaultRealmInstance
 //                .where(MessageRealmObject::class.java)
@@ -551,7 +573,7 @@ abstract class MessageVH(
 //        }
 //    }
 //
-  fun setUpMessageBalloonBackground(view: View, colorList: ColorStateList?) {
+    fun setUpMessageBalloonBackground(view: View, colorList: ColorStateList?) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             view.background.setTintList(colorList)
         } else {
@@ -640,15 +662,20 @@ abstract class MessageVH(
 //        }
 //    }
 //
-//    private fun getTimeText(timeStamp: Date): String {
-//        return DateFormat.getTimeFormat(Application.getInstance()).format(timeStamp)
-//    }
-//
-//    init {
-//        ivCancelUpload?.setOnClickListener(this)
-//        itemView.setOnClickListener(this)
-//        itemView.setOnLongClickListener(this)
-//    }
-
-        }
+}
+    private fun getTimeText(timeStamp: Date): String {
+        return DateFormat.getTimeFormat(XabberApplication.newInstance()).format(timeStamp)
     }
+
+    init {
+        ivCancelUpload?.setOnClickListener(this)
+        itemView.setOnClickListener(this)
+        itemView.setOnLongClickListener(this)
+    }
+
+    override fun onLongClick(p0: View?): Boolean {
+     return false
+    }
+
+
+}

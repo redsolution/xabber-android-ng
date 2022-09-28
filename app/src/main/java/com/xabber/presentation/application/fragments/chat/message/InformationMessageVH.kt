@@ -10,17 +10,16 @@ class InformationMessageVH(
     private val binding: ItemMessageSystemBinding
 ) : BasicMessageVH(
     binding.root,
-   null
 ) {
-    @RequiresApi(Build.VERSION_CODES.N)
-    override fun bind(
-        messageDto: MessageDto,
-        isNeedTail: Boolean,
-        needDay: Boolean,
-        showCheckbox: Boolean,
-        isNeedTitle: Boolean
-    ) {
-        super.bind(messageDto, isNeedTail, needDay, showCheckbox, isNeedTitle)
-        binding.messageText.text = messageDto.messageBody
-    }
+//    @RequiresApi(Build.VERSION_CODES.N)
+//    override fun bind(
+//        messageDto: MessageDto,
+//        isNeedTail: Boolean,
+//        needDay: Boolean,
+//        showCheckbox: Boolean,
+//        isNeedTitle: Boolean
+//    ) {
+//        super.bind(messageDto, isNeedTail, needDay, showCheckbox, isNeedTitle)
+//        binding.messageText.text = messageDto.messageBody
+//    }
 }

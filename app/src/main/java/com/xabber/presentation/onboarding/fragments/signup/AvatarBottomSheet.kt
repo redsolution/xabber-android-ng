@@ -6,6 +6,7 @@ import android.content.DialogInterface
 import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -13,6 +14,9 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.view.updateLayoutParams
 import androidx.fragment.app.activityViewModels
 import by.kirich1409.viewbindingdelegate.viewBinding
+import com.canhub.cropper.CropImageContract
+import com.canhub.cropper.CropImageView
+import com.canhub.cropper.options
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
@@ -20,12 +24,12 @@ import com.xabber.R
 import com.xabber.databinding.BottomSheetAvatarBinding
 import com.xabber.presentation.application.fragments.chat.FileManager
 import com.xabber.presentation.application.fragments.chat.FileManager.Companion.getFileUri
-import com.xabber.utils.askUserForOpeningAppSettings
-import com.xabber.utils.dp
-import com.xabber.utils.isPermissionGranted
 import com.xabber.presentation.onboarding.activity.OnboardingViewModel
 import com.xabber.presentation.onboarding.contract.navigator
 import com.xabber.presentation.onboarding.fragments.signup.emoji.EmojiAvatarBottomSheet
+import com.xabber.utils.askUserForOpeningAppSettings
+import com.xabber.utils.dp
+import com.xabber.utils.isPermissionGranted
 import java.io.File
 
 class AvatarBottomSheet : BottomSheetDialogFragment() {
@@ -42,13 +46,22 @@ class AvatarBottomSheet : BottomSheetDialogFragment() {
     )
 
     private val cameraResultLauncher = registerForActivityResult(
-        ActivityResultContracts.TakePicture(), ::onSaveImage
+        ActivityResultContracts.TakePicture(), ::onTakePictureFromCamera
     )
 
     private val galleryResultLauncher = registerForActivityResult(
         ActivityResultContracts.GetContent(),
         ::onTakePictureFromGallery
     )
+
+    private val cropImage = registerForActivityResult(CropImageContract()) {
+        if (it.isSuccessful) {
+            onboardingViewModel.setAvatarUri(it.uriContent!!)
+        } else {
+            val exception = it.error
+            Log.d("jjj", "$exception")
+        }
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -140,15 +153,25 @@ class AvatarBottomSheet : BottomSheetDialogFragment() {
 
     private fun onTakePictureFromGallery(result: Uri?) {
         if (result != null) {
-            onboardingViewModel.setAvatarUri(result)
+            startCrop(result)
+            //  onboardingViewModel.setAvatarUri(result)
             dismiss()
         }
     }
 
+    private fun startCrop(uri: Uri) {
+        cropImage.launch(
+            options(uri) {
+                setGuidelines(CropImageView.Guidelines.ON).setMinCropResultSize(1000, 1000)
+            })
 
-    private fun onSaveImage(result: Boolean) {
+    }
+
+    private fun onTakePictureFromCamera(result: Boolean) {
         if (result) {
-            if (currentPhotoUri != null) onboardingViewModel.setAvatarUri(currentPhotoUri!!)
+            if (currentPhotoUri != null) {
+                startCrop(currentPhotoUri!!)
+            }    // onboardingViewModel.setAvatarUri(currentPhotoUri!!)
             dismiss()
         }
     }

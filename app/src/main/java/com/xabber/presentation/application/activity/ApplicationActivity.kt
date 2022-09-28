@@ -64,7 +64,7 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
         setTheme(R.style.ThemeApplication)
         super.onCreate(savedInstanceState)
         setContentView(binding.root)
-        if (true) {
+        if (false) {
             updateUiDependingOnMode(isDualScreenMode())
             setFullScreenMode()
             setHeightStatusBar()

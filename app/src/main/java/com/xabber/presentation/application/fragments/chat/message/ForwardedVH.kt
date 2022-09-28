@@ -3,8 +3,10 @@ package com.xabber.presentation.application.fragments.chat.message
 import android.annotation.SuppressLint
 import android.graphics.Paint
 import android.graphics.PorterDuff
+import android.os.Build
 import android.view.View
 import android.widget.TextView
+import androidx.annotation.RequiresApi
 import com.xabber.R
 import com.xabber.model.dto.MessageDto
 import com.xabber.model.dto.MessageVhExtraData
@@ -20,6 +22,7 @@ class ForwardedVH(
 
     private val tvForwardedCount: TextView = itemView.findViewById(R.id.forwarded_count_tv)
 
+    @RequiresApi(Build.VERSION_CODES.N)
     @SuppressLint("UseCompatLoadingForDrawables")
     override fun bind(messageDto: MessageDto, vhExtraData: MessageVhExtraData) {
         super.bind(messageDto, vhExtraData)
@@ -47,16 +50,16 @@ class ForwardedVH(
             tvForwardedCount.apply {
                 if (messageDto.references != null) {
                     val forwardedCount = messageDto.references.size
-                    text = itemView.context.resources.getQuantityString(
-                        R.plurals.forwarded_messages_count, forwardedCount, forwardedCount
-                    )
+                 //   text = itemView.context.resources.getQuantityString(
+                 //       R.plurals.forwarded_messages_count, forwardedCount, forwardedCount
+                 //   )
                     paintFlags = tvForwardedCount.paintFlags or Paint.UNDERLINE_TEXT_FLAG
                     alpha =
-                        if (SettingsManager.interfaceTheme() == SettingsManager.InterfaceTheme.light) {
+                     //   if (SettingsManager.interfaceTheme() == SettingsManager.InterfaceTheme.light) {
                             1f
-                        } else {
-                            0.6f
-                        }
+                     //   } else {
+                    //        0.6f
+                    //    }
                     visibility = View.VISIBLE
                 }
             }
@@ -64,7 +67,7 @@ class ForwardedVH(
             forwardedMessagesRV.visibility = View.GONE
         }
 
-        LogManager.d(this, messageRealmObject.forwardedIds.joinToString { it.forwardMessageId })
+      //  LogManager.d(this, messageRealmObject.forwardedIds.joinToString { it.forwardMessageId })
 
         // setup BACKGROUND
         val balloonDrawable = itemView.context.resources.getDrawable(
@@ -87,16 +90,16 @@ class ForwardedVH(
 
         // setup BACKGROUND COLOR
         val backgroundColor =
-            if (isAuthorMe) {
+       //     if (isAuthorMe) {
                 vhExtraData.colors.incomingForwardedBalloonColors
-            } else {
-                vhExtraData.colors.outgoingForwardedBalloonColors
-            }
-        setUpMessageBalloonBackground(messageBalloon, backgroundColor)
+          //  } else {
+         //       vhExtraData.colors.outgoingForwardedBalloonColors
+      //      }
+    //    setUpMessageBalloonBackground(messageBalloon, backgroundColor)
 
-        if (messageTextTv.text.toString().trim { it <= ' ' }.isEmpty()) {
-            messageTextTv.visibility = View.GONE
-        }
+//        if (messageTextTv.text.toString().trim { it <= ' ' }.isEmpty()) {
+//            messageTextTv.visibility = View.GONE
+//        }
 
     }
 

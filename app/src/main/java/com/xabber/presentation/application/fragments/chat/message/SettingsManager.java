@@ -47,18 +47,7 @@ public class SettingsManager implements OnInitializedListener, SharedPreferences
 
     }
 
- public static InterfaceTheme interfaceTheme() {
-        String value = getString(R.string.interface_theme_key, R.string.interface_theme_default);
-        if (Application.getInstance().getString(R.string.interface_theme_dark_value).equals(value)) {
-            return InterfaceTheme.dark;
-        } else if (Application.getInstance().getString(R.string.interface_theme_light_value).equals(value)) {
-            return InterfaceTheme.light;
-        } else if (Application.getInstance().getString(R.string.interface_theme_normal_value).equals(value)) {
-            return InterfaceTheme.light;
-        } else {
-            throw new IllegalStateException();
-        }
-    }
+
     public enum ChatsHistory {
 
         /**

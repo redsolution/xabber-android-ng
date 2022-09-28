@@ -29,7 +29,7 @@ import java.util.*
 class IncomingMessageVH(
     private val binding: ItemMessageIncomingBinding,
     private val listener: MessageAdapter.Listener,
-) : BasicMessageVH(binding.root, listener) {
+) : BasicMessageVH(binding.root) {
     @RequiresApi(Build.VERSION_CODES.N)
     @SuppressLint("RestrictedApi", "ResourceAsColor")
     override fun bind(
