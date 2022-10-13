@@ -24,7 +24,7 @@ object VoiceManager {
     }
 
     fun stopRecording(deleteTempFile: Boolean): Boolean {
-        RecordService.stopRecording(XabberApplication.newInstance().baseContext);
+     //   RecordService.stopRecording(XabberApplication.newInstance().baseContext);
         if (deleteTempFile)
             deleteRecordedFile();
         return true;

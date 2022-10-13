@@ -4,6 +4,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Bundle
+import android.os.Environment
 import android.provider.MediaStore
 import android.util.Log
 import android.view.View
@@ -17,19 +18,24 @@ import com.bumptech.glide.request.RequestOptions
 import com.xabber.R
 import com.xabber.databinding.FragmentSignupAvatarBinding
 import com.xabber.presentation.BaseFragment
-import com.xabber.utils.mask.Mask
-import com.xabber.utils.mask.MaskedDrawableBitmapShader
+import com.xabber.presentation.application.fragments.chat.FileManager
 import com.xabber.presentation.onboarding.activity.OnboardingViewModel
 import com.xabber.presentation.onboarding.contract.navigator
 import com.xabber.presentation.onboarding.contract.toolbarChanger
+import com.xabber.utils.mask.Mask
+import com.xabber.utils.mask.MaskedDrawableBitmapShader
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import java.io.File
+import java.io.FileOutputStream
+import java.text.SimpleDateFormat
+import java.util.*
+
 
 class SignupAvatarFragment : BaseFragment(R.layout.fragment_signup_avatar) {
     private val binding by viewBinding(FragmentSignupAvatarBinding::bind)
     private val onboardingViewModel: OnboardingViewModel by activityViewModels()
     val maskedDrawable = MaskedDrawableBitmapShader()
-
 
     private var avatarData: ByteArray? = null
     private var isImageSaved = false
@@ -61,6 +67,8 @@ class SignupAvatarFragment : BaseFragment(R.layout.fragment_signup_avatar) {
     }
 
     private fun setAvatar(uri: Uri?) {
+
+
         val bitmap = MediaStore.Images.Media.getBitmap(requireContext().contentResolver, uri)
         maskedDrawable.setPictureBitmap(bitmap)
         with(binding) {
@@ -71,7 +79,6 @@ class SignupAvatarFragment : BaseFragment(R.layout.fragment_signup_avatar) {
                         .placeholder(R.drawable.avatar_place_holder)
                         .diskCacheStrategy(DiskCacheStrategy.NONE)
                         .skipMemoryCache(true)
-                        .dontAnimate()
                 )
                 .into(profileImage)
             avatarBtnNext.isEnabled = true
@@ -117,25 +124,70 @@ class SignupAvatarFragment : BaseFragment(R.layout.fragment_signup_avatar) {
         binding.avatarBtnNext.isEnabled = isImageSaved
         binding.avatarBtnNext.setOnClickListener {
             saveAvatarInInternalStorage()
-            navigator().goToApplicationActivity(true)
+            //   saveImage()
+            //    navigator().goToApplicationActivity(true)
         }
     }
 
     private fun saveAvatar() {
         lifecycleScope.launch(Dispatchers.IO) {
             if (avatarData != null) {
-             onboardingViewModel.avatarUri
+                onboardingViewModel.avatarUri
                 isImageSaved = true
             }
         }
     }
 
-    private fun saveAvatarInInternalStorage(){
-        Log.d("avatar", "$avatarData")
+    private fun saveAvatarInInternalStorage() {
+        val file = FileManager.generatePicturePath()
+        //      saveToInternalStorage(avatarData)
+        Log.d(
+            "avatar",
+            "ttttt ${onboardingViewModel.avatarUri.value}, ${onboardingViewModel.nickName.value}, ${onboardingViewModel.username.value}, ${onboardingViewModel.password.value}"
+        )
+    }
+
+    fun SaveBitmapToInternalStorage(bitmap: Bitmap) {
+        var directory = "com.xabber.android.ng.avatar"
+        //can change directory as per need
+        if (directory != null || directory != "") directory = "/" + directory
+        var imagesDir =
+            requireContext().getExternalFilesDirs(Environment.DIRECTORY_PICTURES + directory)
+
+        var jFile = File("")
+    }
+
+
+    private fun saveImage() {
+        val finalBitmap = MediaStore.Images.Media.getBitmap(
+            requireContext().getContentResolver(),
+            onboardingViewModel.avatarUri.value
+        );
+        val myDir = File(
+            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
+                .toString() + File.separator + "AppName" + File.separator + "photos"
+        );
+        myDir.mkdirs()
+
+        val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss").format(Date());
+        val fname = onboardingViewModel.nickName.value + timeStamp + ".jpg";
+        Log.i("Image path: ", fname);
+
+        val file = File(myDir, fname);
+        if (file.exists()) file.delete();
+        try {
+            val out = FileOutputStream(file);
+            finalBitmap.compress(Bitmap.CompressFormat.JPEG, 100, out);
+            out.flush();
+            out.close();
+        } catch (e: Exception) {
+            e.printStackTrace();
+        }
     }
 
     override fun onDestroy() {
         super.onDestroy()
         onBackPressedCallback.remove()
     }
+
 }

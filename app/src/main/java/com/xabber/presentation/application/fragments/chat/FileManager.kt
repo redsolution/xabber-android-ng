@@ -35,7 +35,7 @@ class FileManager : Fragment() {
             try {
                 val mediaScanIntent = Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE)
                 mediaScanIntent.data = uri
-                XabberApplication.newInstance().sendBroadcast(mediaScanIntent)
+            //    XabberApplication.newInstance().sendBroadcast(mediaScanIntent)
             } catch (e: Exception) {
                 Log.d("error", "${e.printStackTrace()}")
             }

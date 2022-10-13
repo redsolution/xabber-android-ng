@@ -10,7 +10,7 @@ data class MessageDto(
     val isOutgoing: Boolean,
     val owner: String,
     val opponent: String,
-    val messageBody: String?,
+    val messageBody: String,
     val messageSendingState: MessageSendingState,
     val sentTimestamp: Long,
     val editTimestamp: Long?,

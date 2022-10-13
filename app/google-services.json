@@ -1,0 +1,68 @@
+{
+  "project_info": {
+    "project_number": "429598848947",
+    "project_id": "xabber-ng-71d23",
+    "storage_bucket": "xabber-ng-71d23.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:429598848947:android:120c43d9cdcf27daa4fdc6",
+        "android_client_info": {
+          "package_name": "com.xabber"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "429598848947-s7i9kk0nt62n76f3nq2ee6orq111pm2i.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBK7EDn-J5RJnVLAzCWiQa1_g-Vaee9y2Y"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "429598848947-s7i9kk0nt62n76f3nq2ee6orq111pm2i.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:429598848947:android:2fbdfc1093f94fbba4fdc6",
+        "android_client_info": {
+          "package_name": "com.xabber.android.ng"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "429598848947-s7i9kk0nt62n76f3nq2ee6orq111pm2i.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBK7EDn-J5RJnVLAzCWiQa1_g-Vaee9y2Y"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "429598848947-s7i9kk0nt62n76f3nq2ee6orq111pm2i.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

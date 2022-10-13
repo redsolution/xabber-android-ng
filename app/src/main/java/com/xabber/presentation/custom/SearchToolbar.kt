@@ -166,9 +166,9 @@ class SearchToolbar : ConstraintLayout {
         }
 
         @RequiresApi(Build.VERSION_CODES.Q)
-        override fun writeToParcel(out: Parcel?, flags: Int) {
+        override fun writeToParcel(out: Parcel, flags: Int) {
             super.writeToParcel(out, flags)
-            out?.writeBoolean(isSearchMode)
+            out.writeBoolean(isSearchMode)
         }
 
         companion object {

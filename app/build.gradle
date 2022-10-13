@@ -1,19 +1,20 @@
 plugins {
-    id 'com.android.application'
+   id 'com.android.application'
     id 'org.jetbrains.kotlin.android'
     id 'kotlin-kapt'
     id 'kotlin-android'
     id 'io.realm.kotlin'
     id 'kotlin-parcelize'
+    id 'com.google.gms.google-services'
 }
 
 android {
-    compileSdk 32
+    compileSdk 33
 
     defaultConfig {
         applicationId "com.xabber.android.ng"
         minSdk 23
-        targetSdk 32
+        targetSdk 33
         versionCode 1
         versionName "1.0"
 
@@ -44,6 +45,7 @@ android {
     buildFeatures {
         viewBinding true
     }
+    buildToolsVersion '32.1.0 rc1'
 }
 
 dependencies {
@@ -51,17 +53,18 @@ dependencies {
     api files('src/main/java/opus.aar')
 
     // Android Support
-    implementation 'androidx.core:core-ktx:1.8.0'
+    implementation 'androidx.core:core-ktx:1.9.0'
     implementation 'androidx.appcompat:appcompat:1.5.1'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
     implementation 'com.google.android.material:material:1.6.1'
     implementation "androidx.recyclerview:recyclerview:1.2.1"
     implementation 'androidx.legacy:legacy-support-v13:1.0.0'
-    implementation "androidx.fragment:fragment-ktx:1.5.2"
+    implementation "androidx.fragment:fragment-ktx:1.5.3"
 
     // Kotlin
     implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.5.1'
     implementation 'org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.7.10'
+    implementation 'com.google.firebase:firebase-messaging-ktx:23.0.8'
 
     // Test
     testImplementation 'junit:junit:4.13.2'
@@ -82,7 +85,7 @@ dependencies {
     implementation "org.jetbrains.kotlinx:kotlinx-serialization-json:1.4.0"
 
     // Coroutines
-    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.6.3'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.6.4'
 
     // SlidingPaneLayout
     implementation 'androidx.slidingpanelayout:slidingpanelayout:1.2.0'
@@ -91,7 +94,7 @@ dependencies {
     implementation "com.github.kirich1409:viewbindingpropertydelegate-noreflection:1.5.6"
 
     // Glide
-    implementation 'com.github.bumptech.glide:glide:4.13.2'
+    implementation 'com.github.bumptech.glide:glide:4.14.2'
     implementation 'jp.wasabeef:glide-transformations:4.3.0'
 
     // Realm
@@ -104,10 +107,20 @@ dependencies {
     implementation 'com.journeyapps:zxing-android-embedded:4.3.0'
 
     //Crop
-    implementation 'com.github.CanHub:Android-Image-Cropper:4.3.1'
+    implementation 'com.github.CanHub:Android-Image-Cropper:4.3.2'
 
     // Debug
     debugImplementation 'com.squareup.leakcanary:leakcanary-android:2.9.1'
 
     implementation "org.jetbrains.kotlinx:kotlinx-serialization-json:1.4.0"
+
+    // Emoji
+    implementation "io.github.aghajari:AXEmojiView:1.5.2"
+    implementation "io.github.aghajari:AXEmojiView-GoogleProvider:1.5.2"
+
+    // Firebase
+    implementation platform('com.google.firebase:firebase-bom:30.5.0')
+    implementation 'com.google.firebase:firebase-core:21.1.1'
+    implementation 'com.google.firebase:firebase-analytics'
+    implementation 'com.google.firebase:firebase-messaging'
 }

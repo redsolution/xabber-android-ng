@@ -13,6 +13,8 @@
         tools:ignore="ScopedStorage" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.READ_INTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
+     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO"/>
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
@@ -21,6 +23,7 @@
     <uses-permission
         android:name="android.permission.ACCESS_FINE_LOCATION"
         tools:remove="android:maxSdkVersion" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
 
     <application
         android:name=".presentation.XabberApplication"
@@ -34,21 +37,21 @@
         android:windowSoftInputMode="adjustResize">
         <activity
             android:name=".presentation.application.activity.ApplicationActivity"
+            android:windowSoftInputMode="adjustResize|adjustNothing"
             android:exported="true"
             android:theme="@style/SplashScreen">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
         <activity
             android:name=".presentation.onboarding.activity.OnBoardingActivity"
             android:screenOrientation="sensorPortrait"
-            android:theme="@style/ThemeOnboarding"
-            tools:ignore="LockedOrientationActivity">
-
-        </activity>
+            android:theme="@style/ThemeOnboarding" />
+        <activity
+            android:name="com.canhub.cropper.CropImageActivity"
+            android:theme="@style/Theme.AppCompat.Light.DarkActionBar" />
         <activity
             android:name=".presentation.application.fragments.chat.geo.PickGeolocationActivity"
             android:theme="@style/PickGeolocationActivity" />
@@ -65,6 +68,19 @@
                 android:resource="@xml/provider_paths" />
         </provider>
         <service android:name=".service.RecordService" />
+        <service
+            android:name=".notification.PushService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT"/>
+            </intent-filter>
+        </service>
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_id_outline"/>
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/red_500"/>
     </application>
 
 </manifest>

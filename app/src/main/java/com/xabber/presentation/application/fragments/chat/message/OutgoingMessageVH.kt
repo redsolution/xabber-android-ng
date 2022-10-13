@@ -45,10 +45,11 @@ class OutgoingMessageVH(
         showCheckbox: Boolean,
         isNeedTitle: Boolean
     ) {
+
         val isNeedTail =
             if (messageDto.messageBody!!.isEmpty() && messageDto.references != null) false else _isNeedTail
 // text & appearance
-        binding.tvContent.isVisible = messageDto.messageBody.isNotEmpty()
+        binding.tvContent.isVisible = messageDto.messageBody!!.isNotEmpty()
         if (messageDto.messageBody != null) binding.tvContent.text = messageDto.messageBody
 // tvContent.setTextAppearance(SettingsManager.chatsAppearanceStyle()) - берем из класса настроек
 
@@ -61,7 +62,7 @@ class OutgoingMessageVH(
         val date = Date(messageDto.sentTimestamp)
         val time = StringUtils.getTimeText(binding.tvSendingTime.context, date)
         binding.messageInfo.isVisible =
-            messageDto.messageBody.isNotEmpty() && messageDto.references == null && messageDto.kind == null
+            messageDto.messageBody!!.isNotEmpty() && messageDto.references == null && messageDto.kind == null
         binding.tvSendingTime.text = time
 
 // status
@@ -73,7 +74,7 @@ class OutgoingMessageVH(
 
         //  binding.messageInfo.isVisible = messageDto.kind == null
         binding.info.isVisible =
-            messageDto.kind != null || (messageDto.references != null && messageDto.messageBody.isNotEmpty())
+            messageDto.kind != null || (messageDto.references != null && messageDto.messageBody!!.isNotEmpty())
 
 
         binding.checkboxIncoming.isVisible = showCheckbox
@@ -91,9 +92,9 @@ class OutgoingMessageVH(
 
         params.gravity = Gravity.END
         binding.balloon.layoutParams = params
-        if (messageDto.references == null && messageDto.messageBody.isNotEmpty()) {
+        if (messageDto.references == null && messageDto.messageBody!!.isNotEmpty()) {
             binding.balloon.setPadding(16.dp, 8.dp, if (isNeedTail) 16.dp else 8.dp, 10.dp)
-        } else if (messageDto.references != null && messageDto.messageBody.isNotEmpty()) {
+        } else if (messageDto.references != null && messageDto.messageBody!!.isNotEmpty()) {
             binding.balloon.setPadding(4.dp, 4.dp, if (isNeedTail) 12.dp else 8.dp, 10.dp)
         } else {
             binding.balloon.setPadding(4.dp, 4.dp, 4.dp, -17.dp)

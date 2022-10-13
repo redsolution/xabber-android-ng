@@ -195,8 +195,8 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:background="@color/white"
-        android:elevation="6dp"
-        app:layout_constraintBottom_toBottomOf="parent"
+        android:elevation="1dp"
+        app:layout_constraintBottom_toTopOf="@id/emoji_popup_layout"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent">
 
@@ -231,7 +231,7 @@
 
         </androidx.constraintlayout.widget.ConstraintLayout>
 
-        <EditText
+        <com.aghajari.emojiview.view.AXEmojiEditText
             android:id="@+id/chat_input"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -283,9 +283,9 @@
             android:id="@+id/btn_record"
             android:layout_width="24dp"
             android:layout_height="24dp"
-            android:clickable="false"
             android:layout_marginHorizontal="16dp"
             android:background="@color/transparent"
+            android:clickable="false"
             android:filterTouchesWhenObscured="false"
             android:src="@drawable/ic_microphone"
             app:layout_constraintBottom_toBottomOf="parent"
@@ -332,7 +332,7 @@
             android:paddingHorizontal="4dp"
             android:paddingVertical="8dp"
             android:visibility="gone"
-            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintBottom_toBottomOf="@id/input_layout"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent">
@@ -369,16 +369,16 @@
         android:layout_marginBottom="80dp"
         android:background="@drawable/circle_grey_backround"
         android:visibility="gone"
-        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintBottom_toBottomOf="@id/input_layout"
         app:layout_constraintEnd_toEndOf="@id/btn_record_expanded"
         app:layout_constraintStart_toStartOf="@id/btn_record_expanded">
 
         <ImageView
             android:id="@+id/imStop"
-            android:padding="10dp"
             android:layout_width="36dp"
             android:layout_height="36dp"
             android:layout_gravity="center"
+            android:padding="10dp"
             android:src="@drawable/stop" />
 
     </FrameLayout>
@@ -412,9 +412,20 @@
         android:clickable="false"
         android:visibility="invisible"
         app:fabCustomSize="84dp"
-        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintBottom_toBottomOf="@id/input_layout"
         app:layout_constraintEnd_toEndOf="parent"
         app:tint="@color/white"
         tools:visibility="visible" />
+
+    <com.aghajari.emojiview.view.AXEmojiPopupLayout
+        android:id="@+id/emoji_popup_layout"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        app:flow_maxElementsWrap="3"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent">
+
+    </com.aghajari.emojiview.view.AXEmojiPopupLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

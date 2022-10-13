@@ -2,7 +2,6 @@ package com.xabber.utils.mask
 
 import android.content.res.Resources
 import android.graphics.BitmapFactory
-import com.xabber.presentation.XabberApplication
 
 object MaskPrepare {
 

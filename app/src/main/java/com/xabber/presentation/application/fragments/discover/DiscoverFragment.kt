@@ -1,6 +1,7 @@
 package com.xabber.presentation.application.fragments.discover
 
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import by.kirich1409.viewbindingdelegate.viewBinding
 import com.xabber.R

@@ -3,9 +3,10 @@ package com.xabber.presentation.onboarding.fragments.signup
 import android.Manifest
 import android.app.Dialog
 import android.content.DialogInterface
+import android.graphics.Bitmap
 import android.graphics.Color
-import android.net.Uri
 import android.os.Bundle
+import android.provider.MediaStore
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
@@ -14,6 +15,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.view.updateLayoutParams
 import androidx.fragment.app.activityViewModels
 import by.kirich1409.viewbindingdelegate.viewBinding
+import com.canhub.cropper.CropImage
 import com.canhub.cropper.CropImageContract
 import com.canhub.cropper.CropImageView
 import com.canhub.cropper.options
@@ -22,20 +24,16 @@ import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.xabber.R
 import com.xabber.databinding.BottomSheetAvatarBinding
-import com.xabber.presentation.application.fragments.chat.FileManager
-import com.xabber.presentation.application.fragments.chat.FileManager.Companion.getFileUri
 import com.xabber.presentation.onboarding.activity.OnboardingViewModel
 import com.xabber.presentation.onboarding.contract.navigator
 import com.xabber.presentation.onboarding.fragments.signup.emoji.EmojiAvatarBottomSheet
 import com.xabber.utils.askUserForOpeningAppSettings
 import com.xabber.utils.dp
 import com.xabber.utils.isPermissionGranted
-import java.io.File
 
 class AvatarBottomSheet : BottomSheetDialogFragment() {
     private val binding by viewBinding(BottomSheetAvatarBinding::bind)
     private val onboardingViewModel: OnboardingViewModel by activityViewModels()
-    private var currentPhotoUri: Uri? = null
 
     private val requestCameraPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(), ::onGotCameraPermissionResult
@@ -45,22 +43,26 @@ class AvatarBottomSheet : BottomSheetDialogFragment() {
         ActivityResultContracts.RequestPermission(), ::onGotGalleryPermissionResult
     )
 
-    private val cameraResultLauncher = registerForActivityResult(
-        ActivityResultContracts.TakePicture(), ::onTakePictureFromCamera
-    )
-
-    private val galleryResultLauncher = registerForActivityResult(
-        ActivityResultContracts.GetContent(),
-        ::onTakePictureFromGallery
-    )
-
     private val cropImage = registerForActivityResult(CropImageContract()) {
-        if (it.isSuccessful) {
-            onboardingViewModel.setAvatarUri(it.uriContent!!)
-        } else {
-            val exception = it.error
-            Log.d("jjj", "$exception")
+        Log.d("jjj", "${it.uriContent}")
+        when {
+            it.isSuccessful -> {
+                val bitmap = MediaStore.Images.Media.getBitmap(
+                    requireContext().contentResolver,
+                    it.uriContent
+                )
+                onboardingViewModel.setAvatarBitmap(bitmap)
+            }
+            it is CropImage.CancelledResult -> Log.d(
+                "jjj",
+                "cropping image was cancelled by the user"
+            )
+            else -> {
+                val exception = it.error
+                Log.d("jjj", "$exception")
+            }
         }
+        dismiss()
     }
 
     override fun onCreateView(
@@ -100,8 +102,11 @@ class AvatarBottomSheet : BottomSheetDialogFragment() {
                 dismiss()
             }
             selfieViewGroup.setOnClickListener {
-                if (isPermissionGranted(Manifest.permission.CAMERA) && isPermissionGranted(Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
-                    takePhotoFromCamera()
+                if (isPermissionGranted(Manifest.permission.CAMERA) && isPermissionGranted(
+                        Manifest.permission.WRITE_EXTERNAL_STORAGE
+                    )
+                ) {
+                    cropImageFromCamera()
                 } else {
                     requestCameraPermissionLauncher.launch(
                         arrayOf(
@@ -113,7 +118,7 @@ class AvatarBottomSheet : BottomSheetDialogFragment() {
             }
             choseImageViewGroup.setOnClickListener {
                 if (isPermissionGranted(Manifest.permission.READ_EXTERNAL_STORAGE)) {
-                    chooseImageFromGallery()
+                    cropImageFromGallery()
                 } else {
                     requestGalleryPermissionLauncher.launch(
                         Manifest.permission.READ_EXTERNAL_STORAGE
@@ -123,23 +128,16 @@ class AvatarBottomSheet : BottomSheetDialogFragment() {
         }
     }
 
-    private fun takePhotoFromCamera() {
-        val image: File? = FileManager.generatePicturePath()
-        if (image != null) {
-            currentPhotoUri = getFileUri(image, requireContext())
-            cameraResultLauncher.launch(currentPhotoUri)
-        }
-    }
 
     private fun onGotCameraPermissionResult(grantResults: Map<String, Boolean>) {
         if (grantResults.entries.all { it.value }) {
-            takePhotoFromCamera()
+            cropImageFromCamera()
         } else askUserForOpeningAppSettings()
     }
 
     private fun onGotGalleryPermissionResult(granted: Boolean) {
         if (granted) {
-            chooseImageFromGallery()
+            cropImageFromGallery()
         } else {
             if (!shouldShowRequestPermissionRationale(Manifest.permission.READ_EXTERNAL_STORAGE)) {
                 askUserForOpeningAppSettings()
@@ -147,41 +145,29 @@ class AvatarBottomSheet : BottomSheetDialogFragment() {
         }
     }
 
-    private fun chooseImageFromGallery() {
-        galleryResultLauncher.launch("image/*")
+    private fun cropImageFromCamera() {
+        startCrop(includeCamera = true, includeGallery = false)
     }
 
-    private fun onTakePictureFromGallery(result: Uri?) {
-        if (result != null) {
-            startCrop(result)
-            //  onboardingViewModel.setAvatarUri(result)
-            dismiss()
-        }
+    private fun cropImageFromGallery() {
+        startCrop(includeCamera = false, includeGallery = true)
     }
 
-    private fun startCrop(uri: Uri) {
-        cropImage.launch(
-            options(uri) {
-                setGuidelines(CropImageView.Guidelines.ON).setMinCropResultSize(1000, 1000)
-            })
-
-    }
-
-    private fun onTakePictureFromCamera(result: Boolean) {
-        if (result) {
-            if (currentPhotoUri != null) {
-                startCrop(currentPhotoUri!!)
-            }    // onboardingViewModel.setAvatarUri(currentPhotoUri!!)
-            dismiss()
-        }
+    private fun startCrop(includeCamera: Boolean, includeGallery: Boolean) {
+        Log.d("jjj", "startcrop")
+        cropImage.launch(options {
+            setGuidelines(CropImageView.Guidelines.OFF).setImageSource(
+                includeGallery, includeCamera
+            ).setOutputCompressFormat(Bitmap.CompressFormat.PNG).setAspectRatio(
+                1, 1
+            ).setMinCropWindowSize(800, 800).setActivityBackgroundColor(Color.BLACK)
+        })
     }
 
     override fun onDestroy() {
         super.onDestroy()
         requestCameraPermissionLauncher.unregister()
         requestGalleryPermissionLauncher.unregister()
-        cameraResultLauncher.unregister()
-        galleryResultLauncher.unregister()
     }
 
 }

@@ -1,13 +1,23 @@
 package com.xabber.presentation.application.activity
 
 import SoftInputAssist
+import android.Manifest
+import android.app.AlertDialog
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import android.util.TypedValue
+import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.constraintlayout.widget.ConstraintLayout
+import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
@@ -20,8 +30,13 @@ import com.google.android.material.badge.BadgeDrawable
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.xabber.R
 import com.xabber.databinding.ActivityApplicationBinding
+import com.xabber.model.dto.ChatListDto
 import com.xabber.model.dto.ContactDto
 import com.xabber.model.xmpp.account.Account
+import com.xabber.model.xmpp.messages.MessageSendingState
+import com.xabber.model.xmpp.presences.ResourceStatus
+import com.xabber.model.xmpp.presences.RosterItemEntity
+import com.xabber.notification.PushService
 import com.xabber.presentation.AppConstants
 import com.xabber.presentation.application.activity.DisplayManager.getMainContainerWidth
 import com.xabber.presentation.application.activity.DisplayManager.isDualScreenMode
@@ -44,6 +59,7 @@ import com.xabber.presentation.application.fragments.contacts.*
 import com.xabber.presentation.application.fragments.discover.DiscoverFragment
 import com.xabber.presentation.application.fragments.settings.*
 import com.xabber.presentation.onboarding.activity.OnBoardingActivity
+import com.xabber.utils.askUserForOpeningAppSettings
 import com.xabber.utils.lockScreenRotation
 import com.xabber.utils.mask.Mask
 
@@ -60,10 +76,80 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
     private val viewModel: ApplicationViewModel by viewModels()
     private val chatViewModel: ChatViewModel by viewModels()
 
+    private lateinit var pushBroadcastReceiver: BroadcastReceiver
+
+    private val requestPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        if (isGranted) {
+            // FCM SDK (and your app) can post notifications.
+        } else {
+            val dialog = AlertDialog.Builder(this).setMessage("App will not show notifications")
+                .setPositiveButton("Ok") { dialog, _ -> dialog.dismiss() }
+            dialog.show()
+        }
+    }
+
+    private fun askNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) ==
+                PackageManager.PERMISSION_GRANTED
+            ) {
+            } else if (shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS)) {
+                askUserForOpeningAppSettings()
+            } else {
+                requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         setTheme(R.style.ThemeApplication)
         super.onCreate(savedInstanceState)
         setContentView(binding.root)
+        val value = intent.getExtras()?.get("redirect").toString();
+        if (value == "homefragment") {
+            launchDetail(
+                ChatFragment.newInstance(
+                    ChatParams(
+                        ChatListDto(
+                            "1",
+                            "Иван Сергеев",
+                            "Иван Сергеев",
+                            "Иван Сергеев",
+                            "Я подумаю, но не обещаю пока ничего",
+                            System.currentTimeMillis(),
+                            MessageSendingState.Sended,
+                            false,
+                            true,
+                            null,
+                            false,
+                            false,
+                            false,
+                            0.0,
+                            0.0,
+                            ResourceStatus.Chat,
+                            RosterItemEntity.Contact,
+                            null,
+                            0,
+                            R.color.green_500,
+                            R.drawable.rayan,
+                            ContactDto(
+                                "1",
+                                "Иван Сергеев",
+                                "Иван Сергеев",
+                                "Иван",
+                                "Сергеев",
+                                "ivan@xabber.com",
+                                R.color.green_500,
+                                R.drawable.rayan,
+                                null, null, ResourceStatus.Online, RosterItemEntity.Contact
+                            )
+                        )
+                    )
+                )
+            )
+        }
         if (false) {
             updateUiDependingOnMode(isDualScreenMode())
             setFullScreenMode()
@@ -73,6 +159,35 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
             initBottomNavigation()
             determinateMask()
             determinateAccountList()
+            askNotificationPermission()
+
+            pushBroadcastReceiver = object : BroadcastReceiver() {
+                override fun onReceive(p0: Context?, intent: Intent?) {
+                    val extras = intent?.extras
+                    Log.d("keyintent", "messageReceive")
+                    extras?.keySet()?.firstOrNull {
+                        it == PushService.KEY_ACTION
+                    }?.let { key ->
+                        when (extras.getString(key)) {
+                            PushService.ACTION_SHOW_MESSAGE -> {
+                                extras.getString(PushService.KEY_MESSAGE)?.let { message ->
+                                    Log.d("keyintent", "messageReceive")
+                                    Toast.makeText(applicationContext, message, Toast.LENGTH_SHORT)
+                                        .show()
+                                }
+                            }
+                            else -> {
+                                Log.d("keyintent", "no key")
+                            }
+                        }
+                    }
+
+                }
+            }
+            val intentFilter = IntentFilter()
+            intentFilter.addAction(PushService.INTENT_FILTER)
+            registerReceiver(pushBroadcastReceiver, intentFilter)
+            Log.d("keyIntent", "broadcast = $pushBroadcastReceiver")
             binding.slidingPaneLayout.lockMode = SlidingPaneLayout.LOCK_MODE_LOCKED_CLOSED
             binding.slidingPaneLayout.clearAnimation()
             if (savedInstanceState == null) {
@@ -389,6 +504,7 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
 
     override fun onDestroy() {
         super.onDestroy()
+//        unregisterReceiver(pushBroadcastReceiver)
         assist?.onDestroy()
     }
 

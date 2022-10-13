@@ -62,6 +62,30 @@ fun Fragment.askUserForOpeningAppSettings() {
     }
 }
 
+fun AppCompatActivity.askUserForOpeningAppSettings() {
+    val appSettingsIntent = Intent(
+        Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+        Uri.fromParts("package", packageName, null)
+    )
+    if (packageManager.resolveActivity(
+            appSettingsIntent,
+            PackageManager.MATCH_DEFAULT_ONLY
+        ) != null
+    ) {
+        val dialog = AlertDialog.Builder(this)
+        dialog.setTitle(R.string.dialog_title_permission_denied)
+            .setMessage(R.string.offer_to_open_settings)
+            .setPositiveButton(R.string.dialog_button_open) { _, _ ->
+                startActivity(appSettingsIntent)
+            }
+            .setNegativeButton(R.string.dialog_button_cancel) { dialog, _ ->
+                dialog.dismiss()
+            }
+            .create()
+            .show()
+    }
+}
+
 fun Fragment.setFragmentResultListener(
     requestKey: String,
     listener: ((resultKey: String, bundle: Bundle) -> Unit)

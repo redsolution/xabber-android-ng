@@ -2,14 +2,15 @@ package com.xabber.presentation.application.fragments.chat
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Context.NOTIFICATION_SERVICE
+import android.content.pm.PackageManager
 import android.graphics.Canvas
-import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
-import android.os.SystemClock
+import android.os.*
 import android.text.Editable
 import android.text.TextWatcher
 import android.util.Log
@@ -23,6 +24,8 @@ import android.view.animation.TranslateAnimation
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.constraintlayout.widget.ConstraintLayout
+import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.isVisible
 import androidx.core.view.marginBottom
@@ -30,6 +33,9 @@ import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import by.kirich1409.viewbindingdelegate.viewBinding
+import com.aghajari.emojiview.AXEmojiManager
+import com.aghajari.emojiview.googleprovider.AXGoogleEmojiProvider
+import com.aghajari.emojiview.view.AXSingleEmojiView
 import com.xabber.R
 import com.xabber.databinding.FragmentChatBinding
 import com.xabber.model.dto.MessageDto
@@ -81,6 +87,11 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     private val requestGalleryPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
         ::onGotGalleryPermissionResult
+    )
+
+    private val requestImagesAndVideoPermissionResult = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions(),
+        ::onGotImagesAndVideoPermissionResult
     )
 
     private val timer = Runnable {
@@ -171,14 +182,71 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         }
     }
 
+    private fun onGotImagesAndVideoPermissionResult(grantResults: Map<String, Boolean>) {
+        if (grantResults.entries.all { it.value }) {
+            context?.let {
+                if (childFragmentManager.findFragmentByTag(AttachBottomSheet.TAG) == null) {
+                    AttachBottomSheet().show(childFragmentManager, AttachBottomSheet.TAG)
+                }
+            }
+        } else {
+            askUserForOpeningAppSettings()
+        }
+    }
+
+    private fun createNotificationChannel() {
+        // Create the NotificationChannel, but only on API 26+ because
+        // the NotificationChannel class is new and not in the support library
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val name = getString(R.string.project_id)
+            val descriptionText = getString(R.string.description)
+            val importance = NotificationManager.IMPORTANCE_HIGH
+            val channel = NotificationChannel("1", name, importance).apply {
+                description = descriptionText
+            }
+            // Register the channel with the system
+            val notificationManager: NotificationManager =
+                activity?.getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+            notificationManager.createNotificationChannel(channel)
+        }
+    }
+
     @SuppressLint("ClickableViewAccessibility")
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        createNotificationChannel()
+        val builder = NotificationCompat.Builder(requireContext(), "1")
+            .setSmallIcon(R.drawable.ic_id_outline).setContentTitle("Title")
+            .setContentText("text").setPriority(NotificationCompat.PRIORITY_HIGH)
+        val notification = builder.build()
+        val notificationManager =
+            activity?.getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+
+        binding.imAvatar.setOnClickListener {
+            notificationManager.notify(1, notification)
+        }
+        activity?.onBackPressedDispatcher?.addCallback(onBackPressedCallback)
+        AXEmojiManager.install(requireContext(), AXGoogleEmojiProvider(requireContext()))
+        val emojiView = AXSingleEmojiView(requireContext())
+
+        emojiView.editText = binding.chatInput
+        binding.emojiPopupLayout.initPopupView(emojiView)
+        binding.buttonEmoticon.setOnClickListener {
+            if (binding.emojiPopupLayout.isShowing) {
+                binding.buttonEmoticon.setImageResource(R.drawable.ic_emoticon_outline)
+                binding.emojiPopupLayout.hideAndOpenKeyboard()
+            } else {
+                binding.buttonEmoticon.setImageResource(R.drawable.ic_keyboard)
+                binding.emojiPopupLayout.toggle()
+                binding.chatInput.showSoftInputOnFocus = false
+            }
+        }
+
         if (savedInstanceState != null) {
             name = savedInstanceState.getString("name", "")
             val messageText = savedInstanceState.getString("message_text", "")
             binding.chatInput.setText(messageText)
-            if (messageText.length > 0) {
+            if (messageText.isNotEmpty()) {
                 Log.d("ooo", "$messageText")
                 binding.btnRecord.isVisible = false
                 binding.buttonAttach.isVisible = false
@@ -302,7 +370,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
 
     private fun initStandardInputLayoutActions() {
         chatInputAddListener()
-        initButtonEmoticon()
+        //  initButtonEmoticon()
         initButtonAttach()
         initButtonSend()
         initButtonRecord()
@@ -339,12 +407,36 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
 
     private fun initButtonAttach() {
         binding.buttonAttach.setOnClickListener {
-            requestGalleryPermissionLauncher.launch(
-                arrayOf(
-                    Manifest.permission.READ_EXTERNAL_STORAGE,
-                    Manifest.permission.WRITE_EXTERNAL_STORAGE
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                if (ContextCompat.checkSelfPermission(
+                        requireContext(),
+                        Manifest.permission.READ_MEDIA_IMAGES
+                    ) ==
+                    PackageManager.PERMISSION_GRANTED
+                    && ContextCompat.checkSelfPermission(
+                        requireContext(),
+                        Manifest.permission.READ_MEDIA_VIDEO
+                    ) ==
+                    PackageManager.PERMISSION_GRANTED
+                ) {
+                } else if (shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS)) {
+                    askUserForOpeningAppSettings()
+                } else {
+                    requestImagesAndVideoPermissionResult.launch(
+                        arrayOf(
+                            Manifest.permission.READ_MEDIA_IMAGES,
+                            Manifest.permission.READ_MEDIA_VIDEO
+                        )
+                    )
+                }
+            } else {
+                requestGalleryPermissionLauncher.launch(
+                    arrayOf(
+                        Manifest.permission.READ_EXTERNAL_STORAGE,
+                        Manifest.permission.WRITE_EXTERNAL_STORAGE
+                    )
                 )
-            )
+            }
         }
     }
 
@@ -359,7 +451,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
                 )
             }
 
-         val text = binding.chatInput.text.toString().trim()
+            val text = binding.chatInput.text.toString().trim()
             binding.chatInput.text?.clear()
             val timeStamp = System.currentTimeMillis()
 
@@ -369,7 +461,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
                     true,
                     "Алексей Иванов",
                     "Геннадий Белов",
-                    null,
+                    text,
                     MessageSendingState.Deliver,
                     timeStamp,
                     null,
@@ -735,7 +827,14 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
 
     private val onBackPressedCallback = object : OnBackPressedCallback(true) {
         override fun handleOnBackPressed() {
-            if (messageAdapter?.getCheckBoxIsVisible() == true) {
+
+            Log.d("showing", "showing ${binding.emojiPopupLayout.isShowing}")
+            if (binding.emojiPopupLayout.isShowing) {
+                Log.d("showing", "function")
+                binding.buttonEmoticon.setImageResource(R.drawable.ic_emoticon_outline)
+                //       binding.emojiPopupLayout.hidePopupView()
+                binding.chatInput.showSoftInputOnFocus = true
+            } else if (messageAdapter?.getCheckBoxIsVisible() == true) {
                 enableSelectionMode(false)
             } else {
                 navigator().closeDetail()

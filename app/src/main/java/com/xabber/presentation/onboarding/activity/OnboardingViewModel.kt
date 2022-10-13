@@ -22,7 +22,7 @@ class OnboardingViewModel : ViewModel() {
     private val _userName = MutableLiveData<String>()
     val username: LiveData<String> = _userName
     private val _password = MutableLiveData<String>()
-    val password: LiveData<String> = _userName
+    val password: LiveData<String> = _password
 
     private val _avatarBitmap = MutableLiveData<Bitmap>()
     val avatarBitmap: LiveData<Bitmap> = _avatarBitmap
@@ -67,7 +67,6 @@ class OnboardingViewModel : ViewModel() {
 
             })
         }
-
         realm.close()
     }
 
