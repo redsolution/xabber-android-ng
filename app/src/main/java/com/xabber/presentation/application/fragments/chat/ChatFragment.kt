@@ -23,6 +23,7 @@ import android.view.animation.AnimationUtils
 import android.view.animation.TranslateAnimation
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
@@ -78,6 +79,18 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     private var saveAudioMessage = true
     private var lockIsClosed = false
     var isVibrate = false
+
+     private val requestPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        if (isGranted) {
+            // FCM SDK (and your app) can post notifications.
+        } else {
+            val dialog = AlertDialog.Builder(requireContext()).setMessage("App will not show notifications")
+                .setPositiveButton("Ok") { dialog, _ -> dialog.dismiss() }
+            dialog.show()
+        }
+    }
 
     private val requestAudioPermissionResult = registerForActivityResult(
         ActivityResultContracts.RequestPermission(),
@@ -194,6 +207,19 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         }
     }
 
+     private fun askNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.POST_NOTIFICATIONS) ==
+                PackageManager.PERMISSION_GRANTED
+            ) {
+            } else if (shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS)) {
+                askUserForOpeningAppSettings()
+            } else {
+                requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+    }
+
     private fun createNotificationChannel() {
         // Create the NotificationChannel, but only on API 26+ because
         // the NotificationChannel class is new and not in the support library
@@ -214,6 +240,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     @SuppressLint("ClickableViewAccessibility")
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        askNotificationPermission()
         createNotificationChannel()
         val builder = NotificationCompat.Builder(requireContext(), "1")
             .setSmallIcon(R.drawable.ic_id_outline).setContentTitle("Title")

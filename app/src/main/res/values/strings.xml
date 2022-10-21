@@ -100,20 +100,17 @@
 
     <!-- Application -->
 
-    <!-- Main BottomNavigationView -->
+    <!-- BottomNavigationView -->
     <string name="menu_item_chat_list">Xabber</string>
     <string name="menu_item_call">Calls</string>
     <string name="menu_item_contact_list">Contacts</string>
     <string name="menu_item_discover">Discover</string>
     <string name="menu_item_settings">Settings</string>
 
-    <!-- Toolbar -->
-    <string name="application_title">Xabber</string>
-    <string name="no_internet_title">Connecting…</string>
-
-
     <!-- CHAT LIST FRAGMENT -->
 
+    <string name="application_title">Xabber</string>
+    <string name="no_internet_title">Connecting…</string>
     <string name="avatar_account_content_description">Account avatar</string>
     <string name="image_plus_content_description">Add chat</string>
     <string name="recent_chats">Recent</string>

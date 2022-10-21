@@ -2,6 +2,7 @@ package com.xabber.utils
 
 import android.content.Context
 import android.content.Context.INPUT_METHOD_SERVICE
+import android.content.DialogInterface
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
@@ -54,8 +55,8 @@ fun Fragment.askUserForOpeningAppSettings() {
             .setPositiveButton(R.string.dialog_button_open) { _, _ ->
                 startActivity(appSettingsIntent)
             }
-            .setNegativeButton(R.string.dialog_button_cancel) { dialog, _ ->
-                dialog.dismiss()
+            .setNegativeButton(R.string.dialog_button_cancel) { dialogInterface: DialogInterface, _ ->
+                dialogInterface.dismiss()
             }
             .create()
             .show()

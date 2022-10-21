@@ -15,6 +15,7 @@ import android.util.TypedValue
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.ContextCompat
@@ -62,6 +63,7 @@ import com.xabber.presentation.onboarding.activity.OnBoardingActivity
 import com.xabber.utils.askUserForOpeningAppSettings
 import com.xabber.utils.lockScreenRotation
 import com.xabber.utils.mask.Mask
+import kotlin.random.Random
 
 class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
 
@@ -75,35 +77,15 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
         get() = supportFragmentManager.findFragmentById(R.id.application_container)
     private val viewModel: ApplicationViewModel by viewModels()
     private val chatViewModel: ChatViewModel by viewModels()
-
     private lateinit var pushBroadcastReceiver: BroadcastReceiver
 
-    private val requestPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { isGranted: Boolean ->
-        if (isGranted) {
-            // FCM SDK (and your app) can post notifications.
-        } else {
-            val dialog = AlertDialog.Builder(this).setMessage("App will not show notifications")
-                .setPositiveButton("Ok") { dialog, _ -> dialog.dismiss() }
-            dialog.show()
-        }
-    }
 
-    private fun askNotificationPermission() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) ==
-                PackageManager.PERMISSION_GRANTED
-            ) {
-            } else if (shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS)) {
-                askUserForOpeningAppSettings()
-            } else {
-                requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-            }
-        }
-    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            savedInstanceState?.getParcelable("key", QRCodeParams::class.java)
+        } else savedInstanceState?.getParcelable("key")
+
         setTheme(R.style.ThemeApplication)
         super.onCreate(savedInstanceState)
         setContentView(binding.root)
@@ -150,7 +132,7 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
                 )
             )
         }
-        if (false) {
+        if (true) {
             updateUiDependingOnMode(isDualScreenMode())
             setFullScreenMode()
             setHeightStatusBar()
@@ -159,7 +141,6 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
             initBottomNavigation()
             determinateMask()
             determinateAccountList()
-            askNotificationPermission()
 
             pushBroadcastReceiver = object : BroadcastReceiver() {
                 override fun onReceive(p0: Context?, intent: Intent?) {
@@ -440,6 +421,7 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
+        outState.putParcelable("key", QRCodeParams("k", "p", R.color.green_500))
         viewModel.unreadCount.value?.let { outState.putInt(AppConstants.UNREAD_MESSAGES_COUNT, it) }
     }
 
@@ -507,5 +489,7 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
 //        unregisterReceiver(pushBroadcastReceiver)
         assist?.onDestroy()
     }
+
+
 
 }

@@ -1,5 +1,6 @@
 package com.xabber.utils
 
+import android.annotation.SuppressLint
 import android.text.format.DateUtils
 import java.text.ParseException
 import java.text.SimpleDateFormat
@@ -8,10 +9,11 @@ import java.util.*
 object DateFormatter {
  private const val DATE_FORMAT = "yyyy MM dd HH:mm:ss EE"
 
+        @SuppressLint("SimpleDateFormat")
         fun dateFormat(date: String): String {
             var time = Date()
             try {
-                time = SimpleDateFormat(DATE_FORMAT).parse(date)
+                time = SimpleDateFormat(DATE_FORMAT).parse(date)!!
             } catch (e: ParseException) {
                 e.printStackTrace()
             }
@@ -38,8 +40,5 @@ object DateFormatter {
                 SimpleDateFormat("d MMMM yyyy").format(time)
             }
         }
-
-
-
 
     }

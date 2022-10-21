@@ -2,7 +2,6 @@ package com.xabber.presentation.application.activity
 
 import android.content.res.Configuration
 import android.content.res.Resources
-import android.util.Log
 import androidx.fragment.app.Fragment
 import com.xabber.utils.dp
 
@@ -16,7 +15,6 @@ object DisplayManager : Fragment() {
 
     fun isDualScreenMode(): Boolean {
         val widthDp = getWidthDp()
-        Log.d("ooo", "$widthDp")
         return (
                 widthDp >= MAX_WIDTH && Resources.getSystem().configuration.orientation ==
                         Configuration.ORIENTATION_PORTRAIT) || (
