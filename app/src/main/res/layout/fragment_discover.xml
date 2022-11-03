@@ -5,8 +5,8 @@
     android:layout_height="match_parent">
 
     <com.google.android.material.appbar.AppBarLayout
-        style="@style/ApplicationAppbar"
         android:id="@+id/appbar"
+        style="@style/ApplicationAppbar"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         app:layout_constraintEnd_toEndOf="parent"

@@ -17,13 +17,15 @@ class ChatListAdapter(
 
         fun pinChat(id: String)
 
-        //  fun swipeItem(id: Int)
+       fun swipeItem(id: Int)
 
         fun unPinChat(id: String)
 
         fun deleteChat(id: String)
 
         fun turnOfNotifications(id: String)
+
+        fun enableNotifications(id: String)
 
         fun openSpecialNotificationsFragment()
     }
@@ -41,23 +43,20 @@ class ChatListAdapter(
 
     }
 
+    fun onSwipeChatItem(position: Int) {
+        listener.swipeItem(position)
+    }
+
     private object DiffUtilCallback : DiffUtil.ItemCallback<ChatListDto>() {
 
         override fun areItemsTheSame(oldItem: ChatListDto, newItem: ChatListDto) =
-            oldItem.jid == newItem.jid
+            oldItem.id == newItem.id
 
-        override fun areContentsTheSame(oldItem: ChatListDto, newItem: ChatListDto): Boolean =
-            oldItem.displayName == newItem.displayName &&
-                    oldItem.lastMessageDate == newItem.lastMessageDate &&
-                    oldItem.lastMessageState == newItem.lastMessageState &&
-                    oldItem.muteExpired == newItem.muteExpired &&
-                    oldItem.isSynced == newItem.isSynced &&
-                    oldItem.status == newItem.status &&
-                    oldItem.entity == newItem.entity &&
-                    oldItem.unreadString == newItem.unreadString &&
-                    oldItem.hasAttachment == newItem.hasAttachment &&
-                    oldItem.isSystemMessage == newItem.isSystemMessage &&
-                    oldItem.pinnedDate == newItem.pinnedDate &&
-                    oldItem.isArchived == newItem.isArchived
+        override fun areContentsTheSame(oldItem: ChatListDto, newItem: ChatListDto) =
+            oldItem == newItem
+
+        override fun getChangePayload(oldItem: ChatListDto, newItem: ChatListDto): Any? {
+            return super.getChangePayload(oldItem, newItem)
+        }
     }
 }

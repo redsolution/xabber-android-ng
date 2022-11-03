@@ -1,5 +1,6 @@
 package com.xabber.model.xmpp.last_chats
 
+import com.xabber.R
 import com.xabber.model.xmpp.chat_states.ComposingType
 import com.xabber.model.xmpp.messages.MessageStorageItem
 import com.xabber.model.xmpp.roster.RosterStorageItem
@@ -26,13 +27,15 @@ class LastChatsStorageItem: RealmObject {
     var lastReadId: String? = null
     var displayedId: String? = null
     var deliveredId: String? = null
-    var unread: Int = 0
+    var unread: String = ""
     var draftMessage: String? = null
     var groupchatMyId: String? = null
     var isPrereaded: Boolean = false
-    var pinnedPosition: Double = 0.0
+    var pinnedPosition: Long = 0
     var isPinned: Boolean = false
-    var muteExpired: Double = -1.0
+    var muteExpired: Long = -1
+    var avatar: Int = R.drawable.img
+    var color: Int = R.color.blue_500
     var conversationType_: String = ConversationType.Regular.rawValue
     var composingType_: String = ComposingType.none.rawValue
     var chatMarkersSupport: Boolean = false

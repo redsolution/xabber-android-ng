@@ -20,6 +20,7 @@ object AppConstants {
     const val SHARED_PREF_MASK_KEY = 2
     const val SHARED_PREF_ACCOUNT_LIST_KEY = "account list key"
     const val CHAT_LIST_TYPE_KEY = "chat list type key"
+    const val NEW_CHAT_KEY ="new chat key"
 
     const val NO_CAPTCHA_KEY = "a75be9d697c34892b59ebe726dc1b377"
 

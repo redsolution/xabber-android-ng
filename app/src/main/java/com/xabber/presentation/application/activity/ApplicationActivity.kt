@@ -1,24 +1,19 @@
 package com.xabber.presentation.application.activity
 
 import SoftInputAssist
-import android.Manifest
-import android.app.AlertDialog
+
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.util.TypedValue
 import android.widget.Toast
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
-import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.constraintlayout.widget.ConstraintLayout
-import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
@@ -28,6 +23,8 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.commit
 import androidx.slidingpanelayout.widget.SlidingPaneLayout
 import com.google.android.material.badge.BadgeDrawable
+import com.google.android.material.bottomnavigation.BottomNavigationItemView
+import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.xabber.R
 import com.xabber.databinding.ActivityApplicationBinding
@@ -60,10 +57,9 @@ import com.xabber.presentation.application.fragments.contacts.*
 import com.xabber.presentation.application.fragments.discover.DiscoverFragment
 import com.xabber.presentation.application.fragments.settings.*
 import com.xabber.presentation.onboarding.activity.OnBoardingActivity
-import com.xabber.utils.askUserForOpeningAppSettings
 import com.xabber.utils.lockScreenRotation
 import com.xabber.utils.mask.Mask
-import kotlin.random.Random
+
 
 class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
 
@@ -82,9 +78,7 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            savedInstanceState?.getParcelable("key", QRCodeParams::class.java)
-        } else savedInstanceState?.getParcelable("key")
+
 
         setTheme(R.style.ThemeApplication)
         super.onCreate(savedInstanceState)
@@ -108,11 +102,11 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
                             false,
                             false,
                             false,
-                            0.0,
-                            0.0,
+                            0,
+                            0,
                             ResourceStatus.Chat,
                             RosterItemEntity.Contact,
-                            null,
+                            "",
                             0,
                             R.color.green_500,
                             R.drawable.rayan,
@@ -172,13 +166,19 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
             binding.slidingPaneLayout.lockMode = SlidingPaneLayout.LOCK_MODE_LOCKED_CLOSED
             binding.slidingPaneLayout.clearAnimation()
             if (savedInstanceState == null) {
-                launchFragment(ChatListFragment.newInstance(""))
+
+
+                launchFragment(ChatListFragment())
             } else {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            savedInstanceState.getParcelable("key", QRCodeParams::class.java)
+        } else savedInstanceState.getParcelable("key")
                 val unreadMessagesCount =
                     savedInstanceState.getInt(AppConstants.UNREAD_MESSAGES_COUNT)
                 showBadge(unreadMessagesCount)
             }
         } else goToOnboarding()
+
     }
 
     override fun onResume() {
@@ -277,7 +277,7 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
             when (menuItem.itemId) {
                 R.id.chats -> {
                     if (activeFragment !is ChatListFragment) {
-                        launchFragment(ChatListFragment.newInstance("name.surname@redsolution.com"))
+                        launchFragment(ChatListFragment())
                         saveAndClearDetailStack()
                     } else {
                         //  if (viewModel.unreadCount.value != null && viewModel.unreadCount.value != 0) {
@@ -298,18 +298,11 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
                     launchFragment(DiscoverFragment())
                     saveAndClearDetailStack()
                 }
-                R.id.settings -> if (activeFragment !is AccountFragment) {
+                R.id.settings -> if (activeFragment !is SettingsFragment) {
                     launchFragment(
-                        AccountFragment.newInstance(
-                            Account(
-                                "Natalia Barabanshikova",
-                                "Natalia Barabanshikova",
-                                "natalia.barabanshikova@redsolution.com",
-                                R.color.blue_500,
-                                R.drawable.img, 1
+                        SettingsFragment(
                             )
                         )
-                    )
                     saveAndClearDetailStack()
                 }
             }
@@ -383,12 +376,15 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
         launchDetail(ChatFragment.newInstance(chatParams))
     }
 
-    override fun showAccount(account: Account) {
+    override fun showAccount() {
+        val account = Account("Наталья Баранщикова", "Наталья Барабанщикова", "barabanshikova@mail.com", R.color.blue_500, R.drawable.img, 1)
         launchDetail(AccountFragment.newInstance(account))
     }
 
     override fun showContacts() {
         launchFragment(ContactsFragment())
+        val view = binding.bottomNavBar.findViewById<BottomNavigationItemView>(R.id.contacts)
+        view.performClick()
     }
 
     override fun showNewChat() {

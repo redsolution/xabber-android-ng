@@ -1,17 +1,22 @@
 package com.xabber.presentation.application.fragments.chatlist
 
-import android.annotation.SuppressLint
-import android.graphics.Canvas
+import android.app.Dialog
 import android.graphics.Color
+import android.os.Build
 import android.os.Bundle
-import android.util.TypedValue
+import android.util.Log
 import android.view.Gravity
 import android.view.View
 import android.widget.PopupMenu
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
+import androidx.core.content.res.ResourcesCompat.ThemeCompat
 import androidx.core.view.isVisible
+import androidx.core.view.marginBottom
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.ItemTouchHelper
+import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import by.kirich1409.viewbindingdelegate.viewBinding
 import com.google.android.material.snackbar.Snackbar
@@ -20,12 +25,17 @@ import com.xabber.databinding.FragmentChatListBinding
 import com.xabber.model.dto.ChatListDto
 import com.xabber.presentation.AppConstants
 import com.xabber.presentation.BaseFragment
+import com.xabber.presentation.application.activity.ApplicationActivity
 import com.xabber.presentation.application.activity.UiChanger
 import com.xabber.presentation.application.bottomsheet.NotificationBottomSheet
 import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.application.fragments.chat.ChatParams
-import com.xabber.utils.showToast
 import com.xabber.utils.mask.MaskPrepare
+import com.xabber.utils.setFragmentResultListener
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+
 
 class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdapter.ChatListener {
     private val binding by viewBinding(FragmentChatListBinding::bind)
@@ -33,46 +43,51 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
     private var chatListAdapter: ChatListAdapter? = null
     private var chatListType = ChatListType.RECENT
 
-    companion object {
-        fun newInstance(_jid: String) = ChatListFragment().apply {
-            arguments = Bundle().apply {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        if (savedInstanceState != null) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                savedInstanceState.getParcelable(
+                    AppConstants.CHAT_LIST_TYPE_KEY,
+                    ChatListType::class.java
+                )
+                    ?.let { chatListType = it
+
+                   }
+            } else {
+                savedInstanceState.getParcelable<ChatListType>(AppConstants.CHAT_LIST_TYPE_KEY)
+                    ?.let { chatListType = it
+                     Log.d("sss", "savedInstanceState = $savedInstanceState ${chatListType}")
+
+                    }
             }
         }
     }
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        if (savedInstanceState != null) {
-            savedInstanceState.getParcelable<ChatListType>(AppConstants.CHAT_LIST_TYPE_KEY)
-                ?.let { chatListType = it }
-        }
-    }
-
-    @SuppressLint("ClickableViewAccessibility")
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-          viewModel.getChatList()
+        setTitle()
         changeUiWithData()
-        initRecyclerView()
         initToolbarActions()
+        initRecyclerView()
         fillChat()
-        initButton()
         subscribeOnViewModelData()
+        initButton()
+        addNotificationBottomSheetListener()
+    }
+
+    private fun setTitle() {
+        val title =
+            when (chatListType) {
+                ChatListType.RECENT -> R.string.application_title
+                ChatListType.UNREAD -> R.string.unread_chats
+                ChatListType.ARCHIVE -> R.string.archived_chat
+            }
+        binding.tvChatTitle.setText(title)
     }
 
     private fun changeUiWithData() {
         loadAvatarWithMask()
-    }
-
-    private fun initToolbarActions() {
-        binding.chatToolbar.setOnMenuItemClickListener {
-            when (it.itemId) {
-                R.id.add -> showToast("This feature is not implemented")
-            }; true
-        }
-
-        val popup = createToolbarPopupMenu()
-        binding.tvChatTitle.setOnClickListener { popup.show() }
     }
 
     private fun loadAvatarWithMask() {
@@ -81,88 +96,81 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
         binding.imAvatar.setImageDrawable(maskedDrawable)
     }
 
+    private fun initToolbarActions() {
+        binding.imAvatar.setOnClickListener {
+            viewModel.addInitial()
+            //  navigator().showAccount()
+        }
+        binding.chatToolbar.setOnMenuItemClickListener {
+            when (it.itemId) {
+                R.id.add -> {
+                    lifecycleScope.launch {
+                        for (i in 0..1000) {
+                            delay(2000)
+                            viewModel.addChat()
+//                            val layoutManager =
+//                                binding.chatList.layoutManager as LinearLayoutManager
+//                            val position = layoutManager.findFirstVisibleItemPosition()
+                         //   if (position == 0) {
+                                binding.chatList.scrollToPosition(0)
+                           // } else {
+                                binding.chatList.computeVerticalScrollOffset()
+//                            }
+                            }
+                        }
+
+                    }
+                    //  R.id.add -> navigator().showNewChat()
+
+                else -> {}
+            }; true
+        }
+
+        val popup = createToolbarPopupMenu()
+        binding.tvChatTitle.setOnClickListener { popup.show() }
+    }
+
     private fun createToolbarPopupMenu(): PopupMenu {
         val popup = PopupMenu(context, binding.tvChatTitle, Gravity.CENTER)
         popup.inflate(R.menu.popup_menu_title_toolbar_chatlist)
         popup.setOnMenuItemClickListener {
-            when (it.itemId) {
-                R.id.recent_chats -> showRecentChatList()
-                R.id.unread -> showUnreadChatList()
-                R.id.archive -> showArchivedChatList()
-            }
+            chatListType =
+                when (it.itemId) {
+                    R.id.recent_chats -> ChatListType.RECENT
+                    R.id.unread -> ChatListType.UNREAD
+                    R.id.archive -> ChatListType.ARCHIVE
+                    else -> ChatListType.RECENT
+                }
+            setTitle()
+           viewModel.getChatList(chatListType)
             true
         }
         return popup
     }
 
-    private fun showRecentChatList() {
-        val list = viewModel.chatList.value
-        val sortedList = ArrayList<ChatListDto>()
-        binding.tvChatTitle.setText(R.string.application_title)
-        if (list != null) {
-            for (i in list.indices) {
-                if (!list[i].isArchived) sortedList.add(list[i])
-            }
-            if (sortedList.size > 0) {
-                sortedList.sort()
-                chatListAdapter?.submitList(sortedList)
-            } else {
-                showEmptyListMode(R.string.chat_list_is_empty_text)
-            }
+    private fun showEmptyListMode(isEmpty: Boolean) {
+        binding.emptyLogo.isVisible = isEmpty
+        binding.emptyText.isVisible = isEmpty
+        binding.emptyButton.isVisible = chatListType == ChatListType.RECENT && isEmpty
+        if (isEmpty) {
+            val textResId =
+                when (chatListType) {
+                    ChatListType.RECENT -> R.string.chat_list_is_empty_text
+                    ChatListType.UNREAD -> R.string.unread_list_is_empty_text
+                    ChatListType.ARCHIVE -> R.string.archived_list_is_empty_text
+                }
+            binding.emptyText.setText(textResId)
         }
-        chatListType = ChatListType.RECENT
-    }
-
-    private fun showUnreadChatList() {
-        val list = viewModel.chatList.value
-        val sortedList = ArrayList<ChatListDto>()
-        binding.tvChatTitle.setText(R.string.unread_chats)
-        if (list != null) {
-            for (i in list.indices) {
-                if (list[i].unreadString != null) sortedList.add(list[i])
-            }
-            if (sortedList.size > 0) {
-                sortedList.sort()
-                chatListAdapter?.submitList(sortedList)
-            } else {
-                showEmptyListMode(R.string.unread_list_is_empty_text)
-            }
-        }
-        chatListType = ChatListType.UNREAD
-    }
-
-    private fun showArchivedChatList() {
-        val list = viewModel.chatList.value
-        val sortedList = ArrayList<ChatListDto>()
-        binding.tvChatTitle.setText(R.string.archived_chat)
-        for (i in 0 until list!!.size) {
-            if (list[i].isArchived) sortedList.add(list[i])
-        }
-        if (sortedList.size > 0) {
-            sortedList.sort()
-            chatListAdapter?.submitList(sortedList)
-        } else {
-            showEmptyListMode(R.string.archived_list_is_empty_text)
-        }
-      chatListType = ChatListType.ARCHIVE
-    }
-
-    private fun showEmptyListMode(textId: Int) {
-        binding.emptyLogo.isVisible = true
-        binding.emptyText.isVisible = true
-        binding.emptyText.setText(textId)
     }
 
     private fun subscribeOnViewModelData() {
-           viewModel.chatList.observe(viewLifecycleOwner) {
-            binding.groupChatEmpty.isVisible = it.isEmpty() || (it == null)
-            val sortedList = ArrayList<ChatListDto>()
-            for (i in 0 until it!!.size) {
-                if (!it[i].isArchived) sortedList.add(it[i])
-            }
-            sortedList.sort()
-            chatListAdapter?.submitList(sortedList)
-            binding.groupChatEmpty.isVisible = it.isEmpty()
+        viewModel.chatList.observe(viewLifecycleOwner) {
+            Log.d("sss", "observer $it")
+            val a = ArrayList<ChatListDto>()
+            a.addAll(it)
+            a.sort()
+            chatListAdapter?.submitList(a)
+            showEmptyListMode(it.isEmpty() || it == null)
         }
 //        applicationViewModel.showUnread.observe(viewLifecycleOwner) {
 //            binding.cvMarkAllMessagesUnread.isVisible = it
@@ -187,116 +195,20 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
     private fun initRecyclerView() {
         chatListAdapter = ChatListAdapter(this)
         binding.chatList.adapter = chatListAdapter
-        addRegisterAdapterDataObserver()
         addSwipeOption()
-
-    }
-
-    private fun addRegisterAdapterDataObserver() {
-        if (chatListAdapter != null) chatListAdapter!!.registerAdapterDataObserver(object :
-            RecyclerView.AdapterDataObserver() {
-            override fun onChanged() {
-            }
-
-            override fun onItemRangeRemoved(positionStart: Int, itemCount: Int) {
-            }
-
-            override fun onItemRangeMoved(fromPosition: Int, toPosition: Int, itemCount: Int) {
-            }
-
-            override fun onItemRangeInserted(positionStart: Int, itemCount: Int) {
-                binding.chatList.scrollToPosition(0)
-            }
-
-            override fun onItemRangeChanged(positionStart: Int, itemCount: Int) {
-            }
-
-            override fun onItemRangeChanged(positionStart: Int, itemCount: Int, payload: Any?) {
-            }
-        })
     }
 
     private fun addSwipeOption() {
-        val simpleCallback = object :
-            ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT) {
-            override fun onMove(
-                recyclerView: RecyclerView,
-                viewHolder: RecyclerView.ViewHolder,
-                target: RecyclerView.ViewHolder
-            ): Boolean = false
-
-            override fun onChildDraw(
-                c: Canvas,
-                recyclerView: RecyclerView,
-                viewHolder: RecyclerView.ViewHolder,
-                dX: Float,
-                dY: Float,
-                actionState: Int,
-                isCurrentlyActive: Boolean
-            ) {
-                super.onChildDraw(
-                    c,
-                    recyclerView,
-                    viewHolder,
-                    dX,
-                    dY,
-                    actionState,
-                    isCurrentlyActive
-                )
-
-                val context = recyclerView.context
-                val icon = ContextCompat.getDrawable(context, R.drawable.ic_arcived_white)!!
-                val itemView = viewHolder.itemView
-                val typedValue = TypedValue()
-                context.theme.resolveAttribute(R.attr.action_with_chat_background, typedValue, true)
-                val background = ContextCompat.getDrawable(context, R.color.grey_400)!!
-                val backgroundOffset = 20
-                val iconMargin = (itemView.height - icon.intrinsicHeight) / 2
-                val iconTop = itemView.top + (itemView.height - icon.intrinsicHeight) / 2
-                val iconBottom = iconTop + icon.intrinsicHeight
-
-                if (dX > 0) {
-                    val iconLeft = itemView.left + iconMargin
-                    val iconRight = itemView.left + iconMargin + icon.intrinsicWidth
-                    icon.setBounds(iconLeft, iconTop, iconRight, iconBottom)
-                    background.setBounds(
-                        itemView.left,
-                        itemView.top,
-                        itemView.left + dX.toInt() + backgroundOffset,
-                        itemView.bottom
-                    )
-                } else if (dX < 0) {
-                    val iconLeft = itemView.right - iconMargin - icon.intrinsicWidth
-                    val iconRight = itemView.right - iconMargin
-                    icon.setBounds(iconLeft, iconTop, iconRight, iconBottom)
-                    background.setBounds(
-                        itemView.right + dX.toInt() - backgroundOffset,
-                        itemView.top,
-                        itemView.right,
-                        itemView.bottom
-                    )
-                } else background.setBounds(0, 0, 0, 0)
-
-                background.draw(c)
-                icon.draw(c)
-            }
-
-            override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
-                //    chatAdapter.onSwipeChatItem(viewHolder as ChatAdapter.ChatViewHolder)
-                //   movieChatToArchive(position)
-            }
+        if (chatListAdapter != null) {
+            val swiper = SwipeToArchiveCallback(chatListAdapter!!)
+            val itemTouch = ItemTouchHelper(swiper)
+            itemTouch.attachToRecyclerView(binding.chatList)
         }
-        val itemTouchHelper = ItemTouchHelper(simpleCallback)
-        itemTouchHelper.attachToRecyclerView(binding.chatList)
     }
 
     private fun fillChat() {
-
-        when (chatListType) {
-            ChatListType.RECENT -> showRecentChatList()
-            ChatListType.UNREAD -> showUnreadChatList()
-            ChatListType.ARCHIVE -> showArchivedChatList()
-        }
+        Log.d("sss", "fillChat")
+      viewModel.getChatList(chatListType)
     }
 
     private fun initButton() {
@@ -317,6 +229,12 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
 
     override fun pinChat(id: String) {
         viewModel.pinChat(id)
+        binding.chatList.smoothScrollToPosition(0)
+
+    }
+
+    override fun swipeItem(id: Int) {
+        //   chatListAdapter?.getIte
     }
 
     override fun unPinChat(id: String) {
@@ -329,8 +247,16 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
 
     override fun turnOfNotifications(id: String) {
         val dialog = NotificationBottomSheet()
+        dialog.show(childFragmentManager, "T")
         navigator().showBottomSheetDialog(dialog)
-        //  viewModel.turnOfNotifications(id)
+        setFragmentResultListener("requestKey") { _, bundle ->
+            val resultMuteExpired = bundle.getLong("bundleKey")
+            viewModel.setMute(id, resultMuteExpired)
+        }
+    }
+
+    override fun enableNotifications(id: String) {
+        viewModel.setMute(id, 0)
     }
 
     override fun openSpecialNotificationsFragment() {
@@ -340,7 +266,6 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
     private fun showSnackbar(view: View) {
         var snackbar: Snackbar? = null
         snackbar?.dismiss()
-
         val archived = false
         snackbar = view.let {
             Snackbar.make(
@@ -349,16 +274,16 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
                 Snackbar.LENGTH_LONG
             )
         }
-
         snackbar.setAction(
             R.string.snackbar_button_cancel
         ) {
         }
-
         snackbar.setActionTextColor(Color.YELLOW)
         snackbar.show()
     }
 
+    private fun addNotificationBottomSheetListener() {
+    }
 
     override fun onDestroy() {
         super.onDestroy()

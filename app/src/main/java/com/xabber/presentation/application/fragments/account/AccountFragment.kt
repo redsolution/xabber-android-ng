@@ -33,6 +33,7 @@ import com.xabber.presentation.application.activity.DisplayManager
 import com.xabber.utils.mask.MaskedDrawableBitmapShader
 import com.xabber.presentation.application.activity.UiChanger
 import com.xabber.presentation.application.contract.navigator
+import com.xabber.presentation.application.fragments.DetailBaseFragment
 import com.xabber.presentation.application.fragments.account.color.AccountColorDialog
 import com.xabber.presentation.application.fragments.account.qrcode.QRCodeParams
 import com.xabber.presentation.application.fragments.chat.FileManager
@@ -44,7 +45,7 @@ import com.xabber.utils.isPermissionGranted
 import com.xabber.utils.mask.MaskPrepare
 import java.io.File
 
-class AccountFragment : BaseFragment(R.layout.fragment_account) {
+class AccountFragment : DetailBaseFragment(R.layout.fragment_account) {
     private val binding by viewBinding(FragmentAccountBinding::bind)
     private var currentPhotoUri: Uri? = null
 

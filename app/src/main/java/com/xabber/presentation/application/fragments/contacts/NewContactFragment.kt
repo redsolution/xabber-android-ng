@@ -7,30 +7,19 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
+import by.kirich1409.viewbindingdelegate.viewBinding
 import com.xabber.R
 import com.xabber.databinding.FragmentNewContactBinding
 import com.xabber.presentation.application.contract.navigator
+import com.xabber.presentation.application.fragments.DetailBaseFragment
 
-class NewContactFragment : Fragment() {
-    private var _binding: FragmentNewContactBinding? = null
-    private val binding get() = _binding!!
-
-
-    override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View {
-        _binding = FragmentNewContactBinding.inflate(inflater, container, false)
-        return binding.root
-    }
+class NewContactFragment : DetailBaseFragment(R.layout.fragment_new_contact) {
+    private val binding by viewBinding(FragmentNewContactBinding::bind)
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        binding.newContactToolbar.setNavigationIcon(R.drawable.ic_close)
-        binding.newContactToolbar.setNavigationOnClickListener { navigator().goBack() }
         initEditTexts()
-        binding.tvTitle.setOnClickListener {
+        binding.tvAddContact.setOnClickListener {
        //    it.isEnabled = binding?.etName.toString().isNotEmpty()
         }
     }
@@ -91,8 +80,4 @@ class NewContactFragment : Fragment() {
         }
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        _binding = null
-    }
 }

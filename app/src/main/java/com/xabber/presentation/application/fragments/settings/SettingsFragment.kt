@@ -85,7 +85,7 @@ class SettingsFragment : BaseFragment(R.layout.fragment_settings) {
         )
         binding.rvAccounts.layoutManager = LinearLayoutManager(context)
         accountAdapter = AccountAdapter(accountList) {
-            navigator().showAccount(it)
+            navigator().showAccount()
         }
         binding.rvAccounts.adapter = accountAdapter
     }

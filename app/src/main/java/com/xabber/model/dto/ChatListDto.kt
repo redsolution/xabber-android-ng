@@ -22,20 +22,20 @@ data class ChatListDto(
     val hasAttachment: Boolean = false,  // вложения
     val isSystemMessage: Boolean = false, // курсивом
     val isMentioned: Boolean = false, // @ упомянули в чате
-    val muteExpired: Double = 0.0,
-    val pinnedDate: Double = 0.0,
+    var muteExpired: Long = 0,
+    var pinnedDate: Long = 0,
     val status: ResourceStatus,
     val entity: RosterItemEntity,
-    val unreadString: String?,
+    val unreadString: String = "",
     val lastPosition: Int = 0,
     @ColorRes
     val colorId: Int,
     val drawableId: Int,
-    val contactDto: ContactDto
+    val contactDto: ContactDto? = null
 ) : Comparable<ChatListDto>, Parcelable {
     override fun compareTo(other: ChatListDto): Int {
         var result = other.pinnedDate.compareTo(this.pinnedDate)
-        if (this.pinnedDate == 0.0 && other.pinnedDate == 0.0) {
+        if (this.pinnedDate == 0L && other.pinnedDate == 0L) {
             result = other.lastMessageDate.compareTo(this.lastMessageDate)
         }; return result
     }

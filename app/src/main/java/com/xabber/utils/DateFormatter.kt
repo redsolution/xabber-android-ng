@@ -24,7 +24,7 @@ object DateFormatter {
             yesterday.add(Calendar.DATE, -1)
 
             return if (DateUtils.isToday(time.time)) {
-                SimpleDateFormat(" H:mm").format(time)
+                SimpleDateFormat(" H:mm:ss").format(time)
             } else if (calendar.get(Calendar.YEAR) == yesterday.get(Calendar.YEAR) && calendar.get(
                     Calendar.MONTH) == yesterday.get(Calendar.MONTH) && calendar.get(Calendar.DATE) == yesterday.get(
                     Calendar.DATE)) {

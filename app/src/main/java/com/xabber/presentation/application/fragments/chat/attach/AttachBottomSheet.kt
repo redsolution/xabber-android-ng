@@ -380,7 +380,7 @@ class AttachBottomSheet : BottomSheetDialogFragment(), GalleryAdapter.Listener {
     }
 
     override fun onRecentImagesSelected() {
-        val j = resources.getDimension(com.google.android.material.R.dimen.action_bar_size)
+     //   val j = resources.getDimension(com.google.android.material.R.dimen.action_bar_size)
         val selectedImagesCount = if (galleryAdapter?.getSelectedImagePaths() != null) {
             galleryAdapter?.getSelectedImagePaths()!!.size
         } else 0

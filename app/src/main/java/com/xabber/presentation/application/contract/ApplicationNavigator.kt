@@ -18,7 +18,7 @@ interface ApplicationNavigator {
 
     fun showChat(chatParams: ChatParams)
 
-    fun showAccount(account: Account)
+    fun showAccount()
 
     fun showContacts()
 

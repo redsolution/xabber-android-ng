@@ -327,7 +327,7 @@
     <string name="menu_item_delete_chat">Delete chat</string>
     <string name="menu_item_turn_of_notifications">Turn of notifications</string>
     <string name="menu_item_customise_notifications">Customise notifications</string>
-    <string name="menu_item_to_pin">To pin</string>
+    <string name="menu_item_to_pin">Pin chat</string>
     <string name="qr_code_image_description">QR code</string>
     <string name="menu_item_contact_qr_code">Contact qr code</string>
     <string name="menu_item_edit_contact_account">Edit</string>
@@ -373,5 +373,6 @@
     <string name="im_my_geolocation_content_description">My geolocation</string>
     <string name="im_button_plus_content_description">Zoom in</string>
     <string name="im_button_minus_content_description">Zoom out</string>
+    <string name="menu_item_enable_notifications">Enable notifications</string>
 
 </resources>
