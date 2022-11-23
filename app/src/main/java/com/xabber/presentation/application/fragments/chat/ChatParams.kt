@@ -1,8 +1,13 @@
 package com.xabber.presentation.application.fragments.chat
 
 import android.os.Parcelable
-import com.xabber.model.dto.ChatListDto
 import kotlinx.parcelize.Parcelize
 
 @Parcelize
-class ChatParams(val chatListDto: ChatListDto) : Parcelable
+class ChatParams(
+    val id: String = "",
+    val owner: String,
+    val opponent: String,
+    val opponentJid: String,
+    val avatar: Int
+) : Parcelable

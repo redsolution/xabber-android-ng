@@ -197,7 +197,7 @@ class AccountFragment : DetailBaseFragment(R.layout.fragment_account) {
                 when (menuItem.itemId) {
                     R.id.menu_item_color -> {
                         val dialog = AccountColorDialog()
-                        navigator().showDialogFragment(dialog)
+                        navigator().showDialogFragment(dialog, "")
                     }
                     R.id.menu_item_generate_qr_code -> {
                         navigator().showMyQRCode(

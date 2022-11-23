@@ -160,7 +160,7 @@ class ContactAccountFragment : DetailBaseFragment(R.layout.fragment_contact_acco
                     }
                     R.id.delete_contact_account -> {
                         val dialog = DeletingContactDialog.newInstance(getContact().userName!!)
-                        navigator().showDialogFragment(dialog)
+                        navigator().showDialogFragment(dialog, "")
                     }
                     R.id.send_contact -> {
                         shareContact(getContact().userName!!)
@@ -221,7 +221,7 @@ class ContactAccountFragment : DetailBaseFragment(R.layout.fragment_contact_acco
 
     private fun blockContact() {
         val dialog = BlockContactDialog.newInstance(getContact().userName!!)
-        navigator().showDialogFragment(dialog)
+        navigator().showDialogFragment(dialog, "")
     }
 
     private fun initPanelActions() {

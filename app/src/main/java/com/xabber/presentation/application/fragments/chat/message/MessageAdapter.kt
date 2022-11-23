@@ -2,17 +2,21 @@ package com.xabber.presentation.application.fragments.chat.message
 
 import android.annotation.SuppressLint
 import android.os.Build
+import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.annotation.RequiresApi
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
-import com.xabber.model.dto.MessageDto
-import com.xabber.model.xmpp.messages.MessageDisplayType
+import androidx.recyclerview.widget.RecyclerView
 import com.xabber.databinding.ItemMessageIncomingBinding
 import com.xabber.databinding.ItemMessageOutgoingBinding
 import com.xabber.databinding.ItemMessageSystemBinding
+import com.xabber.model.dto.MessageDto
+import com.xabber.model.xmpp.messages.MessageDisplayType
+import com.xabber.presentation.AppConstants
+import com.xabber.presentation.application.fragments.chatlist.ChatListViewHolder
 import com.xabber.utils.StringUtils
 
 class MessageAdapter(
@@ -30,7 +34,7 @@ class MessageAdapter(
         fun copyText(text: String)
         fun forwardMessage(messageDto: MessageDto)
         fun replyMessage(messageDto: MessageDto)
-        fun deleteMessage(messageDto: MessageDto)
+        fun deleteMessage(primary: String)
         fun editMessage(primary: String)
         fun onLongClick(primary: String)
     }
@@ -77,25 +81,56 @@ class MessageAdapter(
     @SuppressLint("RestrictedApi")
     @RequiresApi(Build.VERSION_CODES.N)
     override fun onBindViewHolder(holderMessage: BasicMessageVH, position: Int) {
-        var isNeedTail = true
-        if (position - 1 != null && position != 0) {
-            isNeedTail =
-                getItem(position - 1).owner != getItem(position).owner || getIsNeedDay(position - 1)
-        }
-        val isNeedTitle = getItem(position + 1).owner != getItem(position).owner || getIsNeedDay(position + 1)
+        var isNeedTail = false
+        var isNeedTitle = false
+//        if (position + 1 != null && position != 0) {
+//            isNeedTail =
+//                getItem(position + 1).owner != getItem(position).owner || getIsNeedDay(position + 1)
+//        }
 
-        return holderMessage.bind(getItem(position), isNeedTail, getIsNeedDay(position), checkBoxVisible, isNeedTitle)
+
+    isNeedTail = isNeedTails(position)
+        return holderMessage.bind(
+            getItem(position),
+            isNeedTail,
+            getIsNeedDay(position),
+            checkBoxVisible,
+            isNeedTitle
+        )
     }
 
+    override fun onBindViewHolder(
+        holder: BasicMessageVH,
+        position: Int,
+        payloads: MutableList<Any>
+    ) {
+        if (payloads.isEmpty()) {
+            super.onBindViewHolder(holder, position, payloads)
+        } else {
+            holder.bind(getItem(position), false,
+            getIsNeedDay(position),
+            checkBoxVisible,
+           false, payloads)
+        }
+    }
 
+    private fun isNeedTails(position: Int): Boolean {
+        if (position == currentList.size-1) { return true }
+        else  { if (position < currentList.size-1) {
+           if (getItem(position).isOutgoing != getItem(position+1).isOutgoing) return true
+        }}
+        return false
+    }
 
     private fun getIsNeedDay(chekedPosition: Int): Boolean {
         var needDay = true
-        if (chekedPosition + 1 < chekedPosition + 1 != null && chekedPosition + 1 < itemCount) {
+        if (chekedPosition != 0) {
+        if (chekedPosition - 1 < chekedPosition - 1 != null && chekedPosition - 1 < itemCount) {
             needDay = !StringUtils.isSameDay(
                 getItem(chekedPosition).sentTimestamp,
-                getItem(chekedPosition + 1).sentTimestamp
+                getItem(chekedPosition - 1).sentTimestamp
             )
+        }
         }
         return needDay
     }
@@ -105,7 +140,7 @@ class MessageAdapter(
         notifyDataSetChanged()
     }
 
-    fun getCheckBoxIsVisible() : Boolean = checkBoxVisible
+    fun getCheckBoxIsVisible(): Boolean = checkBoxVisible
 
     override fun getItemViewType(position: Int): Int {
         return when {
@@ -120,25 +155,28 @@ class MessageAdapter(
             }
         }
     }
-}
+
+    override fun getItemCount(): Int {
+        return currentList.size
+    }
 
 
-private object DiffUtilCallback : DiffUtil.ItemCallback<MessageDto>() {
+    private object DiffUtilCallback : DiffUtil.ItemCallback<MessageDto>() {
 
-    override fun areItemsTheSame(oldItem: MessageDto, newItem: MessageDto) =
-        oldItem.primary == newItem.primary
+        override fun areItemsTheSame(oldItem: MessageDto, newItem: MessageDto) =
+            oldItem.primary == newItem.primary
 
-    override fun areContentsTheSame(oldItem: MessageDto, newItem: MessageDto) =
-        oldItem.primary == newItem.primary &&
-                oldItem.isOutgoing == newItem.isOutgoing &&
-                oldItem.owner == newItem.owner &&
-                oldItem.opponent == newItem.opponent &&
-                oldItem.messageBody == newItem.messageBody &&
-                oldItem.messageSendingState == newItem.messageSendingState &&
-                oldItem.sentTimestamp == newItem.sentTimestamp &&
-                oldItem.editTimestamp == newItem.editTimestamp &&
-                oldItem.displayType == newItem.displayType &&
-                oldItem.canEditMessage == newItem.canEditMessage &&
-                oldItem.canDeleteMessage == newItem.canDeleteMessage &&
-                oldItem.isGroup == newItem.isGroup
+        override fun areContentsTheSame(oldItem: MessageDto, newItem: MessageDto) =
+            oldItem == newItem
+
+        override fun getChangePayload(oldItem: MessageDto, newItem: MessageDto): Any {
+            val diffBundle = Bundle()
+            if (oldItem.messageSendingState != newItem.messageSendingState) diffBundle.putParcelable(
+                AppConstants.PAYLOAD_MESSAGE_SENDING_STATE,
+                newItem.messageSendingState
+            )
+            return diffBundle
+        }
+    }
+
 }

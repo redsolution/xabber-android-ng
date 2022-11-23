@@ -1,6 +1,11 @@
 package com.xabber.model.xmpp.messages
 
-enum class MessageSendingState(val rawValue: Int) {
+import android.os.Parcelable
+import kotlinx.parcelize.Parcelize
+
+
+@Parcelize
+enum class MessageSendingState(val rawValue: Int): Parcelable {
     Sending(0),
     Sended(1),
     Deliver(2),

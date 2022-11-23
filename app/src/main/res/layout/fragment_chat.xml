@@ -116,7 +116,7 @@
         android:paddingTop="2dp"
         android:paddingRight="8dp"
         android:paddingBottom="2dp"
-        android:text="21 January"
+        android:text="21 Ноября"
         android:textColor="@color/white"
         android:textStyle="bold"
         android:visibility="visible"
@@ -198,7 +198,8 @@
         android:elevation="1dp"
         app:layout_constraintBottom_toTopOf="@id/emoji_popup_layout"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent">
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/message_list">
 
         <androidx.constraintlayout.widget.Group
             android:id="@+id/chat_panel_group"
@@ -254,11 +255,12 @@
 
         <ImageButton
             android:id="@+id/button_emoticon"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
             android:layout_gravity="center_vertical"
             android:layout_marginStart="16dp"
             android:background="@color/transparent"
+            android:contentDescription="Emoji"
             app:layout_constraintBottom_toBottomOf="@id/standard_panel"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="@id/standard_panel"
@@ -387,10 +389,11 @@
         android:id="@+id/btn_downward"
         android:layout_width="40dp"
         android:layout_height="40dp"
-        android:layout_marginEnd="20dp"
+        android:layout_marginEnd="12dp"
         android:layout_marginBottom="20dp"
         android:backgroundTint="@color/white"
         android:contentDescription="@string/im_description_downward"
+        android:elevation="0dp"
         android:src="@drawable/ic_arrow_down_grey"
         android:visibility="gone"
         app:borderWidth="0dp"
@@ -398,6 +401,26 @@
         app:layout_constraintBottom_toTopOf="@id/input_layout"
         app:layout_constraintEnd_toEndOf="parent"
         app:tint="@color/grey_600" />
+
+    <TextView
+        android:id="@+id/tvNewReceivedCount"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="10dp"
+        android:background="@drawable/rounded_background_green"
+        android:elevation="6dp"
+        android:paddingLeft="5dp"
+        android:paddingTop="0dp"
+        android:paddingRight="5dp"
+        android:paddingBottom="1dp"
+        android:text="10"
+        android:textColor="@color/white"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="@id/btn_downward"
+        app:layout_constraintEnd_toEndOf="@id/btn_downward" />
 
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/btn_record_expanded"
@@ -427,5 +450,6 @@
         app:layout_constraintStart_toStartOf="parent">
 
     </com.aghajari.emojiview.view.AXEmojiPopupLayout>
+
 
 </androidx.constraintlayout.widget.ConstraintLayout>

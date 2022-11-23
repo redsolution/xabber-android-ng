@@ -8,19 +8,16 @@ import io.realm.realmListOf
 
 class MessageStorageItem: RealmObject {
     @PrimaryKey
-    var primary: String = ""
-
-    var owner: String = ""
+    var primary: String = ""  // id
+    var owner: String = ""    // аккаунт
     var opponent: String = ""
     var body: String = ""
     var legacyBody: String = ""
     var date: Long = 0
-
     var sentDate: Long = 0
     var editDate: Long = 0
     var outgoing: Boolean = false  // true я
     var isRead: Boolean = false
-
     var displayAs_: String = ""
     var messageId: String = ""
     var isFromTrustedSource: Boolean = false

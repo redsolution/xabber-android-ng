@@ -1,7 +1,6 @@
 package com.xabber.presentation.application.activity
 
 import SoftInputAssist
-
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -14,6 +13,7 @@ import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.constraintlayout.widget.ConstraintLayout
+import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
@@ -24,16 +24,11 @@ import androidx.fragment.app.commit
 import androidx.slidingpanelayout.widget.SlidingPaneLayout
 import com.google.android.material.badge.BadgeDrawable
 import com.google.android.material.bottomnavigation.BottomNavigationItemView
-import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.xabber.R
 import com.xabber.databinding.ActivityApplicationBinding
-import com.xabber.model.dto.ChatListDto
 import com.xabber.model.dto.ContactDto
 import com.xabber.model.xmpp.account.Account
-import com.xabber.model.xmpp.messages.MessageSendingState
-import com.xabber.model.xmpp.presences.ResourceStatus
-import com.xabber.model.xmpp.presences.RosterItemEntity
 import com.xabber.notification.PushService
 import com.xabber.presentation.AppConstants
 import com.xabber.presentation.application.activity.DisplayManager.getMainContainerWidth
@@ -48,11 +43,10 @@ import com.xabber.presentation.application.fragments.calls.CallsFragment
 import com.xabber.presentation.application.fragments.chat.ChatFragment
 import com.xabber.presentation.application.fragments.chat.ChatParams
 import com.xabber.presentation.application.fragments.chat.ChatViewModel
-import com.xabber.presentation.application.fragments.chatlist.ChatListFragment
-import com.xabber.presentation.application.fragments.chatlist.ChatSettingsFragment
-import com.xabber.presentation.application.fragments.chatlist.SpecialNotificationsFragment
+import com.xabber.presentation.application.fragments.chatlist.*
 import com.xabber.presentation.application.fragments.chatlist.add.NewChatFragment
 import com.xabber.presentation.application.fragments.chatlist.add.NewGroupFragment
+import com.xabber.presentation.application.fragments.chatlist.archive.ArchiveFragment
 import com.xabber.presentation.application.fragments.contacts.*
 import com.xabber.presentation.application.fragments.discover.DiscoverFragment
 import com.xabber.presentation.application.fragments.settings.*
@@ -71,67 +65,21 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
     private var assist: SoftInputAssist? = null
     private val activeFragment: Fragment?
         get() = supportFragmentManager.findFragmentById(R.id.application_container)
-    private val viewModel: ApplicationViewModel by viewModels()
-    private val chatViewModel: ChatViewModel by viewModels()
+    private val viewModel: ChatListViewModel by viewModels()
     private lateinit var pushBroadcastReceiver: BroadcastReceiver
-
-
+    var unreadCount = 0
+    val vv = ChatListViewModel()
 
     override fun onCreate(savedInstanceState: Bundle?) {
-
-
         setTheme(R.style.ThemeApplication)
         super.onCreate(savedInstanceState)
         setContentView(binding.root)
         val value = intent.getExtras()?.get("redirect").toString();
-        if (value == "homefragment") {
-            launchDetail(
-                ChatFragment.newInstance(
-                    ChatParams(
-                        ChatListDto(
-                            "1",
-                            "Иван Сергеев",
-                            "Иван Сергеев",
-                            "Иван Сергеев",
-                            "Я подумаю, но не обещаю пока ничего",
-                            System.currentTimeMillis(),
-                            MessageSendingState.Sended,
-                            false,
-                            true,
-                            null,
-                            false,
-                            false,
-                            false,
-                            0,
-                            0,
-                            ResourceStatus.Chat,
-                            RosterItemEntity.Contact,
-                            "",
-                            0,
-                            R.color.green_500,
-                            R.drawable.rayan,
-                            ContactDto(
-                                "1",
-                                "Иван Сергеев",
-                                "Иван Сергеев",
-                                "Иван",
-                                "Сергеев",
-                                "ivan@xabber.com",
-                                R.color.green_500,
-                                R.drawable.rayan,
-                                null, null, ResourceStatus.Online, RosterItemEntity.Contact
-                            )
-                        )
-                    )
-                )
-            )
-        }
         if (true) {
             updateUiDependingOnMode(isDualScreenMode())
             setFullScreenMode()
             setHeightStatusBar()
             assist = SoftInputAssist(this)
-            subscribeViewModelData()
             initBottomNavigation()
             determinateMask()
             determinateAccountList()
@@ -169,10 +117,11 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
 
 
                 launchFragment(ChatListFragment())
+
             } else {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            savedInstanceState.getParcelable("key", QRCodeParams::class.java)
-        } else savedInstanceState.getParcelable("key")
+                    savedInstanceState.getParcelable("key", QRCodeParams::class.java)
+                } else savedInstanceState.getParcelable("key")
                 val unreadMessagesCount =
                     savedInstanceState.getInt(AppConstants.UNREAD_MESSAGES_COUNT)
                 showBadge(unreadMessagesCount)
@@ -256,13 +205,9 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
         //    val accountList = getSharedPreferences(AppConstants.SHARED_PREF_ACCOUNT_LIST_KEY)
     }
 
-    private fun subscribeViewModelData() {
-        viewModel.unreadCount.observe(this) {
-            showBadge(it)
-        }
-    }
 
     private fun showBadge(count: Int) {
+        Log.d("rrr", "activity show badge")
         if (count > 0) {
             val creator = binding.bottomNavBar.getOrCreateBadge(R.id.chats)
             creator.backgroundColor =
@@ -280,10 +225,14 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
                         launchFragment(ChatListFragment())
                         saveAndClearDetailStack()
                     } else {
-                        //  if (viewModel.unreadCount.value != null && viewModel.unreadCount.value != 0) {
-                        menuItem.setIcon(R.drawable.ic_chat_alert)
-                        //viewModel.chatListType.set = ChatListType.UNREAD
-                        //  }
+                        Log.d("rrr", "icon = ${menuItem.icon}, ${ContextCompat.getDrawable(this, R.drawable.ic_chat_alert)}, ${ContextCompat.getDrawable(this, R.drawable.ic_chat)}")
+                        if (!viewModel.showUnreadOnly.value!!) {
+                            menuItem.setIcon(R.drawable.ic_chat_alert)
+                            viewModel.setShowUnreadOnly(true)
+                        } else {
+                            menuItem.setIcon(R.drawable.ic_chat)
+                            viewModel.setShowUnreadOnly(false)
+                        }
                     }
                 }
                 R.id.calls -> {
@@ -301,8 +250,8 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
                 R.id.settings -> if (activeFragment !is SettingsFragment) {
                     launchFragment(
                         SettingsFragment(
-                            )
                         )
+                    )
                     saveAndClearDetailStack()
                 }
             }
@@ -338,12 +287,18 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
         binding.slidingPaneLayout.openPane()
     }
 
+    override fun showArchive() {
+          supportFragmentManager.commit {
+            replace(R.id.application_container, ArchiveFragment()).addToBackStack(null)
+        }
+    }
+
     override fun showBottomSheetDialog(dialog: BottomSheetDialogFragment) {
         dialog.show(supportFragmentManager, dialog.tag)
     }
 
-    override fun showDialogFragment(dialog: DialogFragment) {
-        dialog.show(supportFragmentManager, AppConstants.DIALOG_TAG)
+    override fun showDialogFragment(dialog: DialogFragment, tag: String) {
+        dialog.show(supportFragmentManager, tag)
     }
 
     override fun closeDetail() {
@@ -360,12 +315,12 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
     }
 
     override fun onSupportNavigateUp(): Boolean {
-        onBackPressed()
+       onBackPressedDispatcher.onBackPressed()
         return true
     }
 
     override fun goBack() {
-        onBackPressed()
+        onBackPressedDispatcher.onBackPressed()
     }
 
     override fun showChatFragment() {
@@ -377,7 +332,14 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
     }
 
     override fun showAccount() {
-        val account = Account("Наталья Баранщикова", "Наталья Барабанщикова", "barabanshikova@mail.com", R.color.blue_500, R.drawable.img, 1)
+        val account = Account(
+            "Наталья Баранщикова",
+            "Наталья Барабанщикова",
+            "barabanshikova@mail.com",
+            R.color.blue_500,
+            R.drawable.img,
+            1
+        )
         launchDetail(AccountFragment.newInstance(account))
     }
 
@@ -418,7 +380,7 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putParcelable("key", QRCodeParams("k", "p", R.color.green_500))
-        viewModel.unreadCount.value?.let { outState.putInt(AppConstants.UNREAD_MESSAGES_COUNT, it) }
+        unreadCount.let { outState.putInt(AppConstants.UNREAD_MESSAGES_COUNT, it) }
     }
 
     override fun enableScreenRotationLock(isLock: Boolean) {
@@ -437,7 +399,7 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
 
     override fun showQRCode(qrCodeParams: QRCodeParams) {
         if (isTablet()) {
-            showDialogFragment(QRCodeDialogFragment.newInstance(qrCodeParams))
+            showDialogFragment(QRCodeDialogFragment.newInstance(qrCodeParams), AppConstants.QR_CODE_DIALOG_TAG)
         } else {
             launchDetailInStack(QRCodeFragment.newInstance(qrCodeParams))
         }
@@ -445,7 +407,7 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
 
     override fun showMyQRCode(qrCodeParams: QRCodeParams) {
         if (isTablet()) {
-            showDialogFragment(QRCodeDialogFragment.newInstance(qrCodeParams))
+            showDialogFragment(QRCodeDialogFragment.newInstance(qrCodeParams), AppConstants.QR_CODE_DIALOG_TAG)
         } else {
             launchDetail(QRCodeFragment.newInstance(qrCodeParams))
         }
@@ -475,6 +437,13 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
         lockScreenRotation(lock)
     }
 
+    override fun showUnreadMessage(count: Int) {
+        Log.d("rrr", "show")
+        unreadCount = count
+        showBadge(count)
+
+    }
+
     override fun onPause() {
         super.onPause()
         assist?.onPause()
@@ -485,7 +454,5 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
 //        unregisterReceiver(pushBroadcastReceiver)
         assist?.onDestroy()
     }
-
-
 
 }

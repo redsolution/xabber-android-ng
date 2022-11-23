@@ -12,6 +12,7 @@ import com.xabber.presentation.application.activity.UiChanger
 import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.application.dialogs.BlockContactDialog
 import com.xabber.presentation.application.fragments.chat.ChatParams
+import com.xabber.presentation.application.fragments.chatlist.add.HeaderDecoration
 import com.xabber.utils.mask.MaskPrepare
 
 class ContactsFragment : BaseFragment(R.layout.fragment_contact), ContactAdapter.Listener {
@@ -58,11 +59,11 @@ class ContactsFragment : BaseFragment(R.layout.fragment_contact), ContactAdapter
     }
 
     override fun deleteContact(userName: String) {
-          navigator().showDialogFragment(DeletingContactDialog.newInstance(userName))
+          navigator().showDialogFragment(DeletingContactDialog.newInstance(userName), "")
     }
 
     override fun blockContact(userName: String) {
-        navigator().showDialogFragment(BlockContactDialog.newInstance(userName))
+        navigator().showDialogFragment(BlockContactDialog.newInstance(userName), "")
     }
 
     override fun onDestroy() {

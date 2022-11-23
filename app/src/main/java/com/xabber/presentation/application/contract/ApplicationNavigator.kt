@@ -22,6 +22,8 @@ interface ApplicationNavigator {
 
     fun showContacts()
 
+    fun showArchive()
+
     fun showNewChat()
 
     fun showNewContact()
@@ -42,7 +44,7 @@ interface ApplicationNavigator {
 
     fun showBottomSheetDialog(dialog: BottomSheetDialogFragment)
 
-    fun showDialogFragment(dialog: DialogFragment)
+    fun showDialogFragment(dialog: DialogFragment, tag: String)
 
     fun enableScreenRotationLock(isLock: Boolean)
 
@@ -64,6 +66,11 @@ interface ApplicationNavigator {
 
     fun showDevicesSettings()
 
+
+
+
     fun lockScreen(lock: Boolean)
+
+    fun showUnreadMessage(count: Int)
 
 }

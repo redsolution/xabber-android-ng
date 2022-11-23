@@ -35,8 +35,8 @@
                           <map>
                             <entry key="assetSourceType" value="FILE" />
                             <entry key="color" value="ffffff" />
-                            <entry key="outputName" value="ic_id" />
-                            <entry key="sourceFile" value="$PROJECT_DIR$/../../../vitaly.popov/xabber-icons/icon/material/id.svg" />
+                            <entry key="outputName" value="ic_bell_sleep_light_grey" />
+                            <entry key="sourceFile" value="$PROJECT_DIR$/../../../vitaly.popov/xabber-icons/icon/material/bell-sleep.svg" />
                           </map>
                         </option>
                       </PersistentState>

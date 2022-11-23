@@ -10,8 +10,9 @@ import kotlinx.parcelize.Parcelize
 @Parcelize
 data class ChatListDto(
     val id: String,
-    val owner: String,
-    val jid: String,   // xmpp
+    val owner: String,   // наш jid
+    val opponentJid: String,   // xmpp
+    val opponentName: String,
     val displayName: String, // для групповых или обычных чатов (когда пересылаем сообщение)
     val lastMessageBody: String? = null,
     val lastMessageDate: Long = 0,
@@ -31,12 +32,15 @@ data class ChatListDto(
     @ColorRes
     val colorId: Int,
     val drawableId: Int,
-    val contactDto: ContactDto? = null
+    val contactDto: ContactDto? = null,
+    val isHide: Boolean = false
 ) : Comparable<ChatListDto>, Parcelable {
     override fun compareTo(other: ChatListDto): Int {
-        var result = other.pinnedDate.compareTo(this.pinnedDate)
-        if (this.pinnedDate == 0L && other.pinnedDate == 0L) {
-            result = other.lastMessageDate.compareTo(this.lastMessageDate)
+        var result = 0
+        if (other.pinnedDate > 0 || this.pinnedDate > 0) {
+            result = other.pinnedDate.compareTo(this.pinnedDate)
+        } else {
+            result = this.lastMessageDate.compareTo(other.lastMessageDate)
         }; return result
     }
 }

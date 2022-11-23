@@ -10,31 +10,30 @@ import io.realm.annotations.PrimaryKey
 
 class LastChatsStorageItem: RealmObject {
     @PrimaryKey
-    var primary: String = ""
-    var owner: String = ""
-    var jid: String = ""
-    var messageDate: Long = 0
+    var primary: String = ""  // автоматически jid + owner + conversation type
+    var owner: String = ""   // jid наш
+    var jid: String = ""     // jid собеседника
+    var messageDate: Long = 0    // дата последнего сообщения
     var lastReadMessageDate: Long = 0
-    var rosterItem: RosterStorageItem? = null
-    var lastMessage: MessageStorageItem? = null
+    var rosterItem: RosterStorageItem? = null   // данные собеседника
+    var lastMessage: MessageStorageItem? = null  // последнее собщение
     var lastMessageId: String = ""
-    var isSynced: Boolean = true
+    var isSynced: Boolean = true  // синхронизировано
     var isHistoryGapFixedForSession: Boolean = false
-    var isArchived: Boolean = false
+    var isArchived: Boolean = false  // архив
     var messagesCount: Int = -1
     var retractVersion: String? = null
     var mentionId: String? = null
     var lastReadId: String? = null
     var displayedId: String? = null
     var deliveredId: String? = null
-    var unread: String = ""
-    var draftMessage: String? = null
+    var unread: Int = 0         // количесво непрочитанных сообщений
+    var draftMessage: String? = null   // черновик
     var groupchatMyId: String? = null
     var isPrereaded: Boolean = false
-    var pinnedPosition: Long = 0
-    var isPinned: Boolean = false
-    var muteExpired: Long = -1
-    var avatar: Int = R.drawable.img
+    var pinnedPosition: Long = 0   // время закрепа
+    var muteExpired: Long = -1   //
+    var avatar: Int = R.drawable.img //
     var color: Int = R.color.blue_500
     var conversationType_: String = ConversationType.Regular.rawValue
     var composingType_: String = ComposingType.none.rawValue

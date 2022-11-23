@@ -19,5 +19,13 @@ abstract class BasicMessageVH(view: View, listener: MessageAdapter.Listener? = n
         isNeedTitle: Boolean
     ) {
     }
-
+@RequiresApi(Build.VERSION_CODES.N)
+    open fun bind(
+        messageDto: MessageDto,
+        isNeedTail: Boolean = true,
+        needDay: Boolean = true,
+        showCheckbox: Boolean = false,
+        isNeedTitle: Boolean, payloads: List<Any>
+    ) {
+    }
 }

@@ -1,8 +1,8 @@
 package com.xabber.presentation.application.fragments.chatlist
 
 import android.graphics.Canvas
-import android.graphics.drawable.ColorDrawable
-import android.util.Log
+import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import android.util.TypedValue
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.ItemTouchHelper
@@ -10,7 +10,9 @@ import androidx.recyclerview.widget.RecyclerView
 import com.xabber.R
 
 class SwipeToArchiveCallback(private val adapter: ChatListAdapter) :
-    ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT) {
+    ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT) {
+    private val offset = 20
+
     override fun onMove(
         recyclerView: RecyclerView,
         viewHolder: RecyclerView.ViewHolder,
@@ -18,13 +20,13 @@ class SwipeToArchiveCallback(private val adapter: ChatListAdapter) :
     ): Boolean = false
 
     override fun onChildDraw(
-        c: Canvas,
-        recyclerView: RecyclerView,
-        viewHolder: RecyclerView.ViewHolder,
-        dX: Float,
-        dY: Float,
-        actionState: Int,
-        isCurrentlyActive: Boolean
+    c: Canvas,
+    recyclerView: RecyclerView,
+    viewHolder: RecyclerView.ViewHolder,
+    dX: Float,
+    dY: Float,
+    actionState: Int,
+    isCurrentlyActive: Boolean
     ) {
         super.onChildDraw(
             c,
@@ -41,23 +43,16 @@ class SwipeToArchiveCallback(private val adapter: ChatListAdapter) :
         val itemView = viewHolder.itemView
         val typedValue = TypedValue()
         context.theme.resolveAttribute(R.attr.action_with_chat_background, typedValue, true)
+        val d = GradientDrawable()
+        d.setColor(Color.GRAY)
+        d.cornerRadius = -24f
         val background = ContextCompat.getDrawable(context, R.color.grey_400)!!
-        val backgroundOffset = 20
+        val backgroundOffset = offset
         val iconMargin = (itemView.height - icon.intrinsicHeight) / 2
         val iconTop = itemView.top + (itemView.height - icon.intrinsicHeight) / 2
         val iconBottom = iconTop + icon.intrinsicHeight
 
-        if (dX > 0) {
-            val iconLeft = itemView.left + iconMargin
-            val iconRight = itemView.left + iconMargin + icon.intrinsicWidth
-            icon.setBounds(iconLeft, iconTop, iconRight, iconBottom)
-            background.setBounds(
-                itemView.left,
-                itemView.top,
-                itemView.left + dX.toInt() + backgroundOffset,
-                itemView.bottom
-            )
-        } else if (dX < 0) {
+        if (dX < 0) {
             val iconLeft = itemView.right - iconMargin - icon.intrinsicWidth
             val iconRight = itemView.right - iconMargin
             icon.setBounds(iconLeft, iconTop, iconRight, iconBottom)
@@ -73,10 +68,10 @@ class SwipeToArchiveCallback(private val adapter: ChatListAdapter) :
         icon.draw(c)
     }
 
+
+
+
     override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
-        Log.d("del", "${viewHolder.absoluteAdapterPosition}")
-        adapter.onSwipeChatItem(viewHolder.absoluteAdapterPosition)
-// chatAdapter.onSwipeChatItem(viewHolder as ChatAdapter.ChatViewHolder)
-// movieChatToArchive(position)
+        adapter.onSwipeChatItem(viewHolder.absoluteAdapterPosition, viewHolder)
     }
 }

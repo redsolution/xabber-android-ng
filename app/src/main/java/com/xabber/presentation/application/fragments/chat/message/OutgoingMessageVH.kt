@@ -5,6 +5,7 @@ import android.graphics.Color
 import android.graphics.PorterDuff
 import android.graphics.drawable.Drawable
 import android.os.Build
+import android.os.Bundle
 import android.util.Log
 import android.util.TypedValue
 import android.view.Gravity
@@ -22,12 +23,13 @@ import androidx.core.view.isVisible
 import com.bumptech.glide.Glide
 import com.google.android.material.snackbar.Snackbar
 import com.xabber.R
+import com.xabber.databinding.ItemMessageOutgoingBinding
 import com.xabber.model.dto.MessageDto
-import com.xabber.utils.dp
 import com.xabber.model.xmpp.messages.MessageSendingState
 import com.xabber.model.xmpp.messages.MessageSendingState.*
-import com.xabber.databinding.ItemMessageOutgoingBinding
+import com.xabber.presentation.AppConstants
 import com.xabber.utils.StringUtils
+import com.xabber.utils.dp
 import java.util.*
 
 class OutgoingMessageVH(
@@ -47,10 +49,11 @@ class OutgoingMessageVH(
     ) {
 
         val isNeedTail =
-            if (messageDto.messageBody!!.isEmpty() && messageDto.references != null) false else _isNeedTail
+            if (messageDto.messageBody.isEmpty() && messageDto.references != null) false else _isNeedTail
 // text & appearance
-        binding.tvContent.isVisible = messageDto.messageBody!!.isNotEmpty()
-        if (messageDto.messageBody != null) binding.tvContent.text = messageDto.messageBody
+        binding.tvContent.isVisible = messageDto.messageBody.isNotEmpty()
+        binding.tvContent.text = messageDto.messageBody
+        Log.d("realm", "viewHolder ${messageDto.messageBody}")
 // tvContent.setTextAppearance(SettingsManager.chatsAppearanceStyle()) - берем из класса настроек
 
 // date
@@ -62,7 +65,7 @@ class OutgoingMessageVH(
         val date = Date(messageDto.sentTimestamp)
         val time = StringUtils.getTimeText(binding.tvSendingTime.context, date)
         binding.messageInfo.isVisible =
-            messageDto.messageBody!!.isNotEmpty() && messageDto.references == null && messageDto.kind == null
+            messageDto.messageBody.isNotEmpty() && messageDto.references == null && messageDto.kind == null
         binding.tvSendingTime.text = time
 
 // status
@@ -74,7 +77,7 @@ class OutgoingMessageVH(
 
         //  binding.messageInfo.isVisible = messageDto.kind == null
         binding.info.isVisible =
-            messageDto.kind != null || (messageDto.references != null && messageDto.messageBody!!.isNotEmpty())
+            messageDto.kind != null || (messageDto.references != null && messageDto.messageBody.isNotEmpty())
 
 
         binding.checkboxIncoming.isVisible = showCheckbox
@@ -166,7 +169,7 @@ class OutgoingMessageVH(
                             listener.replyMessage(messageDto)
                         }
                         R.id.delete_message -> {
-                            listener.deleteMessage(messageDto)
+                            listener.deleteMessage(messageDto.primary)
                         }
                         R.id.edit -> {
                             listener.editMessage(messageDto.primary)
@@ -322,7 +325,7 @@ class OutgoingMessageVH(
                 0 -> {}
                 1 -> {
                     binding.grid1.grid1.isVisible = true
-                    Glide.with(binding.root).load( messageDto.uries[0])
+                    Glide.with(binding.root).load(messageDto.uries[0])
                         .into(binding.grid1.ivImage0)
                     binding.grid1.imageMessageInfo.isVisible = messageDto.messageBody!!.isEmpty()
                     val date = Date(messageDto.sentTimestamp)
@@ -344,9 +347,9 @@ class OutgoingMessageVH(
                     binding.grid3.grid3.isVisible = true
                     Glide.with(binding.root).load(messageDto.uries[0])
                         .into(binding.grid3.ivImage0)
-                    Glide.with(binding.root).load( messageDto.uries[1])
+                    Glide.with(binding.root).load(messageDto.uries[1])
                         .into(binding.grid3.ivImage1)
-                    Glide.with(binding.root).load( messageDto.uries[2])
+                    Glide.with(binding.root).load(messageDto.uries[2])
                         .into(binding.grid3.ivImage2)
                     binding.grid3.imageMessageInfo.isVisible = messageDto.messageBody!!.isEmpty()
                     val date = Date(messageDto.sentTimestamp)
@@ -355,13 +358,13 @@ class OutgoingMessageVH(
                 }
                 4 -> {
                     binding.grid4.grid4.isVisible = true
-                    Glide.with(binding.root).load( messageDto.uries[0])
+                    Glide.with(binding.root).load(messageDto.uries[0])
                         .into(binding.grid4.ivImage0)
-                    Glide.with(binding.root).load( messageDto.uries[1])
+                    Glide.with(binding.root).load(messageDto.uries[1])
                         .into(binding.grid4.ivImage1)
-                    Glide.with(binding.root).load( messageDto.uries[2])
+                    Glide.with(binding.root).load(messageDto.uries[2])
                         .into(binding.grid4.ivImage2)
-                    Glide.with(binding.root).load( messageDto.uries[3])
+                    Glide.with(binding.root).load(messageDto.uries[3])
                         .into(binding.grid4.ivImage3)
 
                     binding.grid4.imageMessageInfo.isVisible = messageDto.messageBody!!.isEmpty()
@@ -373,13 +376,13 @@ class OutgoingMessageVH(
                     binding.grid5.grid5.isVisible = true
                     Glide.with(binding.root).load(messageDto.uries[0])
                         .into(binding.grid5.ivImage0)
-                    Glide.with(binding.root).load( messageDto.uries[1])
+                    Glide.with(binding.root).load(messageDto.uries[1])
                         .into(binding.grid5.ivImage1)
-                    Glide.with(binding.root).load( messageDto.uries[2])
+                    Glide.with(binding.root).load(messageDto.uries[2])
                         .into(binding.grid5.ivImage2)
                     Glide.with(binding.root).load(messageDto.uries[3])
                         .into(binding.grid5.ivImage3)
-                    Glide.with(binding.root).load( messageDto.uries[4])
+                    Glide.with(binding.root).load(messageDto.uries[4])
                         .into(binding.grid5.ivImage4)
 
                     binding.grid5.imageMessageInfo.isVisible = messageDto.messageBody!!.isEmpty()
@@ -389,17 +392,17 @@ class OutgoingMessageVH(
                 }
                 else -> {
                     binding.grid6.grid6.isVisible = true
-                    Glide.with(binding.root).load( messageDto.uries[0])
+                    Glide.with(binding.root).load(messageDto.uries[0])
                         .into(binding.grid6.ivImage0)
-                    Glide.with(binding.root).load( messageDto.uries[1])
+                    Glide.with(binding.root).load(messageDto.uries[1])
                         .into(binding.grid6.ivImage1)
-                    Glide.with(binding.root).load( messageDto.uries[2])
+                    Glide.with(binding.root).load(messageDto.uries[2])
                         .into(binding.grid6.ivImage2)
-                    Glide.with(binding.root).load( messageDto.uries[3])
+                    Glide.with(binding.root).load(messageDto.uries[3])
                         .into(binding.grid6.ivImage3)
-                    Glide.with(binding.root).load( messageDto.uries[4])
+                    Glide.with(binding.root).load(messageDto.uries[4])
                         .into(binding.grid6.ivImage4)
-                    Glide.with(binding.root).load( messageDto.uries[5])
+                    Glide.with(binding.root).load(messageDto.uries[5])
                         .into(binding.grid6.ivImage5)
                     val count = messageDto.uries.size - 6
                     if (count > 0) {
@@ -407,7 +410,7 @@ class OutgoingMessageVH(
                         binding.grid6.tvCounter.text = "+ $count"
                     }
 
-                     binding.grid6.imageMessageInfo.isVisible = messageDto.messageBody!!.isEmpty()
+                    binding.grid6.imageMessageInfo.isVisible = messageDto.messageBody!!.isEmpty()
                     val date = Date(messageDto.sentTimestamp)
                     val time = StringUtils.getTimeText(binding.tvSendingTime.context, date)
                     binding.grid6.tvImageSendingTime.text = time
@@ -417,14 +420,13 @@ class OutgoingMessageVH(
 
             //  setUpFile(messageDto.references, vhExtraData)
             //   setupNonExternalGeo(messageDto)
-        }
-        else {
+        } else {
             binding.grid1.grid1.isVisible = false
-        binding.grid2.grid2.isVisible = false
-        binding.grid3.grid3.isVisible = false
-        binding.grid4.grid4.isVisible = false
-        binding.grid5.grid5.isVisible = false
-        binding.grid6.grid6.isVisible = false
+            binding.grid2.grid2.isVisible = false
+            binding.grid3.grid3.isVisible = false
+            binding.grid4.grid4.isVisible = false
+            binding.grid5.grid5.isVisible = false
+            binding.grid6.grid6.isVisible = false
 
 
         }
@@ -451,27 +453,29 @@ class OutgoingMessageVH(
 
 
     }
-}
 
-private fun setUpFile(
-    //   referenceRealmObjects: RealmList<ReferenceRealmObject>, vhExtraData: MessageVhExtraData
+
+override fun bind(
+    messageDto: MessageDto,
+    _isNeedTail: Boolean,
+    needDay: Boolean,
+    showCheckbox: Boolean,
+    isNeedTitle: Boolean, payloads: List<Any>
 ) {
-//        referenceRealmObjects
-//            .filter { !it.isImage && !it.isGeo }
-//            .also { fileCount = it.size }
-//            .takeIf { it.isNotEmpty() }
-//            ?.let {
-//                RealmList<ReferenceRealmObject>().apply { addAll(it) }
-//            }
-//            ?.let {
-//                rvFileList.apply {
-//                    layoutManager = LinearLayoutManager(itemView.context)
-//                    adapter = FilesAdapter(it, vhExtraData.mainMessageTimestamp, this@MessageVH)
-//                    visibility = View.VISIBLE
-//                }
-//            }
-}
+    val bundle = payloads.last() as Bundle
+    for (key in bundle.keySet()) {
+        when (key) {
+            AppConstants.PAYLOAD_MESSAGE_SENDING_STATE -> {
+                val newState = bundle.getParcelable<MessageSendingState>(AppConstants.PAYLOAD_MESSAGE_SENDING_STATE)
+                if (newState != null) setStatus(binding.imageMessageStatus, newState)
+            }
 
+
+        }
+
+    }
+}
+}
 
 
 

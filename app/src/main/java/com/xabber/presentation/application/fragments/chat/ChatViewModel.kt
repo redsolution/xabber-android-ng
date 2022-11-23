@@ -1,223 +1,208 @@
 package com.xabber.presentation.application.fragments.chat
 
+import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
-import com.xabber.model.dto.FileDto
+import androidx.lifecycle.viewModelScope
+import com.xabber.defaultRealmConfig
 import com.xabber.model.dto.MessageDto
+import com.xabber.model.xmpp.last_chats.LastChatsStorageItem
 import com.xabber.model.xmpp.messages.MessageDisplayType
 import com.xabber.model.xmpp.messages.MessageSendingState
+import com.xabber.model.xmpp.messages.MessageStorageItem
+import com.xabber.model.xmpp.sync.ConversationType
+import io.realm.Realm
+import io.realm.notifications.ResultsChange
+import io.realm.notifications.UpdatedResults
+import io.realm.realmListOf
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class ChatViewModel : ViewModel() {
     private val _messages = MutableLiveData<ArrayList<MessageDto>>()
     val messages: LiveData<ArrayList<MessageDto>> = _messages
-    private val messageList = ArrayList<MessageDto>()
+    private var messageList = ArrayList<MessageDto>()
+    private val realm = Realm.open(defaultRealmConfig())
+    var a = 11
 
-    private val _miniatures = MutableLiveData<ArrayList<FileDto>>()
-    val miniatures: LiveData<ArrayList<FileDto>> = _miniatures
-
-    fun initList() {
-        for (i in 0..5000) {
-            val timeStamp = 5623450975L
-            val secondTimeStamp = 56234509876L
-            messageList.add(
-                MessageDto(
-                    "$i",
-                    true,
-                    "Геннадий Белов",
-                    "Кирилл Степанов",
-                    "I am go home. See you!",
-                    MessageSendingState.Read,
-                    timeStamp + i,
-                    null,
-                    MessageDisplayType.Text,
-                    false,
-                    false,
-                    null, false
-                )
-            )
-            messageList.add(
-                MessageDto(
-                    "${i + 5000}",
-                    false,
-                    "Кирилл Степанов",
-                    "Геннадий Белов",
-                    "What are you doing?",
-                    MessageSendingState.Read,
-                    secondTimeStamp,
-                    null,
-                    MessageDisplayType.Text,
-                    false,
-                    false,
-                    null, false
-                )
-            )
+    fun initListener(opponent: String) {
+        Log.d("chat", "инициализирован слушатель сообщений")
+        val request = realm.query(MessageStorageItem::class, "opponent = '$opponent'")
+        val lastChatsFlow = request.asFlow()
+        viewModelScope.launch(Dispatchers.IO) {
+            lastChatsFlow.collect { changes: ResultsChange<MessageStorageItem> ->
+                when (changes) {
+                    is UpdatedResults -> {
+                        changes.list
+                        Log.d("chat", "MESSAGE VM CHANGE")
+                        val list = ArrayList<MessageDto>()
+                        list.addAll(changes.list.map { T ->
+                            MessageDto(
+                                T.primary,
+                                T.outgoing,
+                                T.owner,
+                                T.opponent,
+                                T.opponent,
+                                T.body,
+                                MessageSendingState.Sended,
+                                T.sentDate,
+                                T.editDate,
+                                MessageDisplayType.Text,
+                                true,
+                                false,
+                                null, // hasAttachment
+                                false, // isSystemMessage
+                                null, //isMentioned
+                                false,
+                                null // почему дабл
+                            )
+                        })
+                        messageList = list
+                        messageList.sort()
+                        withContext(Dispatchers.Main) {
+                            _messages.value = messageList
+                            Log.d("chat", "messages внутри слушателя сообщений ${_messages.value}")
+                        }
+                    }
+                    else -> {}
+                }
+            }
         }
-        messageList.add(
-            MessageDto(
-                "10003",
-                true,
-                "Геннадий Белов",
-                "Кирилл Степанов",
-                "В центре Челябинска утром в пятницу, 3 июня, сошел трамвай с рельсов. Об этом 74.RU сообщили очевидцы. Авария произошла при попытке вагона выехать с улицы Кирова на проспект Победы — там такие происшествия далеко не редкость.",
-                MessageSendingState.Deliver,
-                1654237345665,
-                null,
-                MessageDisplayType.Text,
-                false,
-                false,
-                null, false
-            )
-        )
-        messageList.add(
-            MessageDto(
-                "10004",
-                true,
-                "Геннадий Белов",
-                "Кирилл Степанов",
-                "Представляешь?",
-                MessageSendingState.Deliver,
-                1654234646664,
-                null,
-                MessageDisplayType.Text,
-                false,
-                false,
-                null, false
-            )
-        )
-        messageList.add(
-            MessageDto(
-                "10005",
-                true,
-                "Геннадий Белов",
-                "Кирилл Степанов",
-                "Представляешь?",
-                MessageSendingState.Deliver,
-                1654294347660,
-                null,
-                MessageDisplayType.Text,
-                false,
-                false,
-                null, false
-            )
-        )
-        messageList.add(
-            MessageDto(
-                "10006",
-                true,
-                "Геннадий Белов",
-                "Кирилл Степанов",
-                "Да?",
-                MessageSendingState.Sending,
-                1654239348650,
-                null,
-                MessageDisplayType.Text,
-                false,
-                false,
-                null, false
-            )
-        )
-        messageList.add(
-            MessageDto(
-                "10007",
-                false,
-                "Кирилл Степанов",
-                "Геннадий Белов",
-                "Ничего себе. Вот это новости. Я люблю ездить на трамваях. Но хочу купить машину",
-                MessageSendingState.Read,
-                1654234399640,
-                null,
-                MessageDisplayType.Text,
-                false,
-                false,
-                null, true
-            )
-        )
-        messageList.add(
-            MessageDto(
-                "10008",
-                false,
-                "Кирилл Степанов",
-                "Геннадий Белов",
-                "Сегодня хорошая погода",
-                MessageSendingState.NotSended,
-                1654234345632,
-                null,
-                MessageDisplayType.Text,
-                false,
-                false,
-                null, true
-            )
-        )
-        messageList.add(
-            MessageDto(
-                "10009",
-                true,
-                "Геннадий Белов",
-                "Кирилл Степанов",
-                "Да, неплохая",
-                MessageSendingState.NotSended,
-                1654234345601,
-                null,
-                MessageDisplayType.Text,
-                false,
-                false,
-                null, true
-            )
-        )
-        messageList.add(
-            MessageDto(
-                "10010",
-                true,
-                "Геннадий Белов",
-                "Кирилл Степанов",
-                "Да, неплохая",
-                MessageSendingState.Sended,
-                1654234345580,
-                null,
-                MessageDisplayType.Text,
-                false,
-                false,
-                null, false
-            )
-        )
-        messageList.add(
-            MessageDto(
-                "22222",
-                true,
-                "Ann",
-                "Геннадий Белов",
-                "Алексей присоединился к чату",
-                MessageSendingState.Read,
-                1654234345585,
-                null,
-                MessageDisplayType.System,
-                false,
-                false,
-                null, false
-            )
-        )
-
-
-        messageList
-        _messages.value = messageList
     }
 
-    fun addFile(fileDto: FileDto) {
-        _miniatures.value?.add(fileDto)
-    }
-
-    fun clearMiniatures() {
-        _miniatures.value?.clear()
+    fun getMessageList(opponent: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val realmList = realm.query(MessageStorageItem::class, "opponent = '$opponent'").find()
+            val list = ArrayList<MessageDto>()
+            list.addAll(realmList.map { T ->
+                MessageDto(
+                    T.primary,
+                    T.outgoing,
+                    T.owner,
+                    T.opponent,
+                    T.opponent,
+                    T.body,
+                    MessageSendingState.Sended,
+                    T.sentDate,
+                    T.editDate,
+                    MessageDisplayType.Text,
+                    true,
+                    false,
+                    null, // hasAttachment
+                    false, // isSystemMessage
+                    null, //isMentioned
+                    false,
+                    null // почему дабл
+                )
+            })
+            messageList = list
+            messageList.sort()
+            withContext(Dispatchers.Main) { _messages.value = messageList }
+        }
     }
 
     fun insertMessage(messageDto: MessageDto) {
-        messageList.add(messageDto)
-        _messages.value = messageList
+        viewModelScope.launch(Dispatchers.IO) {
+            val p = messageDto.primary
+            realm.write {
+                val message = copyToRealm(MessageStorageItem().apply {
+                    primary = messageDto.primary
+                    owner = messageDto.owner
+                    opponent = messageDto.opponent
+                    body = messageDto.messageBody
+                    date = messageDto.sentTimestamp
+                    sentDate = messageDto.sentTimestamp
+                    editDate = messageDto.editTimestamp
+                    outgoing = messageDto.isOutgoing  // true я
+                    isRead = true
+                    references = realmListOf()
+                    conversationType_ = ConversationType.Channel.toString()
+                })
+                val id: String = messageDto.primary
+                val opponentJid = messageDto.opponentJid
+                val item: LastChatsStorageItem? =
+                    this.query(LastChatsStorageItem::class, "jid = '$opponentJid'").first().find()
+                item?.lastMessage = message
+                Log.d("chat", "item lastMessage = ${item?.lastMessage?.body}")
+//
+//                val lastMessage = copyToRealm(MessageStorageItem().apply {
+//                    primary = messageDto.primary
+//                    owner = messageDto.owner
+//                    opponent = messageDto.opponent
+//                    body = messageDto.messageBody
+//                    date = messageDto.sentTimestamp
+//                    sentDate = messageDto.sentTimestamp
+//                    editDate = messageDto.editTimestamp
+//                    outgoing = messageDto.isOutgoing  // true я
+//                    isRead = true
+//                    references = realmListOf()
+//                    conversationType_ = ConversationType.Channel.toString()
+//                })
+//                //this.query(MessageStorageItem::class, "primary = '$id'").first().find()
+//                Log.d("kkkk", "lastM ${lastMessage}")
+//                item?.lastMessage = lastMessage
+//            }
+            }
+        }
     }
 
-    fun deleteMessage(messageDto: MessageDto) {
-        messageList.remove(messageDto)
-        _messages.value = messageList
+
+    fun deleteMessage(primary: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            realm.writeBlocking {
+                val deletedMessage =
+                    realm.query(MessageStorageItem::class, "primary = '$primary'").first()
+                        .find()
+                if (deletedMessage != null) findLatest(deletedMessage)?.let { delete(it) }
+            }
+        }
     }
+
+    fun editMessage(primary: String, newBody: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            realm.writeBlocking {
+                val editableMessage: MessageStorageItem? =
+                    this.query(MessageStorageItem::class, "primary = '$primary'").first().find()
+                editableMessage?.body = newBody
+            }
+        }
+    }
+
+    fun clearHistory(owner: String, opponent: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            realm.writeBlocking {
+                val messages =
+                    this.query(MessageStorageItem::class, "opponent = '$opponent'").find()
+                delete(messages)
+            }
+        }
+    }
+
+    fun deleteChat(id: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            realm.write {
+                val item = this.query(LastChatsStorageItem::class, "primary = '$id'").first().find()
+                if (item != null) findLatest(item)?.let { delete(item) }
+                val d = this.query(LastChatsStorageItem::class, "primary = '$id'").first().find()
+            }
+        }
+    }
+
+    fun insertChat(id: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            realm.write {
+                val c = copyToRealm(LastChatsStorageItem().apply {
+                    primary = id
+                })
+                Log.d("chat", "новый $c")
+            }
+        }
+    }
+
+
 }
+
+
+

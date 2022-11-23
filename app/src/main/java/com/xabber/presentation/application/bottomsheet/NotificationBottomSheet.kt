@@ -1,36 +1,25 @@
 package com.xabber.presentation.application.bottomsheet
 
-import android.annotation.SuppressLint
 import android.app.Dialog
 import android.content.DialogInterface
 import android.graphics.Color
 import android.os.Bundle
-import android.view.LayoutInflater
 import android.view.View
-import android.view.ViewGroup
-import android.widget.Toast
 import androidx.core.os.bundleOf
+import by.kirich1409.viewbindingdelegate.viewBinding
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
+import com.xabber.R
 import com.xabber.databinding.BottomSheetTurnOffNotificationsBinding
-import com.xabber.presentation.application.fragments.chatlist.SwitchNotifications
-import com.xabber.presentation.application.fragments.chatlist.TimeMute
+import com.xabber.presentation.AppConstants.TURN_OFF_NOTIFICATIONS_BUNDLE_KEY
+import com.xabber.presentation.AppConstants.TURN_OFF_NOTIFICATIONS_KEY
 import com.xabber.utils.setFragmentResult
 
-class NotificationBottomSheet : BottomSheetDialogFragment() {
-    private var _binding: BottomSheetTurnOffNotificationsBinding? = null
-    private val binding get() = _binding!!
+class NotificationBottomSheet :
+    BottomSheetDialogFragment(R.layout.bottom_sheet_turn_off_notifications) {
+    private val binding by viewBinding(BottomSheetTurnOffNotificationsBinding::bind)
     var behavior: BottomSheetBehavior<*>? = null
-
-    override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View {
-        _binding = BottomSheetTurnOffNotificationsBinding.inflate(inflater, container, false)
-        return binding.root
-    }
 
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
         val dialog = super.onCreateDialog(savedInstanceState) as BottomSheetDialog
@@ -58,41 +47,48 @@ class NotificationBottomSheet : BottomSheetDialogFragment() {
         initActions()
     }
 
-    @SuppressLint("SuspiciousIndentation")
     private fun initActions() {
-        var result = 0L
         with(binding) {
             rl15min.setOnClickListener {
-               result = TimeMute.MIN15.time
-                setFragmentResult("requestKey", bundleOf("bundleKey" to result))
+                setFragmentResult(
+                    TURN_OFF_NOTIFICATIONS_KEY,
+                    bundleOf(TURN_OFF_NOTIFICATIONS_BUNDLE_KEY to TimeMute.MIN15.time)
+                )
                 dismiss()
             }
             rl1hour.setOnClickListener {
-             result = TimeMute.HOUR1.time
-                setFragmentResult("requestKey", bundleOf("bundleKey" to result))
+                setFragmentResult(
+                    TURN_OFF_NOTIFICATIONS_KEY,
+                    bundleOf(TURN_OFF_NOTIFICATIONS_BUNDLE_KEY to TimeMute.HOUR1.time)
+                )
                 dismiss()
             }
             rl2hour.setOnClickListener {
-                result = TimeMute.HOUR2.time
-                setFragmentResult("requestKey", bundleOf("bundleKey" to result))
+                setFragmentResult(
+                    TURN_OFF_NOTIFICATIONS_KEY,
+                    bundleOf(TURN_OFF_NOTIFICATIONS_BUNDLE_KEY to TimeMute.HOUR2.time)
+                )
                 dismiss()
             }
             rl1day.setOnClickListener {
-                result = TimeMute.DAY1.time
-                setFragmentResult("requestKey", bundleOf("bundleKey" to result))
+
+                setFragmentResult(
+                    TURN_OFF_NOTIFICATIONS_KEY,
+                    bundleOf(TURN_OFF_NOTIFICATIONS_BUNDLE_KEY to TimeMute.DAY1.time)
+                )
                 dismiss()
             }
             rlForever.setOnClickListener {
-                result = TimeMute.FOREVER.time
-                setFragmentResult("requestKey", bundleOf("bundleKey" to result))
+                setFragmentResult(
+                    TURN_OFF_NOTIFICATIONS_KEY,
+                    bundleOf(TURN_OFF_NOTIFICATIONS_BUNDLE_KEY to TimeMute.FOREVER.time)
+                )
                 dismiss()
             }
         }
     }
+}
 
-    override fun onDestroy() {
-        super.onDestroy()
-        _binding = null
-    }
-
+enum class TimeMute(val time: Long) {
+    MIN15(900000), HOUR1(3600000), HOUR2(7200000), DAY1(86400000), FOREVER(315360000000)
 }

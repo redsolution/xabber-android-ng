@@ -7,11 +7,10 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.xabber.R
 import com.xabber.databinding.ItemContactBinding
-import com.xabber.model.dto.ChatListDto
 import com.xabber.model.dto.ContactDto
-import com.xabber.model.xmpp.messages.MessageSendingState
 import com.xabber.model.xmpp.presences.ResourceStatus
 import com.xabber.model.xmpp.presences.RosterItemEntity
+import com.xabber.presentation.application.activity.AccountManager
 import com.xabber.presentation.application.activity.UiChanger
 import com.xabber.presentation.application.fragments.chat.ChatParams
 import com.xabber.utils.mask.MaskPrepare
@@ -136,31 +135,7 @@ class ContactViewHolder(
 
             binding.root.setOnClickListener {
                 listener.onContactClick(
-                    ChatParams(
-                        ChatListDto(
-                            "1",
-                            contact.jid!!,
-                            contact.owner,
-                            contact.userName!!,
-                            "",
-                            System.currentTimeMillis(),
-                            MessageSendingState.NotSended,
-                            false,
-                            true,
-                            "скоро буду",
-                            false,
-                            false,
-                            false,
-                            0,
-                            7,
-                            ResourceStatus.Chat,
-                            RosterItemEntity.Contact,
-                            "",
-                            0,
-                            contact.color,
-                            contact.avatar, contact
-                        )
-                    )
+                    ChatParams("", AccountManager.owner, "", "", R.drawable.img)
                 )
             }
 
@@ -174,7 +149,6 @@ class ContactViewHolder(
                         R.id.edit_contact -> listener.editContact(contact)
                         R.id.delete_contact -> listener.deleteContact(contact.userName!!)
                         R.id.block_contact -> listener.blockContact(contact.userName!!)
-
                     }
                     true
                 }

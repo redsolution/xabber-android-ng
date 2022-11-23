@@ -24,6 +24,8 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.xabber.R
 import com.xabber.presentation.onboarding.fragments.signup.emoji.EmojiTypeDto
 
@@ -181,3 +183,24 @@ fun dipToPxFloat(dip: Float, context: Context): Float {
     )
 }
 
+fun RecyclerView.partSmoothScrollToPosition(targetItem: Int) {
+    layoutManager?.apply {
+        val maxScroll = 15
+        when (this) {
+            is LinearLayoutManager -> {
+                val topItem = findFirstVisibleItemPosition()
+                val distance = topItem - targetItem
+                val anchorItem = when {
+                    distance > maxScroll -> targetItem + maxScroll
+                    distance < maxScroll -> targetItem - maxScroll
+                    else -> topItem
+                }
+                if (anchorItem != topItem) scrollToPosition(anchorItem)
+                post {
+                    smoothScrollToPosition(targetItem)
+                }
+            }
+            else -> smoothScrollToPosition(targetItem)
+        }
+    }
+}

@@ -151,8 +151,8 @@ class SignupAvatarFragment : BaseFragment(R.layout.fragment_signup_avatar) {
         var directory = "com.xabber.android.ng.avatar"
         //can change directory as per need
         if (directory != null || directory != "") directory = "/" + directory
-        var imagesDir =
-            requireContext().getExternalFilesDirs(Environment.DIRECTORY_PICTURES + directory)
+        var imagesDir =  Environment.getExternalStorageDirectory()
+         //   requireContext().getExternalFilesDirs(Environment.DIRECTORY_PICTURES + directory)
 
         var jFile = File("")
     }

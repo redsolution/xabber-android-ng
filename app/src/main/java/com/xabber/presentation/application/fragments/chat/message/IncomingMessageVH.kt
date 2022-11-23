@@ -171,7 +171,7 @@ if (binding.avatarContact.isVisible) {
                         listener.replyMessage(messageDto)
                     }
                     R.id.delete_message -> {
-                        listener.deleteMessage(messageDto)
+                        listener.deleteMessage(messageDto.primary)
                     }
                 }
                 true
@@ -238,7 +238,7 @@ if (binding.avatarContact.isVisible) {
                     listener.replyMessage(messageDto)
                 }
                 R.id.delete_message -> {
-                    listener.deleteMessage(messageDto)
+                    listener.deleteMessage(messageDto.primary)
                 }
             }
             true

@@ -2,12 +2,11 @@ package com.xabber.model.xmpp.roster
 
 import io.realm.RealmObject
 import io.realm.annotations.PrimaryKey
-
+// информация о пользователе
 class RosterStorageItem: RealmObject {
     @PrimaryKey
     var primary: String = ""
-
-    var owner: String = ""
+    var owner: String = "" // аккаунт к которому принадлежит контакт
     var jid: String = ""
     var nickname: String = ""
     var customNickname: String = ""

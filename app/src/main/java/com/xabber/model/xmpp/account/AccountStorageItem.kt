@@ -7,7 +7,6 @@ import io.realm.annotations.PrimaryKey
 class AccountStorageItem : RealmObject {
     @PrimaryKey
     var primary: String = ""
-
     var order: Int = 0
     var jid: String = ""
     var host: String = ""

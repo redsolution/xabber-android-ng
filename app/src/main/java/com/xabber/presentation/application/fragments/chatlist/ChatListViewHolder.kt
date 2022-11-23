@@ -2,8 +2,7 @@ package com.xabber.presentation.application.fragments.chatlist
 
 import android.graphics.PorterDuff
 import android.graphics.Typeface
-import android.graphics.drawable.Drawable
-import android.support.v4.media.RatingCompat.StarStyle
+import android.os.Bundle
 import android.text.Spannable
 import android.text.SpannableString
 import android.text.style.ForegroundColorSpan
@@ -15,25 +14,26 @@ import androidx.core.view.isVisible
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.MultiTransformation
-import com.bumptech.glide.load.resource.bitmap.CenterCrop
-import com.bumptech.glide.load.resource.bitmap.CenterInside
 import com.bumptech.glide.load.resource.bitmap.CircleCrop
 import com.bumptech.glide.request.RequestOptions
-import com.bumptech.glide.request.target.Target
 import com.xabber.R
 import com.xabber.databinding.ItemChatListBinding
 import com.xabber.model.dto.ChatListDto
 import com.xabber.model.xmpp.messages.MessageSendingState
 import com.xabber.model.xmpp.presences.ResourceStatus
 import com.xabber.model.xmpp.presences.RosterItemEntity
+import com.xabber.presentation.AppConstants
+import com.xabber.presentation.AppConstants.PAYLOAD_MUTE_EXPIRED_CHAT
+import com.xabber.presentation.AppConstants.PAYLOAD_PINNED_POSITION_CHAT
+import com.xabber.presentation.application.bottomsheet.TimeMute
 import com.xabber.utils.DateFormatter
-import jp.wasabeef.glide.transformations.CropTransformation
-import jp.wasabeef.glide.transformations.MaskTransformation
+import com.xabber.utils.dp
 
 
 class ChatListViewHolder(
     private val binding: ItemChatListBinding,
 ) : RecyclerView.ViewHolder(binding.root) {
+
 
     fun bind(chatListDto: ChatListDto, listener: ChatListAdapter.ChatListener) {
         with(binding) {
@@ -44,7 +44,13 @@ class ChatListViewHolder(
                     itemView.context.theme
                 )
             )
-
+            if (chatListDto.isHide) {
+                val par = chatGround.layoutParams as RecyclerView.LayoutParams
+                par.height = 0
+            } else {
+                val par = chatGround.layoutParams as RecyclerView.LayoutParams
+                par.height = 72.dp
+            }
             // avatar
 //            val mPictureBitmap =
 //                BitmapFactory.decodeResource(itemView.resources, chatListDto.drawableId)
@@ -69,53 +75,45 @@ class ChatListViewHolder(
                 .into(binding.imChatListItemAvatar)
 
 
-      //   imChatListItemAvatar.setImageResource(chatListDto.drawableId)
-        //    imChatListItemAvatar.setImageDrawable(mask)
+            //   imChatListItemAvatar.setImageResource(chatListDto.drawableId)
+            //    imChatListItemAvatar.setImageDrawable(mask)
             // name
-            tvChatListName.text = chatListDto.owner
+            tvChatListName.text = chatListDto.opponentName
 
             // last message
             tvChatListLastMessage.text = chatListDto.lastMessageBody ?: ""
 
             // timeStamp
-            tvChatListTimestamp.text =
-                DateFormatter.dateFormat(chatListDto.lastMessageDate.toString())
+            tvChatListTimestamp.text = DateFormatter.dateFormat(chatListDto.lastMessageDate.toString())
+            Log.d("ggg", "time text = ${ tvChatListTimestamp.text}, time = ${chatListDto.lastMessageDate}")
 
-            Log.d("del", "${chatListDto.owner} + ${chatListDto.pinnedDate}")
             // pinned -> background and icon
             if (chatListDto.pinnedDate > 0) {
-                chatGround.setBackgroundColor(
-                    itemView.resources.getColor(
-                        R.color.item_chat_list_pinned_color_state,
-                        itemView.context.theme
-                    )
+                chatGround.setBackgroundResource(
+                    R.drawable.clickable_pinned_chat_background
                 )
             } else {
-                chatGround.setBackgroundColor(
-                    itemView.resources.getColor(
-                        R.color.item_chat_list_color_state,
-                        itemView.context.theme
-                    )
-                )
+                chatGround.setBackgroundResource(R.drawable.clickable_view_group_background)
             }
             imChatListPinned.isVisible = chatListDto.pinnedDate > 0
 
             // muted
-            imChatListMuted.isVisible = chatListDto.muteExpired > 0
-
+            binding.imChatListMuted.isVisible =
+                (chatListDto.muteExpired - System.currentTimeMillis()) > 0
+            if ((chatListDto.muteExpired - System.currentTimeMillis()) > TimeMute.DAY1.time) binding.imChatListMuted.setImageResource(
+                R.drawable.ic_bell_off_light_grey
+            ) else binding.imChatListMuted.setImageResource(R.drawable.ic_bell_sleep_light_grey)
             // unread messages
-            if (chatListDto.unreadString.isNotEmpty()) {
-                unreadMessagesWrapper.isVisible = true
-                unreadMessagesCount.text = chatListDto.unreadString
-            } else {
-                unreadMessagesWrapper.isVisible = false
-            }
+
+            unreadMessagesWrapper.isVisible = chatListDto.unreadString.isNotEmpty()
+            unreadMessagesCount.text = chatListDto.unreadString
+
 
             // message status
             var image: Int? = null
             var tint: Int? = null
             imChatListStatusMessage.isVisible =
-                chatListDto.unreadString.isEmpty()
+                chatListDto.unreadString.isEmpty() && chatListDto.lastMessageBody != null
             when (chatListDto.lastMessageState) {
                 MessageSendingState.Sending -> {
                     tint = R.color.grey_500
@@ -249,24 +247,6 @@ class ChatListViewHolder(
                 imChatStatus14.setImageResource(icon)
             }
 
-
-            //      if (chat.userNickname != null) {
-            //          val spannable = SpannableString("${chat.userNickname}\n${chat.message}")
-            //          spannable.setSpan(
-            //              ForegroundColorSpan(
-            //                  itemView.resources.getColor(
-            ////                      R.color.grey_900,
-            //                     itemView.context.theme
-            // //                   )
-            //               ),
-            //                0,
-            //               chat.userNickname.length,
-            //             Spannable.SPAN_EXCLUSIVE_INCLUSIVE
-            //          )
-            //           chatMessage.text = spannable
-            //       } else
-            //    chatMessage.text = chat.message
-
             // Draft
             if (chatListDto.DraftMessage != null) {
                 val spannable = SpannableString("Drafted: ${chatListDto.DraftMessage}")
@@ -297,27 +277,26 @@ class ChatListViewHolder(
             itemView.setOnLongClickListener {
                 val popup = PopupMenu(itemView.context, itemView, Gravity.CENTER)
                 popup.inflate(R.menu.popup_menu_chat_list_item)
+                if (chatListDto.muteExpired > 0) {
+                    popup.menu.removeItem(R.id.turn_of_notifications)
+                } else {
+                    popup.menu.removeItem(R.id.enable_notifications)
+                }
+
                 if (chatListDto.isArchived) {
-                    popup.menu.removeItem(R.id.to_pin)
+                    popup.menu.removeItem(R.id.pin_chat)
                     popup.menu.removeItem(R.id.unpin)
                 } else {
                     if (chatListDto.pinnedDate > 0) {
-                        popup.menu.removeItem(R.id.to_pin)
+                        popup.menu.removeItem(R.id.pin_chat)
                     } else {
                         popup.menu.removeItem(R.id.unpin)
                     }
-
-                    if (chatListDto.muteExpired > 0) {
-                        popup.menu.removeItem(R.id.turn_of_notifications)
-                    } else {
-                        popup.menu.removeItem(R.id.enable_notifications)
-                    }
-
                 }
                 popup.setOnMenuItemClickListener {
                     when (it.itemId) {
                         R.id.unpin -> listener.unPinChat(chatListDto.id)
-                        R.id.to_pin -> {
+                        R.id.pin_chat -> {
                             listener.pinChat(chatListDto.id)
                         }
                         R.id.turn_of_notifications -> {
@@ -330,7 +309,10 @@ class ChatListViewHolder(
                             listener.openSpecialNotificationsFragment()
                         }
                         R.id.delete -> {
-                            listener.deleteChat(chatListDto.id)
+                            listener.deleteChat(chatListDto.displayName, chatListDto.id)
+                        }
+                        R.id.clear_history -> {
+                            listener.clearHistory(chatListDto.displayName, chatListDto.id)
                         }
                     }
                     true
@@ -340,6 +322,138 @@ class ChatListViewHolder(
             }
 
         }
+    }
+
+    fun bind(
+        chatListDto: ChatListDto,
+        listener: ChatListAdapter.ChatListener,
+        payloads: List<Any>
+    ) {
+        val bundle = payloads.last() as Bundle
+        for (key in bundle.keySet()) {
+            when (key) {
+                AppConstants.PAYLOAD_UNREAD_CHAT -> {
+                    val unread = bundle.getString(AppConstants.PAYLOAD_UNREAD_CHAT)
+                    binding.unreadMessagesWrapper.isVisible = !unread.isNullOrEmpty()
+                    binding.unreadMessagesCount.text = unread.toString()
+                }
+                PAYLOAD_PINNED_POSITION_CHAT -> {
+                    val pinnedPosition = bundle.getLong(PAYLOAD_PINNED_POSITION_CHAT)
+                    if (pinnedPosition > 0) {
+                        binding.chatGround.setBackgroundResource(
+                            R.drawable.clickable_pinned_chat_background
+                        )
+                    } else {
+                        binding.chatGround.setBackgroundResource(R.drawable.clickable_view_group_background)
+                    }
+                    binding.imChatListPinned.isVisible = pinnedPosition > 0
+                    itemView.setOnLongClickListener {
+                        val popup = PopupMenu(itemView.context, itemView, Gravity.CENTER)
+                        popup.inflate(R.menu.popup_menu_chat_list_item)
+                        if (chatListDto.isArchived) {
+                            popup.menu.removeItem(R.id.pin_chat)
+                            popup.menu.removeItem(R.id.unpin)
+                        } else {
+                            if (chatListDto.pinnedDate > 0) {
+                                popup.menu.removeItem(R.id.pin_chat)
+                            } else {
+                                popup.menu.removeItem(R.id.unpin)
+                            }
+
+                            if (chatListDto.muteExpired > 0) {
+                                popup.menu.removeItem(R.id.turn_of_notifications)
+                            } else {
+                                popup.menu.removeItem(R.id.enable_notifications)
+                            }
+
+                        }
+                        popup.setOnMenuItemClickListener {
+                            when (it.itemId) {
+                                R.id.unpin -> listener.unPinChat(chatListDto.id)
+                                R.id.pin_chat -> {
+                                    listener.pinChat(chatListDto.id)
+                                }
+                                R.id.turn_of_notifications -> {
+                                    listener.turnOfNotifications(chatListDto.id)
+                                }
+                                R.id.enable_notifications -> {
+                                    listener.enableNotifications(chatListDto.id)
+                                }
+                                R.id.customise_notifications -> {
+                                    listener.openSpecialNotificationsFragment()
+                                }
+                                R.id.delete -> {
+                                    listener.deleteChat(chatListDto.displayName, chatListDto.id)
+                                }
+                                R.id.clear_history -> {
+                                    listener.clearHistory(chatListDto.displayName, chatListDto.opponentName)
+                                }
+                            }
+                            true
+                        }
+                        popup.show()
+                        true
+                    }
+                }
+                PAYLOAD_MUTE_EXPIRED_CHAT -> {
+                    val muteExpired = bundle.getLong(PAYLOAD_MUTE_EXPIRED_CHAT)
+                    binding.imChatListMuted.isVisible =
+                        (muteExpired - System.currentTimeMillis()) > 0
+                    if ((muteExpired - System.currentTimeMillis()) > TimeMute.DAY1.time) binding.imChatListMuted.setImageResource(
+                        R.drawable.ic_bell_off_light_grey
+                    ) else binding.imChatListMuted.setImageResource(R.drawable.ic_bell_sleep_light_grey)
+                    itemView.setOnLongClickListener {
+                        val popup = PopupMenu(itemView.context, itemView, Gravity.CENTER)
+                        popup.inflate(R.menu.popup_menu_chat_list_item)
+                        if (chatListDto.isArchived) {
+                            popup.menu.removeItem(R.id.pin_chat)
+                            popup.menu.removeItem(R.id.unpin)
+                        } else {
+                            if (chatListDto.pinnedDate > 0) {
+                                popup.menu.removeItem(R.id.pin_chat)
+                            } else {
+                                popup.menu.removeItem(R.id.unpin)
+                            }
+
+                            if (chatListDto.muteExpired > 0) {
+                                popup.menu.removeItem(R.id.turn_of_notifications)
+                            } else {
+                                popup.menu.removeItem(R.id.enable_notifications)
+                            }
+
+                        }
+                        popup.setOnMenuItemClickListener {
+                            when (it.itemId) {
+                                R.id.unpin -> listener.unPinChat(chatListDto.id)
+                                R.id.pin_chat -> {
+                                    listener.pinChat(chatListDto.id)
+                                }
+                                R.id.turn_of_notifications -> {
+                                    listener.turnOfNotifications(chatListDto.id)
+                                }
+                                R.id.enable_notifications -> {
+                                    listener.enableNotifications(chatListDto.id)
+                                }
+                                R.id.customise_notifications -> {
+                                    listener.openSpecialNotificationsFragment()
+                                }
+                                R.id.delete -> {
+                                    listener.deleteChat(chatListDto.displayName, chatListDto.id)
+                                }
+                                R.id.clear_history -> {
+                                    listener.clearHistory(chatListDto.displayName, chatListDto.id)
+                                }
+                            }
+                            true
+                        }
+                        popup.show()
+                        true
+                    }
+                }
+            }
+
+        }
+
     }
 
     fun a() {}

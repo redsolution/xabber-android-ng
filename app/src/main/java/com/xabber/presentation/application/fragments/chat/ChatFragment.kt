@@ -14,10 +14,7 @@ import android.os.*
 import android.text.Editable
 import android.text.TextWatcher
 import android.util.Log
-import android.view.HapticFeedbackConstants
-import android.view.MotionEvent
-import android.view.View
-import android.view.WindowManager
+import android.view.*
 import android.view.animation.Animation
 import android.view.animation.AnimationUtils
 import android.view.animation.TranslateAnimation
@@ -29,7 +26,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.isVisible
-import androidx.core.view.marginBottom
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -61,11 +58,15 @@ import com.xabber.presentation.application.fragments.chatlist.SwitchNotification
 import com.xabber.utils.askUserForOpeningAppSettings
 import com.xabber.utils.isPermissionGranted
 import com.xabber.utils.mask.MaskPrepare
+import com.xabber.utils.setFragmentResultListener
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.util.*
 
 class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.Listener,
     ReplySwipeCallback.SwipeAction,
     SwitchNotifications {
+    var a = 0
     private val binding by viewBinding(FragmentChatBinding::bind)
     private var messageAdapter: MessageAdapter? = null
     private var miniatureAdapter: MiniatureAdapter? = null
@@ -79,15 +80,17 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     private var saveAudioMessage = true
     private var lockIsClosed = false
     var isVibrate = false
+    private var isNeedScrollDown = false
 
-     private val requestPermissionLauncher = registerForActivityResult(
+    private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted: Boolean ->
         if (isGranted) {
             // FCM SDK (and your app) can post notifications.
         } else {
-            val dialog = AlertDialog.Builder(requireContext()).setMessage("App will not show notifications")
-                .setPositiveButton("Ok") { dialog, _ -> dialog.dismiss() }
+            val dialog =
+                AlertDialog.Builder(requireContext()).setMessage("App will not show notifications")
+                    .setPositiveButton("Ok") { dialog, _ -> dialog.dismiss() }
             dialog.show()
         }
     }
@@ -207,9 +210,12 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         }
     }
 
-     private fun askNotificationPermission() {
+    private fun askNotificationPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.POST_NOTIFICATIONS) ==
+            if (ContextCompat.checkSelfPermission(
+                    requireContext(),
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) ==
                 PackageManager.PERMISSION_GRANTED
             ) {
             } else if (shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS)) {
@@ -269,6 +275,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
             }
         }
 
+        viewModel.getMessageList(getParams().opponent)
         if (savedInstanceState != null) {
             name = savedInstanceState.getString("name", "")
             val messageText = savedInstanceState.getString("message_text", "")
@@ -282,33 +289,38 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
             }
         }
 
-        populateUiWithData()
+        viewModel.initListener(getParams().opponent)
         subscribeViewModelData()
+        populateUiWithData()
+        initRecyclerView()
         initToolbarActions()
         initSelectMessageToolbarActions()
-        initRecyclerView()
         initStandardInputLayoutActions()
+
+        Log.d("yyy", "передаем оппонента ${getParams().opponent}")
+
     }
 
     private fun populateUiWithData() {
         loadAvatarWithMask()
-        binding.messageUserName.text = getParams().chatListDto.displayName
+        binding.messageUserName.text = getParams().opponent
     }
 
     private fun loadAvatarWithMask() {
         val maskedDrawable = MaskPrepare.getDrawableMask(
             resources,
-            getParams().chatListDto.drawableId,
+            getParams().avatar,
             UiChanger.getMask().size48
         )
         binding.imAvatar.setImageDrawable(maskedDrawable)
     }
 
     private fun subscribeViewModelData() {
-        viewModel.initList()
         viewModel.messages.observe(viewLifecycleOwner) {
-            it.sort()
-            messageAdapter?.submitList(it)
+        messageAdapter?.submitList(it)
+            Log.d("ooo", "$isNeedScrollDown")
+            if (isNeedScrollDown) scrollDown()
+            isNeedScrollDown = false
         }
     }
 
@@ -320,25 +332,88 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
             }
         } else binding.messageToolbar.navigationIcon = null
         binding.messageToolbar.setOnClickListener {
+
             //"Перейти на страницу контакта"
         }
 
         binding.messageToolbar.setOnMenuItemClickListener {
             when (it.itemId) {
-                R.id.call_out -> {}
+                R.id.call_out -> {
+                    var textRandom = arrayListOf<String>(
+                        "Привет",
+                        "Компания «Ростелеком» открыла новый сезон строительства оптических линий связи на Южном Урале. Первым объектом для подключения стал жилой дом Челябинска в ЖК «Ньютон» на Комсомольском проспекте, 141. После его сдачи жители 132 квартир смогут пользоваться интернетом на скорости до 1 Гбит/с.",
+                        "Да",
+                        "В торжественной презентации старта нового сезона стройки приняли участие хоккеисты"
+                    )
+
+                    var isOutgoings = listOf<Boolean>(true, false)
+                    lifecycleScope.launch() {
+                        var a = 0
+                        var c = false
+                        for (i in 0..1000) {
+                            delay(1000)
+                            c = isOutgoings.random()
+                            a++
+
+                            viewModel.insertMessage(
+                                MessageDto(
+                                    "$a ${getParams().opponentJid}",
+                                    c,
+                                    "Иван Иванов",
+                                    getParams().opponent,
+                                    getParams().opponentJid,
+                                    "$a " + textRandom.random(),
+                                    MessageSendingState.Deliver,
+                                    System.currentTimeMillis(),
+                                    0,
+                                    MessageDisplayType.Text,
+                                    false,
+                                    false,
+                                    null,
+                                    false, null, false, null, null, Location(2.8604, 14.540)
+                                )
+                            )
+                        }
+                        val man = binding.messageList.layoutManager as LinearLayoutManager
+
+                        isNeedScrollDown = man.findFirstVisibleItemPosition() == 0 || c == true
+                    }
+                }
+
                 R.id.disable_notifications -> {
                     val dialog = NotificationBottomSheet()
                     navigator().showBottomSheetDialog(dialog)
+                    setFragmentResultListener(AppConstants.TURN_OFF_NOTIFICATIONS_KEY) { _, bundle ->
+                        val resultMuteExpired =
+                            bundle.getLong(AppConstants.TURN_OFF_NOTIFICATIONS_BUNDLE_KEY) + System.currentTimeMillis()
+                        Log.d("iii", "$resultMuteExpired")
+                        //  viewModel.setMute(id, resultMuteExpired)
+                    }
                 }
-                R.id.clear_message_history -> {
-                    val dialog = ChatHistoryClearDialog.newInstance(name)
-                    navigator().showDialogFragment(dialog)
-                }
-                R.id.delete_chat -> {
-                    val dialog = DeletingChatDialog.newInstance(name)
-                    navigator().showDialogFragment(dialog)
-                }
+                R.id.clear_message_history -> clearHistory()
+                R.id.delete_chat -> deleteChat()
             }; true
+        }
+    }
+
+    private fun clearHistory() {
+        val dialog = ChatHistoryClearDialog.newInstance(getParams().opponent)
+        navigator().showDialogFragment(dialog, AppConstants.CLEAR_HISTORY_DIALOG_TAG)
+        setFragmentResultListener(AppConstants.CLEAR_HISTORY_KEY) { _, bundle ->
+            val result = bundle.getBoolean(AppConstants.CLEAR_HISTORY_BUNDLE_KEY)
+            if (result) viewModel.clearHistory(getParams().owner, getParams().opponent)
+        }
+    }
+
+    private fun deleteChat() {
+        val dialog = DeletingChatDialog.newInstance(getParams().opponent)
+        navigator().showDialogFragment(dialog, AppConstants.DELETING_CHAT_DIALOG_TAG)
+        setFragmentResultListener(AppConstants.DELETING_CHAT_KEY) { _, bundle ->
+            val result = bundle.getBoolean(AppConstants.DELETING_CHAT_BUNDLE_KEY)
+            if (result)  {
+                viewModel.deleteChat(getParams().id)
+
+            navigator().closeDetail() }
         }
     }
 
@@ -349,14 +424,18 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     }
 
     private fun initRecyclerView() {
+
         messageAdapter = MessageAdapter(this)
+
         binding.messageList.adapter = messageAdapter
         val linearLayoutManager = LinearLayoutManager(context)
-        linearLayoutManager.reverseLayout = true
+        linearLayoutManager.stackFromEnd = true
+        //  linearLayoutManager.reverseLayout = true
         binding.messageList.layoutManager = linearLayoutManager
         binding.messageList.addItemDecoration(MessageHeaderViewDecoration())
         addSwipeCallback()
         addScrollListener()
+        Log.d("ttttt", "${messageAdapter?.itemCount}")
     }
 
     private fun addSwipeCallback() {
@@ -378,12 +457,18 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     }
 
     private fun addScrollListener() {
+        val man = binding.messageList.layoutManager as LinearLayoutManager
+
         binding.messageList.addOnScrollListener(object : RecyclerView.OnScrollListener() {
             override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
-                if (dy < 0) binding.btnDownward.animate()
-                    .translationY(binding.btnDownward.height + binding.btnDownward.marginBottom.toFloat())
-                else if (dy > 0) binding.btnDownward.animate()
-                    .translationY(0f)
+                if (man.findLastVisibleItemPosition() >= messageAdapter!!.itemCount - 1) {
+
+                    binding.btnDownward.isVisible = false
+                } else {
+                    if (!binding.btnDownward.isVisible)
+                        binding.btnDownward.isVisible = true
+
+                }
             }
         })
         binding.btnDownward.setOnClickListener {
@@ -392,7 +477,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     }
 
     private fun scrollDown() {
-        binding.messageList.scrollToPosition(0)
+        if (messageAdapter != null) binding.messageList.scrollToPosition(messageAdapter?.currentList!!.size - 1)
     }
 
     private fun initStandardInputLayoutActions() {
@@ -481,17 +566,18 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
             val text = binding.chatInput.text.toString().trim()
             binding.chatInput.text?.clear()
             val timeStamp = System.currentTimeMillis()
-
+            var b = System.currentTimeMillis()
             viewModel.insertMessage(
                 MessageDto(
-                    "151515",
+                    "$b",
                     true,
-                    "Алексей Иванов",
-                    "Геннадий Белов",
+                    "Иван Иванов",
+                    "${getParams().opponent}",
+                    getParams().opponentJid,
                     text,
                     MessageSendingState.Deliver,
                     timeStamp,
-                    null,
+                    0,
                     MessageDisplayType.Text,
                     false,
                     false,
@@ -499,13 +585,14 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
                     false, messageKindDto, false, null, null, Location(2.8604, 14.540)
                 )
             )
-
+            a++
             binding.buttonSendMessage.isVisible = false
             binding.buttonAttach.isVisible = true
             binding.btnRecord.isVisible = true
             binding.answer.isVisible = false
-            messageAdapter?.notifyDataSetChanged()
-            scrollDown()
+            isNeedScrollDown = true
+            // messageAdapter?.notifyDataSetChanged()
+            //     scrollDown()
         }
     }
 
@@ -802,9 +889,8 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
 
     }
 
-    override fun deleteMessage(messageDto: MessageDto) {
-        viewModel.deleteMessage(messageDto)
-        messageAdapter?.notifyDataSetChanged()
+    override fun deleteMessage(primary: String) {
+        viewModel.deleteMessage(primary)
     }
 
     override fun onFullSwipe(position: Int) {
@@ -814,10 +900,11 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
                 true,
                 "Ann",
                 "Геннадий Белов",
+                "",
                 "Алексей присоединился к чату",
                 MessageSendingState.Read,
                 1654234345585,
-                null,
+                0,
                 MessageDisplayType.System,
                 false,
                 false,
@@ -917,17 +1004,18 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
             }
         }
         val timeStamp = System.currentTimeMillis()
-
+        var c = System.currentTimeMillis()
         viewModel.insertMessage(
             MessageDto(
-                "151515",
+                "$c",
                 true,
-                "Алексей Иванов",
-                "Геннадий Белов",
+                "Иван Иванов",
+                getParams().opponent,
+                getParams().opponentJid,
                 textMessage,
                 MessageSendingState.Deliver,
                 timeStamp,
-                null,
+                0,
                 MessageDisplayType.Text,
                 false,
                 false,
@@ -939,5 +1027,25 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         binding.answer.isVisible = false
     }
 
+//     private fun scrollToFirstUnread(unreadCount: Int) {
+//        layoutManager.scrollToPositionWithOffset(
+//            chatMessageAdapter.itemCount - unreadCount,
+//            200
+//        )
+//    }
+//
+//      private fun saveState() {
+//        layoutManager.findLastCompletelyVisibleItemPosition()
+//            .takeIf { it != -1 }
+//            ?.let {
+//                chat.saveLastPosition(if (it == chatMessageAdapter.itemCount - 1) 0 else it)
+//            }
+//    }
+
+
+    private fun showBadgeWithUnreadMessages() {
+
+
+    }
 
 }
