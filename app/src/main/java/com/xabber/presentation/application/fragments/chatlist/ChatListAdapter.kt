@@ -29,7 +29,7 @@ class ChatListAdapter(
 
         fun deleteChat(name: String, id: String)
 
-        fun clearHistory(name: String, id: String)
+        fun clearHistory(id: String, name: String, opponent: String)
 
         fun turnOfNotifications(id: String)
 

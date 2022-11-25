@@ -2,6 +2,7 @@ package com.xabber.presentation.application.fragments.chatlist
 
 import android.graphics.Color
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.view.animation.AnimationUtils
 import androidx.core.view.isVisible
@@ -60,7 +61,7 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
         super.onViewCreated(view, savedInstanceState)
         if (savedInstanceState == null) {
             chatListViewModel.initDataListener()
-            chatListViewModel.getChat()
+          //  chatListViewModel.getChat()
         }
         changeUiWithData()
         setTitle()
@@ -97,7 +98,8 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
         binding.chatToolbar.setOnMenuItemClickListener {
             when (it.itemId) {
                 R.id.add -> {
-                    navigator().showNewChat()
+                    chatListViewModel.addChat()
+                   // navigator().showNewChat()
                 }
                 else -> {}
             }; true
@@ -159,11 +161,12 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
         chatListViewModel.showUnreadOnly.observe(viewLifecycleOwner) {
             showUnreadOnly = it
             setTitle()
-            chatListViewModel.initDataListener()
+           // chatListViewModel.initDataListener()
             chatListViewModel.getChat()
         }
 
         chatListViewModel.chatList.observe(viewLifecycleOwner) {
+            Log.d("uuu", "list = $it")
             val a = ArrayList<ChatListDto>()
             a.addAll(it)
             if (a != null) a.sort()
@@ -182,6 +185,7 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
                     toPin = false
                 }
             }
+          //  chatListAdapter?.notifyDataSetChanged()
         }
 
         chatListViewModel.unreadMessage.observe(viewLifecycleOwner) {
@@ -236,12 +240,12 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
         }
     }
 
-    override fun clearHistory(name: String, opponent: String) {
+    override fun clearHistory(id: String, name: String, opponent: String) {
         val dialog = ChatHistoryClearDialog.newInstance(name)
         navigator().showDialogFragment(dialog, CLEAR_HISTORY_DIALOG_TAG)
         setFragmentResultListener(CLEAR_HISTORY_KEY) { _, bundle ->
             val result = bundle.getBoolean(CLEAR_HISTORY_BUNDLE_KEY)
-            if (result) chatListViewModel.clearHistoryChat(opponent)
+            if (result) chatListViewModel.clearHistoryChat(id, opponent)
         }
     }
 

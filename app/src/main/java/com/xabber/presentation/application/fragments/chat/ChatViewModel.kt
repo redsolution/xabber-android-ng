@@ -12,6 +12,7 @@ import com.xabber.model.xmpp.messages.MessageDisplayType
 import com.xabber.model.xmpp.messages.MessageSendingState
 import com.xabber.model.xmpp.messages.MessageStorageItem
 import com.xabber.model.xmpp.sync.ConversationType
+import com.xabber.presentation.XabberApplication
 import io.realm.Realm
 import io.realm.notifications.ResultsChange
 import io.realm.notifications.UpdatedResults
@@ -21,10 +22,10 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class ChatViewModel : ViewModel() {
+    val realm = Realm.open(defaultRealmConfig())
     private val _messages = MutableLiveData<ArrayList<MessageDto>>()
     val messages: LiveData<ArrayList<MessageDto>> = _messages
     private var messageList = ArrayList<MessageDto>()
-    private val realm = Realm.open(defaultRealmConfig())
     var a = 11
 
     fun initListener(opponent: String) {
@@ -115,7 +116,7 @@ class ChatViewModel : ViewModel() {
                     date = messageDto.sentTimestamp
                     sentDate = messageDto.sentTimestamp
                     editDate = messageDto.editTimestamp
-                    outgoing = messageDto.isOutgoing  // true я
+                    outgoing = messageDto.isOutgoing
                     isRead = true
                     references = realmListOf()
                     conversationType_ = ConversationType.Channel.toString()
@@ -125,7 +126,7 @@ class ChatViewModel : ViewModel() {
                 val item: LastChatsStorageItem? =
                     this.query(LastChatsStorageItem::class, "jid = '$opponentJid'").first().find()
                 item?.lastMessage = message
-                Log.d("chat", "item lastMessage = ${item?.lastMessage?.body}")
+                Log.d("uuu", "item lastMessage = ${item?.lastMessage?.body}")
 //
 //                val lastMessage = copyToRealm(MessageStorageItem().apply {
 //                    primary = messageDto.primary
@@ -171,6 +172,7 @@ class ChatViewModel : ViewModel() {
     }
 
     fun clearHistory(owner: String, opponent: String) {
+        Log.d("uuu", "$opponent")
         viewModelScope.launch(Dispatchers.IO) {
             realm.writeBlocking {
                 val messages =
@@ -199,6 +201,11 @@ class ChatViewModel : ViewModel() {
                 Log.d("chat", "новый $c")
             }
         }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        realm?.close()
     }
 
 

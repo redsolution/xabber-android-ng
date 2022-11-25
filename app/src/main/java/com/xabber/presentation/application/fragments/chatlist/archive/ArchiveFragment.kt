@@ -137,7 +137,7 @@ class ArchiveFragment : DetailBaseFragment(R.layout.fragment_archive),
         }
     }
 
-    override fun clearHistory(name: String, id: String) {
+    override fun clearHistory(id: String, name: String, opponent: String) {
         val dialog = ChatHistoryClearDialog.newInstance(name)
         navigator().showDialogFragment(dialog, AppConstants.CLEAR_HISTORY_DIALOG_TAG)
         setFragmentResultListener(AppConstants.CLEAR_HISTORY_KEY) { _, bundle ->

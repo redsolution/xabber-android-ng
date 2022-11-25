@@ -252,11 +252,11 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
             .setSmallIcon(R.drawable.ic_id_outline).setContentTitle("Title")
             .setContentText("text").setPriority(NotificationCompat.PRIORITY_HIGH)
         val notification = builder.build()
-        val notificationManager =
-            activity?.getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+     //   val notificationManager =
+     //       activity?.getSystemService(NOTIFICATION_SERVICE) as NotificationManager
 
         binding.imAvatar.setOnClickListener {
-            notificationManager.notify(1, notification)
+     //       notificationManager.notify(1, notification)
         }
         activity?.onBackPressedDispatcher?.addCallback(onBackPressedCallback)
         AXEmojiManager.install(requireContext(), AXGoogleEmojiProvider(requireContext()))

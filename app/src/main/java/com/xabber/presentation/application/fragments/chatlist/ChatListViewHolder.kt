@@ -37,12 +37,12 @@ class ChatListViewHolder(
     fun bind(chatListDto: ChatListDto, listener: ChatListAdapter.ChatListener) {
         with(binding) {
             // color divider
-            profileDivider.setBackgroundColor(
-                itemView.resources.getColor(
-                    chatListDto.colorId,
-                    itemView.context.theme
-                )
-            )
+//            profileDivider.setBackgroundColor(
+//                itemView.resources.getColor(
+//                    chatListDto.colorId,
+//                    itemView.context.theme
+//                )
+//            )
             if (chatListDto.isHide) {
                 val par = chatGround.layoutParams as RecyclerView.LayoutParams
                 par.height = 0
@@ -291,7 +291,7 @@ class ChatListViewHolder(
                             listener.deleteChat(chatListDto.displayName, chatListDto.id)
                         }
                         R.id.clear_history -> {
-                            listener.clearHistory(chatListDto.displayName, chatListDto.id)
+                            listener.clearHistory(chatListDto.id, chatListDto.displayName, chatListDto.opponentName)
                         }
                     }
                     true
@@ -366,6 +366,7 @@ class ChatListViewHolder(
                                 }
                                 R.id.clear_history -> {
                                     listener.clearHistory(
+                                        chatListDto.id,
                                         chatListDto.displayName,
                                         chatListDto.opponentName
                                     )
@@ -423,7 +424,7 @@ class ChatListViewHolder(
                                     listener.deleteChat(chatListDto.displayName, chatListDto.id)
                                 }
                                 R.id.clear_history -> {
-                                    listener.clearHistory(chatListDto.displayName, chatListDto.id)
+                                    listener.clearHistory(chatListDto.id, chatListDto.displayName, chatListDto.opponentName)
                                 }
                             }
                             true
