@@ -6,7 +6,6 @@ import android.os.Bundle
 import android.text.Spannable
 import android.text.SpannableString
 import android.text.style.ForegroundColorSpan
-import android.util.Log
 import android.view.Gravity
 import androidx.appcompat.widget.PopupMenu
 import androidx.core.content.ContextCompat
@@ -52,31 +51,12 @@ class ChatListViewHolder(
                 par.height = 72.dp
             }
             // avatar
-//            val mPictureBitmap =
-//                BitmapFactory.decodeResource(itemView.resources, chatListDto.drawableId)
-//            val mMaskBitmap =
-//                BitmapFactory.decodeResource(itemView.resources, UiChanger.getMask().size56)
-//                    .extractAlpha()
-//            val maskedDrawable =
-//                MaskedDrawableBitmapShader()
-//            maskedDrawable.setPictureBitmap(mPictureBitmap)
-//            maskedDrawable.setMaskBitmap(mMaskBitmap)
-//
-//            val mask = MaskPrepare.getDrawableMask(
-//                itemView.resources,
-//                chatListDto.drawableId,
-//                UiChanger.getMask().size56
-//            )
-
             val multiTransformation = MultiTransformation(CircleCrop())
 
             Glide.with(itemView).load(chatListDto.drawableId)
                 .apply(RequestOptions.bitmapTransform(multiTransformation))
                 .into(binding.imChatListItemAvatar)
 
-
-            //   imChatListItemAvatar.setImageResource(chatListDto.drawableId)
-            //    imChatListItemAvatar.setImageDrawable(mask)
             // name
             tvChatListName.text = chatListDto.opponentName
 
@@ -84,8 +64,8 @@ class ChatListViewHolder(
             tvChatListLastMessage.text = chatListDto.lastMessageBody ?: ""
 
             // timeStamp
-            tvChatListTimestamp.text = DateFormatter.dateFormat(chatListDto.lastMessageDate.toString())
-            Log.d("ggg", "time text = ${ tvChatListTimestamp.text}, time = ${chatListDto.lastMessageDate}")
+            tvChatListTimestamp.text =
+                DateFormatter.dateFormat(chatListDto.lastMessageDate.toString())
 
             // pinned -> background and icon
             if (chatListDto.pinnedDate > 0) {
@@ -149,17 +129,17 @@ class ChatListViewHolder(
                 else -> {}
             }
 
-//            if (tint != null && image != null) {
-//                Glide.with(itemView)
-//                    .load(image)
-//                    .centerCrop()
-//                    .skipMemoryCache(true)
-//                    .into(imChatListStatusMessage)
-//                imChatListStatusMessage.setColorFilter(
-//                    ContextCompat.getColor(itemView.context, tint),
-//                    PorterDuff.Mode.SRC_IN
-//                )
-//            }
+            if (tint != null && image != null) {
+                Glide.with(itemView)
+                    .load(image)
+                    .centerCrop()
+                    .skipMemoryCache(true)
+                    .into(imChatListStatusMessage)
+                imChatListStatusMessage.setColorFilter(
+                    ContextCompat.getColor(itemView.context, tint),
+                    PorterDuff.Mode.SRC_IN
+                )
+            }
             if (tint != null && image != null) {
                 binding.imChatListStatusMessage.setImageResource(image)
                 binding.imChatListStatusMessage.setColorFilter(
@@ -170,7 +150,6 @@ class ChatListViewHolder(
 
             // synced
             chatSyncImage.isVisible = chatListDto.isSynced
-            //     chatMessage.text = if (chatList.) "Изображение 229б86 KiB" else chatList.lastMessage
 
             // contact status
             if (chatListDto.entity == RosterItemEntity.Contact) {
@@ -386,7 +365,10 @@ class ChatListViewHolder(
                                     listener.deleteChat(chatListDto.displayName, chatListDto.id)
                                 }
                                 R.id.clear_history -> {
-                                    listener.clearHistory(chatListDto.displayName, chatListDto.opponentName)
+                                    listener.clearHistory(
+                                        chatListDto.displayName,
+                                        chatListDto.opponentName
+                                    )
                                 }
                             }
                             true
@@ -456,5 +438,4 @@ class ChatListViewHolder(
 
     }
 
-    fun a() {}
 }

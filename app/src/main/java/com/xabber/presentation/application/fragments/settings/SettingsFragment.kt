@@ -80,7 +80,7 @@ class SettingsFragment : BaseFragment(R.layout.fragment_settings) {
                 "Nataly",
                 "nata@xmpp.ru",
                 R.color.red_600,
-                R.drawable.girl, 2
+                R.drawable.img, 2
             )
         )
         binding.rvAccounts.layoutManager = LinearLayoutManager(context)

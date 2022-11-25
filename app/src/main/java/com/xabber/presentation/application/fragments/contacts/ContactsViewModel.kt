@@ -22,7 +22,7 @@ class ContactsViewModel : ViewModel() {
                     "Иванов",
                     "ivanov@xmpp.ru",
                     R.color.red_500,
-                    R.drawable.butterfly,
+                    R.drawable.img,
                     "группа 1",
                     null,
                     ResourceStatus.Online, RosterItemEntity.Groupchat
@@ -35,7 +35,7 @@ class ContactsViewModel : ViewModel() {
                     "Сергеев",
                     "ivan@xabber.com",
                     R.color.green_500,
-                    R.drawable.rayan,
+                    R.drawable.img,
                     null, null,  ResourceStatus.Away, RosterItemEntity.Contact
                 ),
                 ContactDto(
@@ -57,7 +57,7 @@ class ContactsViewModel : ViewModel() {
                     "Семенова",
                     "annasemenova@xabber.com",
                     R.color.yellow_500,
-                    R.drawable.kitty,
+                    R.drawable.img,
                     null, null, ResourceStatus.Dnd, RosterItemEntity.Bot
                 ),
                 ContactDto(
@@ -68,7 +68,7 @@ class ContactsViewModel : ViewModel() {
                     "Панин",
                     "oleg92@xmpp.ru",
                     R.color.red_500,
-                    R.drawable.man,
+                    R.drawable.img,
                     null, null, ResourceStatus.Xa, RosterItemEntity.IncognitoChat
                 ),
                 ContactDto(
@@ -79,7 +79,7 @@ class ContactsViewModel : ViewModel() {
                     "Белов",
                     "belovn@xabber.com",
                     com.canhub.cropper.R.color.material_deep_teal_500,
-                    R.drawable.car,
+                    R.drawable.img,
                     null, null, ResourceStatus.Offline, RosterItemEntity.Server
                 ),
                 ContactDto(
@@ -90,7 +90,7 @@ class ContactsViewModel : ViewModel() {
                     "Стаханова",
                     "kriss@xmpp.ru",
                     R.color.yellow_700,
-                    R.drawable.woman,
+                    R.drawable.img,
                     null, null, ResourceStatus.Offline, RosterItemEntity.EncryptedChat
                 ),
                 ContactDto(
@@ -101,7 +101,7 @@ class ContactsViewModel : ViewModel() {
                     "Игнатьев",
                     "ignatev@xabber.com",
                     R.color.green_500,
-                    R.drawable.wolf,
+                    R.drawable.img,
                     null, null, ResourceStatus.Online, RosterItemEntity.Groupchat
                 ),
                 ContactDto(
@@ -112,7 +112,7 @@ class ContactsViewModel : ViewModel() {
                     "Морозова",
                     "moroz92@xmpp.ru",
                     R.color.cyan_500,
-                    R.drawable.goodboy,
+                    R.drawable.img,
                     null, null, ResourceStatus.Online, RosterItemEntity.Issue
                 ),
                 ContactDto(
@@ -123,7 +123,7 @@ class ContactsViewModel : ViewModel() {
                     "Потапов",
                     "sery@xabber.com",
                     R.color.blue_500,
-                    R.drawable.sea,
+                    R.drawable.img,
                     null, null, ResourceStatus.Online, RosterItemEntity.PrivateChat
                 ),
                 ContactDto(
@@ -134,7 +134,7 @@ class ContactsViewModel : ViewModel() {
                     "Петров",
                     "petrov@xabber.com",
                     R.color.deep_orange_500,
-                    R.drawable.baby,
+                    R.drawable.img,
                     null, null, ResourceStatus.Chat, RosterItemEntity.Contact
                 ),
                 ContactDto(
@@ -145,7 +145,7 @@ class ContactsViewModel : ViewModel() {
                     "Гизатуллина",
                     "dilya92@xmpp.ru",
                     R.color.lime_500,
-                    R.drawable.girl,
+                    R.drawable.img,
                     null, null, ResourceStatus.Online, RosterItemEntity.Bot
                 ),
                 ContactDto(
@@ -156,7 +156,7 @@ class ContactsViewModel : ViewModel() {
                     "Кривоногов",
                     "kos@xabber.com",
                     R.color.indigo_500,
-                    R.drawable.litter,
+                    R.drawable.img,
                     null, null, ResourceStatus.Online, RosterItemEntity.Contact
                 ),
                 ContactDto(
@@ -167,7 +167,7 @@ class ContactsViewModel : ViewModel() {
                     "Сорокина",
                     "polly@xmpp.ru",
                     R.color.purple_500,
-                    R.drawable.free,
+                    R.drawable.img,
                     null, null, ResourceStatus.Dnd, RosterItemEntity.EncryptedChat
                 )
             )

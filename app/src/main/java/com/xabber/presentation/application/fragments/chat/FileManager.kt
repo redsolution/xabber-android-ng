@@ -8,7 +8,7 @@ import android.util.Log
 import androidx.core.content.FileProvider
 import androidx.fragment.app.Fragment
 import com.xabber.BuildConfig
-import com.xabber.presentation.XabberApplication
+//import com.xabber.presentation.XabberApplication
 import java.io.*
 import java.net.MalformedURLException
 import java.net.URL

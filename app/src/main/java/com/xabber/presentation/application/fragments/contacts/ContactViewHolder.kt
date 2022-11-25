@@ -118,16 +118,16 @@ class ContactViewHolder(
 
 
             // avatar
-            val maskedDrawable = MaskPrepare.getDrawableMask(
-                itemView.resources,
-                contact.avatar,
-                UiChanger.getMask().size48
-            )
-            Glide.with(itemView)
-                .load(maskedDrawable)
-                .centerCrop()
-                .skipMemoryCache(true)
-                .into(binding.contactImage)
+//            val maskedDrawable = MaskPrepare.getDrawableMask(
+//                itemView.resources,
+//                contact.avatar,
+//                UiChanger.getMask().size48
+//            )
+//            Glide.with(itemView)
+//                .load(maskedDrawable)
+//                .centerCrop()
+//                .skipMemoryCache(true)
+//                .into(binding.contactImage)
 
             contactImage.setOnClickListener {
                 listener.onAvatarClick(contact)

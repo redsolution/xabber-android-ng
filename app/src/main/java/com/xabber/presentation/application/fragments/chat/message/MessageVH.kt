@@ -14,7 +14,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.xabber.R
 import com.xabber.model.dto.MessageDto
 import com.xabber.model.dto.MessageVhExtraData
-import com.xabber.presentation.XabberApplication
+//import com.xabber.presentation.XabberApplication
 import com.xabber.presentation.application.fragments.chat.audio.VoiceManager
 import com.xabber.presentation.custom.CorrectlyTouchEventTextView
 import com.xabber.presentation.custom.CustomFlexboxLayout
@@ -663,8 +663,8 @@ open class MessageVH(
 //    }
 //
 }
-    private fun getTimeText(timeStamp: Date): String {
-        return DateFormat.getTimeFormat(XabberApplication.newInstance()).format(timeStamp)
+    private fun getTimeText(timeStamp: Date): String { return ""
+     //   return DateFormat.getTimeFormat(XabberApplication.newInstance()).format(timeStamp)
     }
 
     init {

@@ -2,7 +2,6 @@ package com.xabber.presentation.application.fragments.chatlist
 
 import android.graphics.Color
 import android.os.Bundle
-import android.util.Log
 import android.view.View
 import android.view.animation.AnimationUtils
 import androidx.core.view.isVisible
@@ -10,11 +9,14 @@ import androidx.fragment.app.activityViewModels
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import by.kirich1409.viewbindingdelegate.viewBinding
+import com.bumptech.glide.Glide
+import com.bumptech.glide.load.MultiTransformation
+import com.bumptech.glide.load.resource.bitmap.CircleCrop
+import com.bumptech.glide.request.RequestOptions
 import com.google.android.material.snackbar.Snackbar
 import com.xabber.R
 import com.xabber.databinding.FragmentChatListBinding
 import com.xabber.model.dto.ChatListDto
-import com.xabber.model.xmpp.account.AccountViewModel
 import com.xabber.presentation.AppConstants.CHAT_LIST_UNREAD_KEY
 import com.xabber.presentation.AppConstants.CLEAR_HISTORY_BUNDLE_KEY
 import com.xabber.presentation.AppConstants.CLEAR_HISTORY_DIALOG_TAG
@@ -26,13 +28,11 @@ import com.xabber.presentation.AppConstants.TURN_OFF_NOTIFICATIONS_BUNDLE_KEY
 import com.xabber.presentation.AppConstants.TURN_OFF_NOTIFICATIONS_KEY
 import com.xabber.presentation.BaseFragment
 import com.xabber.presentation.application.activity.AccountManager
-import com.xabber.presentation.application.activity.UiChanger
 import com.xabber.presentation.application.bottomsheet.NotificationBottomSheet
 import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.application.dialogs.ChatHistoryClearDialog
 import com.xabber.presentation.application.dialogs.DeletingChatDialog
 import com.xabber.presentation.application.fragments.chat.ChatParams
-import com.xabber.utils.mask.MaskPrepare
 import com.xabber.utils.partSmoothScrollToPosition
 import com.xabber.utils.setFragmentResultListener
 
@@ -40,7 +40,6 @@ import com.xabber.utils.setFragmentResultListener
 class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdapter.ChatListener {
     private val binding by viewBinding(FragmentChatListBinding::bind)
     private val chatListViewModel: ChatListViewModel by activityViewModels()
-    private val accountViewModel: AccountViewModel by activityViewModels()
     private var chatListAdapter: ChatListAdapter? = null
     private var layoutManager: LinearLayoutManager? = null
     private var showUnreadOnly = false
@@ -59,7 +58,8 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        if (savedInstanceState == null)  { chatListViewModel.initDataListener()
+        if (savedInstanceState == null) {
+            chatListViewModel.initDataListener()
             chatListViewModel.getChat()
         }
         changeUiWithData()
@@ -67,7 +67,6 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
         initToolbarActions()
         initRecyclerView()
         subscribeOnViewModelData()
-
         initEmptyButton()
         initMarkUnreadsButton()
         initButtonArchive()
@@ -83,9 +82,11 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
     }
 
     private fun loadAvatarWithMask() {
-        val maskedDrawable =
-            MaskPrepare.getDrawableMask(resources, R.drawable.img, UiChanger.getMask().size32)
-        binding.imAvatar.setImageDrawable(maskedDrawable)
+        val multiTransformation = MultiTransformation(CircleCrop())
+
+        Glide.with(requireContext()).load(AccountManager.avatar)
+            .apply(RequestOptions.bitmapTransform(multiTransformation))
+            .into(binding.imAvatar)
     }
 
     private fun initToolbarActions() {
@@ -96,8 +97,7 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
         binding.chatToolbar.setOnMenuItemClickListener {
             when (it.itemId) {
                 R.id.add -> {
-                    chatListViewModel.addChat()
-                    //  navigator().showNewChat()
+                    navigator().showNewChat()
                 }
                 else -> {}
             }; true
@@ -117,6 +117,7 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
         addEdgeEffectFactory()
         addSwipeOption()
         addScrollListener()
+
     }
 
     private fun addEdgeEffectFactory() {
@@ -156,15 +157,13 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
 
     private fun subscribeOnViewModelData() {
         chatListViewModel.showUnreadOnly.observe(viewLifecycleOwner) {
-            Log.d("iii", "unread obs")
             showUnreadOnly = it
             setTitle()
             chatListViewModel.initDataListener()
-           //chatListViewModel.getChat()
+            chatListViewModel.getChat()
         }
 
         chatListViewModel.chatList.observe(viewLifecycleOwner) {
-            Log.d("iii", "observe")
             val a = ArrayList<ChatListDto>()
             a.addAll(it)
             if (a != null) a.sort()
@@ -298,10 +297,6 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
     override fun onDestroy() {
         super.onDestroy()
         chatListAdapter = null
-    }
-
-    override fun onResume() {
-        super.onResume()
     }
 
 }

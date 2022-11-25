@@ -15,7 +15,7 @@ class CallsFragment : BaseFragment(R.layout.fragment_calls) {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        loadAvatarWithMask()
+      //  loadAvatarWithMask()
         activeLinks()
     }
 

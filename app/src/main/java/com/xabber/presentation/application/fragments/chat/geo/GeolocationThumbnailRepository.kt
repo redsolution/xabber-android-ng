@@ -4,7 +4,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Looper
-import com.xabber.presentation.XabberApplication
+//import com.xabber.presentation.XabberApplication
 import java.io.BufferedOutputStream
 import java.io.File
 import java.io.FileOutputStream
@@ -33,21 +33,21 @@ class GeolocationThumbnailRepository(private val context: Context) {
 
     fun removeIfExists(lon: Double, lat: Double, pointerColor: Int) {
         try {
-           XabberApplication.newInstance().run {
-                File(dir, createName(lon, lat)).delete()
-            }
+//           XabberApplication.newInstance().run {
+//                File(dir, createName(lon, lat)).delete()
+//            }
         } catch (ex: Exception) {
             //ignore
         }
     }
 
     private fun writeToDisk(bitmap: Bitmap, name: String) {
-        XabberApplication.newInstance().run  {
-            BufferedOutputStream(FileOutputStream(File(dir, name))).use {
-                bitmap.compress(Bitmap.CompressFormat.PNG, 50, it)
-                it.flush()
-            }
-        }
+//        XabberApplication.newInstance().run  {
+//            BufferedOutputStream(FileOutputStream(File(dir, name))).use {
+//                bitmap.compress(Bitmap.CompressFormat.PNG, 50, it)
+//                it.flush()
+//            }
+//        }
     }
 
     private fun createName(lon: Double, lat: Double) =

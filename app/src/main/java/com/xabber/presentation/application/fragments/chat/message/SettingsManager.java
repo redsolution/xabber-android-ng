@@ -9,7 +9,7 @@ import android.text.TextUtils;
 
 import androidx.annotation.NonNull;
 
-import com.xabber.presentation.XabberApplication;
+//import com.xabber.presentation.XabberApplication;
 
 import java.util.Collections;
 import java.util.Comparator;
@@ -23,7 +23,7 @@ public class SettingsManager implements OnInitializedListener, SharedPreferences
     private static SettingsManager instance;
 
     private SettingsManager() {
-        getSharedPreferences().registerOnSharedPreferenceChangeListener(this);
+     //   getSharedPreferences().registerOnSharedPreferenceChangeListener(this);
     }
 
     public static SettingsManager getInstance() {
@@ -33,9 +33,10 @@ public class SettingsManager implements OnInitializedListener, SharedPreferences
         return instance;
     }
 
-    private static SharedPreferences getSharedPreferences() {
-        return PreferenceManager.getDefaultSharedPreferences(XabberApplication.Companion.newInstance());
-    }
+//    private static SharedPreferences getSharedPreferences() {
+//        return SharedPreferences.OnSharedPreferenceChangeListener()
+//      //  return PreferenceManager.getDefaultSharedPreferences(XabberApplication.Companion.newInstance());
+//    }
 
     @Override
     public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String s) {

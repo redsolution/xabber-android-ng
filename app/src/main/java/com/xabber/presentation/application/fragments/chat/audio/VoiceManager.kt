@@ -2,7 +2,7 @@ package com.xabber.presentation.application.fragments.chat.audio
 
 import android.content.Context
 import android.util.Log
-import com.xabber.presentation.XabberApplication
+//import com.xabber.presentation.XabberApplication
 import com.xabber.presentation.application.fragments.chat.FileManager
 import com.xabber.service.RecordService
 import java.io.File

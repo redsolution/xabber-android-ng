@@ -45,7 +45,7 @@
                     android:layout_gravity="bottom"
                     android:layout_marginStart="6dp"
                     android:id="@+id/avatar_contact"
-                    android:src="@drawable/transparency_demonstration"
+                    android:src="@drawable/img"
                     app:layout_constraintBottom_toBottomOf="parent"
                     app:layout_constraintStart_toEndOf="@id/checkbox_incoming" />
 

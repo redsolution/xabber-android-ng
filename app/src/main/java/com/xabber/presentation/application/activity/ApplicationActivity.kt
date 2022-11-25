@@ -29,7 +29,7 @@ import com.xabber.R
 import com.xabber.databinding.ActivityApplicationBinding
 import com.xabber.model.dto.ContactDto
 import com.xabber.model.xmpp.account.Account
-import com.xabber.notification.PushService
+//import com.xabber.notification.PushService
 import com.xabber.presentation.AppConstants
 import com.xabber.presentation.application.activity.DisplayManager.getMainContainerWidth
 import com.xabber.presentation.application.activity.DisplayManager.isDualScreenMode
@@ -66,7 +66,7 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
     private val activeFragment: Fragment?
         get() = supportFragmentManager.findFragmentById(R.id.application_container)
     private val viewModel: ChatListViewModel by viewModels()
-    private lateinit var pushBroadcastReceiver: BroadcastReceiver
+  //  private lateinit var pushBroadcastReceiver: BroadcastReceiver
     var unreadCount = 0
     val vv = ChatListViewModel()
 
@@ -81,36 +81,36 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
             setHeightStatusBar()
             assist = SoftInputAssist(this)
             initBottomNavigation()
-            determinateMask()
-            determinateAccountList()
+     //       determinateMask()
+      //      determinateAccountList()
 
-            pushBroadcastReceiver = object : BroadcastReceiver() {
-                override fun onReceive(p0: Context?, intent: Intent?) {
-                    val extras = intent?.extras
-                    Log.d("keyintent", "messageReceive")
-                    extras?.keySet()?.firstOrNull {
-                        it == PushService.KEY_ACTION
-                    }?.let { key ->
-                        when (extras.getString(key)) {
-                            PushService.ACTION_SHOW_MESSAGE -> {
-                                extras.getString(PushService.KEY_MESSAGE)?.let { message ->
-                                    Log.d("keyintent", "messageReceive")
-                                    Toast.makeText(applicationContext, message, Toast.LENGTH_SHORT)
-                                        .show()
-                                }
-                            }
-                            else -> {
-                                Log.d("keyintent", "no key")
-                            }
-                        }
-                    }
+//            pushBroadcastReceiver = object : BroadcastReceiver() {
+//                override fun onReceive(p0: Context?, intent: Intent?) {
+//                    val extras = intent?.extras
+//                    Log.d("keyintent", "messageReceive")
+//                    extras?.keySet()?.firstOrNull {
+//                        it == PushService.KEY_ACTION
+//                    }?.let { key ->
+//                        when (extras.getString(key)) {
+//                            PushService.ACTION_SHOW_MESSAGE -> {
+//                                extras.getString(PushService.KEY_MESSAGE)?.let { message ->
+//                                    Log.d("keyintent", "messageReceive")
+//                                    Toast.makeText(applicationContext, message, Toast.LENGTH_SHORT)
+//                                        .show()
+//                                }
+//                            }
+//                            else -> {
+//                                Log.d("keyintent", "no key")
+//                            }
+//                        }
+//                    }
 
-                }
-            }
-            val intentFilter = IntentFilter()
-            intentFilter.addAction(PushService.INTENT_FILTER)
-            registerReceiver(pushBroadcastReceiver, intentFilter)
-            Log.d("keyIntent", "broadcast = $pushBroadcastReceiver")
+  //              }
+          //  }
+     //       val intentFilter = IntentFilter()
+      //      intentFilter.addAction(PushService.INTENT_FILTER)
+           // registerReceiver(pushBroadcastReceiver, intentFilter)
+         //   Log.d("keyIntent", "broadcast = $pushBroadcastReceiver")
             binding.slidingPaneLayout.lockMode = SlidingPaneLayout.LOCK_MODE_LOCKED_CLOSED
             binding.slidingPaneLayout.clearAnimation()
             if (savedInstanceState == null) {

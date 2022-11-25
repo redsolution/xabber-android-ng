@@ -63,7 +63,7 @@ class ReorderAccountsFragment : BaseFragment(R.layout.fragment_reorder_account) 
                 "Nataliy",
                 "nata@xmpp.ru",
                 R.color.red_600,
-                R.drawable.girl, 2
+                R.drawable.img, 2
             )
         )
         reorderAccountAdapter = ReorderAccountAdapter(accountList) { onStartDrag(it) }

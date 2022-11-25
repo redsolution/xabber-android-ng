@@ -2,7 +2,6 @@ package com.xabber.presentation.application.fragments.chatlist
 
 import android.os.Bundle
 import android.view.LayoutInflater
-import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ItemTouchHelper
@@ -41,14 +40,9 @@ class ChatListAdapter(
 
     lateinit var recyclerView: RecyclerView
 
-    private fun getAbstractContactFromPosition(position: Int) = currentList[position]
-
-    private fun getAbstractContactFromView(v: View) =
-        getAbstractContactFromPosition(recyclerView.getChildLayoutPosition(v))
-
-      override fun onAttachedToRecyclerView(recycler: RecyclerView) {
+    override fun onAttachedToRecyclerView(recycler: RecyclerView) {
         recyclerView = recycler
-            ItemTouchHelper(SwipeToArchiveCallback(this)).attachToRecyclerView(recycler)
+        ItemTouchHelper(SwipeToArchiveCallback(this)).attachToRecyclerView(recycler)
 
         super.onAttachedToRecyclerView(recyclerView)
     }
@@ -75,34 +69,10 @@ class ChatListAdapter(
         }
     }
 
-    fun onSwipeChatItem(position: Int, holder: RecyclerView.ViewHolder) {
- //getAbstractContactFromView(holder.itemView).let {
-    //        deleteItemByAbstractContact(it)
-     //   currentList.remove(currentList[position])
-val c = currentList[position].id
-        val a = ArrayList<ChatListDto>()
-         val iterator = currentList.iterator()
-        while(iterator.hasNext()){
-            val item = iterator.next()
-            if(item.id != c){
-                a.add(item)
-            }
-        }
-
-        submitList(a)
-    listener.swipeItem(currentList[position].id)
-     //   }
-
-
+    fun onSwipeChatItem(position: Int) {
+        listener.swipeItem(currentList[position].id)
     }
 
-    private fun deleteItemByAbstractContact(contact: ChatListDto) =
-        deleteItemByPosition(currentList.indexOf(contact))
-
-     private fun deleteItemByPosition(position: Int) {
-        currentList.removeAt(position)
-        notifyItemRemoved(position)
-    }
 
     private object DiffUtilCallback : DiffUtil.ItemCallback<ChatListDto>() {
 
@@ -126,7 +96,6 @@ val c = currentList[position].id
                 PAYLOAD_MUTE_EXPIRED_CHAT,
                 newItem.muteExpired
             )
-          //  if (oldItem.lastMessageBody != newItem.lastMessageBody) diffBundle.putLong()
             return diffBundle
         }
     }
