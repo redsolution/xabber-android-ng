@@ -22,13 +22,14 @@ import com.xabber.model.dto.MessageDto
 import com.xabber.utils.dp
 import com.xabber.databinding.ItemMessageIncomingBinding
 import com.xabber.presentation.application.activity.UiChanger
+import com.xabber.presentation.application.fragments.chat.Check
 import com.xabber.utils.mask.MaskedDrawableBitmapShader
 import com.xabber.utils.StringUtils
 import java.util.*
 
 class IncomingMessageVH(
     private val binding: ItemMessageIncomingBinding,
-    private val listener: MessageAdapter.Listener,
+    private val listener: ChatAdapter.Listener,
 ) : BasicMessageVH(binding.root) {
     @RequiresApi(Build.VERSION_CODES.N)
     @SuppressLint("RestrictedApi", "ResourceAsColor")
@@ -64,14 +65,21 @@ class IncomingMessageVH(
         if (binding.tvContactName.isVisible) binding.tvContactName.text = messageDto.owner
         binding.avatarContact.isVisible = messageDto.isGroup && isNeedTail
 
-        // checkbox
-        binding.checkboxIncoming.isVisible = showCheckbox
-
         // margins and paddings
         val params = LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.WRAP_CONTENT
         )
+
+
+        if (messageDto.isChecked) {
+            binding.frameLayoutBlackout.setBackgroundResource(R.color.selected)
+          //  binding.tvContent.setTextIsSelectable(true)
+        } else {
+            binding.frameLayoutBlackout.setBackgroundResource(R.color.transparent)
+         //   binding.tvContent.setTextIsSelectable(false)
+        }
+
 
         val marginRight =
             if (messageDto.isGroup && !showCheckbox) 46.dp else if (messageDto.isGroup && showCheckbox) 12.dp else 40.dp
@@ -140,13 +148,8 @@ if (binding.avatarContact.isVisible) {
         //   val popupMenu = createPopupMenu(messageDto, binding.root)
 
         binding.root.setOnClickListener {
-            if (showCheckbox) {
-               binding.checkboxIncoming.isChecked = !binding.checkboxIncoming.isChecked
-                if (binding.checkboxIncoming.isChecked) { binding.frameLayoutBlackout.setBackgroundResource(R.color.selected)
-                    binding.tvContent.setTextIsSelectable(true)
-                }
-              else { binding.frameLayoutBlackout.setBackgroundResource(R.color.transparent)
-                  binding.tvContent.setTextIsSelectable(false) }
+            if (Check.getSelectedMode()) {
+                listener.checkItem(!messageDto.isChecked, messageDto.primary)
             } else {
                  val popup = PopupMenu(it.context, it, Gravity.CENTER)
                 popup.setForceShowIcon(true)
@@ -161,8 +164,9 @@ if (binding.avatarContact.isVisible) {
                     R.id.copy -> {
                         val text = binding.tvContent.text.toString()
                         listener.copyText(text)
-                        showSnackbar(itemView)
-
+                    }
+                    R.id.pin -> {
+                        listener.pinMessage(messageDto)
                     }
                     R.id.forward -> {
                         listener.forwardMessage(messageDto)
@@ -177,24 +181,13 @@ if (binding.avatarContact.isVisible) {
                 true
             }
             popup.show()
-            true
-
-                //  binding.checkboxIncoming.isChecked = !binding.checkboxIncoming.isChecked
             }
-
         }
 
-
         binding.root.setOnLongClickListener {
-
-            if (!showCheckbox) {
-
-                listener.onLongClick(messageDto.primary)
-            } else {
-                binding.checkboxIncoming.isChecked = !binding.checkboxIncoming.isChecked
-                binding.frameLayoutBlackout.setBackgroundResource(R.color.selected)
-                binding.tvContent.setTextIsSelectable(showCheckbox)
-            }
+            if (!Check.getSelectedMode()) listener.onLongClick(messageDto.primary)
+            else  {listener.checkItem(!messageDto.isChecked, messageDto.primary)
+           Log.d("uuu", "isChecked ${messageDto.isChecked}") }
             true
         }
     }

@@ -5,6 +5,7 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.Dialog
 import android.content.ContentUris
+import android.content.Context
 import android.content.DialogInterface
 import android.content.Intent
 import android.content.res.Resources
@@ -19,9 +20,11 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.animation.AnimationUtils
+import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.constraintlayout.widget.ConstraintLayout
+import androidx.core.view.isVisible
 import androidx.recyclerview.widget.GridLayoutManager
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
@@ -277,6 +280,7 @@ class AttachBottomSheet : BottomSheetDialogFragment(), GalleryAdapter.Listener {
         with(binding) {
             attachCameraButton.setOnClickListener {
                 if (isPermissionGranted(Manifest.permission.CAMERA) && isPermissionGranted(Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
+                    dismiss()
                     openCamera()
                 } else {
                     requestCameraPermissionLauncher.launch(
@@ -288,14 +292,19 @@ class AttachBottomSheet : BottomSheetDialogFragment(), GalleryAdapter.Listener {
                 }
             }
             attachGalleryButton.setOnClickListener {
-                if (isPermissionGranted(Manifest.permission.READ_EXTERNAL_STORAGE)) openGallery()
-                else requestGalleryPermissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
+                if (isPermissionGranted(Manifest.permission.READ_EXTERNAL_STORAGE)) {
+                    dismiss()
+                    openGallery()
+                } else requestGalleryPermissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
             }
             attachFileButton.setOnClickListener {
-                if (isPermissionGranted(Manifest.permission.READ_EXTERNAL_STORAGE)) openFiles()
-                else requestGalleryPermissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
+                if (isPermissionGranted(Manifest.permission.READ_EXTERNAL_STORAGE)) {
+                    dismiss()
+                    openFiles()
+                } else requestGalleryPermissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
             }
             attachLocationButton.setOnClickListener {
+                dismiss()
                 openLocation()
             }
         }
@@ -380,7 +389,7 @@ class AttachBottomSheet : BottomSheetDialogFragment(), GalleryAdapter.Listener {
     }
 
     override fun onRecentImagesSelected() {
-     //   val j = resources.getDimension(com.google.android.material.R.dimen.action_bar_size)
+        //   val j = resources.getDimension(com.google.android.material.R.dimen.action_bar_size)
         val selectedImagesCount = if (galleryAdapter?.getSelectedImagePaths() != null) {
             galleryAdapter?.getSelectedImagePaths()!!.size
         } else 0
@@ -392,66 +401,66 @@ class AttachBottomSheet : BottomSheetDialogFragment(), GalleryAdapter.Listener {
         val app = AnimationUtils.loadAnimation(context, R.anim.appearance)
         val dis = AnimationUtils.loadAnimation(context, R.anim.disappearance)
         val animLeft = AnimationUtils.loadAnimation(context, R.anim.to_left)
-//        if (selectedImagesCount > 0) {
-//            if (binding.attachScrollBar.isVisible) {
-//                binding.frameLayoutActionContainer.startAnimation(minBottom)
-//                binding.attachScrollBar.startAnimation(dis)
-//                binding.attachScrollBar.isVisible = false
-//                binding.attachGalleryButton.isEnabled = false
-//                binding.attachFileButton.isEnabled = false
-//                binding.attachLocationButton.isEnabled = false
-//                binding.inputPanel.isVisible = true
-//                binding.chatInput.isEnabled = true
-//                binding.chatInput.isClickable = true
-//                binding.chatInput.elevation = 10f
-//              binding.chatInput.isVisible = true
-//                binding.frameLayoutActionContainer.setOnClickListener {
-//                    binding.chatInput.isFocusable = true
-//                    binding.chatInput.isFocusableInTouchMode = true
-//                    binding.chatInput.requestFocus()
-//                    val inputMethodManager: InputMethodManager =
-//                        context?.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-//                    inputMethodManager.showSoftInput(
-//                        binding.chatInput,
-//                        InputMethodManager.SHOW_IMPLICIT
-//                    )
-//                }
-////
-////                binding.groupSend.isVisible = true
-//                binding.send.isVisible = true
-//              //  binding.btnSend.isVisible = true
-//                //  binding.groupSend.startAnimation(app)
-//                binding.send.startAnimation(animLeft)
-//              //   binding.inputLayout.startAnimation(animTop)
-//            }
-//       //         binding.badge.setText(String.format(Locale.getDefault(),"Send (%d)", selectedImagesCount));
-////            binding.tvCountFiles.text = String.format(
-////                Locale.getDefault(),
-////                "%d",
-////                selectedImagesCount
-////            )
-//        } else {
-//            if (binding.inputPanel.isVisible) {
-//                binding.inputPanel.startAnimation(dis)
-//                binding.send.startAnimation(animRight)
-//                binding.inputPanel.isVisible = false
-//                binding.send.isVisible = false
-//              //  binding.btnSend.isVisible = false
-//              binding.frameLayoutActionContainer.startAnimation(minTop)
-////                val params = CoordinatorLayout.LayoutParams(
-////                    CoordinatorLayout.LayoutParams.MATCH_PARENT, 150.dp
-////                )
-////                binding.frameLayoutActionContainer.layoutParams = params
-//                binding.attachScrollBar.isVisible = true
-//                binding.attachScrollBar.startAnimation(app)
-//                binding.attachGalleryButton.isEnabled = true
-//                binding.attachFileButton.isEnabled = true
-//                binding.attachLocationButton.isEnabled = true
-//                binding.chatInput.isEnabled = false
-//                binding.chatInput.isVisible = false
-//                // binding.chatInput.elevation = 0f
-//            }
-//        }
+        if (selectedImagesCount > 0) {
+            if (binding.attachScrollBar.isVisible) {
+                binding.frameLayoutActionContainer.startAnimation(minBottom)
+                binding.attachScrollBar.startAnimation(dis)
+                binding.attachScrollBar.isVisible = false
+                binding.attachGalleryButton.isEnabled = false
+                binding.attachFileButton.isEnabled = false
+                binding.attachLocationButton.isEnabled = false
+                binding.inputPanel.isVisible = true
+                binding.chatInput.isEnabled = true
+                binding.chatInput.isClickable = true
+                binding.chatInput.elevation = 10f
+              binding.chatInput.isVisible = true
+                binding.frameLayoutActionContainer.setOnClickListener {
+                    binding.chatInput.isFocusable = true
+                    binding.chatInput.isFocusableInTouchMode = true
+                    binding.chatInput.requestFocus()
+                    val inputMethodManager: InputMethodManager =
+                        context?.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+                    inputMethodManager.showSoftInput(
+                        binding.chatInput,
+                        InputMethodManager.SHOW_IMPLICIT
+                    )
+                }
+//
+             //   binding.groupSend.isVisible = true
+                binding.send.isVisible = true
+           //   binding.btnSend.isVisible = true
+             //    binding.groupSend.startAnimation(app)
+                binding.send.startAnimation(animLeft)
+              //   binding.inputLayout.startAnimation(animTop)
+            }
+       //         binding.badge.setText(String.format(Locale.getDefault(),"Send (%d)", selectedImagesCount));
+//            binding.tvCountFiles.text = String.format(
+//                Locale.getDefault(),
+//                "%d",
+//                selectedImagesCount
+//            )
+        } else {
+            if (binding.inputPanel.isVisible) {
+                binding.inputPanel.startAnimation(dis)
+                binding.send.startAnimation(animRight)
+                binding.inputPanel.isVisible = false
+                binding.send.isVisible = false
+              //  binding.btnSend.isVisible = false
+              binding.frameLayoutActionContainer.startAnimation(minTop)
+//                val params = CoordinatorLayout.LayoutParams(
+//                    CoordinatorLayout.LayoutParams.MATCH_PARENT, 150.dp
+//                )
+//                binding.frameLayoutActionContainer.layoutParams = params
+                binding.attachScrollBar.isVisible = true
+                binding.attachScrollBar.startAnimation(app)
+                binding.attachGalleryButton.isEnabled = true
+                binding.attachFileButton.isEnabled = true
+                binding.attachLocationButton.isEnabled = true
+                binding.chatInput.isEnabled = false
+                binding.chatInput.isVisible = false
+                // binding.chatInput.elevation = 0f
+            }
+        }
     }
 
 

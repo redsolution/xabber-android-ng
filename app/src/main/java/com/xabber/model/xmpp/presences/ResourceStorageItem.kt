@@ -1,9 +1,10 @@
 package com.xabber.model.xmpp.presences
 
-import io.realm.RealmObject
-import io.realm.annotations.PrimaryKey
 
-open class ResourceStorageItem: RealmObject {
+import io.realm.kotlin.types.RealmObject
+import io.realm.kotlin.types.annotations.PrimaryKey
+
+open class ResourceStorageItem: RealmObject { // устройство, подключение. если null устройство не подключено
     @PrimaryKey
     var primary: String = ""
 

@@ -17,7 +17,7 @@ import com.xabber.utils.setFragmentResult
 
 class DeletingChatDialog : DialogFragment(R.layout.fragment_dialog_standart) {
     private val binding by viewBinding(FragmentDialogStandartBinding::bind)
-    private var name: String = "this contact"
+    var name: String = "this contact"
 
     companion object {
         fun newInstance(_name: String) = DeletingChatDialog().apply {

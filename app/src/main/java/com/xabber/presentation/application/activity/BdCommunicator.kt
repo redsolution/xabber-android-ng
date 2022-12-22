@@ -2,9 +2,8 @@ package com.xabber.presentation.application.activity
 
 import com.xabber.model.xmpp.account.AccountStorageItem
 import com.xabber.model.xmpp.presences.ResourceStorageItem
-import io.realm.Realm
-import io.realm.RealmConfiguration
-import io.realm.query
+import io.realm.kotlin.Realm
+import io.realm.kotlin.RealmConfiguration
 
 class BdCommunicator : BdRepository {
 
@@ -14,7 +13,7 @@ class BdCommunicator : BdRepository {
                 .build()
         val realm = Realm.open(config)
         val accountCollection = realm
-            .query<AccountStorageItem>()
+            .query(AccountStorageItem::class)
             .find()
         val comparisonResult = accountCollection.size > 0
         realm.close()

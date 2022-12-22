@@ -7,7 +7,6 @@ import kotlinx.parcelize.Parcelize
 class ChatParams(
     val id: String = "",
     val owner: String,
-    val opponent: String,
     val opponentJid: String,
     val avatar: Int
 ) : Parcelable

@@ -3,21 +3,21 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:padding="8dp"
+    android:layout_margin="8dp"
     android:minWidth="340dp"
-    android:layout_margin="8dp">
+    android:orientation="vertical"
+    android:padding="8dp">
 
     <TextView
         android:id="@+id/tv_dialog_title"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_marginStart="20dp"
         android:layout_marginTop="12dp"
         android:layout_marginBottom="4dp"
         android:textColor="@color/black"
         android:textSize="20sp"
-        android:textStyle="bold"
-         android:layout_marginStart="20dp" />
+        android:textStyle="bold" />
 
     <TextView
         android:id="@+id/tv_dialog_description"
@@ -29,20 +29,26 @@
         android:textColor="@color/black"
         android:textSize="16sp" />
 
+    <CheckBox
+        android:id="@+id/checkbox_dialog"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:visibility="gone" />
+
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginRight="14dp">
+        android:layout_marginEnd="14dp">
 
         <Button
             android:id="@+id/button_dialog_negative"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:background="@color/transparent"
             android:gravity="center|right"
             android:text="@string/cancel"
-            android:textStyle="bold"
             android:textColor="@color/grey_400"
-            android:background="@color/transparent"
+            android:textStyle="bold"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toStartOf="@+id/button_dialog_positive"
             app:layout_constraintTop_toTopOf="parent" />
@@ -51,11 +57,11 @@
             android:id="@+id/button_dialog_positive"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:background="@color/transparent"
             android:gravity="center|right"
             android:text="ok"
-            android:textStyle="bold"
             android:textColor="@color/blue_500"
-            android:background="@color/transparent"
+            android:textStyle="bold"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="parent" />

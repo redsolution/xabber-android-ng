@@ -5,7 +5,7 @@
         android:id="@+id/chats"
         android:enabled="true"
         android:icon="@drawable/ic_chat"
-        android:title="@string/menu_item_chat_list" />
+        android:title="@string/menu_item_chats" />
 
     <item
         android:id="@+id/calls"
@@ -15,7 +15,7 @@
     <item
         android:id="@+id/contacts"
         android:icon="@drawable/ic_contact_grey"
-        android:title="@string/menu_item_contact_list" />
+        android:title="@string/menu_item_contacts" />
 
     <item
         android:id="@+id/discover"

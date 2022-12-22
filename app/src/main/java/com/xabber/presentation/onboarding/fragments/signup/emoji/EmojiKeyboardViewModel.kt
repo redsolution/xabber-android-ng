@@ -43,7 +43,7 @@ class EmojiKeyboardViewModel : ViewModel() {
                 .map {
                     val key = EmojiKeyboardBottomSheet.emojiTypes[it.key]!!
                     val value = it.value.map { list -> list[0] }
-                        .filter { PaintCompat.hasGlyph(Paint(), it) }
+                        .filter { it1 -> PaintCompat.hasGlyph(Paint(), it1) }
                     key to value
                 }
                 .toMap()

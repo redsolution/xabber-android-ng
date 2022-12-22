@@ -24,17 +24,6 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal">
 
-            <androidx.appcompat.widget.AppCompatCheckBox
-                android:id="@+id/checkbox_incoming"
-                android:layout_width="28dp"
-                android:layout_height="28dp"
-                android:layout_gravity="bottom"
-                android:layout_marginStart="6dp"
-                android:button="@drawable/checkbox_selector_green_circle"
-                android:gravity="start"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintStart_toStartOf="parent" />
-
             <LinearLayout
                 android:id="@+id/balloon"
                 android:layout_width="wrap_content"
@@ -43,9 +32,6 @@
                 android:orientation="vertical"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintEnd_toEndOf="parent">
-
-
-
 
                 <RelativeLayout
                     android:id="@+id/reply_message"

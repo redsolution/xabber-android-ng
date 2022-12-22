@@ -12,6 +12,11 @@
         app:showAsAction="never" />
 
     <item
+        android:id="@+id/enable_notifications"
+        android:title="@string/menu_item_chat_toolbar_enable_notifications"
+        app:showAsAction="never"/>
+
+    <item
         android:id="@+id/clear_message_history"
         android:title="@string/menu_item_clear_message_history"
         app:showAsAction="never" />

@@ -1,10 +1,9 @@
 package com.xabber.presentation.application.fragments.chatlist
 
+import android.annotation.SuppressLint
 import android.graphics.Color
 import android.os.Bundle
-import android.util.Log
 import android.view.View
-import android.view.animation.AnimationUtils
 import androidx.core.view.isVisible
 import androidx.fragment.app.activityViewModels
 import androidx.recyclerview.widget.ItemTouchHelper
@@ -27,7 +26,7 @@ import com.xabber.presentation.AppConstants.DELETING_CHAT_DIALOG_TAG
 import com.xabber.presentation.AppConstants.DELETING_CHAT_KEY
 import com.xabber.presentation.AppConstants.TURN_OFF_NOTIFICATIONS_BUNDLE_KEY
 import com.xabber.presentation.AppConstants.TURN_OFF_NOTIFICATIONS_KEY
-import com.xabber.presentation.BaseFragment
+import com.xabber.presentation.application.BaseFragment
 import com.xabber.presentation.application.activity.AccountManager
 import com.xabber.presentation.application.bottomsheet.NotificationBottomSheet
 import com.xabber.presentation.application.contract.navigator
@@ -36,6 +35,7 @@ import com.xabber.presentation.application.dialogs.DeletingChatDialog
 import com.xabber.presentation.application.fragments.chat.ChatParams
 import com.xabber.utils.partSmoothScrollToPosition
 import com.xabber.utils.setFragmentResultListener
+import com.xabber.utils.showToast
 
 
 class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdapter.ChatListener {
@@ -57,11 +57,17 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
         }
     }
 
+    @SuppressLint("NotifyDataSetChanged")
+    override fun onResume() {
+        super.onResume()
+        chatListAdapter?.notifyDataSetChanged()
+    }
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         if (savedInstanceState == null) {
             chatListViewModel.initDataListener()
-          //  chatListViewModel.getChat()
+            chatListViewModel.getChatList()
         }
         changeUiWithData()
         setTitle()
@@ -69,7 +75,7 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
         initRecyclerView()
         subscribeOnViewModelData()
         initEmptyButton()
-        initMarkUnreadsButton()
+        initMarkAllMessagesUnreadButton()
         initButtonArchive()
     }
 
@@ -84,7 +90,6 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
 
     private fun loadAvatarWithMask() {
         val multiTransformation = MultiTransformation(CircleCrop())
-
         Glide.with(requireContext()).load(AccountManager.avatar)
             .apply(RequestOptions.bitmapTransform(multiTransformation))
             .into(binding.imAvatar)
@@ -92,14 +97,16 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
 
     private fun initToolbarActions() {
         binding.imAvatar.setOnClickListener {
-            navigator().showAccount()
+            //  navigator().showAccount()
+            navigator().showArchive()
         }
 
         binding.chatToolbar.setOnMenuItemClickListener {
             when (it.itemId) {
                 R.id.add -> {
-                    chatListViewModel.addChat()
-                   // navigator().showNewChat()
+                    //  navigator().showNewChat()
+                    if (chatListViewModel.chatIsEmpty())  chatListViewModel.addOne()
+                  else showToast("Chats already added")
                 }
                 else -> {}
             }; true
@@ -116,10 +123,9 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
         chatListAdapter = ChatListAdapter(this)
         binding.chatList.adapter = chatListAdapter
         layoutManager = binding.chatList.layoutManager as LinearLayoutManager
-        addEdgeEffectFactory()
+        // addEdgeEffectFactory()
         addSwipeOption()
         addScrollListener()
-
     }
 
     private fun addEdgeEffectFactory() {
@@ -161,35 +167,22 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
         chatListViewModel.showUnreadOnly.observe(viewLifecycleOwner) {
             showUnreadOnly = it
             setTitle()
-           // chatListViewModel.initDataListener()
-            chatListViewModel.getChat()
+            chatListViewModel.initDataListener()
+            chatListViewModel.getChatList()
         }
 
         chatListViewModel.chatList.observe(viewLifecycleOwner) {
-            Log.d("uuu", "list = $it")
             val a = ArrayList<ChatListDto>()
             a.addAll(it)
-            if (a != null) a.sort()
 
             chatListAdapter?.submitList(a) {
-                if (showUnreadOnly && !it.isNullOrEmpty()) {
-                    if (!binding.btnMarkAllMessagesUnread.isVisible) {
-                        binding.btnMarkAllMessagesUnread.isVisible = true
-                        val anim = AnimationUtils.loadAnimation(requireContext(), R.anim.appearance)
-                        binding.btnMarkAllMessagesUnread.startAnimation(anim)
-                    }
-                } else binding.btnMarkAllMessagesUnread.isVisible = false
+                binding.btnMarkAllMessagesUnread.isVisible = showUnreadOnly && !it.isNullOrEmpty()
                 showEmptyListMode(it.isEmpty() || it == null)
                 if (toPin) {
                     scrollUp()
                     toPin = false
                 }
             }
-          //  chatListAdapter?.notifyDataSetChanged()
-        }
-
-        chatListViewModel.unreadMessage.observe(viewLifecycleOwner) {
-            navigator().showUnreadMessage(it)
         }
     }
 
@@ -197,8 +190,11 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
         binding.emptyButton.setOnClickListener { navigator().showContacts() }
     }
 
-    private fun initMarkUnreadsButton() {
-        chatListViewModel.markAllChatsAsUnread()
+    private fun initMarkAllMessagesUnreadButton() {
+        binding.btnMarkAllMessagesUnread.setOnClickListener {
+            chatListViewModel.markAllChatsAsUnread()
+            binding.btnMarkAllMessagesUnread.isVisible = false
+        }
     }
 
     private fun initButtonArchive() {
@@ -209,8 +205,7 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
         navigator().showChat(
             ChatParams(
                 chatListDto.id,
-                AccountManager.owner,
-                chatListDto.opponentName,
+                chatListDto.owner,
                 chatListDto.opponentJid,
                 chatListDto.drawableId
             )
@@ -240,12 +235,14 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
         }
     }
 
-    override fun clearHistory(id: String, name: String, opponent: String) {
+    override fun clearHistory(chatListDto: ChatListDto) {
+        val name =
+            if (chatListDto.customName.isNotEmpty()) chatListDto.customName else if (chatListDto.displayName.isNotEmpty()) chatListDto.displayName else chatListDto.opponentJid
         val dialog = ChatHistoryClearDialog.newInstance(name)
         navigator().showDialogFragment(dialog, CLEAR_HISTORY_DIALOG_TAG)
         setFragmentResultListener(CLEAR_HISTORY_KEY) { _, bundle ->
             val result = bundle.getBoolean(CLEAR_HISTORY_BUNDLE_KEY)
-            if (result) chatListViewModel.clearHistoryChat(id, opponent)
+            if (result) chatListViewModel.clearHistoryChat(chatListDto.id, chatListDto.opponentJid)
         }
     }
 

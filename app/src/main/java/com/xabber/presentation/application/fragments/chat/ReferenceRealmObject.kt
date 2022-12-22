@@ -1,6 +1,6 @@
 package com.xabber.presentation.application.fragments.chat
 
-import io.realm.annotations.PrimaryKey
+import io.realm.kotlin.types.annotations.PrimaryKey
 import java.util.*
 
 class ReferenceRealmObject {

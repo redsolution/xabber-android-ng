@@ -28,13 +28,14 @@ import com.xabber.model.dto.MessageDto
 import com.xabber.model.xmpp.messages.MessageSendingState
 import com.xabber.model.xmpp.messages.MessageSendingState.*
 import com.xabber.presentation.AppConstants
+import com.xabber.presentation.application.fragments.chat.Check
 import com.xabber.utils.StringUtils
 import com.xabber.utils.dp
 import java.util.*
 
 class OutgoingMessageVH(
     private val binding: ItemMessageOutgoingBinding,
-    private val listener: MessageAdapter.Listener
+    private val listener: ChatAdapter.Listener
 ) : BasicMessageVH(binding.root, listener) {
 
 
@@ -66,7 +67,8 @@ class OutgoingMessageVH(
         val time = StringUtils.getTimeText(binding.tvSendingTime.context, date)
         binding.messageInfo.isVisible =
             messageDto.messageBody.isNotEmpty() && messageDto.references == null && messageDto.kind == null
-        binding.tvSendingTime.text = time
+
+        binding.tvSendingTime.text = if (messageDto.editTimestamp > 0) "was edit $time" else time
 
 // status
         if (messageDto.isOutgoing) setStatus(
@@ -79,8 +81,6 @@ class OutgoingMessageVH(
         binding.info.isVisible =
             messageDto.kind != null || (messageDto.references != null && messageDto.messageBody.isNotEmpty())
 
-
-        binding.checkboxIncoming.isVisible = showCheckbox
 //dateMessage.isVisible = need
 
 // val nextMessage = getMessage(position + 1)
@@ -114,6 +114,13 @@ class OutgoingMessageVH(
         )
 
 
+        if (messageDto.isChecked) {
+            binding.frameLayoutBlackout.setBackgroundResource(R.color.selected)
+        } else {
+            binding.frameLayoutBlackout.setBackgroundResource(R.color.transparent)
+        }
+
+
         binding.balloon.setBackgroundDrawable(
             ContextCompat.getDrawable(
                 binding.root.context,
@@ -134,16 +141,8 @@ class OutgoingMessageVH(
 
         binding.root.setOnClickListener {
             Log.d("show", "$showCheckbox")
-            if (showCheckbox) {
-                binding.checkboxIncoming.isChecked = !binding.checkboxIncoming.isChecked
-                if (binding.checkboxIncoming.isChecked) {
-                    binding.frameLayoutBlackout.setBackgroundResource(R.color.selected)
-                    binding.tvContent.setTextIsSelectable(true)
-                } else {
-                    binding.frameLayoutBlackout.setBackgroundResource(R.color.transparent)
-                    binding.tvContent.setTextIsSelectable(false)
-                }
-            } else {
+            if (Check.getSelectedMode()) { listener.checkItem(!messageDto.isChecked, messageDto.primary)
+          } else {
                 val popup = PopupMenu(it.context, it, Gravity.CENTER)
                 popup.setForceShowIcon(true)
                 if (messageDto.isOutgoing) popup.inflate(R.menu.popup_menu_message_outgoing)
@@ -159,8 +158,9 @@ class OutgoingMessageVH(
                         R.id.copy -> {
                             val text = binding.tvContent.text.toString()
                             listener.copyText(text)
-                            showSnackbar(itemView)
-
+                        }
+                        R.id.pin -> {
+                            listener.pinMessage(messageDto)
                         }
                         R.id.forward -> {
                             listener.forwardMessage(messageDto)
@@ -172,26 +172,20 @@ class OutgoingMessageVH(
                             listener.deleteMessage(messageDto.primary)
                         }
                         R.id.edit -> {
-                            listener.editMessage(messageDto.primary)
+                            listener.editMessage(messageDto.primary, messageDto.messageBody)
                         }
                     }
                     true
                 }
                 popup.show()
-                true
             }
         }
 
         setBackground(messageDto, isNeedTail)
         setupReferences(messageDto)
         binding.root.setOnLongClickListener {
-
-            if (!showCheckbox) listener.onLongClick(messageDto.primary)
-//                } else {
-//                    binding.checkboxIncoming.isChecked = !binding.checkboxIncoming.isChecked
-//                    binding.balloon.setBackgroundResource(R.color.selected)
-//                    binding.tvContent.setTextIsSelectable(showCheckbox)
-//                }
+            if (!Check.getSelectedMode()) listener.onLongClick(messageDto.primary)
+            else  {listener.checkItem(!messageDto.isChecked, messageDto.primary) }
             true
         }
     }
@@ -218,7 +212,7 @@ class OutgoingMessageVH(
                 tint = R.color.grey_500
                 image = R.drawable.ic_clock_outline
             }
-            Sended -> {
+            Sent -> {
                 tint = R.color.grey_500
                 image = R.drawable.ic_check_green
             }
@@ -234,7 +228,7 @@ class OutgoingMessageVH(
                 tint = R.color.red_500
                 image = R.drawable.ic_exclamation_mark_outline
             }
-            NotSended -> {
+            NotSent -> {
                 tint = R.color.grey_500
                 image = R.drawable.ic_clock_outline
             }

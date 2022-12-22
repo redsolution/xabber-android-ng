@@ -11,7 +11,7 @@ import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.RecyclerView
 import com.xabber.R
-import com.xabber.presentation.application.fragments.chat.message.MessageAdapter
+import com.xabber.presentation.application.fragments.chat.message.ChatAdapter
 import com.xabber.utils.dp
 import kotlin.math.max
 import kotlin.math.min
@@ -62,7 +62,7 @@ class ReplySwipeCallback(context: Context) : ItemTouchHelper.Callback(), View.On
     ): Int {
         return makeMovementFlags(
             0,
-            if (swipeEnabled && viewHolder.itemViewType != MessageAdapter.SYSTEM_MESSAGE) ItemTouchHelper.LEFT else 0
+            if (swipeEnabled && viewHolder.itemViewType != ChatAdapter.SYSTEM_MESSAGE) ItemTouchHelper.LEFT else 0
         )
     }
 

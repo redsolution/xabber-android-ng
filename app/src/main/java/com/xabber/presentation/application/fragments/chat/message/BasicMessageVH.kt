@@ -6,7 +6,7 @@ import androidx.annotation.RequiresApi
 import androidx.recyclerview.widget.RecyclerView
 import com.xabber.model.dto.MessageDto
 
-abstract class BasicMessageVH(view: View, listener: MessageAdapter.Listener? = null) :
+abstract class BasicMessageVH(view: View, listener: ChatAdapter.Listener? = null) :
     RecyclerView.ViewHolder(view) {
 
 

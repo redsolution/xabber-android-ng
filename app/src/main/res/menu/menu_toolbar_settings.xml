@@ -8,8 +8,7 @@
         app:showAsAction="never" />
 
     <item
-        android:id="@+id/swap"
-        android:icon="@drawable/ic_swap"
+        android:id="@+id/reorder"
         android:title="@string/menu_item_title_reorder"
         app:showAsAction="never" />
 </menu>

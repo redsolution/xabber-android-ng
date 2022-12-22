@@ -4,9 +4,9 @@ import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.Fragment
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.xabber.model.dto.ContactDto
-import com.xabber.model.xmpp.account.Account
 import com.xabber.presentation.application.fragments.account.qrcode.QRCodeParams
 import com.xabber.presentation.application.fragments.chat.ChatParams
+import com.xabber.presentation.application.fragments.contacts.ContactAccountParams
 
 fun Fragment.navigator(): ApplicationNavigator = requireActivity() as ApplicationNavigator
 
@@ -50,7 +50,7 @@ interface ApplicationNavigator {
 
     fun showSettings()
 
-    fun showContactAccount(contactDto: ContactDto)
+    fun showContactAccount(params: ContactAccountParams)
 
     fun showQRCode(qrCodeParams: QRCodeParams)
 
@@ -66,11 +66,9 @@ interface ApplicationNavigator {
 
     fun showDevicesSettings()
 
+    fun showForwardFragment(forwardMessage: String)
 
-
+    fun showStatusFragment()
 
     fun lockScreen(lock: Boolean)
-
-    fun showUnreadMessage(count: Int)
-
 }

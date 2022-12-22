@@ -5,7 +5,6 @@ import android.content.DialogInterface
 import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.os.Bundle
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -91,20 +90,13 @@ class EmojiAvatarBottomSheet : BottomSheetDialogFragment() {
             BitmapFactory.decodeResource(resources, Mask.Circle.size128).extractAlpha()
         val maskedDrawable = MaskedDrawableBitmapShader()
         maskedDrawable.setMaskBitmap(mMaskBitmap)
-        Log.d(
-            "results",
-            "${binding.avatarBackground.layoutParams.width}, ${binding.avatarBackground.width}"
-        )
 
         palette.forEach { mapElem ->
             mapElem.key.setOnClickListener {
                 binding.avatarBackground.setBackgroundColor(
                     ContextCompat.getColor(requireContext(), mapElem.value)
                 )
-                Log.d(
-                    "results",
-                    "${binding.avatarBackground.width}, ${binding.avatarBackground.height}"
-                )
+
                 val newBitmap =
                     viewModel.getBitmapFromView(requireContext(), binding.avatarBackground)
                 maskedDrawable.setPictureBitmap(newBitmap)

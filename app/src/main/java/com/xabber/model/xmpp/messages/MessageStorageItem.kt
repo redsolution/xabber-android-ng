@@ -1,16 +1,18 @@
 package com.xabber.model.xmpp.messages
 
 import com.xabber.model.xmpp.sync.ConversationType
-import io.realm.RealmObject
-import io.realm.annotations.PrimaryKey
-import io.realm.RealmList
-import io.realm.realmListOf
+
+import io.realm.kotlin.ext.realmListOf
+import io.realm.kotlin.types.RealmList
+import io.realm.kotlin.types.RealmObject
+import io.realm.kotlin.types.annotations.PrimaryKey
+
 
 class MessageStorageItem: RealmObject {
     @PrimaryKey
     var primary: String = ""  // id
-    var owner: String = ""    // аккаунт
-    var opponent: String = ""
+    var owner: String = ""    // наш jid
+    var opponent: String = ""  // jid оппонента
     var body: String = ""
     var legacyBody: String = ""
     var date: Long = 0
@@ -22,7 +24,7 @@ class MessageStorageItem: RealmObject {
     var messageId: String = ""
     var isFromTrustedSource: Boolean = false
     var oreviousId: String? = null
-    var archivedId: String = ""
+    var archivedId: String = "" // мне не нужно
     var isDeleted: Boolean = false
     var state_: Int = 0
     var systemMetadata_: String = ""
@@ -30,6 +32,7 @@ class MessageStorageItem: RealmObject {
     var nessageError: String? = null
     var messageErrorCode: String? = null
     var conversationType_: String = ConversationType.Regular.rawValue
+    var inlineForwards: RealmList<MessageForwardsInlineStorageItem> = realmListOf()
 
 
 //    var conversationType: ConversationType

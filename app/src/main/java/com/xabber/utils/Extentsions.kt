@@ -12,7 +12,9 @@ import android.graphics.Canvas
 import android.graphics.Point
 import android.graphics.drawable.Drawable
 import android.net.Uri
+import android.os.Build.VERSION.SDK_INT
 import android.os.Bundle
+import android.os.Parcelable
 import android.provider.Settings
 import android.util.TypedValue
 import android.view.Display
@@ -31,6 +33,10 @@ import com.xabber.presentation.onboarding.fragments.signup.emoji.EmojiTypeDto
 
 
 fun Fragment.showToast(message: String) {
+    Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+}
+
+fun Fragment.showToast(message: Int) {
     Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
 }
 
@@ -59,30 +65,6 @@ fun Fragment.askUserForOpeningAppSettings() {
             }
             .setNegativeButton(R.string.dialog_button_cancel) { dialogInterface: DialogInterface, _ ->
                 dialogInterface.dismiss()
-            }
-            .create()
-            .show()
-    }
-}
-
-fun AppCompatActivity.askUserForOpeningAppSettings() {
-    val appSettingsIntent = Intent(
-        Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-        Uri.fromParts("package", packageName, null)
-    )
-    if (packageManager.resolveActivity(
-            appSettingsIntent,
-            PackageManager.MATCH_DEFAULT_ONLY
-        ) != null
-    ) {
-        val dialog = AlertDialog.Builder(this)
-        dialog.setTitle(R.string.dialog_title_permission_denied)
-            .setMessage(R.string.offer_to_open_settings)
-            .setPositiveButton(R.string.dialog_button_open) { _, _ ->
-                startActivity(appSettingsIntent)
-            }
-            .setNegativeButton(R.string.dialog_button_cancel) { dialog, _ ->
-                dialog.dismiss()
             }
             .create()
             .show()
@@ -203,4 +185,9 @@ fun RecyclerView.partSmoothScrollToPosition(targetItem: Int) {
             else -> smoothScrollToPosition(targetItem)
         }
     }
+}
+
+inline fun <reified T : Parcelable> Bundle.parcelable(key: String): T? = when {
+    SDK_INT >= 33 -> getParcelable(key, T::class.java)
+    else -> @Suppress("DEPRECATION") getParcelable(key) as? T
 }

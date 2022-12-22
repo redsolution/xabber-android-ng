@@ -16,7 +16,7 @@
     </style>
 
     <style name="OnboardingEditText" parent="Theme.MaterialComponents.Light.NoActionBar">
-        <item name="android:layout_height">44dp</item>
+        <item name="android:layout_height">48dp</item>
         <item name="android:focusable">true</item>
         <item name="android:gravity">center</item>
         <item name="android:textColor">@color/grey_900</item>

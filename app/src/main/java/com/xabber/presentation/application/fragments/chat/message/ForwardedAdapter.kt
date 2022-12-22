@@ -6,6 +6,5 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.xabber.model.dto.MessageDto
 import com.xabber.model.dto.MessageVhExtraData
-import io.realm.RealmResults
 
 internal class ForwardedAdapter()

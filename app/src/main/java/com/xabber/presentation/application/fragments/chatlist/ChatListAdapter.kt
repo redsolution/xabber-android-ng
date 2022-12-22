@@ -9,6 +9,10 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.xabber.databinding.ItemChatListBinding
 import com.xabber.model.dto.ChatListDto
+import com.xabber.presentation.AppConstants.PAYLOAD_CHAT_DATE
+import com.xabber.presentation.AppConstants.PAYLOAD_CHAT_DRAFT_MESSAGE
+import com.xabber.presentation.AppConstants.PAYLOAD_CHAT_MESSAGE_BODY
+import com.xabber.presentation.AppConstants.PAYLOAD_CHAT_MESSAGE_STATE
 import com.xabber.presentation.AppConstants.PAYLOAD_MUTE_EXPIRED_CHAT
 import com.xabber.presentation.AppConstants.PAYLOAD_PINNED_POSITION_CHAT
 import com.xabber.presentation.AppConstants.PAYLOAD_UNREAD_CHAT
@@ -29,7 +33,7 @@ class ChatListAdapter(
 
         fun deleteChat(name: String, id: String)
 
-        fun clearHistory(id: String, name: String, opponent: String)
+        fun clearHistory(chatListDto: ChatListDto)
 
         fun turnOfNotifications(id: String)
 
@@ -84,9 +88,9 @@ class ChatListAdapter(
 
         override fun getChangePayload(oldItem: ChatListDto, newItem: ChatListDto): Any {
             val diffBundle = Bundle()
-            if (oldItem.unreadString != newItem.unreadString) diffBundle.putString(
+            if (oldItem.unread != newItem.unread) diffBundle.putString(
                 PAYLOAD_UNREAD_CHAT,
-                newItem.unreadString
+                newItem.unread
             )
             if (oldItem.pinnedDate != newItem.pinnedDate) diffBundle.putLong(
                 PAYLOAD_PINNED_POSITION_CHAT,
@@ -95,6 +99,18 @@ class ChatListAdapter(
             if (oldItem.muteExpired != newItem.muteExpired) diffBundle.putLong(
                 PAYLOAD_MUTE_EXPIRED_CHAT,
                 newItem.muteExpired
+            )
+            if (oldItem.lastMessageDate != newItem.lastMessageDate) diffBundle.putLong(
+                PAYLOAD_CHAT_DATE, newItem.lastMessageDate
+            )
+            if (oldItem.lastMessageBody != newItem.lastMessageBody) diffBundle.putString(
+                PAYLOAD_CHAT_MESSAGE_BODY, newItem.lastMessageBody
+            )
+            if (oldItem.lastMessageState != newItem.lastMessageState) diffBundle.putParcelable(
+                PAYLOAD_CHAT_MESSAGE_STATE, newItem.lastMessageState
+            )
+            if (oldItem.draftMessage != newItem.draftMessage) diffBundle.putString(
+                PAYLOAD_CHAT_DRAFT_MESSAGE, newItem.draftMessage
             )
             return diffBundle
         }

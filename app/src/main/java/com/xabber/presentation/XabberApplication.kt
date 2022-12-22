@@ -2,19 +2,23 @@ package com.xabber.presentation
 
 import android.app.Application
 import android.util.Log
-import com.xabber.defaultRealmConfig
-import io.realm.Realm
+import com.xabber.presentation.application.activity.MessagesReadMarker
 
 
 class XabberApplication : Application() {
 
     companion object {
         fun newInstance() = XabberApplication()
-        val realm = Realm.open(defaultRealmConfig())
+
+
+
     }
 
     override fun onCreate() {
+        Log.d("all", "onCreate")
         super.onCreate()
+        val a = MessagesReadMarker
+      //  a.startCounter()
     }
 }
      //   FirebaseApp.initializeApp(applicationContext)

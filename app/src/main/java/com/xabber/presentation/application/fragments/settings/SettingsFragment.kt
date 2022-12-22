@@ -7,7 +7,7 @@ import by.kirich1409.viewbindingdelegate.viewBinding
 import com.xabber.R
 import com.xabber.model.xmpp.account.Account
 import com.xabber.databinding.FragmentSettingsBinding
-import com.xabber.presentation.BaseFragment
+import com.xabber.presentation.application.BaseFragment
 import com.xabber.presentation.application.activity.DisplayManager
 import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.application.fragments.account.AccountAdapter
@@ -24,7 +24,7 @@ class SettingsFragment : BaseFragment(R.layout.fragment_settings) {
                 R.id.add_account -> {
 
                 }
-                R.id.swap -> {
+                R.id.reorder -> {
                     navigator().showReorderAccountsFragment()
                 }
 //                R.id.circle -> {

@@ -44,7 +44,6 @@ class AvatarBottomSheet : BottomSheetDialogFragment() {
     )
 
     private val cropImage = registerForActivityResult(CropImageContract()) {
-        Log.d("jjj", "${it.uriContent}")
         when {
             it.isSuccessful -> {
                 val bitmap = MediaStore.Images.Media.getBitmap(
@@ -54,12 +53,11 @@ class AvatarBottomSheet : BottomSheetDialogFragment() {
                 onboardingViewModel.setAvatarBitmap(bitmap)
             }
             it is CropImage.CancelledResult -> Log.d(
-                "jjj",
+                "Avatar",
                 "cropping image was cancelled by the user"
             )
             else -> {
-                val exception = it.error
-                Log.d("jjj", "$exception")
+                Log.d("Avatar", "${it.error}")
             }
         }
         dismiss()
@@ -128,7 +126,6 @@ class AvatarBottomSheet : BottomSheetDialogFragment() {
         }
     }
 
-
     private fun onGotCameraPermissionResult(grantResults: Map<String, Boolean>) {
         if (grantResults.entries.all { it.value }) {
             cropImageFromCamera()
@@ -154,7 +151,6 @@ class AvatarBottomSheet : BottomSheetDialogFragment() {
     }
 
     private fun startCrop(includeCamera: Boolean, includeGallery: Boolean) {
-        Log.d("jjj", "startcrop")
         cropImage.launch(options {
             setGuidelines(CropImageView.Guidelines.OFF).setImageSource(
                 includeGallery, includeCamera

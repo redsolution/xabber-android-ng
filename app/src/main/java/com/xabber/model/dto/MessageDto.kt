@@ -9,7 +9,6 @@ data class MessageDto(
     val primary: String,
     val isOutgoing: Boolean,
     val owner: String,
-    val opponent: String,
     val opponentJid: String,
     val messageBody: String,
     val messageSendingState: MessageSendingState,
@@ -28,7 +27,9 @@ data class MessageDto(
     val hasForwardedMessages: Boolean = false,
     val hasReferences: Boolean = false,
     val hasImage: Boolean = false,
-    val isAttachmentImageOnly: Boolean = false
+    val isAttachmentImageOnly: Boolean = false,
+    val isUnread: Boolean = true,
+var isChecked: Boolean = false
 ) : Comparable<MessageDto> {
     override fun compareTo(other: MessageDto): Int =
         this.sentTimestamp.compareTo(other.sentTimestamp)

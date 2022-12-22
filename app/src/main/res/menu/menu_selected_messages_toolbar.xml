@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <item
+        android:id="@+id/edit_message"
+        android:icon="@drawable/ic_edit_grey"
+        android:title="@string/menu_item_edit_message"
+        app:showAsAction="always" />
+
+    <item
+        android:id="@+id/copy_message"
+        android:icon="@drawable/ic_content_copy_grey"
+        android:title="@string/menu_item_copy_message"
+        app:showAsAction="always" />
+
+    <item
+        android:id="@+id/delete_message"
+        android:icon="@drawable/ic_trash_grey"
+        android:title="@string/menu_item_delete_message"
+        app:showAsAction="always" />
+</menu>

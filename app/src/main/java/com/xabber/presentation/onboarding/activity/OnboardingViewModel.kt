@@ -2,27 +2,29 @@ package com.xabber.presentation.onboarding.activity
 
 import android.graphics.Bitmap
 import android.net.Uri
+import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.xabber.data_base.defaultRealmConfig
 import com.xabber.model.dto.HostListDto
-import com.xabber.repository.AccountRepository
 import com.xabber.model.xmpp.account.AccountStorageItem
-import com.xabber.model.xmpp.presences.ResourceStorageItem
-import com.xabber.presentation.AppConstants
+import com.xabber.repository.AccountRepository
 import io.reactivex.rxjava3.core.Single
-import io.realm.Realm
-import io.realm.RealmConfiguration
+import io.realm.kotlin.Realm
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class OnboardingViewModel : ViewModel() {
     private val accountRepository = AccountRepository()
+    val realm = Realm.open(defaultRealmConfig())
 
-    private val _nickName = MutableLiveData<String>()
-    val nickName: LiveData<String> = _nickName
-    private val _userName = MutableLiveData<String>()
-    val username: LiveData<String> = _userName
-    private val _password = MutableLiveData<String>()
-    val password: LiveData<String> = _password
+    private var nickName: String? = null
+
+    private var userName: String? = null
+
+    private var password: String? = null
 
     private val _avatarBitmap = MutableLiveData<Bitmap>()
     val avatarBitmap: LiveData<Bitmap> = _avatarBitmap
@@ -30,46 +32,17 @@ class OnboardingViewModel : ViewModel() {
     private val _avatarUri = MutableLiveData<Uri>()
     val avatarUri: LiveData<Uri> = _avatarUri
 
-    fun setNickName(nickName: String) {
-        _nickName.value = nickName
+    fun setNickName(newNickName: String) {
+        nickName = newNickName
     }
 
-    fun setUserName(userName: String) {
-        _userName.value = userName
+    fun setUserName(newUserName: String) {
+        userName = newUserName
     }
 
-    fun setPassword(password: String) {
-        _password.value = password
+    fun setPassword(newPassword: String) {
+       password = newPassword
     }
-
-    fun getHost(): Single<HostListDto> = accountRepository.getHostList()
-
-    fun checkIfNameAvailable(username: String, host: String): Single<Any> =
-        accountRepository.checkIfNameAvailable(
-            mapOf(
-                "username" to username,
-                "host" to host,
-                "no_captcha_key" to AppConstants.NO_CAPTCHA_KEY,
-            )
-        )
-
-
-    suspend fun registerAccount(
-        username: String
-    ) {
-        val config =
-            RealmConfiguration.Builder(setOf(AccountStorageItem::class, ResourceStorageItem::class))
-                .build()
-        val realm = Realm.open(config)
-        realm.write {
-            this.copyToRealm(AccountStorageItem().apply {
-                jid = username
-
-            })
-        }
-        realm.close()
-    }
-
 
     fun setAvatarBitmap(bitmap: Bitmap) {
         _avatarBitmap.value = bitmap
@@ -78,4 +51,54 @@ class OnboardingViewModel : ViewModel() {
     fun setAvatarUri(uri: Uri) {
         _avatarUri.value = uri
     }
+
+    fun getHost(): Single<HostListDto> = accountRepository.getHostList()
+
+    fun checkIsNameAvailable(username: String, host: String): Boolean = true
+//        accountRepository.checkIfNameAvailable(
+//            mapOf(
+//                "username" to username,
+//                "host" to host,
+//                "no_captcha_key" to AppConstants.NO_CAPTCHA_KEY,
+//            )
+//        )
+
+
+    fun registerAccount() {
+        val accountOrder = defineAccountOrder()
+        if (nickName != null && userName != null && password != null) {
+            viewModelScope.launch(Dispatchers.IO) {
+                realm.writeBlocking {
+                    this.copyToRealm(AccountStorageItem().apply {
+                        order = accountOrder
+                        jid = userName!!
+                        nickname = nickName!!
+                    })
+                }
+                realm.writeBlocking {
+                   val a = this.query(AccountStorageItem::class).first().find()
+                    Log.d("entry", "account = $a")
+                }
+            }
+        }
+    }
+
+    fun saveAvatar() {
+        viewModelScope.launch {
+            realm.writeBlocking {
+
+            }
+        }
+    }
+
+    private fun defineAccountOrder(): Int {
+        var order = 0
+        viewModelScope.launch(Dispatchers.IO) { }
+        realm.writeBlocking {
+            val accountList = this.query(AccountStorageItem::class).find()
+            order = accountList.size
+        }
+        return order
+    }
+
 }

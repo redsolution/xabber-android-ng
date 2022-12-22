@@ -13,6 +13,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.MenuProvider
 import androidx.core.view.isVisible
+import androidx.fragment.app.viewModels
 import androidx.recyclerview.widget.GridLayoutManager
 import by.kirich1409.viewbindingdelegate.viewBinding
 import com.bumptech.glide.Glide
@@ -22,36 +23,38 @@ import com.google.android.material.appbar.CollapsingToolbarLayout
 import com.google.android.material.tabs.TabLayout
 import com.xabber.R
 import com.xabber.databinding.FragmentContactAccountBinding
-import com.xabber.model.dto.ContactDto
 import com.xabber.presentation.AppConstants
-import com.xabber.presentation.application.dialogs.DeletingContactDialog
 import com.xabber.presentation.application.activity.DisplayManager
 import com.xabber.presentation.application.activity.UiChanger
+import com.xabber.presentation.application.bottomsheet.NotificationBottomSheet
 import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.application.dialogs.BlockContactDialog
+import com.xabber.presentation.application.dialogs.DeletingContactDialog
 import com.xabber.presentation.application.fragments.DetailBaseFragment
 import com.xabber.presentation.application.fragments.account.qrcode.QRCodeParams
-import com.xabber.presentation.application.bottomsheet.NotificationBottomSheet
-import com.xabber.utils.showToast
-import com.xabber.utils.blur.BlurTransformation
+import com.xabber.presentation.application.fragments.chat.ChatParams
 import com.xabber.utils.mask.MaskPrepare
+import com.xabber.utils.parcelable
+import com.xabber.utils.showToast
+import jp.wasabeef.glide.transformations.BlurTransformation
 
 class ContactAccountFragment : DetailBaseFragment(R.layout.fragment_contact_account) {
     private val binding by viewBinding(FragmentContactAccountBinding::bind)
     private var mediaAdapter: MediaAdapter? = null
+    private val viewModel: ContactAccountViewModel by viewModels()
 
     companion object {
-        fun newInstance(contactDto: ContactDto): ContactAccountFragment {
+        fun newInstance(params: ContactAccountParams): ContactAccountFragment {
             val args =
-                Bundle().apply { putParcelable(AppConstants.PARAMS_CONTACT_ACCOUNT, contactDto) }
+                Bundle().apply { putParcelable(AppConstants.PARAMS_CONTACT_ACCOUNT, params) }
             val fragment = ContactAccountFragment()
             fragment.arguments = args
             return fragment
         }
     }
 
-    private fun getContact(): ContactDto =
-        requireArguments().getParcelable(AppConstants.PARAMS_CONTACT_ACCOUNT)!!
+    private fun getParams(): ContactAccountParams =
+        requireArguments().parcelable(AppConstants.PARAMS_CONTACT_ACCOUNT)!!
 
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -87,25 +90,25 @@ class ContactAccountFragment : DetailBaseFragment(R.layout.fragment_contact_acco
         loadAvatar()
         loadBackground()
         defineColor()
+        val contact = viewModel.getContact(getParams().id)
         with(binding.accountAppbar) {
-            tvTitle.text = getContact().userName
-            tvSubtitle.text = getContact().jid
+            tvTitle.text = contact.nickName
+            tvSubtitle.text = contact.jid
         }
-        binding.tvJid.text = getContact().jid
-        binding.tvFullName.text = getContact().name
-        binding.tvSurname.text = getContact().surname
+//        binding.tvJid.text = getContact().jid
+//        binding.tvFullName.text = getContact().name
+//        binding.tvSurname.text = getContact().surname
     }
 
     private fun loadBackground() {
 
         Glide.with(this)
-            .load(getContact().avatar).transform(
+            .load(getParams().avatar).transform(
                 BlurTransformation(
                     25,
-                    6,
-                    ContextCompat.getColor(requireContext(), getContact().color)
+                    ContextCompat.getColor(requireContext(), getParams().color)
                 )
-            ).placeholder(getContact().color).transition(
+            ).placeholder(getParams().color).transition(
                 DrawableTransitionOptions.withCrossFade()
             )
             .into(binding.accountAppbar.imBackdrop)
@@ -113,9 +116,9 @@ class ContactAccountFragment : DetailBaseFragment(R.layout.fragment_contact_acco
 
     private fun loadAvatar() {
         val maskedDrawable =
-            MaskPrepare.getDrawableMask(resources, getContact().avatar, UiChanger.getMask().size176)
+            MaskPrepare.getDrawableMask(resources, getParams().avatar, UiChanger.getMask().size176)
         Glide.with(requireContext())
-            .load(maskedDrawable).error(getContact().color)
+            .load(maskedDrawable).error(getParams().color)
             .into(binding.accountAppbar.imPhoto)
     }
 
@@ -123,7 +126,7 @@ class ContactAccountFragment : DetailBaseFragment(R.layout.fragment_contact_acco
         binding.accountAppbar.collapsingToolbar.setContentScrimColor(
             ResourcesCompat.getColor(
                 resources,
-                getContact().color,
+                getParams().color,
                 requireContext().theme
             )
         )
@@ -149,21 +152,22 @@ class ContactAccountFragment : DetailBaseFragment(R.layout.fragment_contact_acco
                     R.id.contact_qr_code -> {
                         navigator().showQRCode(
                             QRCodeParams(
-                                getContact().userName!!,
-                                getContact().jid!!,
-                                getContact().color
+                                binding.accountAppbar.tvTitle.text.toString(),
+                                binding.accountAppbar.tvSubtitle.text.toString(),
+                                getParams().color
                             )
                         )
                     }
-                    R.id.edit_contact_account -> {
-                        navigator().showEditContact(getContact())
+                    R.id.edit_contact -> {
+                        navigator().showEditContact(viewModel.getContact(getParams().id))
                     }
-                    R.id.delete_contact_account -> {
-                        val dialog = DeletingContactDialog.newInstance(getContact().userName!!)
+                    R.id.delete_contact -> {
+                        val dialog =
+                            DeletingContactDialog.newInstance(binding.accountAppbar.tvTitle.text.toString())
                         navigator().showDialogFragment(dialog, "")
                     }
                     R.id.send_contact -> {
-                        shareContact(getContact().userName!!)
+                        shareContact("${binding.accountAppbar.tvTitle.text} \n ${binding.accountAppbar.tvSubtitle.text}")
                     }
                 }
                 return true
@@ -201,7 +205,7 @@ class ContactAccountFragment : DetailBaseFragment(R.layout.fragment_contact_acco
                     scrollRange = bar.totalScrollRange
                 }
                 if (scrollRange + verticalOffset == 0) {
-                    collapsingToolbar.title = getContact().userName
+                    //    collapsingToolbar.title = getContact().userName
                     isShow = true
                 } else if (isShow) {
                     collapsingToolbar.title = " "
@@ -220,13 +224,19 @@ class ContactAccountFragment : DetailBaseFragment(R.layout.fragment_contact_acco
     }
 
     private fun blockContact() {
-        val dialog = BlockContactDialog.newInstance(getContact().userName!!)
-        navigator().showDialogFragment(dialog, "")
+        val name = binding.accountAppbar.tvSubtitle.text.toString()
+           val dialog = BlockContactDialog.newInstance(name)
+             navigator().showDialogFragment(dialog, "")
     }
 
     private fun initPanelActions() {
         binding.rlOpenChat.setOnClickListener {
-            //  navigator().showChat(getContact().userName!!)
+            navigator().showChat(
+                ChatParams(
+                    viewModel.getChatId,
+                    binding.accountAppbar.tvSubtitle.text.toString(),
+                    getParams().avatar
+                )
         }
 
         binding.rlCall.setOnClickListener { showToast("This feature is not implemented") }
@@ -239,7 +249,7 @@ class ContactAccountFragment : DetailBaseFragment(R.layout.fragment_contact_acco
         binding.rlBlock.setOnClickListener { blockContact() }
 
         binding.tvViewFullProfile.setOnClickListener {
-            navigator().showContactProfile(getContact())
+           navigator().showContactProfile(viewModel.getContact(getParams().id))
         }
     }
 

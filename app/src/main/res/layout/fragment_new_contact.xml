@@ -19,161 +19,37 @@
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize">
 
-            <TextView
+            <Button
+                android:background="@color/transparent"
                 android:id="@+id/tv_add_contact"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="end"
                 android:layout_marginEnd="12dp"
                 android:text="Add contact"
+                android:enabled="false"
                 android:textAllCaps="true"
-                android:textColor="@color/white"
                 android:textSize="15sp" />
 
         </com.google.android.material.appbar.MaterialToolbar>
     </com.google.android.material.appbar.AppBarLayout>
 
-    <LinearLayout
+    <com.google.android.material.textfield.TextInputLayout
+        android:layout_marginTop="20dp"
+        android:layout_marginHorizontal="24dp"
         android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/appbar">
+        app:layout_constraintTop_toBottomOf="@id/appbar"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:endIconDrawable="@drawable/ic_qrcode"
+        android:layout_height="wrap_content"
+        android:hint="user@domain.name">
 
-        <LinearLayout
+        <com.google.android.material.textfield.TextInputEditText
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="16dp"
-            android:layout_marginLeft="16dp"
-            android:layout_marginTop="24dp"
-            android:layout_marginEnd="16dp"
-            android:layout_marginRight="16dp"
-            android:background="@drawable/edit_text_rounded_corners_background_grey"
-            android:orientation="vertical">
+            android:layout_height="wrap_content"/>
 
-            <TextView
-                android:id="@+id/contact_user_tv"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:paddingStart="16dp"
-                android:paddingLeft="16dp"
-                android:paddingTop="10dp"
-                android:paddingEnd="16dp"
-                android:paddingRight="16dp"
-                android:text="Name of the interlocutor" />
+    </com.google.android.material.textfield.TextInputLayout>
 
-            <androidx.constraintlayout.widget.ConstraintLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="16dp"
-                android:layout_marginLeft="16dp"
-                android:layout_marginTop="4dp"
-                android:layout_marginEnd="16dp"
-                android:layout_marginRight="16dp"
-                android:layout_marginBottom="12dp">
 
-                <androidx.appcompat.widget.AppCompatEditText
-                    android:id="@+id/contact_user"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginEnd="24dp"
-                    android:layout_marginRight="24dp"
-                    android:background="@color/transparent"
-                    android:hint="user@domain.name"
-                    android:maxLines="1"
-                    android:singleLine="true"
-                    app:layout_constraintBottom_toBottomOf="parent"
-                    app:layout_constraintTop_toTopOf="parent" />
-
-                <ImageView
-                    android:id="@+id/imgQRcode"
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:clickable="true"
-                    android:focusable="true"
-                    app:layout_constraintBottom_toBottomOf="parent"
-                    app:layout_constraintLeft_toRightOf="@id/contact_user"
-                    app:layout_constraintStart_toEndOf="@id/contact_user"
-                    app:layout_constraintTop_toTopOf="parent"
-                    app:srcCompat="@drawable/ic_qrcode_scan_grey" />
-
-                <ImageView
-                    android:id="@+id/imgCross"
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:clickable="true"
-                    android:focusable="true"
-                    android:visibility="gone"
-                    app:layout_constraintBottom_toBottomOf="parent"
-                    app:layout_constraintLeft_toRightOf="@id/contact_user"
-                    app:layout_constraintStart_toEndOf="@id/contact_user"
-                    app:layout_constraintTop_toTopOf="parent"
-                    app:srcCompat="?attr/standard_clear_icon" />
-
-            </androidx.constraintlayout.widget.ConstraintLayout>
-
-            <View
-                android:id="@+id/contact_username_line_view"
-                android:layout_width="match_parent"
-                android:layout_height="2dp"
-                android:background="@color/grey_500" />
-
-        </LinearLayout>
-
-        <androidx.appcompat.widget.AppCompatTextView
-            android:id="@+id/error_view"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="32dp"
-            android:layout_marginLeft="32dp"
-            android:text="Wrong jid!"
-            android:textColor="@color/red_A700"
-            android:visibility="invisible" />
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="16dp"
-            android:layout_marginLeft="16dp"
-            android:layout_marginTop="4dp"
-            android:layout_marginEnd="16dp"
-            android:layout_marginRight="16dp"
-            android:background="@drawable/edit_text_rounded_corners_background_grey"
-            android:orientation="vertical">
-
-            <TextView
-                android:id="@+id/contact_name_tv"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:paddingStart="16dp"
-                android:paddingLeft="16dp"
-                android:paddingTop="10dp"
-                android:paddingEnd="16dp"
-                android:paddingRight="16dp"
-                android:text="Alias (not necessary)" />
-
-            <androidx.appcompat.widget.AppCompatEditText
-                android:id="@+id/contact_name"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="16dp"
-                android:layout_marginLeft="16dp"
-                android:layout_marginTop="4dp"
-                android:layout_marginEnd="16dp"
-                android:layout_marginRight="16dp"
-                android:layout_marginBottom="12dp"
-                android:background="@color/transparent"
-                android:gravity="top"
-                android:maxLines="1"
-                android:singleLine="true" />
-
-            <View
-                android:id="@+id/contact_name_line_view"
-                android:layout_width="match_parent"
-                android:layout_height="2dp"
-                android:background="@color/grey_500" />
-
-        </LinearLayout>
-    </LinearLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>

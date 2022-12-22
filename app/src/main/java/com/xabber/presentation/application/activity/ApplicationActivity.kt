@@ -1,19 +1,12 @@
 package com.xabber.presentation.application.activity
 
-import SoftInputAssist
-import android.content.BroadcastReceiver
-import android.content.Context
+import android.annotation.SuppressLint
 import android.content.Intent
-import android.content.IntentFilter
-import android.os.Build
 import android.os.Bundle
-import android.util.Log
 import android.util.TypedValue
-import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.constraintlayout.widget.ConstraintLayout
-import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
@@ -29,7 +22,6 @@ import com.xabber.R
 import com.xabber.databinding.ActivityApplicationBinding
 import com.xabber.model.dto.ContactDto
 import com.xabber.model.xmpp.account.Account
-//import com.xabber.notification.PushService
 import com.xabber.presentation.AppConstants
 import com.xabber.presentation.application.activity.DisplayManager.getMainContainerWidth
 import com.xabber.presentation.application.activity.DisplayManager.isDualScreenMode
@@ -40,10 +32,14 @@ import com.xabber.presentation.application.fragments.account.qrcode.QRCodeFragme
 import com.xabber.presentation.application.fragments.account.qrcode.QRCodeParams
 import com.xabber.presentation.application.fragments.account.reorder.ReorderAccountsFragment
 import com.xabber.presentation.application.fragments.calls.CallsFragment
+import com.xabber.presentation.application.fragments.chat.ChatForForwardFragment
 import com.xabber.presentation.application.fragments.chat.ChatFragment
 import com.xabber.presentation.application.fragments.chat.ChatParams
 import com.xabber.presentation.application.fragments.chat.ChatViewModel
-import com.xabber.presentation.application.fragments.chatlist.*
+import com.xabber.presentation.application.fragments.chatlist.ChatListFragment
+import com.xabber.presentation.application.fragments.chatlist.ChatListViewModel
+import com.xabber.presentation.application.fragments.chatlist.ChatSettingsFragment
+import com.xabber.presentation.application.fragments.chatlist.SpecialNotificationsFragment
 import com.xabber.presentation.application.fragments.chatlist.add.NewChatFragment
 import com.xabber.presentation.application.fragments.chatlist.add.NewGroupFragment
 import com.xabber.presentation.application.fragments.chatlist.archive.ArchiveFragment
@@ -52,7 +48,6 @@ import com.xabber.presentation.application.fragments.discover.DiscoverFragment
 import com.xabber.presentation.application.fragments.settings.*
 import com.xabber.presentation.onboarding.activity.OnBoardingActivity
 import com.xabber.utils.lockScreenRotation
-import com.xabber.utils.mask.Mask
 
 
 class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
@@ -66,68 +61,32 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
     private val activeFragment: Fragment?
         get() = supportFragmentManager.findFragmentById(R.id.application_container)
     private val viewModel: ChatListViewModel by viewModels()
-  //  private lateinit var pushBroadcastReceiver: BroadcastReceiver
-    var unreadCount = 0
-    val vv = ChatListViewModel()
+   // private val chatViewModel: ChatViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         setTheme(R.style.ThemeApplication)
         super.onCreate(savedInstanceState)
         setContentView(binding.root)
-        val value = intent.getExtras()?.get("redirect").toString();
-        if (true) {
+
+        if (viewModel.checkIsEntry()) {
             updateUiDependingOnMode(isDualScreenMode())
             setFullScreenMode()
             setHeightStatusBar()
+            binding.slidingPaneLayout.lockMode = SlidingPaneLayout.LOCK_MODE_LOCKED_CLOSED
             assist = SoftInputAssist(this)
             initBottomNavigation()
-     //       determinateMask()
-      //      determinateAccountList()
-
-//            pushBroadcastReceiver = object : BroadcastReceiver() {
-//                override fun onReceive(p0: Context?, intent: Intent?) {
-//                    val extras = intent?.extras
-//                    Log.d("keyintent", "messageReceive")
-//                    extras?.keySet()?.firstOrNull {
-//                        it == PushService.KEY_ACTION
-//                    }?.let { key ->
-//                        when (extras.getString(key)) {
-//                            PushService.ACTION_SHOW_MESSAGE -> {
-//                                extras.getString(PushService.KEY_MESSAGE)?.let { message ->
-//                                    Log.d("keyintent", "messageReceive")
-//                                    Toast.makeText(applicationContext, message, Toast.LENGTH_SHORT)
-//                                        .show()
-//                                }
-//                            }
-//                            else -> {
-//                                Log.d("keyintent", "no key")
-//                            }
-//                        }
-//                    }
-
-  //              }
-          //  }
-     //       val intentFilter = IntentFilter()
-      //      intentFilter.addAction(PushService.INTENT_FILTER)
-           // registerReceiver(pushBroadcastReceiver, intentFilter)
-         //   Log.d("keyIntent", "broadcast = $pushBroadcastReceiver")
-            binding.slidingPaneLayout.lockMode = SlidingPaneLayout.LOCK_MODE_LOCKED_CLOSED
-            binding.slidingPaneLayout.clearAnimation()
+            subscribeToViewModelData()
             if (savedInstanceState == null) {
-
-
                 launchFragment(ChatListFragment())
-
             } else {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    savedInstanceState.getParcelable("key", QRCodeParams::class.java)
-                } else savedInstanceState.getParcelable("key")
-                val unreadMessagesCount =
-                    savedInstanceState.getInt(AppConstants.UNREAD_MESSAGES_COUNT)
-                showBadge(unreadMessagesCount)
+                val menuItem = binding.bottomNavBar.menu.findItem(R.id.chats)
+                if (viewModel.showUnreadOnly.value!!) {
+                    menuItem.setIcon(R.drawable.ic_chat_alert)
+                } else {
+                    menuItem.setIcon(R.drawable.ic_chat)
+                }
             }
         } else goToOnboarding()
-
     }
 
     override fun onResume() {
@@ -139,13 +98,13 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
         val intent = Intent(applicationContext, OnBoardingActivity::class.java)
         startActivity(intent)
         finish()
-        overridePendingTransition(R.anim.appearance, R.anim.disappearance)
     }
 
     private fun setFullScreenMode() {
         WindowCompat.setDecorFitsSystemWindows(window, false)
     }
 
+    @SuppressLint("DiscouragedApi", "InternalInsetResource")
     private fun setHeightStatusBar() {
         val height = resources.getIdentifier("status_bar_height", "dimen", "android")
         val statusBarHeight = resources.getDimensionPixelSize(height)
@@ -183,31 +142,7 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
         }
     }
 
-    private fun determinateMask() {
-        val maskName = getSharedPreferences(
-            AppConstants.MASK_KEY,
-            Context.MODE_PRIVATE
-        ).getString(AppConstants.MASK_KEY, "Circle")
-        val mask = when (maskName) {
-            "Circle" -> Mask.Circle
-            "Hexagon" -> Mask.Hexagon
-            "Pentagon" -> Mask.Pentagon
-            "Squircle" -> Mask.Squircle
-            "Octagon" -> Mask.Octagon
-            "Rounded" -> Mask.Rounded
-            "Star" -> Mask.Star
-            else -> Mask.Circle
-        }
-        UiChanger.setMask(mask)
-    }
-
-    private fun determinateAccountList() {
-        //    val accountList = getSharedPreferences(AppConstants.SHARED_PREF_ACCOUNT_LIST_KEY)
-    }
-
-
     private fun showBadge(count: Int) {
-        Log.d("rrr", "activity show badge")
         if (count > 0) {
             val creator = binding.bottomNavBar.getOrCreateBadge(R.id.chats)
             creator.backgroundColor =
@@ -225,14 +160,7 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
                         launchFragment(ChatListFragment())
                         saveAndClearDetailStack()
                     } else {
-                        Log.d("rrr", "icon = ${menuItem.icon}, ${ContextCompat.getDrawable(this, R.drawable.ic_chat_alert)}, ${ContextCompat.getDrawable(this, R.drawable.ic_chat)}")
-                        if (!viewModel.showUnreadOnly.value!!) {
-                            menuItem.setIcon(R.drawable.ic_chat_alert)
-                            viewModel.setShowUnreadOnly(true)
-                        } else {
-                            menuItem.setIcon(R.drawable.ic_chat)
-                            viewModel.setShowUnreadOnly(false)
-                        }
+                        setupChatButton()
                     }
                 }
                 R.id.calls -> {
@@ -259,10 +187,33 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
         }
     }
 
+    private fun setupChatButton() {
+        val menuItem = binding.bottomNavBar.menu.findItem(R.id.chats)
+        if (!viewModel.showUnreadOnly.value!!) {
+            menuItem.setIcon(R.drawable.ic_chat_alert)
+            viewModel.setShowUnreadOnly(true)
+        } else {
+            menuItem.setIcon(R.drawable.ic_chat)
+            viewModel.setShowUnreadOnly(false)
+        }
+    }
+
+    private fun subscribeToViewModelData() {
+
+        viewModel.initAccountListListener()
+        viewModel.initUnreadMessagesCountListener()
+
+        viewModel.unreadMessage.observe(this) {
+            showBadge(it)
+        }
+        viewModel.getUnreadMessages()
+
+    }
+
     private fun saveAndClearDetailStack() {
-        if (supportFragmentManager.findFragmentById(R.id.detail_container) != null) supportFragmentManager.beginTransaction()
-            .remove(supportFragmentManager.findFragmentById(R.id.detail_container)!!)
-            .commit()
+        if (supportFragmentManager.findFragmentById(R.id.detail_container) != null) supportFragmentManager.commit {
+            remove(supportFragmentManager.findFragmentById(R.id.detail_container)!!)
+        }
     }
 
     private fun launchFragment(fragment: Fragment) {
@@ -288,7 +239,7 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
     }
 
     override fun showArchive() {
-          supportFragmentManager.commit {
+        supportFragmentManager.commit {
             replace(R.id.application_container, ArchiveFragment()).addToBackStack(null)
         }
     }
@@ -315,7 +266,7 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
     }
 
     override fun onSupportNavigateUp(): Boolean {
-       onBackPressedDispatcher.onBackPressed()
+        onBackPressedDispatcher.onBackPressed()
         return true
     }
 
@@ -377,12 +328,6 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
         launchDetail(ChatSettingsFragment())
     }
 
-    override fun onSaveInstanceState(outState: Bundle) {
-        super.onSaveInstanceState(outState)
-        outState.putParcelable("key", QRCodeParams("k", "p", R.color.green_500))
-        unreadCount.let { outState.putInt(AppConstants.UNREAD_MESSAGES_COUNT, it) }
-    }
-
     override fun enableScreenRotationLock(isLock: Boolean) {
         lockScreenRotation(isLock)
     }
@@ -391,23 +336,29 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
         launchDetail(SettingsFragment())
     }
 
-    override fun showContactAccount(contactDto: ContactDto) {
-        launchDetail(ContactAccountFragment.newInstance(contactDto))
+    override fun showContactAccount(params: ContactAccountParams) {
+        launchDetail(ContactAccountFragment.newInstance(params))
     }
-
-    private fun isTablet(): Boolean = resources.getBoolean(R.bool.isTablet)
 
     override fun showQRCode(qrCodeParams: QRCodeParams) {
         if (isTablet()) {
-            showDialogFragment(QRCodeDialogFragment.newInstance(qrCodeParams), AppConstants.QR_CODE_DIALOG_TAG)
+            showDialogFragment(
+                QRCodeDialogFragment.newInstance(qrCodeParams),
+                AppConstants.QR_CODE_DIALOG_TAG
+            )
         } else {
             launchDetailInStack(QRCodeFragment.newInstance(qrCodeParams))
         }
     }
 
+    private fun isTablet(): Boolean = resources.getBoolean(R.bool.isTablet)
+
     override fun showMyQRCode(qrCodeParams: QRCodeParams) {
         if (isTablet()) {
-            showDialogFragment(QRCodeDialogFragment.newInstance(qrCodeParams), AppConstants.QR_CODE_DIALOG_TAG)
+            showDialogFragment(
+                QRCodeDialogFragment.newInstance(qrCodeParams),
+                AppConstants.QR_CODE_DIALOG_TAG
+            )
         } else {
             launchDetail(QRCodeFragment.newInstance(qrCodeParams))
         }
@@ -433,15 +384,17 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
         launchDetail(DevicesSettingsFragment())
     }
 
-    override fun lockScreen(lock: Boolean) {
-        lockScreenRotation(lock)
+    override fun showForwardFragment(forwardMessage: String) {
+        supportFragmentManager.beginTransaction()
+            .replace(R.id.detail_container, ChatForForwardFragment.newInstance(forwardMessage)).addToBackStack(null).commit()
     }
 
-    override fun showUnreadMessage(count: Int) {
-        Log.d("rrr", "show")
-        unreadCount = count
-        showBadge(count)
+    override fun showStatusFragment() {
+        launchDetailInStack(StatusFragment())
+    }
 
+    override fun lockScreen(lock: Boolean) {
+        lockScreenRotation(lock)
     }
 
     override fun onPause() {
@@ -451,7 +404,6 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
 
     override fun onDestroy() {
         super.onDestroy()
-//        unregisterReceiver(pushBroadcastReceiver)
         assist?.onDestroy()
     }
 

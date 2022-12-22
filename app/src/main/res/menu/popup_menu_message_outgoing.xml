@@ -3,7 +3,12 @@
     <item
         android:id="@+id/copy"
         android:icon="@drawable/ic_content_copy_grey"
-        android:title="@string/menu_item_copy_message_text" />
+        android:title="@string/menu_item_copy_message" />
+
+    <item
+        android:id="@+id/pin"
+        android:icon="@drawable/ic_push_pin_grey"
+        android:title="@string/im_description_pin_message" />
 
     <item
         android:id="@+id/forward"

@@ -96,14 +96,15 @@ Log.d("bounds", "край")
 
             override fun isFinished(): Boolean {
               //  Без этого будут пропущены будущие вызовы onAbsorb()
-                return translationAnim?.isRunning?.not() ?: true
+                return true
+
             }
 
 
             private fun createAnim() = SpringAnimation(recyclerView, SpringAnimation.TRANSLATION_Y)
                 .setSpring(
                     SpringForce()
-                    .setFinalPosition(180f)
+                    .setFinalPosition(150f)
                     .setDampingRatio(SpringForce.DAMPING_RATIO_MEDIUM_BOUNCY)
                     .setStiffness(SpringForce.STIFFNESS_LOW)
                 )

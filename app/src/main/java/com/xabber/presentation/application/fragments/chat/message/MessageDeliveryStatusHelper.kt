@@ -22,7 +22,7 @@ object MessageDeliveryStatusHelper {
 
     fun getMessageStatusIconResourceByStatus(messageStatus: MessageSendingState): Int {
         return when (messageStatus) {
-            MessageSendingState.Sended -> R.drawable.ic_check
+            MessageSendingState.Sent -> R.drawable.ic_check
             MessageSendingState.Deliver -> R.drawable.ic_check_green
             MessageSendingState.Read -> R.drawable.ic_check_all_green
             MessageSendingState.Error -> R.drawable.ic_exclamation_mark_outline

@@ -8,7 +8,6 @@ import com.xabber.databinding.FragmentNewChatBinding
 import com.xabber.presentation.AppConstants
 import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.application.fragments.DetailBaseFragment
-import kotlin.random.Random
 
 class NewChatFragment : DetailBaseFragment(R.layout.fragment_new_chat) {
     private val binding by viewBinding(FragmentNewChatBinding::bind)
@@ -25,8 +24,9 @@ class NewChatFragment : DetailBaseFragment(R.layout.fragment_new_chat) {
 
     private fun setTitle() {
         if (title == null) {
-        val quotes = getString(R.string.motivating_oneliner).split("\n")
-        title = quotes.random().trim() }
+            val quotes = getString(R.string.motivating_oneliner).split("\n")
+            title = quotes.random().trim()
+        }
         binding.tvToolbarTitle.text = title
     }
 

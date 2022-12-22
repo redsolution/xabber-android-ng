@@ -28,7 +28,6 @@ import com.xabber.R
 import com.xabber.model.xmpp.account.Account
 import com.xabber.databinding.FragmentAccountBinding
 import com.xabber.presentation.AppConstants
-import com.xabber.presentation.BaseFragment
 import com.xabber.presentation.application.activity.DisplayManager
 import com.xabber.utils.mask.MaskedDrawableBitmapShader
 import com.xabber.presentation.application.activity.UiChanger
@@ -195,11 +194,11 @@ class AccountFragment : DetailBaseFragment(R.layout.fragment_account) {
 
             override fun onMenuItemSelected(menuItem: MenuItem): Boolean {
                 when (menuItem.itemId) {
-                    R.id.menu_item_color -> {
+                    R.id.colors -> {
                         val dialog = AccountColorDialog()
                         navigator().showDialogFragment(dialog, "")
                     }
-                    R.id.menu_item_generate_qr_code -> {
+                    R.id.generate_qr_code -> {
                         navigator().showMyQRCode(
                             QRCodeParams(
                                 "",
@@ -208,7 +207,7 @@ class AccountFragment : DetailBaseFragment(R.layout.fragment_account) {
                             )
                         )
                     }
-                    R.id.menu_item_add_account -> navigator().showSettings()
+                    R.id.add_account -> navigator().showSettings()
                 }
                 return true
             }

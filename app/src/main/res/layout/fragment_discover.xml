@@ -28,11 +28,11 @@
     </com.google.android.material.appbar.AppBarLayout>
 
     <TextView
-        android:id="@+id/tvDiscover"
+        android:id="@+id/tv_discover"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="@string/discover_toolbar_title"
         android:textSize="26sp"
+        android:text="Discover"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"

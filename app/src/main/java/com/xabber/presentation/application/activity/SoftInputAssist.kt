@@ -1,3 +1,5 @@
+package com.xabber.presentation.application.activity
+
 import android.app.Activity
 import android.graphics.Rect
 import android.view.View
@@ -17,14 +19,14 @@ class SoftInputAssist(activity: Activity) {
 
     fun onResume() {
         if (viewTreeObserver == null || !viewTreeObserver!!.isAlive) {
-            viewTreeObserver = rootView!!.viewTreeObserver
+            viewTreeObserver = rootView?.viewTreeObserver
         }
         viewTreeObserver!!.addOnGlobalLayoutListener(listener)
     }
 
     fun onPause() {
         if (viewTreeObserver!!.isAlive) {
-            viewTreeObserver!!.removeOnGlobalLayoutListener(listener)
+            viewTreeObserver?.removeOnGlobalLayoutListener(listener)
         }
     }
 
@@ -35,7 +37,7 @@ class SoftInputAssist(activity: Activity) {
     }
 
     private fun possiblyResizeChildOfContent() {
-        contentContainer!!.getWindowVisibleDisplayFrame(contentAreaOfWindowBounds)
+        contentContainer?.getWindowVisibleDisplayFrame(contentAreaOfWindowBounds)
         val usableHeightNow = contentAreaOfWindowBounds.bottom
         if (usableHeightNow != usableHeightPrevious) {
             rootViewLayout.height = usableHeightNow
@@ -52,7 +54,7 @@ class SoftInputAssist(activity: Activity) {
 
     init {
         contentContainer = activity.findViewById<View>(android.R.id.content) as ViewGroup
-        rootView = contentContainer!!.getChildAt(0)
-        rootViewLayout = rootView!!.getLayoutParams() as FrameLayout.LayoutParams
+        rootView = contentContainer?.getChildAt(0)
+        rootViewLayout = rootView?.layoutParams as FrameLayout.LayoutParams
     }
 }

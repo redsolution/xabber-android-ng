@@ -101,15 +101,15 @@
     <!-- Application -->
 
     <!-- BottomNavigationView -->
-    <string name="menu_item_chat_list">Xabber</string>
+    <string name="menu_item_chats">Xabber</string>
     <string name="menu_item_call">Calls</string>
-    <string name="menu_item_contact_list">Contacts</string>
+    <string name="menu_item_contacts">Contacts</string>
     <string name="menu_item_discover">Discover</string>
     <string name="menu_item_settings">Settings</string>
 
     <!-- CHAT LIST FRAGMENT -->
 
-    <string name="application_title">Chat</string>
+    <string name="application_title">Xabber</string>
     <string name="no_internet_title">Connecting…</string>
     <string name="avatar_account_content_description">Account avatar</string>
     <string name="image_plus_content_description">Add chat</string>
@@ -117,6 +117,7 @@
     <string name="unread_chats">Unread</string>
     <string name="archived_chat">Archive</string>
     <string name="snackbar_title_to_archive">Moved to archive</string>
+    <string name="snackbar_title_from_archive">Moved from archive</string>
     <string name="snackbar_title_pulled_from_archive">Pulled from archive</string>
     <string name="snackbar_button_cancel">Cancel</string>
     <string name="chat_list_is_empty_text">Your chats will appear here</string>
@@ -208,18 +209,19 @@
     <string name="delete_contact">Delete contact</string>
 
 
-    <!-- MESSAGE FRAGMENT -->
+    <!-- CHAT FRAGMENT -->
 
     <string name="chat_delay">sent at %s</string>
     <string name="chat_typed">entered at %s</string>
     <string name="edited">(edited at %s)</string>
     <string name="skip">Skip</string>
     <string name="record_cancel">slide to cancel</string>
-    <string name="menu_item_copy_message_text">Copy</string>
-    <string name="menu_item_forward_message">Forward</string>
-    <string name="menu_item_reply_message">Reply</string>
-    <string name="menu_item_edit_message">Edit</string>
-    <string name="menu_item_delete_message">Delete</string>
+    <string name="menu_item_copy_message">   Copy</string>
+    <string name="menu_item_pin_message">   Pin</string>
+    <string name="menu_item_forward_message">   Forward</string>
+    <string name="menu_item_reply_message">   Reply</string>
+    <string name="menu_item_edit_message">   Edit</string>
+    <string name="menu_item_delete_message">   Delete</string>
     <string name="menu_item_call_out">Call out</string>
     <string name="menu_item_disable_notifications">Disable notifications</string>
     <string name="menu_item_clear_message_history">Clear message history</string>
@@ -230,6 +232,12 @@
     <string name="dialog_chat_positive_button">Clear</string>
     <string name="dialog_chat_negative_button">Cancel</string>
     <string name="clear_group_chat_history_dialog_message">All message history in this chat will be cleared. This action can not be undone.</string>
+    <string name="snack_bar_title_copy_text">"Copied to clipboard"</string>
+    <string name="deleting_message_dialog_title">"Delete message</string>
+    <string name="deleting_message_dialog_subtitle">Are you sure you want to delete this message?</string>
+    <string name="deleting_message_dialog_checkbox_text">Also delete for </string>
+    <string name="deleting_message_dialog_positive_button">Delete</string>
+    <string name="deleting_message_dialog_negative_button">Cancel</string>
 
     <!-- DISCOVER FRAGMENT -->
     <string name="discover_toolbar_title">Discover</string>
@@ -377,5 +385,16 @@
     <string name="menu_item_clear_history">Clear history</string>
     <string name="mark_all_messages_as_read">Mark all messages as read</string>
     <string name="no_archived_chats">No archived chats</string>
+    <string name="selected_message_toolbar_close">close</string>
+    <string name="menu_item_chat_toolbar_enable_notifications">Enable notifications</string>
+    <string name="avatar_content_description">Avatar</string>
+    <string name="content_description_notifications_is_disabled">Notifications is disabled</string>
+    <string name="content_description_close">Close</string>
+    <string name="content_description_send">Send</string>
+    <string name="content_description_emoji">Emoji</string>
+    <string name="content_description_attach">Attach</string>
+    <string name="content_description_audio_record">Audio record</string>
+    <string name="content_description_lock">Lock</string>
+    <string name="content_description_stop">Stop</string>
 
 </resources>

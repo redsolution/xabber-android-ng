@@ -6,18 +6,17 @@ import android.text.*
 import android.text.method.LinkMovementMethod
 import android.text.style.ClickableSpan
 import android.text.style.ForegroundColorSpan
-import android.util.Log
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import androidx.activity.OnBackPressedCallback
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.isVisible
+import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import by.kirich1409.viewbindingdelegate.viewBinding
 import com.xabber.R
 import com.xabber.databinding.FragmentSigninBinding
-import com.xabber.presentation.BaseFragment
 import com.xabber.presentation.onboarding.contract.navigator
 import com.xabber.presentation.onboarding.contract.toolbarChanger
 import com.xabber.presentation.onboarding.fragments.signin.feature.FeatureAdapter
@@ -30,16 +29,19 @@ import kotlinx.coroutines.launch
  * and all the features are successful, too, the user gets into the application
  */
 
-class SigninFragment : BaseFragment(R.layout.fragment_signin) {
+class SigninFragment : Fragment(R.layout.fragment_signin) {
     private val binding by viewBinding(FragmentSigninBinding::bind)
     private val password = "1"
     private val featureAdapter = FeatureAdapter()
     private val viewModel = SigninViewModel()
-    var host: String = "dev.xabber.org"
+    var host: String = "xabber.com"
     private var compositeDisposable: CompositeDisposable? = CompositeDisposable()
 
     private val onBackPressedCallback = object : OnBackPressedCallback(true) {
         override fun handleOnBackPressed() {
+            if (binding.btnRock.isVisible && binding.btnRock.isEnabled) {
+                navigator().finishActivity()
+            } else navigator().goBack()
         }
     }
 
@@ -51,9 +53,12 @@ class SigninFragment : BaseFragment(R.layout.fragment_signin) {
         initRecyclerView()
         binding.signinSubtitle1.text = getSubtitleClickableSpan()
         binding.signinSubtitle1.movementMethod = LinkMovementMethod.getInstance()
-        // requireActivity().onBackPressedDispatcher.addCallback(onBackPressedCallback)
     }
 
+    override fun onResume() {
+        super.onResume()
+        requireActivity().onBackPressedDispatcher.addCallback(onBackPressedCallback)
+    }
 
     private fun initEditText() {
         val textWatcher = object : TextWatcher {
@@ -96,7 +101,6 @@ class SigninFragment : BaseFragment(R.layout.fragment_signin) {
             return@setOnEditorActionListener false
         }
     }
-
 
     private fun initButton() {
         with(binding) {
@@ -142,8 +146,7 @@ class SigninFragment : BaseFragment(R.layout.fragment_signin) {
                     if (viewModel.isJidValid(editTextLogin.text.toString()) || editTextPassword.text!!.length > 5) {
                         compositeDisposable?.add(viewModel.features
                             .doOnNext { list ->
-                                if (list.filter { it.nameResId == R.string.feature_name_4 }
-                                        .count() == 1) {
+                                if (list.count { it.nameResId == R.string.feature_name_4 } == 1) {
                                     toolbarChanger().setTitle(R.string.signin_toolbar_title_2)
                                     toolbarChanger().showArrowBack(false)
                                     signinTitle.text = String.format(
@@ -167,25 +170,22 @@ class SigninFragment : BaseFragment(R.layout.fragment_signin) {
                                         featureAdapter.submitList(list)
                                         featureAdapter.notifyItemChanged(list.lastIndex)
                                     }
-                                    if (list.filter { it.nameResId == R.string.feature_name_10 }
-                                            .count() == 1 && list.all { it.state != State.Error }) {
+                                    if (list.count { it.nameResId == R.string.feature_name_10 } == 1 && list.all { it.state != State.Error }) {
                                         signinSubtitle2.isVisible = true
 
                                         btnRock.isVisible = true
                                         btnRock.setOnClickListener {
-                                            navigator().goToApplicationActivity(true)
+                                            navigator().goToApplicationActivity()
                                         }
                                     }
-                                    if (viewModel._features.filter { it.state == State.Error }
-                                            .count() <= 1 &&
+                                    if (viewModel._features.count { it.state == State.Error } <= 1 &&
                                         viewModel._features[list.lastIndex].state == State.Error
                                     ) {
                                         featureAdapter.submitList(list)
                                         featureAdapter.notifyItemChanged(list.lastIndex)
                                     }
                                     if (viewModel._features[list.lastIndex].state == State.Success &&
-                                        viewModel._features.filter { it.state == State.Error }
-                                            .count() == 0
+                                        viewModel._features.count { it.state == State.Error } == 0
                                     ) {
                                         featureAdapter.submitList(list)
                                         featureAdapter.notifyItemChanged(list.lastIndex)
@@ -221,10 +221,8 @@ class SigninFragment : BaseFragment(R.layout.fragment_signin) {
         )
     }
 
-
     private fun textEnabled() {
         binding.signinSubtitle1.movementMethod = null
-
     }
 
     fun getSubtitleClickableSpan(): Spannable {
@@ -260,12 +258,16 @@ class SigninFragment : BaseFragment(R.layout.fragment_signin) {
         return spannable
     }
 
+    override fun onPause() {
+        super.onPause()
+        onBackPressedCallback.remove()
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         binding.signinSubtitle1.movementMethod = null
         compositeDisposable?.clear()
         compositeDisposable = null
-        onBackPressedCallback.remove()
     }
 
 }

@@ -1,24 +1,18 @@
 package com.xabber.presentation.application.fragments.chat
 
-import android.content.ContentUris
 import android.content.ContentUris.withAppendedId
-import android.content.Context
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.MediaStore
 import android.util.Log
-import android.view.ContentInfo
 import android.view.View
 import androidx.annotation.RequiresApi
-import androidx.core.view.accessibility.AccessibilityEventCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import by.kirich1409.viewbindingdelegate.viewBinding
 import com.xabber.R
 import com.xabber.databinding.FragmentFilesBinding
-import com.xabber.presentation.BaseFragment
-import io.reactivex.rxjava3.disposables.Disposable
-import okio.FileMetadata
+import com.xabber.presentation.application.BaseFragment
 import org.reactivestreams.Publisher
 import org.reactivestreams.Subscriber
 import java.io.File

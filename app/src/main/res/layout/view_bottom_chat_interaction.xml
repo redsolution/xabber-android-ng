@@ -8,56 +8,73 @@
     android:background="@color/white"
     app:layout_constraintBottom_toBottomOf="parent">
 
-    <ImageView
-        android:id="@+id/reply_iv"
-        android:layout_width="48dp"
-        android:layout_height="0dp"
-        android:background="?attr/selectableItemBackgroundBorderless"
-        android:clickable="true"
-        android:focusable="true"
-        android:padding="12dp"
+    <LinearLayout
+        android:id="@+id/lin_reply"
+        android:paddingEnd="20dp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="@drawable/item_bottom_sheet_background"
+        android:orientation="horizontal"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:srcCompat="@drawable/ic_reply_grey" />
+        app:layout_constraintTop_toTopOf="parent">
 
-    <TextView
-        android:id="@+id/reply_tv"
+        <ImageView
+            android:id="@+id/reply_iv"
+            android:layout_width="48dp"
+            android:layout_height="wrap_content"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:clickable="true"
+            android:focusable="true"
+            android:padding="12dp"
+            app:srcCompat="@drawable/ic_reply_grey" />
+
+        <TextView
+            android:id="@+id/reply_tv"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:alpha="0.9"
+            android:gravity="center_vertical"
+            android:text="Reply"
+            android:textSize="20sp"
+            app:fontFamily="sans-serif-condensed"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toEndOf="@id/reply_iv"
+            app:layout_constraintTop_toTopOf="parent" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/lin_forward"
         android:layout_width="wrap_content"
-        android:layout_height="match_parent"
-        android:alpha="0.9"
-        android:gravity="center_vertical"
-        android:text="Reply"
-        android:textSize="20sp"
-        app:fontFamily="sans-serif-condensed"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toEndOf="@id/reply_iv"
-        app:layout_constraintTop_toTopOf="parent" />
-
-    <TextView
-        android:id="@+id/forward_tv"
-        android:layout_width="wrap_content"
-        android:layout_height="0dp"
-        android:alpha="0.9"
-        android:gravity="center_vertical"
-        android:text="Forward"
-        android:textSize="20sp"
-        app:fontFamily="sans-serif-condensed"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toStartOf="@id/forward_iv"
-        app:layout_constraintTop_toTopOf="parent" />
-
-    <ImageView
-        android:id="@+id/forward_iv"
-        android:layout_width="48dp"
-        android:layout_height="0dp"
-        android:background="?attr/selectableItemBackgroundBorderless"
-        android:clickable="true"
-        android:focusable="true"
-        android:padding="12dp"
+        android:layout_height="wrap_content"
+        android:paddingStart="20dp"
+        android:background="@drawable/item_bottom_sheet_background"
+        android:orientation="horizontal"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:srcCompat="@drawable/ic_forward_grey" />
+        app:layout_constraintTop_toTopOf="parent">
 
+        <TextView
+            android:id="@+id/forward_tv"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:alpha="0.9"
+            android:gravity="center_vertical"
+            android:text="Forward"
+            android:textSize="20sp"
+            app:fontFamily="sans-serif-condensed"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/forward_iv"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <ImageView
+            android:id="@+id/forward_iv"
+            android:layout_width="48dp"
+            android:layout_height="wrap_content"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:clickable="true"
+            android:focusable="true"
+            android:padding="12dp"
+            app:srcCompat="@drawable/ic_forward_grey" />
+    </LinearLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>

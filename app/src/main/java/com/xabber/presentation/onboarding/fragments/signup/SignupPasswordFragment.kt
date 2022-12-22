@@ -4,22 +4,20 @@ import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.View
+import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import by.kirich1409.viewbindingdelegate.viewBinding
 import com.xabber.R
 import com.xabber.databinding.FragmentSignupPasswordBinding
-import com.xabber.presentation.BaseFragment
 import com.xabber.presentation.onboarding.activity.OnboardingViewModel
 import com.xabber.presentation.onboarding.contract.navigator
 import com.xabber.presentation.onboarding.contract.toolbarChanger
-import kotlin.properties.Delegates
 
 
-class SignupPasswordFragment : BaseFragment(R.layout.fragment_signup_password) {
+class SignupPasswordFragment : Fragment(R.layout.fragment_signup_password) {
     private val binding by viewBinding(FragmentSignupPasswordBinding::bind)
     private val viewModel: OnboardingViewModel by activityViewModels()
-    private var password by Delegates.notNull<String>()
-
+    private val minPasswordLength = 4
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -43,8 +41,7 @@ class SignupPasswordFragment : BaseFragment(R.layout.fragment_signup_password) {
 
             override fun onTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {}
             override fun afterTextChanged(p0: Editable?) {
-                password = p0.toString()
-                binding.passwordBtnNext.isEnabled = password.length > 3
+                binding.passwordBtnNext.isEnabled = p0.toString().length >= minPasswordLength
             }
         })
 
@@ -52,8 +49,9 @@ class SignupPasswordFragment : BaseFragment(R.layout.fragment_signup_password) {
 
     private fun initButton() {
         binding.passwordBtnNext.setOnClickListener {
-            viewModel.setPassword(binding.passwordEditText.text.toString())
-            //   navigator().registerAccount()
+            val password = binding.passwordEditText.text.toString()
+            viewModel.setPassword(password)
+            viewModel.registerAccount()
             navigator().openSignupAvatarFragment()
         }
     }

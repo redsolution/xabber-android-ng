@@ -8,7 +8,7 @@
         app:showAsAction="always" />
 
     <item
-        android:id="@+id/edit_contact_account"
+        android:id="@+id/edit_contact"
         android:title="@string/menu_item_edit_contact_account"
         app:showAsAction="never" />
 
@@ -18,7 +18,7 @@
         app:showAsAction="never" />
 
     <item
-        android:id="@+id/delete_contact_account"
+        android:id="@+id/delete_contact"
         android:title="@string/menu_item_delete_contact_account"
         app:showAsAction="never" />
 </menu>

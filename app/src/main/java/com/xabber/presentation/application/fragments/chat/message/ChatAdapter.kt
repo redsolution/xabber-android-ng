@@ -2,24 +2,20 @@ package com.xabber.presentation.application.fragments.chat.message
 
 import android.annotation.SuppressLint
 import android.os.Build
-import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.annotation.RequiresApi
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
-import androidx.recyclerview.widget.RecyclerView
 import com.xabber.databinding.ItemMessageIncomingBinding
 import com.xabber.databinding.ItemMessageOutgoingBinding
 import com.xabber.databinding.ItemMessageSystemBinding
 import com.xabber.model.dto.MessageDto
 import com.xabber.model.xmpp.messages.MessageDisplayType
-import com.xabber.presentation.AppConstants
-import com.xabber.presentation.application.fragments.chatlist.ChatListViewHolder
 import com.xabber.utils.StringUtils
 
-class MessageAdapter(
+class ChatAdapter(
     private val listener: Listener
 ) : ListAdapter<MessageDto, BasicMessageVH>(DiffUtilCallback) {
     private var checkBoxVisible = false
@@ -32,11 +28,13 @@ class MessageAdapter(
 
     interface Listener {
         fun copyText(text: String)
+        fun pinMessage(messageDto: MessageDto)
         fun forwardMessage(messageDto: MessageDto)
         fun replyMessage(messageDto: MessageDto)
         fun deleteMessage(primary: String)
-        fun editMessage(primary: String)
+        fun editMessage(primary: String, text: String)
         fun onLongClick(primary: String)
+        fun checkItem(isChecked: Boolean, primary: String)
     }
 
 
@@ -107,10 +105,12 @@ class MessageAdapter(
         if (payloads.isEmpty()) {
             super.onBindViewHolder(holder, position, payloads)
         } else {
-            holder.bind(getItem(position), false,
-            getIsNeedDay(position),
-            checkBoxVisible,
-           false, payloads)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                holder.bind(getItem(position), false,
+                getIsNeedDay(position),
+                checkBoxVisible,
+               false, payloads)
+            }
         }
     }
 
@@ -135,12 +135,8 @@ class MessageAdapter(
         return needDay
     }
 
-    fun showCheckbox(isShow: Boolean) {
-        checkBoxVisible = isShow
-        notifyDataSetChanged()
-    }
 
-    fun getCheckBoxIsVisible(): Boolean = checkBoxVisible
+    fun getPositionId(position: Int): String = getItem(position).primary
 
     override fun getItemViewType(position: Int): Int {
         return when {
@@ -169,14 +165,18 @@ class MessageAdapter(
         override fun areContentsTheSame(oldItem: MessageDto, newItem: MessageDto) =
             oldItem == newItem
 
-        override fun getChangePayload(oldItem: MessageDto, newItem: MessageDto): Any {
-            val diffBundle = Bundle()
-            if (oldItem.messageSendingState != newItem.messageSendingState) diffBundle.putParcelable(
-                AppConstants.PAYLOAD_MESSAGE_SENDING_STATE,
-                newItem.messageSendingState
-            )
-            return diffBundle
-        }
+//        override fun getChangePayload(oldItem: MessageDto, newItem: MessageDto): Any {
+//            val diffBundle = Bundle()
+//            if (oldItem.messageSendingState != newItem.messageSendingState) diffBundle.putParcelable(
+//                AppConstants.PAYLOAD_MESSAGE_SENDING_STATE,
+//                newItem.messageSendingState
+//            )
+//            return diffBundle
+//        }
+    }
+
+    fun setSelectedMode(isSelected: Boolean) {
+        checkBoxVisible = isSelected
     }
 
 }

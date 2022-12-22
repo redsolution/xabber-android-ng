@@ -1,7 +1,6 @@
 package com.xabber.presentation.application.fragments.chatlist
 
 import android.graphics.PorterDuff
-import android.graphics.Typeface
 import android.os.Bundle
 import android.text.Spannable
 import android.text.SpannableString
@@ -22,6 +21,10 @@ import com.xabber.model.xmpp.messages.MessageSendingState
 import com.xabber.model.xmpp.presences.ResourceStatus
 import com.xabber.model.xmpp.presences.RosterItemEntity
 import com.xabber.presentation.AppConstants
+import com.xabber.presentation.AppConstants.PAYLOAD_CHAT_DATE
+import com.xabber.presentation.AppConstants.PAYLOAD_CHAT_DRAFT_MESSAGE
+import com.xabber.presentation.AppConstants.PAYLOAD_CHAT_MESSAGE_BODY
+import com.xabber.presentation.AppConstants.PAYLOAD_CHAT_MESSAGE_STATE
 import com.xabber.presentation.AppConstants.PAYLOAD_MUTE_EXPIRED_CHAT
 import com.xabber.presentation.AppConstants.PAYLOAD_PINNED_POSITION_CHAT
 import com.xabber.presentation.application.bottomsheet.TimeMute
@@ -33,16 +36,15 @@ class ChatListViewHolder(
     private val binding: ItemChatListBinding,
 ) : RecyclerView.ViewHolder(binding.root) {
 
-
     fun bind(chatListDto: ChatListDto, listener: ChatListAdapter.ChatListener) {
         with(binding) {
             // color divider
-//            profileDivider.setBackgroundColor(
-//                itemView.resources.getColor(
-//                    chatListDto.colorId,
-//                    itemView.context.theme
-//                )
-//            )
+            profileDivider.setBackgroundColor(
+                itemView.resources.getColor(
+                    chatListDto.colorId,
+                    itemView.context.theme
+                )
+            )
             if (chatListDto.isHide) {
                 val par = chatGround.layoutParams as RecyclerView.LayoutParams
                 par.height = 0
@@ -58,14 +60,16 @@ class ChatListViewHolder(
                 .into(binding.imChatListItemAvatar)
 
             // name
-            tvChatListName.text = chatListDto.opponentName
+            tvChatListName.text =
+                if (chatListDto.customName.isNotEmpty()) chatListDto.customName else if (chatListDto.displayName.isNotEmpty()) chatListDto.displayName else chatListDto.opponentJid
 
             // last message
-            tvChatListLastMessage.text = chatListDto.lastMessageBody ?: ""
+            tvChatListLastMessage.text =
+                if (chatListDto.lastMessageBody == null) "" else chatListDto.lastMessageBody
 
             // timeStamp
             tvChatListTimestamp.text =
-                DateFormatter.dateFormat(chatListDto.lastMessageDate.toString())
+                DateFormatter.dateFormat(chatListDto.lastMessageDate)
 
             // pinned -> background and icon
             if (chatListDto.pinnedDate > 0) {
@@ -83,23 +87,26 @@ class ChatListViewHolder(
             if ((chatListDto.muteExpired - System.currentTimeMillis()) > TimeMute.DAY1.time) binding.imChatListMuted.setImageResource(
                 R.drawable.ic_bell_off_light_grey
             ) else binding.imChatListMuted.setImageResource(R.drawable.ic_bell_sleep_light_grey)
+
             // unread messages
 
-            unreadMessagesWrapper.isVisible = chatListDto.unreadString.isNotEmpty()
-            unreadMessagesCount.text = chatListDto.unreadString
+            unreadMessagesWrapper.isVisible = chatListDto.unread.isNotEmpty()
+            unreadMessagesCount.text = chatListDto.unread
+           unreadMessagesWrapper.setCardBackgroundColor(if ((chatListDto.muteExpired - System.currentTimeMillis()) > 0) ContextCompat.getColorStateList(binding.root.context, R.color.grey_400) else ContextCompat.getColorStateList(binding.root.context, R.color.green_500))
 
 
             // message status
             var image: Int? = null
             var tint: Int? = null
             imChatListStatusMessage.isVisible =
-                chatListDto.unreadString.isEmpty() && chatListDto.lastMessageBody != null
+                chatListDto.lastMessageBody != null && chatListDto.lastMessageBody.isNotEmpty() && chatListDto.outgoing
+
             when (chatListDto.lastMessageState) {
                 MessageSendingState.Sending -> {
                     tint = R.color.grey_500
                     image = R.drawable.ic_clock_outline
                 }
-                MessageSendingState.Sended -> {
+                MessageSendingState.Sent -> {
                     tint = R.color.grey_500
                     image = R.drawable.ic_check_green
                 }
@@ -115,7 +122,7 @@ class ChatListViewHolder(
                     tint = R.color.red_500
                     image = R.drawable.ic_exclamation_mark_outline
                 }
-                MessageSendingState.NotSended -> {
+                MessageSendingState.NotSent -> {
                     tint = R.color.grey_500
                     image = R.drawable.ic_clock_outline
                 }
@@ -126,26 +133,21 @@ class ChatListViewHolder(
                 MessageSendingState.None -> {
                     imChatListStatusMessage.isVisible = false
                 }
-                else -> {}
+                else -> {
+                    tint = null
+                    image = null
+                }
             }
 
-            if (tint != null && image != null) {
-                Glide.with(itemView)
-                    .load(image)
-                    .centerCrop()
-                    .skipMemoryCache(true)
-                    .into(imChatListStatusMessage)
-                imChatListStatusMessage.setColorFilter(
-                    ContextCompat.getColor(itemView.context, tint),
-                    PorterDuff.Mode.SRC_IN
-                )
-            }
-            if (tint != null && image != null) {
-                binding.imChatListStatusMessage.setImageResource(image)
-                binding.imChatListStatusMessage.setColorFilter(
-                    ContextCompat.getColor(itemView.context, tint),
-                    PorterDuff.Mode.SRC_IN
-                )
+            if (binding.imChatListStatusMessage.isVisible) {
+
+                if (tint != null && image != null) {
+                    binding.imChatListStatusMessage.setImageResource(image)
+                    binding.imChatListStatusMessage.setColorFilter(
+                        ContextCompat.getColor(itemView.context, tint),
+                        PorterDuff.Mode.SRC_IN
+                    )
+                }
             }
 
             // synced
@@ -226,27 +228,6 @@ class ChatListViewHolder(
                 imChatStatus14.setImageResource(icon)
             }
 
-            // Draft
-            if (chatListDto.DraftMessage != null) {
-                val spannable = SpannableString("Drafted: ${chatListDto.DraftMessage}")
-                spannable.setSpan(
-                    ForegroundColorSpan(
-                        itemView.resources.getColor(
-                            R.color.red_500,
-                            itemView.context.theme
-                        )
-                    ),
-                    0,
-                    8,
-                    Spannable.SPAN_EXCLUSIVE_INCLUSIVE
-                )
-                tvChatListLastMessage.text = spannable
-            }
-
-            if (chatListDto.isSystemMessage) {
-                tvChatListLastMessage.setTypeface(null, Typeface.ITALIC)
-            } else tvChatListLastMessage.setTypeface(null, Typeface.NORMAL)
-
             // onClick
             itemView.setOnClickListener {
                 listener.onClickItem(chatListDto)
@@ -256,7 +237,7 @@ class ChatListViewHolder(
             itemView.setOnLongClickListener {
                 val popup = PopupMenu(itemView.context, itemView, Gravity.CENTER)
                 popup.inflate(R.menu.popup_menu_chat_list_item)
-                if (chatListDto.muteExpired > 0) {
+               if ((chatListDto.muteExpired - System.currentTimeMillis()) > 0)  {
                     popup.menu.removeItem(R.id.turn_of_notifications)
                 } else {
                     popup.menu.removeItem(R.id.enable_notifications)
@@ -291,7 +272,9 @@ class ChatListViewHolder(
                             listener.deleteChat(chatListDto.displayName, chatListDto.id)
                         }
                         R.id.clear_history -> {
-                            listener.clearHistory(chatListDto.id, chatListDto.displayName, chatListDto.opponentName)
+                            listener.clearHistory(
+                                chatListDto
+                            )
                         }
                     }
                     true
@@ -300,6 +283,54 @@ class ChatListViewHolder(
                 true
             }
 
+        }
+        if (chatListDto.lastMessageState != null) {
+            setUpMessageSendingState(chatListDto.lastMessageState)
+            binding.imChatListStatusMessage.isVisible =
+                chatListDto.unread.isNotEmpty() && chatListDto.lastMessageBody != null && chatListDto.outgoing
+        }
+    }
+
+    private fun setUpMessageSendingState(messageSendingState: MessageSendingState) {
+        var image: Int? = null
+        var tint: Int? = null
+
+        when (messageSendingState) {
+            MessageSendingState.Sending -> {
+                tint = R.color.grey_500
+                image = R.drawable.ic_clock_outline
+            }
+            MessageSendingState.Sent -> {
+                tint = R.color.grey_500
+                image = R.drawable.ic_check_green
+            }
+            MessageSendingState.Deliver -> {
+                tint = R.color.green_500
+                image = R.drawable.ic_check_green
+            }
+            MessageSendingState.Read -> {
+                tint = R.color.green_500
+                image = R.drawable.ic_check_all_green
+            }
+            MessageSendingState.Error -> {
+                tint = R.color.red_500
+                image = R.drawable.ic_exclamation_mark_outline
+            }
+            MessageSendingState.NotSent -> {
+                tint = R.color.grey_500
+                image = R.drawable.ic_clock_outline
+            }
+            MessageSendingState.Uploading -> {
+                tint = R.color.blue_500
+                image = R.drawable.ic_clock_outline
+            }
+            MessageSendingState.None -> {
+                binding.imChatListStatusMessage.isVisible = false
+            }
+            else -> {
+                tint = null
+                image = null
+            }
         }
     }
 
@@ -339,7 +370,7 @@ class ChatListViewHolder(
                                 popup.menu.removeItem(R.id.unpin)
                             }
 
-                            if (chatListDto.muteExpired > 0) {
+                           if ((chatListDto.muteExpired - System.currentTimeMillis()) > 0)  {
                                 popup.menu.removeItem(R.id.turn_of_notifications)
                             } else {
                                 popup.menu.removeItem(R.id.enable_notifications)
@@ -366,9 +397,7 @@ class ChatListViewHolder(
                                 }
                                 R.id.clear_history -> {
                                     listener.clearHistory(
-                                        chatListDto.id,
-                                        chatListDto.displayName,
-                                        chatListDto.opponentName
+                                        chatListDto
                                     )
                                 }
                             }
@@ -388,6 +417,12 @@ class ChatListViewHolder(
                     itemView.setOnLongClickListener {
                         val popup = PopupMenu(itemView.context, itemView, Gravity.CENTER)
                         popup.inflate(R.menu.popup_menu_chat_list_item)
+
+                        if ((chatListDto.muteExpired - System.currentTimeMillis()) > 0)  {
+                            popup.menu.removeItem(R.id.turn_of_notifications)
+                        } else {
+                            popup.menu.removeItem(R.id.enable_notifications)
+                        }
                         if (chatListDto.isArchived) {
                             popup.menu.removeItem(R.id.pin_chat)
                             popup.menu.removeItem(R.id.unpin)
@@ -397,13 +432,6 @@ class ChatListViewHolder(
                             } else {
                                 popup.menu.removeItem(R.id.unpin)
                             }
-
-                            if (chatListDto.muteExpired > 0) {
-                                popup.menu.removeItem(R.id.turn_of_notifications)
-                            } else {
-                                popup.menu.removeItem(R.id.enable_notifications)
-                            }
-
                         }
                         popup.setOnMenuItemClickListener {
                             when (it.itemId) {
@@ -424,7 +452,9 @@ class ChatListViewHolder(
                                     listener.deleteChat(chatListDto.displayName, chatListDto.id)
                                 }
                                 R.id.clear_history -> {
-                                    listener.clearHistory(chatListDto.id, chatListDto.displayName, chatListDto.opponentName)
+                                    listener.clearHistory(
+                                        chatListDto
+                                    )
                                 }
                             }
                             true
@@ -432,6 +462,54 @@ class ChatListViewHolder(
                         popup.show()
                         true
                     }
+
+                    binding.unreadMessagesWrapper.setCardBackgroundColor( if ((chatListDto.muteExpired - System.currentTimeMillis()) > 0) ContextCompat.getColorStateList(binding.root.context, R.color.grey_400) else ContextCompat.getColorStateList(binding.root.context, R.color.green_500))
+
+
+
+
+                }
+                PAYLOAD_CHAT_DATE -> {
+                    binding.tvChatListTimestamp.text =
+                        DateFormatter.dateFormat(chatListDto.lastMessageDate)
+                }
+                PAYLOAD_CHAT_MESSAGE_BODY -> {
+                    val lastMessageBody = bundle.getString(PAYLOAD_CHAT_MESSAGE_BODY)
+                    binding.tvChatListLastMessage.text = lastMessageBody
+                    binding.imChatListStatusMessage.isVisible =
+                        (lastMessageBody!!.isNotEmpty() && chatListDto.outgoing)
+                }
+                PAYLOAD_CHAT_DRAFT_MESSAGE -> {
+                    val draftMessage = bundle.getString(PAYLOAD_CHAT_DRAFT_MESSAGE)
+                    if (draftMessage != null) {
+                        val spannable = SpannableString("Drafted: $draftMessage")
+                        spannable.setSpan(
+                            ForegroundColorSpan(
+                                itemView.resources.getColor(
+                                    R.color.red_500,
+                                    itemView.context.theme
+                                )
+                            ),
+                            0,
+                            8,
+                            Spannable.SPAN_EXCLUSIVE_INCLUSIVE
+                        )
+                        binding.tvChatListLastMessage.text = spannable
+                        if (draftMessage.isNotEmpty()) binding.tvChatListTimestamp.text =
+                            DateFormatter.dateFormat(System.currentTimeMillis())
+                        binding.imChatListStatusMessage.isVisible = false
+                    } else {
+                        binding.tvChatListLastMessage.text = chatListDto.lastMessageBody
+                        binding.tvChatListTimestamp.text =
+                            DateFormatter.dateFormat(chatListDto.lastMessageDate)
+                        binding.imChatListStatusMessage.isVisible =
+                            (chatListDto.lastMessageBody.isNotEmpty() && chatListDto.outgoing)
+                    }
+                }
+                PAYLOAD_CHAT_MESSAGE_STATE -> {
+                    val messageState =
+                        bundle.getParcelable(PAYLOAD_CHAT_MESSAGE_STATE) as MessageSendingState?
+                    if (messageState != null) setUpMessageSendingState(messageState)
                 }
             }
 

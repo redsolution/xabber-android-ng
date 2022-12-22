@@ -1,17 +1,18 @@
 package com.xabber.model.xmpp.account
 
 import com.xabber.model.xmpp.presences.ResourceStorageItem
-import io.realm.RealmObject
-import io.realm.annotations.PrimaryKey
+
+import io.realm.kotlin.types.RealmObject
+import io.realm.kotlin.types.annotations.PrimaryKey
 
 class AccountStorageItem : RealmObject {
     @PrimaryKey
-    var primary: String = ""
+    var primary: String = "" // аватар искать по owner + jid
     var order: Int = 0
     var jid: String = ""
     var host: String = ""
     var port: Int = 5222
-    var username: String = ""
+    var nickname: String = ""
     var enabled: Boolean = true
     var pushNode: String = ""
     var pushService: String = ""
@@ -19,7 +20,9 @@ class AccountStorageItem : RealmObject {
     var statusMessage: String = ""
     var colorKey: String = ""
     var hasAvatar: Boolean = false
-    var resource: ResourceStorageItem? = null
+    var resource: ResourceStorageItem? = null  // статус
+        // аватарка где?
+
 
 //    companion object {
 //        fun genPrimary(jid: String): String {

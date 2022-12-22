@@ -2,7 +2,7 @@ package com.xabber.presentation.application.fragments.chat.audio
 
 import android.media.MediaRecorder
 import android.util.Log
-import io.realm.internal.platform.appFilesDirectory
+import io.realm.kotlin.internal.platform.appFilesDirectory
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch

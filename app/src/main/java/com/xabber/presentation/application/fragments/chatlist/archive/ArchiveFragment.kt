@@ -37,12 +37,12 @@ class ArchiveFragment : DetailBaseFragment(R.layout.fragment_archive),
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        if (savedInstanceState == null) viewModel.initListener()
         setToolbarColor()
         initToolbarActions()
         initRecyclerView()
         subscribeOnViewModelData()
         fillArchive()
-        viewModel.initListener()
     }
 
     private fun setToolbarColor() {
@@ -93,7 +93,6 @@ class ArchiveFragment : DetailBaseFragment(R.layout.fragment_archive),
             ChatParams(
                 chatListDto.id,
                 AccountManager.owner,
-                chatListDto.opponentName,
                 chatListDto.opponentJid,
                 chatListDto.drawableId
             )
@@ -112,9 +111,9 @@ class ArchiveFragment : DetailBaseFragment(R.layout.fragment_archive),
     }
 
     private fun showSnackbar(id: String) {
-       snackbar = Snackbar.make(
+        snackbar = Snackbar.make(
             binding.root,
-            R.string.snackbar_title_to_archive,
+            R.string.snackbar_title_from_archive,
             Snackbar.LENGTH_LONG
         )
 
@@ -137,12 +136,14 @@ class ArchiveFragment : DetailBaseFragment(R.layout.fragment_archive),
         }
     }
 
-    override fun clearHistory(id: String, name: String, opponent: String) {
-        val dialog = ChatHistoryClearDialog.newInstance(name)
+    override fun clearHistory(chatListDto: ChatListDto) {
+        val name = if (chatListDto.customName.isNotEmpty()) chatListDto.customName else if (chatListDto.displayName.isNotEmpty()) chatListDto.displayName else chatListDto.opponentJid
+
+        val dialog = ChatHistoryClearDialog()
         navigator().showDialogFragment(dialog, AppConstants.CLEAR_HISTORY_DIALOG_TAG)
         setFragmentResultListener(AppConstants.CLEAR_HISTORY_KEY) { _, bundle ->
             val result = bundle.getBoolean(AppConstants.CLEAR_HISTORY_BUNDLE_KEY)
-            if (result) viewModel.clearHistoryChat(id)
+            if (result) viewModel.clearHistoryChat(chatListDto.id, chatListDto.opponentJid)
         }
     }
 

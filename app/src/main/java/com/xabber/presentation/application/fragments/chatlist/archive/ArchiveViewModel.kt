@@ -4,16 +4,16 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.xabber.R
-import com.xabber.defaultRealmConfig
+import com.xabber.data_base.defaultRealmConfig
 import com.xabber.model.dto.ChatListDto
 import com.xabber.model.xmpp.last_chats.LastChatsStorageItem
 import com.xabber.model.xmpp.messages.MessageSendingState
+import com.xabber.model.xmpp.messages.MessageStorageItem
 import com.xabber.model.xmpp.presences.ResourceStatus
 import com.xabber.model.xmpp.presences.RosterItemEntity
-import io.realm.Realm
-import io.realm.notifications.ResultsChange
-import io.realm.notifications.UpdatedResults
+import io.realm.kotlin.Realm
+import io.realm.kotlin.notifications.ResultsChange
+import io.realm.kotlin.notifications.UpdatedResults
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -25,13 +25,11 @@ class ArchiveViewModel : ViewModel() {
     private val _chatList = MutableLiveData<List<ChatListDto>>()
     val chatList: LiveData<List<ChatListDto>> = _chatList
 
-   fun initListener() {
-        val request =
-            realm.query(LastChatsStorageItem::class, "isArchived == true")
-//               job =
-        viewModelScope.launch {
+    fun initListener() {
 
-            val lastChatsFlow = realm.query(LastChatsStorageItem::class, "isArchived == true").asFlow()
+        viewModelScope.launch {
+            val lastChatsFlow =
+                realm.query(LastChatsStorageItem::class, "isArchived == true").asFlow()
             lastChatsFlow.collect { changes: ResultsChange<LastChatsStorageItem> ->
                 when (changes) {
                     is UpdatedResults -> {
@@ -43,33 +41,37 @@ class ArchiveViewModel : ViewModel() {
                         changes.deletionRanges
                         changes.list
 
-                        val realmList = realm.query(LastChatsStorageItem::class, "isArchived == true").find()
+                        val realmList =
+                            realm.query(LastChatsStorageItem::class, "isArchived == true").find()
                         listDto.clear()
                         listDto.addAll(realmList.map { T ->
                             ChatListDto(
-                                T.primary,
-                                T.owner,
-                                T.jid,
-                                T.rosterItem!!.nickname,
-                                "",
-                                T.lastMessage?.body,
-                                T.messageDate,
-                                MessageSendingState.Read,
-                                T.isArchived,
-                                T.isSynced,
-                                T.draftMessage,
-                                false, // hasAttachment
-                                false, // isSystemMessage
-                                false, //isMentioned
-                                T.muteExpired,
-                                T.pinnedPosition, // почему дабл?
-                                ResourceStatus.Online,
-                                RosterItemEntity.Contact,
-                                if (T.unread <= 0) "" else T.unread.toString(),
-                                0, T.color, T.avatar, null
+                                id = T.primary,
+                                owner = T.owner,
+                                opponentJid = T.opponentJid,
+                                displayName = if (T.rosterItem != null) T.rosterItem!!.nickname else "",
+                                customName = if (T.rosterItem != null) T.rosterItem!!.customNickname else "",
+                                lastMessageBody = if (T.lastMessage == null) "" else T.lastMessage!!.body,
+                                lastMessageDate = if (T.lastMessage == null) T.messageDate else T.lastMessage!!.date,
+                                lastMessageState = if (T.lastMessage?.state_ == 5 || T.lastMessage == null) MessageSendingState.None else MessageSendingState.Read,
+                                isArchived = T.isArchived,
+                                isSynced = T.isSynced,
+                                draftMessage = T.draftMessage,
+                                hasAttachment = false,
+                                isSystemMessage = false,
+                                isMentioned = false,
+                                muteExpired = T.muteExpired,
+                                pinnedDate = T.pinnedPosition,
+                                status = ResourceStatus.Online,
+                                entity = RosterItemEntity.Contact,
+                                unread = if (T.unread <= 0) "" else T.unread.toString(),
+                                lastPosition = T.lastPosition,
+                                drawableId = T.avatar,
+                                colorId = T.color,
+                                isHide = false,
+                                outgoing = if (T.lastMessage != null) T.lastMessage!!.outgoing else false
                             )
                         })
-
                         withContext(Dispatchers.Main) {
                             _chatList.value = listDto
                         }
@@ -81,7 +83,6 @@ class ArchiveViewModel : ViewModel() {
     }
 
 
-
     fun getChat() {
 
         val realmList =
@@ -91,10 +92,10 @@ class ArchiveViewModel : ViewModel() {
             ChatListDto(
                 T.primary,
                 T.owner,
-                T.jid,
+                T.opponentJid,
                 T.rosterItem!!.nickname,
                 "",
-                T.lastMessage?.body,
+                if (T.lastMessage == null) "" else T.lastMessage!!.body,
                 T.messageDate,
                 MessageSendingState.Read,
                 T.isArchived,
@@ -108,7 +109,9 @@ class ArchiveViewModel : ViewModel() {
                 ResourceStatus.Online,
                 RosterItemEntity.Contact,
                 if (T.unread <= 0) "" else T.unread.toString(),
-                0, T.color, T.avatar, null
+                lastPosition = T.lastPosition,
+                drawableId = T.avatar,
+                colorId = T.color, isHide =false, outgoing = if (T.lastMessage != null) T.lastMessage!!.outgoing else false
             )
         })
         _chatList.value = listDto
@@ -142,12 +145,15 @@ class ArchiveViewModel : ViewModel() {
         }
     }
 
-    fun clearHistoryChat(id: String) {
+    fun clearHistoryChat(id: String, opponent: String) {
         viewModelScope.launch(Dispatchers.IO) {
             realm.writeBlocking {
-                val item: LastChatsStorageItem? =
-                    this.query(LastChatsStorageItem::class, "primary = '$id'").first().find()
-                item?.lastMessage = null
+                val messages =
+                    this.query(MessageStorageItem::class, "opponent = '$opponent'").find()
+                delete(messages)
+                val chat = this.query(LastChatsStorageItem::class, "primary = '$id'").first().find()
+                chat?.lastMessage = null
+                chat?.unread = 0
             }
         }
     }

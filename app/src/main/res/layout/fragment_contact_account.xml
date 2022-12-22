@@ -10,16 +10,18 @@
         layout="@layout/include_account_appbar" />
 
     <LinearLayout
-        android:baselineAligned="true"
         android:id="@+id/lin_panel"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@color/white"
         android:orientation="horizontal"
+        android:background="@color/grey_300"
         app:layout_behavior="@string/appbar_scrolling_view_behavior"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
+        app:layout_constraintTop_toTopOf="parent"
+        android:paddingBottom="0.5dp"
+        android:baselineAligned="false"
+        android:elevation="1dp">
 
         <RelativeLayout
             android:id="@+id/rl_open_chat"
@@ -119,12 +121,14 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="68dp"
+        android:background="@color/white"
         app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
         <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical">
+            android:orientation="vertical"
+            android:background="@color/white">
 
             <LinearLayout
                 android:id="@+id/actions"
@@ -168,7 +172,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:gravity="start"
-                            android:text="xmpp"
+                            android:text="id"
                             android:textColor="@color/black"
                             android:textSize="20sp" />
 
@@ -176,7 +180,7 @@
                             android:id="@+id/tv_jid_subtitle"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="XMPP ID"
+                            android:text="ID"
                             android:textColor="@color/grey_400"
                             android:textSize="14sp" />
                     </LinearLayout>
@@ -267,7 +271,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:gravity="start"
-                            android:text="Nenakhov"
+                            android:text="Ivanov"
                             android:textColor="@color/black"
                             android:textSize="20sp" />
 
@@ -377,7 +381,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:gravity="start"
-                            android:text="https://redsolution.com"
+                            android:text="https://"
                             android:textColor="@color/cyan_400"
                             android:textSize="20sp" />
 

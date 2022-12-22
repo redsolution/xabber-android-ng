@@ -6,7 +6,7 @@ import androidx.activity.OnBackPressedCallback
 import androidx.annotation.LayoutRes
 import com.google.android.material.appbar.MaterialToolbar
 import com.xabber.R
-import com.xabber.presentation.BaseFragment
+import com.xabber.presentation.application.BaseFragment
 import com.xabber.presentation.application.activity.DisplayManager
 import com.xabber.presentation.application.contract.navigator
 

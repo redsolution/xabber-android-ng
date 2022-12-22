@@ -1,15 +1,16 @@
 package com.xabber.model.xmpp.roster
 
-import io.realm.RealmObject
-import io.realm.annotations.PrimaryKey
+import io.realm.kotlin.types.RealmObject
+import io.realm.kotlin.types.annotations.PrimaryKey
+
 // информация о пользователе
 class RosterStorageItem: RealmObject {
     @PrimaryKey
     var primary: String = ""
     var owner: String = "" // аккаунт к которому принадлежит контакт
-    var jid: String = ""
-    var nickname: String = ""
-    var customNickname: String = ""
+    var jid: String = "" // если никнеймов нет отобразить в чатах jid
+    var nickname: String = "" // как он себя записал
+    var customNickname: String = "" // как мы его себе записали
     var isDeleted: Boolean = false
     var subscribtion_: String = RosterSubscribtion.Undefined.rawValue
     var ask_: String = RosterAsk.None.rawValue

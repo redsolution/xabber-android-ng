@@ -6,7 +6,6 @@ import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import com.xabber.databinding.ItemEmojiKeyBinding
 
-
 class EmojiKeyAdapter(
     private val onKeyClick: (String) -> Unit
 ) : ListAdapter<String, EmojiKeyViewHolder>(DiffUtilCallback) {
