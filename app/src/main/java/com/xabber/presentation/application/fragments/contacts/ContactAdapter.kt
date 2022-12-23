@@ -17,7 +17,7 @@ class ContactAdapter(
 
         fun onContactClick(chatParams: ChatParams)
 
-        fun editContact(contactDto: ContactDto)
+        fun editContact(contactDto: ContactDto, avatar: Int, color: Int)
 
         fun deleteContact(userName: String)
 
@@ -38,10 +38,8 @@ class ContactAdapter(
 private object DiffUtilCallback : DiffUtil.ItemCallback<ContactDto>() {
 
     override fun areItemsTheSame(oldItem: ContactDto, newItem: ContactDto) =
-        oldItem.userName == newItem.userName
+        oldItem.primary == newItem.primary
 
     override fun areContentsTheSame(oldItem: ContactDto, newItem: ContactDto) =
-        oldItem.userName == newItem.userName &&
-                oldItem.status == newItem.status &&
-                oldItem.subtitle == newItem.subtitle
+        oldItem == newItem
 }

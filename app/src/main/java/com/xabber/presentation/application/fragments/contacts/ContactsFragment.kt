@@ -60,8 +60,8 @@ class ContactsFragment : BaseFragment(R.layout.fragment_contact), ContactAdapter
         navigator().showChat(chatParams)
     }
 
-    override fun editContact(contactDto: ContactDto) {
-        navigator().showEditContactFromContacts(contactDto)
+    override fun editContact(contactDto: ContactDto, avatar: Int, color: Int) {
+        navigator().showEditContactFromContacts(ContactAccountParams(contactDto.primary, avatar, color))
     }
 
     override fun deleteContact(userName: String) {

@@ -32,9 +32,9 @@ interface ApplicationNavigator {
 
     fun showSpecialNotificationSettings()
 
-    fun showEditContact(contactDto: ContactDto?)
+    fun showEditContact(params: ContactAccountParams)
 
-    fun showEditContactFromContacts(contactDto: ContactDto?)
+    fun showEditContactFromContacts(params: ContactAccountParams)
 
     fun showChatSettings()
 
@@ -71,4 +71,6 @@ interface ApplicationNavigator {
     fun showStatusFragment()
 
     fun lockScreen(lock: Boolean)
+
+    fun showChatInStack(chatParams: ChatParams)
 }

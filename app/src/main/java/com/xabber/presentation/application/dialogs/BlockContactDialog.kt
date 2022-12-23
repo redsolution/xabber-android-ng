@@ -7,11 +7,14 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
+import androidx.core.os.bundleOf
 import androidx.core.text.bold
 import androidx.fragment.app.DialogFragment
 import com.xabber.R
 import com.xabber.databinding.FragmentDialogStandartBinding
 import com.xabber.presentation.AppConstants
+import com.xabber.presentation.application.bottomsheet.TimeMute
+import com.xabber.utils.setFragmentResult
 
 class BlockContactDialog : DialogFragment() {
     private var _binding: FragmentDialogStandartBinding? = null
@@ -50,8 +53,18 @@ class BlockContactDialog : DialogFragment() {
         binding.buttonDialogPositive.text =
             "Block"
 
-        binding.buttonDialogNegative.setOnClickListener { dismiss() }
-        binding.buttonDialogPositive.setOnClickListener { dismiss() }
+        binding.buttonDialogNegative.setOnClickListener {
+            setFragmentResult(
+                AppConstants.BLOCK_CONTACT,
+                bundleOf(AppConstants.BLOCK_CONTACT_BUNDLE_KEY to false)
+            )
+            dismiss() }
+        binding.buttonDialogPositive.setOnClickListener {
+            setFragmentResult(
+                AppConstants.BLOCK_CONTACT,
+                bundleOf(AppConstants.BLOCK_CONTACT_BUNDLE_KEY to true)
+            )
+            dismiss() }
     }
 
     override fun onSaveInstanceState(outState: Bundle) {

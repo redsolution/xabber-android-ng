@@ -47,6 +47,8 @@ object AppConstants {
     const val DELETING_MESSAGE_FOR_ALL_BUNDLE_KEY = "deleting message for all bundle key"
     const val CHAT_NAME_KEY = "chat name key"
     const val CHAT_MESSAGE_TEXT_KEY = "chat message text key"
+    const val BLOCK_CONTACT = "block contact"
+    const val BLOCK_CONTACT_BUNDLE_KEY = "block contact bundle key"
 
     val PUBLIC_DOWNLOADS = Uri.parse("content://downloads/public_downloads")
 

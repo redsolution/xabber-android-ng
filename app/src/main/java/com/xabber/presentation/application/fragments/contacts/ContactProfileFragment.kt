@@ -38,11 +38,11 @@ class ContactProfileFragment : DetailBaseFragment(R.layout.questionary_contact_f
     private fun changeUiWidthData() {
         loadAvatar()
         defineColor()
-        binding.toolbar.title = getContact().userName
+        binding.toolbar.title = getContact().nickName
         binding.tvJid.text = getContact().jid
-        binding.tvName.text = getContact().name
-        binding.tvSurname.text = getContact().surname
-        binding.tvFullName.text = getContact().userName
+        binding.tvName.text = getContact().nickName
+        binding.tvSurname.text = getContact().nickName
+        binding.tvFullName.text = getContact().nickName
         binding.tvMail.text = getContact().jid
     }
 

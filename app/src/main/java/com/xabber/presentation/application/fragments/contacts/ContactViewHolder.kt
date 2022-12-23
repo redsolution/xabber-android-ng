@@ -21,7 +21,7 @@ class ContactViewHolder(
 
     fun bind(contact: ContactDto, listener: ContactAdapter.Listener) {
         with(binding) {
-            contactName.text = contact.userName
+            contactName.text = contact.nickName
             contactSubtitle.text = contact.subtitle
 
             if (contact.entity == RosterItemEntity.Contact) {
@@ -146,9 +146,9 @@ class ContactViewHolder(
                 popup.setOnMenuItemClickListener {
 
                     when (it.itemId) {
-                        R.id.edit_contact -> listener.editContact(contact)
-                        R.id.delete_contact -> listener.deleteContact(contact.userName!!)
-                        R.id.block_contact -> listener.blockContact(contact.userName!!)
+                        R.id.edit_contact -> listener.editContact(contact, contact.avatar, contact.color)
+                        R.id.delete_contact -> listener.deleteContact(contact.nickName!!)
+                        R.id.block_contact -> listener.blockContact(contact.nickName!!)
                     }
                     true
                 }

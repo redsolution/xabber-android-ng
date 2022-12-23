@@ -316,12 +316,12 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
         launchDetail(SpecialNotificationsFragment())
     }
 
-    override fun showEditContact(contactDto: ContactDto?) {
-        launchDetailInStack(EditContactFragment.newInstance(contactDto))
+    override fun showEditContact(params: ContactAccountParams) {
+        launchDetailInStack(EditContactFragment.newInstance(params))
     }
 
-    override fun showEditContactFromContacts(contactDto: ContactDto?) {
-        launchDetail(EditContactFragment.newInstance(contactDto))
+    override fun showEditContactFromContacts(params: ContactAccountParams) {
+        launchDetail(EditContactFragment.newInstance(params))
     }
 
     override fun showChatSettings() {
@@ -395,6 +395,10 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
 
     override fun lockScreen(lock: Boolean) {
         lockScreenRotation(lock)
+    }
+
+    override fun showChatInStack(chatParams: ChatParams) {
+        launchDetailInStack(ChatFragment.newInstance(chatParams))
     }
 
     override fun onPause() {

@@ -46,7 +46,8 @@
         app:layout_constraintBottom_toBottomOf="@id/im_avatar_edit_contact"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toEndOf="@id/im_avatar_edit_contact"
-        app:layout_constraintTop_toTopOf="@id/im_avatar_edit_contact">
+        app:layout_constraintTop_toTopOf="@id/im_avatar_edit_contact"
+       >
 
         <EditText
             android:id="@+id/et_name"
@@ -59,11 +60,16 @@
     </androidx.cardview.widget.CardView>
 
     <LinearLayout
+        android:paddingVertical="16dp"
+        android:layout_margin="12dp"
         android:id="@+id/lin_receiving"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:background="@drawable/clickable_view_group_background"
+        android:background="@drawable/item_bottom_sheet_background"
         android:orientation="horizontal"
+        android:focusable="true"
+        android:gravity="center_vertical"
+        android:clickable="true"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/im_avatar_edit_contact">
@@ -72,7 +78,6 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="24dp"
-            android:layout_marginTop="48dp"
             android:contentDescription="@string/receiving_presence_updates"
             android:src="@drawable/ic_subscription_to_grey"
             app:layout_constraintStart_toStartOf="parent"
@@ -82,7 +87,6 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="24dp"
-            android:layout_marginTop="48dp"
             android:layout_marginEnd="12dp"
             android:text="@string/receiving_presence_updates"
             android:textColor="@color/red_500"
@@ -94,7 +98,12 @@
         android:id="@+id/lin_sending"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:background="@drawable/clickable_view_group_background"
+        android:focusable="true"
+        android:clickable="true"
+        android:layout_margin="12dp"
+        android:paddingVertical="16dp"
+        android:gravity="center_vertical"
+        android:background="@drawable/item_bottom_sheet_background"
         android:orientation="horizontal"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -104,7 +113,6 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="24dp"
-            android:layout_marginTop="28dp"
             android:contentDescription="@string/sending_presence_updates"
             android:src="@drawable/ic_subscription_from_grey" />
 
@@ -112,7 +120,6 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="24dp"
-            android:layout_marginTop="28dp"
             android:text="@string/sending_presence_updates"
             android:textColor="@color/red_500"
             android:textSize="17sp"
@@ -120,10 +127,17 @@
     </LinearLayout>
 
     <LinearLayout
+
         android:id="@+id/lin_information"
         android:layout_width="0dp"
+        android:focusable="true"
+        android:layout_margin="12dp"
+        android:paddingVertical="16dp"
+        android:clickable="true"
+
+        android:gravity="center_vertical"
         android:layout_height="wrap_content"
-        android:background="@drawable/clickable_view_group_background"
+        android:background="@drawable/item_bottom_sheet_background"
         android:orientation="horizontal"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -133,7 +147,6 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="24dp"
-            android:layout_marginTop="28dp"
             android:contentDescription="@string/information_with_contact_connecting"
             android:src="@drawable/ic_information_outline_grey" />
 
@@ -142,7 +155,6 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="24dp"
-            android:layout_marginTop="28dp"
             android:layout_marginEnd="48dp"
             android:text="@string/information_with_contact_connecting"
             android:textColor="@color/gray_text_600" />
@@ -151,9 +163,13 @@
     <LinearLayout
         android:id="@+id/lin_delete_contact"
         android:layout_width="match_parent"
+        android:focusable="true"
+        android:clickable="true"
         android:layout_height="wrap_content"
-        android:background="@drawable/clickable_view_group_background"
+        android:background="@drawable/item_bottom_sheet_background"
         android:orientation="horizontal"
+        android:layout_margin="12dp"
+        android:paddingVertical="16dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/lin_information">
@@ -162,7 +178,6 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="24dp"
-            android:layout_marginTop="28dp"
             android:contentDescription="@string/delete_contact"
             android:src="@drawable/ic_trash_red" />
 
@@ -170,7 +185,6 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="24dp"
-            android:layout_marginTop="28dp"
             android:text="@string/delete_contact"
             android:textColor="@color/red_500"
             android:textSize="17sp"

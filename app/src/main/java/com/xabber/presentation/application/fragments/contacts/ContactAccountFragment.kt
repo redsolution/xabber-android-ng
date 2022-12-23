@@ -3,12 +3,11 @@ package com.xabber.presentation.application.fragments.contacts
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.util.TypedValue
-import android.view.Menu
-import android.view.MenuInflater
-import android.view.MenuItem
-import android.view.View
+import android.view.*
 import android.view.animation.AnimationUtils
+import androidx.coordinatorlayout.widget.CoordinatorLayout
 import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.MenuProvider
@@ -27,21 +26,24 @@ import com.xabber.presentation.AppConstants
 import com.xabber.presentation.application.activity.DisplayManager
 import com.xabber.presentation.application.activity.UiChanger
 import com.xabber.presentation.application.bottomsheet.NotificationBottomSheet
+import com.xabber.presentation.application.bottomsheet.TimeMute
 import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.application.dialogs.BlockContactDialog
 import com.xabber.presentation.application.dialogs.DeletingContactDialog
 import com.xabber.presentation.application.fragments.DetailBaseFragment
 import com.xabber.presentation.application.fragments.account.qrcode.QRCodeParams
 import com.xabber.presentation.application.fragments.chat.ChatParams
+import com.xabber.utils.dp
 import com.xabber.utils.mask.MaskPrepare
 import com.xabber.utils.parcelable
+import com.xabber.utils.setFragmentResultListener
 import com.xabber.utils.showToast
-import jp.wasabeef.glide.transformations.BlurTransformation
 
 class ContactAccountFragment : DetailBaseFragment(R.layout.fragment_contact_account) {
     private val binding by viewBinding(FragmentContactAccountBinding::bind)
     private var mediaAdapter: MediaAdapter? = null
     private val viewModel: ContactAccountViewModel by viewModels()
+    private var chatId = ""
 
     companion object {
         fun newInstance(params: ContactAccountParams): ContactAccountFragment {
@@ -59,11 +61,32 @@ class ContactAccountFragment : DetailBaseFragment(R.layout.fragment_contact_acco
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        val jid = viewModel.getJid(getParams().id)
+        val chat = viewModel.getChat(jid)
+       chatId = chat!!.id
+        Log.d("iii", " ccccc ${chat?.muteExpired}")
+        if (chat != null) {
+            setMuteIcon(chat.muteExpired)
+
+        }
+        viewModel.initChatDataListener(chat!!.id)
         setToolbarPadding()
         changeUiWidthData()
         initToolbarActions()
         initPanelActions()
         initTabLayout()
+        if (DisplayManager.getWidthDp() > 600) {
+            val params = CollapsingToolbarLayout.LayoutParams(
+                CoordinatorLayout.LayoutParams.WRAP_CONTENT,
+                CollapsingToolbarLayout.LayoutParams.WRAP_CONTENT
+            )
+            params.gravity = Gravity.CENTER_VERTICAL or Gravity.START
+            params.marginStart = 280.dp
+            binding.accountAppbar.linText.layoutParams = params
+
+    }
+        subscribeToViewModelData()
+
     }
 
     private fun setToolbarPadding() {
@@ -92,21 +115,26 @@ class ContactAccountFragment : DetailBaseFragment(R.layout.fragment_contact_acco
         defineColor()
         val contact = viewModel.getContact(getParams().id)
         with(binding.accountAppbar) {
-            tvTitle.text = contact.nickName
+            tvTitle.text = contact.customNickName
             tvSubtitle.text = contact.jid
         }
-//        binding.tvJid.text = getContact().jid
-//        binding.tvFullName.text = getContact().name
-//        binding.tvSurname.text = getContact().surname
+        binding.tvJid.text = contact.jid
+        val name = contact.nickName?.split(" ")
+        binding.tvFullName.text = name!![0]
+       binding.tvSurname.text = name[1]
     }
 
     private fun loadBackground() {
-
-        Glide.with(this)
-            .load(getParams().avatar).transform(
-                BlurTransformation(
+        Glide.with(requireContext())
+            .load(getParams().avatar)
+            .transform(
+                com.xabber.utils.blur.BlurTransformation(
                     25,
-                    ContextCompat.getColor(requireContext(), getParams().color)
+                    6,
+                    ContextCompat.getColor(
+                        requireContext(),
+                        getParams().color
+                    )
                 )
             ).placeholder(getParams().color).transition(
                 DrawableTransitionOptions.withCrossFade()
@@ -159,7 +187,7 @@ class ContactAccountFragment : DetailBaseFragment(R.layout.fragment_contact_acco
                         )
                     }
                     R.id.edit_contact -> {
-                        navigator().showEditContact(viewModel.getContact(getParams().id))
+                        navigator().showEditContact(ContactAccountParams(getParams().id, getParams().avatar, getParams().color))
                     }
                     R.id.delete_contact -> {
                         val dialog =
@@ -177,12 +205,19 @@ class ContactAccountFragment : DetailBaseFragment(R.layout.fragment_contact_acco
         var isShow = true
         var scrollRange = -1
         with(binding.accountAppbar) {
+
             appbar.addOnOffsetChangedListener(AppBarLayout.OnOffsetChangedListener { bar, verticalOffset ->
+
+                if (scrollRange == -1) {
+                    scrollRange = bar.totalScrollRange
+                }
                 if (scrollRange + verticalOffset < 170) {
                     val anim =
                         AnimationUtils.loadAnimation(context, R.anim.disappearance_300)
                     if (tvTitle.isVisible) {
-                        tvTitle.startAnimation(anim)
+                        tvTitle.startAnimation(
+                            anim
+                        )
                         tvSubtitle.startAnimation(anim)
                         imPhoto.startAnimation(anim)
                         imPhoto.isVisible = false
@@ -190,6 +225,7 @@ class ContactAccountFragment : DetailBaseFragment(R.layout.fragment_contact_acco
                         tvTitle.isVisible = false
                     }
                 }
+
                 if (scrollRange + verticalOffset > 170) {
                     val anim = AnimationUtils.loadAnimation(context, R.anim.appearance)
                     if (!tvTitle.isVisible) {
@@ -201,14 +237,12 @@ class ContactAccountFragment : DetailBaseFragment(R.layout.fragment_contact_acco
                         tvTitle.isVisible = true
                     }
                 }
-                if (scrollRange == -1) {
-                    scrollRange = bar.totalScrollRange
-                }
                 if (scrollRange + verticalOffset == 0) {
-                    //    collapsingToolbar.title = getContact().userName
+                    collapsingToolbar.title = binding.accountAppbar.tvTitle.text
                     isShow = true
                 } else if (isShow) {
-                    collapsingToolbar.title = " "
+                    collapsingToolbar.title =
+                        " "
                     isShow = false
                 }
             })
@@ -224,33 +258,54 @@ class ContactAccountFragment : DetailBaseFragment(R.layout.fragment_contact_acco
     }
 
     private fun blockContact() {
-        val name = binding.accountAppbar.tvSubtitle.text.toString()
-           val dialog = BlockContactDialog.newInstance(name)
-             navigator().showDialogFragment(dialog, "")
+        val name = binding.accountAppbar.tvTitle.text.toString()
+        val dialog = BlockContactDialog.newInstance(name)
+        navigator().showDialogFragment(dialog, "")
+        setFragmentResultListener(AppConstants.BLOCK_CONTACT) { _, bundle ->
+            val blocked =
+                bundle.getBoolean(AppConstants.BLOCK_CONTACT_BUNDLE_KEY)
+         if(blocked)  viewModel.blockContact(chatId)
+        }
+
     }
 
     private fun initPanelActions() {
         binding.rlOpenChat.setOnClickListener {
-            navigator().showChat(
+            navigator().showChatInStack(
                 ChatParams(
-                    viewModel.getChatId,
-                    binding.accountAppbar.tvSubtitle.text.toString(),
+                    chatId,
+                    viewModel.getOwner(getParams().id),
+                    viewModel.getJid(getParams().id),
                     getParams().avatar
                 )
+            )
         }
 
         binding.rlCall.setOnClickListener { showToast("This feature is not implemented") }
 
         binding.rlNotifications.setOnClickListener {
-            val dialog = NotificationBottomSheet()
-            navigator().showBottomSheetDialog(dialog)
+            if (viewModel.getChat(viewModel.getJid(getParams().id))!!.muteExpired - System.currentTimeMillis() <= 0) {
+                val dialog = NotificationBottomSheet()
+                navigator().showBottomSheetDialog(dialog)
+                setFragmentResultListener(AppConstants.TURN_OFF_NOTIFICATIONS_KEY) { _, bundle ->
+                    val resultMuteExpired =
+                        bundle.getLong(AppConstants.TURN_OFF_NOTIFICATIONS_BUNDLE_KEY) + System.currentTimeMillis()
+                    viewModel.setMute(
+                        viewModel.getChatId(viewModel.getJid(getParams().id)),
+                        resultMuteExpired
+                    )
+                }
+            } else {
+                viewModel.setMute(chatId, 0)
+            }
         }
 
         binding.rlBlock.setOnClickListener { blockContact() }
 
         binding.tvViewFullProfile.setOnClickListener {
-           navigator().showContactProfile(viewModel.getContact(getParams().id))
+            //   navigator().showContactProfile()
         }
+
     }
 
     private fun initTabLayout() {
@@ -314,12 +369,34 @@ class ContactAccountFragment : DetailBaseFragment(R.layout.fragment_contact_acco
         mediaAdapter?.updateAdapter(list)
 
         binding.tabsAttachment.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
+
             override fun onTabSelected(tab: TabLayout.Tab) {
+                when(tab.position) {
+
+                }
             }
 
             override fun onTabUnselected(tab: TabLayout.Tab) {}
             override fun onTabReselected(tab: TabLayout.Tab) {}
         })
     }
+
+    private fun subscribeToViewModelData() {
+        viewModel.muteExpired.observe(viewLifecycleOwner) {
+            Log.d("iii", "$it")
+            setMuteIcon(it)
+        }
+    }
+
+    private fun setMuteIcon(mute: Long) {
+        if (mute - System.currentTimeMillis() <= 0) { binding.imNotifications.setImageResource(R.drawable.ic_bell_blue)
+        } else  if ((mute - System.currentTimeMillis()) > TimeMute.DAY1.time) {
+            binding.imNotifications.setImageResource(R.drawable.ic_bell_off_light_grey)
+        } else {
+            binding.imNotifications.setImageResource(R.drawable.ic_bell_sleep_light_grey)
+        }
+    }
+
+
 
 }

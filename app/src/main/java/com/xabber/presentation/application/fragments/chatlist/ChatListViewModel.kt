@@ -343,6 +343,10 @@ class ChatListViewModel : ViewModel() {
                 items.forEach {
                     it.unread = 0
                 }
+                val messages = this.query(MessageStorageItem::class).find()
+                messages.forEach {
+                    it.isRead = true
+                }
             }
         }
     }
@@ -435,12 +439,13 @@ val chatsOwner = realm.query(AccountStorageItem::class).find().first()
                         primary = "$b 10"
                         muteExpired = -1
                         owner = chatsOwner.jid
-                        opponentJid = "$b sobakin@redsolution.ru"
+                        opponentJid = "${nam[i]}@redsolution.ru"
                         rosterItem = copyToRealm(RosterStorageItem().apply {
                             primary = "$b 10"
                             owner = chatsOwner.jid
-                            jid = "$b sobakin@redsolution.ru"
+                            jid = "${nam[i]}@redsolution.ru"
                             nickname = nam[i]
+                            customNickname = nam[i]
                         })
                         messageDate = System.currentTimeMillis()
                         isArchived = false
@@ -557,6 +562,7 @@ val chatsOwner = realm.query(AccountStorageItem::class).find().first()
         }
         return result
     }
+
 
 
 }
