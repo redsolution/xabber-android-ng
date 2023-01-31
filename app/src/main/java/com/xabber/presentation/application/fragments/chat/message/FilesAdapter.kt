@@ -32,7 +32,7 @@ class FilesAdapter(private val fileListListener: FileListListener, private val t
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): FileViewHolder {
         val view: View = LayoutInflater.from(parent.context).inflate(
-            R.layout.item_file_message, parent, false
+            R.layout.item_message, parent, false
         )
         return FileViewHolder(view)
     }
@@ -53,7 +53,7 @@ class FilesAdapter(private val fileListListener: FileListListener, private val t
             FileCategory.TABLE -> R.drawable.ic_table
             FileCategory.PRESENTATION -> R.drawable.ic_presentation
             FileCategory.ARCHIVE -> R.drawable.ic_archive
-            else -> R.drawable.ic_file
+            else -> R.drawable.ic_file_grey
         }
     }
 }

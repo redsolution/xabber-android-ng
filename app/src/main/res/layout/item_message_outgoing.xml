@@ -15,6 +15,7 @@
         android:paddingEnd="2dp"
         android:paddingBottom="3dp">
 
+
         <include
             android:id="@+id/message_date"
             layout="@layout/item_message_date" />

@@ -3,8 +3,8 @@ package com.xabber.presentation.application.fragments.chat.message
 import android.view.View
 import android.widget.ImageView
 import com.xabber.R
-import com.xabber.model.dto.MessageDto
-import com.xabber.model.xmpp.messages.MessageSendingState
+import com.xabber.models.dto.MessageDto
+import com.xabber.models.xmpp.messages.MessageSendingState
 
 object MessageDeliveryStatusHelper {
     fun setupStatusImageView(messageRealmObject: MessageDto, imageView: ImageView) {

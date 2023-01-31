@@ -8,6 +8,10 @@ import android.view.ViewTreeObserver
 import android.view.ViewTreeObserver.OnGlobalLayoutListener
 import android.widget.FrameLayout
 
+/**
+ * This class helps to open the soft keyboard in fullscreen mode
+ */
+
 class SoftInputAssist(activity: Activity) {
     private var rootView: View?
     private var contentContainer: ViewGroup?

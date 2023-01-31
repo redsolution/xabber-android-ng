@@ -1,11 +1,13 @@
 package com.xabber.presentation.onboarding.fragments.signup
 
+import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.drawable.BitmapDrawable
 import android.net.Uri
 import android.os.Bundle
 import android.provider.MediaStore
+import android.util.Log
 import android.view.View
-import androidx.activity.OnBackPressedCallback
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import by.kirich1409.viewbindingdelegate.viewBinding
@@ -18,17 +20,17 @@ import com.xabber.databinding.FragmentSignupAvatarBinding
 import com.xabber.presentation.onboarding.activity.OnboardingViewModel
 import com.xabber.presentation.onboarding.contract.navigator
 import com.xabber.presentation.onboarding.contract.toolbarChanger
+import io.realm.kotlin.internal.platform.RealmInitializer.Companion.filesDir
+import java.io.ByteArrayOutputStream
+import java.io.File
+import java.io.FileOutputStream
+
 
 class SignupAvatarFragment : Fragment(R.layout.fragment_signup_avatar) {
     private val binding by viewBinding(FragmentSignupAvatarBinding::bind)
     private val viewModel: OnboardingViewModel by activityViewModels()
     private var isImageSaved = false
-
-    private var onBackPressedCallback = object : OnBackPressedCallback(true) {
-        override fun handleOnBackPressed() {
-            navigator().finishActivity()
-        }
-    }
+    private var fileNme = ""
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -36,11 +38,6 @@ class SignupAvatarFragment : Fragment(R.layout.fragment_signup_avatar) {
         toolbarChanger().showArrowBack(false)
         initButton()
         subscribeOnViewModelData()
-    }
-
-    override fun onResume() {
-        super.onResume()
-        requireActivity().onBackPressedDispatcher.addCallback(onBackPressedCallback)
     }
 
     private fun initButton() {
@@ -53,8 +50,9 @@ class SignupAvatarFragment : Fragment(R.layout.fragment_signup_avatar) {
 
         binding.avatarBtnNext.isEnabled = isImageSaved
         binding.avatarBtnNext.setOnClickListener {
-            // viewModel.saveAvatar()
-            navigator().goToApplicationActivity()
+            saveAvatar()
+            viewModel.registerAccount()
+            navigator().goToApplicationActivity(fileNme)
         }
     }
 
@@ -94,9 +92,20 @@ class SignupAvatarFragment : Fragment(R.layout.fragment_signup_avatar) {
         binding.avatarBtnNext.isEnabled = true
     }
 
-    override fun onPause() {
-        super.onPause()
-        onBackPressedCallback.remove()
+    private fun saveAvatar() {
+        val bitmap = (binding.profileImage.drawable as BitmapDrawable).bitmap
+        val stream = ByteArrayOutputStream()
+        bitmap.compress(Bitmap.CompressFormat.PNG, 90, stream)
+
+       val bytesArray = stream.toByteArray()
+        val name = "avatar"
+        val file = File(filesDir, name)
+        FileOutputStream(file).use {
+            val bytes = bytesArray
+            it.write(bytes)
+        }
+     fileNme = file.path
+Log.d("avatar ", "signup $fileNme")
     }
 
 }

@@ -19,18 +19,16 @@ class NewGroupFragment : DetailBaseFragment(R.layout.fragment_new_group) {
         }
     }
 
-
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         if (incognito) initIncognitoUi()
-        binding.newGroupToolbar.setNavigationIcon(R.drawable.ic_close)
-        binding.newGroupToolbar.setNavigationOnClickListener { navigator().closeDetail() }
+        binding.newGroupToolbar.setNavigationIcon(R.drawable.ic_close_white)
+        binding.newGroupToolbar.setNavigationOnClickListener { navigator().goBack() }
     }
 
     private fun initIncognitoUi() {
-        binding.tvTitle.text = "Create incognito group"
+        binding.btnAddGroup.text = "Create incognito group"
         binding.etGroupName.hint = "Incognito group"
     }
-
 
 }

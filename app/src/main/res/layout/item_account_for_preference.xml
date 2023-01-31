@@ -9,6 +9,7 @@
     android:paddingHorizontal="12dp">
 
     <ImageView
+        android:layout_marginStart="12dp"
         android:id="@+id/im_avatar_item_account"
         android:layout_width="@dimen/mask48"
         android:layout_height="@dimen/mask48"
@@ -29,7 +30,7 @@
         android:textColor="?android:attr/textColorPrimary"
         android:textSize="20sp"
         app:layout_constraintBottom_toTopOf="@id/tv_item_account_jid"
-        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/switch_account_enable"
         app:layout_constraintStart_toEndOf="@id/im_avatar_item_account"
         app:layout_constraintTop_toTopOf="parent" />
 
@@ -43,10 +44,17 @@
         android:singleLine="true"
         android:textColor="?android:attr/textColorSecondary"
         android:textSize="12sp"
-        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/switch_account_enable"
         app:layout_constraintStart_toEndOf="@id/im_avatar_item_account"
-        app:layout_constraintTop_toBottomOf="@id/tv_item_account_name"
-      />
+        app:layout_constraintTop_toBottomOf="@id/tv_item_account_name" />
 
+    <androidx.appcompat.widget.SwitchCompat
+        android:layout_marginEnd="12dp"
+        android:id="@+id/switch_account_enable"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"/>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

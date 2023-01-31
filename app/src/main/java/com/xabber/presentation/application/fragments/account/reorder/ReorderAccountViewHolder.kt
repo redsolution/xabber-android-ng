@@ -4,7 +4,12 @@ import android.graphics.BitmapFactory
 import android.widget.ImageView
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.RecyclerView
-import com.xabber.model.xmpp.account.Account
+import com.bumptech.glide.Glide
+import com.bumptech.glide.load.MultiTransformation
+import com.bumptech.glide.load.resource.bitmap.CircleCrop
+import com.bumptech.glide.request.RequestOptions
+import com.xabber.R
+import com.xabber.models.xmpp.account.Account
 import com.xabber.databinding.ItemAccountForReorderBinding
 import com.xabber.utils.mask.MaskedDrawable
 import com.xabber.utils.mask.MaskedDrawableBitmapShader
@@ -17,7 +22,12 @@ class ReorderAccountViewHolder(private val binding: ItemAccountForReorderBinding
         binding.imAccountAnchor.isVisible = true
         binding.tvItemAccountName.text = account.name
         binding.tvItemAccountJid.text = account.jid
-        binding.imAvatarItemAccount.setImageDrawable(getAvatarWithMask(account.avatar))
+
+        val avatar = UiChanger.getAvatar()
+        val multiTransformation = MultiTransformation(CircleCrop())
+        Glide.with(binding.root.context).load(avatar).error(R.drawable.ic_avatar_placeholder)
+            .apply(RequestOptions.bitmapTransform(multiTransformation))
+            .into(binding.imAvatarItemAccount)
     }
 
     fun getImAnchor(): ImageView = binding.imAccountAnchor

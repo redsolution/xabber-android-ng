@@ -1,12 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
     <item
-        android:id="@+id/choose_from_gallery"
+        android:id="@+id/choose_image"
         android:title="@string/menu_item_choose_from_gallery" />
-
-    <item
-        android:id="@+id/take_photo"
-        android:title="@string/menu_item_take_a_photo" />
 
     <item
         android:id="@+id/delete_avatar"

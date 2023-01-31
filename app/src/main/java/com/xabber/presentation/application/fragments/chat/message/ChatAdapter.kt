@@ -2,6 +2,7 @@ package com.xabber.presentation.application.fragments.chat.message
 
 import android.annotation.SuppressLint
 import android.os.Build
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -11,8 +12,8 @@ import androidx.recyclerview.widget.ListAdapter
 import com.xabber.databinding.ItemMessageIncomingBinding
 import com.xabber.databinding.ItemMessageOutgoingBinding
 import com.xabber.databinding.ItemMessageSystemBinding
-import com.xabber.model.dto.MessageDto
-import com.xabber.model.xmpp.messages.MessageDisplayType
+import com.xabber.models.dto.MessageDto
+import com.xabber.models.xmpp.messages.MessageDisplayType
 import com.xabber.utils.StringUtils
 
 class ChatAdapter(
@@ -86,14 +87,14 @@ class ChatAdapter(
 //                getItem(position + 1).owner != getItem(position).owner || getIsNeedDay(position + 1)
 //        }
 
-
-    isNeedTail = isNeedTails(position)
+var isNeedUnread = false
+        isNeedTail = isNeedTails(position)
         return holderMessage.bind(
             getItem(position),
             isNeedTail,
             getIsNeedDay(position),
             checkBoxVisible,
-            isNeedTitle
+            isNeedTitle, getIsNeedUnread(position)
         )
     }
 
@@ -102,23 +103,31 @@ class ChatAdapter(
         position: Int,
         payloads: MutableList<Any>
     ) {
+
         if (payloads.isEmpty()) {
             super.onBindViewHolder(holder, position, payloads)
         } else {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                holder.bind(getItem(position), false,
-                getIsNeedDay(position),
-                checkBoxVisible,
-               false, payloads)
+                holder.bind(
+                    getItem(position), false,
+                    getIsNeedDay(position),
+                    checkBoxVisible,
+                    false, getIsNeedUnread(position), payloads
+                )
             }
+            Log.d("iii", "pos = $position")
+            if (position - 1 != null) notifyItemChanged(position + 1)
         }
     }
 
     private fun isNeedTails(position: Int): Boolean {
-        if (position == currentList.size-1) { return true }
-        else  { if (position < currentList.size-1) {
-           if (getItem(position).isOutgoing != getItem(position+1).isOutgoing) return true
-        }}
+        if (position == currentList.size - 1) {
+            return true
+        } else {
+            if (position < currentList.size - 1) {
+                if (getItem(position).isOutgoing != getItem(position + 1).isOutgoing) return true
+            }
+        }
         return false
     }
 
@@ -133,6 +142,20 @@ class ChatAdapter(
         }
         }
         return needDay
+    }
+
+    private fun getIsNeedUnread(chekedPosition: Int): Boolean {
+        var unread = false
+        if (chekedPosition != 0) {
+            if (chekedPosition - 1 < chekedPosition - 1 != null && chekedPosition - 1 < itemCount) {
+
+            if (!getItem(chekedPosition).isOutgoing && getItem(chekedPosition).isUnread) {
+    unread = true
+}
+            }
+
+    }
+        return unread
     }
 
 
@@ -178,5 +201,6 @@ class ChatAdapter(
     fun setSelectedMode(isSelected: Boolean) {
         checkBoxVisible = isSelected
     }
+
 
 }

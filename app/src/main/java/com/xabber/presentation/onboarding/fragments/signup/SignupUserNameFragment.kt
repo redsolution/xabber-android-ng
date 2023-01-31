@@ -6,6 +6,8 @@ import android.text.TextWatcher
 import android.view.View
 import androidx.annotation.ColorRes
 import androidx.core.content.res.ResourcesCompat
+import androidx.core.view.isInvisible
+import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import by.kirich1409.viewbindingdelegate.viewBinding
@@ -32,7 +34,7 @@ class SignupUserNameFragment : Fragment(R.layout.fragment_signup_username) {
         toolbarChanger().showArrowBack(true)
         initEditText()
         initButton()
-        host = "xabber.com"
+        host = "@xabber.com"
     }
 
     private fun initEditText() {
@@ -53,16 +55,17 @@ class SignupUserNameFragment : Fragment(R.layout.fragment_signup_username) {
                 override fun afterTextChanged(p0: Editable?) {
                     usernameBtnNext.isEnabled = p0.toString().length >= minUserNameLength
                     if (p0.toString().length < 3) {
-                        usernameSubtitle.text =
-                            resources.getString(R.string.signup_username_subtitle)
-                        changeSubtitleColor(R.color.grey_text_3)
+                        binding.resultSubtitle.isVisible = false
+                        binding.usernameSubtitle.isInvisible = false
                     } else {
+                        binding.usernameSubtitle.isInvisible = true
+                        binding.resultSubtitle.isVisible = true
                         if (viewModel.checkIsNameAvailable(p0.toString(), host)) {
-                            usernameSubtitle.text =
+                            resultSubtitle.text =
                                 resources.getString(R.string.signup_username_success_subtitle)
                             changeSubtitleColor(R.color.blue_600)
                         } else {
-                            usernameSubtitle.text =
+                            resultSubtitle.text =
                                 resources.getString(R.string.signup_username_error_subtitle)
                             changeSubtitleColor(R.color.red_600)
                         }
@@ -73,7 +76,7 @@ class SignupUserNameFragment : Fragment(R.layout.fragment_signup_username) {
     }
 
     private fun changeSubtitleColor(@ColorRes colorId: Int) {
-        binding.usernameSubtitle.setTextColor(
+        binding.resultSubtitle.setTextColor(
             ResourcesCompat.getColor(
                 resources,
                 colorId,
@@ -85,7 +88,7 @@ class SignupUserNameFragment : Fragment(R.layout.fragment_signup_username) {
     private fun initButton() {
         binding.usernameBtnNext.setOnClickListener {
             val userName = binding.usernameEditText.text.toString() + host
-            viewModel.setNickName(userName)
+            viewModel.setJid(userName)
             navigator().openSignupPasswordFragment()
         }
     }

@@ -2,8 +2,8 @@ package com.xabber.repository
 
 import android.util.Log
 import com.google.gson.GsonBuilder
-import com.xabber.model.dto.HostListDto
-import com.xabber.model.dto.XabberAccountDto
+import com.xabber.models.dto.HostListDto
+import com.xabber.models.dto.XabberAccountDto
 import com.xabber.remote.AccountService
 import io.reactivex.rxjava3.core.Single
 import okhttp3.OkHttpClient

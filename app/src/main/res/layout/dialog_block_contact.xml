@@ -58,7 +58,7 @@
             android:layout_height="wrap_content"
             android:alpha="0.5"
             android:gravity="center|right"
-            android:text="@string/cancel" />
+            android:text="@string/dialog_button_cancel" />
 
     </LinearLayout>
 

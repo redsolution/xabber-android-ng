@@ -4,7 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="@color/white"
+    android:background="@drawable/clickable_view_group_background"
     android:clickable="true"
     android:focusable="true">
 
@@ -18,18 +18,30 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:layout_constraintEnd_toStartOf="@id/contact_status_14"
+        app:layout_constraintHorizontal_bias="0.0"
+        app:layout_constraintStart_toEndOf="@id/contact_image"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        android:orientation="vertical"
+        android:gravity="center_vertical"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="8dp"  >
     <TextView
         android:id="@+id/contact_name"
-        android:layout_width="0dp"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginStart="16dp"
-        android:layout_marginTop="8dp"
-        android:layout_marginEnd="64dp"
         android:ellipsize="end"
-        android:lines="1"
+        android:fontFamily="sans-serif-medium"
+        android:maxLines="1"
+        android:singleLine="true"
         android:textColor="@color/grey_900"
-        android:textSize="16sp"
-        app:layout_constraintEnd_toEndOf="parent"
+        android:textSize="@dimen/text_size_item_chat_title"
+        android:lines="1"
+        app:layout_constraintEnd_toStartOf="@id/contact_status_14"
         app:layout_constraintHorizontal_bias="0.0"
         app:layout_constraintStart_toEndOf="@id/contact_image"
         app:layout_constraintTop_toTopOf="parent"
@@ -37,37 +49,25 @@
 
     <TextView
         android:id="@+id/contact_subtitle"
-        android:layout_width="0dp"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginStart="16dp"
-        android:layout_marginEnd="64dp"
         android:ellipsize="end"
         android:lines="1"
+        android:text="Online"
         android:textColor="@color/grey_text_3"
         android:textSize="14sp"
-        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/contact_status_14"
         app:layout_constraintHorizontal_bias="0.0"
         app:layout_constraintStart_toEndOf="@id/contact_image"
         app:layout_constraintTop_toBottomOf="@id/contact_name"
         tools:text="@tools:sample/lorem/random" />
-
-
-    <ImageView
-        android:id="@+id/contact_status_16"
-        android:layout_width="16dp"
-        android:layout_height="16dp"
-        android:layout_marginEnd="16dp"
-        android:visibility="gone"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        tools:src="@drawable/status_bot_online" />
-
+</LinearLayout>
     <ImageView
         android:id="@+id/contact_status_14"
         android:layout_width="14dp"
         android:layout_height="14dp"
         android:layout_marginEnd="16dp"
+        android:layout_marginStart="16dp"
         android:src="@drawable/status_online"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"

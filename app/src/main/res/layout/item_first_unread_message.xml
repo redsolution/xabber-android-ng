@@ -16,6 +16,5 @@
         android:paddingBottom="2dp"
         android:text="@string/unread_messages"
         android:textColor="@color/white"
-        android:textStyle="bold"
-        android:visibility="gone" />
+        android:textStyle="bold" />
 </FrameLayout>

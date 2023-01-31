@@ -3,9 +3,8 @@ package com.xabber.presentation.application.fragments.chat.message
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.core.view.isVisible
-import com.xabber.model.dto.MessageDto
+import com.xabber.models.dto.MessageDto
 import com.xabber.databinding.ItemMessageSystemBinding
-import com.xabber.presentation.application.fragments.chat.message.BasicMessageVH
 
 class SystemMessageMessageVH(
     private val binding: ItemMessageSystemBinding
@@ -18,9 +17,9 @@ class SystemMessageMessageVH(
         isNeedTail: Boolean,
         needDay: Boolean,
         showCheckbox: Boolean,
-        isNeedTitle: Boolean
+        isNeedTitle: Boolean, isNeedUnread: Boolean
     ) {
-        super.bind(messageDto, isNeedTail, needDay, showCheckbox, isNeedTitle)
+        super.bind(messageDto, isNeedTail, needDay, showCheckbox, isNeedTitle, isNeedUnread)
         binding.messageText.isVisible = messageDto.messageBody != null
         if (messageDto.messageBody != null) binding.messageText.text = messageDto.messageBody
 

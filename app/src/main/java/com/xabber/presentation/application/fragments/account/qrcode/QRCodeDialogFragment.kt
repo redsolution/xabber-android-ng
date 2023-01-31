@@ -13,6 +13,7 @@ import com.google.zxing.MultiFormatWriter
 import com.journeyapps.barcodescanner.BarcodeEncoder
 import com.xabber.R
 import com.xabber.presentation.AppConstants
+import com.xabber.utils.parcelable
 
 class QRCodeDialogFragment : DialogFragment() {
     private lateinit var toolbarQrCode: MaterialToolbar
@@ -32,7 +33,7 @@ class QRCodeDialogFragment : DialogFragment() {
     }
 
     private fun getParams(): QRCodeParams =
-        requireArguments().getParcelable(AppConstants.QR_CODE_PARAMS)!!
+        requireArguments().parcelable(AppConstants.QR_CODE_PARAMS)!!
 
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
         val dialog = AlertDialog.Builder(context)

@@ -38,7 +38,7 @@
                 android:layout_width="@dimen/item_avatar_background_size"
                 android:layout_height="@dimen/item_avatar_background_size"
                 android:layout_margin="4dp"
-                android:background="@drawable/circle_green"
+                android:background="@drawable/circle"
                 android:backgroundTint="@color/green_400">
 
                 <com.google.android.material.imageview.ShapeableImageView
@@ -55,7 +55,7 @@
                 android:layout_width="@dimen/item_avatar_background_size"
                 android:layout_height="@dimen/item_avatar_background_size"
                 android:layout_margin="4dp"
-                android:background="@drawable/circle_green"
+                android:background="@drawable/circle"
                 android:backgroundTint="@color/orange_400">
 
                 <com.google.android.material.imageview.ShapeableImageView
@@ -72,7 +72,7 @@
                 android:layout_width="@dimen/item_avatar_background_size"
                 android:layout_height="@dimen/item_avatar_background_size"
                 android:layout_margin="4dp"
-                android:background="@drawable/circle_green"
+                android:background="@drawable/circle"
                 android:backgroundTint="@color/red_400">
 
                 <com.google.android.material.imageview.ShapeableImageView
@@ -94,7 +94,7 @@
                 android:layout_width="48dp"
                 android:layout_height="48dp"
                 android:layout_margin="4dp"
-                android:background="@drawable/circle_green"
+                android:background="@drawable/circle"
                 android:backgroundTint="@color/blue_400">
 
                 <com.google.android.material.imageview.ShapeableImageView
@@ -111,7 +111,7 @@
                 android:layout_width="48dp"
                 android:layout_height="48dp"
                 android:layout_margin="4dp"
-                android:background="@drawable/circle_green"
+                android:background="@drawable/circle"
                 android:backgroundTint="@color/indigo_400">
 
                 <com.google.android.material.imageview.ShapeableImageView
@@ -128,7 +128,7 @@
                 android:layout_width="48dp"
                 android:layout_height="48dp"
                 android:layout_margin="4dp"
-                android:background="@drawable/circle_green"
+                android:background="@drawable/circle"
                 android:backgroundTint="@color/purple_400">
 
                 <com.google.android.material.imageview.ShapeableImageView
@@ -150,7 +150,7 @@
                 android:layout_width="48dp"
                 android:layout_height="48dp"
                 android:layout_margin="4dp"
-                android:background="@drawable/circle_green"
+                android:background="@drawable/circle"
                 android:backgroundTint="@color/lime_400">
 
                 <com.google.android.material.imageview.ShapeableImageView
@@ -167,7 +167,7 @@
                 android:layout_width="48dp"
                 android:layout_height="48dp"
                 android:layout_margin="4dp"
-                android:background="@drawable/circle_green"
+                android:background="@drawable/circle"
                 android:backgroundTint="@color/pink_400">
 
                 <com.google.android.material.imageview.ShapeableImageView
@@ -184,7 +184,7 @@
                 android:layout_width="48dp"
                 android:layout_height="48dp"
                 android:layout_margin="4dp"
-                android:background="@drawable/circle_green"
+                android:background="@drawable/circle"
                 android:backgroundTint="@color/amber_400">
 
                 <com.google.android.material.imageview.ShapeableImageView

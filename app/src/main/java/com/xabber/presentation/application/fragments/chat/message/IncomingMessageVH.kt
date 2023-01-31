@@ -18,7 +18,7 @@ import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.isVisible
 import com.google.android.material.snackbar.Snackbar
 import com.xabber.R
-import com.xabber.model.dto.MessageDto
+import com.xabber.models.dto.MessageDto
 import com.xabber.utils.dp
 import com.xabber.databinding.ItemMessageIncomingBinding
 import com.xabber.presentation.application.activity.UiChanger
@@ -38,9 +38,9 @@ class IncomingMessageVH(
         isNeedTail: Boolean,
         needDay: Boolean,
         showCheckbox: Boolean,
-        isNeedTitle: Boolean
+        isNeedTitle: Boolean, isNeedUnread: Boolean
     ) {
-        Log.wtf("show", "$showCheckbox")
+        Log.d("show", "$isNeedUnread")
         // text & appearance
         binding.tvContent.isVisible = messageDto.messageBody != null
         binding.tvContent.text = messageDto.messageBody
@@ -55,6 +55,7 @@ class IncomingMessageVH(
                 StringUtils.getDateStringForMessage(messageDto.sentTimestamp)
         }
 
+     binding.unreadMessages.ttv.isVisible = isNeedUnread
         // time
         val date = Date(messageDto.sentTimestamp)
         val time = StringUtils.getTimeText(binding.tvSendingTime.context, date)

@@ -19,8 +19,21 @@
             style="@style/ApplicationToolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            app:title="Profile"
             app:titleTextColor="@color/white">
+            <ImageView
+                android:id="@+id/left"
+                android:layout_width="wrap_content"
+                android:src="@drawable/ic_arrow_left_white"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"/>
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                style="@style/ApplicationToolbarTitle"
+                android:text="@string/profile"
+                android:gravity="center_vertical"
+                android:layout_marginStart="32dp"
+                android:layout_gravity="center_vertical"/>
 
         </com.google.android.material.appbar.MaterialToolbar>
     </com.google.android.material.appbar.AppBarLayout>
@@ -28,6 +41,7 @@
     <ScrollView
         android:layout_width="0dp"
         android:layout_height="0dp"
+        android:paddingBottom="24dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -36,11 +50,13 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical">
+            android:orientation="vertical"
+            android:layout_marginBottom="24dp">
 
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:id="@+id/cl_status"
-                style="@style/AccountViewGroup"
+                android:paddingStart="68dp"
+                style="@style/ClickableViewGroup"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 app:layout_constraintEnd_toEndOf="parent"
@@ -52,7 +68,7 @@
                     style="@style/AccountSettingsTitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Status"
+                    android:text="@string/status_settings"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toTopOf="parent" />
 
@@ -69,7 +85,8 @@
 
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:id="@+id/cl_profile"
-                style="@style/AccountViewGroup"
+                android:paddingStart="68dp"
+                style="@style/ClickableViewGroup"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 app:layout_constraintEnd_toEndOf="parent"
@@ -81,7 +98,7 @@
                     style="@style/AccountSettingsTitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Profile"
+                    android:text="@string/profile"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toTopOf="parent" />
 
@@ -89,7 +106,7 @@
                     style="@style/AccountSettingsSubtitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Edit profile"
+                    android:text="@string/edit_profile"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toBottomOf="@id/tv_profile" />
 
@@ -97,7 +114,8 @@
 
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:id="@+id/cl_password"
-                style="@style/AccountViewGroup"
+                android:paddingStart="68dp"
+                style="@style/ClickableViewGroup"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 app:layout_constraintEnd_toEndOf="parent"
@@ -109,7 +127,7 @@
                     style="@style/AccountSettingsTitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Password"
+                    android:text="@string/password"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toTopOf="parent" />
 
@@ -117,7 +135,7 @@
                     style="@style/AccountSettingsSubtitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Change password"
+                    android:text="@string/change_password"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toBottomOf="@id/tv_password" />
 
@@ -125,7 +143,8 @@
 
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:id="@+id/cl_account_color"
-                style="@style/AccountViewGroup"
+                style="@style/ClickableViewGroup"
+                android:paddingStart="68dp"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 app:layout_constraintEnd_toEndOf="parent"
@@ -137,7 +156,7 @@
                     style="@style/AccountSettingsTitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Account color"
+                    android:text="@string/account_color_profile"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toTopOf="parent" />
 
@@ -154,7 +173,8 @@
 
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:id="@+id/cl_blocked_contacts"
-                style="@style/AccountViewGroup"
+                style="@style/ClickableViewGroup"
+                android:paddingStart="68dp"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 app:layout_constraintEnd_toEndOf="parent"
@@ -166,7 +186,7 @@
                     style="@style/AccountSettingsTitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Blocked contacts"
+                    android:text="@string/blocked_contacts"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toTopOf="parent" />
 
@@ -175,7 +195,7 @@
                     style="@style/AccountSettingsSubtitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="4 blocked contacts"
+                    android:text="@string/_4_blocked_contacts"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toBottomOf="@id/tv_blocked_contacts" />
 
@@ -183,7 +203,8 @@
 
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:id="@+id/cl_circles"
-                style="@style/AccountViewGroup"
+                android:paddingStart="68dp"
+                style="@style/ClickableViewGroup"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 app:layout_constraintEnd_toEndOf="parent"
@@ -195,7 +216,7 @@
                     style="@style/AccountSettingsTitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Circles"
+                    android:text="@string/circles"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toTopOf="parent" />
 
@@ -204,7 +225,7 @@
                     style="@style/AccountSettingsSubtitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="2 circles"
+                    android:text="@string/_2_circles"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toBottomOf="@id/tv_circles" />
 
@@ -212,7 +233,8 @@
 
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:id="@+id/cl_server_information"
-                style="@style/AccountViewGroup"
+                style="@style/ClickableViewGroup"
+                android:paddingStart="68dp"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 app:layout_constraintEnd_toEndOf="parent"
@@ -224,7 +246,7 @@
                     style="@style/AccountSettingsTitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Server information"
+                    android:text="@string/server_information"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toTopOf="parent" />
 
@@ -233,7 +255,7 @@
                     style="@style/AccountSettingsSubtitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Xmpp server"
+                    android:text="@string/xmpp_server"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toBottomOf="@id/tv_server_information" />
 
@@ -242,7 +264,8 @@
 
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:id="@+id/cl_delete_account"
-                style="@style/AccountViewGroup"
+                style="@style/ClickableViewGroup"
+                android:paddingStart="68dp"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 app:layout_constraintEnd_toEndOf="parent"
@@ -255,7 +278,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="12dp"
-                    android:text="Delete account"
+                    android:text="@string/delete_account"
                     android:textColor="@color/red_500"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toTopOf="parent" />

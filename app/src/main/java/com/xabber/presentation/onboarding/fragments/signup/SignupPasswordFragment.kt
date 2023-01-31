@@ -44,14 +44,12 @@ class SignupPasswordFragment : Fragment(R.layout.fragment_signup_password) {
                 binding.passwordBtnNext.isEnabled = p0.toString().length >= minPasswordLength
             }
         })
-
     }
 
     private fun initButton() {
         binding.passwordBtnNext.setOnClickListener {
             val password = binding.passwordEditText.text.toString()
             viewModel.setPassword(password)
-            viewModel.registerAccount()
             navigator().openSignupAvatarFragment()
         }
     }

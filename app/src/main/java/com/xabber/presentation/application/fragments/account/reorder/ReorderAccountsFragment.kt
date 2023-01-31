@@ -9,11 +9,16 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import by.kirich1409.viewbindingdelegate.viewBinding
 import com.xabber.R
-import com.xabber.model.xmpp.account.Account
+import com.xabber.data_base.defaultRealmConfig
+import com.xabber.models.xmpp.account.Account
 import com.xabber.databinding.FragmentReorderAccountBinding
-import com.xabber.presentation.application.BaseFragment
+import com.xabber.models.dto.AccountDto
+import com.xabber.models.xmpp.account.AccountStorageItem
+import com.xabber.presentation.application.fragments.BaseFragment
 import com.xabber.presentation.application.activity.DisplayManager
+import com.xabber.presentation.application.activity.UiChanger
 import com.xabber.presentation.application.contract.navigator
+import io.realm.kotlin.Realm
 
 class ReorderAccountsFragment : BaseFragment(R.layout.fragment_reorder_account) {
     private val binding by viewBinding(FragmentReorderAccountBinding::bind)
@@ -34,6 +39,7 @@ class ReorderAccountsFragment : BaseFragment(R.layout.fragment_reorder_account) 
             when (it.itemId) {
                 R.id.check -> {
                     saveOrderAccounts()
+                    navigator().goBack()
                 }
             }
             true
@@ -47,25 +53,21 @@ class ReorderAccountsFragment : BaseFragment(R.layout.fragment_reorder_account) 
     private fun initReorderAccountList() {
 
         binding.rvReorderAccounts.layoutManager = LinearLayoutManager(context)
+        val realm = Realm.open(defaultRealmConfig())
+        val account = realm.writeBlocking {
+            this.query(AccountStorageItem::class).first().find()
+        }
         val accountList = ArrayList<Account>()
         accountList.add(
             Account(
-                "Natalia Barabanshikova",
-                "Natalia Barabanshikova",
-                "natalia.barabanshikova@redsolution.com",
-                R.color.blue_100,
-                R.drawable.img, 1
+                account?.jid,
+                account?.nickname,
+                account?.jid,
+               UiChanger.getAccountColor()!!,
+                 1
             )
         )
-        accountList.add(
-            Account(
-                "Natalia Barabanshikova",
-                "Nataliy",
-                "nata@xmpp.ru",
-                R.color.red_600,
-                R.drawable.img, 2
-            )
-        )
+
         reorderAccountAdapter = ReorderAccountAdapter(accountList) { onStartDrag(it) }
         binding.rvReorderAccounts.adapter = reorderAccountAdapter
         val callback = SimpleItemTouchHelperCallback(reorderAccountAdapter)

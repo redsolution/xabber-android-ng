@@ -12,7 +12,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import by.kirich1409.viewbindingdelegate.viewBinding
 import com.xabber.R
 import com.xabber.databinding.FragmentFilesBinding
-import com.xabber.presentation.application.BaseFragment
+import com.xabber.presentation.application.fragments.BaseFragment
 import org.reactivestreams.Publisher
 import org.reactivestreams.Subscriber
 import java.io.File

@@ -7,7 +7,7 @@ import android.view.MotionEvent
 import android.view.ViewGroup
 import androidx.core.view.MotionEventCompat
 import androidx.recyclerview.widget.RecyclerView
-import com.xabber.model.xmpp.account.Account
+import com.xabber.models.xmpp.account.Account
 import com.xabber.databinding.ItemAccountForReorderBinding
 import java.util.*
 

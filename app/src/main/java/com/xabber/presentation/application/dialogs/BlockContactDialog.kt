@@ -1,19 +1,17 @@
 package com.xabber.presentation.application.dialogs
 
+import android.annotation.SuppressLint
 import android.os.Bundle
 import android.text.SpannableStringBuilder
-import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.LinearLayout
 import androidx.core.os.bundleOf
 import androidx.core.text.bold
 import androidx.fragment.app.DialogFragment
 import com.xabber.R
 import com.xabber.databinding.FragmentDialogStandartBinding
 import com.xabber.presentation.AppConstants
-import com.xabber.presentation.application.bottomsheet.TimeMute
 import com.xabber.utils.setFragmentResult
 
 class BlockContactDialog : DialogFragment() {
@@ -40,6 +38,7 @@ class BlockContactDialog : DialogFragment() {
         return binding.root
     }
 
+    @SuppressLint("SetTextI18n")
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         binding.tvDialogTitle.text = "Block this contact"
@@ -58,13 +57,15 @@ class BlockContactDialog : DialogFragment() {
                 AppConstants.BLOCK_CONTACT,
                 bundleOf(AppConstants.BLOCK_CONTACT_BUNDLE_KEY to false)
             )
-            dismiss() }
+            dismiss()
+        }
         binding.buttonDialogPositive.setOnClickListener {
             setFragmentResult(
                 AppConstants.BLOCK_CONTACT,
                 bundleOf(AppConstants.BLOCK_CONTACT_BUNDLE_KEY to true)
             )
-            dismiss() }
+            dismiss()
+        }
     }
 
     override fun onSaveInstanceState(outState: Bundle) {

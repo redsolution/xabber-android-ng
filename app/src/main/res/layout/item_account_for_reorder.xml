@@ -10,6 +10,7 @@
     android:paddingHorizontal="12dp">
 
     <ImageView
+        android:layout_marginStart="12dp"
         android:id="@+id/im_avatar_item_account"
         android:layout_width="@dimen/mask48"
         android:layout_height="@dimen/mask48"

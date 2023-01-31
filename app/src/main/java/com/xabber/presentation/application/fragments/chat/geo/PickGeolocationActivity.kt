@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
+import android.location.LocationManager
 import android.os.Bundle
 import android.os.PersistableBundle
 import android.preference.PreferenceManager
@@ -70,6 +71,7 @@ class PickGeolocationActivity : AppCompatActivity() {
     private val pZoom = 16.5
     private val pSpeed = 1L
     private var isBubbleShow = false
+    private var location = Location(0.0, 0.0)
 
     private val foundPlacesAdapter = FoundPlacesRecyclerViewAdapter(
         onPlaceClickListener = {
@@ -99,6 +101,12 @@ class PickGeolocationActivity : AppCompatActivity() {
             }
     }
 
+    private fun isLocationAllowed(): Boolean {
+        return (getSystemService(LOCATION_SERVICE) as? LocationManager)?.getProviders(true)
+            ?.isNotEmpty()
+            ?: false
+    }
+
     private fun onGotLocationPermissionResult(granted: Boolean) {
         if (granted) tryToGetMyLocation()
         else if (shouldShowRequestPermissionRationale(Manifest.permission.ACCESS_FINE_LOCATION)) showDialogNeedToEnableLocations()
@@ -115,13 +123,16 @@ class PickGeolocationActivity : AppCompatActivity() {
         if (savedInstanceState == null && checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
             tryToGetMyLocation()
         }
-
         binding.bottomBubble.isVisible = isBubbleShow
         binding.frameSnack.isVisible = !isBubbleShow
+        if (isBubbleShow) {
+
+        }
         initToolbarActions()
         initSearchRecycler()
         setupMap()
         initMapButtons()
+
     }
 
     private fun setFullScreenMode() {
@@ -277,6 +288,17 @@ class PickGeolocationActivity : AppCompatActivity() {
 
                 //todo possible show error while location retrieving
             }
+
+            if (PermissionsRequester.requestLocationPermissionIfNeeded(this, REQUEST_LOCATION_PERMISSION_CODE)) {
+                if (isLocationAllowed()) {
+                    if (myLocationOverlay == null) {
+                        createMyLocationsOverlay()
+                    }
+
+                } else {
+                    showDialogNeedToEnableLocations()
+                }
+            }
         }
 
 
@@ -311,7 +333,7 @@ class PickGeolocationActivity : AppCompatActivity() {
                 startActivity(
                     Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
                 )
-            }.setNegativeButton(R.string.cancel) { dialog, _ -> dialog.dismiss() }
+            }.setNegativeButton(R.string.dialog_button_cancel) { dialog, _ -> dialog.dismiss() }
             .show()
     }
 
@@ -334,11 +356,7 @@ class PickGeolocationActivity : AppCompatActivity() {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
     }
 
-//    private fun isLocationAllowed(): Boolean {
-//        return (getSystemService(LOCATION_SERVICE) as? LocationManager)?.getProviders(true)
-//            ?.isNotEmpty()
-//            ?: false
-//    }
+
 
     private fun setupMap() {
         Configuration.getInstance().load(this, PreferenceManager.getDefaultSharedPreferences(this))
@@ -392,7 +410,7 @@ class PickGeolocationActivity : AppCompatActivity() {
 
     @SuppressLint("SetTextI18n")
     private fun updateLocationInfoBubble(location: GeoPoint?) {
-
+Log.d("pick", "$location lock")
         if (location != null) {
             binding.progressbarSearchLocations.visibility = View.VISIBLE
             lifecycleScope.launch(CoroutineExceptionHandler { _, _ ->
@@ -437,10 +455,11 @@ class PickGeolocationActivity : AppCompatActivity() {
         }
     }
 
-    override fun onSaveInstanceState(outState: Bundle, outPersistentState: PersistableBundle) {
-        super.onSaveInstanceState(outState, outPersistentState)
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
         outState.putBoolean(IS_BUBBLE_SHOW_KEY, binding.bottomBubble.isVisible)
-
+        Log.d("pick", "myLocationOverlay = $myLocationOverlay, mylocationOverlay.myLocation = ${myLocationOverlay?.myLocation}, lat = ${myLocationOverlay?.myLocation!!.latitude}")
+     //   outState.putParcelable("location", Location(myLocationOverlay.myLocation.latitude, myLocationOverlay?.myLocation.longitude))
     }
 
     companion object {

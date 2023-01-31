@@ -1,7 +1,9 @@
 package com.xabber.presentation.application.activity
 
 import android.annotation.SuppressLint
+import android.content.Context
 import android.content.Intent
+import android.graphics.Color
 import android.os.Bundle
 import android.util.TypedValue
 import androidx.activity.viewModels
@@ -20,55 +22,74 @@ import com.google.android.material.bottomnavigation.BottomNavigationItemView
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.xabber.R
 import com.xabber.databinding.ActivityApplicationBinding
-import com.xabber.model.dto.ContactDto
-import com.xabber.model.xmpp.account.Account
 import com.xabber.presentation.AppConstants
+import com.xabber.presentation.AppConstants.CHAT_LIST_TO_FORWARD_DIALOG_TAG
 import com.xabber.presentation.application.activity.DisplayManager.getMainContainerWidth
 import com.xabber.presentation.application.activity.DisplayManager.isDualScreenMode
-import com.xabber.presentation.application.contract.ApplicationNavigator
+import com.xabber.presentation.application.contract.Navigator
 import com.xabber.presentation.application.fragments.account.AccountFragment
 import com.xabber.presentation.application.fragments.account.qrcode.QRCodeDialogFragment
 import com.xabber.presentation.application.fragments.account.qrcode.QRCodeFragment
 import com.xabber.presentation.application.fragments.account.qrcode.QRCodeParams
 import com.xabber.presentation.application.fragments.account.reorder.ReorderAccountsFragment
 import com.xabber.presentation.application.fragments.calls.CallsFragment
-import com.xabber.presentation.application.fragments.chat.ChatForForwardFragment
 import com.xabber.presentation.application.fragments.chat.ChatFragment
 import com.xabber.presentation.application.fragments.chat.ChatParams
-import com.xabber.presentation.application.fragments.chat.ChatViewModel
+import com.xabber.presentation.application.fragments.chatlist.ArchiveFragment
 import com.xabber.presentation.application.fragments.chatlist.ChatListFragment
 import com.xabber.presentation.application.fragments.chatlist.ChatListViewModel
-import com.xabber.presentation.application.fragments.chatlist.ChatSettingsFragment
-import com.xabber.presentation.application.fragments.chatlist.SpecialNotificationsFragment
 import com.xabber.presentation.application.fragments.chatlist.add.NewChatFragment
+import com.xabber.presentation.application.fragments.chatlist.add.NewContactFragment
 import com.xabber.presentation.application.fragments.chatlist.add.NewGroupFragment
-import com.xabber.presentation.application.fragments.chatlist.archive.ArchiveFragment
-import com.xabber.presentation.application.fragments.contacts.*
+import com.xabber.presentation.application.fragments.chatlist.forward.ChatListToForwardFragment
+import com.xabber.presentation.application.fragments.chatlist.spec_notifications.SpecialNotificationsFragment
+import com.xabber.presentation.application.fragments.contacts.ContactsFragment
+import com.xabber.presentation.application.fragments.contacts.StatusFragment
+import com.xabber.presentation.application.fragments.contacts.edit.EditContactFragment
+import com.xabber.presentation.application.fragments.contacts.vcard.ContactAccountFragment
+import com.xabber.presentation.application.fragments.contacts.vcard.ContactAccountParams
+import com.xabber.presentation.application.fragments.contacts.vcard.ContactProfileFragment
 import com.xabber.presentation.application.fragments.discover.DiscoverFragment
 import com.xabber.presentation.application.fragments.settings.*
 import com.xabber.presentation.onboarding.activity.OnBoardingActivity
 import com.xabber.utils.lockScreenRotation
 
+/**
+ * ApplicationActivity implements the interface Navigator. Its methods are responsible for navigation.
+ * This activity splits the screen into two if device is tablet.
+ * The application works in full screen mode. This activity set height status bar in DisplayManager, so that fragments can
+ * set indent. SoftInputAssist responsible for the correct height of the soft keyboard in full screen mode.
+ * In onCreate check condition: user is authorized (stay this activity) or not (go to Onboarding activity)
+ */
 
-class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
+class ApplicationActivity : AppCompatActivity(), Navigator {
 
     private val binding: ActivityApplicationBinding by lazy {
         ActivityApplicationBinding.inflate(
             layoutInflater
         )
     }
+
     private var assist: SoftInputAssist? = null
     private val activeFragment: Fragment?
         get() = supportFragmentManager.findFragmentById(R.id.application_container)
     private val viewModel: ChatListViewModel by viewModels()
-   // private val chatViewModel: ChatViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         setTheme(R.style.ThemeApplication)
         super.onCreate(savedInstanceState)
         setContentView(binding.root)
-
-        if (viewModel.checkIsEntry()) {
+        window?.statusBarColor = Color.TRANSPARENT
+        if (viewModel.checkIsEntry()) {     //
+            val avatar = intent?.getStringExtra("avatar")//
+            if (avatar != null) UiChanger.setAvatar(avatar)//
+            else {//
+                val av = getSharedPreferences("pref", Context.MODE_PRIVATE).getString(//
+                    "avatar",//
+                    null//
+                )//
+                if (av != null) UiChanger.setAvatar(av)//
+            }//
             updateUiDependingOnMode(isDualScreenMode())
             setFullScreenMode()
             setHeightStatusBar()
@@ -76,16 +97,16 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
             assist = SoftInputAssist(this)
             initBottomNavigation()
             subscribeToViewModelData()
-            if (savedInstanceState == null) {
+            if (savedInstanceState == null)
                 launchFragment(ChatListFragment())
-            } else {
-                val menuItem = binding.bottomNavBar.menu.findItem(R.id.chats)
-                if (viewModel.showUnreadOnly.value!!) {
-                    menuItem.setIcon(R.drawable.ic_chat_alert)
-                } else {
-                    menuItem.setIcon(R.drawable.ic_chat)
-                }
-            }
+//            } else {
+//                val menuItem = binding.bottomNavBar.menu.findItem(R.id.chats)
+//                if (viewModel.showUnreadOnly.value!!) {
+//                    menuItem.setIcon(R.drawable.ic_chat_alert)
+//                } else {
+//                    menuItem.setIcon(R.drawable.ic_chat)
+//                }
+//            }
         } else goToOnboarding()
     }
 
@@ -157,39 +178,43 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
             when (menuItem.itemId) {
                 R.id.chats -> {
                     if (activeFragment !is ChatListFragment) {
+                        closeDetail()
                         launchFragment(ChatListFragment())
-                        saveAndClearDetailStack()
                     } else {
-                        setupChatButton()
+                        showUnreadChats(!viewModel.showUnreadOnly.value!!)
                     }
                 }
                 R.id.calls -> {
+                    closeDetail()
                     if (activeFragment !is CallsFragment) launchFragment(CallsFragment())
-                    saveAndClearDetailStack()
+                    showUnreadChats(false)
                 }
                 R.id.contacts -> if (activeFragment !is ContactsFragment) {
+                    closeDetail()
                     launchFragment(ContactsFragment())
-                    saveAndClearDetailStack()
+                    showUnreadChats(false)
                 }
                 R.id.discover -> if (activeFragment !is DiscoverFragment) {
+                    closeDetail()
                     launchFragment(DiscoverFragment())
-                    saveAndClearDetailStack()
+                    showUnreadChats(false)
                 }
                 R.id.settings -> if (activeFragment !is SettingsFragment) {
+                    closeDetail()
                     launchFragment(
                         SettingsFragment(
                         )
                     )
-                    saveAndClearDetailStack()
+                    showUnreadChats(false)
                 }
             }
             true
         }
     }
 
-    private fun setupChatButton() {
+    private fun showUnreadChats(showUnread: Boolean) {
         val menuItem = binding.bottomNavBar.menu.findItem(R.id.chats)
-        if (!viewModel.showUnreadOnly.value!!) {
+        if (showUnread) {
             menuItem.setIcon(R.drawable.ic_chat_alert)
             viewModel.setShowUnreadOnly(true)
         } else {
@@ -199,21 +224,12 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
     }
 
     private fun subscribeToViewModelData() {
-
         viewModel.initAccountListListener()
         viewModel.initUnreadMessagesCountListener()
-
         viewModel.unreadMessage.observe(this) {
             showBadge(it)
         }
         viewModel.getUnreadMessages()
-
-    }
-
-    private fun saveAndClearDetailStack() {
-        if (supportFragmentManager.findFragmentById(R.id.detail_container) != null) supportFragmentManager.commit {
-            remove(supportFragmentManager.findFragmentById(R.id.detail_container)!!)
-        }
     }
 
     private fun launchFragment(fragment: Fragment) {
@@ -235,34 +251,6 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
             setReorderingAllowed(true)
             replace(R.id.detail_container, fragment).addToBackStack(null)
         }
-        binding.slidingPaneLayout.openPane()
-    }
-
-    override fun showArchive() {
-        supportFragmentManager.commit {
-            replace(R.id.application_container, ArchiveFragment()).addToBackStack(null)
-        }
-    }
-
-    override fun showBottomSheetDialog(dialog: BottomSheetDialogFragment) {
-        dialog.show(supportFragmentManager, dialog.tag)
-    }
-
-    override fun showDialogFragment(dialog: DialogFragment, tag: String) {
-        dialog.show(supportFragmentManager, tag)
-    }
-
-    override fun closeDetail() {
-        if (supportFragmentManager.backStackEntryCount > 0) supportFragmentManager.popBackStack()
-        else {
-            supportFragmentManager.beginTransaction()
-                .remove(supportFragmentManager.findFragmentById(R.id.detail_container)!!).commit()
-            if (binding.slidingPaneLayout.isOpen) binding.slidingPaneLayout.close()
-        }
-    }
-
-    override fun showReorderAccountsFragment() {
-        launchDetail(ReorderAccountsFragment())
     }
 
     override fun onSupportNavigateUp(): Boolean {
@@ -271,27 +259,36 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
     }
 
     override fun goBack() {
-        onBackPressedDispatcher.onBackPressed()
+        if (supportFragmentManager.backStackEntryCount > 0) supportFragmentManager.popBackStack() else closeDetail()
     }
 
-    override fun showChatFragment() {
-        launchDetailInStack(ChatListFragment())
+    override fun closeDetail() {
+        if (supportFragmentManager.findFragmentById(R.id.detail_container) != null) {
+            supportFragmentManager.beginTransaction()
+                .remove(supportFragmentManager.findFragmentById(R.id.detail_container)!!)
+                .commit()
+            if (binding.slidingPaneLayout.isOpen) binding.slidingPaneLayout.close()
+        } else {
+            if (supportFragmentManager.backStackEntryCount > 0) supportFragmentManager.popBackStack()
+        }
+    }
+
+    override fun showDialogFragment(dialog: DialogFragment, tag: String) {
+        dialog.show(supportFragmentManager, tag)
+    }
+
+    override fun showBottomSheetDialog(dialog: BottomSheetDialogFragment) {
+        dialog.show(supportFragmentManager, dialog.tag)
+    }
+
+    override fun showArchive() {
+        supportFragmentManager.commit {
+            replace(R.id.application_container, ArchiveFragment()).addToBackStack(null)
+        }
     }
 
     override fun showChat(chatParams: ChatParams) {
         launchDetail(ChatFragment.newInstance(chatParams))
-    }
-
-    override fun showAccount() {
-        val account = Account(
-            "Наталья Баранщикова",
-            "Наталья Барабанщикова",
-            "barabanshikova@mail.com",
-            R.color.blue_500,
-            R.drawable.img,
-            1
-        )
-        launchDetail(AccountFragment.newInstance(account))
     }
 
     override fun showContacts() {
@@ -300,20 +297,32 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
         view.performClick()
     }
 
+    override fun showReorderAccountsFragment() {
+        launchDetail(ReorderAccountsFragment())
+    }
+
     override fun showNewChat() {
         launchDetail(NewChatFragment())
     }
 
     override fun showNewContact() {
-        launchDetailInStack(NewContactFragment())
+        launchDetailInStack(NewContactFragment.newInstance())
     }
 
     override fun showNewGroup(incognito: Boolean) {
         launchDetailInStack(NewGroupFragment.newInstance(incognito))
     }
 
+    override fun showChatFragment() {
+        launchDetailInStack(ChatListFragment())
+    }
+
     override fun showSpecialNotificationSettings() {
         launchDetail(SpecialNotificationsFragment())
+    }
+
+    override fun showAccount(jid: String) {
+        launchDetail(AccountFragment.newInstance(jid))
     }
 
     override fun showEditContact(params: ContactAccountParams) {
@@ -322,14 +331,6 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
 
     override fun showEditContactFromContacts(params: ContactAccountParams) {
         launchDetail(EditContactFragment.newInstance(params))
-    }
-
-    override fun showChatSettings() {
-        launchDetail(ChatSettingsFragment())
-    }
-
-    override fun enableScreenRotationLock(isLock: Boolean) {
-        lockScreenRotation(isLock)
     }
 
     override fun showSettings() {
@@ -341,64 +342,79 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
     }
 
     override fun showQRCode(qrCodeParams: QRCodeParams) {
-        if (isTablet()) {
+        if (isTablet())
             showDialogFragment(
                 QRCodeDialogFragment.newInstance(qrCodeParams),
                 AppConstants.QR_CODE_DIALOG_TAG
             )
-        } else {
+        else
             launchDetailInStack(QRCodeFragment.newInstance(qrCodeParams))
-        }
     }
 
     private fun isTablet(): Boolean = resources.getBoolean(R.bool.isTablet)
 
-    override fun showMyQRCode(qrCodeParams: QRCodeParams) {
-        if (isTablet()) {
-            showDialogFragment(
-                QRCodeDialogFragment.newInstance(qrCodeParams),
-                AppConstants.QR_CODE_DIALOG_TAG
-            )
-        } else {
-            launchDetail(QRCodeFragment.newInstance(qrCodeParams))
-        }
-    }
-
-    override fun showContactProfile(contactDto: ContactDto) {
-        launchDetailInStack(ContactProfileFragment.newInstance(contactDto))
+    override fun showContactProfile(params: ContactAccountParams) {
+        launchDetailInStack(ContactProfileFragment.newInstance(params))
     }
 
     override fun showProfileSettings() {
-        launchDetail(ProfileSettingsFragment())
+        launchDetailInStack(ProfileSettingsFragment())
     }
 
     override fun showCloudStorageSettings() {
-        launchDetail(CloudStorageSettingsFragment())
+        launchDetailInStack(CloudStorageSettingsFragment())
     }
 
     override fun showEncryptionAndKeysSettings() {
-        launchDetail(EncryptionSettingsFragment())
+        launchDetailInStack(EncryptionSettingsFragment())
     }
 
     override fun showDevicesSettings() {
-        launchDetail(DevicesSettingsFragment())
+        launchDetailInStack(DevicesSettingsFragment())
     }
 
     override fun showForwardFragment(forwardMessage: String) {
-        supportFragmentManager.beginTransaction()
-            .replace(R.id.detail_container, ChatForForwardFragment.newInstance(forwardMessage)).addToBackStack(null).commit()
+        if (isTablet()) showDialogFragment(
+            ChatListToForwardFragment.newInstance(forwardMessage), CHAT_LIST_TO_FORWARD_DIALOG_TAG
+        )
+        else launchDetailInStack(ChatListToForwardFragment.newInstance(forwardMessage))
     }
 
     override fun showStatusFragment() {
         launchDetailInStack(StatusFragment())
     }
 
-    override fun lockScreen(lock: Boolean) {
-        lockScreenRotation(lock)
-    }
-
     override fun showChatInStack(chatParams: ChatParams) {
         launchDetailInStack(ChatFragment.newInstance(chatParams))
+    }
+
+    override fun showConnectionSettings() {
+    }
+
+    override fun showDataAndStorageSettings() {
+    }
+
+    override fun showDebugSettings() {
+    }
+
+    override fun showInterfaceSettings() {
+
+    }
+
+    override fun showNotificationsSettings() {
+
+    }
+
+    override fun showPrivacySettings() {
+
+    }
+
+    override fun showAddAccountFragment() {
+        launchDetail(AddAccountFragment())
+    }
+
+    override fun lockScreen(lock: Boolean) {
+        lockScreenRotation(lock)
     }
 
     override fun onPause() {
@@ -408,6 +424,8 @@ class ApplicationActivity : AppCompatActivity(), ApplicationNavigator {
 
     override fun onDestroy() {
         super.onDestroy()
+        val sh = getSharedPreferences("pref", Context.MODE_PRIVATE) //
+        sh.edit().putString("avatar", UiChanger.getAvatar()).apply() //
         assist?.onDestroy()
     }
 

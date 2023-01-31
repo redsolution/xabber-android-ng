@@ -5,6 +5,11 @@ import android.content.res.Resources
 import androidx.fragment.app.Fragment
 import com.xabber.utils.dp
 
+/**
+ * Static class that calculates screen parameters. Fun isDualScreenMode() detects if the device
+ * is a phone or tablet (dual-window mode for tablets).
+ */
+
 object DisplayManager : Fragment() {
     private const val MAX_WIDTH = 800
     private const val MAX_HEIGHT = 900

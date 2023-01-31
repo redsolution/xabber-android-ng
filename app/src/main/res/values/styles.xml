@@ -37,6 +37,8 @@
     <style name="ApplicationToolbar" parent="Theme.MaterialComponents.Light.NoActionBar">
         <item name="android:background">@color/transparent</item>
         <item name="android:theme">@style/ToolbarAccountColorTheme</item>
+        <item name="titleTextStyle">@style/ApplicationToolbarTitle</item>
+        <item name="android:titleTextStyle">@style/ApplicationToolbarTitle</item>
     </style>
 
     <style name="ApplicationAppbar" parent="Theme.MaterialComponents.Light.NoActionBar">
@@ -51,7 +53,7 @@
 
     <style name="ApplicationToolbarTitle" parent="Theme.MaterialComponents.Light.NoActionBar">
         <item name="android:textColor">@color/white</item>
-        <item name="android:textSize">20sp</item>
+        <item name="android:textSize">18sp</item>
         <item name="android:layout_marginStart">16dp</item>
         <item name="fontFamily">sans-serif-medium</item>
     </style>
@@ -60,13 +62,24 @@
         <item name="android:textColorSecondary">@color/white</item>
     </style>
 
-    <style name="AccountViewGroup" parent="Theme.MaterialComponents.Light.NoActionBar">
+    <style name="ButtonToolbar" parent="ThemeApplication">
+        <item name="android:layout_marginEnd">@dimen/margin_standard</item>
+        <item name="android:layout_gravity">end</item>
+        <item name="background">@color/transparent</item>
+        <item name="textAllCaps">true</item>
+        <item name="android:enabled">false</item>
+        <item name="android:background">@color/transparent</item>
+        <item name="android:textSize">@dimen/text_size_button_toolbar</item>
+    </style>
+
+    <style name="ClickableViewGroup" parent="Theme.MaterialComponents.Light.NoActionBar">
         <item name="android:clickable">true</item>
+        <item name="android:focusable">true</item>
         <item name="android:background">@drawable/clickable_view_group_background</item>
-        <item name="android:paddingStart">4dp</item>
-        <item name="android:paddingEnd">4dp</item>
-        <item name="android:paddingTop">12dp</item>
-        <item name="android:paddingBottom">12dp</item>
+        <item name="android:paddingStart">@dimen/paddind_small</item>
+        <item name="android:paddingEnd">@dimen/paddind_small</item>
+        <item name="android:paddingTop">@dimen/padding_middle</item>
+        <item name="android:paddingBottom">@dimen/padding_middle</item>
     </style>
 
     <style name="AccountSettingsIcon" parent="Theme.MaterialComponents.Light.NoActionBar">

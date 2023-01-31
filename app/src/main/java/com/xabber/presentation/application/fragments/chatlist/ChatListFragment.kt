@@ -1,11 +1,18 @@
 package com.xabber.presentation.application.fragments.chatlist
 
 import android.annotation.SuppressLint
+import android.content.Context
 import android.graphics.Color
 import android.os.Bundle
-import android.view.View
+import android.os.Vibrator
+import android.util.Log
+import android.view.*
+import android.widget.TextView
+import android.widget.Toast
+import androidx.core.view.ViewCompat
 import androidx.core.view.isVisible
 import androidx.fragment.app.activityViewModels
+import androidx.fragment.app.viewModels
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import by.kirich1409.viewbindingdelegate.viewBinding
@@ -16,7 +23,7 @@ import com.bumptech.glide.request.RequestOptions
 import com.google.android.material.snackbar.Snackbar
 import com.xabber.R
 import com.xabber.databinding.FragmentChatListBinding
-import com.xabber.model.dto.ChatListDto
+import com.xabber.models.dto.ChatListDto
 import com.xabber.presentation.AppConstants.CHAT_LIST_UNREAD_KEY
 import com.xabber.presentation.AppConstants.CLEAR_HISTORY_BUNDLE_KEY
 import com.xabber.presentation.AppConstants.CLEAR_HISTORY_DIALOG_TAG
@@ -26,18 +33,20 @@ import com.xabber.presentation.AppConstants.DELETING_CHAT_DIALOG_TAG
 import com.xabber.presentation.AppConstants.DELETING_CHAT_KEY
 import com.xabber.presentation.AppConstants.TURN_OFF_NOTIFICATIONS_BUNDLE_KEY
 import com.xabber.presentation.AppConstants.TURN_OFF_NOTIFICATIONS_KEY
-import com.xabber.presentation.application.BaseFragment
-import com.xabber.presentation.application.activity.AccountManager
+import com.xabber.presentation.application.activity.UiChanger
 import com.xabber.presentation.application.bottomsheet.NotificationBottomSheet
 import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.application.dialogs.ChatHistoryClearDialog
 import com.xabber.presentation.application.dialogs.DeletingChatDialog
+import com.xabber.presentation.application.fragments.BaseFragment
 import com.xabber.presentation.application.fragments.chat.ChatParams
+import com.xabber.presentation.custom.PullRefreshLayout
 import com.xabber.utils.partSmoothScrollToPosition
 import com.xabber.utils.setFragmentResultListener
-import com.xabber.utils.showToast
 
-
+/**
+ * This fragment displays the chat list of enabled accounts and allows you to perform actions with chats.
+ */
 class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdapter.ChatListener {
     private val binding by viewBinding(FragmentChatListBinding::bind)
     private val chatListViewModel: ChatListViewModel by activityViewModels()
@@ -47,6 +56,10 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
     private val enableNotificationsCode = 0L
     private var toPin = false
     private var snackbar: Snackbar? = null
+    var currentId = ""
+    private var a = false
+    private var b = false
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -67,7 +80,9 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
         super.onViewCreated(view, savedInstanceState)
         if (savedInstanceState == null) {
             chatListViewModel.initDataListener()
-            chatListViewModel.getChatList()
+            chatListViewModel.initAccountDataListener()
+        } else {
+            currentId = savedInstanceState.getString("currentId", "")
         }
         changeUiWithData()
         setTitle()
@@ -76,7 +91,8 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
         subscribeOnViewModelData()
         initEmptyButton()
         initMarkAllMessagesUnreadButton()
-        initButtonArchive()
+        setDialogListeners()
+        initSwipeRefreshLayout(binding.refreshLayout)
     }
 
     private fun setTitle() {
@@ -89,49 +105,48 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
     }
 
     private fun loadAvatarWithMask() {
+        val name = UiChanger.getAvatar()
         val multiTransformation = MultiTransformation(CircleCrop())
-        Glide.with(requireContext()).load(AccountManager.avatar)
+        Glide.with(binding.imAvatar.context).load(name).error(R.drawable.ic_avatar_placeholder)
             .apply(RequestOptions.bitmapTransform(multiTransformation))
             .into(binding.imAvatar)
     }
 
     private fun initToolbarActions() {
         binding.imAvatar.setOnClickListener {
-            //  navigator().showAccount()
-            navigator().showArchive()
+            navigator().showAccount(chatListViewModel.getPrimaryAccount()!!)
         }
 
         binding.chatToolbar.setOnMenuItemClickListener {
             when (it.itemId) {
                 R.id.add -> {
-                    //  navigator().showNewChat()
-                    if (chatListViewModel.chatIsEmpty())  chatListViewModel.addOne()
-                  else showToast("Chats already added")
+                    if (chatListViewModel.chatIsEmpty()) chatListViewModel.addSomeChats()
+                    else navigator().showNewChat()
                 }
                 else -> {}
             }; true
         }
 
-        binding.chatToolbar.setOnClickListener { binding.chatList.partSmoothScrollToPosition(0) }
+        binding.chatToolbar.setOnClickListener { scrollUp() }
     }
 
     private fun scrollUp() {
-        binding.chatList.scrollToPosition(0)
+        binding.chatList.partSmoothScrollToPosition(0)
     }
 
     private fun initRecyclerView() {
         chatListAdapter = ChatListAdapter(this)
         binding.chatList.adapter = chatListAdapter
         layoutManager = binding.chatList.layoutManager as LinearLayoutManager
-        // addEdgeEffectFactory()
         addSwipeOption()
         addScrollListener()
-    }
-
-    private fun addEdgeEffectFactory() {
-        binding.chatList.apply {
-            edgeEffectFactory = BounceEdgeEffectFactory(binding.root)
-        }
+        binding.chatList.addItemDecoration(
+            com.xabber.presentation.application.fragments.chat.DividerItemDecoration(
+                binding.root.context,
+                LinearLayoutManager.VERTICAL
+            ).apply {
+                setChatListOffsetMode(ChatListAvatarState.SHOW_AVATARS)
+            })
     }
 
     private fun addSwipeOption() {
@@ -167,15 +182,11 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
         chatListViewModel.showUnreadOnly.observe(viewLifecycleOwner) {
             showUnreadOnly = it
             setTitle()
-            chatListViewModel.initDataListener()
-            chatListViewModel.getChatList()
         }
 
-        chatListViewModel.chatList.observe(viewLifecycleOwner) {
-            val a = ArrayList<ChatListDto>()
-            a.addAll(it)
-
-            chatListAdapter?.submitList(a) {
+        chatListViewModel.chats.observe(viewLifecycleOwner) {
+            chatListAdapter?.submitList(it) {
+                Log.d("chatList", "${it.size}")
                 binding.btnMarkAllMessagesUnread.isVisible = showUnreadOnly && !it.isNullOrEmpty()
                 showEmptyListMode(it.isEmpty() || it == null)
                 if (toPin) {
@@ -197,10 +208,6 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
         }
     }
 
-    private fun initButtonArchive() {
-        binding.btnArchive.setOnClickListener { navigator().showArchive() }
-    }
-
     override fun onClickItem(chatListDto: ChatListDto) {
         navigator().showChat(
             ChatParams(
@@ -210,6 +217,24 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
                 chatListDto.drawableId
             )
         )
+    }
+
+    private fun setDialogListeners() {
+        setFragmentResultListener(TURN_OFF_NOTIFICATIONS_KEY) { _, bundle ->
+            val mute =
+                bundle.getLong(TURN_OFF_NOTIFICATIONS_BUNDLE_KEY) + System.currentTimeMillis()
+            chatListViewModel.setMute(currentId, mute)
+        }
+
+        setFragmentResultListener(DELETING_CHAT_KEY) { _, bundle ->
+            val result = bundle.getBoolean(DELETING_CHAT_BUNDLE_KEY)
+            if (result) chatListViewModel.deleteChat(currentId)
+        }
+
+        setFragmentResultListener(CLEAR_HISTORY_KEY) { _, bundle ->
+            val result = bundle.getBoolean(CLEAR_HISTORY_BUNDLE_KEY)
+            if (result) chatListViewModel.clearHistoryChat(currentId)
+        }
     }
 
     override fun pinChat(id: String) {
@@ -227,33 +252,23 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
     }
 
     override fun deleteChat(name: String, id: String) {
+        currentId = id
         val dialog = DeletingChatDialog.newInstance(name)
         navigator().showDialogFragment(dialog, DELETING_CHAT_DIALOG_TAG)
-        setFragmentResultListener(DELETING_CHAT_KEY) { _, bundle ->
-            val result = bundle.getBoolean(DELETING_CHAT_BUNDLE_KEY)
-            if (result) chatListViewModel.deleteChat(id)
-        }
     }
 
     override fun clearHistory(chatListDto: ChatListDto) {
+        currentId = chatListDto.id
         val name =
-            if (chatListDto.customName.isNotEmpty()) chatListDto.customName else if (chatListDto.displayName.isNotEmpty()) chatListDto.displayName else chatListDto.opponentJid
+            if (chatListDto.customNickname.isNotEmpty()) chatListDto.customNickname else if (chatListDto.opponentNickname.isNotEmpty()) chatListDto.opponentNickname else chatListDto.opponentJid
         val dialog = ChatHistoryClearDialog.newInstance(name)
         navigator().showDialogFragment(dialog, CLEAR_HISTORY_DIALOG_TAG)
-        setFragmentResultListener(CLEAR_HISTORY_KEY) { _, bundle ->
-            val result = bundle.getBoolean(CLEAR_HISTORY_BUNDLE_KEY)
-            if (result) chatListViewModel.clearHistoryChat(chatListDto.id, chatListDto.opponentJid)
-        }
     }
 
     override fun turnOfNotifications(id: String) {
+        currentId = id
         val dialog = NotificationBottomSheet()
         navigator().showBottomSheetDialog(dialog)
-        setFragmentResultListener(TURN_OFF_NOTIFICATIONS_KEY) { _, bundle ->
-            val resultMuteExpired =
-                bundle.getLong(TURN_OFF_NOTIFICATIONS_BUNDLE_KEY) + System.currentTimeMillis()
-            chatListViewModel.setMute(id, resultMuteExpired)
-        }
     }
 
     override fun enableNotifications(id: String) {
@@ -284,6 +299,7 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
+        outState.putString("currentId", currentId)
         outState.putBoolean(
             CHAT_LIST_UNREAD_KEY,
             showUnreadOnly
@@ -297,7 +313,98 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
 
     override fun onDestroy() {
         super.onDestroy()
+        layoutManager = null
         chatListAdapter = null
     }
 
+    enum class ChatListAvatarState {
+        NOT_SPECIFIED, SHOW_AVATARS, DO_NOT_SHOW_AVATARS
+    }
+
+
+    private fun initSwipeRefreshLayout(swipeRefreshLayout: PullRefreshLayout?) {
+
+        val inflater = LayoutInflater.from(context)
+        swipeRefreshLayout?.isLoadMoreEnable = false
+        val view: View = inflater.inflate(R.layout.refresh_view, null)
+        val textView = view.findViewById<View>(R.id.refresh_title) as TextView
+        swipeRefreshLayout?.setFooterView(view)
+        swipeRefreshLayout?.setOnRefreshListener(object :
+            PullRefreshLayout.SHSOnRefreshListener {
+            override fun onRefresh() {
+                swipeRefreshLayout.postDelayed(Runnable {
+                    swipeRefreshLayout.finishRefresh()
+                   navigator().showArchive()
+                }, 0)
+            }
+
+            override fun onLoading() {
+                swipeRefreshLayout.postDelayed(Runnable {
+                    swipeRefreshLayout.finishLoadmore()
+                    Toast.makeText(context, "ON LOADING", Toast.LENGTH_SHORT).show()
+                }, 1600)
+            }
+
+            override fun onRefreshPulStateChange(percent: Float, state: Int) {
+                when (state) {
+                    PullRefreshLayout.NOT_OVER_TRIGGER_POINT -> {
+                        swipeRefreshLayout.setRefreshViewText(
+                        "Тяните для показа архива"
+                    )
+                        if (b) {
+                            shortVibrate()
+
+                            b = false
+                        }
+                        a = false
+                        swipeRefreshLayout.setHeaderBackground(R.color.grey_300)
+
+
+                    }
+                PullRefreshLayout.OVER_TRIGGER_POINT -> {
+                    if (!a) {
+                        swipeRefreshLayout.ss()
+                        shortVibrate()
+                        a = true
+                    }
+                    b = true
+                        swipeRefreshLayout.setRefreshViewText(
+                            "Отпустите для показа архива"
+                        )
+swipeRefreshLayout.setHeaderBackground(R.color.blue_grey_200)
+                    }
+                    PullRefreshLayout.START -> {
+                        swipeRefreshLayout.setRefreshViewText("Открываем архив")
+                    a = false
+                        b = false
+                        swipeRefreshLayout.finishRefresh() }
+                }
+            }
+
+            private fun shortVibrate() {
+                view.performHapticFeedback(
+                    HapticFeedbackConstants.VIRTUAL_KEY,
+                    HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING
+                )
+            }
+
+            override fun onLoadMorePullStateChange(percent: Float, state: Int) {
+                when (state) {
+                    PullRefreshLayout.NOT_OVER_TRIGGER_POINT -> textView.text =
+                        "NOT_OVER_TRIGGER_POINT"
+                    PullRefreshLayout.OVER_TRIGGER_POINT -> {
+                        textView.text = "OVER_TRIGGER_POINT"
+
+                        val vibe: Vibrator =
+                            activity?.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+                        vibe.vibrate(500)
+                    }
+                    PullRefreshLayout.START -> textView.text = "START"
+                }
+            }
+        })
+    }
 }
+
+
+

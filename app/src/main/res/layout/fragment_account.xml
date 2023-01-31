@@ -13,6 +13,10 @@
         android:layout_height="match_parent"
         android:background="@color/white"
         app:layout_behavior="@string/appbar_scrolling_view_behavior">
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -21,7 +25,7 @@
 
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:id="@+id/profile"
-                style="@style/AccountViewGroup"
+                style="@style/ClickableViewGroup"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="12dp">
@@ -30,6 +34,7 @@
                     android:id="@+id/image_profile"
                     style="@style/AccountSettingsIcon"
                     android:src="@drawable/ic_profile_circle"
+                    android:layout_marginStart="24dp"
                     app:layout_constraintBottom_toBottomOf="parent"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toTopOf="parent" />
@@ -38,7 +43,7 @@
                     style="@style/AccountSettingsTitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Profile"
+                    android:text="@string/profile"
                     app:layout_constraintBottom_toTopOf="@id/tv_subtitle"
                     app:layout_constraintStart_toEndOf="@id/image_profile"
                     app:layout_constraintTop_toTopOf="parent" />
@@ -48,7 +53,7 @@
                     style="@style/AccountSettingsSubtitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Status, avatar, password, etc"
+                    android:text="@string/status_avatar_password_etc"
                     app:layout_constraintBottom_toBottomOf="parent"
                     app:layout_constraintStart_toEndOf="@id/image_profile" />
 
@@ -56,11 +61,12 @@
 
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:id="@+id/cloud_storage"
-                style="@style/AccountViewGroup"
+                style="@style/ClickableViewGroup"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content">
 
                 <ImageView
+                    android:layout_marginStart="24dp"
                     android:id="@+id/image_cloud_storage"
                     style="@style/AccountSettingsIcon"
                     android:src="@drawable/cloud_storage_circle"
@@ -72,7 +78,7 @@
                     style="@style/AccountSettingsTitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Cloud storage"
+                    android:text="@string/cloud_storage"
                     app:layout_constraintBottom_toTopOf="@id/tv_subtitle_cloud"
                     app:layout_constraintStart_toEndOf="@id/image_cloud_storage"
                     app:layout_constraintTop_toTopOf="parent" />
@@ -82,7 +88,7 @@
                     style="@style/AccountSettingsSubtitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Used 112 MB out of 2 GB"
+                    android:text="@string/used_112_mb_out_of_2_gb"
                     app:layout_constraintBottom_toBottomOf="parent"
                     app:layout_constraintStart_toEndOf="@id/image_cloud_storage" />
 
@@ -90,12 +96,13 @@
 
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:id="@+id/encryption_and_keys"
-                style="@style/AccountViewGroup"
+                style="@style/ClickableViewGroup"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content">
 
                 <ImageView
                     android:id="@+id/image_keys"
+                    android:layout_marginStart="24dp"
                     style="@style/AccountSettingsIcon"
                     android:src="@drawable/key_circle"
                     app:layout_constraintBottom_toBottomOf="parent"
@@ -106,7 +113,7 @@
                     style="@style/AccountSettingsTitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Encryption and keys"
+                    android:text="@string/encryption_and_keys"
                     app:layout_constraintBottom_toTopOf="@id/tv_subtitle_key"
                     app:layout_constraintStart_toEndOf="@id/image_keys"
                     app:layout_constraintTop_toTopOf="parent" />
@@ -116,7 +123,7 @@
                     style="@style/AccountSettingsSubtitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Encryption enabled"
+                    android:text="@string/encryption_enabled"
                     app:layout_constraintBottom_toBottomOf="parent"
                     app:layout_constraintStart_toEndOf="@id/image_keys" />
 
@@ -124,11 +131,12 @@
 
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:id="@+id/devices"
-                style="@style/AccountViewGroup"
+                style="@style/ClickableViewGroup"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content">
 
                 <ImageView
+                    android:layout_marginStart="24dp"
                     android:id="@+id/im_devices"
                     style="@style/AccountSettingsIcon"
                     android:src="@drawable/devices_circle"
@@ -140,7 +148,7 @@
                     style="@style/AccountSettingsTitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Devices"
+                    android:text="@string/devices"
                     app:layout_constraintBottom_toTopOf="@id/tv_devices_settings_subtitle"
                     app:layout_constraintStart_toEndOf="@id/im_devices"
                     app:layout_constraintTop_toTopOf="parent" />
@@ -150,263 +158,20 @@
                     style="@style/AccountSettingsSubtitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="3 connected devices"
+                    android:text="@string/_1_connected_device"
                     app:layout_constraintBottom_toBottomOf="parent"
                     app:layout_constraintStart_toEndOf="@id/im_devices" />
 
             </androidx.constraintlayout.widget.ConstraintLayout>
 
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="1dp"
-                android:layout_marginTop="16dp"
-                android:background="@color/grey_300" />
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="16dp"
-                android:layout_marginTop="16dp"
-                android:layout_marginBottom="12dp"
-                android:text="Settings"
-                android:textColor="@color/blue_500"
-                android:textStyle="bold" />
-
-            <androidx.constraintlayout.widget.ConstraintLayout
-                style="@style/AccountViewGroup"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content">
-
-                <ImageView
-                    android:id="@+id/image_interface"
-                    style="@style/AccountSettingsIcon"
-                    android:src="@drawable/interface_circle"
-                    app:layout_constraintBottom_toBottomOf="parent"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toTopOf="parent" />
-
-                <TextView
-                    style="@style/AccountSettingsTitle"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Interface"
-                    app:layout_constraintBottom_toTopOf="@id/tv_subtitle_interface"
-                    app:layout_constraintStart_toEndOf="@id/image_interface"
-                    app:layout_constraintTop_toTopOf="parent" />
-
-                <TextView
-                    android:id="@+id/tv_subtitle_interface"
-                    style="@style/AccountSettingsSubtitle"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Appearance settings"
-                    app:layout_constraintBottom_toBottomOf="parent"
-                    app:layout_constraintStart_toEndOf="@id/image_interface" />
-
-            </androidx.constraintlayout.widget.ConstraintLayout>
-
-            <androidx.constraintlayout.widget.ConstraintLayout
-                style="@style/AccountViewGroup"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content">
-
-                <ImageView
-                    android:id="@+id/image_notifications"
-                    style="@style/AccountSettingsIcon"
-                    android:src="@drawable/ic_notifications_circle"
-                    app:layout_constraintBottom_toBottomOf="parent"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toTopOf="parent" />
-
-                <TextView
-                    style="@style/AccountSettingsTitle"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Notifications"
-                    app:layout_constraintBottom_toTopOf="@id/tv_subtitle_notifications"
-                    app:layout_constraintStart_toEndOf="@id/image_notifications"
-                    app:layout_constraintTop_toTopOf="parent" />
-
-                <TextView
-                    android:id="@+id/tv_subtitle_notifications"
-                    style="@style/AccountSettingsSubtitle"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Private chats, groups, channels"
-                    android:textColor="@color/gray_text_600"
-                    android:textSize="16sp"
-                    app:layout_constraintBottom_toBottomOf="parent"
-                    app:layout_constraintStart_toEndOf="@id/image_notifications" />
-
-            </androidx.constraintlayout.widget.ConstraintLayout>
-
-            <androidx.constraintlayout.widget.ConstraintLayout
-                style="@style/AccountViewGroup"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content">
-
-                <ImageView
-                    android:id="@+id/image_data"
-                    style="@style/AccountSettingsIcon"
-                    android:src="@drawable/data_circle"
-                    app:layout_constraintBottom_toBottomOf="parent"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toTopOf="parent" />
-
-                <TextView
-                    style="@style/AccountSettingsTitle"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Data and storage"
-                    app:layout_constraintBottom_toTopOf="@id/tv_subtitle_data"
-                    app:layout_constraintStart_toEndOf="@id/image_data"
-                    app:layout_constraintTop_toTopOf="parent" />
-
-                <TextView
-                    android:id="@+id/tv_subtitle_data"
-                    style="@style/AccountSettingsSubtitle"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Private chats, groups, channels"
-                    app:layout_constraintBottom_toBottomOf="parent"
-                    app:layout_constraintStart_toEndOf="@id/image_data" />
-
-            </androidx.constraintlayout.widget.ConstraintLayout>
-
-            <androidx.constraintlayout.widget.ConstraintLayout
-                style="@style/AccountViewGroup"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content">
-
-                <ImageView
-                    android:id="@+id/image_privacy"
-                    style="@style/AccountSettingsIcon"
-                    android:src="@drawable/ic_privacy_circle"
-                    app:layout_constraintBottom_toBottomOf="parent"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toTopOf="parent" />
-
-                <TextView
-                    style="@style/AccountSettingsTitle"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Privacy"
-                    android:textColor="@color/black"
-                    android:textSize="20sp"
-                    app:layout_constraintBottom_toTopOf="@id/tv_subtitle_privacy"
-                    app:layout_constraintStart_toEndOf="@id/image_privacy"
-                    app:layout_constraintTop_toTopOf="parent" />
-
-                <TextView
-                    android:id="@+id/tv_subtitle_privacy"
-                    style="@style/AccountSettingsSubtitle"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Media loading, typing notifications, etc"
-                    app:layout_constraintBottom_toBottomOf="parent"
-                    app:layout_constraintStart_toEndOf="@id/image_privacy" />
-
-            </androidx.constraintlayout.widget.ConstraintLayout>
-
-            <androidx.constraintlayout.widget.ConstraintLayout
-                style="@style/AccountViewGroup"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content">
-
-                <ImageView
-                    android:id="@+id/image_connection"
-                    style="@style/AccountSettingsIcon"
-                    android:src="@drawable/connection_circle"
-                    app:layout_constraintBottom_toBottomOf="parent"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toTopOf="parent" />
-
-                <TextView
-                    style="@style/AccountSettingsTitle"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Connection"
-                    app:layout_constraintBottom_toTopOf="@id/tv_subtitle_connection"
-                    app:layout_constraintStart_toEndOf="@id/image_connection"
-                    app:layout_constraintTop_toTopOf="parent" />
-
-                <TextView
-                    android:id="@+id/tv_subtitle_connection"
-                    style="@style/AccountSettingsSubtitle"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Battery mode, WIFI, Sleep"
-                    app:layout_constraintBottom_toBottomOf="parent"
-                    app:layout_constraintStart_toEndOf="@id/image_connection" />
-
-            </androidx.constraintlayout.widget.ConstraintLayout>
-
-            <androidx.constraintlayout.widget.ConstraintLayout
-                style="@style/AccountViewGroup"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content">
-
-                <ImageView
-                    android:id="@+id/image_debug"
-                    style="@style/AccountSettingsIcon"
-                    android:src="@drawable/debug_circle"
-                    app:layout_constraintBottom_toBottomOf="parent"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toTopOf="parent" />
-
-                <TextView
-                    style="@style/AccountSettingsTitle"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Debug"
-                    app:layout_constraintBottom_toTopOf="@id/tv_subtitle_debug"
-                    app:layout_constraintStart_toEndOf="@id/image_debug"
-                    app:layout_constraintTop_toTopOf="parent" />
-
-                <TextView
-                    android:id="@+id/tv_subtitle_debug"
-                    style="@style/AccountSettingsSubtitle"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Debugging options, logs"
-                    app:layout_constraintBottom_toBottomOf="parent"
-                    app:layout_constraintStart_toEndOf="@id/image_debug" />
-
-            </androidx.constraintlayout.widget.ConstraintLayout>
-
-            <androidx.constraintlayout.widget.ConstraintLayout
-                style="@style/AccountViewGroup"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content">
-
-                <ImageView
-                    android:id="@+id/image_language"
-                    style="@style/AccountSettingsIcon"
-                    android:src="@drawable/language_circle"
-                    app:layout_constraintBottom_toBottomOf="parent"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toTopOf="parent" />
-
-                <TextView
-                    style="@style/AccountSettingsTitle"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Language"
-                    app:layout_constraintBottom_toTopOf="@id/tv_subtitle_language"
-                    app:layout_constraintStart_toEndOf="@id/image_language"
-                    app:layout_constraintTop_toTopOf="parent" />
-
-                <TextView
-                    android:id="@+id/tv_subtitle_language"
-                    style="@style/AccountSettingsSubtitle"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="English (Default)"
-                    app:layout_constraintBottom_toBottomOf="parent"
-                    app:layout_constraintStart_toEndOf="@id/image_language" />
-
-            </androidx.constraintlayout.widget.ConstraintLayout>
         </LinearLayout>
+        <include
+            android:id="@+id/settings"
+            layout="@layout/include_settings"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="44dp"/></LinearLayout>
     </androidx.core.widget.NestedScrollView>
 
 

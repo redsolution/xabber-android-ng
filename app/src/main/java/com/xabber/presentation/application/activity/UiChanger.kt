@@ -1,13 +1,15 @@
 package com.xabber.presentation.application.activity
 
-import com.xabber.model.xmpp.account.Account
+import com.xabber.R
+import com.xabber.models.xmpp.account.Account
 import com.xabber.utils.mask.Mask
 
 object UiChanger {
     private var isTablet = false
     private var mainAccount: Account? = null
     private var mask: Mask? = null
-    private var accountColor: Int? = null
+    private var accountColor: Int = R.color.blue_500
+   private var avatar = ""
 
     fun getMask(): Mask = mask ?: Mask.Circle
 
@@ -32,5 +34,12 @@ object UiChanger {
     fun setTablet(tablet: Boolean) {
         isTablet = tablet
     }
+
+
+    fun setAvatar(name: String) {
+        avatar = name
+    }
+
+    fun getAvatar(): String = avatar
 
 }

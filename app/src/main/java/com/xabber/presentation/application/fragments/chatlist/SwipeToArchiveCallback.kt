@@ -13,6 +13,9 @@ class SwipeToArchiveCallback(private val adapter: ChatListAdapter) :
     ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT) {
     private val offset = 20
 
+    override fun getSwipeThreshold(viewHolder: RecyclerView.ViewHolder) = 0.3f
+
+    override fun getMoveThreshold(viewHolder: RecyclerView.ViewHolder) = 300f
     override fun onMove(
         recyclerView: RecyclerView,
         viewHolder: RecyclerView.ViewHolder,
@@ -43,9 +46,6 @@ class SwipeToArchiveCallback(private val adapter: ChatListAdapter) :
         val itemView = viewHolder.itemView
         val typedValue = TypedValue()
         context.theme.resolveAttribute(R.attr.action_with_chat_background, typedValue, true)
-        val d = GradientDrawable()
-        d.setColor(Color.GRAY)
-        d.cornerRadius = -24f
         val background = ContextCompat.getDrawable(context, R.color.grey_400)!!
         val backgroundOffset = offset
         val iconMargin = (itemView.height - icon.intrinsicHeight) / 2
@@ -68,10 +68,8 @@ class SwipeToArchiveCallback(private val adapter: ChatListAdapter) :
         icon.draw(c)
     }
 
-
-
-
     override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
         adapter.onSwipeChatItem(viewHolder.absoluteAdapterPosition)
     }
+
 }

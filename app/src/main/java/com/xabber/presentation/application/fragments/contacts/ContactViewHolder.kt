@@ -5,15 +5,15 @@ import androidx.appcompat.widget.PopupMenu
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
+import com.bumptech.glide.load.MultiTransformation
+import com.bumptech.glide.load.resource.bitmap.CircleCrop
+import com.bumptech.glide.request.RequestOptions
 import com.xabber.R
 import com.xabber.databinding.ItemContactBinding
-import com.xabber.model.dto.ContactDto
-import com.xabber.model.xmpp.presences.ResourceStatus
-import com.xabber.model.xmpp.presences.RosterItemEntity
-import com.xabber.presentation.application.activity.AccountManager
-import com.xabber.presentation.application.activity.UiChanger
-import com.xabber.presentation.application.fragments.chat.ChatParams
-import com.xabber.utils.mask.MaskPrepare
+import com.xabber.models.dto.ContactDto
+import com.xabber.models.xmpp.presences.ResourceStatus
+import com.xabber.models.xmpp.presences.RosterItemEntity
+
 
 class ContactViewHolder(
     private val binding: ItemContactBinding
@@ -21,8 +21,8 @@ class ContactViewHolder(
 
     fun bind(contact: ContactDto, listener: ContactAdapter.Listener) {
         with(binding) {
-            contactName.text = contact.nickName
-            contactSubtitle.text = contact.subtitle
+            contactName.text = if (contact.customNickName != null && contact.customNickName.isNotEmpty()) contact.customNickName else contact.nickName
+          //  contactSubtitle.text = contact.subtitle
 
             if (contact.entity == RosterItemEntity.Contact) {
                 val icon = when (contact.status) {
@@ -36,7 +36,7 @@ class ContactViewHolder(
                         0
                     }
                 }
-                contactStatus16.isVisible = false
+
                 contactStatus14.isVisible = true
                 contactStatus14.setImageResource(icon)
 
@@ -111,23 +111,19 @@ class ContactViewHolder(
                             0
                         }
                     }
-                contactStatus16.isVisible = true
-                contactStatus14.isVisible = false
-                contactStatus16.setImageResource(icon)
+
+                contactStatus14.isVisible = true
+                contactStatus14.setImageResource(icon)
             }
 
 
             // avatar
-            val maskedDrawable = MaskPrepare.getDrawableMask(
-                itemView.resources,
-                contact.avatar,
-                UiChanger.getMask().size48
-            )
-            Glide.with(itemView)
-                .load(maskedDrawable)
-                .centerCrop()
-                .skipMemoryCache(true)
+            val multiTransformation = MultiTransformation(CircleCrop())
+
+            Glide.with(itemView).load(contact.avatar)
+                .apply(RequestOptions.bitmapTransform(multiTransformation))
                 .into(binding.contactImage)
+
 
             contactImage.setOnClickListener {
                 listener.onAvatarClick(contact)
@@ -135,7 +131,7 @@ class ContactViewHolder(
 
             binding.root.setOnClickListener {
                 listener.onContactClick(
-                    ChatParams("", AccountManager.owner, "", R.drawable.img)
+                 contact.owner, contact.jid!!, contact.avatar
                 )
             }
 

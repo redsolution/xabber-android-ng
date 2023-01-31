@@ -13,15 +13,15 @@
         android:id="@+id/lin_panel"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
         android:background="@color/grey_300"
+        android:baselineAligned="false"
+        android:elevation="1dp"
+        android:orientation="horizontal"
+        android:paddingBottom="0.5dp"
         app:layout_behavior="@string/appbar_scrolling_view_behavior"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        android:paddingBottom="0.5dp"
-        android:baselineAligned="false"
-        android:elevation="1dp">
+        app:layout_constraintTop_toTopOf="parent">
 
         <RelativeLayout
             android:id="@+id/rl_open_chat"
@@ -79,9 +79,9 @@
             <ImageView
                 android:id="@+id/im_notifications"
 
-           android:layout_marginTop="@dimen/margin_medium"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/margin_medium"
                 android:contentDescription="@string/contact_avatar_notifications_image_description"
                 android:src="@drawable/ic_bell_blue" />
 
@@ -128,14 +128,14 @@
         <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:background="@color/white">
+            android:background="@color/white"
+            android:orientation="vertical">
 
             <LinearLayout
                 android:id="@+id/actions"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
+                android:layout_marginTop="@dimen/margin_standard"
                 android:orientation="vertical"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
@@ -143,7 +143,8 @@
 
                 <androidx.constraintlayout.widget.ConstraintLayout
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content">
+                    android:layout_height="wrap_content"
+                    android:paddingEnd="12dp">
 
                     <ImageView
                         android:id="@+id/im_jid"
@@ -165,14 +166,21 @@
                         android:layout_marginStart="28dp"
                         android:orientation="vertical"
                         app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintEnd_toEndOf="parent"
                         app:layout_constraintStart_toEndOf="@id/im_jid"
                         app:layout_constraintTop_toTopOf="parent">
 
                         <TextView
                             android:id="@+id/tv_jid"
-                            android:layout_width="wrap_content"
+                            android:layout_width="match_parent"
                             android:layout_height="wrap_content"
+                            android:ellipsize="marquee"
+                            android:fadingEdge="horizontal"
                             android:gravity="start"
+                            android:marqueeRepeatLimit="marquee_forever"
+                            android:maxLines="1"
+                            android:scrollHorizontally="true"
+                            android:singleLine="true"
                             android:text="id"
                             android:textColor="@color/black"
                             android:textSize="20sp" />
@@ -199,7 +207,9 @@
 
                 <androidx.constraintlayout.widget.ConstraintLayout
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content">
+                    android:id="@+id/cl_name"
+                    android:layout_height="wrap_content"
+                    android:paddingEnd="12dp">
 
                     <ImageView
                         android:id="@+id/im_name"
@@ -221,6 +231,7 @@
                         android:layout_marginStart="28dp"
                         android:orientation="vertical"
                         app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintEnd_toEndOf="parent"
                         app:layout_constraintStart_toEndOf="@id/im_name"
                         app:layout_constraintTop_toTopOf="parent"
                         app:layout_goneMarginStart="16dp">
@@ -229,15 +240,19 @@
                             android:id="@+id/tv_full_name"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
+                            android:fadingEdge="horizontal"
                             android:gravity="start"
-                            android:text="Andrew"
+                            android:marqueeRepeatLimit="marquee_forever"
+                            android:maxLines="1"
+                            android:scrollHorizontally="true"
+                            android:singleLine="true"
                             android:textColor="@color/black"
                             android:textSize="20sp" />
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Given name"
+                            android:text="@string/given_name"
                             android:textColor="@color/grey_400"
                             android:textSize="14sp" />
                     </LinearLayout>
@@ -254,7 +269,9 @@
 
                 <androidx.constraintlayout.widget.ConstraintLayout
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content">
+                    android:layout_height="wrap_content"
+                    android:paddingEnd="12dp"
+                    android:id="@+id/cl_surname">
 
                     <LinearLayout
                         android:id="@+id/lin_surnamame"
@@ -272,14 +289,13 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:gravity="start"
-                            android:text="Ivanov"
                             android:textColor="@color/black"
                             android:textSize="20sp" />
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Family name"
+                            android:text="@string/family_name"
                             android:textColor="@color/grey_400"
                             android:textSize="14sp" />
                     </LinearLayout>
@@ -296,7 +312,8 @@
 
                 <androidx.constraintlayout.widget.ConstraintLayout
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content">
+                    android:layout_height="wrap_content"
+                    android:paddingEnd="12dp">
 
                     <ImageView
                         android:id="@+id/im_birthday"
@@ -351,7 +368,8 @@
 
                 <androidx.constraintlayout.widget.ConstraintLayout
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content">
+                    android:layout_height="wrap_content"
+                    android:paddingEnd="12dp">
 
                     <ImageView
                         android:id="@+id/im_web"
@@ -382,7 +400,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:gravity="start"
-                            android:text="https://"
+                            android:text="https://redsolution.com"
                             android:textColor="@color/cyan_400"
                             android:textSize="20sp" />
 
@@ -408,30 +426,30 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="72dp"
-                     android:layout_marginTop="12dp"
+                    android:layout_marginTop="12dp"
                     android:layout_marginBottom="12dp">
 
-                <TextView
-                    android:id="@+id/tv_view_full_profile"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:clickable="true"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toTopOf="parent"
-                    android:focusable="true"
-                    android:text="view full profile"
-                    android:textColor="@color/grey_500"
-                  />
+                    <TextView
+                        android:id="@+id/tv_view_full_profile"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:text="view full profile"
+                        android:textColor="@color/grey_500"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toTopOf="parent" />
 
                     <View
                         android:layout_width="0dp"
                         android:layout_height="4dp"
-                        app:layout_constraintStart_toStartOf="@id/tv_view_full_profile"
-                        app:layout_constraintEnd_toEndOf="@id/tv_view_full_profile"
-                        app:layout_constraintTop_toBottomOf="@id/tv_view_full_profile"
                         android:background="@drawable/dashed"
-                         android:layerType="software" />
-        </androidx.constraintlayout.widget.ConstraintLayout>
+                        android:layerType="software"
+                        app:layout_constraintEnd_toEndOf="@id/tv_view_full_profile"
+                        app:layout_constraintStart_toStartOf="@id/tv_view_full_profile"
+                        app:layout_constraintTop_toBottomOf="@id/tv_view_full_profile" />
+                </androidx.constraintlayout.widget.ConstraintLayout>
+
                 <androidx.constraintlayout.widget.ConstraintLayout
                     android:id="@+id/cl_geo"
                     android:layout_width="match_parent"
@@ -688,12 +706,13 @@
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/rv_files"
                 android:layout_width="0dp"
-                android:visibility="gone"
                 android:layout_height="wrap_content"
                 android:layout_margin="12dp"
+                android:visibility="gone"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toBottomOf="@id/horizontal_table_layout" />
+
             <TextView
                 android:id="@+id/tv_empty_attachments"
                 android:layout_width="wrap_content"

@@ -31,6 +31,7 @@
         app:layout_constraintTop_toBottomOf="@id/appbar">
 
         <LinearLayout
+            android:layout_marginBottom="40dp"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical">
@@ -46,12 +47,11 @@
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="32dp"
                 android:orientation="vertical">
 
                 <LinearLayout
                     android:id="@+id/actions"
-                    android:layout_width="0dp"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="12dp"
                     android:orientation="vertical"
@@ -61,7 +61,8 @@
 
                     <androidx.constraintlayout.widget.ConstraintLayout
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content">
+                        android:layout_height="wrap_content"
+                        android:paddingEnd="12dp">
 
                         <ImageView
                             android:id="@+id/im_jid"
@@ -84,14 +85,21 @@
                             android:orientation="vertical"
                             app:layout_constraintBottom_toBottomOf="parent"
                             app:layout_constraintStart_toEndOf="@id/im_jid"
-                            app:layout_constraintTop_toTopOf="parent">
+                            app:layout_constraintTop_toTopOf="parent"
+                            app:layout_constraintEnd_toEndOf="parent">
 
                             <TextView
                                 android:id="@+id/tv_jid"
-                                android:layout_width="wrap_content"
+                                android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:gravity="start"
                                 android:text="xmpp"
+                                android:fadingEdge = "horizontal"
+                                android:marqueeRepeatLimit = "marquee_forever"
+                                android:scrollHorizontally = "true"
+                                android:maxLines="1"
+                                android:singleLine="true"
+                                android:ellipsize="marquee"
                                 android:textColor="@color/black"
                                 android:textSize="20sp" />
 
@@ -117,7 +125,8 @@
 
                     <androidx.constraintlayout.widget.ConstraintLayout
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content">
+                        android:layout_height="wrap_content"
+                        android:paddingEnd="12dp">
 
                         <ImageView
                             android:id="@+id/im_name"
@@ -172,7 +181,8 @@
 
                     <androidx.constraintlayout.widget.ConstraintLayout
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content">
+                        android:layout_height="wrap_content"
+                        android:paddingEnd="12dp">
 
                         <LinearLayout
                             android:id="@+id/lin_surnamame"
@@ -213,7 +223,8 @@
 
                     <androidx.constraintlayout.widget.ConstraintLayout
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content">
+                        android:layout_height="wrap_content"
+                        android:paddingEnd="12dp">
 
                         <LinearLayout
                             android:id="@+id/lin_full_name"
@@ -254,7 +265,8 @@
 
                     <androidx.constraintlayout.widget.ConstraintLayout
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content">
+                        android:layout_height="wrap_content"
+                        android:paddingEnd="12dp">
 
                         <ImageView
                             android:id="@+id/im_birthday"
@@ -308,7 +320,8 @@
 
                     <androidx.constraintlayout.widget.ConstraintLayout
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content">
+                        android:layout_height="wrap_content"
+                        android:paddingEnd="12dp">
 
                         <ImageView
                             android:id="@+id/im_web"
@@ -362,7 +375,8 @@
                     <androidx.constraintlayout.widget.ConstraintLayout
                         android:id="@+id/cl_geo"
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content">
+                        android:layout_height="wrap_content"
+                        android:paddingEnd="12dp">
 
                         <LinearLayout
                             android:id="@+id/lin_geo"
@@ -404,7 +418,8 @@
                     <androidx.constraintlayout.widget.ConstraintLayout
                         android:id="@+id/cl_description"
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content">
+                        android:layout_height="wrap_content"
+                        android:paddingEnd="12dp">
 
                         <ImageView
                             android:id="@+id/im_description"
@@ -427,7 +442,8 @@
                             android:orientation="vertical"
                             app:layout_constraintBottom_toBottomOf="parent"
                             app:layout_constraintStart_toEndOf="@id/im_description"
-                            app:layout_constraintTop_toTopOf="parent">
+                            app:layout_constraintTop_toTopOf="parent"
+                            app:layout_constraintEnd_toEndOf="parent">
 
                             <TextView
                                 android:id="@+id/tv_description"
@@ -435,6 +451,11 @@
                                 android:layout_height="wrap_content"
                                 android:gravity="start"
                                 android:text="Упрям"
+                                android:fadingEdge = "horizontal"
+                                android:marqueeRepeatLimit = "marquee_forever"
+                                android:scrollHorizontally = "true"
+                                android:maxLines="2"
+                                android:ellipsize="marquee"
                                 android:textColor="@color/black"
                                 android:textSize="20sp" />
 
@@ -459,7 +480,8 @@
                     <androidx.constraintlayout.widget.ConstraintLayout
                         android:id="@+id/cl_mail"
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content">
+                        android:layout_height="wrap_content"
+                        android:paddingEnd="12dp">
 
                         <ImageView
                             android:id="@+id/im_mail"
@@ -482,13 +504,19 @@
                             android:orientation="vertical"
                             app:layout_constraintBottom_toBottomOf="parent"
                             app:layout_constraintStart_toEndOf="@id/im_mail"
-                            app:layout_constraintTop_toTopOf="parent">
+                            app:layout_constraintTop_toTopOf="parent"
+                            app:layout_constraintEnd_toEndOf="parent">
 
                             <TextView
                                 android:id="@+id/tv_mail"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:gravity="start"
+                                android:fadingEdge = "horizontal"
+                                android:marqueeRepeatLimit = "marquee_forever"
+                                android:scrollHorizontally = "true"
+                                android:maxLines="1"
+                                android:ellipsize="marquee"
                                 android:text="red@mail.ru"
                                 android:textColor="@color/black"
                                 android:textSize="20sp" />
@@ -513,7 +541,8 @@
                     <androidx.constraintlayout.widget.ConstraintLayout
                         android:id="@+id/cl_work"
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content">
+                        android:layout_height="wrap_content"
+                        android:paddingEnd="12dp">
 
                         <ImageView
                             android:id="@+id/im_work"

@@ -26,13 +26,15 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.GridLayoutManager
+import com.aghajari.emojiview.AXEmojiManager
+import com.aghajari.emojiview.googleprovider.AXGoogleEmojiProvider
+import com.aghajari.emojiview.view.AXSingleEmojiView
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.xabber.R
 import com.xabber.databinding.BottomSheetAttachBinding
 import com.xabber.presentation.application.fragments.chat.FileManager
-import com.xabber.presentation.application.fragments.chat.FileManager.Companion.getFileUri
 import com.xabber.presentation.application.fragments.chat.GalleryAdapter
 import com.xabber.presentation.application.fragments.chat.GalleryAdapter.Companion.projectionPhotos
 import com.xabber.presentation.application.fragments.chat.geo.PickGeolocationActivity
@@ -40,6 +42,7 @@ import com.xabber.presentation.application.fragments.chat.geo.PickGeolocationAct
 import com.xabber.presentation.application.fragments.chat.geo.PickGeolocationActivity.Companion.LON_RESULT
 import com.xabber.utils.askUserForOpeningAppSettings
 import com.xabber.utils.isPermissionGranted
+import com.xabber.utils.showToast
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
@@ -114,13 +117,16 @@ class AttachBottomSheet : BottomSheetDialogFragment(), GalleryAdapter.Listener {
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
+        Log.d("iii", "onV")
         //  setStyle(DialogFragment.STYLE_NORMAL, R.style.DialogStyle)
         _binding = BottomSheetAttachBinding.inflate(inflater, container, false)
         return binding.root
+
     }
 
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
         val dialog = super.onCreateDialog(savedInstanceState)
+
         dialog.setOnShowListener { dialogInterface: DialogInterface -> setupRatio(dialogInterface as BottomSheetDialog) }
         (dialog as BottomSheetDialog).behavior.addBottomSheetCallback(object :
             BottomSheetBehavior.BottomSheetCallback() {
@@ -200,6 +206,14 @@ class AttachBottomSheet : BottomSheetDialogFragment(), GalleryAdapter.Listener {
         initGalleryRecyclerView()
         initBottomNavigationBar()
         initInputLayout()
+        AXEmojiManager.install(requireContext(), AXGoogleEmojiProvider(requireContext()))
+        val emojiView = AXSingleEmojiView(requireContext())
+
+        emojiView.editText = binding.chatInput
+
+        binding.buttonEmoticon.setOnClickListener {
+            showToast("This feature is not implemented")
+        }
 //        binding.btnSend.setOnClickListener {
 //            val messageText = binding.chatInput.text.toString()
 //            val result = Bundle().apply { putString("message_text", messageText) }
@@ -230,11 +244,11 @@ class AttachBottomSheet : BottomSheetDialogFragment(), GalleryAdapter.Listener {
     }
 
     private fun openCamera() {
-        val image: File? = FileManager.generatePicturePath()
-        if (image != null) {
-            currentPhotoUri = getFileUri(image, requireContext())
-            cameraResultLauncher.launch(currentPhotoUri)
-        }
+//        val image: File? = FileManager.generatePicturePath()
+//        if (image != null) {
+//            currentPhotoUri = getFileUri(image, requireContext())
+//            cameraResultLauncher.launch(currentPhotoUri)
+//        }
     }
 
     private fun onGotGalleryPermissionResult(granted: Boolean) {
@@ -413,27 +427,28 @@ class AttachBottomSheet : BottomSheetDialogFragment(), GalleryAdapter.Listener {
                 binding.chatInput.isEnabled = true
                 binding.chatInput.isClickable = true
                 binding.chatInput.elevation = 10f
-              binding.chatInput.isVisible = true
+                binding.chatInput.isVisible = true
+                binding.inputPanel.setOnClickListener { }
                 binding.frameLayoutActionContainer.setOnClickListener {
-                    binding.chatInput.isFocusable = true
-                    binding.chatInput.isFocusableInTouchMode = true
-                    binding.chatInput.requestFocus()
-                    val inputMethodManager: InputMethodManager =
-                        context?.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-                    inputMethodManager.showSoftInput(
-                        binding.chatInput,
-                        InputMethodManager.SHOW_IMPLICIT
-                    )
+//                    binding.chatInput.isFocusable = true
+//                    binding.chatInput.isFocusableInTouchMode = true
+//                    binding.chatInput.requestFocus()
+//                    val inputMethodManager: InputMethodManager =
+//                        context?.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+//                    inputMethodManager.showSoftInput(
+//                        binding.chatInput,
+//                        InputMethodManager.SHOW_IMPLICIT
+//                    )
                 }
 //
-             //   binding.groupSend.isVisible = true
+
                 binding.send.isVisible = true
-           //   binding.btnSend.isVisible = true
-             //    binding.groupSend.startAnimation(app)
+                //   binding.btnSend.isVisible = true
+
                 binding.send.startAnimation(animLeft)
-              //   binding.inputLayout.startAnimation(animTop)
+                //   binding.inputLayout.startAnimation(animTop)
             }
-       //         binding.badge.setText(String.format(Locale.getDefault(),"Send (%d)", selectedImagesCount));
+            binding.tvCountFiles.text = selectedImagesCount.toString()
 //            binding.tvCountFiles.text = String.format(
 //                Locale.getDefault(),
 //                "%d",
@@ -445,8 +460,8 @@ class AttachBottomSheet : BottomSheetDialogFragment(), GalleryAdapter.Listener {
                 binding.send.startAnimation(animRight)
                 binding.inputPanel.isVisible = false
                 binding.send.isVisible = false
-              //  binding.btnSend.isVisible = false
-              binding.frameLayoutActionContainer.startAnimation(minTop)
+                //  binding.btnSend.isVisible = false
+                binding.frameLayoutActionContainer.startAnimation(minTop)
 //                val params = CoordinatorLayout.LayoutParams(
 //                    CoordinatorLayout.LayoutParams.MATCH_PARENT, 150.dp
 //                )
@@ -465,16 +480,16 @@ class AttachBottomSheet : BottomSheetDialogFragment(), GalleryAdapter.Listener {
 
 
     override fun tooManyFilesSelected() {
-        Toast.makeText(context, "Too_many_files_at_once", Toast.LENGTH_SHORT).show()
+        showToast(resources.getString(R.string.attach_files_warning))
     }
 
 
     private fun takePhotoFromCamera() {
-        val image: File? = FileManager.generatePicturePath()
-        if (image != null) {
-            currentPhotoUri = getFileUri(image, requireContext())
-            cameraResultLauncher.launch(currentPhotoUri)
-        }
+//        val image: File? = FileManager.generatePicturePath()
+//        if (image != null) {
+//            currentPhotoUri = getFileUri(image, requireContext())
+//            cameraResultLauncher.launch(currentPhotoUri)
+//        }
     }
 
     private fun addMediaToGallery(fromPath: String) {
@@ -504,6 +519,12 @@ class AttachBottomSheet : BottomSheetDialogFragment(), GalleryAdapter.Listener {
     companion object {
         const val TAG = "BottomSheet"
         const val PICK_LOCATION_REQUEST_CODE = 10
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        val state = if (binding.send.isVisible) binding.tvCountFiles.text.toString() else ""
+        outState.putString("state", state)
     }
 
 }

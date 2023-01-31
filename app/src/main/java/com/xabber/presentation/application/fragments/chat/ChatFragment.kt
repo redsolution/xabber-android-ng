@@ -5,8 +5,8 @@ import android.annotation.SuppressLint
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
-import android.content.pm.PackageManager
 import android.graphics.Canvas
+import android.graphics.drawable.Drawable
 import android.os.*
 import android.text.Editable
 import android.text.TextWatcher
@@ -20,6 +20,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
+import androidx.core.view.marginBottom
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.ItemTouchHelper
@@ -35,11 +36,12 @@ import com.bumptech.glide.load.resource.bitmap.CircleCrop
 import com.bumptech.glide.request.RequestOptions
 import com.xabber.R
 import com.xabber.databinding.FragmentChatBinding
-import com.xabber.model.dto.ChatListDto
-import com.xabber.model.dto.MessageDto
-import com.xabber.model.dto.MessageKind
-import com.xabber.model.xmpp.messages.MessageDisplayType
-import com.xabber.model.xmpp.messages.MessageSendingState
+import com.xabber.models.dto.ChatListDto
+import com.xabber.models.dto.MessageDto
+import com.xabber.models.dto.MessageKind
+import com.xabber.models.xmpp.messages.MessageDisplayType
+import com.xabber.models.xmpp.messages.MessageSendingState
+import com.xabber.models.xmpp.presences.ResourceStatus
 import com.xabber.presentation.AppConstants
 import com.xabber.presentation.AppConstants.CHAT_MESSAGE_TEXT_KEY
 import com.xabber.presentation.AppConstants.DELETING_MESSAGE_BUNDLE_KEY
@@ -51,12 +53,14 @@ import com.xabber.presentation.application.bottomsheet.TimeMute
 import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.application.dialogs.ChatHistoryClearDialog
 import com.xabber.presentation.application.dialogs.DeletingChatDialog
+import com.xabber.presentation.application.dialogs.DeletingMessageDialog
 import com.xabber.presentation.application.fragments.DetailBaseFragment
 import com.xabber.presentation.application.fragments.chat.attach.AttachBottomSheet
 import com.xabber.presentation.application.fragments.chat.audio.AudioRecorder
 import com.xabber.presentation.application.fragments.chat.audio.VoiceManager
+import com.xabber.presentation.application.fragments.chat.geo.Location
 import com.xabber.presentation.application.fragments.chat.message.*
-import com.xabber.presentation.application.fragments.contacts.ContactAccountParams
+import com.xabber.presentation.application.fragments.contacts.vcard.ContactAccountParams
 import com.xabber.utils.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -72,9 +76,9 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), ChatAdapter.Lis
     private var isNeedScrollDown = false
     private var editMessageId: String? = null
     private val enableNotificationsCode = 0L
-    private var replySwipeCallback: ReplySwipeCallback1? = null
+    private var replySwipeCallback: ReplySwipeCallback? = null
     private var isSelectedMode = false
-
+    private var replyingMessage: MessageDto? = null
     private var currentVoiceRecordingState = VoiceRecordState.NotRecording
     private var recordSaveAllowed = false
     private var recordingPath: String? = null
@@ -82,8 +86,6 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), ChatAdapter.Lis
     private var saveAudioMessage = true
     private var lockIsClosed = false
     var isVibrate = false
-
-    var a = 0
 
     private val requestAudioPermissionResult = registerForActivityResult(
         ActivityResultContracts.RequestPermission(),
@@ -99,17 +101,28 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), ChatAdapter.Lis
         ActivityResultContracts.RequestMultiplePermissions(),
         ::onGotImagesAndVideoPermissionResult
     )
+
     private val cancelSelected = Runnable {
         viewModel.clearAllSelected()
         viewModel.getMessageList(getParams().opponentJid)
     }
+
+    private val reply = Runnable {
+        if (replyingMessage != null)
+            replyMessage(
+                replyingMessage!!
+            )
+    }
+
     private val timer = Runnable {
-        binding.record.recordLayout.isVisible = true
-        binding.record.linChronometr.isVisible = true
-        binding.record.slideLayout.isVisible = true
-        binding.record.slideLayout.alpha = 1.0f
-        binding.linRecordLock.isVisible = true
+        prepareUiForRecording()
         beginTimer(true)
+        currentVoiceRecordingState = VoiceRecordState.TouchRecording
+        Log.d("ooo", "in timer $currentVoiceRecordingState")
+    }
+
+    private val record = Runnable {
+        VoiceManager.getInstance().startRecording()
     }
 
     private val shake = Runnable {
@@ -118,13 +131,8 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), ChatAdapter.Lis
         if (binding.imLockBar.animation == null) binding.imLockBar.startAnimation(shaker)
     }
 
-    private val record = Runnable {
-        shortVibrate()
-        binding.btnRecordExpanded.show()
-        context?.let { VoiceManager.startRecording(it) }
-    }
-
     private val stop = Runnable {
+        Log.d("ooo", "stop")
         binding.imLockBar.clearAnimation()
         binding.imLock.clearAnimation()
         binding.linRecordLock.clearAnimation()
@@ -170,35 +178,84 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), ChatAdapter.Lis
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        if (savedInstanceState != null) {
-            val messageText = savedInstanceState.getString(CHAT_MESSAGE_TEXT_KEY)
-            binding.chatInput.setText(messageText)
-            isSelectedMode = savedInstanceState.getBoolean("i")
-            enableSelectionMode(isSelectedMode)
-        } else {
-            val drafted = viewModel.getDrafted(getParams().id)
-            if (drafted != null) binding.chatInput.setText(drafted)
-            setupInputButtons()
+        if (savedInstanceState != null) restoreState(savedInstanceState)
+        else {
+            restoreDraft()
+            scrollToLastPosition()
         }
-        changeUiWithData()
-        initToolbarActions()
-        initRecyclerView()
-        subscribeOnViewModelData()
-        initEmojiPanel()
-        initSelectMessageToolbarActions()
-        initSelectedMessagePanel()
+        prepareUi()
+        initializeToolbarActions()
+        initializeRecyclerView()
+        initializeStandardInputLayoutActions()
+        subscribeToChatData()
+        initializeSelectMessageToolbarActions()
+        initializeSelectedMessagePanel()
         viewModel.initChatDataListener(getParams().id)
         viewModel.initMessagesListener(getParams().opponentJid)
         viewModel.getChat(getParams().id)
         activity?.onBackPressedDispatcher?.addCallback(onBackPressedCallback)
-        initStandardInputLayoutActions()
+        setFragmentResultListener(AppConstants.TURN_OFF_NOTIFICATIONS_KEY) { _, bundle ->
+            val resultMuteExpired =
+                bundle.getLong(AppConstants.TURN_OFF_NOTIFICATIONS_BUNDLE_KEY) + System.currentTimeMillis()
+            viewModel.setMute(getParams().id, resultMuteExpired)
+            binding.messageToolbar.menu.findItem(R.id.enable_notifications).isVisible = true
+            binding.messageToolbar.menu.findItem(R.id.disable_notifications).isVisible = false
+        }
+
+        setFragmentResultListener(AppConstants.DELETING_CHAT_KEY) { _, bundle ->
+            val result = bundle.getBoolean(AppConstants.DELETING_CHAT_BUNDLE_KEY)
+            if (result) {
+                viewModel.deleteChat(getParams().id)
+                navigator().closeDetail()
+            }
+        }
+
+        setFragmentResultListener(AppConstants.CLEAR_HISTORY_KEY) { _, bundle ->
+            val result = bundle.getBoolean(AppConstants.CLEAR_HISTORY_BUNDLE_KEY)
+            if (result) viewModel.clearHistory(
+                getParams().id,
+                getParams().owner,
+                getParams().opponentJid
+            )
+        }
     }
 
-    private fun changeUiWithData() {
+    private fun restoreState(savedInstanceState: Bundle) {
+        val messageText = savedInstanceState.getString(CHAT_MESSAGE_TEXT_KEY)
+        binding.chatInput.setText(messageText)
+        isSelectedMode = savedInstanceState.getBoolean(AppConstants.CHAT_SELECTION_MODE_KEY)
+        enableSelectionMode(isSelectedMode)
+    }
+
+    private fun restoreDraft() {
+        val draft = viewModel.getChat(getParams().id)?.draftMessage
+        Log.d("iii", "draft = $draft")
+        if (draft != null) binding.chatInput.setText(draft)
+        setupInputButtons()
+    }
+
+    private fun scrollToLastPosition() {
+        val lastPosition = viewModel.getChat(getParams().id)?.lastPosition
+        if (!lastPosition.isNullOrEmpty()) {
+            val messagePosition =
+                viewModel.getPositionMessage(lastPosition)
+            binding.messageList.scrollToPosition(messagePosition)
+            viewModel.saveLastPosition(getParams().id, "")
+        }
+    }
+
+    private fun setupInputButtons() {
+        binding.btnRecord.isVisible = binding.chatInput.text.toString().isEmpty()
+        binding.buttonAttach.isVisible = binding.chatInput.text.toString().isEmpty()
+        binding.buttonSendMessage.isVisible = binding.chatInput.text.toString().isNotEmpty()
+    }
+
+    private fun prepareUi() {
         loadAvatarWithMask()
         val chat = viewModel.getChat(getParams().id)
         if (chat != null) {
             setTitle(chat)
+            setStatus(chat.status)
             setupMuteIcon(chat.muteExpired)
         }
     }
@@ -206,34 +263,40 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), ChatAdapter.Lis
     private fun loadAvatarWithMask() {
         val multiTransformation = MultiTransformation(CircleCrop())
         Glide.with(requireContext()).load(getParams().avatar)
+            .error(R.drawable.ic_avatar_placeholder)
             .apply(RequestOptions.bitmapTransform(multiTransformation))
-            .into(binding.imAvatar)
+            .into(binding.avatarGroup.imAvatar)
     }
 
     private fun setTitle(chat: ChatListDto) {
-        val opponentName =
-            if (chat.customName.isNotEmpty()) chat.customName else if (chat.displayName.isNotEmpty()) chat.displayName else chat.opponentJid
-        binding.tvChatTitle.text = opponentName
+        val chatName =
+            if (chat.customNickname.isNotEmpty()) chat.customNickname else if (chat.opponentNickname.isNotEmpty()) chat.opponentNickname else chat.opponentJid
+        binding.tvChatTitle.text = chatName
     }
 
     private fun setupMuteIcon(muteExpired: Long) {
-        binding.imNotificationsIsDisable.isVisible = muteExpired - System.currentTimeMillis() > 0
-        if ((muteExpired - System.currentTimeMillis()) > TimeMute.DAY1.time) {
-            binding.imNotificationsIsDisable.setImageResource(R.drawable.ic_bell_off_light_grey)
-        } else {
-            binding.imNotificationsIsDisable.setImageResource(R.drawable.ic_bell_sleep_light_grey)
-        }
+        val imageResource =
+            if (muteExpired - System.currentTimeMillis() <= 0) null else if (
+                (muteExpired - System.currentTimeMillis()) > TimeMute.DAY1.time)
+                R.drawable.ic_bell_off_light_grey_mini else R.drawable.ic_bell_sleep_light_grey_mini
+        var drawable: Drawable? = null
+        if (imageResource != null) drawable =
+            ContextCompat.getDrawable(requireContext(), imageResource)
+        binding.tvChatTitle.setCompoundDrawablesWithIntrinsicBounds(
+            null, null, drawable, null
+        )
     }
 
-    private fun initToolbarActions() {
-        if (!DisplayManager.isDualScreenMode()) {
-            binding.messageToolbar.setNavigationIcon(R.drawable.ic_arrow_left_white)
-            binding.messageToolbar.setNavigationOnClickListener {
-                navigator().closeDetail()
-            }
-        } else binding.messageToolbar.navigationIcon = null
+    private fun setStatus(status: ResourceStatus) {
+    }
 
-        binding.imAvatar.setOnClickListener {
+    private fun initializeToolbarActions() {
+        binding.imBack.isVisible = !DisplayManager.isDualScreenMode()
+        binding.imBack.setOnClickListener {
+            navigator().closeDetail()
+        }
+
+        binding.avatarGroup.imAvatar.setOnClickListener {
             val contactId = viewModel.getContactPrimary(getParams().id)
             if (contactId != null) navigator().showContactAccount(
                 ContactAccountParams(
@@ -246,10 +309,15 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), ChatAdapter.Lis
     }
 
     private fun setupToolbarMenu() {
+        val chat = viewModel.getChat(getParams().id)
+        val muteExpired =
+            if (
+                chat != null
+            ) viewModel.getChat(getParams().id)!!.muteExpired - System.currentTimeMillis() else 0
         binding.messageToolbar.menu.findItem(R.id.enable_notifications).isVisible =
-            binding.imNotificationsIsDisable.isVisible
+            muteExpired > 0
         binding.messageToolbar.menu.findItem(R.id.disable_notifications).isVisible =
-            !binding.imNotificationsIsDisable.isVisible
+            muteExpired <= 0
         binding.messageToolbar.setOnMenuItemClickListener {
             when (it.itemId) {
                 R.id.call_out -> sendIncomingMessages()
@@ -261,60 +329,10 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), ChatAdapter.Lis
         }
     }
 
-    private fun sendIncomingMessages() {
-        var textRandom = arrayListOf<String>(
-            "Привет",
-            "Компания «Ростелеком» открыла новый сезон строительства оптических линий связи на Южном Урале. Первым объектом для подключения стал жилой дом Челябинска в ЖК «Ньютон» на Комсомольском проспекте, 141. После его сдачи жители 132 квартир смогут пользоваться интернетом на скорости до 1 Гбит/с.",
-            "Да",
-            "В торжественной презентации старта нового сезона стройки приняли участие хоккеисты"
-        )
-        lifecycleScope.launch {
-            var c = false
-            for (i in 0..1000) {
-                delay(1000)
-                c = false
-                a++
-
-                viewModel.insertMessage(
-                    getParams().id,
-                    MessageDto(
-                        "$a ${getParams().opponentJid}",
-                        c,
-                        "Иван Иванов",
-                        getParams().opponentJid,
-                        "$a " + textRandom.random(),
-                        MessageSendingState.Deliver,
-                        System.currentTimeMillis(),
-                        0,
-                        MessageDisplayType.Text,
-                        false,
-                        false,
-                        null,
-                        false, null, false, null, null, Location(2.8604, 14.540)
-                    ),
-                    layoutManager!!.findLastVisibleItemPosition() + 2 >= (chatAdapter!!.itemCount - viewModel.unreadCount.value!!)
-                )
-                Log.d(
-                    "yyy",
-                    "lastPosition = ${layoutManager!!.findFirstVisibleItemPosition()}, first = ${layoutManager!!.findLastVisibleItemPosition()}"
-                )
-            }
-        }
-        isNeedScrollDown =
-            layoutManager!!.findFirstVisibleItemPosition() + 2 >= (chatAdapter!!.itemCount - viewModel.unreadCount.value!!)
-
-    }
-
     private fun disableNotifications() {
         val dialog = NotificationBottomSheet()
         navigator().showBottomSheetDialog(dialog)
-        setFragmentResultListener(AppConstants.TURN_OFF_NOTIFICATIONS_KEY) { _, bundle ->
-            val resultMuteExpired =
-                bundle.getLong(AppConstants.TURN_OFF_NOTIFICATIONS_BUNDLE_KEY) + System.currentTimeMillis()
-            viewModel.setMute(getParams().id, resultMuteExpired)
-            binding.messageToolbar.menu.findItem(R.id.enable_notifications).isVisible = true
-            binding.messageToolbar.menu.findItem(R.id.disable_notifications).isVisible = false
-        }
+
     }
 
     private fun enableNotifications() {
@@ -326,103 +344,128 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), ChatAdapter.Lis
     private fun clearHistory() {
         val dialog = ChatHistoryClearDialog()
         navigator().showDialogFragment(dialog, AppConstants.CLEAR_HISTORY_DIALOG_TAG)
-        setFragmentResultListener(AppConstants.CLEAR_HISTORY_KEY) { _, bundle ->
-            val result = bundle.getBoolean(AppConstants.CLEAR_HISTORY_BUNDLE_KEY)
-            if (result) viewModel.clearHistory(
-                getParams().id,
-                getParams().owner,
-                getParams().opponentJid
-            )
-        }
+
     }
 
     private fun deleteChat() {
         val dialog = DeletingChatDialog.newInstance(binding.tvChatTitle.text.toString())
         navigator().showDialogFragment(dialog, AppConstants.DELETING_CHAT_DIALOG_TAG)
-        setFragmentResultListener(AppConstants.DELETING_CHAT_KEY) { _, bundle ->
-            val result = bundle.getBoolean(AppConstants.DELETING_CHAT_BUNDLE_KEY)
-            if (result) {
-                viewModel.deleteChat(getParams().id)
-                navigator().closeDetail()
-            }
-        }
+
     }
 
-    private fun onGotGalleryPermissionResult(grantResults: Map<String, Boolean>) {
-        if (grantResults.entries.all { it.value }) {
-            context?.let {
-                if (childFragmentManager.findFragmentByTag(AttachBottomSheet.TAG) == null) {
-                    AttachBottomSheet().show(childFragmentManager, AttachBottomSheet.TAG)
+    private fun initializeRecyclerView() {
+        chatAdapter = ChatAdapter(this)
+        binding.messageList.adapter = chatAdapter
+        layoutManager = LinearLayoutManager(context)
+        layoutManager?.stackFromEnd = true
+        binding.messageList.layoutManager = layoutManager
+        addSwipeCallback()
+        // addMessageHeaderViewDecoration()
+        addScrollListener()
+        fillChat()
+        binding.messageList.itemAnimator = null
+//binding.messageList.addItemDecoration(MessageHeaderViewDecoration(requireContext()))
+    }
+
+    private fun addSwipeCallback() {
+        replySwipeCallback = ReplySwipeCallback(
+            ContextCompat.getDrawable(
+                requireContext(),
+                R.drawable.reply_circle
+            )!!
+        ) { position: Int ->
+            val id = chatAdapter?.getPositionId(position)
+            if (id != null) {
+                replyingMessage = viewModel.getMessage(id)
+                handler.postDelayed(reply, 0)
+            }
+        }
+
+        ItemTouchHelper(replySwipeCallback!!).attachToRecyclerView(binding.messageList)
+
+        binding.messageList.addItemDecoration(
+            object : RecyclerView.ItemDecoration() {
+                override fun onDraw(
+                    c: Canvas,
+                    parent: RecyclerView,
+                    state: RecyclerView.State
+                ) {
+                    replySwipeCallback?.onDraw(c)
+                }
+            })
+    }
+
+    private fun addMessageHeaderViewDecoration() {
+        // binding.messageList.addItemDecoration(MessageHeaderViewDecoration(requireContext()))
+    }
+
+    // @ExperimentalBadgeUtils
+    private fun addScrollListener() {
+
+//        GlobalScope.launch(Dispatchers.IO) {
+//            delay(5000)
+//        val last = chatAdapter!!.getPositionId(layoutManager!!.findLastVisibleItemPosition())
+//        val realm = Realm.open(defaultRealmConfig())
+//        realm.writeBlocking {
+//            val m = this.query(MessageStorageItem::class, "primaty = '$last").first().find()
+//            m?.isRead = true
+//        }
+
+        binding.messageList.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                //  binding.-tvTopDate.isVisible = true
+                if (layoutManager != null) {
+                    if (layoutManager!!.findLastVisibleItemPosition() >= chatAdapter!!.itemCount - 1) {
+                        binding.downScroller.isVisible = false
+                    } else {
+                        binding.downScroller.isVisible = true
+                    }
                 }
             }
-        } else {
-            askUserForOpeningAppSettings()
-        }
-    }
-
-    private fun onGotAudioPermissionResult(granted: Boolean) {
-        if (!granted) askUserForOpeningAppSettings()
-    }
-
-    private fun onGotImagesAndVideoPermissionResult(grantResults: Map<String, Boolean>) {
-        if (grantResults.entries.all { it.value }) {
-            context?.let {
-                if (childFragmentManager.findFragmentByTag(AttachBottomSheet.TAG) == null) {
-                    AttachBottomSheet().show(childFragmentManager, AttachBottomSheet.TAG)
-                }
-            }
-        } else {
-            askUserForOpeningAppSettings()
-        }
-    }
-
-    private fun subscribeOnViewModelData() {
-        viewModel.unreadCount.observe(viewLifecycleOwner) {
-            if (it > 0) {
-                binding.tvNewReceivedCount.isVisible = true
-                binding.tvNewReceivedCount.text = it.toString()
-            } else {
-                binding.tvNewReceivedCount.isVisible = false
+        })
+        binding.btnDownward.setOnClickListener {
+            if (viewModel.unreadCount.value == 0 || viewModel.unreadCount.value == null) {
+                scrollDown()
                 binding.tvNewReceivedCount.text = ""
-            }
-        }
-
-        viewModel.selectedCount.observe(viewLifecycleOwner) {
-            if (it > 0) {
-                binding.selectMessagesToolbar.tvMessagesCount.text = it.toString()
-                binding.selectMessagesToolbar.toolbarSelectedMessages.menu.findItem(R.id.edit_message).isVisible =
-                    it == 1 && viewModel.isOutgoing()
-                binding.interaction.linReply.isVisible = it == 1
-
-            } else {
-                enableSelectionMode(false)
-            }
-        }
-
-        viewModel.muteExpired.observe(viewLifecycleOwner) {
-            setupMuteIcon(it)
-        }
-        viewModel.opponentName.observe(viewLifecycleOwner) {
-            setupOpponentName(it)
-        }
-        viewModel.messages.observe(viewLifecycleOwner) {
-            chatAdapter?.submitList(it) {
-
-                val man = binding.messageList.layoutManager as LinearLayoutManager
-                if (man.findLastVisibleItemPosition() >= chatAdapter!!.itemCount - 2 && !isSelectedMode) scrollDown()
-                if (isNeedScrollDown) {
-                    scrollDown()
-                    isNeedScrollDown = false
-                }
-            }
+                binding.tvNewReceivedCount.isVisible = false
+            } else scrollToFirstUnread()
         }
     }
 
-    private fun setupOpponentName(opponentName: String) {
-        binding.tvChatTitle.text = opponentName
+    private fun scrollToFirstUnread() {
+        layoutManager?.scrollToPositionWithOffset(
+            chatAdapter!!.itemCount - viewModel.unreadCount.value!!,
+            200
+        )
     }
 
-    private fun initEmojiPanel() {
+    private fun fillChat() {
+        viewModel.getMessageList(getParams().opponentJid)
+    }
+
+    private fun initializeStandardInputLayoutActions() {
+        chatInputAddListener()
+        initializeButtonEmoji()
+        initializeButtonAttach()
+        initializeButtonSend()
+        initializeButtonRecord()
+    }
+
+    private fun chatInputAddListener() {
+        binding.chatInput.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {
+            }
+
+            override fun onTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {
+            }
+
+            override fun afterTextChanged(p0: Editable?) {
+                setupInputButtons()
+            }
+        })
+    }
+
+    private fun initializeButtonEmoji() {
         AXEmojiManager.install(requireContext(), AXGoogleEmojiProvider(requireContext()))
         val emojiView = AXSingleEmojiView(requireContext())
 
@@ -440,7 +483,274 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), ChatAdapter.Lis
         }
     }
 
-    private fun initSelectMessageToolbarActions() {
+    private fun initializeButtonAttach() {
+        binding.buttonAttach.setOnClickListener {
+//            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+//                if (ContextCompat.checkSelfPermission(
+//                        requireContext(),
+//                        Manifest.permission.READ_MEDIA_IMAGES
+//                    ) ==
+//                    PackageManager.PERMISSION_GRANTED
+//                    && ContextCompat.checkSelfPermission(
+//                        requireContext(),
+//                        Manifest.permission.READ_MEDIA_VIDEO
+//                    ) ==
+//                    PackageManager.PERMISSION_GRANTED
+//                ) {
+//                } else if (shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS)) {
+//                    askUserForOpeningAppSettings()
+//                } else {
+//                    requestImagesAndVideoPermissionResult.launch(
+//                        arrayOf(
+//                            Manifest.permission.READ_MEDIA_IMAGES,
+//                            Manifest.permission.READ_MEDIA_VIDEO
+//                        )
+//                    )
+//                }
+//            } else {
+            requestGalleryPermissionLauncher.launch(
+                arrayOf(
+                    Manifest.permission.READ_EXTERNAL_STORAGE,
+                    Manifest.permission.WRITE_EXTERNAL_STORAGE
+                )
+            )
+            //    }
+        }
+    }
+
+    private fun initializeButtonSend() {
+        binding.buttonSendMessage.setOnClickListener {
+            if (editMessageId != null) {
+                viewModel.editMessage(editMessageId!!, binding.chatInput.text.toString())
+                binding.chatInput.text?.clear()
+                editMessageId = null
+            } else {
+                var messageKindDto: MessageKind? = null
+                if (binding.answer.isVisible) {
+                    messageKindDto = MessageKind(
+                        "id",
+                        binding.replyMessageTitle.text.toString(),
+                        binding.replyMessageContent.text.toString()
+                    )
+                }
+
+                val text = binding.chatInput.text.toString().trim()
+                binding.chatInput.text?.clear()
+                val timeStamp = System.currentTimeMillis()
+                viewModel.insertMessage(
+                    getParams().id,
+                    MessageDto(
+                        "$timeStamp",
+                        true,
+                        "Иван Иванов",
+                        getParams().opponentJid,
+                        text,
+                        MessageSendingState.Deliver,
+                        timeStamp,
+                        0,
+                        MessageDisplayType.Text,
+                        false,
+                        false,
+                        null,
+                        false, messageKindDto, false, null, null, Location(2.8604, 14.540)
+                    ),
+                    true
+                )
+                binding.answer.isVisible = false
+                isNeedScrollDown = true
+            }
+        }
+    }
+
+    @SuppressLint("ClickableViewAccessibility")
+    private fun initializeButtonRecord() {
+
+        binding.btnRecord.setOnTouchListener { _: View?, motionEvent: MotionEvent ->
+            Log.d("ooo", "$motionEvent")
+            when (motionEvent.action and MotionEvent.ACTION_MASK) {
+                MotionEvent.ACTION_DOWN -> {
+                    if (isPermissionGranted(
+                            Manifest.permission.RECORD_AUDIO
+                        )
+                    ) {
+                        if (currentVoiceRecordingState == VoiceRecordState.NotRecording)
+                            startAudioRecord()
+                        recordSaveAllowed = false
+                        currentVoiceRecordingState = VoiceRecordState.InitiatedRecording
+                        navigator().lockScreen(true)
+                    } else {
+                        requestAudioPermissionResult.launch(Manifest.permission.RECORD_AUDIO)
+                    }
+                }
+                MotionEvent.ACTION_UP -> {
+                    if (currentVoiceRecordingState == VoiceRecordState.InitiatedRecording) {
+                        handler.removeCallbacks(record)
+                        handler.removeCallbacks(timer)
+                        hideRecordPanel()
+                        enabledInputPanelButtons(true)
+                        currentVoiceRecordingState = VoiceRecordState.NotRecording
+                        navigator().lockScreen(false)
+                    } else if (currentVoiceRecordingState == VoiceRecordState.TouchRecording) {
+                        sendVoiceMessage()
+                        navigator().lockScreen(false)
+                    }
+//                    if (binding.imLock.animation != null) currentVoiceRecordingState =
+//                        VoiceRecordState.StoppedRecording
+                    if (currentVoiceRecordingState == VoiceRecordState.NoTouchRecording) {
+                        handler.post(stop)
+                    } else {
+                        binding.record.chrRecordingTimer.stop()
+
+                        val animRight =
+                            AnimationUtils.loadAnimation(context, R.animator.slide_to_right)
+                        binding.record.recordLayout.startAnimation(animRight)
+                        binding.record.recordLayout.isVisible = false
+                        binding.linRecordLock.isVisible = false
+                        binding.btnRecordExpanded.isVisible = false
+                        handler.removeCallbacks(record)
+                        handler.removeCallbacks(timer)
+                        stopTypingTimer?.cancel()
+                        navigator().lockScreen(false)
+                        if (saveAudioMessage && isPermissionGranted(Manifest.permission.RECORD_AUDIO)) sendMessage(
+                            "Audio message",
+                            null
+                        )
+                        currentVoiceRecordingState = VoiceRecordState.NotRecording
+                        //   binding.buttonAttach.isVisible = true
+                        Log.d("yyy", "record")
+                    }
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    Log.d("ooo", "y = ${motionEvent.y}")
+                    when {
+                        motionEvent.y < -55 -> {
+                            val params =
+                                binding.imLockBar.layoutParams as ConstraintLayout.LayoutParams
+                            params.bottomMargin = 0
+                            binding.imLockBar.layoutParams = params
+                            if (!isVibrate) shortVibrate()
+                            lockIsClosed = true
+                            isVibrate = true
+                            currentVoiceRecordingState = VoiceRecordState.NoTouchRecording
+                            handler.post(shake)
+                        }
+                        motionEvent.y < 0 -> {
+
+                            isVibrate = false
+                            binding.imLock.clearAnimation()
+                            binding.imLockBar.clearAnimation()
+                            binding.spaceLock.animate().y(motionEvent.y).start()
+                            val params =
+                                binding.imLockBar.layoutParams as ConstraintLayout.LayoutParams
+                            params.bottomMargin = -motionEvent.y.toInt() / 4
+                            if (params.bottomMargin in 2..11) binding.imLockBar.layoutParams =
+                                params
+                            currentVoiceRecordingState = VoiceRecordState.TouchRecording
+                        }
+                    }
+                    val alpha = 1f + motionEvent.x / 400f
+                    // Если идет запись
+                    if (motionEvent.x < 0) {
+                        binding.record.slideLayout.animate().x(motionEvent.x).start()
+                    } else binding.record.slideLayout.animate().x(0f).start()
+
+                    binding.record.slideLayout.alpha = alpha
+
+                    //since alpha and slide are tied together, we can cancel recording by checking transparency value
+                    if (alpha <= 0) {
+                        clearVoiceMessage()
+                        saveAudioMessage = false
+                        val animRight =
+                            AnimationUtils.loadAnimation(context, R.animator.slide_to_right)
+                        binding.record.recordLayout.startAnimation(animRight)
+                        binding.record.recordLayout.isVisible = false
+                    }
+                }
+            }; true
+        }
+
+
+        binding.frameStop.setOnClickListener {
+            binding.frameStop.isVisible = false
+            binding.linRecordLock.isVisible = false
+            binding.record.slideLayout.isVisible = false
+            binding.record.linChronometr.isVisible = false
+            binding.btnRecordExpanded.hide()
+            //  binding.buttonAttach.isVisible = false
+            binding.record.recordingPresenterLayout.isVisible = true
+            binding.record.voicePresenterTime.text =
+                binding.record.chrRecordingTimer.text.toString()
+        }
+
+        binding.record.tvCancelRecording.setOnClickListener {
+            clearVoiceMessage()
+        }
+
+        binding.record.voicePresenterDelete.setOnClickListener { clearVoiceMessage() }
+
+        binding.record.btnSendStop.setOnClickListener {
+            sendMessage("Audio message", null)
+            clearVoiceMessage()
+        }
+
+        binding.btnRecordExpanded.setOnClickListener {
+            if (isPermissionGranted(Manifest.permission.RECORD_AUDIO)) {
+                sendMessage("Audio message", null)
+                clearVoiceMessage()
+            }
+        }
+
+    }
+
+    private fun subscribeToChatData() {
+        viewModel.opponentName.observe(viewLifecycleOwner) {
+            setupOpponentName(it)
+        }
+
+        viewModel.muteExpired.observe(viewLifecycleOwner) {
+            setupMuteIcon(it)
+        }
+
+        viewModel.messages.observe(viewLifecycleOwner) {
+            chatAdapter?.submitList(it) {
+                chatAdapter?.notifyDataSetChanged()
+                if (layoutManager != null && chatAdapter != null) {
+                    if (layoutManager!!.findLastVisibleItemPosition() >= chatAdapter!!.itemCount - 2 && !isSelectedMode) scrollDown()
+                    if (isNeedScrollDown) {
+                        scrollDown()
+                        isNeedScrollDown = false
+                    }
+                }
+            }
+        }
+
+        viewModel.unreadCount.observe(viewLifecycleOwner) {
+            if (it > 0) {
+                binding.tvNewReceivedCount.isVisible = true
+                binding.tvNewReceivedCount.text = it.toString()
+            } else {
+                binding.tvNewReceivedCount.isVisible = false
+                binding.tvNewReceivedCount.text = ""
+            }
+        }
+
+        viewModel.selectedCount.observe(viewLifecycleOwner) {
+            if (it > 0) {
+                binding.selectMessagesToolbar.tvMessagesCount.text = it.toString()
+                binding.selectMessagesToolbar.toolbarSelectedMessages.menu.findItem(R.id.edit_message).isVisible =
+                    it == 1 && viewModel.isOutgoing()
+                binding.interaction.linReply.isVisible = it == 1
+            } else {
+                enableSelectionMode(false)
+            }
+        }
+    }
+
+    private fun setupOpponentName(opponentName: String) {
+        binding.tvChatTitle.text = opponentName
+    }
+
+    private fun initializeSelectMessageToolbarActions() {
         binding.selectMessagesToolbar.imCloseSelectedMode.setOnClickListener {
             enableSelectionMode(false)
         }
@@ -461,17 +771,89 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), ChatAdapter.Lis
         }
     }
 
-    private fun initSelectedMessagePanel() {
+    private fun initializeSelectedMessagePanel() {
         binding.interaction.linReply.setOnClickListener {
             val message = viewModel.getMessage()
             enableSelectionMode(false)
             if (message != null) replyMessage(message)
-
         }
         binding.interaction.linForward.setOnClickListener {
             val text = viewModel.getForwardMessagesText()
             enableSelectionMode(false)
             navigator().showForwardFragment(text)
+        }
+    }
+
+    private fun sendIncomingMessages() {
+        var a = 0
+        var textRandom = arrayListOf<String>(
+            "Привет",
+            "Компания «Ростелеком» открыла новый сезон строительства оптических линий связи на Южном Урале. Первым объектом для подключения стал жилой дом Челябинска в ЖК «Ньютон» на Комсомольском проспекте, 141. После его сдачи жители 132 квартир смогут пользоваться интернетом на скорости до 1 Гбит/с.",
+            "Да",
+            "В торжественной презентации старта нового сезона стройки приняли участие хоккеисты"
+        )
+        lifecycleScope.launch {
+            var c = false
+            for (i in 0..1000) {
+                delay(1000)
+                c = false
+                a++
+
+                viewModel.insertMessage(
+                    getParams().id,
+                    MessageDto(
+                        "$a ${getParams().opponentJid} ${System.currentTimeMillis()}",
+                        c,
+                        "Иван Иванов",
+                        getParams().opponentJid,
+                        "$a " + textRandom.random(),
+                        MessageSendingState.Deliver,
+                        System.currentTimeMillis(),
+                        0,
+                        MessageDisplayType.Text,
+                        false,
+                        false,
+                        null,
+                        false, null, false, null, null, Location(2.8604, 14.540)
+                    ),
+                    layoutManager!!.findLastVisibleItemPosition() >= (chatAdapter!!.itemCount - 3)
+                )
+                Log.d(
+                    "yyy",
+                    "lastPosition = ${layoutManager!!.findFirstVisibleItemPosition()}, first = ${layoutManager!!.findLastVisibleItemPosition()}"
+                )
+            }
+        }
+        isNeedScrollDown =
+            layoutManager!!.findFirstVisibleItemPosition() + 2 >= (chatAdapter!!.itemCount - viewModel.unreadCount.value!!)
+    }
+
+    private fun onGotGalleryPermissionResult(grantResults: Map<String, Boolean>) {
+        if (grantResults.entries.all { it.value })
+            showAttachBottomSheet()
+        else
+            askUserForOpeningAppSettings()
+    }
+
+    private fun showAttachBottomSheet() {
+        if (childFragmentManager.findFragmentByTag(AttachBottomSheet.TAG) == null) {
+            AttachBottomSheet().show(childFragmentManager, AttachBottomSheet.TAG)
+        }
+    }
+
+    private fun onGotAudioPermissionResult(granted: Boolean) {
+        if (!granted) askUserForOpeningAppSettings()
+    }
+
+    private fun onGotImagesAndVideoPermissionResult(grantResults: Map<String, Boolean>) {
+        if (grantResults.entries.all { it.value }) {
+            context?.let {
+                if (childFragmentManager.findFragmentByTag(AttachBottomSheet.TAG) == null) {
+                    AttachBottomSheet().show(childFragmentManager, AttachBottomSheet.TAG)
+                }
+            }
+        } else {
+            askUserForOpeningAppSettings()
         }
     }
 
@@ -487,99 +869,27 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), ChatAdapter.Lis
         editMessageId = viewModel.getMessageId()
     }
 
-    private fun copyTextMessage(text: String) {
+    private fun copyTextMessage(text: String? = null) {
         val clipBoard = context?.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        val clipData = ClipData.newPlainText("", text)
+        val textMessage = text ?: viewModel.getSelectedText()
+        val clipData = ClipData.newPlainText("", textMessage)
         clipBoard.setPrimaryClip(clipData)
         showToast(R.string.snack_bar_title_copy_text)
     }
 
-    private fun copyTextMessage() {
-        val clipBoard = context?.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        val text = viewModel.getSelectedText()
-        val clipData = ClipData.newPlainText("", text)
-        clipBoard.setPrimaryClip(clipData)
-        showToast(R.string.snack_bar_title_copy_text)
-    }
-
-    private fun delete(id: String) {
+    private fun delete(id: String? = null) {
         val dialog = DeletingMessageDialog.newInstance(binding.tvChatTitle.text.toString())
         navigator().showDialogFragment(dialog, AppConstants.DELETING_MESSAGE_DIALOG_TAG)
         setFragmentResultListener(DELETING_MESSAGE_DIALOG_KEY) { _, bundle ->
             val result = bundle.getBoolean(DELETING_MESSAGE_BUNDLE_KEY)
             val forAll = bundle.getBoolean(DELETING_MESSAGE_FOR_ALL_BUNDLE_KEY)
             if (result) {
-                viewModel.deleteMessage(id, forAll)
+                if (id != null) viewModel.deleteMessage(id, forAll) else viewModel.deleteMessages(
+                    forAll
+                )
                 enableSelectionMode(false)
             }
         }
-    }
-
-    private fun delete() {
-        val dialog = DeletingMessageDialog.newInstance(binding.tvChatTitle.text.toString())
-        navigator().showDialogFragment(dialog, AppConstants.DELETING_MESSAGE_DIALOG_TAG)
-        setFragmentResultListener(DELETING_MESSAGE_DIALOG_KEY) { _, bundle ->
-            val result = bundle.getBoolean(DELETING_MESSAGE_BUNDLE_KEY)
-            val forAll = bundle.getBoolean(DELETING_MESSAGE_FOR_ALL_BUNDLE_KEY)
-            if (result) {
-                viewModel.deleteMessages(forAll)
-                enableSelectionMode(false)
-            }
-        }
-    }
-
-    private fun initRecyclerView() {
-        chatAdapter = ChatAdapter(this)
-        binding.messageList.adapter = chatAdapter
-        layoutManager = LinearLayoutManager(context)
-        layoutManager?.stackFromEnd = true
-        binding.messageList.layoutManager = layoutManager
-        binding.messageList.addItemDecoration(MessageHeaderViewDecoration())
-        addSwipeCallback()
-        addScrollListener()
-        fillChat()
-        if (viewModel.lastPositionPrimary(getParams().id) != "") {
-            Log.d(
-                "iii",
-                "viewModel.lastPositionPrimary(getParams().id) = ${
-                    viewModel.lastPositionPrimary(getParams().id)
-                }"
-            )
-            val position =
-                viewModel.getPositionMessage(viewModel.lastPositionPrimary(getParams().id))
-            Log.d("iii", "Position = $position")
-            binding.messageList.scrollToPosition(position)
-            viewModel.saveLastPosition(getParams().id, "")
-        }
-    }
-
-    private fun addSwipeCallback() {
-        replySwipeCallback = ReplySwipeCallback1(
-            ContextCompat.getDrawable(
-                requireContext(),
-                R.drawable.reply_circle
-            )!!, context
-        ) { position: Int ->
-            val id = chatAdapter?.getPositionId(position)
-            if (id != null) {
-                replyMessage(viewModel.getMessage(id)!!)
-            }
-        }
-
-        //    replySwipeCallback?.setSwipeEnabled(true)
-        //  replySwipeCallback?.replySwipeCallback()
-        ItemTouchHelper(replySwipeCallback!!).attachToRecyclerView(binding.messageList)
-
-        binding.messageList.addItemDecoration(
-            object : RecyclerView.ItemDecoration() {
-                override fun onDraw(
-                    c: Canvas,
-                    parent: RecyclerView,
-                    state: RecyclerView.State
-                ) {
-                    replySwipeCallback?.onDraw(c)
-                }
-            })
     }
 
     private fun showUnreadBadge(count: Int) {
@@ -606,41 +916,6 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), ChatAdapter.Lis
 //      //  })
     }
 
-    // @ExperimentalBadgeUtils
-    private fun addScrollListener() {
-        val layoutManager = binding.messageList.layoutManager as LinearLayoutManager
-
-        binding.messageList.addOnScrollListener(object : RecyclerView.OnScrollListener() {
-            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
-
-                //  binding.tvTopDate.isVisible = true
-                if (layoutManager.findLastVisibleItemPosition() >= chatAdapter!!.itemCount - 1) {
-                    binding.fm.isVisible = false
-                } else {
-                    if (!binding.fm.isVisible)
-                        binding.fm.isVisible = true
-                }
-            }
-        })
-        binding.btnDownward.setOnClickListener {
-            if (viewModel.unreadCount.value == 0 || viewModel.unreadCount.value == null) {
-                scrollDown()
-                binding.tvNewReceivedCount.text = ""
-                binding.tvNewReceivedCount.isVisible = false
-            } else scrollToFirstUnread()
-        }
-    }
-
-    private fun scrollToFirstUnread() {
-        layoutManager?.scrollToPositionWithOffset(
-            chatAdapter!!.itemCount - viewModel.unreadCount.value!!,
-            200
-        )
-    }
-
-    private fun fillChat() {
-        viewModel.getMessageList(getParams().opponentJid)
-    }
 
     private fun scrollDown() {
         if (chatAdapter != null) binding.messageList.scrollToPosition(chatAdapter?.itemCount!! - 1)
@@ -649,260 +924,24 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), ChatAdapter.Lis
         viewModel.markAllMessageUnread(getParams().id)
     }
 
-    private fun initStandardInputLayoutActions() {
-        chatInputAddListener()
-        initButtonAttach()
-        initButtonSend()
-        initButtonRecord()
-    }
-
-    private fun chatInputAddListener() {
-        binding.chatInput.addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {
-            }
-
-            override fun onTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {
-            }
-
-            override fun afterTextChanged(p0: Editable?) {
-                setupInputButtons()
-            }
-        })
-    }
-
-    private fun setupInputButtons() {
-        binding.btnRecord.isVisible = binding.chatInput.text.toString().isEmpty()
-        binding.buttonAttach.isVisible = binding.chatInput.text.toString().isEmpty()
-        binding.buttonSendMessage.isVisible = binding.chatInput.text.toString().isNotEmpty()
-    }
-
-    private fun initButtonAttach() {
-        binding.buttonAttach.setOnClickListener {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                if (ContextCompat.checkSelfPermission(
-                        requireContext(),
-                        Manifest.permission.READ_MEDIA_IMAGES
-                    ) ==
-                    PackageManager.PERMISSION_GRANTED
-                    && ContextCompat.checkSelfPermission(
-                        requireContext(),
-                        Manifest.permission.READ_MEDIA_VIDEO
-                    ) ==
-                    PackageManager.PERMISSION_GRANTED
-                ) {
-                } else if (shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS)) {
-                    askUserForOpeningAppSettings()
-                } else {
-                    requestImagesAndVideoPermissionResult.launch(
-                        arrayOf(
-                            Manifest.permission.READ_MEDIA_IMAGES,
-                            Manifest.permission.READ_MEDIA_VIDEO
-                        )
-                    )
-                }
-            } else {
-                requestGalleryPermissionLauncher.launch(
-                    arrayOf(
-                        Manifest.permission.READ_EXTERNAL_STORAGE,
-                        Manifest.permission.WRITE_EXTERNAL_STORAGE
-                    )
-                )
-            }
-        }
-    }
-
-    private fun initButtonSend() {
-        binding.buttonSendMessage.setOnClickListener {
-            if (editMessageId != null) {
-                viewModel.editMessage(editMessageId!!, binding.chatInput.text.toString())
-                binding.chatInput.text?.clear()
-                editMessageId = null
-            } else {
-                var messageKindDto: MessageKind? = null
-                if (binding.answer.isVisible) {
-                    messageKindDto = MessageKind(
-                        "id",
-                        binding.replyMessageTitle.text.toString(),
-                        binding.replyMessageContent.text.toString()
-                    )
-                }
-
-                val text = binding.chatInput.text.toString().trim()
-                binding.chatInput.text?.clear()
-                val timeStamp = System.currentTimeMillis()
-                var b = System.currentTimeMillis()
-                viewModel.insertMessage(
-                    getParams().id,
-                    MessageDto(
-                        "$b",
-                        true,
-                        "Иван Иванов",
-                        "${getParams().opponentJid}",
-                        text,
-                        MessageSendingState.Deliver,
-                        timeStamp,
-                        0,
-                        MessageDisplayType.Text,
-                        false,
-                        false,
-                        null,
-                        false, messageKindDto, false, null, null, Location(2.8604, 14.540)
-                    ),
-                    true
-                )
-                a++
-
-                binding.answer.isVisible = false
-                isNeedScrollDown = true
-                scrollDown()
-            }
-        }
-    }
-
-    @SuppressLint("ClickableViewAccessibility")
-    private fun initButtonRecord() {
-
-        binding.btnRecord.setOnTouchListener { _: View?, motionEvent: MotionEvent ->
-            when (motionEvent.action and MotionEvent.ACTION_MASK) {
-                MotionEvent.ACTION_DOWN -> {
-                    if (isPermissionGranted(Manifest.permission.RECORD_AUDIO)) {
-                        startAudioRecord()
-                    } else {
-                        requestAudioPermissionResult.launch(Manifest.permission.RECORD_AUDIO)
-                    }
-                }
-                MotionEvent.ACTION_UP -> {
-                    if (binding.imLock.animation != null) currentVoiceRecordingState =
-                        VoiceRecordState.StoppedRecording
-                    if (currentVoiceRecordingState == VoiceRecordState.StoppedRecording) {
-                        //   binding.buttonAttach.isVisible = false
-                        handler.post(stop)
-                    } else {
-                        if (currentVoiceRecordingState == VoiceRecordState.TouchRecording) {
-                            sendVoiceMessage()
-                            // binding.buttonAttach.isVisible = false
-                            navigator().lockScreen(false)
-                        }
-
-
-                        binding.record.chrRecordingTimer.stop()
-
-                        val animRight =
-                            AnimationUtils.loadAnimation(context, R.animator.slide_to_right)
-                        binding.record.recordLayout.startAnimation(animRight)
-                        binding.record.recordLayout.isVisible = false
-                        binding.linRecordLock.isVisible = false
-                        binding.btnRecordExpanded.isVisible = false
-                        handler.removeCallbacks(record)
-                        handler.removeCallbacks(timer)
-                        stopTypingTimer?.cancel()
-                        navigator().lockScreen(false)
-                        if (saveAudioMessage) sendMessage("Audio message", null)
-                        currentVoiceRecordingState = VoiceRecordState.NotRecording
-                        //   binding.buttonAttach.isVisible = true
-                        Log.d("yyy", "record")
-                    }
-                }
-                MotionEvent.ACTION_MOVE -> {
-
-                    when {
-                        motionEvent.y < -55 -> {
-
-                            val params =
-                                binding.imLockBar.layoutParams as ConstraintLayout.LayoutParams
-                            params.bottomMargin = 0
-                            binding.imLockBar.layoutParams = params
-                            lockIsClosed = true
-                            if (!isVibrate) shortVibrate()
-                            isVibrate = true
-                            handler.post(shake)
-//
-//                            if (currentVoiceRecordingState != VoiceRecordState.StoppedRecording) {
-//                                currentVoiceRecordingState = VoiceRecordState.StoppedRecording
-//                                handler.postDelayed(
-//                                    stop,
-//                                    500
-//                                )
-
-                            //     }
-                        }
-
-                        motionEvent.y < 0 -> {
-                            isVibrate = false
-                            binding.imLock.clearAnimation()
-                            binding.imLockBar.clearAnimation()
-                            binding.spaceLock.animate().y(motionEvent.y).setDuration(0).start()
-                            val params =
-                                binding.imLockBar.layoutParams as ConstraintLayout.LayoutParams
-                            params.bottomMargin = -motionEvent.y.toInt() / 4
-                            if (params.bottomMargin >= 2 && params.bottomMargin < 12) binding.imLockBar.layoutParams =
-                                params
-
-
-                        }
-                    }
-                    val alpha = 1f + motionEvent.x / 400f
-                    // Если идет запись
-                    if (motionEvent.x < 0) {
-                        binding.record.slideLayout.animate().x(motionEvent.x).setDuration(0).start()
-                    } else binding.record.slideLayout.animate().x(0f).setDuration(0).start()
-
-                    binding.record.slideLayout.alpha = alpha
-
-                    //since alpha and slide are tied together, we can cancel recording by checking transparency value
-                    if (alpha <= 0) {
-                        clearVoiceMessage()
-                        saveAudioMessage = false
-                        val animRight =
-                            AnimationUtils.loadAnimation(context, R.animator.slide_to_right)
-                        binding.record.recordLayout.startAnimation(animRight)
-                        binding.record.recordLayout.isVisible = false
-                    }
-                }
-            }; true
-        }
-
-
-        binding.frameStop.setOnClickListener {
-            binding.frameStop.isVisible = false
-            binding.linRecordLock.isVisible = false
-            binding.record.slideLayout.isVisible = false
-            binding.record.linChronometr.isVisible = false
-            binding.btnRecordExpanded.hide()
-            //  binding.buttonAttach.isVisible = false
-            binding.record.recordingPresenterLayout.isVisible = true
-        }
-
-        binding.record.tvCancelRecording.setOnClickListener {
-            clearVoiceMessage()
-        }
-
-        binding.record.voicePresenterDelete.setOnClickListener { clearVoiceMessage() }
-
-        binding.record.btnSendStop.setOnClickListener {
-            sendMessage("Audio message", null)
-            clearVoiceMessage()
-        }
-
-        binding.btnRecordExpanded.setOnClickListener {
-            sendMessage("Audio message", null)
-            clearVoiceMessage()
-        }
-
-    }
 
     private fun startAudioRecord() {
-        if (currentVoiceRecordingState == VoiceRecordState.NotRecording) {
-            binding.record.slideLayout.x = 0f
-            //   binding.buttonAttach.isVisible = false
-            binding.record.cancelRecordLayout.isVisible = false
-            recordSaveAllowed = false
-            handler.postDelayed(record, 0)
-            handler.postDelayed(timer, 0)
-            currentVoiceRecordingState = VoiceRecordState.InitiatedRecording
-            navigator().lockScreen(true)
-            saveAudioMessage = true
-        }
+        handler.postDelayed(timer, 500)
+        handler.postDelayed(record, 500)
+        saveAudioMessage = true
+    }
+
+    private fun prepareUiForRecording() {
+        enabledInputPanelButtons(false)
+        binding.record.recordLayout.isVisible = true
+        // binding.record.linChronometr.isVisible = true
+        // binding.record.slideLayout.isVisible = true
+        binding.record.slideLayout.alpha = 1.0f
+        binding.linRecordLock.isVisible = true
+        shortVibrate()
+        binding.btnRecordExpanded.show()
+        //    binding.record.slideLayout.x = 0f
+        //    binding.record.cancelRecordLayout.isVisible = false
     }
 
     private fun manageScreenSleep(keepScreenOn: Boolean) {
@@ -914,27 +953,37 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), ChatAdapter.Lis
     }
 
     private fun sendVoiceMessage() {
+        beginTimer(false)
+        VoiceManager.getInstance().stopRecording(false)
+        sendMessage("Audio Message", null)
         manageVoiceMessage(recordSaveAllowed)
+        hideRecordPanel()
         scrollDown()
-        clearVoiceMessage()
+        //     clearVoiceMessage()
         // setFirstUnreadMessageId(null)
+    }
+
+    private fun hideRecordPanel() {
+        binding.record.recordLayout.isVisible = false
+        binding.linRecordLock.isVisible = false
+        binding.btnRecordExpanded.hide()
+        binding.btnRecordExpanded.isVisible = false
+        enabledInputPanelButtons(true)
+    }
+
+    private fun enabledInputPanelButtons(enabled: Boolean) {
+        binding.buttonEmoticon.isEnabled = enabled
+        binding.btnDownward.isEnabled = enabled
     }
 
     private fun beginTimer(start: Boolean) {
         if (start) {
-            stopTypingTimer?.cancel()
             binding.record.chrRecordingTimer.base = SystemClock.elapsedRealtime()
             binding.record.chrRecordingTimer.start()
             currentVoiceRecordingState = VoiceRecordState.TouchRecording
         } else {
             binding.record.chrRecordingTimer.stop()
         }
-    }
-
-
-    private fun changeStateOfInputViewButtonsTo(state: Boolean) {
-//        binding.buttonEmoticon.isEnabled = state
-//        binding.buttonAttach.isEnabled = state
     }
 
     private fun shortVibrate() {
@@ -944,10 +993,6 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), ChatAdapter.Lis
         )
     }
 
-
-    private enum class VoiceRecordState {
-        NotRecording, InitiatedRecording, TouchRecording, NoTouchRecording, StoppedRecording
-    }
 
     private fun clearVoiceMessage() {
         isVibrate = false
@@ -968,12 +1013,14 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), ChatAdapter.Lis
         binding.btnRecordExpanded.isVisible = false
         binding.spaceLock.clearAnimation()
         binding.spaceLock.y = 0f
-        binding.imLockBar.y = 22f
+        Log.d("iii", "${binding.imLockBar.y}, ${binding.imLockBar.marginBottom}")
+        val old = binding.imLockBar.y
+        binding.imLockBar.y = old - 26f
         binding.linRecordLock.isVisible = false
         manageVoiceMessage(false)
         val params = binding.imLockBar.layoutParams as ConstraintLayout.LayoutParams
         params.bottomToBottom = binding.imLock.id
-        params.bottomMargin = 2
+        // params.bottomMargin = 2
         binding.imLockBar.layoutParams = params
         currentVoiceRecordingState = VoiceRecordState.NotRecording
         lockIsClosed = false
@@ -1003,12 +1050,11 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), ChatAdapter.Lis
 // binding.tvTopDate.setText(StringUtils.getDateStringForMessage(message.t)
     }
 
-
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
-        outState.putBoolean("i", isSelectedMode)
-        val messageText = binding.chatInput.text.toString().trim()
-        outState.putString(CHAT_MESSAGE_TEXT_KEY, messageText)
+//        outState.putBoolean(AppConstants.CHAT_SELECTION_MODE_KEY, isSelectedMode)
+//        val messageText = binding.chatInput.text.toString().trim()
+//        outState.putString(CHAT_MESSAGE_TEXT_KEY, messageText)
     }
 
 
@@ -1083,22 +1129,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), ChatAdapter.Lis
     }
 
     override fun onFullSwipe(position: Int) {
-        replyMessage(
-            MessageDto(
-                "22222",
-                true,
-                "Ann",
-                getParams().opponentJid,
-                "Алексей присоединился к чату",
-                MessageSendingState.Read,
-                1654234345585,
-                0,
-                MessageDisplayType.System,
-                false,
-                false,
-                null, false
-            )
-        )
+        handler.postDelayed(reply, 1500)
     }
 
     private val onBackPressedCallback = object : OnBackPressedCallback(true) {
@@ -1115,7 +1146,6 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), ChatAdapter.Lis
     }
 
     private fun enableSelectionMode(enable: Boolean) {
-        Log.d("yyy", "enable selection $enable")
         if (enable) {
             binding.appbar.setBackgroundResource(R.color.white)
             binding.messageToolbar.isVisible = false
@@ -1154,13 +1184,13 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), ChatAdapter.Lis
             binding.buttonAttach.isEnabled = true
             binding.btnRecord.isEnabled = true
             binding.chatInput.isEnabled = true
-
         }
     }
 
     private fun saveDraft() {
         val text =
             if (binding.chatInput.text!!.isEmpty()) null else binding.chatInput.text.toString()
+                .trimEnd()
         viewModel.saveDraft(getParams().id, text)
     }
 
@@ -1226,21 +1256,33 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), ChatAdapter.Lis
 
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        val man = binding.messageList.layoutManager as LinearLayoutManager
-        val pos = man.findLastVisibleItemPosition()
-        val savedPosition =
-            if (chatAdapter?.itemCount!! > 0) chatAdapter?.getPositionId(pos) else null
-        if (savedPosition != null) viewModel.saveLastPosition(getParams().id, savedPosition)
+    override fun onDestroyView() {
+        super.onDestroyView()
+        val lastPosition = layoutManager?.findLastVisibleItemPosition()
+
+        if (chatAdapter?.itemCount!! > 0 && lastPosition != null) {
+
+            val savedPosition = chatAdapter?.getPositionId(lastPosition)
+            if (savedPosition != null) viewModel.saveLastPosition(getParams().id, savedPosition)
+        }
 
         saveDraft()
+        onBackPressedCallback.remove()
+
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
         chatAdapter?.submitList(null)
         chatAdapter = null
-        onBackPressedCallback.remove()
-        AudioRecorder.releaseRecorder()
     }
+
+    private enum class VoiceRecordState {
+        NotRecording, InitiatedRecording, TouchRecording, NoTouchRecording, StoppedRecording
+    }
+
 }
+
 
 
 

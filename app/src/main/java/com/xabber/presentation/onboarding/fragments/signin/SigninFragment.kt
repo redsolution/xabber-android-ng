@@ -1,6 +1,8 @@
 package com.xabber.presentation.onboarding.fragments.signin
 
+import android.annotation.SuppressLint
 import android.content.Context
+import android.graphics.Color
 import android.os.Bundle
 import android.text.*
 import android.text.method.LinkMovementMethod
@@ -9,8 +11,12 @@ import android.text.style.ForegroundColorSpan
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
+import android.widget.TextView
 import androidx.activity.OnBackPressedCallback
+import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
+import androidx.core.text.color
+import androidx.core.view.isInvisible
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
@@ -24,6 +30,7 @@ import com.xabber.presentation.onboarding.fragments.signin.feature.State
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.serialization.StringFormat
 
 /** This fragment is intended for user authorization. If the authorization is successful
  * and all the features are successful, too, the user gets into the application
@@ -45,13 +52,14 @@ class SigninFragment : Fragment(R.layout.fragment_signin) {
         }
     }
 
+    @SuppressLint("SetTextI18n")
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         toolbarChanger().showArrowBack(true)
         toolbarChanger().setTitle(R.string.signin_toolbar_title_1)
         initEditText()
         initButton()
         initRecyclerView()
-        binding.signinSubtitle1.text = getSubtitleClickableSpan()
+        binding.signinSubtitle1.text = getSubtitleClickableSpan(true)
         binding.signinSubtitle1.movementMethod = LinkMovementMethod.getInstance()
     }
 
@@ -76,14 +84,9 @@ class SigninFragment : Fragment(R.layout.fragment_signin) {
                     p0.toString()
                         .isNotEmpty() && viewModel.isJidValid(jidText) && binding.editTextPassword.text.toString()
                         .isNotEmpty()
-                binding.signinSubtitle1.setTextColor(
-                    ResourcesCompat.getColor(
-                        resources,
-                        R.color.grey_text_3,
-                        requireContext().theme
-                    )
-                )
-                binding.signinSubtitle1.text = getSubtitleClickableSpan()
+                binding.errorSubtitle.isVisible = false
+                binding.signinSubtitle1.isInvisible = false
+                binding.signinSubtitle1.setText(getSubtitleClickableSpan(true), TextView.BufferType.SPANNABLE)
                 binding.signinSubtitle1.movementMethod = LinkMovementMethod.getInstance()
             }
         }
@@ -109,39 +112,18 @@ class SigninFragment : Fragment(R.layout.fragment_signin) {
                         .toString(
                         ) != password
                 ) {
-                    signinSubtitle1.setTextColor(
-                        ResourcesCompat.getColor(
-                            resources,
-                            R.color.red_600,
-                            requireContext().theme
-                        )
-                    )
-                    signinSubtitle1.text =
-                        resources.getString(R.string.signin_subtitle_error_message)
+                    binding.signinSubtitle1.isInvisible = true
+                    binding.errorSubtitle.isVisible = true
                 } else {
                     textEnabled()
                     btnConnect.isEnabled = false
                     binding.btnConnect.text =
                         resources.getString(R.string.signin_connect_button_label_2)
-
-                    val spannable =
-                        SpannableStringBuilder(resources.getString(R.string.signin_subtitle_label_1))
-                    spannable.setSpan(
-                        ForegroundColorSpan(
-                            ResourcesCompat.getColor(
-                                resources,
-                                R.color.grey_400,
-                                requireContext().theme
-                            )
-                        ),
-                        34,
-                        44,
-                        Spannable.SPAN_EXCLUSIVE_INCLUSIVE
-                    )
-                    signinSubtitle1.text = spannable
+                    signinSubtitle1.text =
+                        getSubtitleClickableSpan(false)
                     signinSubtitle1.movementMethod = null
 
-                    rvFeature.visibility = View.VISIBLE
+                    rvFeature.isVisible = true
                     closeKeyboard()
                     if (viewModel.isJidValid(editTextLogin.text.toString()) || editTextPassword.text!!.length > 5) {
                         compositeDisposable?.add(viewModel.features
@@ -153,8 +135,8 @@ class SigninFragment : Fragment(R.layout.fragment_signin) {
                                         resources.getString(R.string.signin_title_label_template_2),
                                         host
                                     )
-                                    editTextLogin.visibility = View.GONE
-                                    editTextPassword.visibility = View.GONE
+                                    editTextLogin.isVisible = false
+                                    editTextPassword.isVisible = false
                                     signinSubtitle1.isVisible = false
                                     btnConnect.isVisible = false
                                 }
@@ -172,10 +154,9 @@ class SigninFragment : Fragment(R.layout.fragment_signin) {
                                     }
                                     if (list.count { it.nameResId == R.string.feature_name_10 } == 1 && list.all { it.state != State.Error }) {
                                         signinSubtitle2.isVisible = true
-
                                         btnRock.isVisible = true
                                         btnRock.setOnClickListener {
-                                            navigator().goToApplicationActivity()
+                                            navigator().goToApplicationActivity(null)
                                         }
                                     }
                                     if (viewModel._features.count { it.state == State.Error } <= 1 &&
@@ -225,36 +206,26 @@ class SigninFragment : Fragment(R.layout.fragment_signin) {
         binding.signinSubtitle1.movementMethod = null
     }
 
-    fun getSubtitleClickableSpan(): Spannable {
+    fun getSubtitleClickableSpan(clickable: Boolean): SpannableString {
         val spannable =
-            SpannableStringBuilder(resources.getString(R.string.signin_subtitle_label_1))
-        spannable.setSpan(
-            ForegroundColorSpan(
-                ResourcesCompat.getColor(
-                    resources,
-                    R.color.blue_600,
-                    requireContext().theme
-                )
-            ),
-            34,
-            44,
-            Spannable.SPAN_EXCLUSIVE_INCLUSIVE
-        )
-        spannable.setSpan(
-            object : ClickableSpan() {
-                override fun onClick(p0: View) {
-                    navigator().openSignupNicknameFragment()
-                }
+            SpannableString("${resources.getString(R.string.signin_subtitle_label_1_start)} ${resources.getString(R.string.press_here)} ${resources.getString(R.string.signin_subtitle_label_1_end)}")
 
-                override fun updateDrawState(ds: TextPaint) {
-                    super.updateDrawState(ds)
-                    ds.isUnderlineText = false
-                }
-            },
-            34,
-            44,
-            Spannable.SPAN_EXCLUSIVE_INCLUSIVE
-        )
+       if (clickable)
+            spannable.setSpan(
+                object : ClickableSpan() {
+                    override fun onClick(p0: View) {
+                        navigator().openSignupNicknameFragment()
+                    }
+
+                    override fun updateDrawState(ds: TextPaint) {
+                        super.updateDrawState(ds)
+                        ds.isUnderlineText = false
+                    }
+                },
+                resources.getString(R.string.signin_subtitle_label_1_start).length,
+                resources.getString(R.string.signin_subtitle_label_1_start).length +1 + resources.getString(R.string.press_here).length + 1,
+                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
         return spannable
     }
 

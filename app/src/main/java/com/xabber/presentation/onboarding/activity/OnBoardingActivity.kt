@@ -1,7 +1,9 @@
 package com.xabber.presentation.onboarding.activity
 
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.commit
@@ -14,7 +16,7 @@ import com.xabber.presentation.onboarding.contract.OnboardingNavigator
 import com.xabber.presentation.onboarding.contract.ToolbarChanger
 import com.xabber.presentation.onboarding.fragments.signin.SigninFragment
 import com.xabber.presentation.onboarding.fragments.signup.SignupAvatarFragment
-import com.xabber.presentation.onboarding.fragments.signup.SignupJidFragment
+import com.xabber.presentation.onboarding.fragments.signup.SignupNicknameFragment
 import com.xabber.presentation.onboarding.fragments.signup.SignupPasswordFragment
 import com.xabber.presentation.onboarding.fragments.signup.SignupUserNameFragment
 import com.xabber.presentation.onboarding.fragments.start.StartFragment
@@ -56,7 +58,7 @@ class OnBoardingActivity : AppCompatActivity(), OnboardingNavigator, ToolbarChan
     }
 
     override fun goBack() {
-        onBackPressedDispatcher.onBackPressed()
+        supportFragmentManager.popBackStack()
     }
 
     override fun onSupportNavigateUp(): Boolean {
@@ -71,7 +73,7 @@ class OnBoardingActivity : AppCompatActivity(), OnboardingNavigator, ToolbarChan
     }
 
     override fun openSignupNicknameFragment() {
-        openFragment(SignupJidFragment())
+        openFragment(SignupNicknameFragment())
     }
 
     override fun openSignupUserNameFragment() {
@@ -90,8 +92,10 @@ class OnBoardingActivity : AppCompatActivity(), OnboardingNavigator, ToolbarChan
         openFragment(SigninFragment())
     }
 
-    override fun goToApplicationActivity() {
+    override fun goToApplicationActivity(avatar: String?) {
         val intent = Intent(applicationContext, ApplicationActivity::class.java)
+        Log.d("avatar", "onboardingactivity $avatar")
+        if (avatar != null) intent.putExtra("avatar", avatar)
         startActivity(intent)
         finish()
         overridePendingTransition(R.anim.appearance, R.anim.disappearance)

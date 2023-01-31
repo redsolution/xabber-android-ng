@@ -1,32 +1,24 @@
 package com.xabber.presentation.application.fragments.chat
 
 import android.annotation.SuppressLint
-import android.content.Context
 import android.graphics.Canvas
 import android.graphics.drawable.Drawable
 import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import android.view.View
-import androidx.core.content.ContextCompat
+import android.view.View.OnTouchListener
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.RecyclerView
-import com.xabber.R
-import com.xabber.presentation.application.fragments.chat.message.ChatAdapter
-import com.xabber.utils.dp
+import com.xabber.presentation.application.fragments.chat.message.SystemMessageMessageVH
 import kotlin.math.max
 import kotlin.math.min
 
-class ReplySwipeCallback(context: Context) : ItemTouchHelper.Callback(), View.OnTouchListener {
-    private var swipeListener: SwipeAction? = null
+class ReplySwipeCallback(
+    private val replyIcon: Drawable,
+    private val swipeListener: (Int) -> Unit
+) :
+    ItemTouchHelper.Callback(), OnTouchListener {
     private var currentReplyArrowState = ReplyArrowState.GONE
-
-    private val replyIcon: Drawable =
-        ContextCompat.getDrawable(context, R.drawable.reply_circle)!!
-    private val fullSize = 32.dp
-    private val paddingRight = 28
-    private val maxSwipeDistanceRatio = 0.18f
-    private val activeSwipeDistanceRatio = 0.13f
-
     private var currentItemViewHolder: RecyclerView.ViewHolder? = null
     private var touchListenerIsSet = false
     private var touchListenerIsEnabled = false
@@ -35,12 +27,10 @@ class ReplySwipeCallback(context: Context) : ItemTouchHelper.Callback(), View.On
     private var isAnimating = false
     private val scaleAnimationSteps = ArrayList<Float>(8)
     private var currentAnimationStep = 0
-
     private var left = 0
     private var top = 0
     private var right = 0
     private var bottom = 0
-
     private var recyclerView: RecyclerView? = null
     private var dXReleasedAt = 0f
     private var dXModified = 0f
@@ -52,7 +42,7 @@ class ReplySwipeCallback(context: Context) : ItemTouchHelper.Callback(), View.On
         fun onFullSwipe(position: Int)
     }
 
-    fun replySwipeCallback() {
+    init {
         addAnimationSteps()
     }
 
@@ -60,9 +50,9 @@ class ReplySwipeCallback(context: Context) : ItemTouchHelper.Callback(), View.On
         recyclerView: RecyclerView,
         viewHolder: RecyclerView.ViewHolder
     ): Int {
-        return makeMovementFlags(
+        return if (viewHolder is SystemMessageMessageVH) 0 else makeMovementFlags(
             0,
-            if (swipeEnabled && viewHolder.itemViewType != ChatAdapter.SYSTEM_MESSAGE) ItemTouchHelper.LEFT else 0
+            if (swipeEnabled) ItemTouchHelper.LEFT else 0
         )
     }
 
@@ -75,7 +65,6 @@ class ReplySwipeCallback(context: Context) : ItemTouchHelper.Callback(), View.On
     }
 
     override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {}
-
     override fun getSwipeVelocityThreshold(defaultValue: Float): Float {
         return defaultValue / 2
     }
@@ -128,7 +117,7 @@ class ReplySwipeCallback(context: Context) : ItemTouchHelper.Callback(), View.On
         val centerY = itemView.top + height / 2
         val centerX = itemView.right + (dXModified * 0.5).toInt()
         isAnimating = false
-        val currentSize = getCurrentIconSize()
+        val currentSize = currentIconSize
         left = centerX - currentSize / 2
         right = centerX + currentSize / 2
         top = centerY - currentSize / 2
@@ -146,39 +135,41 @@ class ReplySwipeCallback(context: Context) : ItemTouchHelper.Callback(), View.On
         )
     }
 
-    private fun getCurrentIconSize(): Int {
-        var iconSize = 0
-        when (currentReplyArrowState) {
-            ReplyArrowState.ANIMATING_IN -> if (currentAnimationStep < 7) {
-                iconSize = (fullSize * scaleAnimationSteps[currentAnimationStep]).toInt()
-                isAnimating = true
-                currentAnimationStep++
-            } else {
-                currentAnimationStep = 7
-                iconSize = fullSize
-                isAnimating = false
-                currentReplyArrowState = ReplyArrowState.VISIBLE
+    //skip enlarged frame of the animation.
+    private val currentIconSize: Int
+        get() {
+            var iconSize = 0
+            when (currentReplyArrowState) {
+                ReplyArrowState.ANIMATING_IN -> if (currentAnimationStep < 7) {
+                    iconSize = (fullSize * scaleAnimationSteps[currentAnimationStep]).toInt()
+                    isAnimating = true
+                    currentAnimationStep++
+                } else {
+                    currentAnimationStep = 7
+                    iconSize = fullSize
+                    isAnimating = false
+                    currentReplyArrowState = ReplyArrowState.VISIBLE
+                }
+                ReplyArrowState.ANIMATING_OUT -> if (currentAnimationStep > 0) {
+                    if (currentAnimationStep == 6) currentAnimationStep-- //skip enlarged frame of the animation.
+                    iconSize = (fullSize * scaleAnimationSteps[currentAnimationStep]).toInt()
+                    isAnimating = true
+                    currentAnimationStep--
+                } else {
+                    currentAnimationStep = 0
+                    iconSize = 0
+                    isAnimating = false
+                    currentReplyArrowState = ReplyArrowState.GONE
+                    currentItemViewHolder = null
+                }
+                ReplyArrowState.VISIBLE -> {
+                    iconSize = fullSize
+                    isAnimating = false
+                }
+                else -> {}
             }
-            ReplyArrowState.ANIMATING_OUT -> if (currentAnimationStep > 0) {
-                if (currentAnimationStep == 6) currentAnimationStep--
-                iconSize = (fullSize * scaleAnimationSteps[currentAnimationStep]).toInt()
-                isAnimating = true
-                currentAnimationStep--
-            } else {
-                currentAnimationStep = 0
-                iconSize = 0
-                isAnimating = false
-                currentReplyArrowState = ReplyArrowState.GONE
-                currentItemViewHolder = null
-            }
-            ReplyArrowState.VISIBLE -> {
-                iconSize = fullSize
-                isAnimating = false
-            }
-            else -> {}
+            return iconSize
         }
-        return iconSize
-    }
 
     @SuppressLint("ClickableViewAccessibility")
     private fun setTouchListener(recyclerView: RecyclerView) {
@@ -202,22 +193,29 @@ class ReplySwipeCallback(context: Context) : ItemTouchHelper.Callback(), View.On
     private fun updateModifiedTouchData(dXReal: Float): Float {
         val dXModified: Float
         val dXThreshold =
-            -min(recyclerView!!.width, recyclerView!!.height) * maxSwipeDistanceRatio
+            -min(recyclerView!!.width, recyclerView!!.height) * MAX_SWIPE_DISTANCE_RATIO
         dXModified = if (isCurrentlyActive) {
+            //View is being actively moved by the user.
             max(dXReal, dXThreshold)
         } else {
+            //View is in the restoration phase
             if (dXReleasedAt < dXThreshold) {
+                //the real delta of finger movement at the time of "release" is bigger than the threshold(max swipe distance of the view).
+                //e.g. finger moved 500px, while the view stopped at the threshold of 300px
+                //
+                //by doing this we can "appropriate" original view's animation's positional data
+                //instead of overriding it until it becomes lower than the threshold
                 dXReal / dXReleasedAt * dXThreshold
             } else {
+                //the real delta of finger movement at the time of "release" is smaller than the threshold, so dXModified and dXReal should be equal.
                 dXReal
             }
         }
         return dXModified
     }
 
-
     @SuppressLint("ClickableViewAccessibility")
-    override fun onTouch(v: View?, event: MotionEvent): Boolean {
+    override fun onTouch(v: View, event: MotionEvent): Boolean {
         swipeBack =
             event.action == MotionEvent.ACTION_CANCEL || event.action == MotionEvent.ACTION_UP
         if (actionState == ItemTouchHelper.ACTION_STATE_SWIPE && touchListenerIsEnabled) {
@@ -226,20 +224,22 @@ class ReplySwipeCallback(context: Context) : ItemTouchHelper.Callback(), View.On
                     dXReleasedAt = dXReal
                     touchListenerIsEnabled = false
                     setItemsClickable(recyclerView, true)
-                    if (swipeListener != null) {
-                        if (currentReplyArrowState == ReplyArrowState.VISIBLE || currentReplyArrowState == ReplyArrowState.ANIMATING_IN && currentItemViewHolder != null) {
-                            swipeListener!!.onFullSwipe(currentItemViewHolder!!.adapterPosition)
-                        }
+                    if (currentReplyArrowState == ReplyArrowState.VISIBLE || currentReplyArrowState == ReplyArrowState.ANIMATING_IN && currentItemViewHolder != null) {
+                        swipeListener(currentItemViewHolder!!.absoluteAdapterPosition)
                     }
                     currentReplyArrowState =
                         if (currentReplyArrowState == ReplyArrowState.VISIBLE || currentReplyArrowState == ReplyArrowState.ANIMATING_IN) ReplyArrowState.ANIMATING_OUT else ReplyArrowState.GONE
                 }
                 else -> {
+                    //We set max swipe distance as 0.2f, but since we don't want the user to drag
+                    //each message all the way to the end for a reply, the "active" reply state starts at 0.15f,
+                    //and is accompanied by the haptic feedback and the appearance of the reply icon.
+                    //animations soon?
                     dXReleasedAt = 0f
                     if (dXModified < -min(
                             recyclerView!!.width,
                             recyclerView!!.height
-                        ) * activeSwipeDistanceRatio
+                        ) * ACTIVE_SWIPE_DISTANCE_RATIO
                     ) {
                         if (currentReplyArrowState == ReplyArrowState.GONE) {
                             currentReplyArrowState = ReplyArrowState.ANIMATING_IN
@@ -292,4 +292,10 @@ class ReplySwipeCallback(context: Context) : ItemTouchHelper.Callback(), View.On
         GONE, ANIMATING_IN, VISIBLE, ANIMATING_OUT
     }
 
+    companion object {
+        private const val fullSize = 80
+        private const val paddingRight = 28
+        private const val MAX_SWIPE_DISTANCE_RATIO = 0.18f
+        private const val ACTIVE_SWIPE_DISTANCE_RATIO = 0.13f
+    }
 }

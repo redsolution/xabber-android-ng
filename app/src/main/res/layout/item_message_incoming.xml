@@ -16,7 +16,7 @@
 
         <include
             android:id="@+id/unread_messages"
-            layout="@layout/item_first_unread_message" />
+            layout="@layout/unread_messages" />
 
         <include
             android:id="@+id/message_date"

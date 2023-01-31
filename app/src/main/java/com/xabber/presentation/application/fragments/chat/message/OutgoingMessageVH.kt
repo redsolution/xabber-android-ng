@@ -24,9 +24,9 @@ import com.bumptech.glide.Glide
 import com.google.android.material.snackbar.Snackbar
 import com.xabber.R
 import com.xabber.databinding.ItemMessageOutgoingBinding
-import com.xabber.model.dto.MessageDto
-import com.xabber.model.xmpp.messages.MessageSendingState
-import com.xabber.model.xmpp.messages.MessageSendingState.*
+import com.xabber.models.dto.MessageDto
+import com.xabber.models.xmpp.messages.MessageSendingState
+import com.xabber.models.xmpp.messages.MessageSendingState.*
 import com.xabber.presentation.AppConstants
 import com.xabber.presentation.application.fragments.chat.Check
 import com.xabber.utils.StringUtils
@@ -46,7 +46,7 @@ class OutgoingMessageVH(
         _isNeedTail: Boolean,
         needDay: Boolean,
         showCheckbox: Boolean,
-        isNeedTitle: Boolean
+        isNeedTitle: Boolean, isNeedUnread: Boolean
     ) {
 
         val isNeedTail =
@@ -141,8 +141,9 @@ class OutgoingMessageVH(
 
         binding.root.setOnClickListener {
             Log.d("show", "$showCheckbox")
-            if (Check.getSelectedMode()) { listener.checkItem(!messageDto.isChecked, messageDto.primary)
-          } else {
+            if (Check.getSelectedMode()) {
+                listener.checkItem(!messageDto.isChecked, messageDto.primary)
+            } else {
                 val popup = PopupMenu(it.context, it, Gravity.CENTER)
                 popup.setForceShowIcon(true)
                 if (messageDto.isOutgoing) popup.inflate(R.menu.popup_menu_message_outgoing)
@@ -185,7 +186,9 @@ class OutgoingMessageVH(
         setupReferences(messageDto)
         binding.root.setOnLongClickListener {
             if (!Check.getSelectedMode()) listener.onLongClick(messageDto.primary)
-            else  {listener.checkItem(!messageDto.isChecked, messageDto.primary) }
+            else {
+                listener.checkItem(!messageDto.isChecked, messageDto.primary)
+            }
             true
         }
     }
@@ -449,26 +452,27 @@ class OutgoingMessageVH(
     }
 
 
-override fun bind(
-    messageDto: MessageDto,
-    _isNeedTail: Boolean,
-    needDay: Boolean,
-    showCheckbox: Boolean,
-    isNeedTitle: Boolean, payloads: List<Any>
-) {
-    val bundle = payloads.last() as Bundle
-    for (key in bundle.keySet()) {
-        when (key) {
-            AppConstants.PAYLOAD_MESSAGE_SENDING_STATE -> {
-                val newState = bundle.getParcelable<MessageSendingState>(AppConstants.PAYLOAD_MESSAGE_SENDING_STATE)
-                if (newState != null) setStatus(binding.imageMessageStatus, newState)
+    override fun bind(
+        messageDto: MessageDto,
+        _isNeedTail: Boolean,
+        needDay: Boolean,
+        showCheckbox: Boolean,
+        isNeedTitle: Boolean, isNeedUnread: Boolean, payloads: List<Any>
+    ) {
+        val bundle = payloads.last() as Bundle
+        for (key in bundle.keySet()) {
+            when (key) {
+                AppConstants.PAYLOAD_MESSAGE_SENDING_STATE -> {
+                    val newState =
+                        bundle.getParcelable<MessageSendingState>(AppConstants.PAYLOAD_MESSAGE_SENDING_STATE)
+                    if (newState != null) setStatus(binding.imageMessageStatus, newState)
+                }
+
+
             }
 
-
         }
-
     }
-}
 }
 
 

@@ -2,7 +2,6 @@ package com.xabber.presentation.application.fragments.chat.message
 
 import android.content.res.ColorStateList
 import android.os.Build
-import android.text.format.DateFormat
 import android.util.Log
 import android.view.View
 import android.view.ViewGroup
@@ -12,11 +11,9 @@ import androidx.appcompat.widget.LinearLayoutCompat
 import androidx.core.graphics.drawable.DrawableCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.xabber.R
-import com.xabber.model.dto.MessageDto
-import com.xabber.model.dto.MessageVhExtraData
+import com.xabber.models.dto.MessageDto
+import com.xabber.models.dto.MessageVhExtraData
 //import com.xabber.presentation.XabberApplication
-import com.xabber.presentation.application.fragments.chat.audio.VoiceManager
-import com.xabber.presentation.custom.CorrectlyTouchEventTextView
 import com.xabber.presentation.custom.CustomFlexboxLayout
 import java.util.*
 

@@ -19,33 +19,40 @@ import com.xabber.utils.setFragmentResult
 class NotificationBottomSheet :
     BottomSheetDialogFragment(R.layout.bottom_sheet_turn_off_notifications) {
     private val binding by viewBinding(BottomSheetTurnOffNotificationsBinding::bind)
-    var behavior: BottomSheetBehavior<*>? = null
+    private var behavior: BottomSheetBehavior<*>? = null
+
+    companion object {
+        fun newInstance() = NotificationBottomSheet()
+    }
 
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
         val dialog = super.onCreateDialog(savedInstanceState) as BottomSheetDialog
+
         dialog.setOnShowListener {
-            setupBottomSheet(it)
+            setupBottomSheet(it, savedInstanceState)
         }
         return dialog
     }
 
-    private fun setupBottomSheet(dialogInterface: DialogInterface) {
+    private fun setupBottomSheet(dialogInterface: DialogInterface, savedInstanceState: Bundle?) {
         val bottomSheetDialog = dialogInterface as BottomSheetDialog
         val bottomSheet = bottomSheetDialog.findViewById<View>(
             com.google.android.material.R.id.design_bottom_sheet
         )
             ?: return
+
         bottomSheet.setBackgroundColor(Color.TRANSPARENT)
         behavior = BottomSheetBehavior.from(bottomSheet)
         behavior?.skipCollapsed = true
         behavior?.state = BottomSheetBehavior.STATE_EXPANDED
-    }
-
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
-        if (savedInstanceState != null) behavior?.state = BottomSheetBehavior.STATE_EXPANDED
         initActions()
     }
+
+//    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+//        super.onViewCreated(view, savedInstanceState)
+//        if (savedInstanceState != null) behavior?.state = BottomSheetBehavior.STATE_EXPANDED
+//
+//    }
 
     private fun initActions() {
         with(binding) {

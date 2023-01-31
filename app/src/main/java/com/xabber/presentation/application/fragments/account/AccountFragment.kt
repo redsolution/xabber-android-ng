@@ -2,7 +2,10 @@ package com.xabber.presentation.application.fragments.account
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.content.Context
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.drawable.BitmapDrawable
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
@@ -11,41 +14,53 @@ import android.view.*
 import android.view.animation.AnimationUtils
 import android.widget.ImageView
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.content.res.AppCompatResources
 import androidx.appcompat.widget.PopupMenu
 import androidx.coordinatorlayout.widget.CoordinatorLayout
 import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
+import androidx.core.graphics.drawable.toBitmap
 import androidx.core.view.MenuProvider
 import androidx.core.view.isVisible
+import androidx.fragment.app.activityViewModels
+import androidx.fragment.app.viewModels
 import by.kirich1409.viewbindingdelegate.viewBinding
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.MultiTransformation
 import com.bumptech.glide.load.resource.bitmap.CenterCrop
+import com.bumptech.glide.load.resource.bitmap.CircleCrop
 import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions
+import com.bumptech.glide.request.RequestOptions
 import com.google.android.material.appbar.AppBarLayout
 import com.google.android.material.appbar.CollapsingToolbarLayout
 import com.xabber.R
-import com.xabber.model.xmpp.account.Account
 import com.xabber.databinding.FragmentAccountBinding
+import com.xabber.models.xmpp.account.AccountViewModel
 import com.xabber.presentation.AppConstants
+import com.xabber.presentation.application.activity.AvatarBottomSheetDialog
 import com.xabber.presentation.application.activity.DisplayManager
-import com.xabber.utils.mask.MaskedDrawableBitmapShader
 import com.xabber.presentation.application.activity.UiChanger
 import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.application.fragments.DetailBaseFragment
 import com.xabber.presentation.application.fragments.account.color.AccountColorDialog
 import com.xabber.presentation.application.fragments.account.qrcode.QRCodeParams
 import com.xabber.presentation.application.fragments.chat.FileManager
-import com.xabber.presentation.application.fragments.chat.FileManager.Companion.getFileUri
+import com.xabber.presentation.onboarding.fragments.signup.AvatarBottomSheet
 import com.xabber.utils.askUserForOpeningAppSettings
 import com.xabber.utils.blur.BlurTransformation
 import com.xabber.utils.dp
 import com.xabber.utils.isPermissionGranted
+import com.xabber.utils.mask.Mask
 import com.xabber.utils.mask.MaskPrepare
+import com.xabber.utils.mask.MaskedDrawableBitmapShader
+import io.realm.kotlin.internal.platform.RealmInitializer
+import java.io.ByteArrayOutputStream
 import java.io.File
+import java.io.FileOutputStream
 
 class AccountFragment : DetailBaseFragment(R.layout.fragment_account) {
     private val binding by viewBinding(FragmentAccountBinding::bind)
+    private val viewModel: AccountViewModel by activityViewModels()
     private var currentPhotoUri: Uri? = null
 
     private val requestCameraPermissionLauncher = registerForActivityResult(
@@ -66,20 +81,22 @@ class AccountFragment : DetailBaseFragment(R.layout.fragment_account) {
     )
 
     companion object {
-        fun newInstance(account: Account): AccountFragment {
+        fun newInstance(jid: String): AccountFragment {
             val args =
-                Bundle().apply { putParcelable(AppConstants.PARAMS_ACCOUNT_FRAGMENT, account) }
+                Bundle().apply { putString(AppConstants.PARAMS_ACCOUNT_FRAGMENT, jid) }
             val fragment = AccountFragment()
             fragment.arguments = args
             return fragment
         }
     }
 
-    private fun getAccount(): Account =
-        requireArguments().getParcelable(AppConstants.PARAMS_ACCOUNT_FRAGMENT)!!
+    private fun getJid(): String =
+        requireArguments().getString(AppConstants.PARAMS_ACCOUNT_FRAGMENT)!!
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        binding.accountAppbar.tvTitle.isSelected = true
+
         var actionBarHeight = 0
         val tv = TypedValue()
         if (requireActivity().theme.resolveAttribute(
@@ -101,50 +118,96 @@ class AccountFragment : DetailBaseFragment(R.layout.fragment_account) {
         initToolbarActions()
         createAvatarPopupMenu()
         initAccountSettingsActions()
+        Log.d(
+            "params",
+            "DisplayManager.getWidthDp() = ${binding.root.width}, text = ${binding.accountAppbar.tvTitle.width}"
+        )
         if (!DisplayManager.isDualScreenMode() && DisplayManager.getWidthDp() > 600) {
             val params = CollapsingToolbarLayout.LayoutParams(
                 CoordinatorLayout.LayoutParams.WRAP_CONTENT,
                 CollapsingToolbarLayout.LayoutParams.WRAP_CONTENT
             )
-            params.gravity = Gravity.CENTER_VERTICAL or Gravity.RIGHT
-            params.marginEnd = 88.dp
+            params.gravity = Gravity.CENTER_VERTICAL or Gravity.START
+            params.marginStart = 300.dp
             binding.accountAppbar.linText.layoutParams = params
         }
+        binding.accountAppbar.switchAccountEnable.isChecked =
+            viewModel.getAccount(getJid())!!.enabled
+        binding.accountAppbar.switchAccountEnable.setOnClickListener { viewModel.setEnabled(getJid()) }
+
+        viewModel.initDataListener()
+        viewModel.accounts.observe(viewLifecycleOwner) {
+            binding.accountAppbar.switchAccountEnable.isChecked = it[0].enabled
+        }
+
+        viewModel.avatarBitmap.observe(viewLifecycleOwner) {
+            val multiTransformation = MultiTransformation(CircleCrop())
+            Glide.with(requireContext()).load(it).error(R.drawable.ic_avatar_placeholder)
+                .apply(RequestOptions.bitmapTransform(multiTransformation))
+                .into(binding.accountAppbar.imPhoto)
+            saveAvatar(it)
+        }
+    }
+
+    private fun saveAvatar(bitmap: Bitmap) {
+        val stream = ByteArrayOutputStream()
+        bitmap.compress(Bitmap.CompressFormat.PNG, 90, stream)
+        val bytesArray = stream.toByteArray()
+        val name = "avatar + ${System.currentTimeMillis()}"
+        val file = File(RealmInitializer.filesDir, name)
+        FileOutputStream(file).use {
+            val bytes = bytesArray
+            it.write(bytes)
+        }
+        val fileNme = file.path
+        Log.d("bbb", "name = $fileNme")
+        UiChanger.setAvatar(fileNme)
+        super.onDestroy()
+        val sh =   activity?.getSharedPreferences("pref", Context.MODE_PRIVATE)
+        sh?.edit()?.putString("avatar", UiChanger.getAvatar())?.apply()
+        viewModel.setAvatar("", "")
     }
 
     @SuppressLint("ResourceAsColor")
     private fun changeUiWithAccountData() {
-       loadBackground()
+        loadBackground()
         defineColor()
-      loadAvatar()
+        loadAvatar()
+        binding.accountAppbar.switchAccountEnable.isVisible = true
+        val account = viewModel.getAccount(getJid())
         with(binding.accountAppbar) {
-            tvTitle.text = getAccount().name
-            tvSubtitle.text = getAccount().jid
+            if (account != null) {
+                tvTitle.text = account.nickname
+                tvSubtitle.text = account.jid
+            }
         }
     }
 
     private fun loadBackground() {
-        binding.accountAppbar.appbar.setBackgroundResource(getAccount().colorResId)
+        binding.accountAppbar.appbar.setBackgroundResource(R.color.blue_500)
         Glide.with(requireContext())
-            .load(getAccount().avatar)
+            .load(R.drawable.img)
             .transform(
-                    BlurTransformation(
-                        25,
-                        6,
-                       ContextCompat.getColor(requireContext(),
-                            getAccount().colorResId
-                        )
+                BlurTransformation(
+                    25,
+                    6,
+                    ContextCompat.getColor(
+                        requireContext(),
+                        R.color.blue_500
                     )
-            ).placeholder(getAccount().colorResId).transition(
+                )
+            ).placeholder(R.color.blue_500).transition(
                 DrawableTransitionOptions.withCrossFade()
             )
             .into(binding.accountAppbar.imBackdrop)
     }
 
     private fun loadAvatar() {
-        val maskedDrawable = MaskPrepare.getDrawableMask(resources, getAccount().avatar, UiChanger.getMask().size176)
-        Glide.with(requireContext())
-            .load(maskedDrawable).error(getAccount().colorResId)
+
+        val avatar = UiChanger.getAvatar()
+        val multiTransformation = MultiTransformation(CircleCrop())
+        Glide.with(requireContext()).load(avatar).error(R.drawable.ic_avatar_placeholder)
+            .apply(RequestOptions.bitmapTransform(multiTransformation))
             .into(binding.accountAppbar.imPhoto)
     }
 
@@ -153,8 +216,7 @@ class AccountFragment : DetailBaseFragment(R.layout.fragment_account) {
         popup.inflate(R.menu.popup_menu_account_avatar)
         popup.setOnMenuItemClickListener {
             when (it.itemId) {
-                R.id.choose_from_gallery -> choosePhotoFromGallery()
-                R.id.take_photo -> takePhoto()
+                R.id.choose_image -> AvatarBottomSheetDialog().show(parentFragmentManager, "")
                 R.id.delete_avatar -> deleteAvatar()
             }
             true
@@ -183,7 +245,44 @@ class AccountFragment : DetailBaseFragment(R.layout.fragment_account) {
     }
 
     private fun deleteAvatar() {
+        //    viewModel.setAvatar(getJid(),null)
+        val mPictureBitmap =
+            AppCompatResources.getDrawable(requireContext(), R.drawable.ic_empty_photo)?.toBitmap()
 
+        Log.d("bbb", "$mPictureBitmap")
+        val mMaskBitmap =
+            BitmapFactory.decodeResource(
+                binding.root.context.resources,
+                UiChanger.getMask().size176
+            )
+                .extractAlpha()
+        val maskedDrawable = MaskedDrawableBitmapShader()
+        maskedDrawable.setPictureBitmap(mPictureBitmap)
+        maskedDrawable.setMaskBitmap(mMaskBitmap)
+
+        Glide.with(requireContext())
+            .load(maskedDrawable)
+            .into(binding.accountAppbar.imPhoto)
+        // val multiTransformation = MultiTransformation(CircleCrop())
+//        Glide.with(requireContext()).load(R.drawable.ic_empty_photo).error(R.drawable.ic_avatar_placeholder)
+//            .apply(RequestOptions.bitmapTransform(multiTransformation))
+//            .into(binding.accountAppbar.imPhoto)
+        val bitmap =
+            AppCompatResources.getDrawable(requireContext(), R.drawable.ic_empty_photo)?.toBitmap()
+        val stream = ByteArrayOutputStream()
+        bitmap?.compress(Bitmap.CompressFormat.PNG, 90, stream)
+        val bytesArray = stream.toByteArray()
+        val name = "avatar + ${System.currentTimeMillis()}"
+        val file = File(RealmInitializer.filesDir, name)
+        FileOutputStream(file).use {
+            val bytes = bytesArray
+            it.write(bytes)
+        }
+        val fileNme = file.path
+        Log.d("bbb", "name = $fileNme")
+        UiChanger.setAvatar(fileNme)
+        val sh =   activity?.getSharedPreferences("pref", Context.MODE_PRIVATE)
+        sh?.edit()?.putString("avatar", UiChanger.getAvatar())?.apply()
     }
 
     private fun initToolbarActions() {
@@ -199,11 +298,11 @@ class AccountFragment : DetailBaseFragment(R.layout.fragment_account) {
                         navigator().showDialogFragment(dialog, "")
                     }
                     R.id.generate_qr_code -> {
-                        navigator().showMyQRCode(
+                        navigator().showQRCode(
                             QRCodeParams(
                                 "",
-                                getAccount().jid!!,
-                                getAccount().colorResId
+                                getJid(),
+                                R.color.blue_500
                             )
                         )
                     }
@@ -249,7 +348,7 @@ class AccountFragment : DetailBaseFragment(R.layout.fragment_account) {
                     }
                 }
                 if (scrollRange + verticalOffset == 0) {
-                    collapsingToolbar.title = getAccount().name
+                    collapsingToolbar.title = viewModel.getAccount(getJid())!!.nickname
                     isShow = true
                 } else if (isShow) {
                     collapsingToolbar.title =
@@ -264,18 +363,18 @@ class AccountFragment : DetailBaseFragment(R.layout.fragment_account) {
         binding.accountAppbar.collapsingToolbar.setContentScrimColor(
             ResourcesCompat.getColor(
                 resources,
-                getAccount().colorResId,
+                R.color.blue_500,
                 requireContext().theme
             )
         )
     }
 
     private fun takePhotoFromCamera() {
-        val image: File? = FileManager.generatePicturePath()
-        if (image != null) {
-            currentPhotoUri = getFileUri(image, requireContext())
-            cameraResultLauncher.launch(currentPhotoUri)
-        }
+//        val image: File? = FileManager.generatePicturePath()
+//        if (image != null) {
+//            currentPhotoUri = getFileUri(image, requireContext())
+//            cameraResultLauncher.launch(currentPhotoUri)
+//        }
     }
 
     private fun onGotCameraPermissionResult(grantResults: Map<String, Boolean>) {
@@ -322,7 +421,7 @@ class AccountFragment : DetailBaseFragment(R.layout.fragment_account) {
                             8,
                             ResourcesCompat.getColor(
                                 resources,
-                                getAccount().colorResId,
+                                R.color.blue_500,
                                 view?.context?.theme
                             )
                         )

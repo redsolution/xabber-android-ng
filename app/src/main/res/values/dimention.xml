@@ -54,4 +54,23 @@
     <dimen name="snackbar_vertical_bias">0.9</dimen>
     <dimen name="toolbar_avatar_margin">8dp</dimen>
     <dimen name="toolbar_title_font_size">20sp</dimen>
+    <dimen name="item_chat_height">72dp</dimen>
+    <dimen name="item_chat_padding">8dp</dimen>
+    <dimen name="color_indicator_width">2dp</dimen>
+    <dimen name="text_size_item_chat_title">14sp</dimen>
+    <dimen name="text_size_item_chat_message">14sp</dimen>
+    <dimen name="text_size_large">20sp</dimen>
+    <dimen name="text_size_timestamp">10sp</dimen>
+    <dimen name="drawable_mute_padding">4dp</dimen>
+    <dimen name="message_status_size">16dp</dimen>
+    <dimen name="unread_count_text_size">13sp</dimen>
+    <dimen name="sync_image_size">4dp</dimen>
+    <dimen name="status_size_toolbar">9dp</dimen>
+    <dimen name="logo_empty">90dp</dimen>
+    <dimen name="margin_standard">12dp</dimen>
+    <dimen name="margin_10">10dp</dimen>
+    <dimen name="text_size_button_toolbar">15sp</dimen>
+    <dimen name="padding_middle">12dp</dimen>
+    <dimen name="paddind_small">4dp</dimen>
+
 </resources>

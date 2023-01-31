@@ -20,36 +20,55 @@
             android:layout_height="?attr/actionBarSize">
 
             <Button
-                android:background="@color/transparent"
-                android:id="@+id/tv_add_contact"
+                style="@style/ButtonToolbar"
+                android:textColor="@color/grey_600"
+                android:id="@+id/btn_add_contact"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_gravity="end"
-                android:layout_marginEnd="12dp"
-                android:text="Add contact"
-                android:enabled="false"
-                android:textAllCaps="true"
-                android:textSize="15sp" />
+                android:text="@string/button_add_contact" />
 
         </com.google.android.material.appbar.MaterialToolbar>
     </com.google.android.material.appbar.AppBarLayout>
 
     <com.google.android.material.textfield.TextInputLayout
-        android:layout_marginTop="20dp"
-        android:layout_marginHorizontal="24dp"
+        android:id="@+id/input_name"
+
         android:layout_width="0dp"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/appbar"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:endIconDrawable="@drawable/ic_qrcode"
         android:layout_height="wrap_content"
-        android:hint="user@domain.name">
+        android:layout_marginHorizontal="40dp"
+        android:layout_marginTop="40dp"
+        android:hint="@string/hint_user_name"
+        android:maxWidth="300dp"
+        app:endIconDrawable="@drawable/ic_qrcode_scan_grey"
+        app:endIconMode="custom"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/appbar">
 
         <com.google.android.material.textfield.TextInputEditText
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"/>
+            android:layout_height="wrap_content"
+            android:maxLines="1"/>
 
     </com.google.android.material.textfield.TextInputLayout>
 
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/input_alias"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="40dp"
+        android:layout_marginTop="20dp"
+        android:hint="@string/hint_alias_not_necessary"
+        android:maxWidth="300dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/input_name">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:maxLines="1"/>
+
+    </com.google.android.material.textfield.TextInputLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -10,7 +10,7 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="@dimen/margin_horizontal_onboarding"
-        android:layout_marginTop="@dimen/margin_onboarding_standard"
+        android:layout_marginTop="@dimen/margin_onboarding_extra_large"
         android:gravity="center"
         android:lineSpacingMultiplier="1.20"
         android:text="@string/signin_title_label_1"
@@ -18,6 +18,7 @@
         android:textSize="@dimen/onboarding_title_font_size"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
+        android:textColorLink="@color/blue_500"
         app:layout_constraintTop_toTopOf="parent" />
 
     <androidx.appcompat.widget.AppCompatEditText
@@ -55,8 +56,26 @@
         android:focusable="false"
         android:gravity="center"
         android:lineSpacingMultiplier="1.1"
-        android:text="@string/signin_subtitle_label_1"
         android:textColor="@color/grey_text_3"
+        android:textColorHighlight="@color/transparent"
+        android:textSize="@dimen/onboarding_small_font_size"
+        app:layout_constraintEnd_toEndOf="@id/edit_text_password"
+        app:layout_constraintStart_toStartOf="@id/edit_text_password"
+        app:layout_constraintTop_toBottomOf="@+id/edit_text_password" />
+
+    <TextView
+        android:id="@+id/error_subtitle"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/margin_onboarding_standard"
+        android:layout_marginBottom="@dimen/margin_onboarding_standard"
+        android:autoLink="none"
+        android:focusable="false"
+        android:gravity="center"
+        android:visibility="gone"
+        android:lineSpacingMultiplier="1.1"
+        android:text="@string/signin_subtitle_error_message"
+        android:textColor="@color/red_600"
         android:textColorHighlight="@color/transparent"
         android:textSize="@dimen/onboarding_small_font_size"
         app:layout_constraintEnd_toEndOf="@id/edit_text_password"
@@ -68,12 +87,12 @@
         style="@style/OnboardingButtonNext"
         android:layout_width="0dp"
         android:enabled="false"
-        android:layout_marginTop="@dimen/margin_onboarding_extra_large"
+        android:layout_marginTop="@dimen/margin_onboarding_standard"
         android:text="@string/signin_connect_button_label_1"
         android:theme="@style/OnboardingButtonNext"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/edit_text_password" />
+        app:layout_constraintTop_toBottomOf="@id/signin_subtitle_1" />
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rv_feature"

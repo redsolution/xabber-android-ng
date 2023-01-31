@@ -39,7 +39,7 @@
         <attr name="contact_list_subgroup_offline_indicator_color" format="reference" />
         <attr name="contact_list_subgroup_expander_color" format="reference" />
 
-        <attr name="contact_list_contact_background" format="reference" />
+        <attr name="chat_item_background" format="reference" />
         <attr name="contact_list_contact_name_text_color" format="reference" />
         <attr name="contact_list_contact_muc_private_chat_name_text_color" format="reference" />
         <attr name="contact_list_contact_second_line_text_color" format="reference" />
@@ -325,6 +325,42 @@
        <declare-styleable name="CustomFlexboxLayout">
            <attr name="viewPartMain" format="reference" />
            <attr name="viewPartSlave" format="reference" />
+    </declare-styleable>
+
+    <declare-styleable name="RefreshView">
+        <attr name="type" format="enum">
+            <enum name="soup" value="0"/>
+        </attr>
+    </declare-styleable>
+
+    <declare-styleable name="SHCircleProgressBar">
+        <attr name="inner_radius" format="dimension" />
+        <attr name="background_color" format="color" />
+        <attr name="progress_color" format="color" />
+        <attr name="progress_stoke_width" format="dimension" />
+        <attr name="show_arrow" format="boolean" />
+        <attr name="enable_circle_background" format="boolean" />
+        <attr name="arrow_width" format="dimension" />
+        <attr name="arrow_height" format="dimension" />
+        <attr name="progress" format="integer" />
+        <attr name="max" format="integer" />
+        <attr name="progress_text_size" format="dimension" />
+        <attr name="progress_text_color" format="color" />
+        <attr name="progress_text_visibility" format="enum">
+            <enum name="visible" value="0" />
+            <enum name="invisible" value="1" />
+        </attr>
+    </declare-styleable>
+
+    <declare-styleable name="SHSwipeRefreshLayout">
+        <attr name="guidance_view_bg_color" format="color|reference" />
+        <attr name="guidance_text_color" format="color|reference" />
+        <attr name="progress_bar_color" format="color|reference" />
+        <attr name="progress_bg_color" format="color|reference" />
+        <attr name="refresh_text" format="string|reference" />
+        <attr name="load_text" format="string|reference" />
+        <attr name="pull_refresh_enable" format="boolean" />
+        <attr name="loadmore_enable" format="boolean" />
     </declare-styleable>
 
 </resources>

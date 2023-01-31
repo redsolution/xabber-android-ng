@@ -165,6 +165,15 @@ fun dipToPxFloat(dip: Float, context: Context): Float {
     )
 }
 
+fun spToPxFloat(sp: Float, context: Context): Float {
+    return TypedValue.applyDimension(
+        TypedValue.COMPLEX_UNIT_SP,
+        sp,
+        context.resources.displayMetrics
+    )
+}
+
+
 fun RecyclerView.partSmoothScrollToPosition(targetItem: Int) {
     layoutManager?.apply {
         val maxScroll = 15

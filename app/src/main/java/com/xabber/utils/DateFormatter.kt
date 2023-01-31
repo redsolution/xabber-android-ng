@@ -7,7 +7,6 @@ import java.util.*
 
 object DateFormatter {
 
-
     @SuppressLint("SimpleDateFormat")
     fun dateFormat(date: Long): String {
         val time = Date(date)

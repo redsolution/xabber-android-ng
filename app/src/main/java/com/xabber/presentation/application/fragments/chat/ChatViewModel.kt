@@ -3,15 +3,15 @@ package com.xabber.presentation.application.fragments.chat
 import android.util.Log
 import androidx.lifecycle.*
 import com.xabber.data_base.defaultRealmConfig
-import com.xabber.model.dto.ChatListDto
-import com.xabber.model.dto.MessageDto
-import com.xabber.model.xmpp.last_chats.LastChatsStorageItem
-import com.xabber.model.xmpp.messages.MessageDisplayType
-import com.xabber.model.xmpp.messages.MessageSendingState
-import com.xabber.model.xmpp.messages.MessageStorageItem
-import com.xabber.model.xmpp.presences.ResourceStatus
-import com.xabber.model.xmpp.presences.RosterItemEntity
-import com.xabber.model.xmpp.sync.ConversationType
+import com.xabber.models.dto.ChatListDto
+import com.xabber.models.dto.MessageDto
+import com.xabber.models.xmpp.last_chats.LastChatsStorageItem
+import com.xabber.models.xmpp.messages.MessageDisplayType
+import com.xabber.models.xmpp.messages.MessageSendingState
+import com.xabber.models.xmpp.messages.MessageStorageItem
+import com.xabber.models.xmpp.presences.ResourceStatus
+import com.xabber.models.xmpp.presences.RosterItemEntity
+import com.xabber.models.xmpp.sync.ConversationType
 import io.realm.kotlin.Realm
 import io.realm.kotlin.ext.realmListOf
 import io.realm.kotlin.notifications.ResultsChange
@@ -81,7 +81,7 @@ class ChatViewModel : ViewModel() {
                                 T.owner,
                                 T.opponent,
                                 T.body,
-                                MessageSendingState.Sent,
+                                MessageSendingState.Read,
                                 T.sentDate,
                                 editTimestamp = T.editDate,
                                 MessageDisplayType.Text,
@@ -93,7 +93,7 @@ class ChatViewModel : ViewModel() {
                                 false,
                                 null,
                                 isChecked = selectedItems.contains(T.primary),
-                                isUnread = T.isRead// почему дабл
+                                isUnread = !T.isRead// почему дабл
                             )
                         })
 
@@ -128,7 +128,7 @@ class ChatViewModel : ViewModel() {
                         val chat = changes.list[0]
                         withContext(Dispatchers.Main) {
                             _muteExpired.value = chat.muteExpired
-                            _opponentName.value = chat.rosterItem?.nickname
+                            _opponentName.value = if (chat.rosterItem?.customNickname != "") chat.rosterItem?.customNickname else chat.rosterItem?.nickname
                         }
                     }
                     else -> {}
@@ -137,7 +137,7 @@ class ChatViewModel : ViewModel() {
         }
     }
 
-    fun getDrafted(id: String): String? {
+    fun getDraft(id: String): String? {
         var drafted: String? = null
         viewModelScope.launch {
             realm.writeBlocking {
@@ -161,7 +161,7 @@ class ChatViewModel : ViewModel() {
 
     fun getChat(chatId: String): ChatListDto? {
         var chatListDto: ChatListDto? = null
-        viewModelScope.async() {
+        viewModelScope.launch {
             realm.writeBlocking {
                 val chat =
                     realm.query(LastChatsStorageItem::class, "primary = '$chatId'").first().find()
@@ -177,16 +177,16 @@ class ChatViewModel : ViewModel() {
                     lastMessageDate = if (chat.lastMessage != null) chat.lastMessage!!.date else 0L,
                     lastMessageState = if (chat.lastMessage != null) MessageSendingState.Read else MessageSendingState.None,
                     colorId = chat.color,
-                    displayName = chat.rosterItem!!.nickname,
+                    opponentNickname = chat.rosterItem!!.nickname,
                     drawableId = chat.avatar,
                     status = ResourceStatus.Chat,
                     entity = RosterItemEntity.Contact,
-                    outgoing = if (chat.lastMessage != null) chat.lastMessage!!.outgoing else false,
-                    customName = if (chat.rosterItem != null) chat.rosterItem!!.customNickname else ""
-
+                    lastMessageIsOutgoing = if (chat.lastMessage != null) chat.lastMessage!!.outgoing else false,
+                    customNickname = if (chat.rosterItem != null) chat.rosterItem!!.customNickname else ""
                 )
             }
         }
+        Log.d("iii", " chatlistDto in ViewModel $chatListDto")
         return chatListDto
     }
 
@@ -202,7 +202,7 @@ class ChatViewModel : ViewModel() {
                     T.owner,
                     T.opponent,
                     T.body,
-                    MessageSendingState.Sent,
+                    MessageSendingState.Read,
                     T.sentDate,
                     editTimestamp = T.editDate,
                     MessageDisplayType.Text,
@@ -394,19 +394,26 @@ class ChatViewModel : ViewModel() {
     }
 
     fun saveDraft(id: String, draft: String?) {
-        viewModelScope.launch(Dispatchers.IO) {
-            realm.write {
+            realm.writeBlocking {
                 val item = this.query(LastChatsStorageItem::class, "primary = '$id'").first().find()
-                item?.draftMessage = draft
-                if (draft != null) item?.messageDate = System.currentTimeMillis()
+                if (item != null) {
+                    findLatest(item).also {
+
+                        val oldDraft = it?.draftMessage
+                        Log.d("iii", "oldDraft = $oldDraft, newDraft = $draft, oldDate = ${item?.messageDate}")
+                        it?.draftMessage = draft
+                        if (draft != null && oldDraft != it?.draftMessage) { item.messageDate = System.currentTimeMillis()
+                        Log.d("iii", "newDate = ${item.messageDate}") }
+                    }
+                }
             }
-        }
     }
 
     fun setMute(id: String, mute: Long) {
         viewModelScope.launch(Dispatchers.IO) {
             realm.write {
                 val item = this.query(LastChatsStorageItem::class, "primary = '$id'").first().find()
+                Log.d("item", "$item")
                 item?.muteExpired = mute
             }
         }
@@ -414,16 +421,19 @@ class ChatViewModel : ViewModel() {
 
     override fun onCleared() {
         super.onCleared()
-        realm.close()
+       // realm.close()
     }
 
     fun saveLastPosition(id: String, savedPosition: String) {
-        viewModelScope.launch {
             realm.writeBlocking {
+                Log.d("iii", "PPPP")
                 val item = this.query(LastChatsStorageItem::class, "primary = '$id'").first().find()
-                item?.lastPosition = savedPosition
+                if (item != null) {
+                    findLatest(item).also {
+                        it?.lastPosition = savedPosition
+                    }
+                }
             }
-        }
     }
 
     fun getPositionMessage(lastPosition: String): Int {
@@ -463,6 +473,15 @@ class ChatViewModel : ViewModel() {
         val selected = arrayListOf<String>()
         selected.addAll(selectedItems)
         return selected[0]
+    }
+
+    fun setUnread(id: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            realm.writeBlocking {
+                val mes = this.query(MessageStorageItem::class, "primary = '$id").first().find()
+               mes?.isRead = true
+            }
+        }
     }
 
     fun getMessage(primary: String? = null): MessageDto? {
@@ -518,10 +537,8 @@ class ChatViewModel : ViewModel() {
                 val id = selected[i]
                 val item = this.query(MessageStorageItem::class, "primary = '$id'").first().find()
                 if (item != null) text += if (item.outgoing) item.owner else item.opponent + "\n" + item.body
-                Log.d("yyy", "$text inter for")
             }
         }
-        Log.d("yyy", "selested = $selected, text = $text")
         return text
     }
 

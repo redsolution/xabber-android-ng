@@ -51,7 +51,7 @@ open class CorrectlyTouchEventTextView @JvmOverloads constructor(
                     ) { _: DialogInterface?, _: Int -> span.onClick(textView) }
 
                     setButton(
-                        DialogInterface.BUTTON_NEGATIVE, textView.context.getString(R.string.cancel)
+                        DialogInterface.BUTTON_NEGATIVE, textView.context.getString(R.string.dialog_button_cancel)
                     ) { dialog: DialogInterface, _: Int -> dialog.dismiss() }
 
                 }.show()

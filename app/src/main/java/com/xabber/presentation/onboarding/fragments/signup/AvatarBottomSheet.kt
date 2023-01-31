@@ -36,7 +36,7 @@ class AvatarBottomSheet : BottomSheetDialogFragment() {
     private val onboardingViewModel: OnboardingViewModel by activityViewModels()
 
     private val requestCameraPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions(), ::onGotCameraPermissionResult
+        ActivityResultContracts.RequestPermission(), ::onGotCameraPermissionResult
     )
 
     private val requestGalleryPermissionLauncher = registerForActivityResult(
@@ -107,10 +107,7 @@ class AvatarBottomSheet : BottomSheetDialogFragment() {
                     cropImageFromCamera()
                 } else {
                     requestCameraPermissionLauncher.launch(
-                        arrayOf(
                             Manifest.permission.CAMERA,
-                            Manifest.permission.WRITE_EXTERNAL_STORAGE
-                        )
                     )
                 }
             }
@@ -126,8 +123,8 @@ class AvatarBottomSheet : BottomSheetDialogFragment() {
         }
     }
 
-    private fun onGotCameraPermissionResult(grantResults: Map<String, Boolean>) {
-        if (grantResults.entries.all { it.value }) {
+    private fun onGotCameraPermissionResult(result: Boolean) {
+        if (result) {
             cropImageFromCamera()
         } else askUserForOpeningAppSettings()
     }

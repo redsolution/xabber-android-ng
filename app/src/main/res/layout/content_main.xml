@@ -15,7 +15,7 @@
 
             <LinearLayout
                 android:orientation="vertical"
-                style="@style/AccountViewGroup"
+                style="@style/ClickableViewGroup"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="12dp">
@@ -46,7 +46,7 @@
 
 
             <LinearLayout
-                style="@style/AccountViewGroup"
+                style="@style/ClickableViewGroup"
                 android:orientation="vertical"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content">
@@ -80,7 +80,7 @@
             </LinearLayout>
 
             <androidx.appcompat.widget.LinearLayoutCompat
-                style="@style/AccountViewGroup"
+                style="@style/ClickableViewGroup"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical">
@@ -113,7 +113,7 @@
             </androidx.appcompat.widget.LinearLayoutCompat>
 
             <LinearLayout
-                style="@style/AccountViewGroup"
+                style="@style/ClickableViewGroup"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical">

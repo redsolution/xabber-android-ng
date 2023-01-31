@@ -20,20 +20,19 @@
             style="@style/ApplicationToolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            app:titleTextColor="@color/white"
-            app:title="Forward...">
+            app:title="Forward..."
+            app:titleTextColor="@color/white">
 
-            <androidx.appcompat.widget.SearchView
+            <SearchView
                 android:id="@+id/forward_search"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                app:searchIcon="@drawable/ic_search_white"
                 android:layout_gravity="end"
-                />
+                app:searchIcon="@drawable/ic_search_white" />
         </com.google.android.material.appbar.MaterialToolbar>
     </com.google.android.material.appbar.AppBarLayout>
 
-    <com.xabber.presentation.application.activity.MyRecyclerview
+    <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/chat_list"
         android:layout_width="0dp"
         android:layout_height="0dp"

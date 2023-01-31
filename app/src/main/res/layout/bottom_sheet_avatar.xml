@@ -32,7 +32,7 @@
             android:layout_marginVertical="@dimen/margin_onboarding_small"
             android:layout_marginStart="20dp"
             android:layout_marginEnd="@dimen/margin_onboarding_medium"
-            android:contentDescription="@string/image_view_content_description_use_emoji"
+            android:contentDescription="@string/avatar_bottom_sheet_emoji_label"
             app:srcCompat="@drawable/ic_emoticon_blue" />
 
         <TextView
@@ -45,7 +45,7 @@
             android:layout_toEndOf="@+id/image_view_emoji"
             android:background="@color/transparent"
             android:gravity="center_vertical"
-            android:text="@string/signup_bottom_sheet_button_emoji_label"
+            android:text="@string/avatar_bottom_sheet_emoji_label"
             android:textAppearance="@style/TextAppearance.AppCompat.Title"
             android:textColor="@color/grey_600"
             android:textSize="@dimen/onboarding_title_font_size" />
@@ -68,7 +68,7 @@
             android:layout_marginVertical="@dimen/margin_onboarding_small"
             android:layout_marginStart="20dp"
             android:layout_marginEnd="@dimen/margin_onboarding_medium"
-            android:contentDescription="@string/image_view_content_description_take_selfie"
+            android:contentDescription="@string/avatar_bottom_sheet_selfie_label"
             app:srcCompat="@drawable/ic_camera_yellow" />
 
         <TextView
@@ -81,7 +81,7 @@
             android:layout_toEndOf="@+id/image_view_selfie"
             android:background="@color/transparent"
             android:gravity="center_vertical"
-            android:text="@string/signup_bottom_sheet_button_selfie_label"
+            android:text="@string/avatar_bottom_sheet_selfie_label"
             android:textAppearance="@style/TextAppearance.AppCompat.Title"
             android:textColor="@color/grey_600"
             android:textSize="@dimen/onboarding_title_font_size" />
@@ -105,7 +105,7 @@
             android:layout_marginVertical="@dimen/margin_onboarding_small"
             android:layout_marginStart="20dp"
             android:layout_marginEnd="@dimen/margin_onboarding_medium"
-            android:contentDescription="@string/image_view_content_description_choose_image"
+            android:contentDescription="@string/avatar_bottom_sheet_choose_image_label"
             app:srcCompat="@drawable/ic_image_red" />
 
         <TextView
@@ -117,7 +117,7 @@
             android:layout_alignParentBottom="true"
             android:layout_toEndOf="@+id/image_view_chose_image"
             android:gravity="center_vertical"
-            android:text="@string/signup_bottom_sheet_button_chose_label"
+            android:text="@string/avatar_bottom_sheet_choose_image_label"
             android:textAllCaps="false"
             android:textAppearance="@style/TextAppearance.AppCompat.Title"
             android:textColor="@color/grey_600"

@@ -8,6 +8,7 @@ import com.xabber.databinding.FragmentNewChatBinding
 import com.xabber.presentation.AppConstants
 import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.application.fragments.DetailBaseFragment
+import com.xabber.utils.showToast
 
 class NewChatFragment : DetailBaseFragment(R.layout.fragment_new_chat) {
     private val binding by viewBinding(FragmentNewChatBinding::bind)
@@ -28,19 +29,24 @@ class NewChatFragment : DetailBaseFragment(R.layout.fragment_new_chat) {
             title = quotes.random().trim()
         }
         binding.tvToolbarTitle.text = title
+        binding.tvToolbarTitle.isSelected = true
     }
 
     private fun initButtons() {
         with(binding) {
-            rlAddContact.setOnClickListener { navigator().showNewContact() }
-            rlCreateGroup.setOnClickListener { navigator().showNewGroup(false) }
-            rvCreateGroupIncognito.setOnClickListener { navigator().showNewGroup(true) }
+            rlAddContact.setOnClickListener {
+                showToast("This feature is not implemented")
+                //navigator().showNewContact()
+                }
+            rlCreateGroup.setOnClickListener {
+                showToast("This feature is not implemented")
+                //navigator().showNewGroup(false) }
+                rvCreateGroupIncognito.setOnClickListener {
+                    showToast("This feature is not implemented")
+                    // navigator().showNewGroup(true)
+                }
+            }
         }
-    }
-
-    override fun onSaveInstanceState(outState: Bundle) {
-        super.onSaveInstanceState(outState)
-        outState.putString(AppConstants.NEW_CHAT_KEY, binding.tvToolbarTitle.text.toString())
     }
 
 }

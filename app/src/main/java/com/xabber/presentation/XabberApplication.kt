@@ -1,25 +1,32 @@
 package com.xabber.presentation
 
 import android.app.Application
+import android.content.Context
 import android.util.Log
-import com.xabber.presentation.application.activity.MessagesReadMarker
-
 
 class XabberApplication : Application() {
 
     companion object {
-        fun newInstance() = XabberApplication()
+        private var instance: XabberApplication? = null
 
+        private var isActive: Boolean = false
 
-
+        fun applicationContext(): Context {
+            return instance!!.applicationContext
+        }
     }
+
 
     override fun onCreate() {
         Log.d("all", "onCreate")
         super.onCreate()
-        val a = MessagesReadMarker
+        instance = this
+        val context: Context = XabberApplication.applicationContext()
+
       //  a.startCounter()
     }
+
+
 }
      //   FirebaseApp.initializeApp(applicationContext)
 ////

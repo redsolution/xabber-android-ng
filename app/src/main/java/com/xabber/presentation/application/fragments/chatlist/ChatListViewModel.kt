@@ -7,18 +7,16 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.xabber.R
 import com.xabber.data_base.defaultRealmConfig
-import com.xabber.model.dto.AccountDto
-import com.xabber.model.dto.ChatListDto
-import com.xabber.model.xmpp.account.AccountStorageItem
-import com.xabber.model.xmpp.last_chats.LastChatsStorageItem
-import com.xabber.model.xmpp.messages.MessageSendingState
-import com.xabber.model.xmpp.messages.MessageStorageItem
-import com.xabber.model.xmpp.presences.ResourceStatus
-import com.xabber.model.xmpp.presences.RosterItemEntity
-import com.xabber.model.xmpp.roster.RosterStorageItem
-import com.xabber.model.xmpp.sync.ConversationType
+import com.xabber.models.dto.ChatListDto
+import com.xabber.models.xmpp.account.AccountStorageItem
+import com.xabber.models.xmpp.last_chats.LastChatsStorageItem
+import com.xabber.models.xmpp.messages.MessageSendingState
+import com.xabber.models.xmpp.messages.MessageStorageItem
+import com.xabber.models.xmpp.presences.ResourceStatus
+import com.xabber.models.xmpp.presences.RosterItemEntity
+import com.xabber.models.xmpp.roster.RosterStorageItem
+import com.xabber.models.xmpp.sync.ConversationType
 import io.realm.kotlin.Realm
-import io.realm.kotlin.ext.query
 import io.realm.kotlin.ext.realmListOf
 import io.realm.kotlin.notifications.ResultsChange
 import io.realm.kotlin.notifications.UpdatedResults
@@ -31,9 +29,13 @@ class ChatListViewModel : ViewModel() {
     val realm = Realm.open(defaultRealmConfig())
     var job: Job? = null
 
-    private val _chatList = MutableLiveData<List<ChatListDto>>()
-    val chatList: LiveData<List<ChatListDto>> = _chatList
-    private var listDto = ArrayList<ChatListDto>()
+    private val _chats = MutableLiveData<ArrayList<ChatListDto>>()
+    val chats: LiveData<ArrayList<ChatListDto>> = _chats
+    var chatListDto = ArrayList<ChatListDto>()
+
+    private val _archivedChats = MutableLiveData<ArrayList<ChatListDto>>()
+    val archivedChats: LiveData<ArrayList<ChatListDto>> = _archivedChats
+
     private val _showUnreadOnly = MutableLiveData<Boolean>()
     val showUnreadOnly: LiveData<Boolean> = _showUnreadOnly
 
@@ -48,41 +50,20 @@ class ChatListViewModel : ViewModel() {
 
     init {
         _showUnreadOnly.value = false
+        getChatList()
     }
 
     fun setShowUnreadOnly(show: Boolean) {
         _showUnreadOnly.value = show
-    }
-
-    private fun getEnableAccountList(): ArrayList<AccountDto> {
-        val accountList = ArrayList<AccountDto>()
-        realm.writeBlocking {
-            val accounts = this.query(AccountStorageItem::class, "enabled = true").find()
-            accountList.addAll(accounts.map { T ->
-                AccountDto(
-                    id = T.primary,
-                    jid = T.jid,
-                    order = T.order,
-                    nickname = T.nickname,
-                    enabled = T.enabled,
-                    statusMessage = T.statusMessage,
-                    colorKey = T.colorKey
-                )
-            })
-        }
-        accountList.sort()
-        return accountList
+        initDataListener()
+        getChatList()
     }
 
     fun initDataListener() {
         job?.cancel()
-        val accounts = getEnableAccountList()
-        val jids = arrayListOf<String>()
-        for (i in 0 until accounts.size) jids.add(accounts[i].jid)
-        Log.d("fff", "$jids")
-        val p = "ooo"
+        val account = getEnableAccountList()
         val query =
-            if (showUnreadOnly.value!!) "isArchived = false && unread > 0" else "isArchived = false"
+            if (showUnreadOnly.value!!) "owner = '$account' && isArchived = false && unread > 0" else "owner = '$account' && isArchived = false"
         job = viewModelScope.launch(Dispatchers.IO) {
             val request =
                 realm.query(LastChatsStorageItem::class, query)
@@ -95,10 +76,9 @@ class ChatListViewModel : ViewModel() {
                             ChatListDto(
                                 id = T.primary,
                                 owner = T.owner,
-
                                 opponentJid = T.opponentJid,
-                                displayName = if (T.rosterItem != null) T.rosterItem!!.nickname else "",
-                                customName = if (T.rosterItem != null) T.rosterItem!!.customNickname else "",
+                                opponentNickname = if (T.rosterItem != null) T.rosterItem!!.nickname else "",
+                                customNickname = if (T.rosterItem != null) T.rosterItem!!.customNickname else "",
                                 lastMessageBody = if (T.lastMessage == null) "" else T.lastMessage!!.body,
                                 lastMessageDate = if (T.lastMessage == null) T.messageDate else T.lastMessage!!.date,
                                 lastMessageState = if (T.lastMessage?.state_ == 5 || T.lastMessage == null) MessageSendingState.None else MessageSendingState.Read,
@@ -117,15 +97,14 @@ class ChatListViewModel : ViewModel() {
                                 drawableId = T.avatar,
                                 colorId = T.color,
                                 isHide = false,
-                                outgoing = if (T.lastMessage != null) T.lastMessage!!.outgoing else false
+                                lastMessageIsOutgoing = if (T.lastMessage != null) T.lastMessage!!.outgoing else false
                             )
-
                         })
 
-                        listDto = dataSource
-                        listDto.sort()
-                        if (listDto.size > 0) {
-                            listDto.add(
+                        chatListDto = dataSource
+                        chatListDto.sort()
+                        if (chatListDto.size > 0) {
+                            chatListDto.add(
                                 0,
                                 ChatListDto(
                                     "",
@@ -135,7 +114,7 @@ class ChatListViewModel : ViewModel() {
                                     "",
                                     "",
                                     0,
-                                    MessageSendingState.Sent,
+                                    MessageSendingState.None,
                                     false,
                                     true,
                                     "",
@@ -154,7 +133,7 @@ class ChatListViewModel : ViewModel() {
                             )
                         }
                         launch(Dispatchers.Main) {
-                            _chatList.postValue(listDto)
+                            _chats.postValue(chatListDto)
                         }
                     }
                     else -> {}
@@ -163,26 +142,50 @@ class ChatListViewModel : ViewModel() {
         }
     }
 
+    private fun getEnableAccountList(): String? {
+        var a: String? = null
+        realm.writeBlocking {
+            val accounts = this.query(AccountStorageItem::class, "enabled = true").first().find()
+            a = accounts?.jid ?: null
+        }
+        return a
+    }
+
+    fun initAccountDataListener() {
+        Log.d("itt","${realm.query(AccountStorageItem::class).find()}")
+        viewModelScope.launch(Dispatchers.IO) {
+            val request =
+                realm.query(AccountStorageItem::class)
+            request.asFlow().collect { changes: ResultsChange<AccountStorageItem> ->
+                when (changes) {
+
+                    is UpdatedResults -> {
+                        getChatList()
+                    }
+                    else -> {}
+                }
+            }
+        }
+    }
+
     fun getChatList() {
-        val accounts = getEnableAccountList()
-        val jids = arrayListOf<String>()
-        for (i in 0 until accounts.size) jids.add(accounts[i].jid)
-        Log.d("fff", "get $jids")
+        val account = getEnableAccountList()
         val query =
-            if (showUnreadOnly.value!!) "isArchived = false && unread > 0" else "isArchived = false"
+            if (showUnreadOnly.value!!) "owner = '$account' && isArchived = false && unread > 0" else "owner = '$account' && isArchived = false"
         viewModelScope.launch(Dispatchers.IO) {
             val realmList =
                 realm.query(
                     LastChatsStorageItem::class,
-                    query).find()
+                    query
+                ).find()
             val dataSource = ArrayList<ChatListDto>()
             dataSource.addAll(realmList.map { T ->
                 ChatListDto(
                     id = T.primary,
                     owner = T.owner,
                     opponentJid = T.opponentJid,
-                    displayName = if (T.rosterItem != null) T.rosterItem!!.nickname else "",
-                    customName = if (T.rosterItem != null) T.rosterItem!!.customNickname else "",
+                    opponentNickname = if (T.rosterItem != null) T.rosterItem!!.nickname else "",
+                    customNickname = if (T.rosterItem != null) T.rosterItem!!.customNickname else "",
                     lastMessageBody = if (T.lastMessage == null) "" else T.lastMessage!!.body,
                     lastMessageDate = if (T.lastMessage == null) T.messageDate else T.lastMessage!!.date,
                     lastMessageState = if (T.lastMessage?.state_ == 5 || T.lastMessage == null) MessageSendingState.None else MessageSendingState.Read,
@@ -201,12 +204,12 @@ class ChatListViewModel : ViewModel() {
                     drawableId = T.avatar,
                     colorId = T.color,
                     isHide = false,
-                    outgoing = if (T.lastMessage != null) T.lastMessage!!.outgoing else false
+                    lastMessageIsOutgoing = if (T.lastMessage != null) T.lastMessage!!.outgoing else false
                 )
             })
-            listDto = dataSource
-            if (listDto.size > 0) {
-                listDto.add(
+            chatListDto = dataSource
+            if (chatListDto.size > 0) {
+                chatListDto.add(
                     0,
                     ChatListDto(
                         "",
@@ -216,7 +219,7 @@ class ChatListViewModel : ViewModel() {
                         "",
                         "",
                         0,
-                        MessageSendingState.Sent,
+                        MessageSendingState.None,
                         false,
                         true,
                         "",
@@ -233,10 +236,10 @@ class ChatListViewModel : ViewModel() {
                         R.drawable.flower, true
                     )
                 )
-                listDto.sort()
+                chatListDto.sort()
             }
             withContext(Dispatchers.Main) {
-                _chatList.value = listDto
+                _chats.value = chatListDto
             }
         }
     }
@@ -247,7 +250,6 @@ class ChatListViewModel : ViewModel() {
                 val item: LastChatsStorageItem? =
                     this.query(LastChatsStorageItem::class, "primary = '$id'").first().find()
                 item?.pinnedPosition = System.currentTimeMillis()
-                Log.d("fff", "owner = ${item?.owner}")
             }
         }
     }
@@ -279,8 +281,8 @@ class ChatListViewModel : ViewModel() {
                     primary = chatListDto.id
                     owner = chatListDto.owner
                     jid = chatListDto.opponentJid
-                    nickname = chatListDto.displayName
-                    customNickname = chatListDto.customName
+                    nickname = chatListDto.opponentNickname
+                    customNickname = chatListDto.customNickname
 
                 })
                 this.copyToRealm(LastChatsStorageItem().apply {
@@ -323,13 +325,14 @@ class ChatListViewModel : ViewModel() {
         }
     }
 
-    fun clearHistoryChat(id: String, opponent: String) {
+    fun clearHistoryChat(id: String) {
         viewModelScope.launch(Dispatchers.IO) {
             realm.writeBlocking {
+                val chat = this.query(LastChatsStorageItem::class, "primary = '$id'").first().find()
+                val opponent = chat?.opponentJid
                 val messages =
                     this.query(MessageStorageItem::class, "opponent = '$opponent'").find()
                 delete(messages)
-                val chat = this.query(LastChatsStorageItem::class, "primary = '$id'").first().find()
                 chat?.lastMessage = null
                 chat?.unread = 0
             }
@@ -351,14 +354,141 @@ class ChatListViewModel : ViewModel() {
         }
     }
 
+    fun checkIsEntry(): Boolean {
+        var isEntry = false
+        realm.writeBlocking {
+            val account = this.query(AccountStorageItem::class).first().find()
+            isEntry = account != null
+        }
+        return isEntry
+    }
+
+    fun initUnreadMessagesCountListener() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val request =
+                realm.query(
+                    LastChatsStorageItem::class,
+                    "isArchived = false && muteExpired <= 0 && unread > 0"
+                )
+            request.asFlow().collect { changes: ResultsChange<LastChatsStorageItem> ->
+                when (changes) {
+                    is UpdatedResults -> {
+                        var count = 0
+                        changes.list.forEach { count += it.unread }
+                        withContext(Dispatchers.Main) { _unreadMessages.value = count }
+                    }
+                    else -> {}
+                }
+            }
+        }
+    }
+
+    fun initAccountListListener() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val request =
+                realm.query(AccountStorageItem::class, "enabled = true")
+            request.asFlow().collect { changes: ResultsChange<AccountStorageItem> ->
+                when (changes) {
+                    is UpdatedResults -> {
+                        changes.list.forEach { enabledAccounts.add(it.jid) }
+                    }
+                    else -> {}
+                }
+            }
+        }
+    }
+
+    fun forwardMessage(id: String, text: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            realm.write {
+                val item: LastChatsStorageItem? =
+                    this.query(LastChatsStorageItem::class, "primary = '$id'").first().find()
+                if (item != null) {
+                    val message = copyToRealm(MessageStorageItem().apply {
+                        primary = "texttt + ${System.currentTimeMillis()}"
+                        owner = item.owner
+                        opponent = item.opponentJid
+                        body = text
+                        date = System.currentTimeMillis()
+                        sentDate = System.currentTimeMillis()
+                        editDate = 0
+                        outgoing = true
+                        references = realmListOf()
+                        conversationType_ = ConversationType.Channel.toString()
+                    })
+                    item.lastMessage = message
+                    item.messageDate = message.date
+                    item.unread = 0
+
+                }
+            }
+        }
+    }
+
+    fun getUnreadMessages() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val request =
+                realm.query(
+                    LastChatsStorageItem::class,
+                    "isArchived = false && muteExpired <= 0 && unread > 0"
+                ).find()
+            var count = 0
+            request.forEach {
+                if (it.unread > 0) count += it.unread
+            }
+            withContext(Dispatchers.Main) {
+                _unreadMessages.value = count
+            }
+        }
+    }
+
+    fun chatIsEmpty(): Boolean {
+        var result = true
+        realm.writeBlocking {
+            val lastChats = this.query(LastChatsStorageItem::class).find()
+            if (lastChats.size > 0) result = false
+        }
+        return result
+    }
+
+    fun insertContactAndChat(contactJid: String, customName: String) {
+        val contactOwner = getPrimaryAccount()
+        if (contactOwner != null) {
+            viewModelScope.launch(Dispatchers.IO) {
+                realm.write {
+                    copyToRealm(LastChatsStorageItem().apply {
+                        primary = contactJid
+                        muteExpired = -1
+                        owner = contactOwner
+                        opponentJid = contactJid
+                        rosterItem = copyToRealm(RosterStorageItem().apply {
+                            primary = contactJid
+                            owner = contactOwner
+                            jid = contactJid
+                            customNickname = customName
+                        })
+                    })
+                }
+            }
+        }
+    }
+
+    fun getPrimaryAccount(): String? {
+        var account: String? = null
+        realm.writeBlocking {
+            val item = this.query(AccountStorageItem::class, "order = 0").first().find()
+            account = item?.jid
+        }
+        return account
+    }
+
     override fun onCleared() {
         super.onCleared()
         job?.cancel()
         realm.close()
     }
 
-
-    fun addOne() {
+    fun addSomeChats() {
         val colors = listOf<Int>(
             R.color.blue_500,
             R.color.yellow_500,
@@ -429,12 +559,13 @@ class ChatListViewModel : ViewModel() {
                 nam.add(m)
             }
         }
-val chatsOwner = realm.query(AccountStorageItem::class).find().first()
-        Log.d("account", "jid = ${chatsOwner.jid}, nickname = ${chatsOwner.nickname}")
+        val chatsOwner = realm.query(AccountStorageItem::class).find().first()
         viewModelScope.launch(Dispatchers.IO) {
 
             realm.write {
                 for (i in 0 until 400) {
+                    val col = colors.random()
+                    val av = avatars.random()
                     copyToRealm(LastChatsStorageItem().apply {
                         primary = "$b 10"
                         muteExpired = -1
@@ -446,12 +577,14 @@ val chatsOwner = realm.query(AccountStorageItem::class).find().first()
                             jid = "${nam[i]}@redsolution.ru"
                             nickname = nam[i]
                             customNickname = nam[i]
+                            colorR = col
+                            avatarR = av
                         })
                         messageDate = System.currentTimeMillis()
                         isArchived = false
                         unread = 0
-                        avatar = avatars.random()
-                        color = colors.random()
+                        avatar = av
+                        color = col
                     })
                     b++
                 }
@@ -459,108 +592,100 @@ val chatsOwner = realm.query(AccountStorageItem::class).find().first()
         }
     }
 
-    fun checkIsEntry(): Boolean {
-        var isEntry = false
-        realm.writeBlocking {
-            val account = this.query(AccountStorageItem::class).first().find()
-            isEntry = account != null
-        }
-        return isEntry
-    }
 
-    fun initUnreadMessagesCountListener() {
-        val own = getOwnerJid()
+    fun getArchivedChats() {
+        val account = getEnableAccountList()
+        val query = "owner = '$account' && isArchived = true"
         viewModelScope.launch(Dispatchers.IO) {
-            val request =
+            val realmList =
                 realm.query(
                     LastChatsStorageItem::class,
-                    "isArchived = false && muteExpired <= 0 && unread > 0"
+                    query
+                ).find()
+            val dataSource = ArrayList<ChatListDto>()
+            dataSource.addAll(realmList.map { T ->
+                ChatListDto(
+                    id = T.primary,
+                    owner = T.owner,
+                    opponentJid = T.opponentJid,
+                    opponentNickname = if (T.rosterItem != null) T.rosterItem!!.nickname else "",
+                    customNickname = if (T.rosterItem != null) T.rosterItem!!.customNickname else "",
+                    lastMessageBody = if (T.lastMessage == null) "" else T.lastMessage!!.body,
+                    lastMessageDate = if (T.lastMessage == null) T.messageDate else T.lastMessage!!.date,
+                    lastMessageState = if (T.lastMessage?.state_ == 5 || T.lastMessage == null) MessageSendingState.None else MessageSendingState.Read,
+                    isArchived = T.isArchived,
+                    isSynced = T.isSynced,
+                    draftMessage = T.draftMessage,
+                    hasAttachment = false,
+                    isSystemMessage = false,
+                    isMentioned = false,
+                    muteExpired = T.muteExpired,
+                    pinnedDate = T.pinnedPosition,
+                    status = ResourceStatus.Online,
+                    entity = RosterItemEntity.Contact,
+                    unread = if (T.unread <= 0) "" else T.unread.toString(),
+                    lastPosition = T.lastPosition,
+                    drawableId = T.avatar,
+                    colorId = T.color,
+                    isHide = false,
+                    lastMessageIsOutgoing = if (T.lastMessage != null) T.lastMessage!!.outgoing else false
                 )
+            })
+               dataSource.sort()
+            withContext(Dispatchers.Main) {
+                _archivedChats.value = dataSource
+            }
+        }
+    }
+
+    fun initArchivedChatsListener() {
+        val account = getEnableAccountList()
+        val query = "owner = '$account' && isArchived = true"
+        job = viewModelScope.launch(Dispatchers.IO) {
+            val request =
+                realm.query(LastChatsStorageItem::class, query)
             request.asFlow().collect { changes: ResultsChange<LastChatsStorageItem> ->
                 when (changes) {
                     is UpdatedResults -> {
-                        var count = 0
-                        changes.list.forEach {  count += it.unread }
-                        withContext(Dispatchers.Main) { _unreadMessages.value = count
-                        Log.d("fff", "count = $count, $enabledAccounts, changes = $chatList")}
+                        changes.list
+                        val dataSource = ArrayList<ChatListDto>()
+                        dataSource.addAll(changes.list.map { T ->
+                            ChatListDto(
+                                id = T.primary,
+                                owner = T.owner,
+                                opponentJid = T.opponentJid,
+                                opponentNickname = if (T.rosterItem != null) T.rosterItem!!.nickname else "",
+                                customNickname = if (T.rosterItem != null) T.rosterItem!!.customNickname else "",
+                                lastMessageBody = if (T.lastMessage == null) "" else T.lastMessage!!.body,
+                                lastMessageDate = if (T.lastMessage == null) T.messageDate else T.lastMessage!!.date,
+                                lastMessageState = if (T.lastMessage?.state_ == 5 || T.lastMessage == null) MessageSendingState.None else MessageSendingState.Read,
+                                isArchived = T.isArchived,
+                                isSynced = T.isSynced,
+                                draftMessage = T.draftMessage,
+                                hasAttachment = false,
+                                isSystemMessage = false,
+                                isMentioned = false,
+                                muteExpired = T.muteExpired,
+                                pinnedDate = T.pinnedPosition,
+                                status = ResourceStatus.Online,
+                                entity = RosterItemEntity.Contact,
+                                unread = if (T.unread <= 0) "" else T.unread.toString(),
+                                lastPosition = T.lastPosition,
+                                drawableId = T.avatar,
+                                colorId = T.color,
+                                isHide = false,
+                                lastMessageIsOutgoing = if (T.lastMessage != null) T.lastMessage!!.outgoing else false
+                            )
+                        })
+                        dataSource.sort()
+                        launch(Dispatchers.Main) {
+                            _archivedChats.postValue(dataSource)
+                        }
                     }
                     else -> {}
                 }
             }
         }
-    }
-
-    private fun getOwnerJid(): String {
-        val owner = realm.query(AccountStorageItem::class).first().find()
-        return owner?.jid ?: ""
-    }
-
-    fun initAccountListListener() {
-        viewModelScope.launch(Dispatchers.IO) {
-            val request =
-                realm.query(AccountStorageItem::class, "enabled = true")
-            request.asFlow().collect { changes: ResultsChange<AccountStorageItem> ->
-                when (changes) {
-                    is UpdatedResults -> {
-                        changes.list.forEach { enabledAccounts.add(it.jid) }
-                    }
-                    else -> {}
-                }
-            }
-        }
-    }
-
-    fun forwardMessage(id: String, text: String) {
-        viewModelScope.launch(Dispatchers.IO) {
-            realm.write {
-                val item: LastChatsStorageItem? =
-                    this.query(LastChatsStorageItem::class, "primary = '$id'").first().find()
-                if (item != null) {
-                    val message = copyToRealm(MessageStorageItem().apply {
-                        primary = "texttt"
-                        owner = item.owner
-                        opponent = item.opponentJid
-                        body = text
-                        date = System.currentTimeMillis()
-                        sentDate = System.currentTimeMillis()
-                        editDate = 0
-                        outgoing = true
-                        references = realmListOf()
-                        conversationType_ = ConversationType.Channel.toString()
-                    })
-                    item.lastMessage = message
-                    item.messageDate = message.date
-                    item.unread = 0
-
-                }
-            }
-        }
-    }
-
-    fun getUnreadMessages() {
-        viewModelScope.launch(Dispatchers.IO) {
-            val request =
-                realm.query(
-                    LastChatsStorageItem::class,
-                    "isArchived = false && muteExpired <= 0 && unread > 0"
-                ).find()
-            var count = 0
-            request.forEach { if (it.unread > 0) count += it.unread
-                    }
-            withContext(Dispatchers.Main) {
-                _unreadMessages.value = count
-            }
-
-            }
-        }
-
-    fun chatIsEmpty(): Boolean {
-        var result = true
-        realm.writeBlocking {
-           val lastChats = this.query(LastChatsStorageItem::class).find()
-            if (lastChats.size > 0) result = false
-        }
-        return result
     }
 
 

@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <ImageView
+        android:id="@+id/line"
+        app:layout_constraintTop_toTopOf="parent"
+        android:layout_marginTop="20dp"
+        app:layout_constraintBottom_toTopOf="@id/slider"
+        app:layout_constraintStart_toStartOf="@id/slider"
+        app:layout_constraintEnd_toEndOf="@id/slider"
+        android:layout_width="24dp"
+        android:minHeight="30dp"
+        android:layout_marginBottom="-10dp"
+        android:layout_height="0dp"
+        android:src="@drawable/circle_arrow_down"/>
+
+    <ImageView
+        android:id="@+id/slider"
+        android:background="@drawable/circle_blue_300"
+        android:layout_marginStart="24dp"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:src="@drawable/ic_baseline_arrow_circle_down_24"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/bot"/>
+
+    <TextView
+        android:id="@+id/tv"
+        android:textStyle="bold"
+        android:textSize="16sp"
+        app:layout_constraintTop_toTopOf="@id/slider"
+        app:layout_constraintBottom_toBottomOf="@id/slider"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="@color/white"
+        android:text="Тяните для показа архива"/>
+
+    <View
+        android:id="@+id/bot"
+        android:layout_width="match_parent"
+        android:layout_height="8dp"
+        app:layout_constraintBottom_toBottomOf="parent"/>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

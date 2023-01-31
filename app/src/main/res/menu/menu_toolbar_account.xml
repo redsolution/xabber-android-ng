@@ -14,8 +14,4 @@
         android:title="@string/menu_item_generate_qr_code"
         app:showAsAction="always" />
 
-    <item
-        android:id="@+id/add_account"
-        android:title="@string/menu_item_add_account"
-        app:showAsAction="never" />
 </menu>

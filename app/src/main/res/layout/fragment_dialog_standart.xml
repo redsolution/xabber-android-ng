@@ -46,7 +46,7 @@
             android:layout_height="wrap_content"
             android:background="@color/transparent"
             android:gravity="center|right"
-            android:text="@string/cancel"
+            android:text="@string/dialog_button_cancel"
             android:textColor="@color/grey_400"
             android:textStyle="bold"
             app:layout_constraintBottom_toBottomOf="parent"

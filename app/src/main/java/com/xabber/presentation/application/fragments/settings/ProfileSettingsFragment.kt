@@ -6,6 +6,7 @@ import by.kirich1409.viewbindingdelegate.viewBinding
 import com.xabber.R
 import com.xabber.databinding.FragmentProfileSettingsBinding
 import com.xabber.presentation.application.activity.DisplayManager
+import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.application.fragments.DetailBaseFragment
 import com.xabber.utils.dp
 
@@ -14,17 +15,8 @@ class ProfileSettingsFragment : DetailBaseFragment(R.layout.fragment_profile_set
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-
-        if (!DisplayManager.isDualScreenMode()) {
-            binding.clProfile.setPadding(68.dp, 12.dp, 8.dp, 12.dp)
-            binding.clStatus.setPadding(68.dp, 12.dp, 8.dp, 12.dp)
-            binding.clCircles.setPadding(68.dp, 12.dp, 8.dp, 12.dp)
-            binding.clPassword.setPadding(68.dp, 12.dp, 8.dp, 12.dp)
-            binding.clAccountColor.setPadding(68.dp, 12.dp, 8.dp, 12.dp)
-            binding.clServerInformation.setPadding(68.dp, 12.dp, 8.dp, 12.dp)
-            binding.clBlockedContacts.setPadding(68.dp, 12.dp, 8.dp, 12.dp)
-            binding.clDeleteAccount.setPadding(68.dp, 12.dp, 8.dp, 12.dp)
-        }
+binding.toolbar.setNavigationIcon(null)
+        binding.left.setOnClickListener { navigator().goBack() }
     }
 
 }

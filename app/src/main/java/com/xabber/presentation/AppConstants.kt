@@ -27,8 +27,10 @@ object AppConstants {
     const val PAYLOAD_MESSAGE_SENDING_STATE = "Message sending state"
     const val PAYLOAD_CHAT_DATE = "Chat date"
     const val PAYLOAD_CHAT_DRAFT_MESSAGE = "Chat draft message"
+    const val PAYLOAD_CHAT_CUSTOM_NAME = "Chat custom name"
     const val PAYLOAD_CHAT_MESSAGE_BODY = "Chat message body"
     const val PAYLOAD_CHAT_MESSAGE_STATE = "Chat message state"
+    const val CHAT_LIST_TO_FORWARD_DIALOG_TAG = "Chat list to forward dialog tag"
     const val DELETING_CHAT_DIALOG_TAG = "Deleting chat dialog"
     const val DELETING_CHAT_KEY = "Deleting chat key"
     const val DELETING_CHAT_BUNDLE_KEY = "Deleting chat bundle key"
@@ -45,10 +47,14 @@ object AppConstants {
     const val DELETING_MESSAGE_DIALOG_TAG = "deleting message dialog tag"
     const val DELETING_MESSAGE_NAME_KEY = "deleting message name key"
     const val DELETING_MESSAGE_FOR_ALL_BUNDLE_KEY = "deleting message for all bundle key"
-    const val CHAT_NAME_KEY = "chat name key"
     const val CHAT_MESSAGE_TEXT_KEY = "chat message text key"
     const val BLOCK_CONTACT = "block contact"
     const val BLOCK_CONTACT_BUNDLE_KEY = "block contact bundle key"
+    const val DELETING_CONTACT_DIALOG_KEY = "deleting contact dialog key"
+    const val DELETING_CONTACT_BUNDLE_KEY = "deleting contact bundle key"
+    const val DELETING_CONTACT_AND_CLEAR_HISTORY = "deleting contact and clear history"
+    const val CHAT_SELECTION_MODE_KEY = "chat selection mode key"
+    const val CURRENT_ID_KEY = "current id key"
 
     val PUBLIC_DOWNLOADS = Uri.parse("content://downloads/public_downloads")
 

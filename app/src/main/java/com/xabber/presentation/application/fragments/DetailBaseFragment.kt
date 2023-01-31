@@ -1,12 +1,12 @@
 package com.xabber.presentation.application.fragments
 
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import androidx.activity.OnBackPressedCallback
 import androidx.annotation.LayoutRes
 import com.google.android.material.appbar.MaterialToolbar
 import com.xabber.R
-import com.xabber.presentation.application.BaseFragment
 import com.xabber.presentation.application.activity.DisplayManager
 import com.xabber.presentation.application.contract.navigator
 
@@ -16,7 +16,7 @@ abstract class DetailBaseFragment(@LayoutRes contentLayoutId: Int) : BaseFragmen
 
     private val onBackPressedCallback = object : OnBackPressedCallback(true) {
         override fun handleOnBackPressed() {
-            navigator().closeDetail()
+            navigator().goBack()
         }
     }
 
@@ -30,7 +30,8 @@ abstract class DetailBaseFragment(@LayoutRes contentLayoutId: Int) : BaseFragmen
         toolbar = view.findViewById(R.id.toolbar)
         if (!DisplayManager.isDualScreenMode()) {
             toolbar?.setNavigationIcon(R.drawable.ic_arrow_left_white)
-            toolbar?.setNavigationOnClickListener { navigator().closeDetail() }
+            toolbar?.setNavigationOnClickListener { navigator().goBack()
+            Log.d("aaa", "detail base go back")}
         }
     }
 

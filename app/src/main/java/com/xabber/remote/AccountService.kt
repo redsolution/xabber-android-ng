@@ -1,7 +1,7 @@
 package com.xabber.remote
 
-import com.xabber.model.dto.HostListDto
-import com.xabber.model.dto.XabberAccountDto
+import com.xabber.models.dto.HostListDto
+import com.xabber.models.dto.XabberAccountDto
 import io.reactivex.rxjava3.core.Single
 import retrofit2.http.Body
 import retrofit2.http.GET

@@ -8,5 +8,5 @@ class ChatParams(
     val id: String = "",
     val owner: String,
     val opponentJid: String,
-    val avatar: Int
+    val avatar: Int? = null
 ) : Parcelable

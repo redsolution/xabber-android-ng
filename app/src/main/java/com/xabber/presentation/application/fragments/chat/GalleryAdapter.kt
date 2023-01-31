@@ -2,8 +2,10 @@ package com.xabber.presentation.application.fragments.chat
 
 import android.net.Uri
 import android.provider.MediaStore
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.ViewGroup
+import androidx.constraintlayout.widget.ConstraintLayout
 
 
 import androidx.recyclerview.widget.RecyclerView
@@ -52,6 +54,17 @@ class GalleryAdapter(private val listener: Listener) :
             val recentImageViewHolder = holder as GalleryVH
             val path = imagePaths[position]
             val image = recentImageViewHolder.getImage()
+val cl = recentImageViewHolder.getCl()
+if (position == imagePaths.size -1) {
+    val params = cl.layoutParams as RecyclerView.LayoutParams
+    params.bottomMargin = 400
+    Log.d("iii", "bottom")
+    image.layoutParams = params
+} else {
+    val params = cl.layoutParams as RecyclerView.LayoutParams
+    params.bottomMargin = 0
+    image.layoutParams = params
+}
             Glide.with(image.context).load(path).centerCrop().placeholder(R.drawable.ic_image_grey)
                 .into(image)
             recentImageViewHolder.getImage().setOnClickListener {

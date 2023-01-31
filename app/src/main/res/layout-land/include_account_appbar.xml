@@ -5,7 +5,7 @@
     <com.google.android.material.appbar.AppBarLayout
         android:id="@+id/appbar"
         android:layout_width="match_parent"
-        android:layout_height="360dp">
+        android:layout_height="320dp">
 
         <com.google.android.material.appbar.CollapsingToolbarLayout
             android:id="@+id/collapsing_toolbar"
@@ -37,7 +37,28 @@
                 android:layout_width="match_parent"
                 android:layout_height="?attr/actionBarSize"
                 android:theme="@style/ToolbarAccountColorTheme"
-                app:layout_collapseMode="pin" />
+                app:layout_collapseMode="pin">
+
+
+                <Button
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="end"
+                    android:visibility="gone"
+                    android:layout_marginEnd="12dp"
+                    android:textColor="@color/white"
+                    android:id="@+id/btn_add_contact"
+                    android:text="Add contact"
+                    android:background="@color/transparent"/>
+
+                <androidx.appcompat.widget.SwitchCompat
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="end"
+                    android:visibility="gone"
+                    android:layout_marginEnd="8dp"
+                    android:id="@+id/switch_account_enable"/>
+            </com.google.android.material.appbar.MaterialToolbar>
 
             <LinearLayout
                 android:id="@+id/lin_text"
@@ -55,9 +76,12 @@
                     android:layout_marginStart="@dimen/margin_larger_medium"
                     android:layout_marginBottom="4dp"
                     android:gravity="start"
+                    android:ellipsize="marquee"
+                    android:marqueeRepeatLimit="marquee_forever"
+                    android:singleLine="true"
                     android:maxLines="1"
                     android:textColor="@color/white"
-                    android:textSize="21sp"
+                    android:textSize="32sp"
                     app:layout_collapseMode="none" />
 
                 <TextView
@@ -67,6 +91,9 @@
                     android:layout_gravity="bottom"
                     android:layout_marginStart="@dimen/margin_larger_medium"
                     android:alpha="0.8"
+                    android:ellipsize="marquee"
+                    android:marqueeRepeatLimit="marquee_forever"
+                    android:singleLine="true"
                     android:gravity="start"
                     android:maxLines="1"
                     android:textColor="@color/white"

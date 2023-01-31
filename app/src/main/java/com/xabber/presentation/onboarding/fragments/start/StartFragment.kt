@@ -30,9 +30,6 @@ class StartFragment : Fragment(R.layout.fragment_start) {
 
     private fun initButton() {
         with(binding) {
-            btnSkip.setOnClickListener {
-                navigator().goToApplicationActivity()
-            }
             btnSignin.setOnClickListener {
                 navigator().openSigninFragment()
             }

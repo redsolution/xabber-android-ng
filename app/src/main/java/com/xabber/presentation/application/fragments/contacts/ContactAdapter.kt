@@ -4,7 +4,7 @@ import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
-import com.xabber.model.dto.ContactDto
+import com.xabber.models.dto.ContactDto
 import com.xabber.databinding.ItemContactBinding
 import com.xabber.presentation.application.fragments.chat.ChatParams
 
@@ -15,7 +15,7 @@ class ContactAdapter(
     interface Listener {
         fun onAvatarClick(contactDto: ContactDto)
 
-        fun onContactClick(chatParams: ChatParams)
+        fun onContactClick(owner: String, opponentJid: String, avatar: Int)
 
         fun editContact(contactDto: ContactDto, avatar: Int, color: Int)
 
