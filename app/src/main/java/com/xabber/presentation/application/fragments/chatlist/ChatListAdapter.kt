@@ -30,7 +30,7 @@ import com.xabber.presentation.application.fragments.chat.message.OutgoingMessag
 import com.xabber.presentation.application.fragments.chat.message.SystemMessageMessageVH
 
 class ChatListAdapter(
-    private val listener: ChatListener
+    private val listener: ChatListener, private  val color: Int
 ) : ListAdapter<ChatListDto, RecyclerView.ViewHolder>(DiffUtilCallback) {
 
     interface ChatListener {
@@ -101,7 +101,7 @@ class ChatListAdapter(
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val isLast = (position == currentList.size - 1)
         if (holder is ChatListViewHolder)
-        holder.bind(getItem(position), listener, isLast)
+        holder.bind(getItem(position), listener, isLast, color)
     }
 
     override fun onBindViewHolder(

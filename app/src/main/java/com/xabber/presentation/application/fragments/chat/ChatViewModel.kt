@@ -3,8 +3,10 @@ package com.xabber.presentation.application.fragments.chat
 import android.util.Log
 import androidx.lifecycle.*
 import com.xabber.data_base.defaultRealmConfig
+import com.xabber.models.dto.AccountDto
 import com.xabber.models.dto.ChatListDto
 import com.xabber.models.dto.MessageDto
+import com.xabber.models.xmpp.account.AccountStorageItem
 import com.xabber.models.xmpp.last_chats.LastChatsStorageItem
 import com.xabber.models.xmpp.messages.MessageDisplayType
 import com.xabber.models.xmpp.messages.MessageSendingState
@@ -13,16 +15,23 @@ import com.xabber.models.xmpp.presences.ResourceStatus
 import com.xabber.models.xmpp.presences.RosterItemEntity
 import com.xabber.models.xmpp.sync.ConversationType
 import io.realm.kotlin.Realm
+import io.realm.kotlin.ext.query
 import io.realm.kotlin.ext.realmListOf
 import io.realm.kotlin.notifications.ResultsChange
 import io.realm.kotlin.notifications.UpdatedResults
-import kotlinx.coroutines.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class ChatViewModel : ViewModel() {
     val realm = Realm.open(defaultRealmConfig())
     private val _messages = MutableLiveData<ArrayList<MessageDto>>()
     val messages: LiveData<ArrayList<MessageDto>> = _messages
 
+
+    private val _unreadMessages = MutableLiveData<Int>()
+    val unreadMessage: LiveData<Int> = _unreadMessages
     var job: Job? = null
 
     private val _opponentName = MutableLiveData<String>()
@@ -58,8 +67,7 @@ class ChatViewModel : ViewModel() {
 
 
     init {
-        _unreadCount.value = 0
-        Log.d("iii", "init CHATVM")
+
     }
 
     fun initMessagesListener(opponentJid: String) {
@@ -82,7 +90,7 @@ class ChatViewModel : ViewModel() {
                                 T.opponent,
                                 T.body,
                                 MessageSendingState.Read,
-                                T.sentDate,
+                                sentTimestamp = T.sentDate,
                                 editTimestamp = T.editDate,
                                 MessageDisplayType.Text,
                                 true,
@@ -99,7 +107,7 @@ class ChatViewModel : ViewModel() {
 
                         count = 0
                         for (i in 0 until list.size) {
-                            if (!list[i].isUnread) count++
+                            if (list[i].isUnread) count++
                         }
 
 
@@ -107,6 +115,7 @@ class ChatViewModel : ViewModel() {
                         messageList.sort()
                         withContext(Dispatchers.Main) {
                             _messages.value = messageList
+                            Log.d("mmm", "$count")
                             _unreadCount.value = count
                             Log.d("chat", "messages внутри слушателя сообщений ${_messages.value}")
                         }
@@ -128,7 +137,8 @@ class ChatViewModel : ViewModel() {
                         val chat = changes.list[0]
                         withContext(Dispatchers.Main) {
                             _muteExpired.value = chat.muteExpired
-                            _opponentName.value = if (chat.rosterItem?.customNickname != "") chat.rosterItem?.customNickname else chat.rosterItem?.nickname
+                            _opponentName.value =
+                                if (chat.rosterItem?.customNickname != "") chat.rosterItem?.customNickname else chat.rosterItem?.nickname
                         }
                     }
                     else -> {}
@@ -182,7 +192,8 @@ class ChatViewModel : ViewModel() {
                     status = ResourceStatus.Chat,
                     entity = RosterItemEntity.Contact,
                     lastMessageIsOutgoing = if (chat.lastMessage != null) chat.lastMessage!!.outgoing else false,
-                    customNickname = if (chat.rosterItem != null) chat.rosterItem!!.customNickname else ""
+                    customNickname = if (chat.rosterItem != null) chat.rosterItem!!.customNickname else "",
+                lastPosition = chat.lastPosition
                 )
             }
         }
@@ -214,20 +225,32 @@ class ChatViewModel : ViewModel() {
                     false,
                     null,// почему дабл
                     isChecked = selectedItems.contains(T.primary),
-                    isUnread = T.isRead
+                    isUnread = !T.isRead
                 )
 
             })
             var count = 0
             for (i in 0 until list.size) {
-                if (!list[i].isUnread) count++
+                if (list[i].isUnread) count++
             }
 
             Log.d("iii", "selecteditems = $selectedItems")
             messageList = list
             messageList.sort()
-            withContext(Dispatchers.Main) { _messages.value = messageList }
+            withContext(Dispatchers.Main) {
+                _messages.value = messageList
+                _unreadCount.value = count
+            }
         }
+    }
+
+    fun getAccount(): AccountDto? {
+        var account: AccountDto? = null
+        realm.writeBlocking {
+        val acc =    this.query(AccountStorageItem::class).first().find()
+            account =  if (acc != null)AccountDto(id = acc!!.primary, jid= acc!!.jid, colorKey = acc.colorKey, nickname = acc.nickname) else null
+        }
+        return account
     }
 
     fun insertMessage(chatId: String, messageDto: MessageDto, isReaded: Boolean) {
@@ -398,12 +421,12 @@ class ChatViewModel : ViewModel() {
                 val item = this.query(LastChatsStorageItem::class, "primary = '$id'").first().find()
                 if (item != null) {
                     findLatest(item).also {
-
                         val oldDraft = it?.draftMessage
-                        Log.d("iii", "oldDraft = $oldDraft, newDraft = $draft, oldDate = ${item?.messageDate}")
-                        it?.draftMessage = draft
-                        if (draft != null && oldDraft != it?.draftMessage) { item.messageDate = System.currentTimeMillis()
-                        Log.d("iii", "newDate = ${item.messageDate}") }
+                        if (oldDraft != draft) {
+                            it?.draftMessage = draft
+                            if (draft != null)
+                                it?.messageDate = System.currentTimeMillis()
+                        }
                     }
                 }
             }
@@ -421,22 +444,24 @@ class ChatViewModel : ViewModel() {
 
     override fun onCleared() {
         super.onCleared()
-       // realm.close()
+        // realm.close()
     }
 
     fun saveLastPosition(id: String, savedPosition: String) {
-            realm.writeBlocking {
-                Log.d("iii", "PPPP")
-                val item = this.query(LastChatsStorageItem::class, "primary = '$id'").first().find()
-                if (item != null) {
-                    findLatest(item).also {
-                        it?.lastPosition = savedPosition
-                    }
+        realm.writeBlocking {
+            val item = this.query(LastChatsStorageItem::class, "primary = '$id'").first().find()
+            if (item != null) {
+                findLatest(item).also {
+                   it?.lastPosition = savedPosition
                 }
             }
+        }
     }
 
+
     fun getPositionMessage(lastPosition: String): Int {
+        Log.d("mmm", "messageList = $messageList")
+
         messageList.sort()
         var pos = 0
         for (i in 0 until messageList.size) {
@@ -479,7 +504,7 @@ class ChatViewModel : ViewModel() {
         viewModelScope.launch(Dispatchers.IO) {
             realm.writeBlocking {
                 val mes = this.query(MessageStorageItem::class, "primary = '$id").first().find()
-               mes?.isRead = true
+                mes?.isRead = true
             }
         }
     }
@@ -549,6 +574,45 @@ class ChatViewModel : ViewModel() {
             if (item != null) result = item.color
         }
         return result
+    }
+
+
+
+
+    fun getUnreadMessages(id: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val chat =
+                realm.query(
+                    LastChatsStorageItem::class,
+                    "primary = '$id'"
+                ).first().find()
+            var count = chat?.unread
+
+            withContext(Dispatchers.Main) {
+                _unreadMessages.value = count!!
+            }
+        }
+    }
+
+
+    fun initUnreadMessagesCountListener(id: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val request =
+                realm.query(
+                    LastChatsStorageItem::class,
+                    "primary = '$id'"
+                )
+            request.asFlow().collect { changes: ResultsChange<LastChatsStorageItem> ->
+                when (changes) {
+                    is UpdatedResults -> {
+                        var count = 0
+                        changes.list.forEach { count += it.unread }
+                        withContext(Dispatchers.Main) { _unreadMessages.value = count }
+                    }
+                    else -> {}
+                }
+            }
+        }
     }
 }
 

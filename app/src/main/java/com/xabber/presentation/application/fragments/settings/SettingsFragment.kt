@@ -23,6 +23,7 @@ class SettingsFragment : BaseFragment(R.layout.fragment_settings) {
         initializeAccountList()
         subscribeToDataUpdates()
         initializeSettingsActions()
+
     }
 
     private fun initializeToolbarMenu() {

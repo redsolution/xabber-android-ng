@@ -5,13 +5,27 @@
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
     <ImageView
+        android:id="@+id/shapka"
+        android:layout_width="34dp"
+        android:layout_height="20dp"
+        app:layout_constraintBottom_toTopOf="@id/line"
+        android:src="@drawable/shapka"
+        app:layout_constraintEnd_toEndOf="@id/slider"
+        android:scaleType="centerInside"
+        android:layout_marginStart="12dp"
+        android:layout_marginEnd="12dp"
+        android:layout_marginBottom="-12dp"
+        app:layout_constraintStart_toStartOf="@id/slider" />
+
+    <ImageView
         android:id="@+id/line"
         app:layout_constraintTop_toTopOf="parent"
         android:layout_marginTop="20dp"
         app:layout_constraintBottom_toTopOf="@id/slider"
         app:layout_constraintStart_toStartOf="@id/slider"
         app:layout_constraintEnd_toEndOf="@id/slider"
-        android:layout_width="24dp"
+        android:layout_width="16dp"
+        android:scaleType="center"
         android:minHeight="30dp"
         android:layout_marginBottom="-10dp"
         android:layout_height="0dp"

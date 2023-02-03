@@ -98,7 +98,7 @@
     <string name="menu_item_settings">Настройки</string>
 
     <!-- CHAT LIST -->
-    <string name="application_title">Chat</string>
+    <string name="application_title">Xabber</string>
     <string name="no_internet_title">Соединение…</string>
     <string name="image_plus_content_description">Добавить чат</string>
     <string name="unread_chats">Непрочитанные</string>
@@ -214,23 +214,23 @@
 
     <!-- Colors -->
     <string name="account_color">Цвет аккаунта</string>
-    <string name="account_color_name_green">Зеленый</string>
-    <string name="account_color_name_orange">Оранжевый</string>
-    <string name="account_color_name_red">Красный</string>
-    <string name="account_color_name_blue">Голубой</string>
-    <string name="account_color_name_indigo">Индиго</string>
-    <string name="account_color_name_teal">Темно-зеленый</string>
-    <string name="account_color_name_blue_grey">Серо-голубой</string>
-    <string name="account_color_name_cyan">Бирюзовый</string>
-    <string name="account_color_name_deep_purple">Темно-фиолетовый</string>
-    <string name="account_color_name_lime">Лайм</string>
-    <string name="account_color_name_pink">Розовый</string>
-    <string name="account_color_name_purple">Фиолетовый</string>
-    <string name="account_color_name_light_blue">Светло-голубой</string>
-    <string name="account_color_name_light_green">Светло-зеленый</string>
-    <string name="account_color_name_amber">Желтый</string>
-    <string name="account_color_name_deep_orange">Темно-оранжевый</string>
-    <string name="account_color_name_brown">Коричневый</string>
+<!--    <string name="account_color_name_green">Зеленый</string>-->
+<!--    <string name="account_color_name_orange">Оранжевый</string>-->
+<!--    <string name="account_color_name_red">Красный</string>-->
+<!--    <string name="account_color_name_blue">Голубой</string>-->
+<!--    <string name="account_color_name_indigo">Индиго</string>-->
+<!--    <string name="account_color_name_teal">Темно-зеленый</string>-->
+<!--    <string name="account_color_name_blue_grey">Серо-голубой</string>-->
+<!--    <string name="account_color_name_cyan">Бирюзовый</string>-->
+<!--    <string name="account_color_name_deep_purple">Темно-фиолетовый</string>-->
+<!--    <string name="account_color_name_lime">Лайм</string>-->
+<!--    <string name="account_color_name_pink">Розовый</string>-->
+<!--    <string name="account_color_name_purple">Фиолетовый</string>-->
+<!--    <string name="account_color_name_light_blue">Светло-голубой</string>-->
+<!--    <string name="account_color_name_light_green">Светло-зеленый</string>-->
+<!--    <string name="account_color_name_amber">Желтый</string>-->
+<!--    <string name="account_color_name_deep_orange">Темно-оранжевый</string>-->
+<!--    <string name="account_color_name_brown">Коричневый</string>-->
 
     <!-- CONTACT ACCOUNT -->
     <string name="given_name">Given name</string>

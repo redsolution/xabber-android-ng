@@ -31,4 +31,10 @@
         <item name="android:paddingHorizontal">4dp</item>
     </style>
 
+    <style name="SwitchStyle" parent="TextAppearance.AppCompat.Widget.Switch">
+        <item name="colorControlActivated">@color/white</item>
+        <item name="colorControlNormal">@color/white</item>
+        <item name="android:colorForeground">@color/white</item>
+    </style>
+
 </resources>

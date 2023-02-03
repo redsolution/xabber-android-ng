@@ -88,6 +88,7 @@ class OnboardingViewModel : ViewModel() {
                         jid = this@OnboardingViewModel.jid!!
                         nickname = this@OnboardingViewModel.nickName!!
                         enabled = true
+                        colorKey = "blue"
                     })
                 }
             }

@@ -35,12 +35,15 @@ import com.bumptech.glide.load.MultiTransformation
 import com.bumptech.glide.load.resource.bitmap.CircleCrop
 import com.bumptech.glide.request.RequestOptions
 import com.xabber.R
+import com.xabber.data_base.defaultRealmConfig
 import com.xabber.databinding.FragmentChatBinding
 import com.xabber.models.dto.ChatListDto
 import com.xabber.models.dto.MessageDto
 import com.xabber.models.dto.MessageKind
+import com.xabber.models.xmpp.last_chats.LastChatsStorageItem
 import com.xabber.models.xmpp.messages.MessageDisplayType
 import com.xabber.models.xmpp.messages.MessageSendingState
+import com.xabber.models.xmpp.messages.MessageStorageItem
 import com.xabber.models.xmpp.presences.ResourceStatus
 import com.xabber.presentation.AppConstants
 import com.xabber.presentation.AppConstants.CHAT_MESSAGE_TEXT_KEY
@@ -56,21 +59,23 @@ import com.xabber.presentation.application.dialogs.DeletingChatDialog
 import com.xabber.presentation.application.dialogs.DeletingMessageDialog
 import com.xabber.presentation.application.fragments.DetailBaseFragment
 import com.xabber.presentation.application.fragments.chat.attach.AttachBottomSheet
-import com.xabber.presentation.application.fragments.chat.audio.AudioRecorder
 import com.xabber.presentation.application.fragments.chat.audio.VoiceManager
 import com.xabber.presentation.application.fragments.chat.geo.Location
 import com.xabber.presentation.application.fragments.chat.message.*
 import com.xabber.presentation.application.fragments.contacts.vcard.ContactAccountParams
+import com.xabber.presentation.application.fragments.test.MessageAdapter
+import com.xabber.presentation.application.fragments.test.XIncomingMessageVH
 import com.xabber.utils.*
+import io.realm.kotlin.Realm
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.*
 
-class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), ChatAdapter.Listener,
+class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.Listener, XIncomingMessageVH.BindListener,
     ReplySwipeCallback.SwipeAction {
     private val binding by viewBinding(FragmentChatBinding::bind)
     private val handler = Handler(Looper.getMainLooper())
-    private var chatAdapter: ChatAdapter? = null
+    private var chatAdapter: MessageAdapter? = null
     private var layoutManager: LinearLayoutManager? = null
     private val viewModel: ChatViewModel by viewModels()
     private var isNeedScrollDown = false
@@ -178,14 +183,12 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), ChatAdapter.Lis
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        if (savedInstanceState != null) restoreState(savedInstanceState)
-        else {
-            restoreDraft()
-            scrollToLastPosition()
-        }
+viewModel.initUnreadMessagesCountListener(getParams().id)
+        viewModel.getUnreadMessages(getParams().id)
         prepareUi()
         initializeToolbarActions()
         initializeRecyclerView()
+    //    chatAdapter?.setUnreadFirstId()
         initializeStandardInputLayoutActions()
         subscribeToChatData()
         initializeSelectMessageToolbarActions()
@@ -194,29 +197,11 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), ChatAdapter.Lis
         viewModel.initMessagesListener(getParams().opponentJid)
         viewModel.getChat(getParams().id)
         activity?.onBackPressedDispatcher?.addCallback(onBackPressedCallback)
-        setFragmentResultListener(AppConstants.TURN_OFF_NOTIFICATIONS_KEY) { _, bundle ->
-            val resultMuteExpired =
-                bundle.getLong(AppConstants.TURN_OFF_NOTIFICATIONS_BUNDLE_KEY) + System.currentTimeMillis()
-            viewModel.setMute(getParams().id, resultMuteExpired)
-            binding.messageToolbar.menu.findItem(R.id.enable_notifications).isVisible = true
-            binding.messageToolbar.menu.findItem(R.id.disable_notifications).isVisible = false
-        }
-
-        setFragmentResultListener(AppConstants.DELETING_CHAT_KEY) { _, bundle ->
-            val result = bundle.getBoolean(AppConstants.DELETING_CHAT_BUNDLE_KEY)
-            if (result) {
-                viewModel.deleteChat(getParams().id)
-                navigator().closeDetail()
-            }
-        }
-
-        setFragmentResultListener(AppConstants.CLEAR_HISTORY_KEY) { _, bundle ->
-            val result = bundle.getBoolean(AppConstants.CLEAR_HISTORY_BUNDLE_KEY)
-            if (result) viewModel.clearHistory(
-                getParams().id,
-                getParams().owner,
-                getParams().opponentJid
-            )
+        initDialogListeners()
+        if (savedInstanceState != null) restoreState(savedInstanceState)
+        else {
+            restoreDraft()
+            scrollToLastPosition()
         }
     }
 
@@ -229,28 +214,29 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), ChatAdapter.Lis
 
     private fun restoreDraft() {
         val draft = viewModel.getChat(getParams().id)?.draftMessage
-        Log.d("iii", "draft = $draft")
         if (draft != null) binding.chatInput.setText(draft)
         setupInputButtons()
     }
 
     private fun scrollToLastPosition() {
         val lastPosition = viewModel.getChat(getParams().id)?.lastPosition
+
         if (!lastPosition.isNullOrEmpty()) {
             val messagePosition =
                 viewModel.getPositionMessage(lastPosition)
-            binding.messageList.scrollToPosition(messagePosition)
+            binding.messageList.post { layoutManager?.scrollToPosition(messagePosition) }
             viewModel.saveLastPosition(getParams().id, "")
         }
     }
 
     private fun setupInputButtons() {
-        binding.btnRecord.isVisible = binding.chatInput.text.toString().isEmpty()
-        binding.buttonAttach.isVisible = binding.chatInput.text.toString().isEmpty()
-        binding.buttonSendMessage.isVisible = binding.chatInput.text.toString().isNotEmpty()
+        binding.btnRecord.isVisible = binding.chatInput.text.toString().trimEnd().isEmpty()
+        binding.buttonAttach.isVisible = binding.chatInput.text.toString().trimEnd().isEmpty()
+        binding.buttonSendMessage.isVisible = binding.chatInput.text.toString().trimEnd().isNotEmpty()
     }
 
     private fun prepareUi() {
+        setupColor()
         loadAvatarWithMask()
         val chat = viewModel.getChat(getParams().id)
         if (chat != null) {
@@ -258,6 +244,11 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), ChatAdapter.Lis
             setStatus(chat.status)
             setupMuteIcon(chat.muteExpired)
         }
+    }
+
+    private fun setupColor() {
+//        val account = viewModel.getAccount()
+//        if (account != null) binding.
     }
 
     private fun loadAvatarWithMask() {
@@ -329,10 +320,36 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), ChatAdapter.Lis
         }
     }
 
+    private fun initDialogListeners() {
+        setFragmentResultListener(AppConstants.TURN_OFF_NOTIFICATIONS_KEY) { _, bundle ->
+            val resultMuteExpired =
+                bundle.getLong(AppConstants.TURN_OFF_NOTIFICATIONS_BUNDLE_KEY) + System.currentTimeMillis()
+            viewModel.setMute(getParams().id, resultMuteExpired)
+            binding.messageToolbar.menu.findItem(R.id.enable_notifications).isVisible = true
+            binding.messageToolbar.menu.findItem(R.id.disable_notifications).isVisible = false
+        }
+
+        setFragmentResultListener(AppConstants.DELETING_CHAT_KEY) { _, bundle ->
+            val result = bundle.getBoolean(AppConstants.DELETING_CHAT_BUNDLE_KEY)
+            if (result) {
+                viewModel.deleteChat(getParams().id)
+                navigator().closeDetail()
+            }
+        }
+
+        setFragmentResultListener(AppConstants.CLEAR_HISTORY_KEY) { _, bundle ->
+            val result = bundle.getBoolean(AppConstants.CLEAR_HISTORY_BUNDLE_KEY)
+            if (result) viewModel.clearHistory(
+                getParams().id,
+                getParams().owner,
+                getParams().opponentJid
+            )
+        }
+    }
+
     private fun disableNotifications() {
         val dialog = NotificationBottomSheet()
         navigator().showBottomSheetDialog(dialog)
-
     }
 
     private fun enableNotifications() {
@@ -350,17 +367,17 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), ChatAdapter.Lis
     private fun deleteChat() {
         val dialog = DeletingChatDialog.newInstance(binding.tvChatTitle.text.toString())
         navigator().showDialogFragment(dialog, AppConstants.DELETING_CHAT_DIALOG_TAG)
-
     }
 
     private fun initializeRecyclerView() {
-        chatAdapter = ChatAdapter(this)
+        //   chatAdapter = ChatAdapter(this)
+        chatAdapter = MessageAdapter(this, bindListener = this, context = requireContext(), messageRealmObjects = ArrayList<MessageDto>())
         binding.messageList.adapter = chatAdapter
         layoutManager = LinearLayoutManager(context)
         layoutManager?.stackFromEnd = true
         binding.messageList.layoutManager = layoutManager
         addSwipeCallback()
-        // addMessageHeaderViewDecoration()
+        addMessageHeaderViewDecoration()
         addScrollListener()
         fillChat()
         binding.messageList.itemAnimator = null
@@ -374,11 +391,11 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), ChatAdapter.Lis
                 R.drawable.reply_circle
             )!!
         ) { position: Int ->
-            val id = chatAdapter?.getPositionId(position)
-            if (id != null) {
-                replyingMessage = viewModel.getMessage(id)
+            val mess = chatAdapter?.getMessageItem(position)
+            if (mess != null) {
+                replyingMessage = mess
                 handler.postDelayed(reply, 0)
-            }
+                }
         }
 
         ItemTouchHelper(replySwipeCallback!!).attachToRecyclerView(binding.messageList)
@@ -396,7 +413,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), ChatAdapter.Lis
     }
 
     private fun addMessageHeaderViewDecoration() {
-        // binding.messageList.addItemDecoration(MessageHeaderViewDecoration(requireContext()))
+        binding.messageList.addItemDecoration(MessageHeaderViewDecoration(requireContext()))
     }
 
     // @ExperimentalBadgeUtils
@@ -413,18 +430,39 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), ChatAdapter.Lis
 
         binding.messageList.addOnScrollListener(object : RecyclerView.OnScrollListener() {
             override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
-                //  binding.-tvTopDate.isVisible = true
                 if (layoutManager != null) {
                     if (layoutManager!!.findLastVisibleItemPosition() >= chatAdapter!!.itemCount - 1) {
-                        binding.downScroller.isVisible = false
+                        binding.downScroller.isVisible =
+                            binding.tvNewReceivedCount.text.isNotEmpty()
                     } else {
-                        binding.downScroller.isVisible = true
+                        if (currentVoiceRecordingState != VoiceRecordState.TouchRecording && currentVoiceRecordingState != VoiceRecordState.InitiatedRecording && currentVoiceRecordingState != VoiceRecordState.NoTouchRecording)
+                            binding.downScroller.isVisible = true
                     }
+//                    if (chatAdapter != null && layoutManager != null) {
+//                        val currentMessage = chatAdapter!!.getMessageItem(layoutManager!!.findLastVisibleItemPosition())
+//                        if (currentMessage != null)
+//                        if (currentMessage.isUnread) {
+//                            val id = currentMessage.primary
+//                            val realm = Realm.open(defaultRealmConfig())
+//                            realm.writeBlocking {
+//                                val m = this.query(MessageStorageItem::class, "primary = '$id'").first().find()
+//                                Log.d("ttt", "${m?.isRead}")
+//                                m?.isRead = true
+//
+//                                val ch = this.query(LastChatsStorageItem::class, "primary = '${getParams().id}'").first().find()
+//                                val old = ch?.unread
+//                                ch?.unread = old!!-1
+//                            }
+//
+//                        }
+//                    }
                 }
             }
         })
+
         binding.btnDownward.setOnClickListener {
-            if (viewModel.unreadCount.value == 0 || viewModel.unreadCount.value == null) {
+            val lastVisiblePosition = layoutManager!!.findLastVisibleItemPosition()
+            if (viewModel.unreadCount.value == 0 || viewModel.unreadCount.value == null || lastVisiblePosition + 2 >= chatAdapter!!.itemCount - viewModel.unreadCount.value!!) {
                 scrollDown()
                 binding.tvNewReceivedCount.text = ""
                 binding.tvNewReceivedCount.isVisible = false
@@ -433,10 +471,10 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), ChatAdapter.Lis
     }
 
     private fun scrollToFirstUnread() {
-        layoutManager?.scrollToPositionWithOffset(
-            chatAdapter!!.itemCount - viewModel.unreadCount.value!!,
-            200
-        )
+//        layoutManager?.scrollToPositionWithOffset(
+//            chatAdapter!!.itemCount - viewModel.unreadCount.value!!,
+//            200
+//        )
     }
 
     private fun fillChat() {
@@ -583,20 +621,23 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), ChatAdapter.Lis
                     }
                 }
                 MotionEvent.ACTION_UP -> {
-                    if (currentVoiceRecordingState == VoiceRecordState.InitiatedRecording) {
+                    Log.d("vvv", "current = $currentVoiceRecordingState")
+                    if (currentVoiceRecordingState == VoiceRecordState.InitiatedRecording || currentVoiceRecordingState == VoiceRecordState.NotRecording) {
                         handler.removeCallbacks(record)
                         handler.removeCallbacks(timer)
                         hideRecordPanel()
+                        beginTimer(false)
                         enabledInputPanelButtons(true)
-                        currentVoiceRecordingState = VoiceRecordState.NotRecording
                         navigator().lockScreen(false)
+                        currentVoiceRecordingState = VoiceRecordState.NotRecording
                     } else if (currentVoiceRecordingState == VoiceRecordState.TouchRecording) {
-                        sendVoiceMessage()
+                        if (binding.record.chrRecordingTimer.text != "00:00") sendVoiceMessage()
+                        hideRecordPanel()
                         navigator().lockScreen(false)
                     }
 //                    if (binding.imLock.animation != null) currentVoiceRecordingState =
 //                        VoiceRecordState.StoppedRecording
-                    if (currentVoiceRecordingState == VoiceRecordState.NoTouchRecording) {
+                 else   if (currentVoiceRecordingState == VoiceRecordState.NoTouchRecording) {
                         handler.post(stop)
                     } else {
                         binding.record.chrRecordingTimer.stop()
@@ -615,6 +656,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), ChatAdapter.Lis
                             "Audio message",
                             null
                         )
+                        hideRecordPanel()
                         currentVoiceRecordingState = VoiceRecordState.NotRecording
                         //   binding.buttonAttach.isVisible = true
                         Log.d("yyy", "record")
@@ -658,12 +700,15 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), ChatAdapter.Lis
 
                     //since alpha and slide are tied together, we can cancel recording by checking transparency value
                     if (alpha <= 0) {
-                        clearVoiceMessage()
+
                         saveAudioMessage = false
                         val animRight =
                             AnimationUtils.loadAnimation(context, R.animator.slide_to_right)
                         binding.record.recordLayout.startAnimation(animRight)
                         binding.record.recordLayout.isVisible = false
+                        hideRecordPanel()
+                        binding.record.slideLayout.x = 0f
+                        currentVoiceRecordingState = VoiceRecordState.NotRecording
                     }
                 }
             }; true
@@ -683,10 +728,15 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), ChatAdapter.Lis
         }
 
         binding.record.tvCancelRecording.setOnClickListener {
+            currentVoiceRecordingState = VoiceRecordState.NotRecording
+            hideRecordPanel()
             clearVoiceMessage()
         }
 
-        binding.record.voicePresenterDelete.setOnClickListener { clearVoiceMessage() }
+        binding.record.voicePresenterDelete.setOnClickListener {
+            currentVoiceRecordingState = VoiceRecordState.NotRecording
+            hideRecordPanel()
+            clearVoiceMessage() }
 
         binding.record.btnSendStop.setOnClickListener {
             sendMessage("Audio message", null)
@@ -712,19 +762,31 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), ChatAdapter.Lis
         }
 
         viewModel.messages.observe(viewLifecycleOwner) {
-            chatAdapter?.submitList(it) {
-                chatAdapter?.notifyDataSetChanged()
-                if (layoutManager != null && chatAdapter != null) {
-                    if (layoutManager!!.findLastVisibleItemPosition() >= chatAdapter!!.itemCount - 2 && !isSelectedMode) scrollDown()
-                    if (isNeedScrollDown) {
-                        scrollDown()
-                        isNeedScrollDown = false
-                    }
+//            chatAdapter?.submitList(it) {
+//                chatAdapter?.notifyDataSetChanged()
+//                if (layoutManager != null && chatAdapter != null) {
+//                    if (layoutManager!!.findLastVisibleItemPosition() >= chatAdapter!!.itemCount - 2 && !isSelectedMode) scrollDown()
+//                    if (isNeedScrollDown) {
+//                        scrollDown()
+//                        isNeedScrollDown = false
+//                    }
+//                }
+//            }
+
+            chatAdapter?.updateAdapter(it)
+         chatAdapter?.notifyDataSetChanged()
+            if (layoutManager != null && chatAdapter != null) {
+                if (layoutManager!!.findLastVisibleItemPosition() >= chatAdapter!!.itemCount - 2 && !isSelectedMode) scrollDown()
+                if (isNeedScrollDown) {
+                    scrollDown()
+                    isNeedScrollDown = false
                 }
             }
         }
 
-        viewModel.unreadCount.observe(viewLifecycleOwner) {
+
+        viewModel.unreadMessage.observe(viewLifecycleOwner) {
+            Log.d("mmm", "observe $it")
             if (it > 0) {
                 binding.tvNewReceivedCount.isVisible = true
                 binding.tvNewReceivedCount.text = it.toString()
@@ -816,7 +878,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), ChatAdapter.Lis
                         null,
                         false, null, false, null, null, Location(2.8604, 14.540)
                     ),
-                    layoutManager!!.findLastVisibleItemPosition() >= (chatAdapter!!.itemCount - 3)
+                    false
                 )
                 Log.d(
                     "yyy",
@@ -921,6 +983,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), ChatAdapter.Lis
         if (chatAdapter != null) binding.messageList.scrollToPosition(chatAdapter?.itemCount!! - 1)
         binding.tvNewReceivedCount.isVisible = false
         binding.tvNewReceivedCount.text = ""
+        chatAdapter?.setFirstUnreadMessageId(null)
         viewModel.markAllMessageUnread(getParams().id)
     }
 
@@ -932,10 +995,11 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), ChatAdapter.Lis
     }
 
     private fun prepareUiForRecording() {
+        binding.downScroller.isVisible = false
         enabledInputPanelButtons(false)
         binding.record.recordLayout.isVisible = true
-        // binding.record.linChronometr.isVisible = true
-        // binding.record.slideLayout.isVisible = true
+        binding.record.linChronometr.isVisible = true
+        binding.record.slideLayout.isVisible = true
         binding.record.slideLayout.alpha = 1.0f
         binding.linRecordLock.isVisible = true
         shortVibrate()
@@ -969,6 +1033,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), ChatAdapter.Lis
         binding.btnRecordExpanded.hide()
         binding.btnRecordExpanded.isVisible = false
         enabledInputPanelButtons(true)
+        binding.record.cancelRecordLayout.isVisible = false
     }
 
     private fun enabledInputPanelButtons(enabled: Boolean) {
@@ -1119,7 +1184,8 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), ChatAdapter.Lis
         enableSelectionMode(true)
         Check.setSelectedMode(true)
         viewModel.selectMessage(primary, true)
-        viewModel.getMessageList(getParams().opponentJid)
+       viewModel.getMessageList(getParams().opponentJid)
+
     }
 
     override fun checkItem(isChecked: Boolean, primary: String) {
@@ -1153,11 +1219,12 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), ChatAdapter.Lis
             saveDraft()
             //  binding.chatPanelGroup.isVisible = false
             binding.interaction.interactionView.isVisible = true
-            //   chatAdapter?.setSelectedMode(true)
+         //  chatAdapter?.setSelectedMode(true)
             replySwipeCallback?.setSwipeEnabled(false)
             isSelectedMode = true
             Check.setSelectedMode(true)
             viewModel.getMessageList(getParams().opponentJid)
+
             binding.buttonEmoticon.isEnabled = false
             binding.buttonAttach.isEnabled = false
             binding.btnRecord.isEnabled = false
@@ -1187,12 +1254,6 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), ChatAdapter.Lis
         }
     }
 
-    private fun saveDraft() {
-        val text =
-            if (binding.chatInput.text!!.isEmpty()) null else binding.chatInput.text.toString()
-                .trimEnd()
-        viewModel.saveDraft(getParams().id, text)
-    }
 
     fun sendMessage(textMessage: String, imagePaths: HashSet<String>?) {
         var messageKindDto: MessageKind? = null
@@ -1251,39 +1312,51 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), ChatAdapter.Lis
 //    }
 
 
-    private fun showBadgeWithUnreadMessages() {
-
-
-    }
-
     override fun onDestroyView() {
         super.onDestroyView()
-        val lastPosition = layoutManager?.findLastVisibleItemPosition()
-
-        if (chatAdapter?.itemCount!! > 0 && lastPosition != null) {
-
-            val savedPosition = chatAdapter?.getPositionId(lastPosition)
-            if (savedPosition != null) viewModel.saveLastPosition(getParams().id, savedPosition)
-        }
-
-        saveDraft()
+        saveLastPosition()
         onBackPressedCallback.remove()
-
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        chatAdapter?.submitList(null)
+        saveDraft()
         chatAdapter = null
+    }
+
+    private fun saveDraft() {
+        val inputText = binding.chatInput.text.toString().trimEnd()
+        val draft = inputText.ifEmpty { null }
+        viewModel.saveDraft(getParams().id, draft)
+    }
+
+    private fun saveLastPosition() {
+        val lastPosition = layoutManager?.findLastVisibleItemPosition()
+        if (chatAdapter?.itemCount!! > 0 && lastPosition != null) {
+            val savedPosition = chatAdapter?.getMessageItem(lastPosition)?.primary
+            if (savedPosition != null) viewModel.saveLastPosition(getParams().id, savedPosition)
+        }
     }
 
     private enum class VoiceRecordState {
         NotRecording, InitiatedRecording, TouchRecording, NoTouchRecording, StoppedRecording
     }
 
+    override fun onBind(message: MessageDto?) {
+        Log.d("ppp", "bind")
+        if (message != null) {
+            if (message.isUnread) {
+                val realm = Realm.open(defaultRealmConfig())
+                realm.writeBlocking {
+                    val m = this.query(MessageStorageItem::class, "primary = '$id'").first().find()
+                    m?.isRead = true
+
+                    val ch = this.query(LastChatsStorageItem::class, "primary = '${getParams().id}'").first().find()
+                    val old = ch?.unread
+                    ch?.unread = old!!-1
+                }
+            }
+        }
+    }
+
 }
-
-
-
-
-

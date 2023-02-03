@@ -236,13 +236,13 @@ class ContactAccountFragment : DetailBaseFragment(R.layout.fragment_contact_acco
 
         initPanelActions()
         initTabLayout()
-        if (DisplayManager.getWidthDp() > 600) {
+        if (!DisplayManager.isDualScreenMode() && DisplayManager.getWidthDp() > 600) {
             val params = CollapsingToolbarLayout.LayoutParams(
                 CoordinatorLayout.LayoutParams.WRAP_CONTENT,
                 CollapsingToolbarLayout.LayoutParams.WRAP_CONTENT
             )
             params.gravity = Gravity.CENTER_VERTICAL or Gravity.START
-            params.marginStart = 200.dp
+            params.marginStart = 300.dp
             binding.accountAppbar.linText.layoutParams = params
         }
         subscribeToViewModelData()

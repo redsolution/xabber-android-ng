@@ -297,7 +297,7 @@ class PullRefreshLayout : FrameLayout, NestedScrollingParent {
 
 //            if (lp.height < 90) headerView.alpha = 0f
 //            if (lp.height < 100) headerView.alpha = 0.5f
-//            if (lp.height > 100) headerView.alpha = 1f
+           if (lp.height > 100) headerView.setProgressRotation(true) else headerView.setProgressRotation(false)
             Log.d(
                 "ppp",
                 "distanceY = $distanceY, lp.height = ${lp.height}, guid = $guidanceViewHeight"
@@ -591,7 +591,7 @@ class PullRefreshLayout : FrameLayout, NestedScrollingParent {
     }
 
 
-    fun ss() {
-        headerView.setProgressRotation()
+    fun ss(color: Int, colorLight: Int) {
+     headerView.setColor(color, colorLight)
     }
 }

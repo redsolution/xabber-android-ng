@@ -1,6 +1,7 @@
 package com.xabber.presentation.custom
 
 import android.content.Context
+import android.provider.ContactsContract.CommonDataKinds.Im
 import android.util.AttributeSet
 import android.util.Log
 import android.view.LayoutInflater
@@ -9,6 +10,7 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.annotation.LayoutRes
+import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import com.xabber.R
 
@@ -100,16 +102,16 @@ class HeaderView : FrameLayout {
         //  if (circleProgressBar != null) circleProgressBar!!.stop()
     }
 
-    fun setProgressRotation() {
+    fun setProgressRotation(isv: Boolean) {
         Log.d("ppp", "progress $rotation")
-pullImage = findViewById(R.id.slider)
+pullImage = findViewById(R.id.shapka)
        // setRadius(8f)
 //if (rotation > 150) {
 //    val a = rotation * 0.008
 //    pullImage!!.animate().scaleY(a.toFloat())
 //    pullImage!!.animate().translationY(-rotation/1f).start()
 
-       pullImage!!.isVisible = true
+       pullImage!!.isVisible = isv
 }
     //   pullImag(rotation/100)
 
@@ -122,6 +124,17 @@ pullImage = findViewById(R.id.slider)
 
     fun setRadius(radius: Float) {
         pullImage = findViewById(R.id.line)
+
+    }
+
+
+    fun setColor(color: Int, colorLight: Int) {
+        val line = findViewById<ImageView>(R.id.line)
+        val shapka = findViewById<ImageView>(R.id.shapka)
+        val slider = findViewById<ImageView>(R.id.slider)
+        line.setColorFilter(ContextCompat.getColor(context, colorLight))
+       shapka.setColorFilter(ContextCompat.getColor(context, colorLight))
+        slider.setColorFilter(ContextCompat.getColor(context, color))
 
     }
 

@@ -56,6 +56,8 @@
                     android:layout_height="wrap_content"
                     android:layout_gravity="end"
                     android:visibility="gone"
+                    android:backgroundTint="@color/white"
+                    style="@style/SwitchStyle"
                     android:layout_marginEnd="8dp"
                     android:id="@+id/switch_account_enable"/>
             </com.google.android.material.appbar.MaterialToolbar>

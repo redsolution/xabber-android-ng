@@ -15,7 +15,6 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:background="@drawable/msg"
-        android:backgroundTint="?attr/message_background"
         android:orientation="vertical"
         android:paddingLeft="3dp"
         android:paddingTop="3dp"
@@ -63,8 +62,7 @@
             android:id="@+id/file_list_rv"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:visibility="gone"
-            tools:listitem="@layout/item_file_message" />
+            android:visibility="gone" />
 
         <androidx.appcompat.widget.AppCompatImageView
             android:id="@+id/message_map_view"

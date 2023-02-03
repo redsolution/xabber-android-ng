@@ -10,6 +10,7 @@ import android.view.View.OnTouchListener
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.RecyclerView
 import com.xabber.presentation.application.fragments.chat.message.SystemMessageMessageVH
+import com.xabber.utils.dp
 import kotlin.math.max
 import kotlin.math.min
 
@@ -37,6 +38,11 @@ class ReplySwipeCallback(
     private var dXReal = 0f
     private var actionState = 0
     private var isCurrentlyActive = false
+
+    private  val fullSize = 36.dp
+    private  val paddingRight = 28
+    private  val MAX_SWIPE_DISTANCE_RATIO = 0.18f
+    private  val ACTIVE_SWIPE_DISTANCE_RATIO = 0.13f
 
     interface SwipeAction {
         fun onFullSwipe(position: Int)
@@ -293,9 +299,6 @@ class ReplySwipeCallback(
     }
 
     companion object {
-        private const val fullSize = 80
-        private const val paddingRight = 28
-        private const val MAX_SWIPE_DISTANCE_RATIO = 0.18f
-        private const val ACTIVE_SWIPE_DISTANCE_RATIO = 0.13f
+
     }
 }

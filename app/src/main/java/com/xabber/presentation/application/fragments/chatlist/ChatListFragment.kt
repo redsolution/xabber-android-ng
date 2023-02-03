@@ -9,10 +9,8 @@ import android.util.Log
 import android.view.*
 import android.widget.TextView
 import android.widget.Toast
-import androidx.core.view.ViewCompat
 import androidx.core.view.isVisible
 import androidx.fragment.app.activityViewModels
-import androidx.fragment.app.viewModels
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import by.kirich1409.viewbindingdelegate.viewBinding
@@ -33,6 +31,7 @@ import com.xabber.presentation.AppConstants.DELETING_CHAT_DIALOG_TAG
 import com.xabber.presentation.AppConstants.DELETING_CHAT_KEY
 import com.xabber.presentation.AppConstants.TURN_OFF_NOTIFICATIONS_BUNDLE_KEY
 import com.xabber.presentation.AppConstants.TURN_OFF_NOTIFICATIONS_KEY
+import com.xabber.presentation.application.activity.ColorManager
 import com.xabber.presentation.application.activity.UiChanger
 import com.xabber.presentation.application.bottomsheet.NotificationBottomSheet
 import com.xabber.presentation.application.contract.navigator
@@ -56,10 +55,9 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
     private val enableNotificationsCode = 0L
     private var toPin = false
     private var snackbar: Snackbar? = null
-    var currentId = ""
+    private var currentId = ""
     private var a = false
     private var b = false
-
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -95,11 +93,6 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
         initSwipeRefreshLayout(binding.refreshLayout)
     }
 
-    private fun setTitle() {
-        val title = if (showUnreadOnly) R.string.unread_chats else R.string.application_title
-        binding.tvChatTitle.setText(title)
-    }
-
     private fun changeUiWithData() {
         loadAvatarWithMask()
     }
@@ -110,6 +103,11 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
         Glide.with(binding.imAvatar.context).load(name).error(R.drawable.ic_avatar_placeholder)
             .apply(RequestOptions.bitmapTransform(multiTransformation))
             .into(binding.imAvatar)
+    }
+
+    private fun setTitle() {
+        val title = if (showUnreadOnly) R.string.unread_chats else R.string.application_title
+        binding.tvChatTitle.setText(title)
     }
 
     private fun initToolbarActions() {
@@ -135,11 +133,17 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
     }
 
     private fun initRecyclerView() {
-        chatListAdapter = ChatListAdapter(this)
+        val color = chatListViewModel.getColor()
+        val c = if (color != null) color else R.color.blue_500
+        chatListAdapter = ChatListAdapter(this, c)
         binding.chatList.adapter = chatListAdapter
         layoutManager = binding.chatList.layoutManager as LinearLayoutManager
+        addItemDecoration()
         addSwipeOption()
         addScrollListener()
+    }
+
+    private fun addItemDecoration() {
         binding.chatList.addItemDecoration(
             com.xabber.presentation.application.fragments.chat.DividerItemDecoration(
                 binding.root.context,
@@ -158,11 +162,13 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
     }
 
     private fun addScrollListener() {
-        binding.chatList.setOnScrollChangeListener { _, _, _, _, _ ->
-            if (layoutManager?.findFirstVisibleItemPosition() == 1) {
-                binding.chatList.scrollBarSize = 0
-            } else {
-                binding.chatList.scrollBarSize = 10
+        if (layoutManager != null) {
+            binding.chatList.setOnScrollChangeListener { _, _, _, _, _ ->
+                if (layoutManager!!.findFirstVisibleItemPosition() <= 2) {
+                    binding.chatList.scrollBarSize = 0
+                } else {
+                    binding.chatList.scrollBarSize = 10
+                }
             }
         }
     }
@@ -178,10 +184,15 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
         }
     }
 
+    private fun initEmptyButton() {
+        binding.emptyButton.setOnClickListener { navigator().showContacts() }
+    }
+
     private fun subscribeOnViewModelData() {
         chatListViewModel.showUnreadOnly.observe(viewLifecycleOwner) {
             showUnreadOnly = it
             setTitle()
+            binding.refreshLayout.isRefreshEnable = !showUnreadOnly
         }
 
         chatListViewModel.chats.observe(viewLifecycleOwner) {
@@ -195,10 +206,6 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
                 }
             }
         }
-    }
-
-    private fun initEmptyButton() {
-        binding.emptyButton.setOnClickListener { navigator().showContacts() }
     }
 
     private fun initMarkAllMessagesUnreadButton() {
@@ -323,18 +330,21 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
 
 
     private fun initSwipeRefreshLayout(swipeRefreshLayout: PullRefreshLayout?) {
-
         val inflater = LayoutInflater.from(context)
         swipeRefreshLayout?.isLoadMoreEnable = false
         val view: View = inflater.inflate(R.layout.refresh_view, null)
         val textView = view.findViewById<View>(R.id.refresh_title) as TextView
         swipeRefreshLayout?.setFooterView(view)
+
+        val colorName = chatListViewModel.getColorName()
+        val lightColor = ColorManager.convertColorLightNameToId(colorName!!)
+        val color = ColorManager.convertColorMediumNameToId(colorName)
         swipeRefreshLayout?.setOnRefreshListener(object :
             PullRefreshLayout.SHSOnRefreshListener {
             override fun onRefresh() {
                 swipeRefreshLayout.postDelayed(Runnable {
                     swipeRefreshLayout.finishRefresh()
-                   navigator().showArchive()
+                    navigator().showArchive()
                 }, 0)
             }
 
@@ -349,35 +359,36 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
                 when (state) {
                     PullRefreshLayout.NOT_OVER_TRIGGER_POINT -> {
                         swipeRefreshLayout.setRefreshViewText(
-                        "Тяните для показа архива"
-                    )
+                            "Тяните для показа архива"
+                        )
                         if (b) {
                             shortVibrate()
 
                             b = false
                         }
                         a = false
-                        swipeRefreshLayout.setHeaderBackground(R.color.grey_300)
+                        swipeRefreshLayout.setHeaderBackground(lightColor)
 
 
                     }
-                PullRefreshLayout.OVER_TRIGGER_POINT -> {
-                    if (!a) {
-                        swipeRefreshLayout.ss()
-                        shortVibrate()
-                        a = true
-                    }
-                    b = true
+                    PullRefreshLayout.OVER_TRIGGER_POINT -> {
+                        if (!a) {
+
+                            shortVibrate()
+                            a = true
+                        }
+                        b = true
                         swipeRefreshLayout.setRefreshViewText(
                             "Отпустите для показа архива"
                         )
-swipeRefreshLayout.setHeaderBackground(R.color.blue_grey_200)
+                        swipeRefreshLayout.setHeaderBackground(color)
                     }
                     PullRefreshLayout.START -> {
                         swipeRefreshLayout.setRefreshViewText("Открываем архив")
-                    a = false
+                        a = false
                         b = false
-                        swipeRefreshLayout.finishRefresh() }
+                        swipeRefreshLayout.finishRefresh()
+                    }
                 }
             }
 

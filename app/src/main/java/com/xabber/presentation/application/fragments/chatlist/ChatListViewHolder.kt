@@ -41,7 +41,7 @@ class ChatListViewHolder(
     private val binding: ItemChatListBinding,
 ) : RecyclerView.ViewHolder(binding.root) {
 
-    fun bind(chatListDto: ChatListDto, listener: ChatListAdapter.ChatListener, isLast: Boolean) {
+    fun bind(chatListDto: ChatListDto, listener: ChatListAdapter.ChatListener, isLast: Boolean, color: Int) {
         with(binding) {
             // height
 //
@@ -51,7 +51,7 @@ class ChatListViewHolder(
 
             // color divider
             accountColorIndicator.setBackgroundResource(
-                UiChanger.getAccountColor()!!
+               color
             )
 
             // avatar

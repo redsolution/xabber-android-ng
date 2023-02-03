@@ -13,7 +13,7 @@ class AccountColorViewHolder(
         binding.colorItem.text = colorName
         binding.colorItemVisual.setImageResource(color)
         binding.colorItem.setOnClickListener {
-            listener.onClick(color)
+            listener.onClick(colorName)
         }
     }
 

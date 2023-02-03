@@ -35,7 +35,6 @@
         android:id="@+id/message_status_icon"
         android:layout_width="14dp"
         android:layout_height="14dp"
-        android:layout_marginStart="4dp"
-        app:srcCompat="@drawable/ic_message_synced_14dp" />
+        android:layout_marginStart="4dp" />
 
 </androidx.appcompat.widget.LinearLayoutCompat>

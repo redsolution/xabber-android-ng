@@ -14,6 +14,7 @@ import com.xabber.models.xmpp.messages.MessageStorageItem
 import com.xabber.models.xmpp.presences.ResourceStatus
 import com.xabber.models.xmpp.presences.RosterItemEntity
 import io.realm.kotlin.Realm
+import io.realm.kotlin.ext.query
 import io.realm.kotlin.notifications.ResultsChange
 import io.realm.kotlin.notifications.UpdatedResults
 import kotlinx.coroutines.Dispatchers
@@ -177,6 +178,15 @@ class ArchiveViewModel : ViewModel() {
     override fun onCleared() {
         super.onCleared()
         realm.close()
+    }
+
+    fun getColor(): String? {
+        var color: String? = null
+        realm.writeBlocking {
+            val account = this.query(AccountStorageItem::class).first().find()
+            color = account?.colorKey
+        }
+        return color
     }
 
 }

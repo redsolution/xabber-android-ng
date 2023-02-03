@@ -14,7 +14,7 @@ class AccountColorPickerAdapter( private val listener: AccountColorPickerAdapter
 ) : RecyclerView.Adapter<AccountColorViewHolder>() {
 
     interface  Listener {
-        fun onClick(color: Int)
+        fun onClick(color: String)
     }
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): AccountColorViewHolder {
         return AccountColorViewHolder(

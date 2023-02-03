@@ -40,6 +40,8 @@ class IncomingMessageVH(
         showCheckbox: Boolean,
         isNeedTitle: Boolean, isNeedUnread: Boolean
     ) {
+
+
         Log.d("show", "$isNeedUnread")
         // text & appearance
         binding.tvContent.isVisible = messageDto.messageBody != null

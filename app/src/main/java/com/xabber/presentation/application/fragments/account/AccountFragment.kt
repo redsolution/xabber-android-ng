@@ -38,6 +38,7 @@ import com.xabber.databinding.FragmentAccountBinding
 import com.xabber.models.xmpp.account.AccountViewModel
 import com.xabber.presentation.AppConstants
 import com.xabber.presentation.application.activity.AvatarBottomSheetDialog
+import com.xabber.presentation.application.activity.ColorManager
 import com.xabber.presentation.application.activity.DisplayManager
 import com.xabber.presentation.application.activity.UiChanger
 import com.xabber.presentation.application.contract.navigator
@@ -62,7 +63,7 @@ class AccountFragment : DetailBaseFragment(R.layout.fragment_account) {
     private val binding by viewBinding(FragmentAccountBinding::bind)
     private val viewModel: AccountViewModel by activityViewModels()
     private var currentPhotoUri: Uri? = null
-
+private var f = R.color.blue_500
     private val requestCameraPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(), ::onGotCameraPermissionResult
     )
@@ -138,6 +139,8 @@ class AccountFragment : DetailBaseFragment(R.layout.fragment_account) {
         viewModel.initDataListener()
         viewModel.accounts.observe(viewLifecycleOwner) {
             binding.accountAppbar.switchAccountEnable.isChecked = it[0].enabled
+            loadBackground()
+            defineColor()
         }
 
         viewModel.avatarBitmap.observe(viewLifecycleOwner) {
@@ -184,7 +187,10 @@ class AccountFragment : DetailBaseFragment(R.layout.fragment_account) {
     }
 
     private fun loadBackground() {
-        binding.accountAppbar.appbar.setBackgroundResource(R.color.blue_500)
+        val color = viewModel.getAccount(getJid())?.colorKey
+        val fon = if (color != null) ColorManager.convertColorNameToId(color) else R.color.blue_500
+        f = fon
+        binding.accountAppbar.appbar.setBackgroundResource(fon)
         Glide.with(requireContext())
             .load(R.drawable.img)
             .transform(
@@ -193,10 +199,10 @@ class AccountFragment : DetailBaseFragment(R.layout.fragment_account) {
                     6,
                     ContextCompat.getColor(
                         requireContext(),
-                        R.color.blue_500
+                        fon
                     )
                 )
-            ).placeholder(R.color.blue_500).transition(
+            ).placeholder(fon).transition(
                 DrawableTransitionOptions.withCrossFade()
             )
             .into(binding.accountAppbar.imBackdrop)
@@ -302,7 +308,7 @@ class AccountFragment : DetailBaseFragment(R.layout.fragment_account) {
                             QRCodeParams(
                                 "",
                                 getJid(),
-                                R.color.blue_500
+                                f
                             )
                         )
                     }
@@ -363,7 +369,7 @@ class AccountFragment : DetailBaseFragment(R.layout.fragment_account) {
         binding.accountAppbar.collapsingToolbar.setContentScrimColor(
             ResourcesCompat.getColor(
                 resources,
-                R.color.blue_500,
+                f,
                 requireContext().theme
             )
         )

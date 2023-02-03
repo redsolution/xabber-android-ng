@@ -15,7 +15,7 @@ data class MessageDto(
     val sentTimestamp: Long,
     val editTimestamp: Long = 0L,
     val displayType: MessageDisplayType?,
-    val canEditMessage: Boolean?,
+    val canEditMessage: Boolean,
     val canDeleteMessage: Boolean?,
     val urlAvatar: Url?,
     val isGroup: Boolean,

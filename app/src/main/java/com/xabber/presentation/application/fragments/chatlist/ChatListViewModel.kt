@@ -16,6 +16,7 @@ import com.xabber.models.xmpp.presences.ResourceStatus
 import com.xabber.models.xmpp.presences.RosterItemEntity
 import com.xabber.models.xmpp.roster.RosterStorageItem
 import com.xabber.models.xmpp.sync.ConversationType
+import com.xabber.presentation.application.activity.ColorManager
 import io.realm.kotlin.Realm
 import io.realm.kotlin.ext.realmListOf
 import io.realm.kotlin.notifications.ResultsChange
@@ -80,7 +81,7 @@ class ChatListViewModel : ViewModel() {
                                 opponentNickname = if (T.rosterItem != null) T.rosterItem!!.nickname else "",
                                 customNickname = if (T.rosterItem != null) T.rosterItem!!.customNickname else "",
                                 lastMessageBody = if (T.lastMessage == null) "" else T.lastMessage!!.body,
-                                lastMessageDate = if (T.lastMessage == null) T.messageDate else T.lastMessage!!.date,
+                                lastMessageDate = if (T.lastMessage == null || T.draftMessage != null) T.messageDate else T.lastMessage!!.date,
                                 lastMessageState = if (T.lastMessage?.state_ == 5 || T.lastMessage == null) MessageSendingState.None else MessageSendingState.Read,
                                 isArchived = T.isArchived,
                                 isSynced = T.isSynced,
@@ -152,7 +153,7 @@ class ChatListViewModel : ViewModel() {
     }
 
     fun initAccountDataListener() {
-        Log.d("itt","${realm.query(AccountStorageItem::class).find()}")
+        Log.d("itt", "${realm.query(AccountStorageItem::class).find()}")
         viewModelScope.launch(Dispatchers.IO) {
             val request =
                 realm.query(AccountStorageItem::class)
@@ -187,7 +188,7 @@ class ChatListViewModel : ViewModel() {
                     opponentNickname = if (T.rosterItem != null) T.rosterItem!!.nickname else "",
                     customNickname = if (T.rosterItem != null) T.rosterItem!!.customNickname else "",
                     lastMessageBody = if (T.lastMessage == null) "" else T.lastMessage!!.body,
-                    lastMessageDate = if (T.lastMessage == null) T.messageDate else T.lastMessage!!.date,
+                    lastMessageDate = if (T.lastMessage == null || T.draftMessage != null) T.messageDate else T.lastMessage!!.date,
                     lastMessageState = if (T.lastMessage?.state_ == 5 || T.lastMessage == null) MessageSendingState.None else MessageSendingState.Read,
                     isArchived = T.isArchived,
                     isSynced = T.isSynced,
@@ -631,7 +632,7 @@ class ChatListViewModel : ViewModel() {
                     lastMessageIsOutgoing = if (T.lastMessage != null) T.lastMessage!!.outgoing else false
                 )
             })
-               dataSource.sort()
+            dataSource.sort()
             withContext(Dispatchers.Main) {
                 _archivedChats.value = dataSource
             }
@@ -688,6 +689,25 @@ class ChatListViewModel : ViewModel() {
         }
     }
 
+    fun getColor(): Int? {
+        var color: Int? = null
+        realm.writeBlocking {
+            val account = this.query(AccountStorageItem::class).first().find()
+           val colorName = account?.colorKey
+          if (colorName != null)  color = ColorManager.convertColorNameToId(colorName)
+        }
+        return color
+    }
 
 
+    fun getColorName(): String?
+    {
+        var color: String? = null
+        realm.writeBlocking {
+            val account = this.query(AccountStorageItem::class).first().find()
+           color = account?.colorKey
+        }
+        return color
+
+    }
 }

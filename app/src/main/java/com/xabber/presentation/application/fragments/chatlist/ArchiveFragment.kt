@@ -19,6 +19,7 @@ import com.xabber.models.dto.ChatListDto
 import com.xabber.presentation.AppConstants
 import com.xabber.presentation.AppConstants.TURN_OFF_NOTIFICATIONS_BUNDLE_KEY
 import com.xabber.presentation.AppConstants.TURN_OFF_NOTIFICATIONS_KEY
+import com.xabber.presentation.application.activity.ColorManager
 import com.xabber.presentation.application.bottomsheet.NotificationBottomSheet
 import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.application.dialogs.ChatHistoryClearDialog
@@ -50,6 +51,8 @@ class ArchiveFragment : BaseFragment(R.layout.fragment_chat_list),
         subscribeOnViewModelData()
    //     fillArchive()
         setDialogListeners()
+        binding.refreshLayout.isRefreshEnable = false
+        binding.refreshLayout.isLoadMoreEnable = false
     }
 
     private fun setupArchiveUi() {
@@ -62,8 +65,11 @@ class ArchiveFragment : BaseFragment(R.layout.fragment_chat_list),
     }
 
     private fun setToolbarColor() {
+        val colorId = viewModel.getColor()
+      var fon =  if (colorId != null)ColorManager.convertColorNameToId(colorId) else R.color.blue_300
+
         val color = ColorUtils.blendARGB(
-            ContextCompat.getColor(requireContext(), R.color.blue_300),
+            ContextCompat.getColor(requireContext(), fon),
             Color.GRAY,
             0.4f
         )
@@ -80,7 +86,10 @@ class ArchiveFragment : BaseFragment(R.layout.fragment_chat_list),
     }
 
     private fun initRecyclerView() {
-        adapter = ChatListAdapter(this)
+        val colorName = viewModel.getColor()
+        val color = ColorManager.convertColorNameToId(colorName!!)
+        val c = if (color != null) color else R.color.blue_500
+        adapter = ChatListAdapter(this, c)
         binding.chatList.adapter = adapter
         addItemDecoration()
         addSwipeOption()
