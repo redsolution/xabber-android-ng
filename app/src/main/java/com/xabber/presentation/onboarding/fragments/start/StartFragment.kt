@@ -53,24 +53,6 @@ class StartFragment : Fragment(R.layout.fragment_start) {
 
     private fun showError(e: Throwable) {
         navigator().openSignupNicknameFragment()
-//        Log.d("uuu", "${e.printStackTrace()}")
-//            val snack = Snackbar.make(
-//                   binding.root,
-//                    "There is no internet connection",
-//                    Snackbar.LENGTH_SHORT
-//                )
-//            snack.setTextColor(Color.YELLOW)
-//            snack.show()
-//
-//        with(binding) {
-//            progressBar.isVisible = false
-//            val anim = AnimationUtils.loadAnimation(context, R.anim.fade_in)
-//            btnSignin.isVisible = true
-//            btnSignup.isVisible = true
-//            btnSignin.startAnimation(anim)
-//            btnSignup.startAnimation(anim)
-        //    btnSignup.isVisible = true
-        //    }
     }
 
     override fun onDestroy() {

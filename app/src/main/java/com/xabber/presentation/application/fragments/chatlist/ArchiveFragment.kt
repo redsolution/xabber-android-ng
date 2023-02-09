@@ -20,13 +20,14 @@ import com.xabber.presentation.AppConstants
 import com.xabber.presentation.AppConstants.TURN_OFF_NOTIFICATIONS_BUNDLE_KEY
 import com.xabber.presentation.AppConstants.TURN_OFF_NOTIFICATIONS_KEY
 import com.xabber.presentation.application.activity.ColorManager
-import com.xabber.presentation.application.bottomsheet.NotificationBottomSheet
 import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.application.dialogs.ChatHistoryClearDialog
 import com.xabber.presentation.application.dialogs.DeletingChatDialog
+import com.xabber.presentation.application.dialogs.NotificationBottomSheet
 import com.xabber.presentation.application.fragments.BaseFragment
 import com.xabber.presentation.application.fragments.chat.ChatParams
 import com.xabber.presentation.application.fragments.chatlist.archive.ArchiveViewModel
+import com.xabber.presentation.custom.DividerItemDecoration
 import com.xabber.utils.partSmoothScrollToPosition
 import com.xabber.utils.setFragmentResultListener
 
@@ -52,7 +53,7 @@ class ArchiveFragment : BaseFragment(R.layout.fragment_chat_list),
    //     fillArchive()
         setDialogListeners()
         binding.refreshLayout.isRefreshEnable = false
-        binding.refreshLayout.isLoadMoreEnable = false
+    //    binding.refreshLayout.isLoadMoreEnable = false
     }
 
     private fun setupArchiveUi() {
@@ -89,7 +90,7 @@ class ArchiveFragment : BaseFragment(R.layout.fragment_chat_list),
         val colorName = viewModel.getColor()
         val color = ColorManager.convertColorNameToId(colorName!!)
         val c = if (color != null) color else R.color.blue_500
-        adapter = ChatListAdapter(this, c)
+        adapter = ChatListAdapter(this)
         binding.chatList.adapter = adapter
         addItemDecoration()
         addSwipeOption()
@@ -97,7 +98,7 @@ class ArchiveFragment : BaseFragment(R.layout.fragment_chat_list),
 
     private fun addItemDecoration() {
         binding.chatList.addItemDecoration(
-            com.xabber.presentation.application.fragments.chat.DividerItemDecoration(
+            DividerItemDecoration(
                 binding.root.context,
                 LinearLayoutManager.VERTICAL
             ).apply {

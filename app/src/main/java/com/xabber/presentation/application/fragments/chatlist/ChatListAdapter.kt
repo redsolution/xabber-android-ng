@@ -1,7 +1,6 @@
 package com.xabber.presentation.application.fragments.chatlist
 
 import android.os.Bundle
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
@@ -11,11 +10,7 @@ import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.RecyclerView.ViewHolder
 import com.xabber.databinding.HideChatItemBinding
 import com.xabber.databinding.ItemChatListBinding
-import com.xabber.databinding.ItemMessageIncomingBinding
-import com.xabber.databinding.ItemMessageOutgoingBinding
-import com.xabber.databinding.ItemMessageSystemBinding
 import com.xabber.models.dto.ChatListDto
-import com.xabber.models.xmpp.messages.MessageDisplayType
 import com.xabber.presentation.AppConstants.PAYLOAD_CHAT_CUSTOM_NAME
 import com.xabber.presentation.AppConstants.PAYLOAD_CHAT_DATE
 import com.xabber.presentation.AppConstants.PAYLOAD_CHAT_DRAFT_MESSAGE
@@ -24,14 +19,10 @@ import com.xabber.presentation.AppConstants.PAYLOAD_CHAT_MESSAGE_STATE
 import com.xabber.presentation.AppConstants.PAYLOAD_MUTE_EXPIRED_CHAT
 import com.xabber.presentation.AppConstants.PAYLOAD_PINNED_POSITION_CHAT
 import com.xabber.presentation.AppConstants.PAYLOAD_UNREAD_CHAT
-import com.xabber.presentation.application.fragments.chat.message.ChatAdapter
-import com.xabber.presentation.application.fragments.chat.message.IncomingMessageVH
-import com.xabber.presentation.application.fragments.chat.message.OutgoingMessageVH
-import com.xabber.presentation.application.fragments.chat.message.SystemMessageMessageVH
 
 class ChatListAdapter(
-    private val listener: ChatListener, private  val color: Int
-) : ListAdapter<ChatListDto, RecyclerView.ViewHolder>(DiffUtilCallback) {
+    private val listener: ChatListener
+) : ListAdapter<ChatListDto, ViewHolder>(DiffUtilCallback) {
 
     interface ChatListener {
 
@@ -64,33 +55,26 @@ class ChatListAdapter(
     override fun onAttachedToRecyclerView(recycler: RecyclerView) {
         recyclerView = recycler
         ItemTouchHelper(SwipeToArchiveCallback(this)).attachToRecyclerView(recycler)
-
         super.onAttachedToRecyclerView(recyclerView)
     }
 
-
-
     override fun getItemViewType(position: Int): Int {
         return when {
-            getItem(position).isHide  -> {
-                ChatListAdapter.HIDE_CHAT
-            }
-            else -> {
-                ChatListAdapter.NORMAL_CHAT
-            }
+            getItem(position).isHide -> HIDE_CHAT
+            else -> NORMAL_CHAT
         }
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
         val inflater = LayoutInflater.from(parent.context)
         return when (viewType) {
-           ChatListAdapter.NORMAL_CHAT -> {
-               val binding = ItemChatListBinding.inflate(inflater, parent, false)
-               return ChatListViewHolder(binding)
+            NORMAL_CHAT -> {
+                val binding = ItemChatListBinding.inflate(inflater, parent, false)
+                ChatListViewHolder(binding)
             }
-            ChatListAdapter.HIDE_CHAT -> {
+            HIDE_CHAT -> {
                 val binding = HideChatItemBinding.inflate(inflater, parent, false)
-                return HideChatListViewHolder(binding)
+                HideChatListViewHolder(binding)
             }
             else -> {
                 throw IllegalStateException("Unsupported message view type!")
@@ -99,9 +83,8 @@ class ChatListAdapter(
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        val isLast = (position == currentList.size - 1)
         if (holder is ChatListViewHolder)
-        holder.bind(getItem(position), listener, isLast, color)
+            holder.bind(getItem(position), listener)
     }
 
     override fun onBindViewHolder(
@@ -113,7 +96,7 @@ class ChatListAdapter(
             super.onBindViewHolder(holder, position, payloads)
         } else {
             if (holder is ChatListViewHolder)
-            holder.bind(getItem(position), listener, payloads)
+                holder.bind(getItem(position), listener, payloads)
         }
     }
 

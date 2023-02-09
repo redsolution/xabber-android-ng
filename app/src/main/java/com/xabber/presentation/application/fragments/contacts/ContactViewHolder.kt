@@ -46,7 +46,7 @@ class ContactViewHolder(
                         RosterItemEntity.Server -> {
                             when (contact.status) {
                                 ResourceStatus.Offline -> R.drawable.status_server_unavailable
-                                else -> R.drawable.status_server_online
+                                else -> R.drawable.status_server
                             }
                         }
                         RosterItemEntity.Bot -> {

@@ -23,7 +23,7 @@ import com.xabber.models.xmpp.messages.MessageSendingState
 import com.xabber.models.xmpp.presences.ResourceStatus
 import com.xabber.models.xmpp.presences.RosterItemEntity
 import com.xabber.presentation.AppConstants
-import com.xabber.presentation.application.bottomsheet.TimeMute
+import com.xabber.presentation.application.dialogs.TimeMute
 import com.xabber.presentation.application.fragments.chatlist.ChatListAdapter
 import com.xabber.utils.DateFormatter
 import com.xabber.utils.dp
@@ -64,7 +64,7 @@ class ChatListViewHolder1(
                 if (chatListDto.customNickname.isNotEmpty()) chatListDto.customNickname else if (chatListDto.opponentNickname.isNotEmpty()) chatListDto.opponentNickname else chatListDto.opponentJid
 
             // last message
-            if (chatListDto.draftMessage != null && chatListDto.draftMessage.isNotEmpty()) {
+            if (chatListDto.draftMessage != null && chatListDto.draftMessage!!.isNotEmpty()) {
                 val spannable = SpannableString("Drafted: ${chatListDto.draftMessage}")
                 spannable.setSpan(
                     ForegroundColorSpan(
@@ -164,7 +164,7 @@ class ChatListViewHolder1(
                     RosterItemEntity.Server -> {
                         when (chatListDto.status) {
                             ResourceStatus.Offline -> R.drawable.status_server_unavailable
-                            else -> R.drawable.status_server_online
+                            else -> R.drawable.status_server
                         }
                     }
                     RosterItemEntity.Bot -> {
@@ -336,66 +336,7 @@ class ChatListViewHolder1(
                 }
                 AppConstants.PAYLOAD_PINNED_POSITION_CHAT -> {
                     val pinnedPosition = bundle.getLong(AppConstants.PAYLOAD_PINNED_POSITION_CHAT)
-                    if (pinnedPosition > 0) {
-                        binding.root.setBackgroundResource(
-                            R.drawable.clickable_pinned_chat_background
-                        )
-                    } else {
-                        binding.root.setBackgroundResource(R.drawable.clickable_view_group_background)
-                    }
-                    binding.imChatListPinned.isVisible =
-                        pinnedPosition > 0 && chatListDto.unread.isEmpty()
-                    itemView.setOnLongClickListener {
-                        val popup = PopupMenu(itemView.context, itemView, Gravity.CENTER)
-                        popup.inflate(R.menu.popup_menu_chat_list_item)
-                        if (chatListDto.isArchived) {
-                            popup.menu.removeItem(R.id.pin_chat)
-                            popup.menu.removeItem(R.id.unpin)
-                        } else {
-                            if (chatListDto.pinnedDate > 0) {
-                                popup.menu.removeItem(R.id.pin_chat)
-                            } else {
-                                popup.menu.removeItem(R.id.unpin)
-                            }
 
-                            if ((chatListDto.muteExpired - System.currentTimeMillis()) > 0) {
-                                popup.menu.removeItem(R.id.turn_of_notifications)
-                            } else {
-                                popup.menu.removeItem(R.id.enable_notifications)
-                            }
-                        }
-                        popup.setOnMenuItemClickListener {
-                            when (it.itemId) {
-                                R.id.unpin -> listener.unPinChat(chatListDto.id)
-                                R.id.pin_chat -> {
-                                    listener.pinChat(chatListDto.id)
-                                }
-                                R.id.turn_of_notifications -> {
-                                    listener.turnOfNotifications(chatListDto.id)
-                                }
-                                R.id.enable_notifications -> {
-                                    listener.enableNotifications(chatListDto.id)
-                                }
-                                R.id.customise_notifications -> {
-                                    listener.openSpecialNotificationsFragment()
-                                }
-                                R.id.delete -> {
-                                    listener.deleteChat(
-                                        chatListDto.opponentNickname,
-                                        chatListDto.id
-                                    )
-                                }
-                                R.id.clear_history -> {
-                                    listener.clearHistory(
-                                        chatListDto
-                                    )
-                                }
-                            }
-                            true
-                        }
-                        popup.show()
-                        true
-                    }
                 }
                 AppConstants.PAYLOAD_MUTE_EXPIRED_CHAT -> {
                     val muteExpired = bundle.getLong(AppConstants.PAYLOAD_MUTE_EXPIRED_CHAT)

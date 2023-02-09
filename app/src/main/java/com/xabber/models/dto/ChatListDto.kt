@@ -10,16 +10,16 @@ import kotlinx.parcelize.Parcelize
 @Parcelize
 data class ChatListDto(
     val id: String,
-    val owner: String,                 // наш jid
-    val opponentJid: String,           // jid оппонента
-    val opponentNickname: String,      // как себя записал оппонент
-    val customNickname: String = "",   // как мы записали оппонента
+    val owner: String,
+    val opponentJid: String,
+    val opponentNickname: String,
+    val customNickname: String = "",
     val lastMessageBody: String = "",
     val lastMessageDate: Long = 0,
-    val lastMessageState: MessageSendingState = MessageSendingState.None,
+    var lastMessageState: MessageSendingState = MessageSendingState.None,
     val isArchived: Boolean = false,
     val isSynced: Boolean = true,
-    val draftMessage: String? = null,      // черновик
+    var draftMessage: String? = null,
     val hasAttachment: Boolean = false,    // вложения
     val isSystemMessage: Boolean = false,  // курсивом
     val isMentioned: Boolean = false,      // @ упомянули в чате
@@ -27,13 +27,14 @@ data class ChatListDto(
     var pinnedDate: Long = 0,
     val status: ResourceStatus,
     val entity: RosterItemEntity,
-    val unread: String = "",
+    var unread: String = "",
     val lastPosition: String = "",
     @ColorRes
     val colorId: Int,
     val drawableId: Int,
     val isHide: Boolean = false,
     val lastMessageIsOutgoing: Boolean = false,
+    val colorKey: String = "blue"
 ) : Comparable<ChatListDto>, Parcelable {
     override fun compareTo(other: ChatListDto): Int {
         return if (other.pinnedDate > 0 || this.pinnedDate > 0) {

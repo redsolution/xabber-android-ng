@@ -107,7 +107,7 @@ class AvatarBottomSheet : BottomSheetDialogFragment() {
                     cropImageFromCamera()
                 } else {
                     requestCameraPermissionLauncher.launch(
-                            Manifest.permission.CAMERA,
+                        Manifest.permission.CAMERA,
                     )
                 }
             }

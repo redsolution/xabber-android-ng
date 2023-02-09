@@ -24,10 +24,10 @@ import com.xabber.utils.dipToPx
 import java.util.*
 
 class XIncomingMessageVH internal constructor(private val listener: MessageAdapter.Listener,
-    itemView: View, messageListener: MessageClickListener?,
-    longClickListener: MessageLongClickListener?, fileListener: FileListener?,
-   val listen: BindListener?, avatarClickListener: OnMessageAvatarClickListener,
-    @StyleRes appearance: Int
+                                              itemView: View, messageListener: MessageClickListener?,
+                                              longClickListener: MessageLongClickListener?, fileListener: FileListener?,
+                                              val listen: BindListener?, avatarClickListener: OnMessageAvatarClickListener,
+                                              @StyleRes appearance: Int
 ) : XMessageVH(itemView, messageListener!!, longClickListener!!, fileListener, appearance) {
 
     interface BindListener {
@@ -39,7 +39,7 @@ class XIncomingMessageVH internal constructor(private val listener: MessageAdapt
     }
 
     @SuppressLint("UseCompatLoadingForDrawables")
-   override fun bind(messageRealmObject: MessageDto, extraData: MessageVhExtraData) {
+    override fun bind(messageRealmObject: MessageDto, extraData: MessageVhExtraData) {
         super.bind(messageRealmObject, extraData)
         val context: Context = itemView.getContext()
         val needTail: Boolean = extraData.isNeedTail
@@ -121,7 +121,8 @@ class XIncomingMessageVH internal constructor(private val listener: MessageAdapt
         itemView.addOnAttachStateChangeListener(object : OnAttachStateChangeListener {
 
             override fun onViewAttachedToWindow(view: View) {
-                Log.d("ppp", "listen = $listen")
+               // Log.d("bibi", "onAttached ${messageRealmObject.messageBody}")
+              if (messageRealmObject.isUnread)
                 listen?.onBind(messageRealmObject)
             }
 
@@ -202,39 +203,39 @@ class XIncomingMessageVH internal constructor(private val listener: MessageAdapt
 //            }
 //        }
 //    }
-messageTextTv.setOnClickListener {
-    if (Check.getSelectedMode()) {
-        listener.checkItem(!messageRealmObject.isChecked, messageRealmObject.primary)
-    } else {
-        val popup = PopupMenu(it.context, it, Gravity.CENTER)
-        popup.setForceShowIcon(true)
-        popup.inflate(R.menu.popup_menu_message_incoming)
+        messageTextTv.setOnClickListener {
+            if (Check.getSelectedMode()) {
+                listener.checkItem(!messageRealmObject.isChecked, messageRealmObject.primary)
+            } else {
+                val popup = PopupMenu(it.context, it, Gravity.CENTER)
+                popup.setForceShowIcon(true)
+                popup.inflate(R.menu.popup_menu_message_incoming)
 
 
-        popup.setOnMenuItemClickListener { menuItem ->
-            when (menuItem.itemId) {
-                R.id.copy -> {
-                    val text = messageTextTv.text.toString()
-                    listener.copyText(text)
+                popup.setOnMenuItemClickListener { menuItem ->
+                    when (menuItem.itemId) {
+                        R.id.copy -> {
+                            val text = messageTextTv.text.toString()
+                            listener.copyText(text)
+                        }
+                        R.id.pin -> {
+                            listener.pinMessage(messageRealmObject)
+                        }
+                        R.id.forward -> {
+                            listener.forwardMessage(messageRealmObject)
+                        }
+                        R.id.reply -> {
+                            listener.replyMessage(messageRealmObject)
+                        }
+                        R.id.delete_message -> {
+                            listener.deleteMessage(messageRealmObject.primary)
+                        }
+                    }
+                    true
                 }
-                R.id.pin -> {
-                    listener.pinMessage(messageRealmObject)
-                }
-                R.id.forward -> {
-                    listener.forwardMessage(messageRealmObject)
-                }
-                R.id.reply -> {
-                    listener.replyMessage(messageRealmObject)
-                }
-                R.id.delete_message -> {
-                    listener.deleteMessage(messageRealmObject.primary)
-                }
+                popup.show()
             }
-            true
         }
-        popup.show()
-    }
-}
 
         itemView.setOnClickListener {
             if (Check.getSelectedMode()) {
@@ -284,7 +285,3 @@ messageTextTv.setOnClickListener {
 
 
 }
-
-
-
-

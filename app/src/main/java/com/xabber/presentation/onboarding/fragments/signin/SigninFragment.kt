@@ -52,7 +52,6 @@ class SigninFragment : Fragment(R.layout.fragment_signin) {
         }
     }
 
-    @SuppressLint("SetTextI18n")
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         toolbarChanger().showArrowBack(true)
         toolbarChanger().setTitle(R.string.signin_toolbar_title_1)
@@ -156,7 +155,7 @@ class SigninFragment : Fragment(R.layout.fragment_signin) {
                                         signinSubtitle2.isVisible = true
                                         btnRock.isVisible = true
                                         btnRock.setOnClickListener {
-                                            navigator().goToApplicationActivity(null)
+                                            navigator().goToApplicationActivity()
                                         }
                                     }
                                     if (viewModel._features.count { it.state == State.Error } <= 1 &&

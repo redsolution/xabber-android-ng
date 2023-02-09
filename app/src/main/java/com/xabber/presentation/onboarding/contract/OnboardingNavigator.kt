@@ -17,7 +17,7 @@ interface OnboardingNavigator {
 
     fun openSignupAvatarFragment()
 
-    fun goToApplicationActivity(avatar: String?)
+    fun goToApplicationActivity()
 
     fun openBottomSheetDialogFragment(dialog: BottomSheetDialogFragment)
 

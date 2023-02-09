@@ -18,12 +18,12 @@ import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.xabber.R
 import com.xabber.databinding.FragmentEmojiAvatarBinding
+import com.xabber.presentation.AppConstants
+import com.xabber.presentation.onboarding.activity.OnboardingViewModel
+import com.xabber.utils.dp
 import com.xabber.utils.mask.Mask
 import com.xabber.utils.mask.MaskedDrawableBitmapShader
-import com.xabber.presentation.AppConstants
-import com.xabber.utils.dp
 import com.xabber.utils.setFragmentResultListener
-import com.xabber.presentation.onboarding.activity.OnboardingViewModel
 
 class EmojiAvatarBottomSheet : BottomSheetDialogFragment() {
     private val binding by viewBinding(FragmentEmojiAvatarBinding::bind)

@@ -59,6 +59,7 @@
     <dimen name="color_indicator_width">2dp</dimen>
     <dimen name="text_size_item_chat_title">14sp</dimen>
     <dimen name="text_size_item_chat_message">14sp</dimen>
+    <dimen name="text_size_16">16sp</dimen>
     <dimen name="text_size_large">20sp</dimen>
     <dimen name="text_size_timestamp">10sp</dimen>
     <dimen name="drawable_mute_padding">4dp</dimen>
@@ -71,6 +72,7 @@
     <dimen name="margin_10">10dp</dimen>
     <dimen name="text_size_button_toolbar">15sp</dimen>
     <dimen name="padding_middle">12dp</dimen>
-    <dimen name="paddind_small">4dp</dimen>
+    <dimen name="padding_small">4dp</dimen>
+    <dimen name="status_rim_width">1dp</dimen>
 
 </resources>

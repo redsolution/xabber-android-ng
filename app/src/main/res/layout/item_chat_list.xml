@@ -30,22 +30,15 @@
         tools:src="@tools:sample/avatars" />
 
     <ImageView
-        android:id="@+id/im_chat_status_16"
-        android:layout_width="@dimen/chat_status_16_size"
-        android:layout_height="@dimen/chat_status_16_size"
-        android:contentDescription="@string/chat_status_16_image_description"
+        android:padding="@dimen/status_rim_width"
+        android:background="@drawable/circle_white"
+        android:id="@+id/im_chat_status"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:contentDescription="@string/chat_status_image_description"
         app:layout_constraintBottom_toBottomOf="@id/im_chat_list_item_avatar"
         app:layout_constraintEnd_toEndOf="@id/im_chat_list_item_avatar"
         tools:src="@drawable/status_bot_online" />
-
-    <ImageView
-        android:id="@+id/im_chat_status_14"
-        android:layout_width="@dimen/chat_status_14_size"
-        android:layout_height="@dimen/chat_status_14_size"
-        android:contentDescription="@string/chat_status_14_image_description"
-        android:src="@drawable/status_online"
-        app:layout_constraintBottom_toBottomOf="@id/im_chat_list_item_avatar"
-        app:layout_constraintEnd_toEndOf="@id/im_chat_list_item_avatar" />
 
     <FrameLayout
         android:layout_width="0dp"

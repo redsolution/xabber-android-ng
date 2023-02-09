@@ -1,10 +1,10 @@
 package com.xabber.presentation.application.activity
 
 import android.annotation.SuppressLint
-import android.content.Context
 import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
+import android.util.Log
 import android.util.TypedValue
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
@@ -80,16 +80,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator {
         super.onCreate(savedInstanceState)
         setContentView(binding.root)
         window?.statusBarColor = Color.TRANSPARENT
-        if (viewModel.checkIsEntry()) {     //
-            val avatar = intent?.getStringExtra("avatar")//
-            if (avatar != null) UiChanger.setAvatar(avatar)//
-            else {//
-                val av = getSharedPreferences("pref", Context.MODE_PRIVATE).getString(//
-                    "avatar",//
-                    null//
-                )//
-                if (av != null) UiChanger.setAvatar(av)//
-            }//
+        if (viewModel.checkIsEntry()) {
             updateUiDependingOnMode(isDualScreenMode())
             setFullScreenMode()
             setHeightStatusBar()
@@ -99,14 +90,6 @@ class ApplicationActivity : AppCompatActivity(), Navigator {
             subscribeToViewModelData()
             if (savedInstanceState == null)
                 launchFragment(ChatListFragment())
-//            } else {
-//                val menuItem = binding.bottomNavBar.menu.findItem(R.id.chats)
-//                if (viewModel.showUnreadOnly.value!!) {
-//                    menuItem.setIcon(R.drawable.ic_chat_alert)
-//                } else {
-//                    menuItem.setIcon(R.drawable.ic_chat)
-//                }
-//            }
         } else goToOnboarding()
     }
 
@@ -227,6 +210,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator {
         viewModel.initAccountListListener()
         viewModel.initUnreadMessagesCountListener()
         viewModel.unreadMessage.observe(this) {
+            Log.d("ccc"," для активити $it")
             showBadge(it)
         }
         viewModel.getUnreadMessages()
@@ -424,8 +408,6 @@ class ApplicationActivity : AppCompatActivity(), Navigator {
 
     override fun onDestroy() {
         super.onDestroy()
-        val sh = getSharedPreferences("pref", Context.MODE_PRIVATE) //
-        sh.edit().putString("avatar", UiChanger.getAvatar()).apply() //
         assist?.onDestroy()
     }
 

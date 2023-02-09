@@ -77,8 +77,8 @@
         <item name="android:clickable">true</item>
         <item name="android:focusable">true</item>
         <item name="android:background">@drawable/clickable_view_group_background</item>
-        <item name="android:paddingStart">@dimen/paddind_small</item>
-        <item name="android:paddingEnd">@dimen/paddind_small</item>
+        <item name="android:paddingStart">@dimen/padding_small</item>
+        <item name="android:paddingEnd">@dimen/padding_small</item>
         <item name="android:paddingTop">@dimen/padding_middle</item>
         <item name="android:paddingBottom">@dimen/padding_middle</item>
     </style>

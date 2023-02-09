@@ -16,7 +16,6 @@ import com.xabber.models.dto.MessageBalloonColors
 import com.xabber.models.dto.MessageDto
 import com.xabber.models.dto.MessageVhExtraData
 import com.xabber.presentation.application.fragments.chat.ReferenceRealmObject
-import com.xabber.presentation.application.fragments.chat.message.ChatAdapter
 import com.xabber.presentation.application.fragments.chat.message.XBasicMessageVH
 import com.xabber.presentation.application.fragments.chat.message.XMessageVH
 import com.xabber.presentation.application.util.isSameDayWith

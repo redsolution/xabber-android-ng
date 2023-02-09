@@ -109,6 +109,10 @@
     <string name="status_content_description">Status</string>
     <string name="message_status_content_description">message status</string>
     <string name="pinned_chat_description">Pinned chat</string>
+    <string name ="pull_to_show_archive">Pull to show archive</string>
+    <string name="release_to_show_archive">Release to show archive</string>
+    <string name="open_archive">Open the archive</string>
+    <string name="drafted">Drafted: </string>
 
     <!-- Chat Context Menu -->
     <string name="menu_item_enable_notifications">Enable notifications</string>
@@ -247,7 +251,7 @@
     <string name="archive_button_label">Archive</string>
     <string name="xabber_logo_image_description">Xabber</string>
     <string name="avatar_toolbar_im_description">Avatar</string>
-    <string name="chat_status_16_image_description">Chat status 16</string>
+    <string name="chat_status_image_description">Chat status 16</string>
     <string name="chat_status_14_image_description">Chat_status_14</string>
     <string name="chat_image_description">Chat avatar</string>
     <string name="muted_chat_image_description">Muted</string>
@@ -385,5 +389,6 @@
     <string name="server_information">Server information</string>
     <string name="xmpp_server">Xmpp server</string>
     <string name="delete_account">Delete account</string>
+    <string name="slider_description">slider</string>
 
 </resources>

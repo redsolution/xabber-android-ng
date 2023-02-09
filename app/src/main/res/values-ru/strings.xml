@@ -114,6 +114,10 @@
     <string name="status_content_description">Статус</string>
     <string name="message_status_content_description">Статус сообщения</string>
     <string name="pinned_chat_description">чат закреплен</string>
+    <string name ="pull_to_show_archive">Тяните для показа архива</string>
+    <string name="release_to_show_archive">Отпустите для показа архива</string>
+    <string name="open_archive">Открываем архив</string>
+    <string name="drafted">Черновик: </string>
 
     <!-- ChatList Context Menu -->
     <string name="menu_item_pin_chat">Закрепить</string>
@@ -269,7 +273,7 @@
     <string name="archive_button_label">Archive</string>
     <string name="xabber_logo_image_description">Xabber</string>
     <string name="avatar_toolbar_im_description">Avatar</string>
-    <string name="chat_status_16_image_description">Chat status 16</string>
+    <string name="chat_status_image_description">Chat status 16</string>
     <string name="chat_status_14_image_description">Chat_status_14</string>
     <string name="chat_image_description">Chat avatar</string>
     <string name="muted_chat_image_description">Muted</string>

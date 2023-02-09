@@ -92,10 +92,8 @@ class OnBoardingActivity : AppCompatActivity(), OnboardingNavigator, ToolbarChan
         openFragment(SigninFragment())
     }
 
-    override fun goToApplicationActivity(avatar: String?) {
+    override fun goToApplicationActivity() {
         val intent = Intent(applicationContext, ApplicationActivity::class.java)
-        Log.d("avatar", "onboardingactivity $avatar")
-        if (avatar != null) intent.putExtra("avatar", avatar)
         startActivity(intent)
         finish()
         overridePendingTransition(R.anim.appearance, R.anim.disappearance)

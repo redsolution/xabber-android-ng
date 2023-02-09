@@ -1,12 +1,10 @@
 package com.xabber.presentation.onboarding.fragments.signup
 
-import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.drawable.BitmapDrawable
 import android.net.Uri
 import android.os.Bundle
 import android.provider.MediaStore
-import android.util.Log
 import android.view.View
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
@@ -29,8 +27,8 @@ import java.io.FileOutputStream
 class SignupAvatarFragment : Fragment(R.layout.fragment_signup_avatar) {
     private val binding by viewBinding(FragmentSignupAvatarBinding::bind)
     private val viewModel: OnboardingViewModel by activityViewModels()
+    private val fileName = "avatar"
     private var isImageSaved = false
-    private var fileNme = ""
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -52,7 +50,7 @@ class SignupAvatarFragment : Fragment(R.layout.fragment_signup_avatar) {
         binding.avatarBtnNext.setOnClickListener {
             saveAvatar()
             viewModel.registerAccount()
-            navigator().goToApplicationActivity(fileNme)
+            navigator().goToApplicationActivity()
         }
     }
 
@@ -97,15 +95,13 @@ class SignupAvatarFragment : Fragment(R.layout.fragment_signup_avatar) {
         val stream = ByteArrayOutputStream()
         bitmap.compress(Bitmap.CompressFormat.PNG, 90, stream)
 
-       val bytesArray = stream.toByteArray()
-        val name = "avatar"
-        val file = File(filesDir, name)
+        val bytesArray = stream.toByteArray()
+        val file = File(filesDir, fileName)
         FileOutputStream(file).use {
-            val bytes = bytesArray
-            it.write(bytes)
+            it.write(bytesArray)
         }
-     fileNme = file.path
-Log.d("avatar ", "signup $fileNme")
+        val avatarUri = Uri.fromFile(file)
+        viewModel.setSavedAvatarUri(avatarUri.toString())
     }
 
 }

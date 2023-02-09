@@ -30,10 +30,9 @@ import com.xabber.presentation.AppConstants.PAYLOAD_CHAT_MESSAGE_BODY
 import com.xabber.presentation.AppConstants.PAYLOAD_CHAT_MESSAGE_STATE
 import com.xabber.presentation.AppConstants.PAYLOAD_MUTE_EXPIRED_CHAT
 import com.xabber.presentation.AppConstants.PAYLOAD_PINNED_POSITION_CHAT
-import com.xabber.presentation.application.activity.UiChanger
-import com.xabber.presentation.application.bottomsheet.TimeMute
+import com.xabber.presentation.application.activity.ColorManager
+import com.xabber.presentation.application.dialogs.TimeMute
 import com.xabber.utils.DateFormatter
-import com.xabber.utils.dp
 import com.xabber.utils.parcelable
 
 
@@ -41,187 +40,152 @@ class ChatListViewHolder(
     private val binding: ItemChatListBinding,
 ) : RecyclerView.ViewHolder(binding.root) {
 
-    fun bind(chatListDto: ChatListDto, listener: ChatListAdapter.ChatListener, isLast: Boolean, color: Int) {
-        with(binding) {
-            // height
-//
-//            val params = binding.root.layoutParams as RecyclerView.LayoutParams
-//            params.bottomMargin =  if (isLast) 40 else 0
-//            binding.root.layoutParams = params
+    fun bind(chatListDto: ChatListDto, listener: ChatListAdapter.ChatListener) {
 
-            // color divider
-            accountColorIndicator.setBackgroundResource(
-               color
-            )
+        setColorDivider(chatListDto.colorKey)
+        setAvatar(chatListDto.drawableId)
+        setName(chatListDto.getChatName())
+        setTextMessage(chatListDto.draftMessage, chatListDto.lastMessageBody)
+        setTime(chatListDto.lastMessageDate)
+        setPin(chatListDto.pinnedDate, chatListDto.unread)
+        setMuted(chatListDto)
+        setUnreadMessages(chatListDto.unread, chatListDto.muteExpired)
+        setMessageSendingState(chatListDto)
+        setupChatStatus(chatListDto)
 
-            // avatar
-            val multiTransformation = MultiTransformation(CircleCrop())
+        binding.chatSyncImage.isVisible = chatListDto.isSynced
 
-            Glide.with(itemView).load(chatListDto.drawableId)
-                .apply(RequestOptions.bitmapTransform(multiTransformation))
-                .into(binding.imChatListItemAvatar)
-
-            // name
-            tvChatItemName.text =
-                if (chatListDto.customNickname.isNotEmpty()) chatListDto.customNickname else if (chatListDto.opponentNickname.isNotEmpty()) chatListDto.opponentNickname else chatListDto.opponentJid
-
-            // last message
-            if (chatListDto.draftMessage != null) {
-                val spannable = SpannableString("Drafted: ${chatListDto.draftMessage}")
-                spannable.setSpan(
-                    ForegroundColorSpan(
-                        itemView.resources.getColor(
-                            R.color.red_500,
-                            itemView.context.theme
-                        )
-                    ),
-                    0,
-                    8,
-                    Spannable.SPAN_EXCLUSIVE_INCLUSIVE
-                )
-                binding.tvChatListLastMessage.text = spannable
-                binding.imMessageStatus.isVisible = false
-            } else {
-                binding.tvChatListLastMessage.text = HtmlCompat.fromHtml(
-                    chatListDto.lastMessageBody,
-                    HtmlCompat.FROM_HTML_MODE_COMPACT
-                )
-            }
-
-            // timeStamp
-            tvTimestamp.text =
-                DateFormatter.dateFormat(chatListDto.lastMessageDate)
-
-            // pinned -> background and icon
-            if (chatListDto.pinnedDate > 0) {
-                chatGround.setBackgroundResource(
-                    R.drawable.clickable_pinned_chat_background
-                )
-            } else {
-                chatGround.setBackgroundResource(R.drawable.clickable_view_group_background)
-            }
-            imChatListPinned.isVisible = chatListDto.pinnedDate > 0 && chatListDto.unread.isEmpty()
-
-            // muted
-            val muteExpired = chatListDto.muteExpired
-            val imageResource =
-                if (muteExpired - System.currentTimeMillis() <= 0) null else if (
-                    (muteExpired - System.currentTimeMillis()) > TimeMute.DAY1.time)
-                    R.drawable.ic_bell_off_light_grey_mini else R.drawable.ic_bell_sleep_light_grey_mini
-            var drawable: Drawable? = null
-            if (imageResource != null) drawable =
-                ContextCompat.getDrawable(binding.root.context, imageResource)
-            binding.tvChatItemName.setCompoundDrawablesWithIntrinsicBounds(
-                null, null, drawable, null
-            )
-
-            // unread messages
-            unreadMessagesCount.isVisible = chatListDto.unread.isNotEmpty()
-            if (chatListDto.unread.isNotEmpty()) unreadMessagesCount.text =
-                if (chatListDto.unread.toInt() < 1000) chatListDto.unread else "999+"
-            unreadMessagesCount.background =
-                if ((chatListDto.muteExpired - System.currentTimeMillis()) > 0)
-                    ContextCompat.getDrawable(binding.root.context, R.drawable.circle_grey)
-                else ContextCompat.getDrawable(binding.root.context, R.drawable.circle_green)
-
-            // message state
-            setUpMessageSendingState(chatListDto, chatListDto.lastMessageState)
-
-            // synced
-            chatSyncImage.isVisible = chatListDto.isSynced
-
-            // chat status
-            setupChatStatus(chatListDto)
-
-            // onClick
-            itemView.setOnClickListener {
-                listener.onClickItem(chatListDto)
-            }
-
-            // popup menu
-            itemView.setOnLongClickListener {
-                setupAndShowPopupMenu(chatListDto, listener)
-                true
-            }
+        itemView.setOnClickListener {
+            listener.onClickItem(chatListDto)
         }
+
+        itemView.setOnLongClickListener {
+            setupAndShowPopupMenu(chatListDto, listener)
+            true
+        }
+    }
+
+    private fun setColorDivider(colorKey: String) {
+        val colorDivider = ColorManager.convertColorNameToId(colorKey)
+        binding.accountColorIndicator.setBackgroundColor(
+            ContextCompat.getColor(
+                binding.accountColorIndicator.context,
+                colorDivider
+            )
+        )
+    }
+
+    private fun setAvatar(drawableId: Int) {
+        val multiTransformation = MultiTransformation(CircleCrop())
+        Glide.with(itemView).load(drawableId)
+            .apply(RequestOptions.bitmapTransform(multiTransformation))
+            .into(binding.imChatListItemAvatar)
+    }
+
+    private fun setName(name: String) {
+        binding.tvChatItemName.text = name
+    }
+
+    private fun setTextMessage(draftMessage: String?, lastMessageBody: String) {
+        if (draftMessage != null) {
+            val spannable =
+                SpannableString("${binding.root.resources.getString(R.string.drafted)} $draftMessage")
+            spannable.setSpan(
+                ForegroundColorSpan(
+                    itemView.resources.getColor(
+                        R.color.red_500,
+                        itemView.context.theme
+                    )
+                ),
+                0,
+                binding.root.resources.getString(R.string.drafted).length,
+                Spannable.SPAN_EXCLUSIVE_INCLUSIVE
+            )
+            binding.tvChatListLastMessage.text = spannable
+            binding.imMessageStatus.isVisible = false
+        } else {
+            binding.tvChatListLastMessage.text = HtmlCompat.fromHtml(
+                lastMessageBody,
+                HtmlCompat.FROM_HTML_MODE_COMPACT
+            )
+        }
+    }
+
+    private fun setTime(time: Long) {
+        binding.tvTimestamp.text =
+            DateFormatter.dateFormat(time)
     }
 
     private fun setupChatStatus(chatListDto: ChatListDto) {
-        if (chatListDto.entity == RosterItemEntity.Contact) {
-            val icon = when (chatListDto.status) {
-                ResourceStatus.Offline -> R.drawable.status_online
-                ResourceStatus.Away -> R.drawable.status_away
-                ResourceStatus.Online -> R.drawable.status_online
-                ResourceStatus.Xa -> R.drawable.ic_status_xa
-                ResourceStatus.Dnd -> R.drawable.status_dnd
-                ResourceStatus.Chat -> R.drawable.status_chat
+        val icon = when (chatListDto.entity) {
+            RosterItemEntity.Contact -> R.drawable.status_contact
+            RosterItemEntity.Server -> R.drawable.status_server
+            RosterItemEntity.Bot -> R.drawable.status_bot_chat
+            RosterItemEntity.PrivateChat -> R.drawable.status_private_chat
+            RosterItemEntity.Groupchat -> R.drawable.status_public_group_online
+            RosterItemEntity.IncognitoChat -> R.drawable.status_incognito_group_chat
+            else -> {
+                null
             }
-            binding.imChatStatus16.isVisible = false
-            binding.imChatStatus14.isVisible = true
-            binding.imChatStatus14.setImageResource(icon)
-        } else {
-            val icon =
-                when (chatListDto.entity) {
-                    RosterItemEntity.Server -> {
-                        when (chatListDto.status) {
-                            ResourceStatus.Offline -> R.drawable.status_server_unavailable
-                            else -> R.drawable.status_server_online
-                        }
-                    }
-                    RosterItemEntity.Bot -> {
-                        when (chatListDto.status) {
-                            ResourceStatus.Offline -> R.drawable.status_bot_unavailable
-                            ResourceStatus.Away -> R.drawable.status_bot_away
-                            ResourceStatus.Online -> R.drawable.status_bot_online
-                            ResourceStatus.Xa -> R.drawable.status_bot_xa
-                            ResourceStatus.Dnd -> R.drawable.status_bot_dnd
-                            ResourceStatus.Chat -> R.drawable.status_bot_chat
+        }
 
-                        }
-                    }
-                    RosterItemEntity.IncognitoChat -> {
-                        when (chatListDto.status) {
-                            ResourceStatus.Offline -> R.drawable.status_incognito_group_unavailable
-                            ResourceStatus.Away -> R.drawable.status_incognito_group_away
-                            ResourceStatus.Online -> R.drawable.status_incognito_group_online
-                            ResourceStatus.Xa -> R.drawable.status_incognito_group_xa
-                            ResourceStatus.Dnd -> R.drawable.status_incognito_group_dnd
-                            ResourceStatus.Chat -> R.drawable.status_incognito_group_chat
-                        }
-                    }
-                    RosterItemEntity.Groupchat -> {
-                        when (chatListDto.status) {
-                            ResourceStatus.Offline -> R.drawable.status_public_group_unavailable
-                            ResourceStatus.Away -> R.drawable.status_public_group_away
-                            ResourceStatus.Online -> R.drawable.status_public_group_online
-                            ResourceStatus.Xa -> R.drawable.status_public_group_xa
-                            ResourceStatus.Dnd -> R.drawable.status_public_group_dnd
-                            ResourceStatus.Chat -> R.drawable.status_public_group_chat
-                        }
-                    }
-                    RosterItemEntity.PrivateChat -> {
-                        when (chatListDto.status) {
-                            ResourceStatus.Offline -> R.drawable.status_private_chat_unavailable
-                            ResourceStatus.Away -> R.drawable.status_private_chat_away
-                            ResourceStatus.Online -> R.drawable.status_private_chat_online
-                            ResourceStatus.Xa -> R.drawable.status_private_chat_xa
-                            ResourceStatus.Dnd -> R.drawable.status_private_chat_dnd
-                            ResourceStatus.Chat -> R.drawable.status_private_chat
-                        }
-                    }
-                    else -> {
-                        0
-                    }
-                }
-            binding.imChatStatus16.isVisible = true
-            binding.imChatStatus14.isVisible = false
-            binding.imChatStatus14.setImageResource(icon)
+        val tint = when (chatListDto.status) {
+            ResourceStatus.Online -> R.color.green_700
+            ResourceStatus.Chat -> R.color.light_green_500
+            ResourceStatus.Away -> R.color.amber_700
+            ResourceStatus.Dnd -> R.color.red_700
+            ResourceStatus.Xa -> R.color.blue_500
+            ResourceStatus.Offline -> R.color.grey_500
+        }
+
+        if (icon != null) {
+            binding.imChatStatus.isVisible = true
+            binding.imChatStatus.setImageResource(icon)
+            binding.imChatStatus.setColorFilter(
+                ContextCompat.getColor(itemView.context, tint),
+                PorterDuff.Mode.SRC_IN
+            )
         }
     }
 
-    private fun setUpMessageSendingState(
-        chatListDto: ChatListDto,
-        messageSendingState: MessageSendingState
+    private fun setPin(pinnedDate: Long, unread: String) {
+        if (pinnedDate > 0) {
+            binding.chatGround.setBackgroundResource(
+                R.drawable.clickable_pinned_chat_background
+            )
+        } else {
+            binding.chatGround.setBackgroundResource(R.drawable.clickable_view_group_background)
+        }
+        binding.imChatListPinned.isVisible =
+            pinnedDate > 0 && unread.isEmpty()
+    }
+
+    private fun setUnreadMessages(unread: String, muteExpired: Long) {
+        binding.unreadMessagesCount.isVisible = unread.isNotEmpty()
+        if (unread.isNotEmpty()) binding.unreadMessagesCount.text =
+            if (unread.toInt() < 1000) unread else "999+"
+        binding.unreadMessagesCount.background =
+            if ((muteExpired - System.currentTimeMillis()) > 0)
+                ContextCompat.getDrawable(binding.root.context, R.drawable.circle_grey)
+            else ContextCompat.getDrawable(binding.root.context, R.drawable.circle_green)
+    }
+
+    private fun setMuted(chatListDto: ChatListDto) {
+        val muteExpired = chatListDto.muteExpired
+        val imageResource =
+            if (muteExpired - System.currentTimeMillis() <= 0) null else if (
+                (muteExpired - System.currentTimeMillis()) > TimeMute.DAY1.time)
+                R.drawable.ic_bell_off_light_grey_mini else R.drawable.ic_bell_sleep_light_grey_mini
+        var drawable: Drawable? = null
+        if (imageResource != null) drawable =
+            ContextCompat.getDrawable(binding.root.context, imageResource)
+        binding.tvChatItemName.setCompoundDrawablesWithIntrinsicBounds(
+            null, null, drawable, null
+        )
+    }
+
+    private fun setMessageSendingState(
+        chatListDto: ChatListDto
     ) {
         var image: Int? = null
         var tint: Int? = null
@@ -229,7 +193,7 @@ class ChatListViewHolder(
             chatListDto.lastMessageBody.isNotEmpty() && chatListDto.lastMessageIsOutgoing && chatListDto.draftMessage == null
 
         if (binding.imMessageStatus.isVisible) {
-            when (messageSendingState) {
+            when (chatListDto.lastMessageState) {
                 MessageSendingState.Sending -> {
                     tint = R.color.grey_500
                     image = R.drawable.ic_clock_outline
@@ -282,17 +246,12 @@ class ChatListViewHolder(
         } else {
             popup.menu.removeItem(R.id.enable_notifications)
         }
-
-        if (chatListDto.isArchived) {
+        if (chatListDto.pinnedDate > 0) {
             popup.menu.removeItem(R.id.pin_chat)
-            popup.menu.removeItem(R.id.unpin)
         } else {
-            if (chatListDto.pinnedDate > 0) {
-                popup.menu.removeItem(R.id.pin_chat)
-            } else {
-                popup.menu.removeItem(R.id.unpin)
-            }
+            popup.menu.removeItem(R.id.unpin)
         }
+
         popup.setOnMenuItemClickListener {
             when (it.itemId) {
                 R.id.unpin -> listener.unPinChat(chatListDto.id)
@@ -506,8 +465,9 @@ class ChatListViewHolder(
                 }
                 PAYLOAD_CHAT_MESSAGE_STATE -> {
                     val messageState =
-                        bundle.parcelable(PAYLOAD_CHAT_MESSAGE_STATE) as MessageSendingState?
-                    if (messageState != null) setUpMessageSendingState(chatListDto, messageState)
+                        bundle.parcelable(PAYLOAD_CHAT_MESSAGE_STATE) as MessageSendingState? ?: MessageSendingState.None
+                    chatListDto.lastMessageState = messageState
+                    setMessageSendingState(chatListDto)
                 }
                 PAYLOAD_CHAT_CUSTOM_NAME -> {
                     val name = bundle.getString(PAYLOAD_CHAT_CUSTOM_NAME)

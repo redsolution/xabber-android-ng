@@ -27,7 +27,7 @@ class SigninViewModel : ViewModel() {
 
     var isServerFeatures = false
 
-    val features: Observable<MutableList<Feature>>
+   val features: Observable<MutableList<Feature>>
         get() = Observable.fromIterable(_features)
             .map {
                 val toIndex = _features.indexOf(it) + 1
@@ -46,4 +46,3 @@ class SigninViewModel : ViewModel() {
 
     fun isJidValid(jid: String): Boolean = JID_REGEX.toRegex().matches(jid)
 }
-

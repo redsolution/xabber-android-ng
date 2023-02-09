@@ -25,11 +25,6 @@ class PullRecyclerViewEffectFactory(private val view: ViewGroup) : RecyclerView.
 
 
     init {
-        var lp = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, 0)
-        headerView!!.setStartEndTrim(0f, 0.75f)
-        headerView.setText("mRefreshDefaulText")
-
-        headerView.setBackgroundColor(Color.RED)
         view.addView(headerView)
     }
 

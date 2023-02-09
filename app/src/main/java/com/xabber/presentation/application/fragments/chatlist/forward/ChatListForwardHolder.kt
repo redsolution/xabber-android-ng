@@ -15,7 +15,7 @@ import com.xabber.models.dto.ChatListDto
 import com.xabber.models.xmpp.messages.MessageSendingState
 import com.xabber.models.xmpp.presences.ResourceStatus
 import com.xabber.models.xmpp.presences.RosterItemEntity
-import com.xabber.presentation.application.bottomsheet.TimeMute
+import com.xabber.presentation.application.dialogs.TimeMute
 import com.xabber.utils.DateFormatter
 import com.xabber.utils.dp
 
@@ -147,16 +147,16 @@ class ChatListForwardHolder(
                     ResourceStatus.Dnd -> R.drawable.status_dnd
                     ResourceStatus.Chat -> R.drawable.status_chat
                 }
-                imChatStatus16.isVisible = false
-                imChatStatus14.isVisible = true
-                imChatStatus14.setImageResource(icon)
+                imChatStatus.isVisible = false
+//                imChatStatus14.isVisible = true
+//                imChatStatus14.setImageResource(icon)
             } else {
                 val icon =
                     when (chatListDto.entity) {
                         RosterItemEntity.Server -> {
                             when (chatListDto.status) {
                                 ResourceStatus.Offline -> R.drawable.status_server_unavailable
-                                else -> R.drawable.status_server_online
+                                else -> R.drawable.status_server
                             }
                         }
                         RosterItemEntity.Bot -> {
@@ -207,9 +207,9 @@ class ChatListForwardHolder(
                             0
                         }
                     }
-                imChatStatus16.isVisible = true
-                imChatStatus14.isVisible = false
-                imChatStatus14.setImageResource(icon)
+                imChatStatus.isVisible = true
+//                imChatStatus14.isVisible = false
+//                imChatStatus14.setImageResource(icon)
             }
 
 binding.root.setOnClickListener { listener.onClickItem(chatListDto.id) }

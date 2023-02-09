@@ -13,7 +13,6 @@ import com.xabber.R
 import com.xabber.databinding.FragmentChatListBinding
 import com.xabber.models.dto.ChatListDto
 import com.xabber.presentation.AppConstants
-import com.xabber.presentation.application.bottomsheet.NotificationBottomSheet
 import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.application.dialogs.ChatHistoryClearDialog
 import com.xabber.presentation.application.dialogs.DeletingChatDialog
@@ -72,7 +71,7 @@ import com.xabber.utils.setFragmentResultListener
 //
 ////    private fun addItemDecoration() {
 ////        binding.chatList.addItemDecoration(
-////            com.xabber.presentation.application.fragments.chat.DividerItemDecoration(
+////            com.xabber.presentation.custom.DividerItemDecoration(
 ////                binding.root.context,
 ////                LinearLayoutManager.VERTICAL
 ////            ).apply {

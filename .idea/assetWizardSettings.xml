@@ -23,7 +23,7 @@
                                 <PersistentState>
                                   <option name="values">
                                     <map>
-                                      <entry key="url" value="file:/$PROJECT_DIR$/../AppData/Local/Android/Sdk/icons/material/materialicons/arrow_circle_down/baseline_arrow_circle_down_24.xml" />
+                                      <entry key="url" value="file:/$PROJECT_DIR$/../AppData/Local/Android/Sdk/icons/material/materialicons/arrow_upward/baseline_arrow_upward_24.xml" />
                                     </map>
                                   </option>
                                 </PersistentState>
@@ -33,8 +33,8 @@
                         </option>
                         <option name="values">
                           <map>
-                            <entry key="color" value="787575" />
-                            <entry key="outputName" value="ic_baseline_arrow_circle_down_24" />
+                            <entry key="color" value="ffffff" />
+                            <entry key="outputName" value="ic_baseline_arrow_upward_24" />
                             <entry key="sourceFile" value="C:\vitaly.popov\xabber-icons\icon\material\bell-sleep.svg" />
                           </map>
                         </option>

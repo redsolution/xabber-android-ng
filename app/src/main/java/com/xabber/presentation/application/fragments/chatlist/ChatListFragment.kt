@@ -1,14 +1,10 @@
 package com.xabber.presentation.application.fragments.chatlist
 
 import android.annotation.SuppressLint
-import android.content.Context
 import android.graphics.Color
 import android.os.Bundle
-import android.os.Vibrator
-import android.util.Log
 import android.view.*
-import android.widget.TextView
-import android.widget.Toast
+import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import androidx.fragment.app.activityViewModels
 import androidx.recyclerview.widget.ItemTouchHelper
@@ -31,14 +27,15 @@ import com.xabber.presentation.AppConstants.DELETING_CHAT_DIALOG_TAG
 import com.xabber.presentation.AppConstants.DELETING_CHAT_KEY
 import com.xabber.presentation.AppConstants.TURN_OFF_NOTIFICATIONS_BUNDLE_KEY
 import com.xabber.presentation.AppConstants.TURN_OFF_NOTIFICATIONS_KEY
+import com.xabber.presentation.application.AccountManager
 import com.xabber.presentation.application.activity.ColorManager
-import com.xabber.presentation.application.activity.UiChanger
-import com.xabber.presentation.application.bottomsheet.NotificationBottomSheet
 import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.application.dialogs.ChatHistoryClearDialog
 import com.xabber.presentation.application.dialogs.DeletingChatDialog
+import com.xabber.presentation.application.dialogs.NotificationBottomSheet
 import com.xabber.presentation.application.fragments.BaseFragment
 import com.xabber.presentation.application.fragments.chat.ChatParams
+import com.xabber.presentation.custom.DividerItemDecoration
 import com.xabber.presentation.custom.PullRefreshLayout
 import com.xabber.utils.partSmoothScrollToPosition
 import com.xabber.utils.setFragmentResultListener
@@ -56,8 +53,11 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
     private var toPin = false
     private var snackbar: Snackbar? = null
     private var currentId = ""
-    private var a = false
-    private var b = false
+    private var isOverTriggerCrossed = false
+
+    companion object {
+        const val CURRENT_ID_KEY = "current id key"
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -80,17 +80,17 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
             chatListViewModel.initDataListener()
             chatListViewModel.initAccountDataListener()
         } else {
-            currentId = savedInstanceState.getString("currentId", "")
+            currentId = savedInstanceState.getString(CURRENT_ID_KEY, "")
         }
         changeUiWithData()
         setTitle()
         initToolbarActions()
         initRecyclerView()
-        subscribeOnViewModelData()
+        subscribeToViewModelData()
         initEmptyButton()
         initMarkAllMessagesUnreadButton()
         setDialogListeners()
-        initSwipeRefreshLayout(binding.refreshLayout)
+        initPullRefreshLayout()
     }
 
     private fun changeUiWithData() {
@@ -98,9 +98,9 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
     }
 
     private fun loadAvatarWithMask() {
-        val name = UiChanger.getAvatar()
+        //    val avatarUri = AccountManager.getAvatar()
         val multiTransformation = MultiTransformation(CircleCrop())
-        Glide.with(binding.imAvatar.context).load(name).error(R.drawable.ic_avatar_placeholder)
+        Glide.with(binding.imAvatar.context).load(R.drawable.backround_blue).error(R.color.blue_100)
             .apply(RequestOptions.bitmapTransform(multiTransformation))
             .into(binding.imAvatar)
     }
@@ -133,9 +133,7 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
     }
 
     private fun initRecyclerView() {
-        val color = chatListViewModel.getColor()
-        val c = if (color != null) color else R.color.blue_500
-        chatListAdapter = ChatListAdapter(this, c)
+        chatListAdapter = ChatListAdapter(this)
         binding.chatList.adapter = chatListAdapter
         layoutManager = binding.chatList.layoutManager as LinearLayoutManager
         addItemDecoration()
@@ -145,11 +143,12 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
 
     private fun addItemDecoration() {
         binding.chatList.addItemDecoration(
-            com.xabber.presentation.application.fragments.chat.DividerItemDecoration(
+            DividerItemDecoration(
                 binding.root.context,
                 LinearLayoutManager.VERTICAL
             ).apply {
                 setChatListOffsetMode(ChatListAvatarState.SHOW_AVATARS)
+                skipDividerOnLastItem(true)
             })
     }
 
@@ -188,7 +187,7 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
         binding.emptyButton.setOnClickListener { navigator().showContacts() }
     }
 
-    private fun subscribeOnViewModelData() {
+    private fun subscribeToViewModelData() {
         chatListViewModel.showUnreadOnly.observe(viewLifecycleOwner) {
             showUnreadOnly = it
             setTitle()
@@ -197,7 +196,6 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
 
         chatListViewModel.chats.observe(viewLifecycleOwner) {
             chatListAdapter?.submitList(it) {
-                Log.d("chatList", "${it.size}")
                 binding.btnMarkAllMessagesUnread.isVisible = showUnreadOnly && !it.isNullOrEmpty()
                 showEmptyListMode(it.isEmpty() || it == null)
                 if (toPin) {
@@ -266,8 +264,7 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
 
     override fun clearHistory(chatListDto: ChatListDto) {
         currentId = chatListDto.id
-        val name =
-            if (chatListDto.customNickname.isNotEmpty()) chatListDto.customNickname else if (chatListDto.opponentNickname.isNotEmpty()) chatListDto.opponentNickname else chatListDto.opponentJid
+        val name = chatListDto.getChatName()
         val dialog = ChatHistoryClearDialog.newInstance(name)
         navigator().showDialogFragment(dialog, CLEAR_HISTORY_DIALOG_TAG)
     }
@@ -304,9 +301,74 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
         snackbar?.show()
     }
 
+    @SuppressLint("InflateParams")
+    private fun initPullRefreshLayout() {
+        val colorKey = AccountManager.getColorKey()
+        val superLightColor = ColorManager.convertColorSuperLightNameToId(colorKey)
+        val lightColor = ColorManager.convertColorLightNameToId(colorKey)
+        val standardColor = ColorManager.convertColorMediumNameToId(colorKey)
+
+        binding.refreshLayout.setOnRefreshListener(object :
+            PullRefreshLayout.OnRefreshListener {
+            override fun onRefresh() {
+                binding.refreshLayout.postDelayed({
+                    binding.refreshLayout.finishRefresh()
+                    navigator().showArchive()
+                }, 0)
+            }
+
+            override fun onRefreshPulStateChange(percent: Float, state: Int) {
+                when (state) {
+                    PullRefreshLayout.NOT_OVER_TRIGGER_POINT -> {
+                        binding.refreshLayout.setRefreshViewText(
+                            R.string.pull_to_show_archive
+                        )
+                        if (isOverTriggerCrossed) {
+                            shortVibrate()
+                            isOverTriggerCrossed = false
+                        }
+                        binding.refreshLayout.setHeaderBackground(R.color.grey_100)
+                        binding.refreshLayout.setElementsColors(
+                            R.color.grey_400,
+                            R.color.grey_300,
+                            false
+                        )
+                    }
+                    PullRefreshLayout.OVER_TRIGGER_POINT -> {
+                        if (!isOverTriggerCrossed) {
+                            shortVibrate()
+                        }
+                        isOverTriggerCrossed = true
+                        binding.refreshLayout.setRefreshViewText(
+                            R.string.release_to_show_archive
+                        )
+                        binding.refreshLayout.setHeaderBackground(superLightColor)
+                        binding.refreshLayout.setElementsColors(standardColor, lightColor, true)
+                    }
+                    PullRefreshLayout.START -> {
+                        binding.refreshLayout.setRefreshViewText(R.string.open_archive)
+                        isOverTriggerCrossed = false
+                        binding.refreshLayout.finishRefresh()
+                    }
+                }
+            }
+        })
+    }
+
+    private fun shortVibrate() {
+        view?.performHapticFeedback(
+            HapticFeedbackConstants.VIRTUAL_KEY,
+            HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING
+        )
+    }
+
+    enum class ChatListAvatarState {
+        NOT_SPECIFIED, SHOW_AVATARS, DO_NOT_SHOW_AVATARS
+    }
+
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
-        outState.putString("currentId", currentId)
+        outState.putString(CURRENT_ID_KEY, currentId)
         outState.putBoolean(
             CHAT_LIST_UNREAD_KEY,
             showUnreadOnly
@@ -324,98 +386,4 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
         chatListAdapter = null
     }
 
-    enum class ChatListAvatarState {
-        NOT_SPECIFIED, SHOW_AVATARS, DO_NOT_SHOW_AVATARS
-    }
-
-
-    private fun initSwipeRefreshLayout(swipeRefreshLayout: PullRefreshLayout?) {
-        val inflater = LayoutInflater.from(context)
-        swipeRefreshLayout?.isLoadMoreEnable = false
-        val view: View = inflater.inflate(R.layout.refresh_view, null)
-        val textView = view.findViewById<View>(R.id.refresh_title) as TextView
-        swipeRefreshLayout?.setFooterView(view)
-
-        val colorName = chatListViewModel.getColorName()
-        val lightColor = ColorManager.convertColorLightNameToId(colorName!!)
-        val color = ColorManager.convertColorMediumNameToId(colorName)
-        swipeRefreshLayout?.setOnRefreshListener(object :
-            PullRefreshLayout.SHSOnRefreshListener {
-            override fun onRefresh() {
-                swipeRefreshLayout.postDelayed(Runnable {
-                    swipeRefreshLayout.finishRefresh()
-                    navigator().showArchive()
-                }, 0)
-            }
-
-            override fun onLoading() {
-                swipeRefreshLayout.postDelayed(Runnable {
-                    swipeRefreshLayout.finishLoadmore()
-                    Toast.makeText(context, "ON LOADING", Toast.LENGTH_SHORT).show()
-                }, 1600)
-            }
-
-            override fun onRefreshPulStateChange(percent: Float, state: Int) {
-                when (state) {
-                    PullRefreshLayout.NOT_OVER_TRIGGER_POINT -> {
-                        swipeRefreshLayout.setRefreshViewText(
-                            "Тяните для показа архива"
-                        )
-                        if (b) {
-                            shortVibrate()
-
-                            b = false
-                        }
-                        a = false
-                        swipeRefreshLayout.setHeaderBackground(lightColor)
-
-
-                    }
-                    PullRefreshLayout.OVER_TRIGGER_POINT -> {
-                        if (!a) {
-
-                            shortVibrate()
-                            a = true
-                        }
-                        b = true
-                        swipeRefreshLayout.setRefreshViewText(
-                            "Отпустите для показа архива"
-                        )
-                        swipeRefreshLayout.setHeaderBackground(color)
-                    }
-                    PullRefreshLayout.START -> {
-                        swipeRefreshLayout.setRefreshViewText("Открываем архив")
-                        a = false
-                        b = false
-                        swipeRefreshLayout.finishRefresh()
-                    }
-                }
-            }
-
-            private fun shortVibrate() {
-                view.performHapticFeedback(
-                    HapticFeedbackConstants.VIRTUAL_KEY,
-                    HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING
-                )
-            }
-
-            override fun onLoadMorePullStateChange(percent: Float, state: Int) {
-                when (state) {
-                    PullRefreshLayout.NOT_OVER_TRIGGER_POINT -> textView.text =
-                        "NOT_OVER_TRIGGER_POINT"
-                    PullRefreshLayout.OVER_TRIGGER_POINT -> {
-                        textView.text = "OVER_TRIGGER_POINT"
-
-                        val vibe: Vibrator =
-                            activity?.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
-                        vibe.vibrate(500)
-                    }
-                    PullRefreshLayout.START -> textView.text = "START"
-                }
-            }
-        })
-    }
 }
-
-
-

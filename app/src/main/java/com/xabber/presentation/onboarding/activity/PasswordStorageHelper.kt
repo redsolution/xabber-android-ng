@@ -2,14 +2,11 @@ package com.xabber.presentation.onboarding.activity
 
 import android.content.Context
 import android.content.SharedPreferences
-import android.os.Build
-import android.security.KeyChain
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyInfo
 import android.security.keystore.KeyProperties
 import android.util.Base64
 import android.util.Log
-import androidx.annotation.RequiresApi
 import com.xabber.R
 import java.io.IOException
 import java.security.*
@@ -73,23 +70,20 @@ class PasswordStorageHelper(context: Context) {
         private var alias: String? = null;
 
         override fun init(context: Context?): Boolean {
-            preferences = context?.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+            preferences = context?.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             alias = context?.getString(R.string.app_name)
 
             val ks: KeyStore?
 
             try {
-                ks = KeyStore.getInstance(KEYSTORE_PROVIDER_ANDROID_KEYSTORE);
+                ks = KeyStore.getInstance(KEYSTORE_PROVIDER_ANDROID_KEYSTORE)
 
-                //Use null to load Keystore with default parameters.
                 ks?.load(null);
 
-                // Check if Private and Public already keys exists. If so we don't need to generate them again
                 val privateKey: Key? = ks?.getKey(alias, null)
                 if (privateKey != null && ks.getCertificate(alias) != null) {
                     val publicKey: PublicKey? = ks.getCertificate(alias).publicKey
                     if (publicKey != null) {
-                        // All keys are available.
                         return true
                     }
                 }
@@ -97,27 +91,23 @@ class PasswordStorageHelper(context: Context) {
                 return false
             }
 
-            // Create a start and end time, for the validity range of the key pair that's about to be
-            // generated.
-            val start = GregorianCalendar()
             val end = GregorianCalendar()
             end.add(Calendar.YEAR, 10)
 
-            // Specify the parameters object which will be passed to KeyPairGenerator
             val spec: AlgorithmParameterSpec?
-                spec = KeyGenParameterSpec.Builder(alias ?: "", KeyProperties.PURPOSE_DECRYPT)
-                    .setDigests(KeyProperties.DIGEST_SHA256, KeyProperties.DIGEST_SHA512)
-                    .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_RSA_PKCS1)
-                    .build()
+            spec = KeyGenParameterSpec.Builder(alias ?: "", KeyProperties.PURPOSE_DECRYPT)
+                .setDigests(KeyProperties.DIGEST_SHA256, KeyProperties.DIGEST_SHA512)
+                .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_RSA_PKCS1)
+                .build()
 
 
-            // Initialize a KeyPair generator using the the intended algorithm (in this example, RSA
-            // and the KeyStore. This example uses the AndroidKeyStore.
             val kpGenerator: KeyPairGenerator
             try {
-                kpGenerator = KeyPairGenerator.getInstance(KEY_ALGORITHM_RSA, KEYSTORE_PROVIDER_ANDROID_KEYSTORE);
+                kpGenerator = KeyPairGenerator.getInstance(
+                    KEY_ALGORITHM_RSA,
+                    KEYSTORE_PROVIDER_ANDROID_KEYSTORE
+                );
                 kpGenerator.initialize(spec)
-                // Generate private/public keys
                 kpGenerator.generateKeyPair()
             } catch (e: Exception) {
                 when (e) {
@@ -125,30 +115,28 @@ class PasswordStorageHelper(context: Context) {
                         try {
                             ks?.deleteEntry(alias)
                         } catch (e1: Exception) {
-                            // Just ignore any errors here
                         }
                     }
                 }
 
             }
 
-            // Check if device support Hardware-backed keystore
             try {
                 var isHardwareBackedKeystoreSupported: Boolean? = null
+                val privateKey: Key = ks.getKey(alias, null)
+                val keyFactory: KeyFactory =
+                    KeyFactory.getInstance(privateKey.algorithm, "AndroidKeyStore")
+                val keyInfo: KeyInfo = keyFactory.getKeySpec(privateKey, KeyInfo::class.java)
+                isHardwareBackedKeystoreSupported = keyInfo.isInsideSecureHardware
 
-
-                    val privateKey: Key = ks.getKey(alias, null)
-                    //KeyChain.isBoundKeyAlgorithm(KeyProperties.KEY_ALGORITHM_RSA)
-                    val keyFactory: KeyFactory = KeyFactory.getInstance(privateKey.algorithm, "AndroidKeyStore")
-                    val keyInfo: KeyInfo = keyFactory.getKeySpec(privateKey, KeyInfo::class.java)
-                isHardwareBackedKeystoreSupported =   keyInfo.isInsideSecureHardware
-
-                Log.d(tag, "Hardware-Backed Keystore Supported: $isHardwareBackedKeystoreSupported");
+                Log.d(
+                    tag,
+                    "Hardware-Backed Keystore Supported: $isHardwareBackedKeystoreSupported"
+                );
             } catch (e: Exception) {
-                //KeyStoreException | NoSuchAlgorithmException | UnrecoverableKeyException | InvalidKeySpecException | NoSuchProviderException e
             }
 
-            return true;
+            return true
         }
 
         override fun setData(key: String?, data: ByteArray?) {

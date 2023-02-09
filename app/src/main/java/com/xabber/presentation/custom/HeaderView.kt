@@ -1,15 +1,14 @@
 package com.xabber.presentation.custom
 
 import android.content.Context
-import android.provider.ContactsContract.CommonDataKinds.Im
+import android.content.res.ColorStateList
 import android.util.AttributeSet
-import android.util.Log
 import android.view.LayoutInflater
-import android.view.View
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.annotation.LayoutRes
+import androidx.annotation.StringRes
 import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import com.xabber.R
@@ -34,41 +33,51 @@ class HeaderView : FrameLayout {
         setupViews()
     }
 
+    fun setText(@StringRes textRes: Int) {
+        if (tvDescription != null)
+            tvDescription!!.setText(textRes)
+    }
+
+    fun setTextColor(colorRes: Int) {
+        tvDescription?.setTextColor(colorRes)
+    }
+
+    fun setProgressRotation(isv: Boolean) {
+        pullImage = findViewById(R.id.tip)
+        pullImage!!.isVisible = isv
+    }
+
+    fun setColor(color: Int, colorLight: Int, isUp: Boolean) {
+        val line = findViewById<ImageView>(R.id.line)
+        val tip = findViewById<ImageView>(R.id.tip)
+        val slider = findViewById<ImageView>(R.id.slider)
+
+        if (isUp) slider.setImageResource(R.drawable.ic_baseline_arrow_upward_24) else slider.setImageResource(
+            R.drawable.ic_baseline_arrow_downward_24
+        )
+        line.setColorFilter(ContextCompat.getColor(context, colorLight))
+        tip.setColorFilter(ContextCompat.getColor(context, colorLight))
+
+
+        val states = arrayOf(
+            intArrayOf(android.R.attr.state_enabled),
+            intArrayOf(-android.R.attr.state_enabled)
+        )
+
+        val colors = intArrayOf(
+            ContextCompat.getColor(context, color),
+            ContextCompat.getColor(context, color)
+        )
+        slider.backgroundTintList = ColorStateList(states, colors)
+    }
+
     private fun setupViews() {
-        setGuidanceView(R.layout.anim_view)
+        setGuidanceView(R.layout.header_view)
         pullImage = findViewById(R.id.line)
         tvDescription = findViewById(R.id.tv)
-//        this.setPadding(0, 20, 0, 20)
-//        pullImage = ImageView(context)
-//        pullImage?.setImageResource(R.drawable.ic_baseline_arrow_downward_24)
-//        pullImage?.setBackgroundColor(Color.TRANSPARENT)
-//        val imageParams = LayoutParams(
-//            24,
-//           24,
-//            Gravity.START or Gravity.BOTTOM
-//        )
-//        imageParams.marginStart = 30
-//        addView(pullImage, imageParams)
-//
-//        tvDescription = TextView(context)
-//        val textViewParams = LayoutParams(
-//            LayoutParams.WRAP_CONTENT,
-//            LayoutParams.WRAP_CONTENT,
-//            Gravity.CENTER_HORIZONTAL or Gravity.BOTTOM
-//        )
-//        tvDescription?.textSize = 20f
-//        tvDescription?.gravity = Gravity.CENTER
-//        addView(tvDescription, textViewParams)
     }
 
-    fun setGuidanceView(view: View?) {
-        if (view == null) return
-        removeAllViews()
-        val params = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
-        addView(view, params)
-    }
-
-    fun setGuidanceView(@LayoutRes layoutResID: Int) {
+    private fun setGuidanceView(@LayoutRes layoutResID: Int) {
         val inflater = LayoutInflater.from(context)
         val view = inflater.inflate(layoutResID, null) ?: return
         removeAllViews()
@@ -76,66 +85,6 @@ class HeaderView : FrameLayout {
         addView(view, params)
     }
 
-    fun setText(text: String?) {
-        tvDescription = findViewById(R.id.tv)
-        tvDescription?.text = text
-    }
 
-    fun setTextColor(colorRes: Int) {
-        tvDescription?.setTextColor(colorRes)
-    }
-
-    fun setTextSize(size: Float) {
-        tvDescription?.textSize = size
-    }
-
-    fun startAnimation() {
-        pullImage?.height?.plus(100)
-        //   if (circleProgressBar != null) circleProgressBar!!.start()
-    }
-
-    fun setStartEndTrim(startAngle: Float, endAngle: Float) {
-        //    if (circleProgressBar != null) circleProgressBar!!.setStartEndTrim(startAngle, endAngle)
-    }
-
-    fun stopAnimation() {
-        //  if (circleProgressBar != null) circleProgressBar!!.stop()
-    }
-
-    fun setProgressRotation(isv: Boolean) {
-        Log.d("ppp", "progress $rotation")
-pullImage = findViewById(R.id.shapka)
-       // setRadius(8f)
-//if (rotation > 150) {
-//    val a = rotation * 0.008
-//    pullImage!!.animate().scaleY(a.toFloat())
-//    pullImage!!.animate().translationY(-rotation/1f).start()
-
-       pullImage!!.isVisible = isv
-}
-    //   pullImag(rotation/100)
-
-        //  if (circleProgressBar != null) circleProgressBar!!.animation.
-
-
-    fun setHeight() {
-        //    circleProgressBar!!.height = circleProgressBar!!.height
-    }
-
-    fun setRadius(radius: Float) {
-        pullImage = findViewById(R.id.line)
-
-    }
-
-
-    fun setColor(color: Int, colorLight: Int) {
-        val line = findViewById<ImageView>(R.id.line)
-        val shapka = findViewById<ImageView>(R.id.shapka)
-        val slider = findViewById<ImageView>(R.id.slider)
-        line.setColorFilter(ContextCompat.getColor(context, colorLight))
-       shapka.setColorFilter(ContextCompat.getColor(context, colorLight))
-        slider.setColorFilter(ContextCompat.getColor(context, color))
-
-    }
 
 }

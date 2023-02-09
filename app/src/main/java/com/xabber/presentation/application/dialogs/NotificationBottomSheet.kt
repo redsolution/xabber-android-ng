@@ -1,4 +1,4 @@
-package com.xabber.presentation.application.bottomsheet
+package com.xabber.presentation.application.dialogs
 
 import android.app.Dialog
 import android.content.DialogInterface

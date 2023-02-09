@@ -9,7 +9,6 @@ import com.xabber.presentation.XabberApplication
 object ColorManager {
 
     fun convertColorNameToId(colorName: String): Int {
-        val context: Context = XabberApplication.applicationContext()
         val colors = HashMap<String, Int>()
         colors["red"] = R.color.red_500
         colors["deep-orange"] = R.color.deep_orange_500
@@ -110,7 +109,6 @@ object ColorManager {
 
 
     fun convertColorMediumNameToId(colorName: String): Int {
-        val context: Context = XabberApplication.applicationContext()
         val colors = HashMap<String, Int>()
         colors["red"] = R.color.red_300
         colors["deep-orange"] = R.color.deep_orange_300
@@ -129,6 +127,30 @@ object ColorManager {
         colors["pink"] = R.color.pink_300
         colors["blue-grey"] = R.color.blue_grey_300
         colors["brown"] = R.color.brown_300
+        val colorId = colors[colorName]
+        return colorId!!
+    }
+
+
+    fun convertColorSuperLightNameToId(colorName: String): Int {
+        val colors = HashMap<String, Int>()
+        colors["red"] = R.color.red_50
+        colors["deep-orange"] = R.color.deep_orange_50
+        colors["orange"] = R.color.orange_50
+        colors["amber"] = R.color.amber_50
+        colors["lime"] = R.color.lime_50
+        colors["light-green"] = R.color.light_green_50
+        colors["green"] = R.color.green_50
+        colors["teal"] = R.color.teal_50
+        colors["cyan"] = R.color.cyan_50
+        colors["light-blue"] = R.color.light_blue_50
+        colors["blue"] = R.color.blue_50
+        colors["indigo"] = R.color.indigo_50
+        colors["deep-purple"] = R.color.dark_purple_50
+        colors["purple"] = R.color.purple_50
+        colors["pink"] = R.color.pink_50
+        colors["blue-grey"] = R.color.blue_grey_50
+        colors["brown"] = R.color.brown_50
         val colorId = colors[colorName]
         return colorId!!
     }

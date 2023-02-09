@@ -5,59 +5,58 @@
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
     <ImageView
-        android:id="@+id/shapka"
-        android:layout_width="34dp"
+        android:id="@+id/tip"
+        android:layout_width="wrap_content"
         android:layout_height="20dp"
         app:layout_constraintBottom_toTopOf="@id/line"
-        android:src="@drawable/shapka"
+        android:src="@drawable/tip"
         app:layout_constraintEnd_toEndOf="@id/slider"
         android:scaleType="centerInside"
-        android:layout_marginStart="12dp"
-        android:layout_marginEnd="12dp"
         android:layout_marginBottom="-12dp"
-        app:layout_constraintStart_toStartOf="@id/slider" />
+        app:layout_constraintStart_toStartOf="@id/slider"
+        android:contentDescription="@string/slider_description" />
 
     <ImageView
         android:id="@+id/line"
         app:layout_constraintTop_toTopOf="parent"
-        android:layout_marginTop="20dp"
+        android:layout_marginTop="@dimen/margin_larger_medium"
         app:layout_constraintBottom_toTopOf="@id/slider"
         app:layout_constraintStart_toStartOf="@id/slider"
         app:layout_constraintEnd_toEndOf="@id/slider"
-        android:layout_width="16dp"
+        android:layout_width="wrap_content"
         android:scaleType="center"
-        android:minHeight="30dp"
         android:layout_marginBottom="-10dp"
         android:layout_height="0dp"
-        android:src="@drawable/circle_arrow_down"/>
+        android:src="@drawable/pull_line"
+        android:contentDescription="@string/slider_description" />
 
     <ImageView
+        android:padding="6dp"
         android:id="@+id/slider"
-        android:background="@drawable/circle_blue_300"
-        android:layout_marginStart="24dp"
+        android:background="@drawable/circle_slider"
+        android:layout_marginStart="@dimen/margin_large"
         android:layout_width="32dp"
         android:layout_height="32dp"
-        android:src="@drawable/ic_baseline_arrow_circle_down_24"
+        android:src="@drawable/ic_baseline_arrow_downward_24"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintBottom_toTopOf="@id/bot"/>
+        app:layout_constraintBottom_toTopOf="@id/bottom_border"
+        android:contentDescription="@string/slider_description" />
 
     <TextView
         android:id="@+id/tv"
         android:textStyle="bold"
-        android:textSize="16sp"
+        android:textSize="@dimen/text_size_16"
         app:layout_constraintTop_toTopOf="@id/slider"
         app:layout_constraintBottom_toBottomOf="@id/slider"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:textColor="@color/white"
-        android:text="Тяните для показа архива"/>
+        android:layout_height="wrap_content" />
 
     <View
-        android:id="@+id/bot"
+        android:id="@+id/bottom_border"
         android:layout_width="match_parent"
-        android:layout_height="8dp"
+        android:layout_height="@dimen/padding_standard"
         app:layout_constraintBottom_toBottomOf="parent"/>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

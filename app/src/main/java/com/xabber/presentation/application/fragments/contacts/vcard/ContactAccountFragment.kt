@@ -26,11 +26,11 @@ import com.xabber.databinding.FragmentContactAccountBinding
 import com.xabber.presentation.AppConstants
 import com.xabber.presentation.application.activity.DisplayManager
 import com.xabber.presentation.application.activity.UiChanger
-import com.xabber.presentation.application.bottomsheet.NotificationBottomSheet
-import com.xabber.presentation.application.bottomsheet.TimeMute
 import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.application.dialogs.BlockContactDialog
 import com.xabber.presentation.application.dialogs.DeletingContactDialog
+import com.xabber.presentation.application.dialogs.NotificationBottomSheet
+import com.xabber.presentation.application.dialogs.TimeMute
 import com.xabber.presentation.application.fragments.DetailBaseFragment
 import com.xabber.presentation.application.fragments.account.qrcode.QRCodeParams
 import com.xabber.presentation.application.fragments.chat.ChatParams

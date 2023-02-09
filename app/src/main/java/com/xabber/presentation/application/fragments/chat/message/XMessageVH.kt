@@ -189,7 +189,7 @@ open class XMessageVH(
         messageTextTv.movementMethod = CorrectlyTouchEventTextView.LocalLinkMovementMethod
 
         // set unread status
-        isUnread = vhExtraData.isUnread
+    //    isUnread = vhExtraData.isUnread
 
         // set date
         needDate = vhExtraData.isNeedDate

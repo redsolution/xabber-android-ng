@@ -51,12 +51,9 @@ import com.xabber.presentation.AppConstants.DELETING_MESSAGE_BUNDLE_KEY
 import com.xabber.presentation.AppConstants.DELETING_MESSAGE_DIALOG_KEY
 import com.xabber.presentation.AppConstants.DELETING_MESSAGE_FOR_ALL_BUNDLE_KEY
 import com.xabber.presentation.application.activity.DisplayManager
-import com.xabber.presentation.application.bottomsheet.NotificationBottomSheet
-import com.xabber.presentation.application.bottomsheet.TimeMute
+
 import com.xabber.presentation.application.contract.navigator
-import com.xabber.presentation.application.dialogs.ChatHistoryClearDialog
-import com.xabber.presentation.application.dialogs.DeletingChatDialog
-import com.xabber.presentation.application.dialogs.DeletingMessageDialog
+import com.xabber.presentation.application.dialogs.*
 import com.xabber.presentation.application.fragments.DetailBaseFragment
 import com.xabber.presentation.application.fragments.chat.attach.AttachBottomSheet
 import com.xabber.presentation.application.fragments.chat.audio.VoiceManager
@@ -109,7 +106,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
 
     private val cancelSelected = Runnable {
         viewModel.clearAllSelected()
-        viewModel.getMessageList(getParams().opponentJid)
+        viewModel.getMessageList(getParams().opponentJid, getParams().id)
     }
 
     private val reply = Runnable {
@@ -183,18 +180,16 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-viewModel.initUnreadMessagesCountListener(getParams().id)
-        viewModel.getUnreadMessages(getParams().id)
         prepareUi()
         initializeToolbarActions()
         initializeRecyclerView()
-    //    chatAdapter?.setUnreadFirstId()
+        //    chatAdapter?.setUnreadFirstId()
         initializeStandardInputLayoutActions()
         subscribeToChatData()
         initializeSelectMessageToolbarActions()
         initializeSelectedMessagePanel()
         viewModel.initChatDataListener(getParams().id)
-        viewModel.initMessagesListener(getParams().opponentJid)
+        viewModel.initMessagesListener(getParams().opponentJid, getParams().id)
         viewModel.getChat(getParams().id)
         activity?.onBackPressedDispatcher?.addCallback(onBackPressedCallback)
         initDialogListeners()
@@ -395,7 +390,7 @@ viewModel.initUnreadMessagesCountListener(getParams().id)
             if (mess != null) {
                 replyingMessage = mess
                 handler.postDelayed(reply, 0)
-                }
+            }
         }
 
         ItemTouchHelper(replySwipeCallback!!).attachToRecyclerView(binding.messageList)
@@ -471,14 +466,13 @@ viewModel.initUnreadMessagesCountListener(getParams().id)
     }
 
     private fun scrollToFirstUnread() {
-//        layoutManager?.scrollToPositionWithOffset(
-//            chatAdapter!!.itemCount - viewModel.unreadCount.value!!,
-//            200
-//        )
+        layoutManager?.scrollToPositionWithOffset(
+            chatAdapter!!.itemCount - viewModel.unreadCount.value!!, 200
+        )
     }
 
     private fun fillChat() {
-        viewModel.getMessageList(getParams().opponentJid)
+        viewModel.getMessageList(getParams().opponentJid, getParams().id)
     }
 
     private fun initializeStandardInputLayoutActions() {
@@ -590,9 +584,9 @@ viewModel.initUnreadMessagesCountListener(getParams().id)
                         false,
                         false,
                         null,
-                        false, messageKindDto, false, null, null, Location(2.8604, 14.540)
-                    ),
-                    true
+                        isSelected = false,
+                        isUnread = true, isGroup = false, kind = messageKindDto, location = Location(2.8604, 14.540)
+                    )
                 )
                 binding.answer.isVisible = false
                 isNeedScrollDown = true
@@ -637,7 +631,7 @@ viewModel.initUnreadMessagesCountListener(getParams().id)
                     }
 //                    if (binding.imLock.animation != null) currentVoiceRecordingState =
 //                        VoiceRecordState.StoppedRecording
-                 else   if (currentVoiceRecordingState == VoiceRecordState.NoTouchRecording) {
+                    else   if (currentVoiceRecordingState == VoiceRecordState.NoTouchRecording) {
                         handler.post(stop)
                     } else {
                         binding.record.chrRecordingTimer.stop()
@@ -774,7 +768,7 @@ viewModel.initUnreadMessagesCountListener(getParams().id)
 //            }
 
             chatAdapter?.updateAdapter(it)
-         chatAdapter?.notifyDataSetChanged()
+            chatAdapter?.notifyDataSetChanged()
             if (layoutManager != null && chatAdapter != null) {
                 if (layoutManager!!.findLastVisibleItemPosition() >= chatAdapter!!.itemCount - 2 && !isSelectedMode) scrollDown()
                 if (isNeedScrollDown) {
@@ -785,11 +779,21 @@ viewModel.initUnreadMessagesCountListener(getParams().id)
         }
 
 
-        viewModel.unreadMessage.observe(viewLifecycleOwner) {
-            Log.d("mmm", "observe $it")
-            if (it > 0) {
+        viewModel.unreadCount.observe(viewLifecycleOwner) { unread ->
+            val realm = Realm.open(defaultRealmConfig())
+            val chatId = getParams().id
+            realm.writeBlocking {
+                val chat = this.query(LastChatsStorageItem::class, "primary = '$chatId'").first().find()
+                if (chat != null) {
+                    findLatest(chat).also {
+                        chat.unread = unread
+                    }
+                }
+            }
+
+            if (unread > 0) {
                 binding.tvNewReceivedCount.isVisible = true
-                binding.tvNewReceivedCount.text = it.toString()
+                binding.tvNewReceivedCount.text = unread.toString()
             } else {
                 binding.tvNewReceivedCount.isVisible = false
                 binding.tvNewReceivedCount.text = ""
@@ -876,9 +880,9 @@ viewModel.initUnreadMessagesCountListener(getParams().id)
                         false,
                         false,
                         null,
-                        false, null, false, null, null, Location(2.8604, 14.540)
-                    ),
-                    false
+                        isUnread = true,
+                       isGroup =  false, location =  Location(2.8604, 14.540)
+                    )
                 )
                 Log.d(
                     "yyy",
@@ -1140,7 +1144,7 @@ viewModel.initUnreadMessagesCountListener(getParams().id)
                 viewModel.getPositionMessage(viewModel.lastPositionPrimary(messageDto.primary))
             binding.messageList.scrollToPosition(position)
             viewModel.selectMessage(messageDto.primary, true)
-            viewModel.getMessageList(getParams().opponentJid)
+            viewModel.getMessageList(getParams().opponentJid, getParams().id)
             handler.postDelayed(cancelSelected, 1000)
 //           viewModel.selectMessage(messageDto.primary, false)
 //            viewModel.getMessageList(getParams().opponent)
@@ -1184,13 +1188,13 @@ viewModel.initUnreadMessagesCountListener(getParams().id)
         enableSelectionMode(true)
         Check.setSelectedMode(true)
         viewModel.selectMessage(primary, true)
-       viewModel.getMessageList(getParams().opponentJid)
+        viewModel.getMessageList(getParams().opponentJid, getParams().id)
 
     }
 
     override fun checkItem(isChecked: Boolean, primary: String) {
         viewModel.selectMessage(primary, isChecked)
-        viewModel.getMessageList(getParams().opponentJid)
+        viewModel.getMessageList(getParams().opponentJid, getParams().id)
 //        chatAdapter?.notifyDataSetChanged()
     }
 
@@ -1219,11 +1223,11 @@ viewModel.initUnreadMessagesCountListener(getParams().id)
             saveDraft()
             //  binding.chatPanelGroup.isVisible = false
             binding.interaction.interactionView.isVisible = true
-         //  chatAdapter?.setSelectedMode(true)
+            //  chatAdapter?.setSelectedMode(true)
             replySwipeCallback?.setSwipeEnabled(false)
             isSelectedMode = true
             Check.setSelectedMode(true)
-            viewModel.getMessageList(getParams().opponentJid)
+            viewModel.getMessageList(getParams().opponentJid, getParams().id)
 
             binding.buttonEmoticon.isEnabled = false
             binding.buttonAttach.isEnabled = false
@@ -1244,7 +1248,7 @@ viewModel.initUnreadMessagesCountListener(getParams().id)
             }
             Check.setSelectedMode(false)
             viewModel.clearAllSelected()
-            viewModel.getMessageList(getParams().opponentJid)
+            viewModel.getMessageList(getParams().opponentJid, getParams().id)
             replySwipeCallback?.setSwipeEnabled(true)
             isSelectedMode = false
             binding.buttonEmoticon.isEnabled = true
@@ -1289,8 +1293,8 @@ viewModel.initUnreadMessagesCountListener(getParams().id)
                 false,
                 false,
                 null,
-                false, messageKindDto, false, null, imageList
-            ), true
+                false, messageKindDto, false, null, imageList, isUnread = true
+            )
         )
         binding.answer.isVisible = false
         isNeedScrollDown = true
@@ -1343,17 +1347,20 @@ viewModel.initUnreadMessagesCountListener(getParams().id)
     }
 
     override fun onBind(message: MessageDto?) {
-        Log.d("ppp", "bind")
+
         if (message != null) {
+            val id = message.primary
             if (message.isUnread) {
+                Log.d("bibi", "bind ${message.messageBody}")
                 val realm = Realm.open(defaultRealmConfig())
                 realm.writeBlocking {
                     val m = this.query(MessageStorageItem::class, "primary = '$id'").first().find()
-                    m?.isRead = true
-
-                    val ch = this.query(LastChatsStorageItem::class, "primary = '${getParams().id}'").first().find()
-                    val old = ch?.unread
-                    ch?.unread = old!!-1
+                    if (m != null) {
+                        findLatest(m).also {
+                            if (!it!!.isRead) { it.isRead = true
+                            }
+                        }
+                    }
                 }
             }
         }
