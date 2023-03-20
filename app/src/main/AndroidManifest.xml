@@ -13,8 +13,8 @@
         tools:ignore="ScopedStorage" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.READ_INTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
-     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO"/>
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
@@ -23,7 +23,8 @@
     <uses-permission
         android:name="android.permission.ACCESS_FINE_LOCATION"
         tools:remove="android:maxSdkVersion" />
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
     <application
         android:name=".presentation.XabberApplication"
         android:allowBackup="true"
@@ -36,11 +37,12 @@
         android:windowSoftInputMode="adjustResize">
         <activity
             android:name=".presentation.application.activity.ApplicationActivity"
-            android:windowSoftInputMode="adjustResize|adjustNothing"
             android:exported="true"
-            android:theme="@style/SplashScreen">
+            android:theme="@style/ThemeApplication"
+            android:windowSoftInputMode="adjustResize|adjustNothing">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
+
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
@@ -52,10 +54,16 @@
             android:name="com.canhub.cropper.CropImageActivity"
             android:theme="@style/Theme.AppCompat.Light.DarkActionBar" />
         <activity
+            android:name=".presentation.application.fragments.chat.ViewImageActivity"
+            android:exported="false"
+            android:theme="@style/ThemeImageViewer">
+        </activity>
+        <activity
             android:name=".presentation.application.fragments.chat.geo.PickGeolocationActivity"
             android:theme="@style/PickGeolocationActivity" />
 
         <service android:name=".service.RecordService" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.provider"
@@ -65,21 +73,20 @@
             <meta-data
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/provider_paths" />
-        </provider>
-<!--        <service android:name=".service.RecordService" />-->
-<!--        <service-->
-<!--            android:name=".notification.PushService"-->
-<!--            android:exported="false">-->
-<!--            <intent-filter>-->
-<!--                <action android:name="com.google.firebase.MESSAGING_EVENT"/>-->
-<!--            </intent-filter>-->
-<!--        </service>-->
+        </provider> <!-- <service android:name=".service.RecordService" /> -->
+        <!-- <service -->
+        <!-- android:name=".notification.PushService" -->
+        <!-- android:exported="false"> -->
+        <!-- <intent-filter> -->
+        <!-- <action android:name="com.google.firebase.MESSAGING_EVENT"/> -->
+        <!-- </intent-filter> -->
+        <!-- </service> -->
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_icon"
-            android:resource="@drawable/ic_id_outline"/>
+            android:resource="@drawable/ic_id_outline" />
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_color"
-            android:resource="@color/red_500"/>
+            android:resource="@color/red_500" />
     </application>
 
 </manifest>

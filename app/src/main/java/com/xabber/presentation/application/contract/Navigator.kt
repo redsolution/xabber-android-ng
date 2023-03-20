@@ -1,5 +1,6 @@
 package com.xabber.presentation.application.contract
 
+import android.net.Uri
 import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.Fragment
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
@@ -59,13 +60,13 @@ interface Navigator {
 
     fun showDevicesSettings()
 
-    fun showForwardFragment(forwardMessage: String)
+    fun showForwardFragment(forwardMessage: String, jid: String)
 
     fun showStatusFragment()
 
     fun showChatInStack(chatParams: ChatParams)
 
-    fun showInterfaceSettings()
+    fun showInterfaceSettings(inStack: Boolean)
 
     fun showNotificationsSettings()
 
@@ -78,6 +79,8 @@ interface Navigator {
     fun showDebugSettings()
 
     fun showAddAccountFragment()
+
+    fun showImageViewer(mediaUris: ArrayList<Uri>?, position: Int)
 
     fun lockScreen(lock: Boolean)
 

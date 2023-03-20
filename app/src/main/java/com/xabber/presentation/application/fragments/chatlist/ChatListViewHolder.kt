@@ -13,12 +13,11 @@ import androidx.core.text.HtmlCompat
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
-import com.bumptech.glide.load.MultiTransformation
-import com.bumptech.glide.load.resource.bitmap.CircleCrop
-import com.bumptech.glide.request.RequestOptions
 import com.xabber.R
+import com.xabber.data_base.defaultRealmConfig
 import com.xabber.databinding.ItemChatListBinding
 import com.xabber.models.dto.ChatListDto
+import com.xabber.models.xmpp.account.AccountStorageItem
 import com.xabber.models.xmpp.messages.MessageSendingState
 import com.xabber.models.xmpp.presences.ResourceStatus
 import com.xabber.models.xmpp.presences.RosterItemEntity
@@ -31,9 +30,11 @@ import com.xabber.presentation.AppConstants.PAYLOAD_CHAT_MESSAGE_STATE
 import com.xabber.presentation.AppConstants.PAYLOAD_MUTE_EXPIRED_CHAT
 import com.xabber.presentation.AppConstants.PAYLOAD_PINNED_POSITION_CHAT
 import com.xabber.presentation.application.activity.ColorManager
+import com.xabber.presentation.application.activity.MaskManager
 import com.xabber.presentation.application.dialogs.TimeMute
 import com.xabber.utils.DateFormatter
 import com.xabber.utils.parcelable
+import io.realm.kotlin.Realm
 
 
 class ChatListViewHolder(
@@ -65,21 +66,13 @@ class ChatListViewHolder(
         }
     }
 
-    private fun setColorDivider(colorKey: String) {
-        val colorDivider = ColorManager.convertColorNameToId(colorKey)
-        binding.accountColorIndicator.setBackgroundColor(
-            ContextCompat.getColor(
-                binding.accountColorIndicator.context,
-                colorDivider
-            )
-        )
+    private fun setColorDivider(id: String) {
+
     }
 
     private fun setAvatar(drawableId: Int) {
-        val multiTransformation = MultiTransformation(CircleCrop())
-        Glide.with(itemView).load(drawableId)
-            .apply(RequestOptions.bitmapTransform(multiTransformation))
-            .into(binding.imChatListItemAvatar)
+       binding.shapeView.setDrawable(MaskManager.mask)
+        Glide.with(itemView).load(drawableId).into(binding.imChatListItemAvatar)
     }
 
     private fun setName(name: String) {

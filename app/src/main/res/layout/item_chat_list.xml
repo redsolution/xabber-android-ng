@@ -18,26 +18,49 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <ImageView
-        android:id="@+id/im_chat_list_item_avatar"
-        android:layout_width="@dimen/mask56"
-        android:layout_height="@dimen/mask56"
+    <com.xabber.presentation.custom.ShapeOfView
+        android:id="@+id/shape_view"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
         android:layout_margin="@dimen/margin_less_than_medium"
-        android:contentDescription="@string/chat_image_description"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        tools:src="@tools:sample/avatars" />
+        app:shape_clip_drawable="@drawable/ic_mask_circle">
+
+        <ImageView
+            android:id="@+id/im_chat_list_item_avatar"
+            android:layout_width="@dimen/mask56"
+            android:layout_height="@dimen/mask56"
+            android:contentDescription="@string/chat_image_description"
+            android:scaleType="centerCrop"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            tools:src="@tools:sample/avatars" />
+    </com.xabber.presentation.custom.ShapeOfView>
+
+    <TextView
+        android:id="@+id/tv_initials"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="@color/grey_900"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="@id/shape_view"
+        app:layout_constraintEnd_toEndOf="@id/shape_view"
+        app:layout_constraintStart_toStartOf="@id/shape_view"
+        app:layout_constraintTop_toTopOf="@id/shape_view" />
+
 
     <ImageView
-        android:padding="@dimen/status_rim_width"
-        android:background="@drawable/circle_white"
         android:id="@+id/im_chat_status"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:background="@drawable/circle_white"
         android:contentDescription="@string/chat_status_image_description"
-        app:layout_constraintBottom_toBottomOf="@id/im_chat_list_item_avatar"
-        app:layout_constraintEnd_toEndOf="@id/im_chat_list_item_avatar"
+        android:padding="@dimen/status_rim_width"
+        app:layout_constraintBottom_toBottomOf="@id/shape_view"
+        app:layout_constraintEnd_toEndOf="@id/shape_view"
         tools:src="@drawable/status_bot_online" />
 
     <FrameLayout
@@ -47,7 +70,7 @@
         android:layout_marginEnd="@dimen/margin_small"
         app:layout_constraintBottom_toTopOf="@id/space_center_vertical"
         app:layout_constraintEnd_toStartOf="@id/tv_timestamp"
-        app:layout_constraintStart_toEndOf="@id/im_chat_list_item_avatar">
+        app:layout_constraintStart_toEndOf="@id/shape_view">
 
         <TextView
             android:id="@+id/tv_chat_item_name"
@@ -81,7 +104,7 @@
         android:layout_marginStart="@dimen/margin_10"
         android:layout_marginEnd="@dimen/margin_small"
         app:layout_constraintEnd_toStartOf="@id/lin_chat_data"
-        app:layout_constraintStart_toEndOf="@id/im_chat_list_item_avatar"
+        app:layout_constraintStart_toEndOf="@id/shape_view"
         app:layout_constraintTop_toBottomOf="@id/space_center_vertical">
 
         <TextView
@@ -111,12 +134,12 @@
 
     <LinearLayout
         android:id="@+id/lin_chat_data"
-        app:layout_constraintEnd_toEndOf="parent"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
         android:layout_marginEnd="8dp"
+        android:orientation="horizontal"
         app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toBottomOf="@id/tv_timestamp">
 
         <ImageView
@@ -127,17 +150,17 @@
             android:contentDescription="@string/message_status_content_description"
             tools:src="@drawable/ic_check_all_green" />
 
-            <TextView
-                android:background="@drawable/circle_green"
-                android:id="@+id/unread_messages_count"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:lines="1"
-                android:maxLength="4"
-                android:textColor="@color/white"
-                android:textSize="@dimen/unread_count_text_size"
-                tools:text="10" />
+        <TextView
+            android:id="@+id/unread_messages_count"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:background="@drawable/circle_green"
+            android:lines="1"
+            android:maxLength="4"
+            android:textColor="@color/white"
+            android:textSize="@dimen/unread_count_text_size"
+            tools:text="10" />
 
         <ImageView
             android:id="@+id/im_chat_list_pinned"

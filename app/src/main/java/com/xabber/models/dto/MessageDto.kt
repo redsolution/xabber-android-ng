@@ -21,7 +21,7 @@ data class MessageDto(
     val isGroup: Boolean,
     val kind: MessageKind? = null,
     var isSelected: Boolean = false,
-    val references: ArrayList<FileDto>? = null,
+    val references: ArrayList<String?>? = null,
     val uries: ArrayList<String>? = null,
     val location: Location? = null,
     val hasForwardedMessages: Boolean = false,

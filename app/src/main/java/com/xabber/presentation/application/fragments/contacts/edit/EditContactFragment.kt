@@ -7,7 +7,7 @@ import by.kirich1409.viewbindingdelegate.viewBinding
 import com.xabber.R
 import com.xabber.databinding.FragmentEditContactBinding
 import com.xabber.presentation.AppConstants
-import com.xabber.presentation.application.activity.UiChanger.getMask
+import com.xabber.presentation.application.activity.ColorManager
 import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.application.dialogs.DeletingContactDialog
 import com.xabber.presentation.application.fragments.DetailBaseFragment
@@ -74,13 +74,13 @@ class EditContactFragment : DetailBaseFragment(R.layout.fragment_edit_contact) {
     }
 
     private fun changeUiWithData() {
-        val color = getParams().color
         val avatar = if (getParams().avatar != null) getParams().avatar!! else R.drawable.ic_photo_white
-        binding.appbar.setBackgroundResource(color!!)
+        val colorKey = viewModel.getContact(getParams().id).color
+        val color = ColorManager.convertColorNameToId(colorKey)
+       binding.appbar.setBackgroundResource(color)
         val name = viewModel.getContact(getParams().id).customNickName
         binding.etName.setText(name)
-        val maskedDrawable = MaskPrepare.getDrawableMask(resources, avatar, getMask().size48)
-        binding.imAvatarEditContact.setImageDrawable(maskedDrawable)
+
     }
 
     private fun initActions() {

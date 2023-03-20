@@ -183,6 +183,7 @@ class OutgoingMessageVH(
         }
 
         setBackground(messageDto, isNeedTail)
+        Log.d("yyy", "setup")
         setupReferences(messageDto)
         binding.root.setOnLongClickListener {
             if (!Check.getSelectedMode()) listener.onLongClick(messageDto.primary)
@@ -308,6 +309,7 @@ class OutgoingMessageVH(
 
 
     private fun setupReferences(messageDto: MessageDto) {
+        Log.d("yyy", "holder ${messageDto.references}")
         Log.d("uuu", "${messageDto.references}")
         binding.grid1.grid1.isVisible = false
         binding.grid2.grid2.isVisible = false

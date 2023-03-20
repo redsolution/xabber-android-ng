@@ -9,7 +9,6 @@
 
     <com.google.android.material.appbar.AppBarLayout
         android:id="@+id/appbar"
-        style="@style/ApplicationAppbar"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         app:layout_constraintEnd_toEndOf="parent"
@@ -18,10 +17,10 @@
 
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/chat_toolbar"
-            android:background="@color/transparent"
             style="@style/ApplicationToolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
+            android:background="@color/transparent"
             app:menu="@menu/menu_toolbar_chat_list">
 
             <androidx.constraintlayout.widget.ConstraintLayout
@@ -29,26 +28,45 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content">
 
-                <ImageView
-                    android:id="@+id/im_avatar"
-                    android:layout_width="@dimen/mask32"
-                    android:layout_height="@dimen/mask32"
+                <com.xabber.presentation.custom.ShapeOfView
+                    android:id="@+id/shape_view"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
                     android:layout_marginStart="@dimen/margin_small"
-                    android:contentDescription="@string/avatar_account_content_description"
-                    android:focusable="false"
-                    android:scaleType="centerCrop"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toTopOf="parent"
-                    tools:src="@tools:sample/avatars" />
+                    app:shape_clip_drawable="@drawable/ic_mask_circle">
+
+                    <ImageView
+                        android:id="@+id/im_avatar"
+                        android:layout_width="@dimen/mask32"
+                        android:layout_height="@dimen/mask32"
+                        android:contentDescription="@string/avatar_account_content_description"
+                        android:scaleType="centerCrop"
+                        tools:src="@tools:sample/avatars" />
+                </com.xabber.presentation.custom.ShapeOfView>
+
+                <TextView
+                    android:id="@+id/tv_initials"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textAllCaps="true"
+                    android:textColor="@color/grey_900"
+                    android:textSize="14sp"
+                    android:visibility="gone"
+                    app:layout_constraintBottom_toBottomOf="@id/shape_view"
+                    app:layout_constraintEnd_toEndOf="@id/shape_view"
+                    app:layout_constraintStart_toStartOf="@id/shape_view"
+                    app:layout_constraintTop_toTopOf="@id/shape_view" />
 
                 <ImageView
                     android:id="@+id/avatar_status"
                     android:layout_width="@dimen/status_size_toolbar"
                     android:layout_height="@dimen/status_size_toolbar"
-                    app:layout_constraintEnd_toEndOf="@id/im_avatar"
-                    app:layout_constraintBottom_toBottomOf="@id/im_avatar"
+                    android:contentDescription="@string/status_content_description"
                     android:src="@drawable/status_chat"
-                    android:contentDescription="@string/status_content_description" />
+                    app:layout_constraintBottom_toBottomOf="@id/shape_view"
+                    app:layout_constraintEnd_toEndOf="@id/shape_view" />
 
                 <TextView
                     android:id="@+id/tv_chat_title"
@@ -56,14 +74,15 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/application_title"
-                    app:layout_goneMarginStart="0dp"
                     app:layout_constraintBottom_toBottomOf="parent"
-                    app:layout_constraintStart_toEndOf="@id/im_avatar"
-                    app:layout_constraintTop_toTopOf="parent" />
+                    app:layout_constraintStart_toEndOf="@id/shape_view"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_goneMarginStart="0dp" />
 
             </androidx.constraintlayout.widget.ConstraintLayout>
         </com.google.android.material.appbar.MaterialToolbar>
     </com.google.android.material.appbar.AppBarLayout>
+
     <com.xabber.presentation.custom.PullRefreshLayout
         android:id="@+id/refresh_layout"
         android:layout_width="match_parent"
@@ -73,26 +92,29 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/appbar">
-    <com.xabber.presentation.application.activity.MyRecyclerview
-        android:id="@+id/chat_list"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:fadeScrollbars="true"
-        android:orientation="vertical"
-        android:scrollbars="vertical"
-        app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/appbar"
-        tools:listitem="@layout/item_chat_list" /></com.xabber.presentation.custom.PullRefreshLayout>
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/chat_list"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:fadeScrollbars="true"
+            android:orientation="vertical"
+            android:scrollbars="vertical"
+            app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/appbar"
+            tools:listitem="@layout/item_chat_list" />
+    </com.xabber.presentation.custom.PullRefreshLayout>
+
     <LinearLayout
         android:id="@+id/lin_empty"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:gravity="center"
-        android:visibility="gone"
         android:orientation="vertical"
+        android:visibility="gone"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"

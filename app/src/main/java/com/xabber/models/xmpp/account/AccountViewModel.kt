@@ -8,6 +8,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.xabber.data_base.defaultRealmConfig
 import com.xabber.models.dto.AccountDto
+import com.xabber.models.dto.AvatarDto
+import com.xabber.models.xmpp.avatar.AvatarStorageItem
+import com.xabber.presentation.application.activity.ColorManager
 import io.realm.kotlin.Realm
 import io.realm.kotlin.notifications.ResultsChange
 import io.realm.kotlin.notifications.UpdatedResults
@@ -19,13 +22,8 @@ class AccountViewModel : ViewModel() {
     val realm = Realm.open(defaultRealmConfig())
     private val _accounts = MutableLiveData<List<AccountDto>>()
     val accounts: LiveData<List<AccountDto>> = _accounts
-    private val _avatarBitmap = MutableLiveData<Bitmap>()
-    val avatarBitmap: LiveData<Bitmap> = _avatarBitmap
-
-
-    fun setAvatarBitmap(bitmap: Bitmap) {
-        _avatarBitmap.value = bitmap
-    }
+    private val _colorKey = MutableLiveData<String>()
+    val colorKey: LiveData<String> = _colorKey
 
     fun addAccount(accountJid: String) {
 //        val accountOrder = defineAccountOrder()
@@ -51,11 +49,11 @@ class AccountViewModel : ViewModel() {
     }
 
     fun setAvatar(jid: String, uri: String?) {
-Log.d("bbb", "setAvatar")
-            realm.writeBlocking {
-                val item = this.query(AccountStorageItem::class).first().find()
-              item?.hasAvatar = !item!!.hasAvatar
-            }
+        Log.d("bbb", "setAvatar")
+        realm.writeBlocking {
+            val item = this.query(AccountStorageItem::class).first().find()
+            item?.hasAvatar = !item!!.hasAvatar
+        }
     }
 
     fun getAccount(jid: String): AccountDto? {
@@ -76,29 +74,23 @@ Log.d("bbb", "setAvatar")
         return account
     }
 
-    fun setEnabled(jid: String) {
-        realm.writeBlocking {
-            val account = this.query(AccountStorageItem::class).first().find()
-            account?.enabled = !account!!.enabled
+    fun setEnabled(jid: String, isChecked: Boolean) {
+        viewModelScope.launch(Dispatchers.IO) {
+            realm.writeBlocking {
+                val account =
+                    this.query(AccountStorageItem::class, "primary = '$jid'").first().find()
+                if (account != null) account.enabled = isChecked
+            }
         }
     }
 
-    override fun onCleared() {
-        super.onCleared()
-        realm.close()
-    }
-
-
-    fun initDataListener() {
-        Log.d("itt","${realm.query(AccountStorageItem::class).find()}")
+    fun initDataListener(id: String) {
         viewModelScope.launch(Dispatchers.IO) {
             val request =
-                realm.query(AccountStorageItem::class)
+                realm.query(AccountStorageItem::class, "primary = '$id'")
             request.asFlow().collect { changes: ResultsChange<AccountStorageItem> ->
                 when (changes) {
-
                     is UpdatedResults -> {
-                        Log.d("bbb", "chsnges")
                         changes.list
                         val dataSource = ArrayList<AccountDto>()
                         dataSource.addAll(changes.list.map { T ->
@@ -115,6 +107,7 @@ Log.d("bbb", "setAvatar")
                         })
                         withContext(Dispatchers.Main) {
                             _accounts.value = dataSource
+                            _colorKey.value = dataSource[0].colorKey
                         }
                     }
                     else -> {}
@@ -123,8 +116,52 @@ Log.d("bbb", "setAvatar")
         }
     }
 
-    fun saveAvatar(bitmap: Bitmap) {
-_avatarBitmap.value = bitmap
+    fun deleteAvatar(id: String) {
+        realm.writeBlocking {
+            val avatar = this.query(AvatarStorageItem::class, "primary = '$id'").first().find()
+            if (avatar != null) findLatest(avatar)?.let { delete(it) }
+
+            val account = this.query(AccountStorageItem::class, "primary = '$id'").first().find()
+            account?.hasAvatar = false
+        }
+    }
+
+    fun saveAvatar(id: String, uri: String) {
+        realm.writeBlocking {
+            val avatar = this.query(AvatarStorageItem::class, "primary = '$id'").first().find()
+            if (avatar == null) {
+                this.copyToRealm(AvatarStorageItem().apply {
+                    primary = id
+                    fileUri = uri
+                    jid = id
+                    owner = id
+
+                })
+            } else avatar.fileUri = uri
+            val account = this.query(AccountStorageItem::class, "jid = '$id'").first().find()
+            account?.hasAvatar = true
+        }
+    }
+
+    fun getAvatar(id: String): AvatarDto? {
+        var avatarDto: AvatarDto? = null
+        realm.writeBlocking {
+            val avatarStorageItem =
+                this.query(AvatarStorageItem::class, "primary = '$id'").first().find()
+            if (avatarStorageItem != null) {
+                avatarDto = AvatarDto(
+                    id = avatarStorageItem.primary,
+                    jid = avatarStorageItem.jid,
+                    fileUri = avatarStorageItem.fileUri
+                )
+            }
+        }
+        return avatarDto
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        realm.close()
     }
 
 }

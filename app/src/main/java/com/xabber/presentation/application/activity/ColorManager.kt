@@ -27,6 +27,7 @@ object ColorManager {
         colors["pink"] = R.color.pink_500
         colors["blue-grey"] = R.color.blue_grey_500
         colors["brown"] = R.color.brown_500
+        colors["offline"] = R.color.grey_500
         val colorId = colors[colorName]
         return colorId!!
     }

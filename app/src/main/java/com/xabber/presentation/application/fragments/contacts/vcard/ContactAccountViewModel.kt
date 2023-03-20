@@ -51,8 +51,8 @@ class ContactAccountViewModel : ViewModel() {
             jid = contact.jid,
             nickName = contact.nickname,
             customNickName = contact.customNickname,
-            color = R.color.blue_500,
-            avatar = R.drawable.img,
+            color = contact.colorKey,
+            avatar = contact.avatarR,
             isHide = contact.isHidden,
             entity = RosterItemEntity.Contact,
             status = ResourceStatus.Chat,
@@ -164,7 +164,7 @@ class ContactAccountViewModel : ViewModel() {
                     lastMessageBody = if (chat.lastMessage != null) chat.lastMessage!!.body else "",
                     lastMessageDate = if (chat.lastMessage != null) chat.lastMessage!!.date else 0L,
                     lastMessageState = if (chat.lastMessage != null) MessageSendingState.Read else MessageSendingState.None,
-                    colorId = chat.color,
+                    colorKey = chat.colorKey,
                     opponentNickname = chat.rosterItem!!.nickname,
                     drawableId = chat.avatar,
                     status = ResourceStatus.Chat,
@@ -202,7 +202,7 @@ class ContactAccountViewModel : ViewModel() {
 
     fun deleteContact(id: String, clearHistory: Boolean) {
         viewModelScope.launch(Dispatchers.IO) {
-            var contactJid: String? = null
+            var contactJid: String?
             realm.writeBlocking {
                 val item = this.query(RosterStorageItem::class, "primary = '$id'").first().find()
                 contactJid = item?.jid

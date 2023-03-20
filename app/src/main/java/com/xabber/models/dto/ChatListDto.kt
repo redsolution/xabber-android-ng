@@ -29,12 +29,10 @@ data class ChatListDto(
     val entity: RosterItemEntity,
     var unread: String = "",
     val lastPosition: String = "",
-    @ColorRes
-    val colorId: Int,
     val drawableId: Int,
     val isHide: Boolean = false,
     val lastMessageIsOutgoing: Boolean = false,
-    val colorKey: String = "blue"
+    var colorKey: String = "blue"
 ) : Comparable<ChatListDto>, Parcelable {
     override fun compareTo(other: ChatListDto): Int {
         return if (other.pinnedDate > 0 || this.pinnedDate > 0) {

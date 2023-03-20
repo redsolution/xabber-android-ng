@@ -14,14 +14,15 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-class ApplicationViewModel: ViewModel() {
+class ApplicationViewModel : ViewModel() {
     val realm = Realm.open(defaultRealmConfig())
+    var showUnreadOnly = false
+
     private val enabledAccounts = HashSet<String>()
     private val _unreadMessages = MutableLiveData<Int>()
     val unreadMessage: LiveData<Int> = _unreadMessages
 
-
-   init {
+    init {
         getUnreadMessages()
     }
 
@@ -86,6 +87,5 @@ class ApplicationViewModel: ViewModel() {
             }
         }
     }
-
 
 }

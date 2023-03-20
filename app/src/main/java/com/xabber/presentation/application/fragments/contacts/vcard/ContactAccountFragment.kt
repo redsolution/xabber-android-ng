@@ -24,8 +24,8 @@ import com.google.android.material.tabs.TabLayout
 import com.xabber.R
 import com.xabber.databinding.FragmentContactAccountBinding
 import com.xabber.presentation.AppConstants
+import com.xabber.presentation.application.activity.ColorManager
 import com.xabber.presentation.application.activity.DisplayManager
-import com.xabber.presentation.application.activity.UiChanger
 import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.application.dialogs.BlockContactDialog
 import com.xabber.presentation.application.dialogs.DeletingContactDialog
@@ -36,7 +36,6 @@ import com.xabber.presentation.application.fragments.account.qrcode.QRCodeParams
 import com.xabber.presentation.application.fragments.chat.ChatParams
 import com.xabber.presentation.application.fragments.contacts.*
 import com.xabber.utils.dp
-import com.xabber.utils.mask.MaskPrepare
 import com.xabber.utils.parcelable
 import com.xabber.utils.setFragmentResultListener
 import com.xabber.utils.showToast
@@ -62,6 +61,7 @@ class ContactAccountFragment : DetailBaseFragment(R.layout.fragment_contact_acco
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        binding.accountAppbar.avatarGr.imAccountAvatar.setImageResource(getParams().avatar!!)
         binding.accountAppbar.tvTitle.isSelected = true
         setFragmentResultListener(AppConstants.DELETING_CONTACT_DIALOG_KEY) { _, bundle ->
             val result = bundle.getBoolean(AppConstants.DELETING_CONTACT_BUNDLE_KEY)
@@ -266,7 +266,7 @@ class ContactAccountFragment : DetailBaseFragment(R.layout.fragment_contact_acco
         )
         params.topMargin = DisplayManager.getHeightStatusBar()
         params.collapseMode = CollapsingToolbarLayout.LayoutParams.COLLAPSE_MODE_PIN
-        binding.accountAppbar.toolbar.layoutParams = params
+        binding.accountAppbar.accountToolbar.layoutParams = params
     }
 
     @SuppressLint("ResourceAsColor")
@@ -292,7 +292,8 @@ class ContactAccountFragment : DetailBaseFragment(R.layout.fragment_contact_acco
     }
 
     private fun loadBackground() {
-        val color: Int = if (getParams().color == null) R.color.blue_500 else getParams().color!!
+        val colorKey = viewModel.getContact(getParams().id).color
+        val color = ColorManager.convertColorNameToId(colorKey)
         val avatar: Int =
             if (getParams().avatar != null) getParams().avatar!! else R.drawable.ic_photo_white
         Glide.with(requireContext())
@@ -313,18 +314,12 @@ class ContactAccountFragment : DetailBaseFragment(R.layout.fragment_contact_acco
     }
 
     private fun loadAvatar() {
-        val color: Int = if (getParams().color == null) R.color.blue_500 else getParams().color!!
-        val avatar: Int =
-            if (getParams().avatar != null) getParams().avatar!! else R.drawable.ic_empty_photo
-        val maskedDrawable =
-            MaskPrepare.getDrawableMask(resources, avatar, UiChanger.getMask().size176)
-        Glide.with(requireContext())
-            .load(maskedDrawable).error(R.drawable.ic_empty_photo)
-            .into(binding.accountAppbar.imPhoto)
+
     }
 
     private fun defineColor() {
-        val color: Int = if (getParams().color == null) R.color.blue_500 else getParams().color!!
+        val colorKey = viewModel.getContact(getParams().id).color
+        val color = ColorManager.convertColorNameToId(colorKey)
         binding.accountAppbar.collapsingToolbar.setContentScrimColor(
             ResourcesCompat.getColor(
                 resources,
@@ -344,14 +339,14 @@ class ContactAccountFragment : DetailBaseFragment(R.layout.fragment_contact_acco
 
     private fun initToolbarActions() {
 
-        binding.accountAppbar.toolbar.addMenuProvider(object : MenuProvider {
+        binding.accountAppbar.accountToolbar.addMenuProvider(object : MenuProvider {
             override fun onCreateMenu(menu: Menu, menuInflater: MenuInflater) {
                 menuInflater.inflate(R.menu.menu_toolbar_contact_account, menu)
             }
 
             override fun onMenuItemSelected(menuItem: MenuItem): Boolean {
-                val color: Int =
-                    if (getParams().color == null) R.color.blue_500 else getParams().color!!
+                val colorKey = viewModel.getContact(getParams().id).color
+                val color = ColorManager.convertColorNameToId(colorKey)
                 when (menuItem.itemId) {
                     R.id.contact_qr_code -> {
                         navigator().showQRCode(
@@ -366,8 +361,7 @@ class ContactAccountFragment : DetailBaseFragment(R.layout.fragment_contact_acco
                         navigator().showEditContact(
                             ContactAccountParams(
                                 getParams().id,
-                                getParams().avatar,
-                                getParams().color
+                                getParams().avatar
                             )
                         )
                     }
@@ -403,8 +397,9 @@ class ContactAccountFragment : DetailBaseFragment(R.layout.fragment_contact_acco
                             anim
                         )
                         tvSubtitle.startAnimation(anim)
-                        imPhoto.startAnimation(anim)
-                        imPhoto.isVisible = false
+                            avatarGr.imAvatarGroup.startAnimation(anim)
+
+                            avatarGr.imAvatarGroup.isVisible = false
                         tvSubtitle.isVisible = false
                         tvTitle.isVisible = false
                     }
@@ -415,8 +410,8 @@ class ContactAccountFragment : DetailBaseFragment(R.layout.fragment_contact_acco
                     if (!tvTitle.isVisible) {
                         tvTitle.startAnimation(anim)
                         tvSubtitle.startAnimation(anim)
-                        imPhoto.startAnimation(anim)
-                        imPhoto.isVisible = true
+                        avatarGr.imAvatarGroup.startAnimation(anim)
+                        avatarGr.imAvatarGroup.isVisible = true
                         tvSubtitle.isVisible = true
                         tvTitle.isVisible = true
                     }
@@ -490,8 +485,7 @@ class ContactAccountFragment : DetailBaseFragment(R.layout.fragment_contact_acco
             navigator().showContactProfile(
                 ContactAccountParams(
                     getParams().id,
-                    getParams().avatar,
-                    getParams().color
+                    getParams().avatar
                 )
             )
         }
@@ -619,7 +613,7 @@ class ContactAccountFragment : DetailBaseFragment(R.layout.fragment_contact_acco
 //        binding.accountAppbar.toolbar.menu.findItem(R.id.edit_contact).isVisible = !isDeleted
 //        binding.accountAppbar.toolbar.menu.findItem(R.id.send_contact).isVisible = !isDeleted
 //        binding.accountAppbar.toolbar.menu.findItem(R.id.delete_contact).isVisible = !isDeleted
-        binding.accountAppbar.toolbar.menu.findItem(R.id.delete_contact).isVisible = !isDeleted
+        binding.accountAppbar.accountToolbar.menu.findItem(R.id.delete_contact).isVisible = !isDeleted
         binding.accountAppbar.btnAddContact.isVisible = isDeleted
         binding.accountAppbar.btnAddContact.setOnClickListener {
             viewModel.addContact(getParams().id)

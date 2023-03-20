@@ -1,60 +1,55 @@
 package com.xabber.presentation.application.fragments.account
 
 import android.Manifest
-import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
+import android.graphics.Color
 import android.graphics.drawable.BitmapDrawable
 import android.net.Uri
 import android.os.Bundle
+import android.provider.MediaStore
 import android.util.Log
-import android.util.TypedValue
 import android.view.*
 import android.view.animation.AnimationUtils
-import android.widget.ImageView
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.appcompat.content.res.AppCompatResources
 import androidx.appcompat.widget.PopupMenu
 import androidx.coordinatorlayout.widget.CoordinatorLayout
 import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
-import androidx.core.graphics.drawable.toBitmap
+import androidx.core.net.toUri
+import androidx.core.os.bundleOf
 import androidx.core.view.MenuProvider
 import androidx.core.view.isVisible
 import androidx.fragment.app.activityViewModels
-import androidx.fragment.app.viewModels
 import by.kirich1409.viewbindingdelegate.viewBinding
 import com.bumptech.glide.Glide
-import com.bumptech.glide.load.MultiTransformation
-import com.bumptech.glide.load.resource.bitmap.CenterCrop
-import com.bumptech.glide.load.resource.bitmap.CircleCrop
 import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions
-import com.bumptech.glide.request.RequestOptions
+import com.canhub.cropper.CropImage
+import com.canhub.cropper.CropImageContract
+import com.canhub.cropper.CropImageView
+import com.canhub.cropper.options
 import com.google.android.material.appbar.AppBarLayout
 import com.google.android.material.appbar.CollapsingToolbarLayout
 import com.xabber.R
 import com.xabber.databinding.FragmentAccountBinding
+import com.xabber.models.dto.AccountDto
 import com.xabber.models.xmpp.account.AccountViewModel
 import com.xabber.presentation.AppConstants
+import com.xabber.presentation.application.AccountManager
 import com.xabber.presentation.application.activity.AvatarBottomSheetDialog
 import com.xabber.presentation.application.activity.ColorManager
 import com.xabber.presentation.application.activity.DisplayManager
-import com.xabber.presentation.application.activity.UiChanger
+import com.xabber.presentation.application.activity.MaskManager
 import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.application.fragments.DetailBaseFragment
 import com.xabber.presentation.application.fragments.account.color.AccountColorDialog
 import com.xabber.presentation.application.fragments.account.qrcode.QRCodeParams
-import com.xabber.presentation.application.fragments.chat.FileManager
-import com.xabber.presentation.onboarding.fragments.signup.AvatarBottomSheet
 import com.xabber.utils.askUserForOpeningAppSettings
 import com.xabber.utils.blur.BlurTransformation
 import com.xabber.utils.dp
-import com.xabber.utils.isPermissionGranted
-import com.xabber.utils.mask.Mask
-import com.xabber.utils.mask.MaskPrepare
-import com.xabber.utils.mask.MaskedDrawableBitmapShader
-import io.realm.kotlin.internal.platform.RealmInitializer
+import com.xabber.utils.setFragmentResult
+import com.xabber.utils.setFragmentResultListener
+import io.realm.kotlin.internal.RealmInitializer
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
@@ -62,25 +57,86 @@ import java.io.FileOutputStream
 class AccountFragment : DetailBaseFragment(R.layout.fragment_account) {
     private val binding by viewBinding(FragmentAccountBinding::bind)
     private val viewModel: AccountViewModel by activityViewModels()
-    private var currentPhotoUri: Uri? = null
-private var f = R.color.blue_500
+    private var hasAvatar = false
+    private var popupMenu: PopupMenu? = null
+
     private val requestCameraPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions(), ::onGotCameraPermissionResult
+        ActivityResultContracts.RequestPermission(), ::onGotCameraPermissionResult
     )
 
     private val requestGalleryPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission(), ::onGotGalleryPermissionResult
     )
 
-    private val cameraResultLauncher = registerForActivityResult(
-        ActivityResultContracts.TakePicture(), ::onTakePhotoFromCamera
-    )
+    private fun onGotCameraPermissionResult(result: Boolean) {
+        if (result) {
+            cropImageFromCamera()
+        } else askUserForOpeningAppSettings()
+    }
 
-    private val galleryResultLauncher = registerForActivityResult(
-        ActivityResultContracts.GetContent(),
-        ::onTakePictureFromGallery
-    )
+    private fun onGotGalleryPermissionResult(granted: Boolean) {
+        if (granted) {
+            cropImageFromGallery()
+        } else {
+            if (!shouldShowRequestPermissionRationale(Manifest.permission.READ_EXTERNAL_STORAGE)) {
+                askUserForOpeningAppSettings()
+            }
+        }
+    }
 
+    private fun cropImageFromCamera() {
+        startCrop(includeCamera = true, includeGallery = false)
+    }
+
+    private fun cropImageFromGallery() {
+        startCrop(includeCamera = false, includeGallery = true)
+    }
+
+    private fun startCrop(includeCamera: Boolean, includeGallery: Boolean) {
+        cropImage.launch(options {
+            setGuidelines(CropImageView.Guidelines.OFF).setImageSource(
+                includeGallery, includeCamera
+            ).setOutputCompressFormat(Bitmap.CompressFormat.PNG).setAspectRatio(
+                1, 1
+            ).setMinCropWindowSize(800, 800).setActivityBackgroundColor(Color.BLACK)
+        })
+    }
+    private val cropImage = registerForActivityResult(CropImageContract()) {
+        when {
+            it.isSuccessful -> {
+                val bitmapi = MediaStore.Images.Media.getBitmap(
+                    requireContext().contentResolver,
+                    it.uriContent
+                )
+              binding.accountAppbar.avatarGr.imAccountAvatar.setImageURI(it.uriContent)
+
+                val bitmap =
+                    (binding.accountAppbar.avatarGr.imAccountAvatar.drawable as BitmapDrawable).bitmap
+                val stream = ByteArrayOutputStream()
+                bitmap.compress(Bitmap.CompressFormat.PNG, 90, stream)
+
+                val bytesArray = stream.toByteArray()
+                val fileName = "avatar + ${System.currentTimeMillis()}"
+                val file = File(RealmInitializer.filesDir, fileName)
+                FileOutputStream(file).use {
+                    it.write(bytesArray)
+                }
+
+                val avatarUri = Uri.fromFile(file)
+                viewModel.saveAvatar(getJid(), avatarUri.toString())
+
+
+            }
+            it is CropImage.CancelledResult -> Log.d(
+                "Avatar",
+                "cropping image was cancelled by the user"
+            )
+            else -> {
+                Log.d("Avatar", "${it.error}")
+            }
+        }
+
+    }
     companion object {
         fun newInstance(jid: String): AccountFragment {
             val args =
@@ -96,33 +152,71 @@ private var f = R.color.blue_500
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        binding.accountAppbar.tvTitle.isSelected = true
-
-        var actionBarHeight = 0
-        val tv = TypedValue()
-        if (requireActivity().theme.resolveAttribute(
-                android.R.attr.actionBarSize,
-                tv,
-                true
-            )
-        ) actionBarHeight =
-            TypedValue.complexToDimensionPixelSize(tv.data, resources.displayMetrics)
-        val params = CollapsingToolbarLayout.LayoutParams(
-            CollapsingToolbarLayout.LayoutParams.MATCH_PARENT,
-            actionBarHeight
-        )
-
-        params.topMargin = DisplayManager.getHeightStatusBar()
-        params.collapseMode = CollapsingToolbarLayout.LayoutParams.COLLAPSE_MODE_PIN
-        binding.accountAppbar.toolbar.layoutParams = params
+        setupTitle()
         changeUiWithAccountData()
         initToolbarActions()
         createAvatarPopupMenu()
         initAccountSettingsActions()
-        Log.d(
-            "params",
-            "DisplayManager.getWidthDp() = ${binding.root.width}, text = ${binding.accountAppbar.tvTitle.width}"
-        )
+        setFragmentResultListener("AA") { _, bundle ->
+            val uri =
+                bundle.getString("AA")
+            binding.accountAppbar.avatarGr.imAccountAvatar.setImageURI(uri?.toUri())
+
+            val bitmap =
+                (binding.accountAppbar.avatarGr.imAccountAvatar.drawable as BitmapDrawable).bitmap
+            val stream = ByteArrayOutputStream()
+            bitmap.compress(Bitmap.CompressFormat.PNG, 90, stream)
+
+            val bytesArray = stream.toByteArray()
+            val fileName = "avatar + ${System.currentTimeMillis()}"
+            val file = File(RealmInitializer.filesDir, fileName)
+            FileOutputStream(file).use {
+                it.write(bytesArray)
+            }
+
+            val avatarUri = Uri.fromFile(file)
+            viewModel.saveAvatar(getJid(), avatarUri.toString())
+        }
+
+        binding.accountAppbar.switchAccountEnable.isChecked =
+            viewModel.getAccount(getJid())!!.enabled
+        binding.accountAppbar.switchAccountEnable.setOnCheckedChangeListener { _, isChecked ->
+            viewModel.setEnabled(
+                getJid(),
+                isChecked
+            )
+        }
+
+        viewModel.initDataListener(getJid())
+        viewModel.accounts.observe(viewLifecycleOwner) {
+            if (hasAvatar != it[0].hasAvatar) {
+                loadAvatar(it[0])
+                popupMenu!!.menu.findItem(R.id.delete_avatar).isVisible = it[0].hasAvatar
+                hasAvatar = it[0].hasAvatar
+            }
+            binding.accountAppbar.switchAccountEnable.setOnCheckedChangeListener(null)
+            binding.accountAppbar.switchAccountEnable.isChecked = it[0].enabled
+            binding.accountAppbar.switchAccountEnable.setOnCheckedChangeListener { _, isChecked ->
+                viewModel.setEnabled(
+                    getJid(),
+                    isChecked
+                )
+            }
+        }
+
+        viewModel.colorKey.observe(viewLifecycleOwner) {
+            val color = ColorManager.convertColorNameToId(it)
+            defineColor(color)
+            loadBackground(color)
+            if (!hasAvatar) {
+                val colorLight = ColorManager.convertColorLightNameToId(it)
+                binding.accountAppbar.avatarGr.imAccountAvatar.setImageResource(colorLight) }
+        }
+
+    }
+
+    private fun setupTitle() {
+        binding.accountAppbar.tvTitle.isSelected = true
         if (!DisplayManager.isDualScreenMode() && DisplayManager.getWidthDp() > 600) {
             val params = CollapsingToolbarLayout.LayoutParams(
                 CoordinatorLayout.LayoutParams.WRAP_CONTENT,
@@ -131,24 +225,6 @@ private var f = R.color.blue_500
             params.gravity = Gravity.CENTER_VERTICAL or Gravity.START
             params.marginStart = 300.dp
             binding.accountAppbar.linText.layoutParams = params
-        }
-        binding.accountAppbar.switchAccountEnable.isChecked =
-            viewModel.getAccount(getJid())!!.enabled
-        binding.accountAppbar.switchAccountEnable.setOnClickListener { viewModel.setEnabled(getJid()) }
-
-        viewModel.initDataListener()
-        viewModel.accounts.observe(viewLifecycleOwner) {
-            binding.accountAppbar.switchAccountEnable.isChecked = it[0].enabled
-            loadBackground()
-            defineColor()
-        }
-
-        viewModel.avatarBitmap.observe(viewLifecycleOwner) {
-            val multiTransformation = MultiTransformation(CircleCrop())
-            Glide.with(requireContext()).load(it).error(R.drawable.ic_avatar_placeholder)
-                .apply(RequestOptions.bitmapTransform(multiTransformation))
-                .into(binding.accountAppbar.imPhoto)
-            saveAvatar(it)
         }
     }
 
@@ -164,20 +240,23 @@ private var f = R.color.blue_500
         }
         val fileNme = file.path
         Log.d("bbb", "name = $fileNme")
-        UiChanger.setAvatar(fileNme)
+        //  MaskManager.setAvatar(fileNme)
         super.onDestroy()
-        val sh =   activity?.getSharedPreferences("pref", Context.MODE_PRIVATE)
-        sh?.edit()?.putString("avatar", UiChanger.getAvatar())?.apply()
+        val sh = activity?.getSharedPreferences("pref", Context.MODE_PRIVATE)
+        //      sh?.edit()?.putString("avatar", MaskManager.getAvatar())?.apply()
         viewModel.setAvatar("", "")
     }
 
-    @SuppressLint("ResourceAsColor")
     private fun changeUiWithAccountData() {
-        loadBackground()
-        defineColor()
-        loadAvatar()
-        binding.accountAppbar.switchAccountEnable.isVisible = true
         val account = viewModel.getAccount(getJid())
+        hasAvatar = account?.hasAvatar ?: false
+        val colorKey = account?.colorKey ?: "blue"
+        val colorRes = ColorManager.convertColorNameToId(colorKey)
+        loadBackground(colorRes)
+        defineColor(colorRes)
+        if (account != null) loadAvatar(account)
+        binding.accountAppbar.switchAccountEnable.isVisible = true
+
         with(binding.accountAppbar) {
             if (account != null) {
                 tvTitle.text = account.nickname
@@ -186,113 +265,84 @@ private var f = R.color.blue_500
         }
     }
 
-    private fun loadBackground() {
-        val color = viewModel.getAccount(getJid())?.colorKey
-        val fon = if (color != null) ColorManager.convertColorNameToId(color) else R.color.blue_500
-        f = fon
-        binding.accountAppbar.appbar.setBackgroundResource(fon)
+    private fun loadBackground(colorRes: Int) {
+        binding.accountAppbar.appbar.setBackgroundResource(colorRes)
         Glide.with(requireContext())
-            .load(R.drawable.img)
+            .load(AccountManager.getAvatar())
             .transform(
                 BlurTransformation(
                     25,
                     6,
                     ContextCompat.getColor(
                         requireContext(),
-                        fon
+                        colorRes
                     )
                 )
-            ).placeholder(fon).transition(
+            ).placeholder(colorRes).transition(
                 DrawableTransitionOptions.withCrossFade()
             )
             .into(binding.accountAppbar.imBackdrop)
     }
 
-    private fun loadAvatar() {
+    private fun defineColor(colorRes: Int) {
+        binding.accountAppbar.collapsingToolbar.setContentScrimColor(
+            ResourcesCompat.getColor(
+                resources,
+                colorRes,
+                requireContext().theme
+            )
+        )
+    }
 
-        val avatar = UiChanger.getAvatar()
-        val multiTransformation = MultiTransformation(CircleCrop())
-        Glide.with(requireContext()).load(avatar).error(R.drawable.ic_avatar_placeholder)
-            .apply(RequestOptions.bitmapTransform(multiTransformation))
-            .into(binding.accountAppbar.imPhoto)
+    private fun loadAvatar(account: AccountDto) {
+        if (account.hasAvatar) loadAccountAvatar() else loadAvatarWithInitials(
+            account.nickname,
+            account.colorKey
+        )
+    }
+
+    private fun loadAccountAvatar() {
+        binding.accountAppbar.avatarGr.tvAccountInitials.isVisible = false
+        val avatar = baseViewModel.getAvatar(getJid())
+        val uri = avatar?.fileUri
+        Log.d("acc", "$uri")
+        Glide.with(binding.root.context).load(uri)
+            .into(binding.accountAppbar.avatarGr.imAccountAvatar)
+    }
+
+    private fun loadAvatarWithInitials(name: String, colorKey: String) {
+        val color = ColorManager.convertColorLightNameToId(colorKey)
+        binding.accountAppbar.avatarGr.imAccountAvatar.setImageResource(color)
+        var initials =
+            name.split(' ').mapNotNull { it.firstOrNull()?.toString() }.reduce { acc, s -> acc + s }
+        if (initials.length > 2) initials = initials.substring(0, 2)
+        binding.accountAppbar.avatarGr.tvAccountInitials.isVisible = true
+        binding.accountAppbar.avatarGr.tvAccountInitials.text = initials
     }
 
     private fun createAvatarPopupMenu() {
-        val popup = PopupMenu(requireContext(), binding.accountAppbar.imPhoto, Gravity.TOP)
-        popup.inflate(R.menu.popup_menu_account_avatar)
-        popup.setOnMenuItemClickListener {
+        popupMenu =
+            PopupMenu(requireContext(), binding.accountAppbar.avatarGr.imAvatarGroup, Gravity.TOP)
+        popupMenu!!.inflate(R.menu.popup_menu_account_avatar)
+        popupMenu!!.menu.findItem(R.id.delete_avatar).isVisible =
+            viewModel.getAccount(getJid())!!.hasAvatar
+        popupMenu!!.setOnMenuItemClickListener {
             when (it.itemId) {
-                R.id.choose_image -> AvatarBottomSheetDialog().show(parentFragmentManager, "")
+                R.id.choose_image -> requestGalleryPermissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
                 R.id.delete_avatar -> deleteAvatar()
+                R.id.take_photo -> requestCameraPermissionLauncher.launch(Manifest.permission.CAMERA)
             }
             true
         }
-        binding.accountAppbar.imPhoto.setOnClickListener { popup.show() }
-    }
-
-    private fun choosePhotoFromGallery() {
-        if (isPermissionGranted(Manifest.permission.READ_EXTERNAL_STORAGE)) galleryResultLauncher.launch(
-            "image/*"
-        )
-        else requestGalleryPermissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
-    }
-
-    private fun takePhoto() {
-        if (isPermissionGranted(Manifest.permission.CAMERA) && isPermissionGranted(
-                Manifest.permission.WRITE_EXTERNAL_STORAGE
-            )
-        ) takePhotoFromCamera()
-        else requestCameraPermissionLauncher.launch(
-            arrayOf(
-                Manifest.permission.CAMERA,
-                Manifest.permission.WRITE_EXTERNAL_STORAGE
-            )
-        )
+        binding.accountAppbar.avatarGr.imAvatarGroup.setOnClickListener { popupMenu!!.show() }
     }
 
     private fun deleteAvatar() {
-        //    viewModel.setAvatar(getJid(),null)
-        val mPictureBitmap =
-            AppCompatResources.getDrawable(requireContext(), R.drawable.ic_empty_photo)?.toBitmap()
-
-        Log.d("bbb", "$mPictureBitmap")
-        val mMaskBitmap =
-            BitmapFactory.decodeResource(
-                binding.root.context.resources,
-                UiChanger.getMask().size176
-            )
-                .extractAlpha()
-        val maskedDrawable = MaskedDrawableBitmapShader()
-        maskedDrawable.setPictureBitmap(mPictureBitmap)
-        maskedDrawable.setMaskBitmap(mMaskBitmap)
-
-        Glide.with(requireContext())
-            .load(maskedDrawable)
-            .into(binding.accountAppbar.imPhoto)
-        // val multiTransformation = MultiTransformation(CircleCrop())
-//        Glide.with(requireContext()).load(R.drawable.ic_empty_photo).error(R.drawable.ic_avatar_placeholder)
-//            .apply(RequestOptions.bitmapTransform(multiTransformation))
-//            .into(binding.accountAppbar.imPhoto)
-        val bitmap =
-            AppCompatResources.getDrawable(requireContext(), R.drawable.ic_empty_photo)?.toBitmap()
-        val stream = ByteArrayOutputStream()
-        bitmap?.compress(Bitmap.CompressFormat.PNG, 90, stream)
-        val bytesArray = stream.toByteArray()
-        val name = "avatar + ${System.currentTimeMillis()}"
-        val file = File(RealmInitializer.filesDir, name)
-        FileOutputStream(file).use {
-            val bytes = bytesArray
-            it.write(bytes)
-        }
-        val fileNme = file.path
-        Log.d("bbb", "name = $fileNme")
-        UiChanger.setAvatar(fileNme)
-        val sh =   activity?.getSharedPreferences("pref", Context.MODE_PRIVATE)
-        sh?.edit()?.putString("avatar", UiChanger.getAvatar())?.apply()
+        viewModel.deleteAvatar(getJid())
     }
 
     private fun initToolbarActions() {
-        binding.accountAppbar.toolbar.addMenuProvider(object : MenuProvider {
+        binding.accountAppbar.accountToolbar.addMenuProvider(object : MenuProvider {
             override fun onCreateMenu(menu: Menu, menuInflater: MenuInflater) {
                 menuInflater.inflate(R.menu.menu_toolbar_account, menu)
             }
@@ -304,15 +354,16 @@ private var f = R.color.blue_500
                         navigator().showDialogFragment(dialog, "")
                     }
                     R.id.generate_qr_code -> {
+                        val color = viewModel.getAccount(getJid())?.colorKey ?: "blue"
                         navigator().showQRCode(
                             QRCodeParams(
                                 "",
                                 getJid(),
-                                f
+                                ColorManager.convertColorNameToId(color)
                             )
                         )
                     }
-                    R.id.add_account -> navigator().showSettings()
+                 //   R.id.add_account -> navigator().showSettings()
                 }
                 return true
             }
@@ -335,8 +386,8 @@ private var f = R.color.blue_500
                             anim
                         )
                         tvSubtitle.startAnimation(anim)
-                        imPhoto.startAnimation(anim)
-                        imPhoto.isVisible = false
+                        avatarGr.imAvatarGroup.startAnimation(anim)
+                        avatarGr.imAvatarGroup.isVisible = false
                         tvSubtitle.isVisible = false
                         tvTitle.isVisible = false
                     }
@@ -347,8 +398,8 @@ private var f = R.color.blue_500
                     if (!tvTitle.isVisible) {
                         tvTitle.startAnimation(anim)
                         tvSubtitle.startAnimation(anim)
-                        imPhoto.startAnimation(anim)
-                        imPhoto.isVisible = true
+                        avatarGr.imAvatarGroup.startAnimation(anim)
+                        avatarGr.imAvatarGroup.isVisible = true
                         tvSubtitle.isVisible = true
                         tvTitle.isVisible = true
                     }
@@ -365,15 +416,6 @@ private var f = R.color.blue_500
         }
     }
 
-    private fun defineColor() {
-        binding.accountAppbar.collapsingToolbar.setContentScrimColor(
-            ResourcesCompat.getColor(
-                resources,
-                f,
-                requireContext().theme
-            )
-        )
-    }
 
     private fun takePhotoFromCamera() {
 //        val image: File? = FileManager.generatePicturePath()
@@ -389,63 +431,6 @@ private var f = R.color.blue_500
         } else askUserForOpeningAppSettings()
     }
 
-    private fun onGotGalleryPermissionResult(granted: Boolean) {
-        if (granted) {
-            chooseImageFromGallery()
-        } else {
-            if (!shouldShowRequestPermissionRationale(Manifest.permission.READ_EXTERNAL_STORAGE)) {
-                askUserForOpeningAppSettings()
-            }
-        }
-    }
-
-    private fun chooseImageFromGallery() {
-        galleryResultLauncher.launch("image/*")
-    }
-
-    private fun onTakePictureFromGallery(result: Uri?) {
-        if (result != null) {
-            Log.d("ooo", "${result.path}")
-            val mPictureBitmap = BitmapFactory.decodeFile(result.path)
-
-            val mMaskBitmap =
-                BitmapFactory.decodeResource(resources, UiChanger.getMask().size176).extractAlpha()
-            val maskedDrawable =
-                MaskedDrawableBitmapShader()
-            maskedDrawable.setPictureBitmap(mPictureBitmap)
-            maskedDrawable.setMaskBitmap(mMaskBitmap)
-            Glide.with(binding.accountAppbar.imPhoto).load(maskedDrawable)
-                .into(binding.accountAppbar.imPhoto)
-            binding.accountAppbar.imPhoto.setImageDrawable(maskedDrawable)
-            Glide.with(requireContext())
-                .load(result)
-                .transform(
-                    MultiTransformation(
-                        CenterCrop(),
-                        BlurTransformation(
-                            25,
-                            8,
-                            ResourcesCompat.getColor(
-                                resources,
-                                R.color.blue_500,
-                                view?.context?.theme
-                            )
-                        )
-                    )
-                )
-                .into(binding.accountAppbar.imBackdrop as ImageView)
-        }
-    }
-
-
-    private fun onTakePhotoFromCamera(result: Boolean) {
-        if (result) {
-            if (currentPhotoUri != null) {
-
-            }
-        }
-    }
-
 
     private fun initAccountSettingsActions() {
         with(binding) {
@@ -453,14 +438,8 @@ private var f = R.color.blue_500
             cloudStorage.setOnClickListener { navigator().showCloudStorageSettings() }
             encryptionAndKeys.setOnClickListener { navigator().showEncryptionAndKeysSettings() }
             devices.setOnClickListener { navigator().showDevicesSettings() }
+            settings.interfaceSettings.setOnClickListener { navigator().showInterfaceSettings(true) }
         }
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        requestCameraPermissionLauncher.unregister()
-        requestGalleryPermissionLauncher.unregister()
-        cameraResultLauncher.unregister()
-        galleryResultLauncher.unregister()
-    }
 }

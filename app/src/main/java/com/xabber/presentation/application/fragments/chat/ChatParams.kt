@@ -5,7 +5,7 @@ import kotlinx.parcelize.Parcelize
 
 @Parcelize
 class ChatParams(
-    val id: String = "",
+    val id: String,
     val owner: String,
     val opponentJid: String,
     val avatar: Int? = null

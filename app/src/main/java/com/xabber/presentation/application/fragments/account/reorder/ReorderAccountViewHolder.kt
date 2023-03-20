@@ -1,46 +1,50 @@
 package com.xabber.presentation.application.fragments.account.reorder
 
-import android.graphics.BitmapFactory
 import android.widget.ImageView
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
-import com.bumptech.glide.load.MultiTransformation
-import com.bumptech.glide.load.resource.bitmap.CircleCrop
-import com.bumptech.glide.request.RequestOptions
 import com.xabber.R
-import com.xabber.models.xmpp.account.Account
+import com.xabber.data_base.defaultRealmConfig
 import com.xabber.databinding.ItemAccountForReorderBinding
-import com.xabber.utils.mask.MaskedDrawable
-import com.xabber.utils.mask.MaskedDrawableBitmapShader
-import com.xabber.presentation.application.activity.UiChanger
+import com.xabber.models.dto.AccountDto
+import com.xabber.models.xmpp.avatar.AvatarStorageItem
+import com.xabber.presentation.application.activity.ColorManager
+import io.realm.kotlin.Realm
 
 class ReorderAccountViewHolder(private val binding: ItemAccountForReorderBinding) :
     RecyclerView.ViewHolder(binding.root) {
 
-    fun bind(account: Account) {
+    fun bind(account: AccountDto) {
         binding.imAccountAnchor.isVisible = true
-        binding.tvItemAccountName.text = account.name
+        binding.tvItemAccountName.text = account.nickname
         binding.tvItemAccountJid.text = account.jid
-
-        val avatar = UiChanger.getAvatar()
-        val multiTransformation = MultiTransformation(CircleCrop())
-        Glide.with(binding.root.context).load(avatar).error(R.drawable.ic_avatar_placeholder)
-            .apply(RequestOptions.bitmapTransform(multiTransformation))
-            .into(binding.imAvatarItemAccount)
+        if (!account.hasAvatar) loadAvatarWithInitials(
+            account.nickname,
+            account.colorKey
+        ) else loadAvatar(account.jid)
     }
 
     fun getImAnchor(): ImageView = binding.imAccountAnchor
 
-    private fun getAvatarWithMask(accountResId: Int): MaskedDrawable {
-        val mPictureBitmap =
-            BitmapFactory.decodeResource(binding.root.context.resources, accountResId)
-        val mMaskBitmap =
-            BitmapFactory.decodeResource(binding.root.context.resources, UiChanger.getMask().size48)
-                .extractAlpha()
-        val maskedDrawable = MaskedDrawableBitmapShader()
-        maskedDrawable.setPictureBitmap(mPictureBitmap)
-        maskedDrawable.setMaskBitmap(mMaskBitmap)
-        return maskedDrawable
+    private fun loadAvatarWithInitials(name: String, colorKey: String) {
+        val color = ColorManager.convertColorLightNameToId(colorKey)
+        binding.imAvatarItemAccount.setImageResource(color)
+        var initials =
+            name.split(' ').mapNotNull { it.firstOrNull()?.toString() }.reduce { acc, s -> acc + s }
+        if (initials.length > 2) initials = initials.substring(0, 2)
+        binding.tvInitials.isVisible = true
+        binding.tvInitials.text = initials
     }
+    private fun loadAvatar(id: String) {
+        binding.tvInitials.isVisible = false
+        val realm = Realm.open(defaultRealmConfig())
+        var uri: String? = null
+        realm.writeBlocking {
+            val avatar = this.query(AvatarStorageItem::class, "primary = '$id'").first().find()
+            if (avatar != null) uri = avatar.fileUri
+        }
+        Glide.with(binding.root.context).load(uri).into(binding.imAvatarItemAccount)
+    }
+
 }

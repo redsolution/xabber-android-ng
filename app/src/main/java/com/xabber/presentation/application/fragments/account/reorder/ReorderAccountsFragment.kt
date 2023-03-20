@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.util.Log
 import android.view.View
 import androidx.activity.OnBackPressedCallback
+import androidx.fragment.app.viewModels
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -14,16 +15,19 @@ import com.xabber.models.xmpp.account.Account
 import com.xabber.databinding.FragmentReorderAccountBinding
 import com.xabber.models.dto.AccountDto
 import com.xabber.models.xmpp.account.AccountStorageItem
+import com.xabber.models.xmpp.account.AccountViewModel
 import com.xabber.presentation.application.fragments.BaseFragment
 import com.xabber.presentation.application.activity.DisplayManager
-import com.xabber.presentation.application.activity.UiChanger
+import com.xabber.presentation.application.activity.MaskManager
 import com.xabber.presentation.application.contract.navigator
+import com.xabber.presentation.application.fragments.DetailBaseFragment
 import io.realm.kotlin.Realm
 
-class ReorderAccountsFragment : BaseFragment(R.layout.fragment_reorder_account) {
+class ReorderAccountsFragment : DetailBaseFragment(R.layout.fragment_reorder_account) {
     private val binding by viewBinding(FragmentReorderAccountBinding::bind)
     private var reorderAccountAdapter: ReorderAccountAdapter? = null
     private var touchHelper: ItemTouchHelper? = null
+
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -33,8 +37,7 @@ class ReorderAccountsFragment : BaseFragment(R.layout.fragment_reorder_account) 
     }
 
     private fun initToolbarActions() {
-        binding.toolbarReorderAccounts.setNavigationIcon(R.drawable.ic_close_white)
-        binding.toolbarReorderAccounts.setNavigationOnClickListener { navigator().closeDetail() }
+
         binding.toolbarReorderAccounts.setOnMenuItemClickListener {
             when (it.itemId) {
                 R.id.check -> {
@@ -53,20 +56,12 @@ class ReorderAccountsFragment : BaseFragment(R.layout.fragment_reorder_account) 
     private fun initReorderAccountList() {
 
         binding.rvReorderAccounts.layoutManager = LinearLayoutManager(context)
-        val realm = Realm.open(defaultRealmConfig())
-        val account = realm.writeBlocking {
-            this.query(AccountStorageItem::class).first().find()
+       val realm = Realm.open(defaultRealmConfig())
+        val accountList = ArrayList<AccountDto>()
+        realm.writeBlocking {
+            val acc = this.query(AccountStorageItem::class).find()
+            accountList.addAll(acc.map { T -> AccountDto(T.primary, order = T.order, jid = T.jid, hasAvatar = T.hasAvatar, enabled = T.enabled, colorKey = T.colorKey, nickname = T.nickname ) })
         }
-        val accountList = ArrayList<Account>()
-        accountList.add(
-            Account(
-                account?.jid,
-                account?.nickname,
-                account?.jid,
-               UiChanger.getAccountColor()!!,
-                 1
-            )
-        )
 
         reorderAccountAdapter = ReorderAccountAdapter(accountList) { onStartDrag(it) }
         binding.rvReorderAccounts.adapter = reorderAccountAdapter
@@ -76,7 +71,6 @@ class ReorderAccountsFragment : BaseFragment(R.layout.fragment_reorder_account) 
     }
 
     private fun onStartDrag(viewHolder: RecyclerView.ViewHolder) {
-        Log.d("drag", "$touchHelper")
         touchHelper?.startDrag(viewHolder)
     }
 

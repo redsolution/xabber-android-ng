@@ -20,13 +20,6 @@ class AccountStorageItem : RealmObject {
     var statusMessage: String = ""
     var colorKey: String = ""
     var hasAvatar: Boolean = false
-    var resource: ResourceStorageItem? = null  // статус
-        // аватарка где?
+    var resource: ResourceStorageItem? = null
 
-
-//    companion object {
-//        fun genPrimary(jid: String): String {
-//            return prp(strArray = arrayOf(jid))
-//        }
-//    }
 }

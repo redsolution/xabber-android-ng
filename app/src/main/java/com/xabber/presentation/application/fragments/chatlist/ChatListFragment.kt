@@ -1,19 +1,15 @@
 package com.xabber.presentation.application.fragments.chatlist
 
 import android.annotation.SuppressLint
+import android.content.SharedPreferences
 import android.graphics.Color
 import android.os.Bundle
 import android.view.*
-import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import androidx.fragment.app.activityViewModels
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import by.kirich1409.viewbindingdelegate.viewBinding
-import com.bumptech.glide.Glide
-import com.bumptech.glide.load.MultiTransformation
-import com.bumptech.glide.load.resource.bitmap.CircleCrop
-import com.bumptech.glide.request.RequestOptions
 import com.google.android.material.snackbar.Snackbar
 import com.xabber.R
 import com.xabber.databinding.FragmentChatListBinding
@@ -82,7 +78,6 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
         } else {
             currentId = savedInstanceState.getString(CURRENT_ID_KEY, "")
         }
-        changeUiWithData()
         setTitle()
         initToolbarActions()
         initRecyclerView()
@@ -91,18 +86,8 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
         initMarkAllMessagesUnreadButton()
         setDialogListeners()
         initPullRefreshLayout()
-    }
-
-    private fun changeUiWithData() {
-        loadAvatarWithMask()
-    }
-
-    private fun loadAvatarWithMask() {
-        //    val avatarUri = AccountManager.getAvatar()
-        val multiTransformation = MultiTransformation(CircleCrop())
-        Glide.with(binding.imAvatar.context).load(R.drawable.backround_blue).error(R.color.blue_100)
-            .apply(RequestOptions.bitmapTransform(multiTransformation))
-            .into(binding.imAvatar)
+        if (baseViewModel.getPrimaryAccount() == null)
+            binding.refreshLayout.isRefreshEnable = false
     }
 
     private fun setTitle() {
@@ -111,10 +96,6 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
     }
 
     private fun initToolbarActions() {
-        binding.imAvatar.setOnClickListener {
-            navigator().showAccount(chatListViewModel.getPrimaryAccount()!!)
-        }
-
         binding.chatToolbar.setOnMenuItemClickListener {
             when (it.itemId) {
                 R.id.add -> {
@@ -147,7 +128,7 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
                 binding.root.context,
                 LinearLayoutManager.VERTICAL
             ).apply {
-                setChatListOffsetMode(ChatListAvatarState.SHOW_AVATARS)
+                setChatListOffsetMode(ChatListBaseFragment.ChatListAvatarState.SHOW_AVATARS)
                 skipDividerOnLastItem(true)
             })
     }
@@ -191,7 +172,8 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
         chatListViewModel.showUnreadOnly.observe(viewLifecycleOwner) {
             showUnreadOnly = it
             setTitle()
-            binding.refreshLayout.isRefreshEnable = !showUnreadOnly
+            binding.refreshLayout.isRefreshEnable =
+                !showUnreadOnly && baseViewModel.getPrimaryAccount() != null
         }
 
         chatListViewModel.chats.observe(viewLifecycleOwner) {
@@ -203,6 +185,10 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
                     toPin = false
                 }
             }
+        }
+
+        baseViewModel.colorKey.observe(viewLifecycleOwner) {
+            initPullRefreshLayout()
         }
     }
 
@@ -252,7 +238,7 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
     }
 
     override fun swipeItem(id: String) {
-        chatListViewModel.movieChatToArchive(id, true)
+        chatListViewModel.setArchived(id)
         showSnackbar(id)
     }
 
@@ -295,15 +281,14 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
         snackbar?.setAction(
             R.string.snackbar_button_cancel
         ) {
-            chatListViewModel.movieChatToArchive(id, false)
+            chatListViewModel.setArchived(id)
         }
         snackbar?.setActionTextColor(Color.YELLOW)
         snackbar?.show()
     }
 
-    @SuppressLint("InflateParams")
     private fun initPullRefreshLayout() {
-        val colorKey = AccountManager.getColorKey()
+        val colorKey = currentColorKey
         val superLightColor = ColorManager.convertColorSuperLightNameToId(colorKey)
         val lightColor = ColorManager.convertColorLightNameToId(colorKey)
         val standardColor = ColorManager.convertColorMediumNameToId(colorKey)
@@ -327,7 +312,7 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
                             shortVibrate()
                             isOverTriggerCrossed = false
                         }
-                        binding.refreshLayout.setHeaderBackground(R.color.grey_100)
+                        binding.refreshLayout.setHeaderBackground(R.color.grey_50)
                         binding.refreshLayout.setElementsColors(
                             R.color.grey_400,
                             R.color.grey_300,
@@ -346,7 +331,6 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
                         binding.refreshLayout.setElementsColors(standardColor, lightColor, true)
                     }
                     PullRefreshLayout.START -> {
-                        binding.refreshLayout.setRefreshViewText(R.string.open_archive)
                         isOverTriggerCrossed = false
                         binding.refreshLayout.finishRefresh()
                     }
@@ -360,10 +344,6 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
             HapticFeedbackConstants.VIRTUAL_KEY,
             HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING
         )
-    }
-
-    enum class ChatListAvatarState {
-        NOT_SPECIFIED, SHOW_AVATARS, DO_NOT_SHOW_AVATARS
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -384,6 +364,17 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
         super.onDestroy()
         layoutManager = null
         chatListAdapter = null
+    }
+
+
+    enum class ChatListAvatarState {
+        NOT_SPECIFIED, SHOW_AVATARS, DO_NOT_SHOW_AVATARS
+    }
+
+    @SuppressLint("NotifyDataSetChanged")
+    override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences?, key: String?) {
+        super.onSharedPreferenceChanged(sharedPreferences, key)
+        chatListAdapter?.notifyDataSetChanged()
     }
 
 }

@@ -30,10 +30,6 @@ import by.kirich1409.viewbindingdelegate.viewBinding
 import com.aghajari.emojiview.AXEmojiManager
 import com.aghajari.emojiview.googleprovider.AXGoogleEmojiProvider
 import com.aghajari.emojiview.view.AXSingleEmojiView
-import com.bumptech.glide.Glide
-import com.bumptech.glide.load.MultiTransformation
-import com.bumptech.glide.load.resource.bitmap.CircleCrop
-import com.bumptech.glide.request.RequestOptions
 import com.xabber.R
 import com.xabber.data_base.defaultRealmConfig
 import com.xabber.databinding.FragmentChatBinding
@@ -50,6 +46,7 @@ import com.xabber.presentation.AppConstants.CHAT_MESSAGE_TEXT_KEY
 import com.xabber.presentation.AppConstants.DELETING_MESSAGE_BUNDLE_KEY
 import com.xabber.presentation.AppConstants.DELETING_MESSAGE_DIALOG_KEY
 import com.xabber.presentation.AppConstants.DELETING_MESSAGE_FOR_ALL_BUNDLE_KEY
+import com.xabber.presentation.application.activity.ColorManager
 import com.xabber.presentation.application.activity.DisplayManager
 
 import com.xabber.presentation.application.contract.navigator
@@ -59,13 +56,17 @@ import com.xabber.presentation.application.fragments.chat.attach.AttachBottomShe
 import com.xabber.presentation.application.fragments.chat.audio.VoiceManager
 import com.xabber.presentation.application.fragments.chat.geo.Location
 import com.xabber.presentation.application.fragments.chat.message.*
-import com.xabber.presentation.application.fragments.contacts.vcard.ContactAccountParams
 import com.xabber.presentation.application.fragments.test.MessageAdapter
 import com.xabber.presentation.application.fragments.test.XIncomingMessageVH
 import com.xabber.utils.*
 import io.realm.kotlin.Realm
+import io.realm.kotlin.internal.RealmInitializer.Companion.filesDir
+import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import java.io.File
+import java.io.FileOutputStream
 import java.util.*
 
 class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.Listener, XIncomingMessageVH.BindListener,
@@ -181,6 +182,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         prepareUi()
+
         initializeToolbarActions()
         initializeRecyclerView()
         //    chatAdapter?.setUnreadFirstId()
@@ -247,11 +249,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     }
 
     private fun loadAvatarWithMask() {
-        val multiTransformation = MultiTransformation(CircleCrop())
-        Glide.with(requireContext()).load(getParams().avatar)
-            .error(R.drawable.ic_avatar_placeholder)
-            .apply(RequestOptions.bitmapTransform(multiTransformation))
-            .into(binding.avatarGroup.imAvatar)
+     binding.avatarGroup.imAvatar.setImageResource(getParams().avatar!!)
     }
 
     private fun setTitle(chat: ChatListDto) {
@@ -283,13 +281,55 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         }
 
         binding.avatarGroup.imAvatar.setOnClickListener {
-            val contactId = viewModel.getContactPrimary(getParams().id)
-            if (contactId != null) navigator().showContactAccount(
-                ContactAccountParams(
-                    contactId,
-                    getParams().avatar, viewModel.getColor(getParams().id)
-                )
-            )
+//            val bitmap = (binding.avatarGroup.imAvatar.drawable as BitmapDrawable).bitmap
+//            val stream = ByteArrayOutputStream()
+//            bitmap.compress(Bitmap.CompressFormat.PNG, 90, stream)
+//
+//            val bytesArray = stream.toByteArray()
+//            val file = File(RealmInitializer.filesDir, "filName")
+//            FileOutputStream(file).use {
+//                it.write(bytesArray)
+//            }
+           val a = "Xabber test send file to gallery"
+            val file = File(filesDir, "name")
+            FileOutputStream(file).use {
+                val bytes = a.toByteArray()
+                it.write(bytes)
+            }
+          viewModel.sendFile(file)
+//            val contactId = viewModel.getContactPrimary(getParams().id)
+//            if (contactId != null) navigator().showContactAccount(
+//                ContactAccountParams(
+//                    contactId,
+//                    getParams().avatar
+//                )
+//            )
+//            val list = ArrayList<String>()
+//            list.add("/storage/emulated/0/DCIM/IMG_1678191183798.png")
+//            viewModel.insertMessage(
+//                getParams().id,
+//                MessageDto(
+//                    "m${System.currentTimeMillis()}",
+//                    true,
+//                    "Иван Иванов",
+//                    getParams().opponentJid,
+//                    "",
+//                    MessageSendingState.Deliver,
+//                    System.currentTimeMillis(),
+//                    0,
+//                    MessageDisplayType.Text,
+//                    false,
+//                    false,
+//                    null,
+//                    false,
+//                    null,
+//                    false,
+//                    uries = list,
+//                    references = list,
+//                    isUnread = true,
+//                    hasReferences = true
+//                )
+//            )
         }
         setupToolbarMenu()
     }
@@ -747,10 +787,11 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     }
 
     private fun subscribeToChatData() {
-        viewModel.opponentName.observe(viewLifecycleOwner) {
-            setupOpponentName(it)
+        if (getParams().opponentJid != getParams().owner) {
+            viewModel.opponentName.observe(viewLifecycleOwner) {
+                setupOpponentName(it)
+            }
         }
-
         viewModel.muteExpired.observe(viewLifecycleOwner) {
             setupMuteIcon(it)
         }
@@ -790,14 +831,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
                     }
                 }
             }
-
-            if (unread > 0) {
-                binding.tvNewReceivedCount.isVisible = true
-                binding.tvNewReceivedCount.text = unread.toString()
-            } else {
-                binding.tvNewReceivedCount.isVisible = false
-                binding.tvNewReceivedCount.text = ""
-            }
+            handler.postDelayed(a, 300)
         }
 
         viewModel.selectedCount.observe(viewLifecycleOwner) {
@@ -812,8 +846,24 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         }
     }
 
-    private fun setupOpponentName(opponentName: String) {
-        binding.tvChatTitle.text = opponentName
+    val a = {
+        val unread = viewModel.unreadCount.value
+        if (unread != null) {
+        if (unread > 0) {
+            binding.tvNewReceivedCount.isVisible = true
+            binding.tvNewReceivedCount.text = unread.toString()
+        } else {
+            binding.tvNewReceivedCount.isVisible = false
+            binding.tvNewReceivedCount.text = ""
+        }
+        } else {
+            binding.tvNewReceivedCount.isVisible = false
+            binding.tvNewReceivedCount.text = ""
+        }
+    }
+
+    private fun setupOpponentName(opponentName: String?) {
+        binding.tvChatTitle.text = opponentName ?: "Saved messages"
     }
 
     private fun initializeSelectMessageToolbarActions() {
@@ -846,7 +896,11 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         binding.interaction.linForward.setOnClickListener {
             val text = viewModel.getForwardMessagesText()
             enableSelectionMode(false)
-            navigator().showForwardFragment(text)
+           GlobalScope.launch {
+               delay(300)
+               navigator().showForwardFragment(text, viewModel.getAccount()?.jid ?: "")
+           }
+
         }
     }
 
@@ -903,7 +957,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
 
     private fun showAttachBottomSheet() {
         if (childFragmentManager.findFragmentByTag(AttachBottomSheet.TAG) == null) {
-            AttachBottomSheet().show(childFragmentManager, AttachBottomSheet.TAG)
+            AttachBottomSheet.newInstance(getParams()).show(childFragmentManager, AttachBottomSheet.TAG)
         }
     }
 
@@ -1062,7 +1116,6 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         )
     }
 
-
     private fun clearVoiceMessage() {
         isVibrate = false
         binding.record.recordLayout.clearAnimation()
@@ -1161,7 +1214,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     override fun forwardMessage(messageDto: MessageDto) {
         val text = "${messageDto.owner} \n ${messageDto.messageBody}"
         Log.d("yyy", "1 message text = $text")
-        navigator().showForwardFragment(text)
+        navigator().showForwardFragment(text, viewModel.getAccount()?.jid ?: "")
     }
 
     override fun replyMessage(messageDto: MessageDto) {
@@ -1234,7 +1287,9 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
             binding.btnRecord.isEnabled = false
             binding.chatInput.isEnabled = false
         } else {
-            binding.appbar.setBackgroundResource(R.color.blue_500)
+            val color = viewModel.getAccount()?.colorKey ?: "blue"
+            val c = ColorManager.convertColorNameToId(color)
+            binding.appbar.setBackgroundResource(c)
             //   chatAdapter?.setSelectedMode(false)
             //  binding.chatPanelGroup.isVisible = true
             binding.selectMessagesToolbar.toolbarSelectedMessages.isVisible = false

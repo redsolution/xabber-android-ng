@@ -55,6 +55,7 @@ object AppConstants {
     const val DELETING_CONTACT_AND_CLEAR_HISTORY = "deleting contact and clear history"
     const val CHAT_SELECTION_MODE_KEY = "chat selection mode key"
     const val CURRENT_ID_KEY = "current id key"
+    const val MASK_KEY = "mask key"
 
     val PUBLIC_DOWNLOADS = Uri.parse("content://downloads/public_downloads")
 

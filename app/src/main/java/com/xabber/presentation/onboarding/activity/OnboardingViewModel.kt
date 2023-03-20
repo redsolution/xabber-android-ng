@@ -10,6 +10,7 @@ import com.xabber.data_base.defaultRealmConfig
 import com.xabber.models.dto.HostListDto
 import com.xabber.models.xmpp.account.AccountStorageItem
 import com.xabber.models.xmpp.avatar.AvatarStorageItem
+import com.xabber.models.xmpp.presences.ResourceStorageItem
 import com.xabber.presentation.XabberApplication
 import com.xabber.repository.AccountRepository
 import io.reactivex.rxjava3.core.Single
@@ -86,6 +87,10 @@ class OnboardingViewModel : ViewModel() {
             savePassword(password!!)
             viewModelScope.launch(Dispatchers.IO) {
                 realm.writeBlocking {
+                   val accountResource = this.copyToRealm(ResourceStorageItem().apply {
+
+                    })
+
                     this.copyToRealm(AccountStorageItem().apply {
                         primary = accountJid!!
                         order = accountOrder
@@ -93,6 +98,8 @@ class OnboardingViewModel : ViewModel() {
                         nickname = accountNickName!!
                         enabled = true
                         colorKey = defaultColor
+                        hasAvatar = savedUri != null
+                        resource = accountResource
                     })
 
                     if (savedUri != null)

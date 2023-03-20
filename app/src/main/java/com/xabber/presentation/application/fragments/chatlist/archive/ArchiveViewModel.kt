@@ -5,6 +5,8 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.xabber.R
+import com.xabber.data_base.dao.LastChatStorageItemDao
 import com.xabber.data_base.defaultRealmConfig
 import com.xabber.models.dto.ChatListDto
 import com.xabber.models.xmpp.account.AccountStorageItem
@@ -23,9 +25,10 @@ import kotlinx.coroutines.withContext
 
 class ArchiveViewModel : ViewModel() {
     val realm = Realm.open(defaultRealmConfig())
-
+    private val lastChatDao = LastChatStorageItemDao(realm)
     private val _chatList = MutableLiveData<List<ChatListDto>>()
     val chatList: LiveData<List<ChatListDto>> = _chatList
+    val t = System.currentTimeMillis() + 99999999999999999
 
     init {
      getChat()
@@ -64,11 +67,39 @@ class ArchiveViewModel : ViewModel() {
                                 unread = if (T.unread <= 0) "" else T.unread.toString(),
                                 lastPosition = T.lastPosition,
                                 drawableId = T.avatar,
-                                colorId = T.color,
                                 isHide = false,
                                 lastMessageIsOutgoing = if (T.lastMessage != null) T.lastMessage!!.outgoing else false
                             )
                         })
+                        listDto.sort()
+                        if (listDto.size > 0) {
+                            listDto.add(
+                                0,
+                                ChatListDto(
+                                    "",
+                                    "",
+                                    "",
+                                    "",
+                                    "",
+                                    "",
+                                    0,
+                                    MessageSendingState.None,
+                                    false,
+                                    true,
+                                    "",
+                                    true,
+                                    true,
+                                    true,
+                                    -1,
+                                    t,
+                                    ResourceStatus.Chat,
+                                    RosterItemEntity.Bot,
+                                    "",
+                                    "",
+                                    R.drawable.flower, true
+                                )
+                            )
+                        }
                         withContext(Dispatchers.Main) {
                             _chatList.value = listDto
                         }
@@ -84,11 +115,19 @@ class ArchiveViewModel : ViewModel() {
         var a: String? = null
         realm.writeBlocking {
             val accounts = this.query(AccountStorageItem::class, "enabled = true").first().find()
-            a = accounts?.jid ?: null
+            a = accounts?.jid
         }
         return a
     }
 
+
+    fun pinChat(id: String) {
+        lastChatDao.setPinnedPosition(id, System.currentTimeMillis())
+    }
+
+    fun unPinChat(id: String) {
+        lastChatDao.setPinnedPosition(id, -1)
+    }
 
     fun getChat() {
         val account = getEnableAccountList()
@@ -120,11 +159,39 @@ class ArchiveViewModel : ViewModel() {
                 if (T.unread <= 0) "" else T.unread.toString(),
                 lastPosition = T.lastPosition,
                 drawableId = T.avatar,
-                colorId = T.color,
                 isHide = false,
                 lastMessageIsOutgoing = if (T.lastMessage != null) T.lastMessage!!.outgoing else false
             )
         })
+listDto.sort()
+            if (listDto.size > 0) {
+                listDto.add(
+                    0,
+                    ChatListDto(
+                        "",
+                        "",
+                        "",
+                        "",
+                        "",
+                        "",
+                        0,
+                        MessageSendingState.None,
+                        false,
+                        true,
+                        "",
+                        true,
+                        true,
+                        true,
+                        -1,
+                        t,
+                        ResourceStatus.Chat,
+                        RosterItemEntity.Bot,
+                        "",
+                        "",
+                        R.drawable.flower, true
+                    )
+                )
+            }
             withContext(Dispatchers.Main) {  _chatList.value = listDto    }
         }
     }

@@ -23,19 +23,19 @@
                     android:contentDescription="@string/avatar_background_image_description"
                     android:scaleType="centerCrop" />
 
-            <ImageView
-                android:id="@+id/im_photo"
+            <include
+                android:id="@+id/avatar_gr"
                 android:layout_width="@dimen/mask256"
                 android:layout_height="@dimen/mask256"
+                layout="@layout/include_avatar_group"
                 android:layout_gravity="start|center_vertical"
                 android:layout_marginStart="@dimen/margin_larger_medium"
                 android:layout_marginTop="16dp"
                 android:layout_marginBottom="24dp"
-                android:contentDescription="@string/account_photo_image_description"
-                app:layout_collapseMode="none" />
+                app:layout_collapseMode="none"/>
 
             <com.google.android.material.appbar.MaterialToolbar
-                android:id="@+id/toolbar"
+                android:id="@+id/account_toolbar"
                 android:layout_width="match_parent"
                 android:layout_height="?attr/actionBarSize"
                 android:background="@color/transparent"
@@ -78,6 +78,7 @@
                     android:layout_marginStart="@dimen/margin_larger_medium"
                     android:gravity="start"
                     android:maxLines="1"
+                    android:lines="1"
                     android:marqueeRepeatLimit="marquee_forever"
                     android:ellipsize="marquee"
                     android:singleLine="true"

@@ -1,4 +1,5 @@
 <resources>
+    <string name="com.google.firebase.crashlytics.mapping_file_id">none</string>
     <string name="app_name">Xabber NG</string>
 
     <!-- General -->
@@ -65,6 +66,7 @@
     <string name="signup_password_subtitle">Using a strong password is vital for your safety. We recommend you use unique passwords and password manager apps to keep track of them.</string>
     <string name="signup_avatar_toolbar_title">Profile Image</string>
     <string name="signup__avatar_title_label">Nice! Now set up a profile image best representing your identity.</string>
+    <string name="skip_button_label">Skip</string>
 
     <!-- AvatarBottomSheet -->
     <string name="avatar_bottom_sheet_emoji_label">Use Emoji</string>
@@ -109,7 +111,7 @@
     <string name="status_content_description">Status</string>
     <string name="message_status_content_description">message status</string>
     <string name="pinned_chat_description">Pinned chat</string>
-    <string name ="pull_to_show_archive">Pull to show archive</string>
+    <string name="pull_to_show_archive">Pull to show archive</string>
     <string name="release_to_show_archive">Release to show archive</string>
     <string name="open_archive">Open the archive</string>
     <string name="drafted">Drafted: </string>
@@ -182,6 +184,15 @@
     <string name="deleting_message_dialog_subtitle">Are you sure you want to delete this message?</string>
     <string name="deleting_message_dialog_checkbox_text">Also delete for </string>
 
+    <!-- Attach BottomSheet -->
+    <string name="camera_label">Camera</string>
+    <string name="gallery_label">Gallery</string>
+    <string name="file_label">File</string>
+    <string name="location_label">Location</string>
+
+    <!-- Media Viewer Activity -->
+    <string name="of">of</string>
+
     <!-- DISCOVER -->
     <string name="discover_toolbar_title">Discover</string>
 
@@ -196,13 +207,6 @@
     <string name="im_description_downward">downward</string>
     <string name="image_view_description_profile_image">Profile image</string>
     <string name="image_view_content_description_photo">Photo</string>
-
-
-
-
-
-
-
 
 
     <string name="account_color">Account color</string>

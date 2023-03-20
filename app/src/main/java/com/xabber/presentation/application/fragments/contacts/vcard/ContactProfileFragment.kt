@@ -4,14 +4,11 @@ import android.os.Bundle
 import android.view.View
 import androidx.fragment.app.viewModels
 import by.kirich1409.viewbindingdelegate.viewBinding
-import com.bumptech.glide.Glide
 import com.xabber.R
 import com.xabber.databinding.QuestionaryContactFragmentBinding
 import com.xabber.presentation.AppConstants
-import com.xabber.presentation.application.activity.UiChanger
 import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.application.fragments.DetailBaseFragment
-import com.xabber.utils.mask.MaskPrepare
 import com.xabber.utils.parcelable
 
 class ContactProfileFragment : DetailBaseFragment(R.layout.questionary_contact_fragment) {
@@ -54,15 +51,14 @@ class ContactProfileFragment : DetailBaseFragment(R.layout.questionary_contact_f
     }
 
     private fun loadAvatar() {
-        val avatar = if (getParams().avatar != null) getParams().avatar else R.drawable.ic_photo_white
-        val maskedDrawable =
-            MaskPrepare.getDrawableMask(resources, avatar!!, UiChanger.getMask().size176)
-        Glide.with(this).load(maskedDrawable).into(binding.imContactAvatar)
+        val avatar =
+            if (getParams().avatar != null) getParams().avatar else R.drawable.ic_photo_white
+
     }
 
     private fun defineColor() {
-        val color = if (getParams().color != null) getParams().color else R.color.blue_500
-        binding.appbar.setBackgroundResource(color!!)
+        val color = R.color.blue_500
+        binding.appbar.setBackgroundResource(color)
     }
 
     private fun initToolbarActions() {

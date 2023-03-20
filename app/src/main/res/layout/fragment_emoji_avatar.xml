@@ -211,35 +211,40 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="@+id/palette">
 
-        <TextView
-            android:id="@+id/avatarBackground"
-            android:layout_width="@dimen/mask128"
-            android:layout_height="@dimen/mask128"
-            android:layout_margin="8dp"
-            android:background="@drawable/backround_blue"
-            android:clickable="true"
-            android:focusable="true"
-            android:gravity="center"
-            android:text="@string/default_emoji_avatar"
-            android:textColor="@color/black"
-            android:textSize="48sp"
-            app:cardElevation="0dp"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
+        <com.xabber.presentation.custom.ShapeOfView
+            android:id="@+id/shape_view"
+            android:layout_width="128dp"
+            android:layout_height="128dp"
+            android:layout_marginStart="8dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginEnd="8dp"
+            android:layout_marginBottom="8dp"
+            app:shape_clip_drawable="@drawable/ic_mask_circle">
+
+            <TextView
+                android:id="@+id/avatarBackground"
+                android:layout_width="@dimen/mask128"
+                android:layout_height="@dimen/mask128"
+                android:background="@drawable/backround_blue"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center"
+                android:text="@string/default_emoji_avatar"
+                android:textColor="@color/black"
+                android:textSize="48sp"
+                app:cardElevation="0dp" />
+
+        </com.xabber.presentation.custom.ShapeOfView>
 
         <ImageView
             android:id="@+id/im_edit_smile"
             android:layout_width="36dp"
             android:layout_height="36dp"
-            android:layout_alignEnd="@id/avatarBackground"
-            android:layout_alignBottom="@id/avatarBackground"
+            android:layout_alignEnd="@id/shape_view"
+            android:layout_alignBottom="@id/shape_view"
             android:layout_margin="4dp"
-            app:layout_constraintBottom_toBottomOf="@+id/avatarBackground"
-            app:layout_constraintEnd_toEndOf="@+id/avatarBackground"
             android:contentDescription="@string/edit_smile_avatar_image_description"
-            app:srcCompat="@drawable/edit_grey_in_white_circle"/>
+            app:srcCompat="@drawable/edit_grey_in_white_circle" />
 
     </RelativeLayout>
 

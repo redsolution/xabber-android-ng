@@ -1,7 +1,9 @@
 package com.xabber.presentation.application.fragments.chat
 
+import android.os.IBinder
 import android.util.Log
 import androidx.lifecycle.*
+import com.xabber.BuildConfig
 import com.xabber.data_base.defaultRealmConfig
 import com.xabber.models.dto.AccountDto
 import com.xabber.models.dto.ChatListDto
@@ -15,13 +17,21 @@ import com.xabber.models.xmpp.presences.ResourceStatus
 import com.xabber.models.xmpp.presences.RosterItemEntity
 import com.xabber.models.xmpp.sync.ConversationType
 import io.realm.kotlin.Realm
-import io.realm.kotlin.ext.realmListOf
 import io.realm.kotlin.notifications.ResultsChange
 import io.realm.kotlin.notifications.UpdatedResults
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.*
+import okhttp3.*
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.RequestBody.Companion.asRequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.logging.HttpLoggingInterceptor
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
+import java.io.File
+
 
 class ChatViewModel : ViewModel() {
     val realm = Realm.open(defaultRealmConfig())
@@ -178,8 +188,7 @@ class ChatViewModel : ViewModel() {
                     lastMessageBody = if (chat.lastMessage != null) chat.lastMessage!!.body else "",
                     lastMessageDate = if (chat.lastMessage != null) chat.lastMessage!!.date else 0L,
                     lastMessageState = if (chat.lastMessage != null) MessageSendingState.Read else MessageSendingState.None,
-                    colorId = chat.color,
-                    opponentNickname = chat.rosterItem!!.nickname,
+                    opponentNickname = if (chat.rosterItem != null) chat.rosterItem!!.nickname else "Saved messages",
                     drawableId = chat.avatar,
                     status = ResourceStatus.Chat,
                     entity = RosterItemEntity.Contact,
@@ -251,6 +260,10 @@ class ChatViewModel : ViewModel() {
     }
 
     fun insertMessage(chatId: String, messageDto: MessageDto) {
+        Log.d("yyy", "insertMessage $chatId")
+        var list: ArrayList<String?>? = null
+        list = ArrayList()
+        if (messageDto.references != null) list?.addAll(messageDto.references)
         viewModelScope.launch(Dispatchers.IO) {
             realm.write {
                 val message = copyToRealm(MessageStorageItem().apply {
@@ -263,7 +276,7 @@ class ChatViewModel : ViewModel() {
                     editDate = messageDto.editTimestamp
                     outgoing = messageDto.isOutgoing
                     isRead = !messageDto.isUnread
-                    references = realmListOf()
+                    references = null
                     conversationType_ = ConversationType.Channel.toString()
                 })
                 val item: LastChatsStorageItem? =
@@ -561,15 +574,72 @@ class ChatViewModel : ViewModel() {
                 if (item != null) text += if (item.outgoing) item.owner else item.opponent + "\n" + item.body
             }
         }
+
         return text
     }
 
-    fun getColor(id: String): Int {
-        var result = 0
-        realm.writeBlocking {
-            val item = this.query(LastChatsStorageItem::class, "primary = '$id'").first().find()
-            if (item != null) result = item.color
+    val token = "554cbba7-c31a-4368-ac63-ad474de54151"
+    val baseUrl = "https://gallery.xmpp.redsolution.com/api/v1/files/"
+var call: Call<ResponseBody>? = null
+    fun sendFile(file: File) {
+        Log.d("ffff", "${file.length()}")
+        viewModelScope.launch(Dispatchers.IO + coroutineExceptionHandler) {
+
+            val interceptor = HttpLoggingInterceptor()
+            interceptor.setLevel(HttpLoggingInterceptor.Level.BODY)
+            val client: OkHttpClient = OkHttpClient.Builder()
+                .addInterceptor(interceptor) //.addInterceptor(REWRITE_CACHE_CONTROL_INTERCEPTOR)
+                .addNetworkInterceptor(Interceptor { chain ->
+                    val request: Request =
+                        chain.request().newBuilder() // .addHeader(Constant.Header, authToken)
+                            .build()
+                    chain.proceed(request)
+                }).build()
+
+
+            val retrofit = Retrofit.Builder()
+                .baseUrl(baseUrl)
+                   .addConverterFactory(GsonConverterFactory.create())
+                .client(client)
+                .build()
+            val apiService = retrofit.create(PostFileApi::class.java)
+            val requestBodyFile =
+                file.asRequestBody("multipart/form-data".toMediaTypeOrNull())
+
+            Log.d("resss", "$requestBodyFile, ${RequestBody}")
+            val requestBodyMediaType =
+                "media_type".toRequestBody("text/plain".toMediaTypeOrNull())
+
+            val filePart = MultipartBody.Part.createFormData("file", file.name, requestBodyFile)
+             call = apiService.uploadFile(
+                "Bearer $token",
+               filePart,
+               "text"
+            )
+
+
+            call!!.enqueue(object : Callback<ResponseBody> {
+                override fun onResponse(
+                    call: Call<ResponseBody>,
+                    response: Response<ResponseBody>
+                ) {
+                    Log.d("response", "responce code ${response.code()}")
+                }
+
+                override fun onFailure(call: Call<ResponseBody>, t: Throwable) {
+                    t.printStackTrace()
+                }
+            })
         }
-        return result
+
+    }
+
+
+    val coroutineExceptionHandler = CoroutineExceptionHandler { _, throwable ->
+        throwable.printStackTrace()
+     //   Log.d("ttttt","${call!!.request().body}")
+        throwable.message
+        Log.d("retrofit", "yyyyy" + throwable.printStackTrace().toString())
     }
 }
+

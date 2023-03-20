@@ -23,6 +23,7 @@ import com.xabber.models.xmpp.messages.MessageSendingState
 import com.xabber.models.xmpp.presences.ResourceStatus
 import com.xabber.models.xmpp.presences.RosterItemEntity
 import com.xabber.presentation.AppConstants
+import com.xabber.presentation.application.activity.ColorManager
 import com.xabber.presentation.application.dialogs.TimeMute
 import com.xabber.presentation.application.fragments.chatlist.ChatListAdapter
 import com.xabber.utils.DateFormatter
@@ -45,11 +46,9 @@ class ChatListViewHolder1(
             }
 
             // color divider
-            accountColorIndicator.setBackgroundColor(
-                itemView.resources.getColor(
-                    chatListDto.colorId,
-                    itemView.context.theme
-                )
+            val color = ColorManager.convertColorNameToId(chatListDto.colorKey)
+            accountColorIndicator.setBackgroundResource(
+            color
             )
 
             // avatar

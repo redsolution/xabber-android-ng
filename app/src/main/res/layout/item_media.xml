@@ -11,7 +11,7 @@
     android:background="@color/white">
 
     <ImageView
-        android:id="@+id/recent_image_item_image"
+        android:id="@+id/gallery_image"
         android:layout_width="0dp"
         android:layout_height="0dp"
         app:layout_constraintDimensionRatio="w, 1"

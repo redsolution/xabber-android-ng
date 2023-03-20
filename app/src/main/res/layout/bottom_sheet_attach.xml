@@ -20,13 +20,15 @@
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recent_images"
-        android:layout_width="0dp"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginHorizontal="4dp"
+        android:layout_gravity="center"
         android:layout_marginTop="12dp"
+        app:layoutManager="androidx.recyclerview.widget.GridLayoutManager"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/swipe" />
+        app:layout_constraintTop_toBottomOf="@id/swipe"
+        app:spanCount="@integer/spaneCount" />
 
     <FrameLayout
         android:id="@+id/frame_layout_action_container"
@@ -74,7 +76,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:gravity="center"
-                        android:text="Camera" />
+                        android:text="@string/camera_label" />
                 </LinearLayout>
 
                 <LinearLayout
@@ -97,7 +99,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:gravity="center"
-                        android:text="Gallery" />
+                        android:text="@string/gallery_label" />
                 </LinearLayout>
 
                 <LinearLayout
@@ -120,7 +122,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:gravity="center"
-                        android:text="File" />
+                        android:text="@string/file_label" />
                 </LinearLayout>
 
                 <LinearLayout
@@ -143,17 +145,17 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:gravity="center"
-                        android:text="Location" />
+                        android:text="@string/location_label" />
                 </LinearLayout>
             </LinearLayout>
         </HorizontalScrollView>
 
         <androidx.constraintlayout.widget.ConstraintLayout
             android:id="@+id/input_panel"
-android:elevation="6dp"
             android:layout_width="match_parent"
             android:layout_height="150dp"
             android:background="@color/white"
+            android:elevation="6dp"
             android:minHeight="?attr/actionBarSize"
             android:visibility="gone"
             app:layout_constraintBottom_toBottomOf="parent"
@@ -186,17 +188,13 @@ android:elevation="6dp"
                 android:id="@+id/button_emoticon"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-              android:padding="16dp"
                 android:background="@color/transparent"
+                android:padding="16dp"
                 app:layout_constraintBottom_toBottomOf="@id/chat_input"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="@id/chat_input"
                 app:srcCompat="@drawable/ic_emoticon_outline"
                 app:tint="@color/grey_500" />
-
-
-
-
 
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:id="@+id/send"
@@ -211,10 +209,10 @@ android:elevation="6dp"
                 <ImageView
                     android:id="@+id/btn_send"
                     android:layout_width="48dp"
-                    android:elevation="6dp"
                     android:layout_height="48dp"
                     android:layout_marginEnd="20dp"
                     android:layout_marginBottom="2dp"
+                    android:elevation="6dp"
                     android:src="@drawable/ic_send_circle_blue"
                     app:layout_constraintBottom_toBottomOf="parent"
                     app:layout_constraintEnd_toEndOf="parent"
@@ -222,12 +220,12 @@ android:elevation="6dp"
                     app:layout_constraintTop_toTopOf="parent" />
 
                 <ImageView
-                    android:elevation="8dp"
                     android:id="@+id/badge"
                     android:layout_width="26dp"
                     android:layout_height="26dp"
                     android:layout_marginEnd="-6dp"
                     android:layout_marginBottom="-4dp"
+                    android:elevation="8dp"
                     android:src="@drawable/ic_badge"
                     app:layout_constraintBottom_toBottomOf="@id/btn_send"
                     app:layout_constraintEnd_toEndOf="@id/btn_send" />
@@ -236,8 +234,8 @@ android:elevation="6dp"
                     android:id="@+id/tv_count_files"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="1"
                     android:elevation="9dp"
+                    android:text="1"
                     android:textColor="@color/white"
                     app:layout_constraintBottom_toBottomOf="@id/badge"
                     app:layout_constraintEnd_toEndOf="@id/badge"

@@ -26,6 +26,7 @@ class AvatarStorageItem : RealmObject {
             kind_ = newValue.rawValue
         }
 
+
 //    companion object {
 //        fun genPrimary(jid: String, owner: String): String {
 //            return prp(strArray = arrayOf(jid, owner))

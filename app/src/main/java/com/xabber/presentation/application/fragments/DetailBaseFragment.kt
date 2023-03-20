@@ -30,8 +30,9 @@ abstract class DetailBaseFragment(@LayoutRes contentLayoutId: Int) : BaseFragmen
         toolbar = view.findViewById(R.id.toolbar)
         if (!DisplayManager.isDualScreenMode()) {
             toolbar?.setNavigationIcon(R.drawable.ic_arrow_left_white)
-            toolbar?.setNavigationOnClickListener { navigator().goBack()
-            Log.d("aaa", "detail base go back")}
+            toolbar?.setNavigationOnClickListener {
+                navigator().goBack()
+            }
         }
     }
 

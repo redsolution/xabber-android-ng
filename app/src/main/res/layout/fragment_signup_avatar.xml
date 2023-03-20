@@ -4,21 +4,38 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
+    <Button
+        android:id="@+id/btn_skip"
+        android:paddingStart="8dp"
+        android:textColor="@color/grey_700"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_margin="@dimen/margin_onboarding_standard"
+        android:background="@drawable/button_background"
+        android:drawableEnd="@drawable/ic_chevron_right_grey"
+        android:stateListAnimator="@animator/shadow"
+        android:text="@string/skip_button_label"
+        android:textAllCaps="false"
+        android:textSize="16sp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
     <TextView
         android:id="@+id/avatar_title"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="40dp"
-        android:layout_marginTop="@dimen/margin_onboarding_extra_large"
+        android:layout_marginStart="40dp"
+        android:layout_marginEnd="40dp"
+        android:layout_marginTop="32dp"
         android:gravity="center"
         android:lineSpacingMultiplier="1.20"
-        android:maxLines="2"
         android:text="@string/signup__avatar_title_label"
         android:textColor="@color/grey_text_1"
         android:textSize="@dimen/onboarding_title_font_size"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toBottomOf="@id/btn_skip"  />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/avatar_btn_next"
@@ -30,20 +47,26 @@
         android:theme="@style/OnboardingButtonNext"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/profile_image" />
+        app:layout_constraintTop_toBottomOf="@id/shape_view" />
 
+    <com.xabber.presentation.custom.ShapeOfView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/shape_view"
+        app:layout_constraintDimensionRatio="1:1"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/avatar_title"
+        android:layout_marginTop="44dp"
+        app:shape_clip_drawable="@drawable/ic_mask_circle">
     <ImageView
         android:id="@+id/profile_image"
         android:layout_width="@dimen/mask176"
         android:layout_height="@dimen/mask176"
-        android:layout_gravity="center"
-        android:layout_marginTop="44dp"
+        android:scaleType="centerCrop"
         android:contentDescription="@string/image_view_description_profile_image"
-        android:src="@drawable/avatar_place_holder"
-        app:layout_constraintDimensionRatio="1:1"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/avatar_title" />
+        android:src="@drawable/avatar_place_holder" />
+</com.xabber.presentation.custom.ShapeOfView>
 
     <ImageView
         android:id="@+id/profile_photo_background"
@@ -52,7 +75,7 @@
         android:contentDescription="@string/im_avatar_content_description"
         android:elevation="@dimen/big_elevation"
         android:src="@drawable/photo_circle_blue"
-        app:layout_constraintBottom_toBottomOf="@+id/profile_image"
-        app:layout_constraintEnd_toEndOf="@+id/profile_image" />
+        app:layout_constraintBottom_toBottomOf="@+id/shape_view"
+        app:layout_constraintEnd_toEndOf="@+id/shape_view" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -1,54 +1,39 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:layout_marginStart="2dp"
-    android:layout_marginTop="2dp"
-    android:layout_marginEnd="2dp"
-    android:layout_marginBottom="2dp"
-    android:orientation="vertical"
-    android:background="@color/white"
-    android:id="@+id/cl">
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="@dimen/itemWidth"
+    android:layout_height="@dimen/itemWidth"
+    android:layout_margin="2dp"
+    android:id="@+id/frame"
+    android:background="@color/white">
 
     <ImageView
-        android:id="@+id/recent_image_item_image"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        app:layout_constraintDimensionRatio="w, 1"
+        android:id="@+id/gallery_image"
+        android:layout_width="@dimen/itemWidth"
+        android:layout_height="@dimen/itemWidth"
+        android:scaleType="centerCrop"
         android:src="@drawable/ic_recent_image_placeholder"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        android:contentDescription="Media" />
 
     <androidx.appcompat.widget.AppCompatCheckBox
         android:id="@+id/recent_image_item_checkbox"
         android:layout_width="28dp"
         android:layout_height="28dp"
-        android:layout_alignParentTop="true"
-        android:layout_alignParentEnd="true"
-        android:layout_alignParentRight="true"
+        android:layout_gravity="top|end"
         android:layout_marginTop="8dp"
         android:layout_marginEnd="8dp"
-        android:layout_marginRight="8dp"
-        android:button="@drawable/checkbox_selector_red_circle"
-        app:layout_constraintEnd_toEndOf="@id/recent_image_item_image"
-        app:layout_constraintTop_toTopOf="@id/recent_image_item_image" />
+        android:button="@drawable/checkbox_selector_red_circle" />
 
     <TextView
-        android:id="@+id/tv_not_access_gallery"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:background="@color/blue_grey_50"
-        android:drawableBottom="@drawable/ic_image_red"
-        android:gravity="center"
-        android:paddingBottom="8dp"
-        android:text="Click to allow access to the camera"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        android:visibility="gone"/>
+        android:id="@+id/tv_date"
+        android:background="@drawable/time_background"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textSize="11dp"
+        android:layout_marginStart="4dp"
+        android:text="12:00"
+        android:layout_marginBottom="4dp"
+        android:layout_gravity="bottom|start"
+        android:drawableStart="@drawable/ic_video"
+        android:textColor="@color/white"/>
 
-
-</androidx.constraintlayout.widget.ConstraintLayout>
+</FrameLayout>

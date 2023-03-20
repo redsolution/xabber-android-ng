@@ -11,9 +11,7 @@ import com.xabber.R
 import com.xabber.data_base.defaultRealmConfig
 import com.xabber.models.xmpp.account.AccountStorageItem
 import com.xabber.presentation.application.activity.ColorManager
-import com.xabber.presentation.application.activity.UiChanger
 import io.realm.kotlin.Realm
-import io.realm.kotlin.ext.query
 
 class AccountColorDialog : DialogFragment(), AccountColorPickerAdapter.Listener {
     val realm = Realm.open(defaultRealmConfig())

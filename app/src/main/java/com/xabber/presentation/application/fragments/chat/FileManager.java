@@ -249,11 +249,12 @@ public class FileManager {
 
     public static File createTempImageFile(String name) throws IOException {
         // Create an image file name
-        return File.createTempFile(
-                name,  /* prefix */
-                ".jpg",         /* suffix */
-                XabberApplication.Companion.applicationContext().getExternalFilesDir(null)      /* directory */
-        );
+//        return File.createTempFile(
+//                name,  /* prefix */
+//                ".jpg",         /* suffix */
+//                XabberApplication.Companion.applicationContext().getExternalFilesDir(null)      /* directory */
+     //   );
+        return null;
     }
 
     public static File createTempOpusFile(String name) throws IOException {

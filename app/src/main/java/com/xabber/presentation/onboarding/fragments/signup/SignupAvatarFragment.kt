@@ -10,15 +10,12 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import by.kirich1409.viewbindingdelegate.viewBinding
 import com.bumptech.glide.Glide
-import com.bumptech.glide.load.MultiTransformation
-import com.bumptech.glide.load.resource.bitmap.CircleCrop
-import com.bumptech.glide.request.RequestOptions
 import com.xabber.R
 import com.xabber.databinding.FragmentSignupAvatarBinding
 import com.xabber.presentation.onboarding.activity.OnboardingViewModel
 import com.xabber.presentation.onboarding.contract.navigator
 import com.xabber.presentation.onboarding.contract.toolbarChanger
-import io.realm.kotlin.internal.platform.RealmInitializer.Companion.filesDir
+import io.realm.kotlin.internal.RealmInitializer.Companion.filesDir
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
@@ -34,11 +31,11 @@ class SignupAvatarFragment : Fragment(R.layout.fragment_signup_avatar) {
         super.onViewCreated(view, savedInstanceState)
         toolbarChanger().setTitle(R.string.signup_avatar_toolbar_title)
         toolbarChanger().showArrowBack(false)
-        initButton()
+        initButtons()
         subscribeOnViewModelData()
     }
 
-    private fun initButton() {
+    private fun initButtons() {
         binding.profileImage.setOnClickListener {
             navigator().openBottomSheetDialogFragment(AvatarBottomSheet())
         }
@@ -49,6 +46,11 @@ class SignupAvatarFragment : Fragment(R.layout.fragment_signup_avatar) {
         binding.avatarBtnNext.isEnabled = isImageSaved
         binding.avatarBtnNext.setOnClickListener {
             saveAvatar()
+            viewModel.registerAccount()
+            navigator().goToApplicationActivity()
+        }
+
+        binding.btnSkip.setOnClickListener {
             viewModel.registerAccount()
             navigator().goToApplicationActivity()
         }
@@ -64,28 +66,21 @@ class SignupAvatarFragment : Fragment(R.layout.fragment_signup_avatar) {
     }
 
     private fun setAvatar(uri: Uri?) {
-        val multiTransformation = MultiTransformation(CircleCrop())
         val bitmap = MediaStore.Images.Media.getBitmap(requireContext().contentResolver, uri)
 
         Glide.with(requireContext())
             .load(bitmap)
-            .apply(
-                RequestOptions.bitmapTransform(multiTransformation)
-                    .placeholder(R.drawable.avatar_place_holder)
-                    .skipMemoryCache(true)
-            )
+            .placeholder(R.drawable.avatar_place_holder)
+            .skipMemoryCache(true)
             .into(binding.profileImage)
+
         binding.avatarBtnNext.isEnabled = true
     }
 
     private fun setAvatar(bitmap: Bitmap) {
-        val multiTransformation = MultiTransformation(CircleCrop())
         Glide.with(requireContext())
             .load(bitmap)
-            .apply(
-                RequestOptions.bitmapTransform(multiTransformation)
-                    .skipMemoryCache(true)
-            )
+            .skipMemoryCache(true)
             .into(binding.profileImage)
         binding.avatarBtnNext.isEnabled = true
     }

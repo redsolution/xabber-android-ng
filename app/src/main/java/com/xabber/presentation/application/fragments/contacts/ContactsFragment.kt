@@ -1,5 +1,6 @@
 package com.xabber.presentation.application.fragments.contacts
 
+import android.content.SharedPreferences
 import android.os.Bundle
 import android.view.View
 import by.kirich1409.viewbindingdelegate.viewBinding
@@ -12,13 +13,12 @@ import com.xabber.data_base.defaultRealmConfig
 import com.xabber.databinding.FragmentContactBinding
 import com.xabber.models.dto.ContactDto
 import com.xabber.models.xmpp.account.AccountStorageItem
-import com.xabber.presentation.application.activity.UiChanger
+import com.xabber.presentation.application.AccountManager
 import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.application.dialogs.BlockContactDialog
 import com.xabber.presentation.application.dialogs.DeletingContactDialog
 import com.xabber.presentation.application.fragments.BaseFragment
 import com.xabber.presentation.application.fragments.chat.ChatParams
-import com.xabber.presentation.application.fragments.chatlist.PullRecyclerViewEffectFactory
 import com.xabber.presentation.application.fragments.contacts.vcard.ContactAccountParams
 import io.realm.kotlin.Realm
 
@@ -29,32 +29,15 @@ class ContactsFragment : BaseFragment(R.layout.fragment_contact), ContactAdapter
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        loadAvatarWithMask()
         initToolbarActions()
         initContactList()
         subscribeViewModel()
         viewModel.initDataListener()
         viewModel.getChatList()
-        val owner = viewModel.getOwner()
+        val account = baseViewModel.getPrimaryAccount()
+        if (account != null) binding.tvContactTitle.text = account.nickname else binding.tvContactTitle.text = resources.getString(R.string.contacts_toolbar_title)
 
-        if (owner != null) binding.tvContactTitle.text = owner
 
-        binding.imAvatar.setOnClickListener {
-            var jid = ""
-            val realm = Realm.open(defaultRealmConfig())
-            realm.writeBlocking {
-                jid = realm.query(AccountStorageItem::class).first().find()!!.jid
-            }
-            navigator().showAccount(jid)
-        }
-    }
-
-    private fun loadAvatarWithMask() {
-        val avatar = UiChanger.getAvatar()
-        val multiTransformation = MultiTransformation(CircleCrop())
-        Glide.with(requireContext()).load(avatar).error(R.drawable.ic_avatar_placeholder)
-            .apply(RequestOptions.bitmapTransform(multiTransformation))
-            .into(binding.imAvatar)
     }
 
     private fun initToolbarActions() {
@@ -83,8 +66,7 @@ class ContactsFragment : BaseFragment(R.layout.fragment_contact), ContactAdapter
         navigator().showContactAccount(
             ContactAccountParams(
                 contactDto.primary,
-                contactDto.avatar,
-                contactDto.color
+                contactDto.avatar
             )
         )
     }
@@ -94,12 +76,11 @@ class ContactsFragment : BaseFragment(R.layout.fragment_contact), ContactAdapter
         if (chatId != null) navigator().showChat(ChatParams(chatId, owner, opponentJid, avatar))
     }
 
-    override fun editContact(contactDto: ContactDto, avatar: Int, color: Int) {
+    override fun editContact(contactDto: ContactDto, avatar: Int, color: String) {
         navigator().showEditContactFromContacts(
             ContactAccountParams(
                 contactDto.primary,
-                avatar,
-                color
+                avatar
             )
         )
     }
@@ -115,5 +96,10 @@ class ContactsFragment : BaseFragment(R.layout.fragment_contact), ContactAdapter
     override fun onDestroy() {
         super.onDestroy()
         contactAdapter = null
+    }
+
+    override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences?, key: String?) {
+        super.onSharedPreferenceChanged(sharedPreferences, key)
+        contactAdapter?.notifyDataSetChanged()
     }
 }

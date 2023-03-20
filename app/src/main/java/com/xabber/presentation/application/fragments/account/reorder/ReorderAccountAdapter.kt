@@ -9,14 +9,15 @@ import androidx.core.view.MotionEventCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.xabber.models.xmpp.account.Account
 import com.xabber.databinding.ItemAccountForReorderBinding
+import com.xabber.models.dto.AccountDto
 import java.util.*
 
 class ReorderAccountAdapter(
-    private val accountItems: ArrayList<Account>,
+    private val accountItems: ArrayList<AccountDto>,
     private val onStartDrag: (holder: ReorderAccountViewHolder) -> Unit
 ) :
     RecyclerView.Adapter<ReorderAccountViewHolder>(), ItemTouchHelperAdapter {
-    var accountList = ArrayList<Account>()
+    var accountList = ArrayList<AccountDto>()
 
     override fun onItemMove(fromPosition: Int, toPosition: Int): Boolean {
         Log.d("drag", "$fromPosition, $toPosition")
@@ -34,7 +35,7 @@ class ReorderAccountAdapter(
         return true
     }
 
-    fun setAccountItems(newAccountList: ArrayList<Account>) {
+    fun setAccountItems(newAccountList: ArrayList<AccountDto>) {
          accountList = newAccountList
         accountList.sortedBy { it.order }
         notifyDataSetChanged()

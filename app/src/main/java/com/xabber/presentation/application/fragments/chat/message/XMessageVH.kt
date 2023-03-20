@@ -58,8 +58,8 @@ open class XMessageVH(
     protected val forwardedMessagesRV: RecyclerView = itemView.findViewById(R.id.forwardedRecyclerView)
     protected val messageFileInfo: TextView = itemView.findViewById(R.id.message_file_info)
     protected val progressBar: ProgressBar = itemView.findViewById(R.id.message_progress_bar)
-    private val rvFileList: RecyclerView = itemView.findViewById(R.id.file_list_rv)
-    private val imageGridContainer: FrameLayout = itemView.findViewById(R.id.image_grid_container_fl)
+    protected val rvFileList: RecyclerView = itemView.findViewById(R.id.file_list_rv)
+    protected val imageGridContainer: FrameLayout = itemView.findViewById(R.id.image_grid_container_fl)
 
     //todo there are duplicated views! (or else triplicated!)
     private val messageStatusLayout: LinearLayoutCompat = itemView.findViewById(R.id.message_bottom_status)

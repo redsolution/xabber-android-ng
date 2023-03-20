@@ -15,6 +15,7 @@ import com.xabber.models.dto.ChatListDto
 import com.xabber.models.xmpp.messages.MessageSendingState
 import com.xabber.models.xmpp.presences.ResourceStatus
 import com.xabber.models.xmpp.presences.RosterItemEntity
+import com.xabber.presentation.application.activity.MaskManager
 import com.xabber.presentation.application.dialogs.TimeMute
 import com.xabber.utils.DateFormatter
 import com.xabber.utils.dp
@@ -34,10 +35,8 @@ class ChatListForwardHolder(
                 par.height = 72.dp
             }
             // avatar
-            val multiTransformation = MultiTransformation(CircleCrop())
-
+binding.shapeView.setDrawable(MaskManager.mask)
             Glide.with(itemView).load(chatListDto.drawableId)
-                .apply(RequestOptions.bitmapTransform(multiTransformation))
                 .into(binding.imChatListItemAvatar)
 
             // name

@@ -2,7 +2,6 @@ package com.xabber.presentation.onboarding.fragments.signup.emoji
 
 import android.app.Dialog
 import android.content.DialogInterface
-import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -21,8 +20,6 @@ import com.xabber.databinding.FragmentEmojiAvatarBinding
 import com.xabber.presentation.AppConstants
 import com.xabber.presentation.onboarding.activity.OnboardingViewModel
 import com.xabber.utils.dp
-import com.xabber.utils.mask.Mask
-import com.xabber.utils.mask.MaskedDrawableBitmapShader
 import com.xabber.utils.setFragmentResultListener
 
 class EmojiAvatarBottomSheet : BottomSheetDialogFragment() {
@@ -86,26 +83,16 @@ class EmojiAvatarBottomSheet : BottomSheetDialogFragment() {
             binding.amberTint to binding.amberTintToggle,
         )
 
-        val mMaskBitmap =
-            BitmapFactory.decodeResource(resources, Mask.Circle.size128).extractAlpha()
-        val maskedDrawable = MaskedDrawableBitmapShader()
-        maskedDrawable.setMaskBitmap(mMaskBitmap)
 
         palette.forEach { mapElem ->
             mapElem.key.setOnClickListener {
                 binding.avatarBackground.setBackgroundColor(
                     ContextCompat.getColor(requireContext(), mapElem.value)
                 )
-
-                val newBitmap =
-                    viewModel.getBitmapFromView(requireContext(), binding.avatarBackground)
-                maskedDrawable.setPictureBitmap(newBitmap)
-                binding.avatarBackground.setBackgroundDrawable(maskedDrawable)
-
                 for (t in toggles) {
                     t.value.isVisible = false
                 }
-                toggles[mapElem.key]!!.isVisible = true
+                toggles[mapElem.key]?.isVisible = true
             }
         }
 

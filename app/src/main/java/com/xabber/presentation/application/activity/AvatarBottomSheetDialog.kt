@@ -11,6 +11,7 @@ import android.provider.MediaStore
 import android.util.Log
 import android.widget.RelativeLayout
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.os.bundleOf
 import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.viewModels
@@ -25,11 +26,13 @@ import com.journeyapps.barcodescanner.BarcodeEncoder
 import com.xabber.R
 import com.xabber.models.xmpp.account.AccountViewModel
 import com.xabber.presentation.AppConstants
+import com.xabber.presentation.application.dialogs.TimeMute
 import com.xabber.presentation.application.fragments.account.qrcode.QRCodeDialogFragment
 import com.xabber.presentation.application.fragments.account.qrcode.QRCodeParams
 import com.xabber.presentation.onboarding.fragments.signup.emoji.EmojiAvatarBottomSheet
 import com.xabber.utils.askUserForOpeningAppSettings
 import com.xabber.utils.parcelable
+import com.xabber.utils.setFragmentResult
 
 class AvatarBottomSheetDialog: DialogFragment() {
     lateinit var emojiViewGroup: RelativeLayout
@@ -52,8 +55,11 @@ class AvatarBottomSheetDialog: DialogFragment() {
                     requireContext().contentResolver,
                     it.uriContent
                 )
-                Log.d("bbb", "success $bitmap")
-                saveAvatar(bitmap)
+                setFragmentResult(
+                    "AA",
+                    bundleOf("AA" to it.uriContent.toString())
+                )
+                dismiss()
             }
             it is CropImage.CancelledResult -> Log.d(
                 "Avatar",
@@ -66,9 +72,6 @@ class AvatarBottomSheetDialog: DialogFragment() {
         dismiss()
     }
 
-    private fun saveAvatar(bitmap: Bitmap) {
-viewModel.saveAvatar(bitmap)
-    }
 
     private fun onGotCameraPermissionResult(result: Boolean) {
         if (result) {
@@ -123,6 +126,5 @@ viewModel.saveAvatar(bitmap)
             requestCameraPermissionLauncher.unregister()
             requestGalleryPermissionLauncher.unregister()
         }
-
 
 }

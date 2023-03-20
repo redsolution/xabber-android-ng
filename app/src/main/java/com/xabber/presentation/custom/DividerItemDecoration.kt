@@ -10,7 +10,7 @@ import android.widget.LinearLayout
 import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.RecyclerView.ItemDecoration
 import com.xabber.R
-import com.xabber.presentation.application.fragments.chatlist.ChatListFragment.ChatListAvatarState
+import com.xabber.presentation.application.fragments.chatlist.ChatListBaseFragment.ChatListAvatarState
 import kotlin.math.roundToInt
 
 class DividerItemDecoration(context: Context, orientation: Int) : ItemDecoration() {

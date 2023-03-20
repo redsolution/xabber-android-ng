@@ -8,15 +8,36 @@
     android:focusable="true"
     android:paddingHorizontal="12dp">
 
-    <ImageView
+    <com.xabber.presentation.custom.ShapeOfView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/shape_view"
+        app:shape_clip_drawable="@drawable/ic_mask_circle"
         android:layout_marginStart="12dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent">
+
+    <ImageView
         android:id="@+id/im_avatar_item_account"
         android:layout_width="@dimen/mask48"
         android:layout_height="@dimen/mask48"
-        android:contentDescription="@string/im_account_avatar_content_description"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
+        android:scaleType="centerCrop"
+        android:contentDescription="@string/im_account_avatar_content_description" />
+</com.xabber.presentation.custom.ShapeOfView>
+
+    <TextView
+        android:id="@+id/tv_initials"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="@color/grey_900"
+        android:visibility="gone"
+        android:textSize="16dp"
+        android:textAllCaps="true"
+        app:layout_constraintBottom_toBottomOf="@id/shape_view"
+        app:layout_constraintEnd_toEndOf="@id/shape_view"
+        app:layout_constraintStart_toStartOf="@id/shape_view"
+        app:layout_constraintTop_toTopOf="@id/shape_view" />
 
     <TextView
         android:id="@+id/tv_item_account_name"
@@ -31,7 +52,7 @@
         android:textSize="20sp"
         app:layout_constraintBottom_toTopOf="@id/tv_item_account_jid"
         app:layout_constraintEnd_toStartOf="@id/switch_account_enable"
-        app:layout_constraintStart_toEndOf="@id/im_avatar_item_account"
+        app:layout_constraintStart_toEndOf="@id/shape_view"
         app:layout_constraintTop_toTopOf="parent" />
 
     <TextView
@@ -45,7 +66,7 @@
         android:textColor="?android:attr/textColorSecondary"
         android:textSize="12sp"
         app:layout_constraintEnd_toStartOf="@id/switch_account_enable"
-        app:layout_constraintStart_toEndOf="@id/im_avatar_item_account"
+        app:layout_constraintStart_toEndOf="@id/shape_view"
         app:layout_constraintTop_toBottomOf="@id/tv_item_account_name" />
 
     <androidx.appcompat.widget.SwitchCompat

@@ -17,7 +17,7 @@ class ContactAdapter(
 
         fun onContactClick(owner: String, opponentJid: String, avatar: Int)
 
-        fun editContact(contactDto: ContactDto, avatar: Int, color: Int)
+        fun editContact(contactDto: ContactDto, avatar: Int, color: String)
 
         fun deleteContact(userName: String)
 

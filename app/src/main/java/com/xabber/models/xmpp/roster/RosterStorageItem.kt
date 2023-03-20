@@ -22,8 +22,8 @@ class RosterStorageItem: RealmObject {
     var isHidden: Boolean = false
     var notes: String? = null
     var isSupportOmemo: Boolean = false
-    var colorR: Int = R.color.blue_500
-    var avatarR: Int = R.drawable.img
+    var colorKey: String = "blue"
+    var avatarR: Int = R.drawable.dog
   //  var avatar: AvatarStorageItem? = null
 
 ////    @Ignore

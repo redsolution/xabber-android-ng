@@ -13,7 +13,7 @@ data class ContactDto(
     val nickName: String? = null,
     val jid: String?,
     val customNickName: String? = null,
-    @ColorRes val color: Int,
+   val color: String,
     val avatar: Int,
     val group: String?,
     val subtitle: String? = null,   //сообщение или jid

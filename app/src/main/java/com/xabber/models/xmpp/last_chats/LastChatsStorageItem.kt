@@ -34,8 +34,8 @@ class LastChatsStorageItem: RealmObject {
     var isPrereaded: Boolean = false
     var pinnedPosition: Long = 0 // время закрепа
     var muteExpired: Long = -1   //
-    var avatar: Int = R.drawable.img //
-    var color: Int = R.color.blue_500
+    var avatar: Int = R.drawable.dog  //
+    var colorKey: String = "blue"
     var conversationType_: String = ConversationType.Regular.rawValue
     var composingType_: String = ComposingType.none.rawValue
     var chatMarkersSupport: Boolean = false

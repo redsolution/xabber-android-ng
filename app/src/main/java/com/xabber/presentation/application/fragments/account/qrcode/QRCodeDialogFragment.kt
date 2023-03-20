@@ -50,6 +50,7 @@ class QRCodeDialogFragment : DialogFragment() {
     }
 
     private fun changeUiWithData() {
+
         toolbarQrCode.setBackgroundResource(getParams().color)
         tvQrCodeName.text = getParams().name
         tvQrCodeJid.text = getParams().jid

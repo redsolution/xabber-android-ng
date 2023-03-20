@@ -28,10 +28,11 @@ class LastChatStorageItemDao(private val realm: Realm) {
         }
     }
 
-    fun setArchived(primary: String, isArchived: Boolean) {
+    fun setArchived(primary: String) {
         realm.writeBlocking {
             val item = this.query(LastChatsStorageItem::class, "primary = '$primary'").first().find()
-            item?.isArchived = isArchived
+            if (item != null)
+            item.isArchived = !item.isArchived
         }
     }
 

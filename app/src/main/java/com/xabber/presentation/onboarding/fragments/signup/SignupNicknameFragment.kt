@@ -3,6 +3,7 @@ package com.xabber.presentation.onboarding.fragments.signup
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
+import android.view.Gravity
 import android.view.View
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
@@ -31,6 +32,9 @@ class SignupNicknameFragment : Fragment(R.layout.fragment_signup_nickname) {
     }
 
     private fun initEditText() {
+       binding.nicknameEditText.requestFocus()
+      //  if (!binding.nicknameEditText.text.toString().isNotEmpty())
+            binding.nicknameEditText.setSelection(0)
         val textChangeListener = object : TextWatcher {
             override fun beforeTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {
             }
@@ -40,6 +44,12 @@ class SignupNicknameFragment : Fragment(R.layout.fragment_signup_nickname) {
 
             override fun afterTextChanged(p0: Editable?) {
                 binding.nicknameBtnNext.isEnabled = p0.toString().length >= minNickLength
+                if (p0 != null && p0.toString().length > 0){
+                   binding.nicknameEditText.setGravity(Gravity.CENTER);
+                }else{
+                    binding.nicknameEditText.setGravity(Gravity.START);
+                }
+
             }
 
         }

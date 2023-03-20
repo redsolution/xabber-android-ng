@@ -38,7 +38,6 @@ class PullRefreshLayout : FrameLayout, NestedScrollingParent {
     // Enable PullRefresh
     var isRefreshEnable = true
 
-    // Is Refreshing
     @Volatile
     var isRefreshing = false
         private set
@@ -184,7 +183,7 @@ class PullRefreshLayout : FrameLayout, NestedScrollingParent {
             }
             val translationYDelta = (distanceY * sign).toInt()
             lp.height += translationYDelta
-            if (lp.height > 100) headerView.setProgressRotation(true) else headerView.setProgressRotation(
+            if (lp.height > 50.dp) headerView.setProgressRotation(true) else headerView.setProgressRotation(
                 false
             )
             if (lp.height < 0) {

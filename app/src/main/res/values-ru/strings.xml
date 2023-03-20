@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
+    <string name="com.google.firebase.crashlytics.mapping_file_id">none</string>
     <string name="app_name">Xabber NG</string>
 
     <!-- General -->
@@ -69,6 +70,7 @@
     <string name="image_view_content_description_photo">Фото</string>
     <string name="signup__avatar_title_label">Прекрасно! Теперь выберите фото, которое лучше всего отражает вашу личность.</string>
     <string name="im_avatar_content_description">Выбрать изображение</string>
+    <string name="skip_button_label">Пропустить</string>
 
     <!-- AvatarBottomSheet -->
     <string name="avatar_bottom_sheet_emoji_label">Использовать эмодзи</string>
@@ -203,6 +205,15 @@
     <string name="unread_messages">Непрочитанные сообщения</string>
     <string name="undefined_file">Неопределенный файл</string>
     <string name="back">back</string>
+
+    <!-- Attach BottomSheet -->
+    <string name="camera_label">Камера</string>
+    <string name="gallery_label">Галерея</string>
+    <string name="file_label">Файл</string>
+    <string name="location_label">Геопозиция</string>
+
+    <!-- Media Viewer Activity -->
+    <string name="of">из</string>
 
     <!-- Geolocation -->
 

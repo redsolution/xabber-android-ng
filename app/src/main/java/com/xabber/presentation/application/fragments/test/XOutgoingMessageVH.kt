@@ -10,8 +10,6 @@ import android.view.View.OnAttachStateChangeListener
 import android.view.ViewGroup
 import android.widget.LinearLayout
 import androidx.annotation.StyleRes
-import androidx.appcompat.view.menu.MenuBuilder
-import androidx.appcompat.view.menu.MenuPopupHelper
 import androidx.appcompat.widget.PopupMenu
 import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
@@ -25,6 +23,7 @@ import com.xabber.presentation.application.fragments.chat.message.XMessageVH
 import com.xabber.utils.StringUtils
 import com.xabber.utils.dipToPx
 import java.util.*
+import kotlin.collections.ArrayList
 
 class XOutgoingMessageVH internal constructor(private val listener: MessageAdapter.Listener,
     itemView: View?, messageListener: MessageClickListener?,
@@ -176,6 +175,20 @@ messageTextTv.setOnClickListener {
             }
             true
         }
+        imageGridContainer.removeAllViews()
+        imageGridContainer.isVisible = false
+        if (message.references != null && message.references.isNotEmpty()) {
+
+imageGridContainer.isVisible = true
+           val builder = ImageGridBuilder()
+
+                val imageGridView: View =
+                  builder.inflateView(imageGridContainer, message.references.size)
+                builder.bindView(imageGridView, message.references, this)
+                imageGridContainer.addView(imageGridView)
+                imageGridContainer.visibility = View.VISIBLE
+
+        }
     }
 
 
@@ -196,4 +209,5 @@ messageTextTv.setOnClickListener {
             )
         }
     }
+
 }

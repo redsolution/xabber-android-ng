@@ -1,37 +1,41 @@
 package com.xabber.presentation.application.fragments.settings
 
+import android.annotation.SuppressLint
+import android.content.SharedPreferences
 import android.os.Bundle
 import android.util.Log
 import android.view.View
+import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.viewModels
 import androidx.recyclerview.widget.LinearLayoutManager
 import by.kirich1409.viewbindingdelegate.viewBinding
 import com.xabber.R
 import com.xabber.databinding.FragmentSettingsBinding
+import com.xabber.presentation.application.activity.ColorManager
 import com.xabber.presentation.application.fragments.BaseFragment
 import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.application.fragments.account.AccountAdapter
 
-class SettingsFragment : BaseFragment(R.layout.fragment_settings) {
+class SettingsFragment : BaseFragment(R.layout.fragment_settings), AccountAdapter.Listener {
     private val binding by viewBinding(FragmentSettingsBinding::bind)
-    private val viewModel: SettingsViewModel by viewModels()
+    private val viewModel: SettingsViewModel by activityViewModels()
     private var accountAdapter: AccountAdapter? = null
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        initializeToolbarMenu()
-        initializeAccountList()
+       initToolbarMenu()
+        initAccountList()
         subscribeToDataUpdates()
         initializeSettingsActions()
-
+        if (viewModel.accounts.value != null) { if (viewModel.accounts.value!![0].enabled) binding.appbar.setBackgroundResource(ColorManager.convertColorNameToId(baseViewModel.getPrimaryAccount()?.colorKey ?: "default")) }
     }
 
-    private fun initializeToolbarMenu() {
+    private fun initToolbarMenu() {
         binding.toolbarSettings.setOnMenuItemClickListener {
             when (it.itemId) {
-                R.id.add_account -> {
-                   // navigator().showAddAccountFragment()
-                }
+//                R.id.add_account -> {
+//                    navigator().showAddAccountFragment()
+//                }
                 R.id.reorder -> {
                     navigator().showReorderAccountsFragment()
                 }
@@ -41,28 +45,24 @@ class SettingsFragment : BaseFragment(R.layout.fragment_settings) {
     }
 
     private fun setupMenu(showItem: Boolean) {
-        binding.toolbarSettings.menu.findItem(R.id.add_account).isVisible = false
+       // binding.toolbarSettings.menu.findItem(R.id.add_account).isVisible = false
     }
 
-    private fun initializeAccountList() {
-        binding.rvAccounts.layoutManager = LinearLayoutManager(context)
-        accountAdapter = AccountAdapter( {navigator().showAccount(it.jid)}, { viewModel.setEnabled(it.jid)
-        Log.d("itt", "jid = ${it.jid}")})
-
+    private fun initAccountList() {
+        accountAdapter = AccountAdapter(this)
         binding.rvAccounts.adapter = accountAdapter
-        fillAccountList()
-    }
 
-    private fun fillAccountList() {
-      viewModel.getAccountList()
     }
 
     private fun subscribeToDataUpdates() {
-        viewModel.initDataListener()
         viewModel.accounts.observe(viewLifecycleOwner) {
-            Log.d("itt", "sett subsc")
             accountAdapter?.submitList(it)
-           // accountAdapter?.notifyDataSetChanged()
+            Log.d("acc", "$it")
+            accountAdapter?.notifyDataSetChanged()
+        }
+
+        viewModel.avatars.observe(viewLifecycleOwner) {
+            accountAdapter?.notifyDataSetChanged()
         }
     }
 
@@ -70,7 +70,7 @@ class SettingsFragment : BaseFragment(R.layout.fragment_settings) {
         binding.settings.interfaceSettings
         with(binding.settings) {
             interfaceSettings.setOnClickListener {
-                navigator().showInterfaceSettings()
+                navigator().showInterfaceSettings(false)
             }
             notifications.setOnClickListener { navigator().showNotificationsSettings() }
             dataAndStorage.setOnClickListener { navigator().showDataAndStorageSettings() }
@@ -78,6 +78,20 @@ class SettingsFragment : BaseFragment(R.layout.fragment_settings) {
             connection.setOnClickListener { navigator().showConnectionSettings() }
             debug.setOnClickListener { navigator().showDebugSettings() }
         }
+    }
+
+    override fun setEnabled(id: String, isChecked: Boolean) {
+        viewModel.setEnabled(id, isChecked)
+    }
+
+    override fun onClick(id: String) {
+        navigator().showAccount(id)
+    }
+
+    @SuppressLint("NotifyDataSetChanged")
+    override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences?, key: String?) {
+        super.onSharedPreferenceChanged(sharedPreferences, key)
+        accountAdapter?.notifyDataSetChanged()
     }
 
     override fun onDestroy() {

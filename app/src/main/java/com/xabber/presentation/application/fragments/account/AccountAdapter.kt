@@ -12,8 +12,13 @@ import com.xabber.presentation.AppConstants
 import com.xabber.presentation.application.fragments.chatlist.ChatListViewHolder
 
 class AccountAdapter(
-    private val onItemClick: (AccountDto) -> Unit, private val onSwitchClick: (AccountDto) -> Unit
+    private val listener: Listener
 ) : ListAdapter<AccountDto, AccountViewHolder>(DiffUtilCallback) {
+
+    interface Listener {
+        fun setEnabled(id: String, isChecked: Boolean)
+        fun onClick(id: String)
+    }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): AccountViewHolder =
         AccountViewHolder(
@@ -21,8 +26,7 @@ class AccountAdapter(
                 LayoutInflater.from(parent.context),
                 parent,
                 false
-            ), onItemClick,
-        onSwitchClick)
+            ), listener)
 
     override fun onBindViewHolder(holder: AccountViewHolder, position: Int) =
         holder.bind(getItem(position))

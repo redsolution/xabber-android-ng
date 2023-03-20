@@ -22,23 +22,22 @@
                 android:contentDescription="@string/avatar_background_image_description"
                 android:scaleType="centerCrop" />
 
-            <ImageView
-                android:id="@+id/im_photo"
+            <include
+                android:id="@+id/avatar_gr"
                 android:layout_width="@dimen/mask176"
                 android:layout_height="@dimen/mask176"
+                layout="@layout/include_avatar_group"
                 android:layout_gravity="start|center_vertical"
                 android:layout_marginStart="@dimen/margin_larger_medium"
                 android:layout_marginBottom="@dimen/margin_medium"
-                android:contentDescription="@string/account_photo_image_description"
-                app:layout_collapseMode="none" />
+                app:layout_collapseMode="none"/>
 
             <com.google.android.material.appbar.MaterialToolbar
-                android:id="@+id/toolbar"
+                android:id="@+id/account_toolbar"
                 android:layout_width="match_parent"
                 android:layout_height="?attr/actionBarSize"
                 android:theme="@style/ToolbarAccountColorTheme"
                 app:layout_collapseMode="pin">
-
 
                 <Button
                     android:layout_width="wrap_content"
