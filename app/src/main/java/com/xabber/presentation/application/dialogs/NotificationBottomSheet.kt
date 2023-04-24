@@ -5,36 +5,42 @@ import android.content.DialogInterface
 import android.graphics.Color
 import android.os.Bundle
 import android.view.View
-import androidx.core.os.bundleOf
 import by.kirich1409.viewbindingdelegate.viewBinding
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.xabber.R
+import com.xabber.data_base.defaultRealmConfig
 import com.xabber.databinding.BottomSheetTurnOffNotificationsBinding
-import com.xabber.presentation.AppConstants.TURN_OFF_NOTIFICATIONS_BUNDLE_KEY
+import com.xabber.models.xmpp.last_chats.LastChatsStorageItem
 import com.xabber.presentation.AppConstants.TURN_OFF_NOTIFICATIONS_KEY
-import com.xabber.utils.setFragmentResult
+import io.realm.kotlin.Realm
 
 class NotificationBottomSheet :
     BottomSheetDialogFragment(R.layout.bottom_sheet_turn_off_notifications) {
     private val binding by viewBinding(BottomSheetTurnOffNotificationsBinding::bind)
     private var behavior: BottomSheetBehavior<*>? = null
+    val realm = Realm.open(defaultRealmConfig())
 
     companion object {
-        fun newInstance() = NotificationBottomSheet()
+        fun newInstance(id: String?) = NotificationBottomSheet().apply {
+            arguments = Bundle().apply {
+                putString(TURN_OFF_NOTIFICATIONS_KEY, id)
+            }
+        }
     }
+
+    override fun getTheme(): Int = R.style.Theme_NoWiredStrapInNavigationBar
 
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
         val dialog = super.onCreateDialog(savedInstanceState) as BottomSheetDialog
-
         dialog.setOnShowListener {
-            setupBottomSheet(it, savedInstanceState)
+            setupBottomSheet(it)
         }
         return dialog
     }
 
-    private fun setupBottomSheet(dialogInterface: DialogInterface, savedInstanceState: Bundle?) {
+    private fun setupBottomSheet(dialogInterface: DialogInterface) {
         val bottomSheetDialog = dialogInterface as BottomSheetDialog
         val bottomSheet = bottomSheetDialog.findViewById<View>(
             com.google.android.material.R.id.design_bottom_sheet
@@ -48,52 +54,44 @@ class NotificationBottomSheet :
         initActions()
     }
 
-//    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-//        super.onViewCreated(view, savedInstanceState)
-//        if (savedInstanceState != null) behavior?.state = BottomSheetBehavior.STATE_EXPANDED
-//
-//    }
-
     private fun initActions() {
         with(binding) {
             rl15min.setOnClickListener {
-                setFragmentResult(
-                    TURN_OFF_NOTIFICATIONS_KEY,
-                    bundleOf(TURN_OFF_NOTIFICATIONS_BUNDLE_KEY to TimeMute.MIN15.time)
-                )
+                setMute(TimeMute.MIN15.time + System.currentTimeMillis())
                 dismiss()
             }
             rl1hour.setOnClickListener {
-                setFragmentResult(
-                    TURN_OFF_NOTIFICATIONS_KEY,
-                    bundleOf(TURN_OFF_NOTIFICATIONS_BUNDLE_KEY to TimeMute.HOUR1.time)
-                )
+                setMute(TimeMute.HOUR1.time + System.currentTimeMillis())
                 dismiss()
             }
             rl2hour.setOnClickListener {
-                setFragmentResult(
-                    TURN_OFF_NOTIFICATIONS_KEY,
-                    bundleOf(TURN_OFF_NOTIFICATIONS_BUNDLE_KEY to TimeMute.HOUR2.time)
-                )
+                setMute(TimeMute.HOUR2.time + System.currentTimeMillis())
                 dismiss()
             }
             rl1day.setOnClickListener {
-
-                setFragmentResult(
-                    TURN_OFF_NOTIFICATIONS_KEY,
-                    bundleOf(TURN_OFF_NOTIFICATIONS_BUNDLE_KEY to TimeMute.DAY1.time)
-                )
+                setMute(TimeMute.DAY1.time + System.currentTimeMillis())
                 dismiss()
             }
             rlForever.setOnClickListener {
-                setFragmentResult(
-                    TURN_OFF_NOTIFICATIONS_KEY,
-                    bundleOf(TURN_OFF_NOTIFICATIONS_BUNDLE_KEY to TimeMute.FOREVER.time)
-                )
+                setMute(TimeMute.FOREVER.time + System.currentTimeMillis())
                 dismiss()
             }
         }
     }
+
+    private fun setMute(time: Long) {
+        val id = arguments?.getString(TURN_OFF_NOTIFICATIONS_KEY) ?: ""
+        realm.writeBlocking {
+            val chat = this.query(LastChatsStorageItem::class, "primary = '$id'").first().find()
+            chat?.muteExpired = time
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        realm.close()
+    }
+
 }
 
 enum class TimeMute(val time: Long) {

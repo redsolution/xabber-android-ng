@@ -1,111 +1,87 @@
 package com.xabber.presentation.application.fragments.chat
 
 
-import android.content.Context
 import android.net.Uri
-import android.provider.MediaStore
 import android.view.LayoutInflater
 import android.view.ViewGroup
-import androidx.core.view.isVisible
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.bumptech.glide.Glide
-import com.xabber.R
 import com.xabber.databinding.ItemImageFromGalleryBinding
+import com.xabber.models.dto.MediaDto
 
 
 class GalleryAdapter(private val listener: Listener) :
-    RecyclerView.Adapter<RecyclerView.ViewHolder>() {
-    private val selectedImagePaths = HashSet<Uri>()
-
-    companion object {
-        private val imagePaths = ArrayList<Uri>()
-        val projectionPhotos = arrayOf(
-            MediaStore.Images.Media._ID,
-            MediaStore.Images.Media.BUCKET_DISPLAY_NAME,
-            MediaStore.Images.Media.DATE_TAKEN,
-        )
-    }
+    RecyclerView.Adapter<GalleryItemVH>() {
+    private val selectedMediaIdes = HashSet<Long>()
+    private val mediaList = ArrayList<MediaDto>()
+    private val uriList = HashSet<Uri>()
 
     interface Listener {
         fun onRecentImagesSelected()
         fun tooManyFilesSelected()
-        fun showImageViewer(position: Int)
+        fun showMediaViewer(position: Int)
     }
 
-    fun getSelectedImagePaths(): HashSet<Uri> = selectedImagePaths
+    fun getSelectedMedia(): HashSet<Long> = selectedMediaIdes
 
-    fun updateAdapter(newImagePaths: java.util.ArrayList<Uri>) {
-        imagePaths.clear()
-        imagePaths.addAll(newImagePaths)
-        selectedImagePaths.clear()
+    fun getUriesSelected(): HashSet<Uri> = uriList
+
+    fun setMediaSelected(set: HashSet<Long>) {
+        selectedMediaIdes.clear()
+        selectedMediaIdes.addAll(set)
+        uriList.clear()
+        for (i in 0 until mediaList.size) {
+            set.forEach { if (it == mediaList[i].id)  uriList.add(mediaList[i].uri)}
+        }
     }
 
-    fun isImage() {
 
+    fun updateAdapter(newMediaList: ArrayList<MediaDto>) {
+        mediaList.clear()
+        mediaList.addAll(newMediaList)
+        selectedMediaIdes.clear()
     }
 
-    fun isVideo(context: Context, uri: Uri): Boolean {
-        val mimeType = getMimeType(context, uri
-        )
-        return mimeType.startsWith("video/")
-    }
-
-    private fun getMimeType(context: Context, uri: Uri): String = context.contentResolver?.getType(uri)!!
-
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): GalleryVH {
-        return GalleryVH(
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): GalleryItemVH =
+        GalleryItemVH(
             ItemImageFromGalleryBinding.inflate(
                 LayoutInflater.from(parent.context),
                 parent,
                 false
             )
         )
-    }
 
-    override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
-        val recentImageViewHolder = holder as GalleryVH
-        val path = imagePaths[position]
-        val image = recentImageViewHolder.getImage()
-        val cl = recentImageViewHolder.getCl()
-        val tv = recentImageViewHolder.getTv()
-        tv.isVisible = isVideo(tv.context, path)
-        if (position == imagePaths.size - 1) {
-            val params = cl.layoutParams as GridLayoutManager.LayoutParams
-            params.bottomMargin = 400
-            cl.layoutParams = params
-        } else {
-            val params = cl.layoutParams as GridLayoutManager.LayoutParams
-            params.bottomMargin = 0
-            cl.layoutParams = params
+    override fun onBindViewHolder(holder: GalleryItemVH, position: Int) {
+        val mediaDto = mediaList[position]
+        holder.bind(mediaDto, selectedMediaIdes.contains(mediaDto.id), listener)
+        val checkBox = holder.getCheckBox()
+
+        holder.itemView.setOnClickListener {
+            listener.showMediaViewer(position)
         }
 
-        Glide.with(image.context).load(path).centerCrop().placeholder(R.drawable.ic_image_grey)
-            .into(image)
-        recentImageViewHolder.getImage().setOnClickListener {
-            listener.showImageViewer(position)
+        checkBox.setOnCheckedChangeListener(null)
+        if (checkBox.isChecked != selectedMediaIdes.contains(mediaDto.id)) {
+            checkBox.isChecked = selectedMediaIdes.contains(mediaDto.id)
         }
-        recentImageViewHolder.getCheckBox().setOnCheckedChangeListener(null)
-        recentImageViewHolder.getCheckBox().isChecked = selectedImagePaths.contains(path)
-
-        recentImageViewHolder.getCheckBox()
-            .setOnCheckedChangeListener { buttonView, isChecked ->
-                if (isChecked) {
-                    if (selectedImagePaths.size < 10)
-                        selectedImagePaths.add(path)
-                    else {
-                        buttonView.isChecked = false
-                        listener.tooManyFilesSelected()
-                    }
+        checkBox.setOnCheckedChangeListener { buttonView, isChecked ->
+            if (isChecked) {
+                if (selectedMediaIdes.size < 10) {
+                    selectedMediaIdes.add(mediaDto.id)
+                    uriList.add(mediaDto.uri)
                 } else {
-                    selectedImagePaths.remove(path)
+                    buttonView.isChecked = false
+                    listener.tooManyFilesSelected()
                 }
-
-                listener.onRecentImagesSelected()
+            } else {
+                selectedMediaIdes.remove(mediaDto.id)
+                uriList.remove(mediaDto.uri)
             }
+            notifyItemChanged(position)
+            listener.onRecentImagesSelected()
+        }
     }
 
-
-    override fun getItemCount(): Int = imagePaths.size
+    override fun getItemCount(): Int = mediaList.size
 
 }

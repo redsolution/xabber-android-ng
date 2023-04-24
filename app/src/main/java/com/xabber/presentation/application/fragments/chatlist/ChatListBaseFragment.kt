@@ -4,7 +4,6 @@ import android.annotation.SuppressLint
 import android.os.Bundle
 import android.view.View
 import androidx.annotation.LayoutRes
-import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.viewModels
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -20,7 +19,8 @@ import com.xabber.presentation.application.dialogs.DeletingChatDialog
 import com.xabber.presentation.application.dialogs.NotificationBottomSheet
 import com.xabber.presentation.application.fragments.BaseFragment
 import com.xabber.presentation.application.fragments.chat.ChatParams
-import com.xabber.presentation.custom.DividerItemDecoration
+import com.xabber.utils.custom.DividerItemDecoration
+import com.xabber.utils.custom.SwipeToArchiveCallback
 import com.xabber.utils.partSmoothScrollToPosition
 import com.xabber.utils.setFragmentResultListener
 
@@ -75,7 +75,7 @@ abstract class ChatListBaseFragment(@LayoutRes contentLayoutId: Int) :
 
         setFragmentResultListener(AppConstants.CLEAR_HISTORY_KEY) { _, bundle ->
             val result = bundle.getBoolean(AppConstants.CLEAR_HISTORY_BUNDLE_KEY)
-            if (result) chatListViewModel.clearHistoryChat(currentId)
+         //   if (result) chatListViewModel.clearHistoryChat(currentId)
         }
     }
 
@@ -130,7 +130,7 @@ abstract class ChatListBaseFragment(@LayoutRes contentLayoutId: Int) :
         toPin = true
     }
 
-    override fun unPinChat(id: String) {
+    override fun unPinChat(id: String, position: Int) {
         chatListViewModel.unPinChat(id)
     }
 
@@ -141,14 +141,14 @@ abstract class ChatListBaseFragment(@LayoutRes contentLayoutId: Int) :
 
     override fun deleteChat(name: String, id: String) {
         currentId = id
-        val dialog = DeletingChatDialog.newInstance(name)
+        val dialog = DeletingChatDialog.newInstance(name, id)
         navigator().showDialogFragment(dialog, AppConstants.DELETING_CHAT_DIALOG_TAG)
     }
 
     override fun clearHistory(chatListDto: ChatListDto) {
         currentId = chatListDto.id
         val name = chatListDto.getChatName()
-        val dialog = ChatHistoryClearDialog.newInstance(name)
+        val dialog = ChatHistoryClearDialog.newInstance(name, chatListDto.id)
         navigator().showDialogFragment(dialog, AppConstants.CLEAR_HISTORY_DIALOG_TAG)
     }
 
@@ -170,8 +170,6 @@ abstract class ChatListBaseFragment(@LayoutRes contentLayoutId: Int) :
         navigator().showChat(
             ChatParams(
                 chatListDto.id,
-                chatListDto.owner,
-                chatListDto.opponentJid,
                 chatListDto.drawableId
             )
         )

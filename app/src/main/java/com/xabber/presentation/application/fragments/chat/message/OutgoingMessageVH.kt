@@ -66,7 +66,7 @@ class OutgoingMessageVH(
         val date = Date(messageDto.sentTimestamp)
         val time = StringUtils.getTimeText(binding.tvSendingTime.context, date)
         binding.messageInfo.isVisible =
-            messageDto.messageBody.isNotEmpty() && messageDto.references == null && messageDto.kind == null
+            messageDto.messageBody.isNotEmpty() && messageDto.kind == null
 
         binding.tvSendingTime.text = if (messageDto.editTimestamp > 0) "was edit $time" else time
 
@@ -318,117 +318,117 @@ class OutgoingMessageVH(
         binding.grid5.grid5.isVisible = false
         binding.grid6.grid6.isVisible = false
 
-        if (messageDto.uries != null) {
-
-            when (messageDto.uries.size) {
-                0 -> {}
-                1 -> {
-                    binding.grid1.grid1.isVisible = true
-                    Glide.with(binding.root).load(messageDto.uries[0])
-                        .into(binding.grid1.ivImage0)
-                    binding.grid1.imageMessageInfo.isVisible = messageDto.messageBody!!.isEmpty()
-                    val date = Date(messageDto.sentTimestamp)
-                    val time = StringUtils.getTimeText(binding.tvSendingTime.context, date)
-                    binding.grid1.tvImageSendingTime.text = time
-                }
-                2 -> {
-                    binding.grid2.grid2.isVisible = true
-                    Glide.with(binding.root).load(messageDto.uries[0])
-                        .into(binding.grid2.ivImage0)
-                    Glide.with(binding.root).load(messageDto.uries[1])
-                        .into(binding.grid2.ivImage1)
-                    binding.grid2.imageMessageInfo.isVisible = messageDto.messageBody!!.isEmpty()
-                    val date = Date(messageDto.sentTimestamp)
-                    val time = StringUtils.getTimeText(binding.tvSendingTime.context, date)
-                    binding.grid2.tvImageSendingTime.text = time
-                }
-                3 -> {
-                    binding.grid3.grid3.isVisible = true
-                    Glide.with(binding.root).load(messageDto.uries[0])
-                        .into(binding.grid3.ivImage0)
-                    Glide.with(binding.root).load(messageDto.uries[1])
-                        .into(binding.grid3.ivImage1)
-                    Glide.with(binding.root).load(messageDto.uries[2])
-                        .into(binding.grid3.ivImage2)
-                    binding.grid3.imageMessageInfo.isVisible = messageDto.messageBody!!.isEmpty()
-                    val date = Date(messageDto.sentTimestamp)
-                    val time = StringUtils.getTimeText(binding.tvSendingTime.context, date)
-                    binding.grid3.tvImageSendingTime.text = time
-                }
-                4 -> {
-                    binding.grid4.grid4.isVisible = true
-                    Glide.with(binding.root).load(messageDto.uries[0])
-                        .into(binding.grid4.ivImage0)
-                    Glide.with(binding.root).load(messageDto.uries[1])
-                        .into(binding.grid4.ivImage1)
-                    Glide.with(binding.root).load(messageDto.uries[2])
-                        .into(binding.grid4.ivImage2)
-                    Glide.with(binding.root).load(messageDto.uries[3])
-                        .into(binding.grid4.ivImage3)
-
-                    binding.grid4.imageMessageInfo.isVisible = messageDto.messageBody!!.isEmpty()
-                    val date = Date(messageDto.sentTimestamp)
-                    val time = StringUtils.getTimeText(binding.tvSendingTime.context, date)
-                    binding.grid4.tvImageSendingTime.text = time
-                }
-                5 -> {
-                    binding.grid5.grid5.isVisible = true
-                    Glide.with(binding.root).load(messageDto.uries[0])
-                        .into(binding.grid5.ivImage0)
-                    Glide.with(binding.root).load(messageDto.uries[1])
-                        .into(binding.grid5.ivImage1)
-                    Glide.with(binding.root).load(messageDto.uries[2])
-                        .into(binding.grid5.ivImage2)
-                    Glide.with(binding.root).load(messageDto.uries[3])
-                        .into(binding.grid5.ivImage3)
-                    Glide.with(binding.root).load(messageDto.uries[4])
-                        .into(binding.grid5.ivImage4)
-
-                    binding.grid5.imageMessageInfo.isVisible = messageDto.messageBody!!.isEmpty()
-                    val date = Date(messageDto.sentTimestamp)
-                    val time = StringUtils.getTimeText(binding.tvSendingTime.context, date)
-                    binding.grid5.tvImageSendingTime.text = time
-                }
-                else -> {
-                    binding.grid6.grid6.isVisible = true
-                    Glide.with(binding.root).load(messageDto.uries[0])
-                        .into(binding.grid6.ivImage0)
-                    Glide.with(binding.root).load(messageDto.uries[1])
-                        .into(binding.grid6.ivImage1)
-                    Glide.with(binding.root).load(messageDto.uries[2])
-                        .into(binding.grid6.ivImage2)
-                    Glide.with(binding.root).load(messageDto.uries[3])
-                        .into(binding.grid6.ivImage3)
-                    Glide.with(binding.root).load(messageDto.uries[4])
-                        .into(binding.grid6.ivImage4)
-                    Glide.with(binding.root).load(messageDto.uries[5])
-                        .into(binding.grid6.ivImage5)
-                    val count = messageDto.uries.size - 6
-                    if (count > 0) {
-                        binding.grid6.tvCounter.isVisible = true
-                        binding.grid6.tvCounter.text = "+ $count"
-                    }
-
-                    binding.grid6.imageMessageInfo.isVisible = messageDto.messageBody!!.isEmpty()
-                    val date = Date(messageDto.sentTimestamp)
-                    val time = StringUtils.getTimeText(binding.tvSendingTime.context, date)
-                    binding.grid6.tvImageSendingTime.text = time
-                }
-            }
-
-
-            //  setUpFile(messageDto.references, vhExtraData)
-            //   setupNonExternalGeo(messageDto)
-        } else {
-            binding.grid1.grid1.isVisible = false
-            binding.grid2.grid2.isVisible = false
-            binding.grid3.grid3.isVisible = false
-            binding.grid4.grid4.isVisible = false
-            binding.grid5.grid5.isVisible = false
-            binding.grid6.grid6.isVisible = false
-
-
-        }
+//        if (messageDto.uries != null) {
+//
+//            when (messageDto.uries.size) {
+//                0 -> {}
+//                1 -> {
+//                    binding.grid1.grid1.isVisible = true
+//                    Glide.with(binding.root).load(messageDto.uries[0])
+//                        .into(binding.grid1.ivImage0)
+//                    binding.grid1.imageMessageInfo.isVisible = messageDto.messageBody!!.isEmpty()
+//                    val date = Date(messageDto.sentTimestamp)
+//                    val time = StringUtils.getTimeText(binding.tvSendingTime.context, date)
+//                    binding.grid1.tvImageSendingTime.text = time
+//                }
+//                2 -> {
+//                    binding.grid2.grid2.isVisible = true
+//                    Glide.with(binding.root).load(messageDto.uries[0])
+//                        .into(binding.grid2.ivImage0)
+//                    Glide.with(binding.root).load(messageDto.uries[1])
+//                        .into(binding.grid2.ivImage1)
+//                    binding.grid2.imageMessageInfo.isVisible = messageDto.messageBody!!.isEmpty()
+//                    val date = Date(messageDto.sentTimestamp)
+//                    val time = StringUtils.getTimeText(binding.tvSendingTime.context, date)
+//                    binding.grid2.tvImageSendingTime.text = time
+//                }
+//                3 -> {
+//                    binding.grid3.grid3.isVisible = true
+//                    Glide.with(binding.root).load(messageDto.uries[0])
+//                        .into(binding.grid3.ivImage0)
+//                    Glide.with(binding.root).load(messageDto.uries[1])
+//                        .into(binding.grid3.ivImage1)
+//                    Glide.with(binding.root).load(messageDto.uries[2])
+//                        .into(binding.grid3.ivImage2)
+//                    binding.grid3.imageMessageInfo.isVisible = messageDto.messageBody!!.isEmpty()
+//                    val date = Date(messageDto.sentTimestamp)
+//                    val time = StringUtils.getTimeText(binding.tvSendingTime.context, date)
+//                    binding.grid3.tvImageSendingTime.text = time
+//                }
+//                4 -> {
+//                    binding.grid4.grid4.isVisible = true
+//                    Glide.with(binding.root).load(messageDto.uries[0])
+//                        .into(binding.grid4.ivImage0)
+//                    Glide.with(binding.root).load(messageDto.uries[1])
+//                        .into(binding.grid4.ivImage1)
+//                    Glide.with(binding.root).load(messageDto.uries[2])
+//                        .into(binding.grid4.ivImage2)
+//                    Glide.with(binding.root).load(messageDto.uries[3])
+//                        .into(binding.grid4.ivImage3)
+//
+//                    binding.grid4.imageMessageInfo.isVisible = messageDto.messageBody!!.isEmpty()
+//                    val date = Date(messageDto.sentTimestamp)
+//                    val time = StringUtils.getTimeText(binding.tvSendingTime.context, date)
+//                    binding.grid4.tvImageSendingTime.text = time
+//                }
+//                5 -> {
+//                    binding.grid5.grid5.isVisible = true
+//                    Glide.with(binding.root).load(messageDto.uries[0])
+//                        .into(binding.grid5.ivImage0)
+//                    Glide.with(binding.root).load(messageDto.uries[1])
+//                        .into(binding.grid5.ivImage1)
+//                    Glide.with(binding.root).load(messageDto.uries[2])
+//                        .into(binding.grid5.ivImage2)
+//                    Glide.with(binding.root).load(messageDto.uries[3])
+//                        .into(binding.grid5.ivImage3)
+//                    Glide.with(binding.root).load(messageDto.uries[4])
+//                        .into(binding.grid5.ivImage4)
+//
+//                    binding.grid5.imageMessageInfo.isVisible = messageDto.messageBody!!.isEmpty()
+//                    val date = Date(messageDto.sentTimestamp)
+//                    val time = StringUtils.getTimeText(binding.tvSendingTime.context, date)
+//                    binding.grid5.tvImageSendingTime.text = time
+//                }
+//                else -> {
+//                    binding.grid6.grid6.isVisible = true
+//                    Glide.with(binding.root).load(messageDto.uries[0])
+//                        .into(binding.grid6.ivImage0)
+//                    Glide.with(binding.root).load(messageDto.uries[1])
+//                        .into(binding.grid6.ivImage1)
+//                    Glide.with(binding.root).load(messageDto.uries[2])
+//                        .into(binding.grid6.ivImage2)
+//                    Glide.with(binding.root).load(messageDto.uries[3])
+//                        .into(binding.grid6.ivImage3)
+//                    Glide.with(binding.root).load(messageDto.uries[4])
+//                        .into(binding.grid6.ivImage4)
+//                    Glide.with(binding.root).load(messageDto.uries[5])
+//                        .into(binding.grid6.ivImage5)
+//                    val count = messageDto.uries.size - 6
+//                    if (count > 0) {
+//                        binding.grid6.tvCounter.isVisible = true
+//                        binding.grid6.tvCounter.text = "+ $count"
+//                    }
+//
+//                    binding.grid6.imageMessageInfo.isVisible = messageDto.messageBody!!.isEmpty()
+//                    val date = Date(messageDto.sentTimestamp)
+//                    val time = StringUtils.getTimeText(binding.tvSendingTime.context, date)
+//                    binding.grid6.tvImageSendingTime.text = time
+//                }
+//            }
+//
+//
+//            //  setUpFile(messageDto.references, vhExtraData)
+//            //   setupNonExternalGeo(messageDto)
+//        } else {
+//            binding.grid1.grid1.isVisible = false
+//            binding.grid2.grid2.isVisible = false
+//            binding.grid3.grid3.isVisible = false
+//            binding.grid4.grid4.isVisible = false
+//            binding.grid5.grid5.isVisible = false
+//            binding.grid6.grid6.isVisible = false
+//
+//
+//        }
     }
 
     private fun setUpImage(messageDto: MessageDto) {

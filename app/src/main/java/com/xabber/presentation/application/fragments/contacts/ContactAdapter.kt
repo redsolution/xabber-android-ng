@@ -4,9 +4,8 @@ import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
-import com.xabber.models.dto.ContactDto
 import com.xabber.databinding.ItemContactBinding
-import com.xabber.presentation.application.fragments.chat.ChatParams
+import com.xabber.models.dto.ContactDto
 
 class ContactAdapter(
     private val listener: Listener

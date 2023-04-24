@@ -10,7 +10,7 @@ import android.os.Handler;
 import androidx.annotation.NonNull;
 
 import com.xabber.presentation.XabberApplication;
-import com.xabber.presentation.custom.PlayerVisualizerView;
+import com.xabber.utils.custom.PlayerVisualizerView;
 
 import java.io.BufferedInputStream;
 import java.io.File;

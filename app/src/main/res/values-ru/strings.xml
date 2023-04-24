@@ -1,11 +1,6 @@
-<?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <string name="com.google.firebase.crashlytics.mapping_file_id">none</string>
     <string name="app_name">Xabber NG</string>
-
-    <!-- General -->
-    <string name="dialog_button_cancel">Отмена</string>
-    <string name="dialog_button_delete">Удалить</string>
+    <string name="com.google.firebase.crashlytics.mapping_file_id">none</string>
 
     <!-- Permissions -->
     <string name="dialog_title_permission_denied">Доступ запрещён</string>
@@ -78,6 +73,7 @@
     <string name="avatar_bottom_sheet_choose_image_label">Выбрать изображение</string>
 
     <!-- EmojiAvatarBottomSheet -->
+    <string name="edit_smile_avatar_image_description">Edit smile avatar</string>
     <string name="default_emoji_avatar">👽</string>
     <string name="save_btn_label">Сохранить</string>
     <string name="smileysAndPeople">😀</string>
@@ -89,7 +85,6 @@
     <string name="symbols">❤ </string>
     <string name="flags">🏳</string>
 
-
     <!-- Application -->
 
     <!-- BottomNavigationView -->
@@ -100,6 +95,7 @@
     <string name="menu_item_settings">Настройки</string>
 
     <!-- CHAT LIST -->
+    <string name="xabber_logo_image_description">Xabber</string>
     <string name="application_title">Xabber</string>
     <string name="no_internet_title">Соединение…</string>
     <string name="image_plus_content_description">Добавить чат</string>
@@ -118,8 +114,12 @@
     <string name="pinned_chat_description">чат закреплен</string>
     <string name ="pull_to_show_archive">Тяните для показа архива</string>
     <string name="release_to_show_archive">Отпустите для показа архива</string>
-    <string name="open_archive">Открываем архив</string>
     <string name="drafted">Черновик: </string>
+    <string name="mark_all_messages_as_read">Пометить все сообщения как прочитанные</string>
+    <string name="no_archived_chats">В архиве нет чатов</string>
+    <string name="chat_status_image_description">Chat status 16</string>
+    <string name="chat_image_description">Аватар чата</string>
+
 
     <!-- ChatList Context Menu -->
     <string name="menu_item_pin_chat">Закрепить</string>
@@ -128,8 +128,6 @@
     <string name="menu_item_turn_of_notifications">Выключить уведомления</string>
     <string name="menu_item_customise_notifications">Настроить уведомления</string>
     <string name="menu_item_clear_history">Очистить историю</string>
-    <string name="mark_all_messages_as_read">Пометить все сообщения как прочитанные</string>
-    <string name="no_archived_chats">В архиве нет чатов</string>
 
     <!-- Add Chat/Group -->
     <string name="add_contact">Добавить контакт</string>
@@ -223,41 +221,6 @@
 
     <!-- SETTINGS -->
     <string name="settings_toolbar_title">Настройки</string>
-
-
-    <!-- ACCOUNT -->
-
-    <!-- Colors -->
-    <string name="account_color">Цвет аккаунта</string>
-<!--    <string name="account_color_name_green">Зеленый</string>-->
-<!--    <string name="account_color_name_orange">Оранжевый</string>-->
-<!--    <string name="account_color_name_red">Красный</string>-->
-<!--    <string name="account_color_name_blue">Голубой</string>-->
-<!--    <string name="account_color_name_indigo">Индиго</string>-->
-<!--    <string name="account_color_name_teal">Темно-зеленый</string>-->
-<!--    <string name="account_color_name_blue_grey">Серо-голубой</string>-->
-<!--    <string name="account_color_name_cyan">Бирюзовый</string>-->
-<!--    <string name="account_color_name_deep_purple">Темно-фиолетовый</string>-->
-<!--    <string name="account_color_name_lime">Лайм</string>-->
-<!--    <string name="account_color_name_pink">Розовый</string>-->
-<!--    <string name="account_color_name_purple">Фиолетовый</string>-->
-<!--    <string name="account_color_name_light_blue">Светло-голубой</string>-->
-<!--    <string name="account_color_name_light_green">Светло-зеленый</string>-->
-<!--    <string name="account_color_name_amber">Желтый</string>-->
-<!--    <string name="account_color_name_deep_orange">Темно-оранжевый</string>-->
-<!--    <string name="account_color_name_brown">Коричневый</string>-->
-
-    <!-- CONTACT ACCOUNT -->
-    <string name="given_name">Given name</string>
-    <string name="family_name">Family name</string>
-
-
-
-
-
-
-
-    <string name="im_account_avatar_content_description">Аватар аккаунта</string>
     <string name="accounts">Аккаунты</string>
     <string name="menu_item_title_add_account">Добавить аккаунт</string>
     <string name="menu_item_title_reorder">Изменить порядок</string>
@@ -279,14 +242,38 @@
     <string name="tv_swap_account">Чтобы синхронизировать порядок учетных записей между устройствами, вам необходимо включить опцию Синхронизировать все в настройках учетной записи Xabber.</string>
     <string name="menu_item_approve">Утвердить</string>
     <string name="im_anchor_description">Нажмите и перетащите, чтобы переместить</string>
-    <string name="edit_smile_avatar_image_description">Edit smile avatar</string>
-    <string name="primary_account_color_image_description">Primary account color</string>
-    <string name="archive_button_label">Archive</string>
-    <string name="xabber_logo_image_description">Xabber</string>
+
+
+    <!-- ACCOUNT -->
+    <string name="given_name">Имя</string>
+    <string name="family_name">Фамилия</string>
+    <string name="im_account_avatar_content_description">Аватар аккаунта</string>
+
+<!--    <string name="account_color_name_green">Зеленый</string>-->
+<!--    <string name="account_color_name_orange">Оранжевый</string>-->
+<!--    <string name="account_color_name_red">Красный</string>-->
+<!--    <string name="account_color_name_blue">Голубой</string>-->
+<!--    <string name="account_color_name_indigo">Индиго</string>-->
+<!--    <string name="account_color_name_teal">Темно-зеленый</string>-->
+<!--    <string name="account_color_name_blue_grey">Серо-голубой</string>-->
+<!--    <string name="account_color_name_cyan">Бирюзовый</string>-->
+<!--    <string name="account_color_name_deep_purple">Темно-фиолетовый</string>-->
+<!--    <string name="account_color_name_lime">Лайм</string>-->
+<!--    <string name="account_color_name_pink">Розовый</string>-->
+<!--    <string name="account_color_name_purple">Фиолетовый</string>-->
+<!--    <string name="account_color_name_light_blue">Светло-голубой</string>-->
+<!--    <string name="account_color_name_light_green">Светло-зеленый</string>-->
+<!--    <string name="account_color_name_amber">Желтый</string>-->
+<!--    <string name="account_color_name_deep_orange">Темно-оранжевый</string>-->
+<!--    <string name="account_color_name_brown">Коричневый</string>-->
+
+
+
+
+
+
+
     <string name="avatar_toolbar_im_description">Avatar</string>
-    <string name="chat_status_image_description">Chat status 16</string>
-    <string name="chat_status_14_image_description">Chat_status_14</string>
-    <string name="chat_image_description">Chat avatar</string>
     <string name="muted_chat_image_description">Muted</string>
     <string name="menu_item_share_qr_code">Share QR code</string>
     <string name="menu_item_edit_contact">Edit</string>
@@ -367,10 +354,9 @@
     <string name="status">status</string>
 
 
-
-
-
     <!-- DIALOGS -->
+    <string name="dialog_button_cancel">Отмена</string>
+    <string name="dialog_button_delete">Удалить</string>
 
     <!-- Deleting chat -->
     <string name="dialog_delete_chat_title">Удалить чат</string>
@@ -391,6 +377,21 @@
         <item quantity="other">Вы уверены, что хотите удалить эти сообщения?</item>
     </plurals>
 
+    <!-- Block contact -->
+    <string name="dialog_block_title">Заблокировать контакт</string>
+    <string name="dialog_block_message_part_1">Вы действительно хотите заблокировать</string>
+    <string name="dialog_block_message_part_2">\nВы не сможете обмениваться сообщениями и информацией о присутствии с этим контактом.</string>
+    <string name="dialog_block_positive_button">Заблокировать</string>
+    <string name="contact_name_default">этот контакт</string>
+
+    <!-- Deleting contact -->
+    <string name="dialog_deleting_contact_title">Удалить контакт</string>
+    <string name="dialog_deleting_contact_message_part_1">Вы уверены что хотите удалить </string>
+    <string name="dialog_deleting_contact_message_part_2">\n\nВы сможете обмениваться сообщениями и запросами на подписку.</string>
+
+    <!-- Color picker -->
+    <string name="primary_account_color_image_description">Цвет аккаунта</string>
+    <string name="account_color">Цвет аккаунта</string>
 
     <string name="appearance_settings">Настройки внешнего вида</string>
     <string name="private_chats_groups_channels">Приватные чаты, группы, каналы</string>

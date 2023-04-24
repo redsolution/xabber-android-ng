@@ -25,7 +25,7 @@ import kotlin.properties.Delegates
 class SignupUserNameFragment : Fragment(R.layout.fragment_signup_username) {
     private val binding by viewBinding(FragmentSignupUsernameBinding::bind)
     private val viewModel: OnboardingViewModel by activityViewModels()
-    private var host by Delegates.notNull<String>()
+    private var host = "@xabber.com"
     private val minUserNameLength = 3
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -34,7 +34,6 @@ class SignupUserNameFragment : Fragment(R.layout.fragment_signup_username) {
         toolbarChanger().showArrowBack(true)
         initEditText()
         initButton()
-        host = "@xabber.com"
     }
 
     private fun initEditText() {
@@ -53,14 +52,14 @@ class SignupUserNameFragment : Fragment(R.layout.fragment_signup_username) {
 
                 override fun onTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {}
                 override fun afterTextChanged(p0: Editable?) {
-                    usernameBtnNext.isEnabled = p0.toString().length >= minUserNameLength
-                    if (p0.toString().length < 3) {
+                    usernameBtnNext.isEnabled = p0.toString().trim().length >= minUserNameLength
+                    if (p0.toString().trimEnd().length < 3) {
                         binding.resultSubtitle.isVisible = false
                         binding.usernameSubtitle.isInvisible = false
                     } else {
                         binding.usernameSubtitle.isInvisible = true
                         binding.resultSubtitle.isVisible = true
-                        if (viewModel.checkIsNameAvailable(p0.toString(), host)) {
+                        if (viewModel.checkIsNameAvailable(p0.toString().trim(), host)) {  // Проверяем свободен ли данный jid (пока заглушка)
                             resultSubtitle.text =
                                 resources.getString(R.string.signup_username_success_subtitle)
                             changeSubtitleColor(R.color.blue_600)
@@ -87,7 +86,7 @@ class SignupUserNameFragment : Fragment(R.layout.fragment_signup_username) {
 
     private fun initButton() {
         binding.usernameBtnNext.setOnClickListener {
-            val userName = binding.usernameEditText.text.toString() + host
+            val userName = binding.usernameEditText.text?.trimEnd().toString() + host
             viewModel.setJid(userName)
             navigator().openSignupPasswordFragment()
         }

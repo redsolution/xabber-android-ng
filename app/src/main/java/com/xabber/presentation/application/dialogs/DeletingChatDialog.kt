@@ -1,62 +1,61 @@
 package com.xabber.presentation.application.dialogs
 
+import android.app.AlertDialog
+import android.app.Dialog
 import android.os.Bundle
 import android.text.SpannableStringBuilder
-import android.util.Log
-import android.view.View
-import androidx.core.os.bundleOf
 import androidx.core.text.bold
 import androidx.fragment.app.DialogFragment
-import by.kirich1409.viewbindingdelegate.viewBinding
+import androidx.lifecycle.lifecycleScope
 import com.xabber.R
-import com.xabber.databinding.FragmentDialogStandartBinding
-import com.xabber.presentation.AppConstants.CONTACT_NAME
-import com.xabber.presentation.AppConstants.DELETING_CHAT_BUNDLE_KEY
-import com.xabber.presentation.AppConstants.DELETING_CHAT_KEY
+import com.xabber.data_base.dao.LastChatStorageItemDao
+import com.xabber.data_base.defaultRealmConfig
+import com.xabber.presentation.AppConstants.CHAT_ID
 import com.xabber.presentation.AppConstants.DELETING_CHAT_NAME_KEY
-import com.xabber.utils.setFragmentResult
+import io.realm.kotlin.Realm
+import kotlinx.coroutines.launch
 
-class DeletingChatDialog : DialogFragment(R.layout.fragment_dialog_standart) {
-    private val binding by viewBinding(FragmentDialogStandartBinding::bind)
-    var name: String = "this contact"
+class DeletingChatDialog : DialogFragment() {
+    val realm = Realm.open(defaultRealmConfig())
+    private val lastChatDao = LastChatStorageItemDao(realm)
 
     companion object {
-        fun newInstance(_name: String) = DeletingChatDialog().apply {
+        fun newInstance(name: String, id: String) = DeletingChatDialog().apply {
             arguments = Bundle().apply {
-                putString(DELETING_CHAT_NAME_KEY, _name)
-                name = _name
+                putString(DELETING_CHAT_NAME_KEY, name)
+                putString(CHAT_ID, id)
             }
         }
     }
 
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
-        if (savedInstanceState != null) { name =
-            savedInstanceState.getString(CONTACT_NAME, "this contact") }
-        binding.tvDialogTitle.text = resources.getString(R.string.dialog_delete_chat_title)
+    override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
+        val name = arguments?.getString(DELETING_CHAT_NAME_KEY)
+            ?: resources.getString(R.string.contact_name_default)
         val dialogMessage =
             SpannableStringBuilder().append(resources.getString(R.string.dialog_delete_chat_description))
                 .bold { append(" $name") }.append("?")
                 .append(resources.getString(R.string.chat_dialog_sub_message))
-        binding.tvDialogDescription.text = dialogMessage
-        binding.buttonDialogNegative.text =
-            resources.getString(R.string.dialog_button_cancel)
-        binding.buttonDialogPositive.text =
-            resources.getString(R.string.dialog_button_delete)
-        binding.buttonDialogNegative.setOnClickListener {
-            setFragmentResult(DELETING_CHAT_KEY, bundleOf(DELETING_CHAT_BUNDLE_KEY to false))
-            dismiss()
-        }
-        binding.buttonDialogPositive.setOnClickListener {
-            setFragmentResult(DELETING_CHAT_KEY, bundleOf(DELETING_CHAT_BUNDLE_KEY to true))
-            Log.d("iii", "Positive")
-            dismiss()
-        }
+        val dialog = AlertDialog.Builder(context, R.style.MyAlertDialogStyle)
+            .setTitle(R.string.dialog_delete_chat_title)
+            .setMessage(dialogMessage)
+            .setPositiveButton(resources.getString(R.string.dialog_button_delete)) { _, _ ->
+                deleteChat()
+                dismiss()
+            }.setNegativeButton(resources.getString(R.string.dialog_chat_negative_button), null)
+        return dialog.create()
     }
 
-    override fun onSaveInstanceState(outState: Bundle) {
-        super.onSaveInstanceState(outState)
-        outState.putString(CONTACT_NAME, name)
+    private fun deleteChat() {
+        val id = arguments?.getString(CHAT_ID)
+        if (id != null)
+            lifecycleScope.launch {
+                lastChatDao.deleteItem(id)
+            }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        realm.close()
     }
 
 }

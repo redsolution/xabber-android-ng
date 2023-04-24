@@ -1,17 +1,13 @@
 package com.xabber.presentation.application.fragments.test
 
-import android.graphics.Bitmap
-import android.graphics.drawable.Drawable
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
 import com.bumptech.glide.Glide
-import com.bumptech.glide.request.target.CustomTarget
-import com.bumptech.glide.request.transition.Transition
 import com.xabber.R
-import com.xabber.presentation.application.fragments.chat.FileManager
+import com.xabber.models.dto.MessageReferenceDto
 
 class ImageGridBuilder {
     fun inflateView(parent: ViewGroup, imageCount: Int): View {
@@ -21,12 +17,12 @@ class ImageGridBuilder {
 
     fun bindView(
         view: View,
-        attachments: ArrayList<String?>,
+        attachments: ArrayList<MessageReferenceDto>,
         clickListener: View.OnClickListener?
     ) {
         if (attachments.size == 1) {
             val imageView = getImageView(view, 0)
-            bindOneImage(attachments[0]!!, view, imageView)
+            bindOneImage(attachments[0], view, imageView)
             imageView.setOnClickListener(clickListener)
         } else {
             val tvCounter = view.findViewById<TextView>(R.id.tvCounter)
@@ -34,7 +30,7 @@ class ImageGridBuilder {
             loop@ for (attachment in attachments) {
                 if (index > 5) break@loop
                 val imageView = getImageView(view, index)
-                bindImage(attachment!!, view, imageView)
+                bindImage(attachment, view, imageView)
                 imageView.setOnClickListener(clickListener)
                 index++
             }
@@ -47,18 +43,20 @@ class ImageGridBuilder {
         }
     }
 
-    private fun bindImage(attachment: String, parent: View, imageView: ImageView) {
+    private fun bindImage(attachment: MessageReferenceDto, parent: View, imageView: ImageView) {
         Glide.with(parent.context)
-            .load(attachment)
+            .load(attachment.uri)
             .centerCrop()
             .placeholder(R.drawable.ic_recent_image_placeholder)
             .error(R.drawable.ic_recent_image_placeholder)
             .into(imageView)
     }
 
-    private fun bindOneImage(attachment: String, parent: View, imageView: ImageView) {
+    private fun bindOneImage(attachment: MessageReferenceDto, parent: View, imageView: ImageView) {
         Glide.with(parent.context)
-            .load(attachment)
+            .load(attachment.uri).centerCrop()
+            .placeholder(R.drawable.ic_recent_image_placeholder)
+            .error(R.drawable.ic_recent_image_placeholder)
             .into(imageView)
     }
 

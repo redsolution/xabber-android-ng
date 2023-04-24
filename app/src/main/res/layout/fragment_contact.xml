@@ -25,7 +25,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content">
 
-                <com.xabber.presentation.custom.ShapeOfView
+                <com.xabber.utils.custom.ShapeOfView
                     android:id="@+id/shape_view"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -40,7 +40,7 @@
                         android:layout_width="32dp"
                         android:layout_height="32dp"
                         android:contentDescription="@string/avatar_account_content_description" />
-                </com.xabber.presentation.custom.ShapeOfView>
+                </com.xabber.utils.custom.ShapeOfView>
 
                 <ImageView
                     android:id="@+id/avatar_status"

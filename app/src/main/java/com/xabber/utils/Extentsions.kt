@@ -29,7 +29,21 @@ import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.xabber.R
+import com.xabber.models.dto.AccountDto
+import com.xabber.models.dto.AvatarDto
+import com.xabber.models.dto.ChatListDto
+import com.xabber.models.dto.MessageReferenceDto
+import com.xabber.models.xmpp.account.AccountStorageItem
+import com.xabber.models.xmpp.avatar.AvatarStorageItem
+import com.xabber.models.xmpp.last_chats.LastChatsStorageItem
+import com.xabber.models.xmpp.messages.MessageReferenceStorageItem
+import com.xabber.models.xmpp.messages.MessageSendingState
+import com.xabber.models.xmpp.presences.ResourceStatus
+import com.xabber.models.xmpp.presences.RosterItemEntity
 import com.xabber.presentation.onboarding.fragments.signup.emoji.EmojiTypeDto
+import io.realm.kotlin.Realm
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 
 fun Fragment.showToast(message: String) {
@@ -89,6 +103,14 @@ fun List<EmojiTypeDto>.toMap(): Map<String, List<List<String>>> {
         it.name to it.list
     }
     return map
+}
+
+fun AppCompatActivity.showToast(message: String) {
+    Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+}
+
+fun AppCompatActivity.showToast(message: Int) {
+    Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
 }
 
 fun AppCompatActivity.lockScreenRotation(isLock: Boolean) {
@@ -176,7 +198,7 @@ fun spToPxFloat(sp: Float, context: Context): Float {
 
 fun RecyclerView.partSmoothScrollToPosition(targetItem: Int) {
     layoutManager?.apply {
-        val maxScroll = 15
+        val maxScroll = 6
         when (this) {
             is LinearLayoutManager -> {
                 val topItem = findFirstVisibleItemPosition()
@@ -200,3 +222,64 @@ inline fun <reified T : Parcelable> Bundle.parcelable(key: String): T? = when {
     SDK_INT >= 33 -> getParcelable(key, T::class.java)
     else -> @Suppress("DEPRECATION") getParcelable(key) as? T
 }
+
+  // Mapping
+fun LastChatsStorageItem.toChatListDto(): ChatListDto =
+    ChatListDto(
+        id = primary,
+        owner = owner,
+        opponentJid = jid,
+        opponentNickname = "",
+        customNickname = if (rosterItem != null) rosterItem!!.customNickname else "",
+        lastMessageBody = if (lastMessage == null) "" else lastMessage!!.body,
+        lastMessageDate = if (lastMessage == null || draftMessage != null) messageDate else lastMessage!!.date,
+        lastMessageState = if (lastMessage?.state_ == 5 || lastMessage == null) MessageSendingState.None else MessageSendingState.Read,
+        isArchived = isArchived,
+        isSynced = isSynced,
+        draftMessage = draftMessage,
+        hasAttachment = false,
+        isSystemMessage = false,
+        isMentioned = false,
+        muteExpired = muteExpired,
+        pinnedDate = pinnedPosition,
+        status = ResourceStatus.Online,
+        entity = RosterItemEntity.Contact,
+        unread = if (unread <= 0) "" else unread.toString(),
+        lastPosition = lastPosition,
+        drawableId = avatar,
+        isHide = false,
+        lastMessageIsOutgoing = if (lastMessage != null) lastMessage!!.outgoing else false,
+    )
+
+fun AccountStorageItem.toAccountDto() =
+    AccountDto(
+        id = primary,
+        jid = jid,
+        order = order,
+        nickname = username,
+        enabled = enabled,
+        statusMessage = statusMessage,
+        colorKey = colorKey,
+        hasAvatar = hasAvatar
+    )
+
+fun AvatarStorageItem.toAvatarDto() =
+    AvatarDto(
+        id = primary,
+        owner = owner,
+        jid = jid,
+        uploadUrl = uploadUrl,
+        fileUri = fileUri,
+        image96 = image96,
+        image128 = image128,
+        image192 = image192,
+        image384 = image384,
+        image512 = image512
+    )
+
+fun MessageReferenceStorageItem.toMessageReferenceDto() =
+    MessageReferenceDto(
+        id = primary,
+        uri = uri,
+        mimeType = mimeType
+    )

@@ -33,7 +33,6 @@ class NewContactFragment : DetailBaseFragment(R.layout.fragment_new_contact) {
         binding.toolbar.setNavigationIcon(R.drawable.ic_arrow_left_white)
         binding.toolbar.setNavigationOnClickListener {
             navigator().goBack()
-            Log.d("ooo", "ppppp")
         }
 
         binding.btnAddContact.setOnClickListener {

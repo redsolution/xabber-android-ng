@@ -7,7 +7,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.xabber.databinding.DialogColorPickerItemBinding
 import com.xabber.presentation.application.fragments.chatlist.ChatListAdapter
 
-class AccountColorPickerAdapter( private val listener: AccountColorPickerAdapter.Listener,
+class AccountColorPickerAdapter( private val listener: Listener,
     private val nameList: Array<String>,
     private val colors: TypedArray,
     private val checked: Int,
@@ -31,7 +31,6 @@ class AccountColorPickerAdapter( private val listener: AccountColorPickerAdapter
         val color: Int = colors.getResourceId(position, 0)
         holder.initColorItem(colorName, color, listener)
         holder.getColorRadioButton().isChecked = position == checked
-
     }
 
     override fun getItemCount(): Int = nameList.size

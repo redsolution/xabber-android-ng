@@ -7,13 +7,12 @@ import by.kirich1409.viewbindingdelegate.viewBinding
 import com.xabber.R
 import com.xabber.databinding.FragmentEditContactBinding
 import com.xabber.presentation.AppConstants
-import com.xabber.presentation.application.activity.ColorManager
+import com.xabber.presentation.application.manage.ColorManager
 import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.application.dialogs.DeletingContactDialog
 import com.xabber.presentation.application.fragments.DetailBaseFragment
-import com.xabber.presentation.application.fragments.contacts.vcard.ContactAccountParams
-import com.xabber.presentation.application.fragments.contacts.vcard.ContactAccountViewModel
-import com.xabber.utils.mask.MaskPrepare
+import com.xabber.presentation.application.fragments.contacts.ContactAccountParams
+import com.xabber.presentation.application.fragments.contacts.ContactAccountViewModel
 import com.xabber.utils.parcelable
 import com.xabber.utils.setFragmentResultListener
 import com.xabber.utils.showToast
@@ -45,7 +44,7 @@ class EditContactFragment : DetailBaseFragment(R.layout.fragment_edit_contact) {
         initActions()
 
         binding.linDeleteContact.setOnClickListener {
-            val dialog = DeletingContactDialog.newInstance(viewModel.getContact(getParams().id).customNickName!!)
+            val dialog = DeletingContactDialog.newInstance(viewModel.getContact(getParams().id).customNickName!!, getParams().id)
             navigator().showDialogFragment(dialog, "")
             setFragmentResultListener(AppConstants.DELETING_CONTACT_DIALOG_KEY) { _, bundle ->
                 val result = bundle.getBoolean(AppConstants.DELETING_CONTACT_BUNDLE_KEY)

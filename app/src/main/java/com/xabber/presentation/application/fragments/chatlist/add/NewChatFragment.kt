@@ -36,7 +36,7 @@ class NewChatFragment : DetailBaseFragment(R.layout.fragment_new_chat) {
         with(binding) {
             rlAddContact.setOnClickListener {
                 showToast("This feature is not implemented")
-                //navigator().showNewContact()
+               navigator().showNewContact()
                 }
             rlCreateGroup.setOnClickListener {
                 showToast("This feature is not implemented")

@@ -14,6 +14,7 @@ class RosterStorageItem: RealmObject {
     var nickname: String = "" // как он себя записал
     var customNickname: String = "" // как мы его себе записали
     var isDeleted: Boolean = false
+    var isBlocked: Boolean = false
     var subscribtion_: String = RosterSubscribtion.Undefined.rawValue
     var ask_: String = RosterAsk.None.rawValue
     var askMessage: String = ""
@@ -24,7 +25,7 @@ class RosterStorageItem: RealmObject {
     var isSupportOmemo: Boolean = false
     var colorKey: String = "blue"
     var avatarR: Int = R.drawable.dog
-  //  var avatar: AvatarStorageItem? = null
+
 
 ////    @Ignore
 //    val ask: RosterAsk

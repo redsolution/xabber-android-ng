@@ -108,7 +108,7 @@
             layout="@layout/non_external_location_item"
                           android:layout_width="400dp"
                           android:layout_height="wrap_content"/>
-                <com.xabber.presentation.custom.CustomFlexboxLayout
+                <com.xabber.utils.custom.CustomFlexboxLayout
                     android:id="@+id/flex_box_layout"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -155,7 +155,7 @@
                             android:src="@drawable/ic_check_green" />
                     </LinearLayout>
 
-                </com.xabber.presentation.custom.CustomFlexboxLayout>
+                </com.xabber.utils.custom.CustomFlexboxLayout>
 
                 <LinearLayout
                     android:id="@+id/info"

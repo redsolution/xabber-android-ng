@@ -1,40 +1,37 @@
 package com.xabber.presentation.application.fragments.chatlist
 
 import android.annotation.SuppressLint
+import android.content.Intent
 import android.content.SharedPreferences
 import android.graphics.Color
+import android.net.Uri
 import android.os.Bundle
 import android.view.*
 import androidx.core.view.isVisible
 import androidx.fragment.app.activityViewModels
-import androidx.recyclerview.widget.ItemTouchHelper
-import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.*
 import by.kirich1409.viewbindingdelegate.viewBinding
 import com.google.android.material.snackbar.Snackbar
 import com.xabber.R
 import com.xabber.databinding.FragmentChatListBinding
 import com.xabber.models.dto.ChatListDto
+import com.xabber.presentation.AppConstants
 import com.xabber.presentation.AppConstants.CHAT_LIST_UNREAD_KEY
-import com.xabber.presentation.AppConstants.CLEAR_HISTORY_BUNDLE_KEY
 import com.xabber.presentation.AppConstants.CLEAR_HISTORY_DIALOG_TAG
-import com.xabber.presentation.AppConstants.CLEAR_HISTORY_KEY
-import com.xabber.presentation.AppConstants.DELETING_CHAT_BUNDLE_KEY
 import com.xabber.presentation.AppConstants.DELETING_CHAT_DIALOG_TAG
-import com.xabber.presentation.AppConstants.DELETING_CHAT_KEY
-import com.xabber.presentation.AppConstants.TURN_OFF_NOTIFICATIONS_BUNDLE_KEY
-import com.xabber.presentation.AppConstants.TURN_OFF_NOTIFICATIONS_KEY
-import com.xabber.presentation.application.AccountManager
-import com.xabber.presentation.application.activity.ColorManager
+import com.xabber.presentation.AppConstants.NOTIFICATION_BOTTOM_SHEET_TAG
 import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.application.dialogs.ChatHistoryClearDialog
 import com.xabber.presentation.application.dialogs.DeletingChatDialog
 import com.xabber.presentation.application.dialogs.NotificationBottomSheet
 import com.xabber.presentation.application.fragments.BaseFragment
 import com.xabber.presentation.application.fragments.chat.ChatParams
-import com.xabber.presentation.custom.DividerItemDecoration
-import com.xabber.presentation.custom.PullRefreshLayout
+import com.xabber.presentation.application.manage.ColorManager
+import com.xabber.presentation.application.manage.DisplayManager
+import com.xabber.utils.custom.DividerItemDecoration
+import com.xabber.utils.custom.PullRefreshLayout
+import com.xabber.utils.custom.SwipeToArchiveCallback
 import com.xabber.utils.partSmoothScrollToPosition
-import com.xabber.utils.setFragmentResultListener
 
 /**
  * This fragment displays the chat list of enabled accounts and allows you to perform actions with chats.
@@ -46,13 +43,14 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
     private var layoutManager: LinearLayoutManager? = null
     private var showUnreadOnly = false
     private val enableNotificationsCode = 0L
-    private var toPin = false
+    private var isPin = false
+    private var isUnpin = false
+    private var unpinnedChatPosition = -1
     private var snackbar: Snackbar? = null
-    private var currentId = ""
     private var isOverTriggerCrossed = false
-
-    companion object {
-        const val CURRENT_ID_KEY = "current id key"
+    private var selectedChatId = ""
+    private var itemAnimator = DefaultItemAnimator().apply {
+        this.removeDuration = 0
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -64,19 +62,11 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
         }
     }
 
-    @SuppressLint("NotifyDataSetChanged")
-    override fun onResume() {
-        super.onResume()
-        chatListAdapter?.notifyDataSetChanged()
-    }
-
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         if (savedInstanceState == null) {
             chatListViewModel.initDataListener()
             chatListViewModel.initAccountDataListener()
-        } else {
-            currentId = savedInstanceState.getString(CURRENT_ID_KEY, "")
         }
         setTitle()
         initToolbarActions()
@@ -84,7 +74,6 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
         subscribeToViewModelData()
         initEmptyButton()
         initMarkAllMessagesUnreadButton()
-        setDialogListeners()
         initPullRefreshLayout()
         if (baseViewModel.getPrimaryAccount() == null)
             binding.refreshLayout.isRefreshEnable = false
@@ -99,35 +88,45 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
         binding.chatToolbar.setOnMenuItemClickListener {
             when (it.itemId) {
                 R.id.add -> {
-                    if (chatListViewModel.chatIsEmpty()) chatListViewModel.addSomeChats()
-                    else navigator().showNewChat()
+                //    if (chatListViewModel.chatIsEmpty()) chatListViewModel.addSomeChats()
+            //        else navigator().showNewChat()
+                    context?.startActivity(
+                        Intent().apply {
+                            action = Intent.ACTION_VIEW
+                            data = Uri.parse("geo:${456.89},${453.78}?q=${456.89},${453.78}")
+                        }
+                    )
                 }
                 else -> {}
             }; true
         }
 
-        binding.chatToolbar.setOnClickListener { scrollUp() }
-    }
-
-    private fun scrollUp() {
-        binding.chatList.partSmoothScrollToPosition(0)
+        binding.chatToolbar.setOnClickListener {
+            binding.chatList.partSmoothScrollToPosition(0) // Перемещение вверх с эффектом видимого скроллирования
+        }
     }
 
     private fun initRecyclerView() {
         chatListAdapter = ChatListAdapter(this)
         binding.chatList.adapter = chatListAdapter
         layoutManager = binding.chatList.layoutManager as LinearLayoutManager
-        addItemDecoration()
+        setRemoveDurationAnimation()    // длительность анимации удаления уменьшаем до 0, чтобы быстрее происходило перемещение элементов при свайпе
+        addItemDecoration()            // добавляем разделители для элементов
         addSwipeOption()
         addScrollListener()
     }
 
+    private fun setRemoveDurationAnimation() {
+        binding.chatList.itemAnimator = itemAnimator
+    }
+
     private fun addItemDecoration() {
+        val dividerItemDecoration = DividerItemDecoration(
+            binding.root.context,
+            LinearLayoutManager.VERTICAL
+        )
         binding.chatList.addItemDecoration(
-            DividerItemDecoration(
-                binding.root.context,
-                LinearLayoutManager.VERTICAL
-            ).apply {
+            dividerItemDecoration.apply {
                 setChatListOffsetMode(ChatListBaseFragment.ChatListAvatarState.SHOW_AVATARS)
                 skipDividerOnLastItem(true)
             })
@@ -141,7 +140,7 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
         }
     }
 
-    private fun addScrollListener() {
+    private fun addScrollListener() {   // Если находимся вверху списка делаем scrollbar невидимым
         if (layoutManager != null) {
             binding.chatList.setOnScrollChangeListener { _, _, _, _, _ ->
                 if (layoutManager!!.findFirstVisibleItemPosition() <= 2) {
@@ -168,6 +167,7 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
         binding.emptyButton.setOnClickListener { navigator().showContacts() }
     }
 
+    @SuppressLint("NotifyDataSetChanged")
     private fun subscribeToViewModelData() {
         chatListViewModel.showUnreadOnly.observe(viewLifecycleOwner) {
             showUnreadOnly = it
@@ -177,19 +177,42 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
         }
 
         chatListViewModel.chats.observe(viewLifecycleOwner) {
-            chatListAdapter?.submitList(it) {
+            val positionBeforeUpdate = layoutManager?.findFirstVisibleItemPosition()
+            chatListAdapter?.isManyOwners = chatListViewModel.getAccountsAmount() > 1
+            val list = ArrayList<ChatListDto>()
+            list.addAll(it)
+            chatListAdapter?.submitList(list) {
                 binding.btnMarkAllMessagesUnread.isVisible = showUnreadOnly && !it.isNullOrEmpty()
                 showEmptyListMode(it.isEmpty() || it == null)
-                if (toPin) {
-                    scrollUp()
-                    toPin = false
+                if (isPin) {                                           // Если это перемещение элемента вверх при видимом элементе 0 произойдет стандартная анимация, иначе выключаем анимацию
+                    if (layoutManager != null) {
+                        if (layoutManager!!.findFirstVisibleItemPosition() > 0)
+                            binding.chatList.itemAnimator = null
+                        else binding.chatList.itemAnimator = itemAnimator
+                        binding.chatList.partSmoothScrollToPosition(0)
+                        isPin = false
+                    }
+                } else if (isUnpin && unpinnedChatPosition == layoutManager?.findFirstVisibleItemPosition()) {
+                    if (positionBeforeUpdate != null)             // Меняем стандартное поведение recyclerView (при перемещении первого видимого элемента происходит скроллирование списка до его новой позиции)
+                        layoutManager?.scrollToPositionWithOffset(  // на нужное нам: остаемся на позиции beforeUpdate
+                            positionBeforeUpdate,
+                            0
+                        )
+                    isUnpin = false
                 }
             }
+            binding.chatList.itemAnimator = itemAnimator   // включаем анимацию
         }
 
         baseViewModel.colorKey.observe(viewLifecycleOwner) {
-            initPullRefreshLayout()
+            if (it == null || it == "offline") binding.refreshLayout.isRefreshEnable = false else {
+                binding.refreshLayout.isRefreshEnable = true
+                initPullRefreshLayout()
+            }
+            chatListAdapter?.isManyOwners = chatListViewModel.getAccountsAmount() > 1
+            chatListViewModel.getChatList() // при изменении цвета меняем цвета pullRefreshLayout и цветного индикатора у чатов
         }
+
     }
 
     private fun initMarkAllMessagesUnreadButton() {
@@ -200,41 +223,35 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
     }
 
     override fun onClickItem(chatListDto: ChatListDto) {
-        navigator().showChat(
-            ChatParams(
-                chatListDto.id,
-                chatListDto.owner,
-                chatListDto.opponentJid,
-                chatListDto.drawableId
+        if (DisplayManager.isDualScreenMode()) {
+            if (selectedChatId != chatListDto.id) {   // В режиме двух экранов перед тем как открыть чат делаем проверку на то что он уже открыт, чтобы не открывать заново
+                selectedChatId = chatListDto.id
+                navigator().showChat(
+                    ChatParams(
+                        chatListDto.id,
+                        chatListDto.drawableId  // пока не работает сервер, передаем id аватарки из ресурсов
+                    )
+                )
+            }
+        } else {
+            navigator().showChat(
+                ChatParams(
+                    chatListDto.id,
+                    chatListDto.drawableId
+                )
             )
-        )
-    }
-
-    private fun setDialogListeners() {
-        setFragmentResultListener(TURN_OFF_NOTIFICATIONS_KEY) { _, bundle ->
-            val mute =
-                bundle.getLong(TURN_OFF_NOTIFICATIONS_BUNDLE_KEY) + System.currentTimeMillis()
-            chatListViewModel.setMute(currentId, mute)
-        }
-
-        setFragmentResultListener(DELETING_CHAT_KEY) { _, bundle ->
-            val result = bundle.getBoolean(DELETING_CHAT_BUNDLE_KEY)
-            if (result) chatListViewModel.deleteChat(currentId)
-        }
-
-        setFragmentResultListener(CLEAR_HISTORY_KEY) { _, bundle ->
-            val result = bundle.getBoolean(CLEAR_HISTORY_BUNDLE_KEY)
-            if (result) chatListViewModel.clearHistoryChat(currentId)
         }
     }
 
     override fun pinChat(id: String) {
         chatListViewModel.pinChat(id)
-        toPin = true
+        isPin = true
     }
 
-    override fun unPinChat(id: String) {
+    override fun unPinChat(id: String, position: Int) {
         chatListViewModel.unPinChat(id)
+        isUnpin = true
+        unpinnedChatPosition = position
     }
 
     override fun swipeItem(id: String) {
@@ -243,22 +260,19 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
     }
 
     override fun deleteChat(name: String, id: String) {
-        currentId = id
-        val dialog = DeletingChatDialog.newInstance(name)
-        navigator().showDialogFragment(dialog, DELETING_CHAT_DIALOG_TAG)
+        val dialog = DeletingChatDialog.newInstance(name, id)
+        dialog.show(childFragmentManager, DELETING_CHAT_DIALOG_TAG)
     }
 
     override fun clearHistory(chatListDto: ChatListDto) {
-        currentId = chatListDto.id
         val name = chatListDto.getChatName()
-        val dialog = ChatHistoryClearDialog.newInstance(name)
-        navigator().showDialogFragment(dialog, CLEAR_HISTORY_DIALOG_TAG)
+        val dialog = ChatHistoryClearDialog.newInstance(name, chatListDto.id)
+        dialog.show(childFragmentManager, CLEAR_HISTORY_DIALOG_TAG)
     }
 
     override fun turnOfNotifications(id: String) {
-        currentId = id
-        val dialog = NotificationBottomSheet()
-        navigator().showBottomSheetDialog(dialog)
+        NotificationBottomSheet.newInstance(id)
+            .show(childFragmentManager, NOTIFICATION_BOTTOM_SHEET_TAG)
     }
 
     override fun enableNotifications(id: String) {
@@ -274,7 +288,7 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
         snackbar = Snackbar.make(
             binding.root,
             R.string.snackbar_title_to_archive,
-            Snackbar.LENGTH_LONG
+            Snackbar.LENGTH_SHORT
         )
 
         snackbar?.anchorView = binding.anchor
@@ -288,7 +302,7 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
     }
 
     private fun initPullRefreshLayout() {
-        val colorKey = currentColorKey
+        val colorKey = chatListViewModel.getPrimaryAccountColorKey()
         val superLightColor = ColorManager.convertColorSuperLightNameToId(colorKey)
         val lightColor = ColorManager.convertColorLightNameToId(colorKey)
         val standardColor = ColorManager.convertColorMediumNameToId(colorKey)
@@ -319,7 +333,7 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
                             false
                         )
                     }
-                    PullRefreshLayout.OVER_TRIGGER_POINT -> {
+                    PullRefreshLayout.OVER_TRIGGER_POINT -> {   // точка, доходя до которой при отпускании произойдет переход в архив
                         if (!isOverTriggerCrossed) {
                             shortVibrate()
                         }
@@ -348,11 +362,16 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
-        outState.putString(CURRENT_ID_KEY, currentId)
         outState.putBoolean(
             CHAT_LIST_UNREAD_KEY,
             showUnreadOnly
         )
+    }
+
+    @SuppressLint("NotifyDataSetChanged")
+    override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences?, key: String?) {
+        super.onSharedPreferenceChanged(sharedPreferences, key)
+        chatListAdapter?.notifyDataSetChanged()  // При изменении Маски перерисовываем список
     }
 
     override fun onStop() {
@@ -364,17 +383,6 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
         super.onDestroy()
         layoutManager = null
         chatListAdapter = null
-    }
-
-
-    enum class ChatListAvatarState {
-        NOT_SPECIFIED, SHOW_AVATARS, DO_NOT_SHOW_AVATARS
-    }
-
-    @SuppressLint("NotifyDataSetChanged")
-    override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences?, key: String?) {
-        super.onSharedPreferenceChanged(sharedPreferences, key)
-        chatListAdapter?.notifyDataSetChanged()
     }
 
 }

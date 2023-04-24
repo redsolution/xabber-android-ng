@@ -1,20 +1,16 @@
 package com.xabber.presentation.application.fragments.account
 
 import android.os.Bundle
-import android.util.Log
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
-import com.bumptech.glide.load.MultiTransformation
-import com.bumptech.glide.load.resource.bitmap.CircleCrop
-import com.bumptech.glide.request.RequestOptions
-import com.xabber.R
 import com.xabber.data_base.defaultRealmConfig
 import com.xabber.databinding.ItemAccountForPreferenceBinding
 import com.xabber.models.dto.AccountDto
 import com.xabber.models.xmpp.avatar.AvatarStorageItem
-import com.xabber.presentation.application.activity.ColorManager
-import com.xabber.presentation.application.activity.MaskManager
+import com.xabber.presentation.AppConstants
+import com.xabber.presentation.application.manage.ColorManager
+import com.xabber.utils.MaskManager
 import io.realm.kotlin.Realm
 
 class AccountViewHolder(
@@ -32,9 +28,10 @@ class AccountViewHolder(
             account.colorKey
         ) else loadAvatar(account.jid)
         binding.root.setOnClickListener { listener.onClick(account.id) }
+        binding.switchAccountEnable.setOnCheckedChangeListener(null)
         binding.switchAccountEnable.isChecked = account.enabled
         binding.switchAccountEnable.setOnCheckedChangeListener { _, isChecked ->
-            listener.setEnabled(account.id, isChecked)
+            listener.setEnabled(account.jid, isChecked)
         }
     }
 
@@ -67,22 +64,27 @@ class AccountViewHolder(
         val bundle = payloads.last() as Bundle
         for (key in bundle.keySet()) {
             when (key) {
-                "enabled" -> {
-                    Log.d("iii", "en")
-                    val enable = bundle.getBoolean("enabled")
+                AppConstants.PAYLOAD_ACCOUNT_ENABLED -> {
+                    val enable = bundle.getBoolean(AppConstants.PAYLOAD_ACCOUNT_ENABLED)
                     binding.switchAccountEnable.setOnCheckedChangeListener(null)
                     binding.switchAccountEnable.isChecked = enable
-                    binding.switchAccountEnable.setOnCheckedChangeListener { buttonView, isChecked ->
+                    binding.switchAccountEnable.setOnCheckedChangeListener { _, isChecked ->
                         listener.setEnabled(account.id, isChecked)
                     }
-
                 }
-                "avatar" -> {
-
+                AppConstants.PAYLOAD_ACCOUNT_COLOR -> {
+                    if (!account.hasAvatar) {
+                        val colorKey = bundle.getString(AppConstants.PAYLOAD_ACCOUNT_COLOR)
+                        if (colorKey != null) loadAvatarWithInitials(account.nickname, colorKey)
+                    }
+                }
+                AppConstants.PAYLOAD_ACCOUNT_HAS_AVATAR -> {
+                    val hasAvatar = bundle.getBoolean(AppConstants.PAYLOAD_ACCOUNT_HAS_AVATAR)
+                        if (!hasAvatar) loadAvatarWithInitials(account.nickname, account.colorKey)
+                        else loadAvatar(account.id)
                 }
             }
         }
     }
-
 
 }

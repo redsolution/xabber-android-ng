@@ -22,7 +22,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content">
 
-                <com.xabber.presentation.custom.ShapeOfView
+                <com.xabber.utils.custom.ShapeOfView
                     android:id="@+id/shape_view"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -37,7 +37,7 @@
                         android:layout_width="@dimen/mask32"
                         android:layout_height="@dimen/mask32"
                         android:contentDescription="@string/avatar_toolbar_im_description" />
-                </com.xabber.presentation.custom.ShapeOfView>
+                </com.xabber.utils.custom.ShapeOfView>
 
                 <TextView
                     android:id="@+id/tv_initials"

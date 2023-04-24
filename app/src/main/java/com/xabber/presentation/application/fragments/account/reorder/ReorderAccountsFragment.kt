@@ -1,47 +1,51 @@
 package com.xabber.presentation.application.fragments.account.reorder
 
+import android.os.Build
 import android.os.Bundle
-import android.util.Log
 import android.view.View
-import androidx.activity.OnBackPressedCallback
 import androidx.fragment.app.viewModels
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import by.kirich1409.viewbindingdelegate.viewBinding
 import com.xabber.R
-import com.xabber.data_base.defaultRealmConfig
-import com.xabber.models.xmpp.account.Account
 import com.xabber.databinding.FragmentReorderAccountBinding
 import com.xabber.models.dto.AccountDto
-import com.xabber.models.xmpp.account.AccountStorageItem
-import com.xabber.models.xmpp.account.AccountViewModel
-import com.xabber.presentation.application.fragments.BaseFragment
-import com.xabber.presentation.application.activity.DisplayManager
-import com.xabber.presentation.application.activity.MaskManager
+import com.xabber.presentation.AppConstants
 import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.application.fragments.DetailBaseFragment
-import io.realm.kotlin.Realm
 
 class ReorderAccountsFragment : DetailBaseFragment(R.layout.fragment_reorder_account) {
     private val binding by viewBinding(FragmentReorderAccountBinding::bind)
     private var reorderAccountAdapter: ReorderAccountAdapter? = null
     private var touchHelper: ItemTouchHelper? = null
-
+    private val viewModel: ReorderAccountsViewModel by viewModels()
+    private var accounts = ArrayList<AccountDto>()
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        accounts =
+            if (savedInstanceState != null) {
+                ((if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    savedInstanceState.getParcelableArrayList(
+                        AppConstants.REORDER_ACCOUNTS,
+                        AccountDto::class.java
+                    )
+                        ?: ArrayList()
+                } else {
+                    savedInstanceState.getParcelableArrayList(AppConstants.REORDER_ACCOUNTS)
+                        ?: ArrayList()
+                }))
+            } else ArrayList(viewModel.getAccounts())
         initToolbarActions()
-        initReorderAccountList()
-        binding.appbar.setPadding(0, DisplayManager.getHeightStatusBar(), 0, 0)
+        initAccountList()
     }
 
     private fun initToolbarActions() {
-
-        binding.toolbarReorderAccounts.setOnMenuItemClickListener {
+        binding.toolbar.setOnMenuItemClickListener {
             when (it.itemId) {
                 R.id.check -> {
-                    saveOrderAccounts()
+                    saveAccountOrder()
                     navigator().goBack()
                 }
             }
@@ -49,41 +53,37 @@ class ReorderAccountsFragment : DetailBaseFragment(R.layout.fragment_reorder_acc
         }
     }
 
-    private fun saveOrderAccounts() {
-
+    private fun saveAccountOrder() {
+        val accounts = reorderAccountAdapter?.accounts ?: return
+        viewModel.changeAccountOrder(accounts)
     }
 
-    private fun initReorderAccountList() {
-
+    private fun initAccountList() {
         binding.rvReorderAccounts.layoutManager = LinearLayoutManager(context)
-       val realm = Realm.open(defaultRealmConfig())
-        val accountList = ArrayList<AccountDto>()
-        realm.writeBlocking {
-            val acc = this.query(AccountStorageItem::class).find()
-            accountList.addAll(acc.map { T -> AccountDto(T.primary, order = T.order, jid = T.jid, hasAvatar = T.hasAvatar, enabled = T.enabled, colorKey = T.colorKey, nickname = T.nickname ) })
-        }
-
-        reorderAccountAdapter = ReorderAccountAdapter(accountList) { onStartDrag(it) }
+        reorderAccountAdapter = ReorderAccountAdapter(accounts) { onStartDrag(it) }
         binding.rvReorderAccounts.adapter = reorderAccountAdapter
-        val callback = SimpleItemTouchHelperCallback(reorderAccountAdapter)
-        touchHelper = ItemTouchHelper(callback)
-        touchHelper?.attachToRecyclerView(binding.rvReorderAccounts)
+        addTouchHelper()
     }
 
     private fun onStartDrag(viewHolder: RecyclerView.ViewHolder) {
         touchHelper?.startDrag(viewHolder)
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        onBackPressedCallback.remove()
-        binding.rvReorderAccounts.adapter = null
+    private fun addTouchHelper() {
+        val callback = SimpleItemTouchHelperCallback(reorderAccountAdapter)
+        touchHelper = ItemTouchHelper(callback)
+        touchHelper?.attachToRecyclerView(binding.rvReorderAccounts)
     }
 
-    private val onBackPressedCallback = object : OnBackPressedCallback(true) {
-        override fun handleOnBackPressed() {
-            navigator().closeDetail()
-        }
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putParcelableArrayList(AppConstants.REORDER_ACCOUNTS,
+            reorderAccountAdapter?.accounts?.let { ArrayList(it) })
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        binding.rvReorderAccounts.adapter = null
     }
 
 }

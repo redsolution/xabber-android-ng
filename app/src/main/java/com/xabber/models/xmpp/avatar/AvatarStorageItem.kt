@@ -6,7 +6,7 @@ import io.realm.kotlin.types.annotations.PrimaryKey
 
 class AvatarStorageItem : RealmObject {
     @PrimaryKey
-    var primary: String = ""
+    var primary: String = ""  // jid + owner
     var jid: String = ""
     var owner: String = ""
     var imageHash: String = ""
@@ -19,17 +19,10 @@ class AvatarStorageItem : RealmObject {
     var image192: String? = null
     var image384: String? = null
     var image512: String? = null
-
     var kind: AvatarKind
         get() = AvatarKind.values().firstOrNull { it.rawValue == kind_ } ?: AvatarKind.None
         set(newValue: AvatarKind) {
             kind_ = newValue.rawValue
         }
 
-
-//    companion object {
-//        fun genPrimary(jid: String, owner: String): String {
-//            return prp(strArray = arrayOf(jid, owner))
-//        }
-//    }
 }

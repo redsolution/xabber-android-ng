@@ -13,7 +13,6 @@ import com.xabber.models.xmpp.last_chats.LastChatsStorageItem
 import com.xabber.models.xmpp.messages.MessageSendingState
 import com.xabber.models.xmpp.presences.ResourceStatus
 import com.xabber.models.xmpp.presences.RosterItemEntity
-import com.xabber.models.xmpp.roster.RosterStorageItem
 import com.xabber.presentation.AppConstants
 import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.application.fragments.DetailBaseFragment
@@ -100,12 +99,11 @@ class ChatListToForwardFragment : DetailBaseFragment(R.layout.fragment_chat_for_
                     primary = jid
                     muteExpired = -1
                     owner = jid
-                    opponentJid = "Saved messages"
+                    jid = "Saved messages"
                     messageDate = System.currentTimeMillis()
                     isArchived = false
                     unread = 0
                     avatar = R.drawable.saved_messages_avatar
-                    colorKey = "blue"
                 })
             }
         }

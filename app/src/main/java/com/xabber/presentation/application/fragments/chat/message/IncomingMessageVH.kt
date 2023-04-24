@@ -1,7 +1,6 @@
 package com.xabber.presentation.application.fragments.chat.message
 
 import android.annotation.SuppressLint
-import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.graphics.PorterDuff
 import android.os.Build
@@ -21,9 +20,7 @@ import com.xabber.R
 import com.xabber.models.dto.MessageDto
 import com.xabber.utils.dp
 import com.xabber.databinding.ItemMessageIncomingBinding
-import com.xabber.presentation.application.activity.MaskManager
 import com.xabber.presentation.application.fragments.chat.Check
-import com.xabber.utils.mask.MaskedDrawableBitmapShader
 import com.xabber.utils.StringUtils
 import java.util.*
 

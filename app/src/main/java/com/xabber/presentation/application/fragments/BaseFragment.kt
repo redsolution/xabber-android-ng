@@ -3,7 +3,6 @@ package com.xabber.presentation.application.fragments
 import android.content.Context
 import android.content.SharedPreferences
 import android.os.Bundle
-import android.util.Log
 import android.util.TypedValue
 import android.view.View
 import android.widget.ImageView
@@ -17,17 +16,22 @@ import com.google.android.material.appbar.AppBarLayout
 import com.google.android.material.appbar.CollapsingToolbarLayout
 import com.google.android.material.appbar.MaterialToolbar
 import com.xabber.R
+import com.xabber.presentation.AppConstants
 import com.xabber.presentation.application.BaseViewModel
-import com.xabber.presentation.application.activity.ColorManager
-import com.xabber.presentation.application.activity.DisplayManager
-import com.xabber.presentation.application.activity.MaskManager
 import com.xabber.presentation.application.contract.navigator
-import com.xabber.presentation.custom.ShapeOfView
+import com.xabber.presentation.application.manage.ColorManager
+import com.xabber.presentation.application.manage.DisplayManager
+import com.xabber.utils.MaskManager
+import com.xabber.utils.custom.ShapeOfView
 
+/**
+ * The base fragment takes over the functionality of setting the padding, changing color, mask and avatar
+ */
 abstract class BaseFragment(@LayoutRes contentLayoutId: Int) : Fragment(contentLayoutId),
     SharedPreferences.OnSharedPreferenceChangeListener {
     val baseViewModel: BaseViewModel by viewModels()
     private var appbar: AppBarLayout? = null
+    private var chatAppbar: AppBarLayout? = null
     private var accountToolbar: MaterialToolbar? = null
     private var imAvatar: ImageView? = null
     private var tvInitials: TextView? = null
@@ -36,19 +40,14 @@ abstract class BaseFragment(@LayoutRes contentLayoutId: Int) : Fragment(contentL
     private var shapeView: ShapeOfView? = null
     private val defaultColorKey = "blue"
     private lateinit var sh: SharedPreferences
-    protected var currentColorKey = "blue"
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        sh = activity?.getSharedPreferences("Pref", Context.MODE_PRIVATE)!!
-    }
+    private var currentColorKey = "blue"
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         initViews()
         setupAppbarPadding()
         subscribeToViewModelData()
-        sh = activity?.getSharedPreferences("Pref", Context.MODE_PRIVATE)!!
+        sh = activity?.getSharedPreferences(AppConstants.SHARED_PREF_MASK, Context.MODE_PRIVATE)!!
         sh.registerOnSharedPreferenceChangeListener(this)
         val primaryAccount = baseViewModel.getPrimaryAccount()
         currentJid = primaryAccount?.jid
@@ -73,19 +72,15 @@ abstract class BaseFragment(@LayoutRes contentLayoutId: Int) : Fragment(contentL
                 if (account != null) navigator().showAccount(account.jid)
             }
         }
-        if (savedInstanceState == null) {
-            baseViewModel.initPrimaryAccountListener(primaryAccount?.id)
-        }
     }
 
     override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences?, key: String?) {
-        Log.d("mask", "pref")
         shapeView?.setDrawable(MaskManager.mask)
-        //  shapeView?.requiresShapeUpdate()
     }
 
     private fun initViews() {
         appbar = view?.findViewById(R.id.appbar)
+        chatAppbar = view?.findViewById(R.id.chat_appbar)
         accountToolbar = view?.findViewById(R.id.account_toolbar)
         imAvatar = view?.findViewById(R.id.im_avatar)
         tvInitials = view?.findViewById(R.id.tv_initials)
@@ -95,6 +90,7 @@ abstract class BaseFragment(@LayoutRes contentLayoutId: Int) : Fragment(contentL
 
     private fun setupAppbarPadding() {
         appbar?.setPadding(0, DisplayManager.getHeightStatusBar(), 0, 0)
+        chatAppbar?.setPadding(0, DisplayManager.getHeightStatusBar(), 0, 0)
         if (accountToolbar != null) {
             var actionBarHeight = 0
             val typedValue = TypedValue()
@@ -121,30 +117,7 @@ abstract class BaseFragment(@LayoutRes contentLayoutId: Int) : Fragment(contentL
             currentColorKey = it
         }
 
-        baseViewModel.account.observe(viewLifecycleOwner) {
-            Log.d("ooo", "account.observe")
-            if (it != currentJid) {
-                currentJid = it
-                val account = baseViewModel.getPrimaryAccount()
-                if (account != null) setupColor(account.colorKey) else setupColor("offline")
-                if (account == null) {
-                    loadDefaultAvatar()
-                    status?.isVisible = false
-                } else {
-                    if (account.hasAvatar)
-                        loadAvatar(account.jid) else
-                        loadAvatarWithInitials(
-                            account.nickname, account.colorKey
-                        )
-                }
-                baseViewModel.initAvatarListener(it)
-                baseViewModel.initPrimaryAccountListener(it)
-
-            }
-        }
-
         baseViewModel.avatar.observe(viewLifecycleOwner) {
-            Log.d("ooo", "avatar observe")
             val account = baseViewModel.getPrimaryAccount()
             if (account != null) {
                 if (account.hasAvatar) loadAvatar(account.jid) else loadAvatarWithInitials(
@@ -152,7 +125,6 @@ abstract class BaseFragment(@LayoutRes contentLayoutId: Int) : Fragment(contentL
                     account.colorKey
                 )
             } else loadDefaultAvatar()
-
         }
     }
 
@@ -163,8 +135,8 @@ abstract class BaseFragment(@LayoutRes contentLayoutId: Int) : Fragment(contentL
 
     private fun loadAvatar(jid: String) {
         tvInitials?.isVisible = false
-        val avatar = baseViewModel.getAvatar(jid)
 
+        val avatar = baseViewModel.getAvatar(jid)
         if (avatar != null) {
             imAvatar?.setImageURI(avatar.fileUri.toUri())
         }
@@ -187,7 +159,9 @@ abstract class BaseFragment(@LayoutRes contentLayoutId: Int) : Fragment(contentL
 
     override fun onDestroy() {
         super.onDestroy()
-        sh.unregisterOnSharedPreferenceChangeListener(this)
+        if (::sh.isInitialized) {
+            sh.unregisterOnSharedPreferenceChangeListener(this)
+        }
     }
 
 }

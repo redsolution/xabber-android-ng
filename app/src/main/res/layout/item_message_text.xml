@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<com.xabber.presentation.custom.CustomFlexboxLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<com.xabber.utils.custom.CustomFlexboxLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/message_flex_layout"
@@ -8,7 +8,7 @@
     app:viewPartMain="@+id/message_text"
     app:viewPartSlave="@+id/message_info">
 
-    <com.xabber.presentation.custom.CorrectlyTouchEventTextView
+    <com.xabber.utils.custom.CorrectlyTouchEventTextView
         android:id="@+id/message_text"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -22,4 +22,4 @@
         android:id="@+id/message_info"
         layout="@layout/item_message_status" />
 
-</com.xabber.presentation.custom.CustomFlexboxLayout>
+</com.xabber.utils.custom.CustomFlexboxLayout>

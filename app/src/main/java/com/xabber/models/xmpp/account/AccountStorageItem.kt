@@ -7,12 +7,12 @@ import io.realm.kotlin.types.annotations.PrimaryKey
 
 class AccountStorageItem : RealmObject {
     @PrimaryKey
-    var primary: String = "" // аватар искать по owner + jid
+    var primary: String = ""
     var order: Int = 0
     var jid: String = ""
     var host: String = ""
     var port: Int = 5222
-    var nickname: String = ""
+    var username: String = ""
     var enabled: Boolean = true
     var pushNode: String = ""
     var pushService: String = ""
@@ -21,5 +21,5 @@ class AccountStorageItem : RealmObject {
     var colorKey: String = ""
     var hasAvatar: Boolean = false
     var resource: ResourceStorageItem? = null
-
 }
+// primary = jid, аватар искать по owner + jid

@@ -8,7 +8,7 @@
     android:focusable="true"
     android:paddingHorizontal="12dp">
 
-    <com.xabber.presentation.custom.ShapeOfView
+    <com.xabber.utils.custom.ShapeOfView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:id="@+id/shape_view"
@@ -24,7 +24,7 @@
         android:layout_height="@dimen/mask48"
         android:scaleType="centerCrop"
         android:contentDescription="@string/im_account_avatar_content_description" />
-</com.xabber.presentation.custom.ShapeOfView>
+</com.xabber.utils.custom.ShapeOfView>
 
     <TextView
         android:id="@+id/tv_initials"

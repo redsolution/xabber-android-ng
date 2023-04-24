@@ -121,7 +121,6 @@ class XIncomingMessageVH internal constructor(private val listener: MessageAdapt
         itemView.addOnAttachStateChangeListener(object : OnAttachStateChangeListener {
 
             override fun onViewAttachedToWindow(view: View) {
-               // Log.d("bibi", "onAttached ${messageRealmObject.messageBody}")
               if (messageRealmObject.isUnread)
                 listen?.onBind(messageRealmObject)
             }

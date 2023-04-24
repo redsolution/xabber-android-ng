@@ -4,7 +4,6 @@ import android.graphics.Bitmap
 import android.graphics.drawable.BitmapDrawable
 import android.net.Uri
 import android.os.Bundle
-import android.provider.MediaStore
 import android.view.View
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
@@ -60,21 +59,6 @@ class SignupAvatarFragment : Fragment(R.layout.fragment_signup_avatar) {
         viewModel.avatarBitmap.observe(viewLifecycleOwner) {
             setAvatar(it)
         }
-        viewModel.avatarUri.observe(viewLifecycleOwner) {
-            setAvatar(it)
-        }
-    }
-
-    private fun setAvatar(uri: Uri?) {
-        val bitmap = MediaStore.Images.Media.getBitmap(requireContext().contentResolver, uri)
-
-        Glide.with(requireContext())
-            .load(bitmap)
-            .placeholder(R.drawable.avatar_place_holder)
-            .skipMemoryCache(true)
-            .into(binding.profileImage)
-
-        binding.avatarBtnNext.isEnabled = true
     }
 
     private fun setAvatar(bitmap: Bitmap) {

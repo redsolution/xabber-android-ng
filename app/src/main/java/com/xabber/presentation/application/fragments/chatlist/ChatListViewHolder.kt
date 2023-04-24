@@ -7,6 +7,7 @@ import android.text.Spannable
 import android.text.SpannableString
 import android.text.style.ForegroundColorSpan
 import android.view.Gravity
+import android.view.View
 import androidx.appcompat.widget.PopupMenu
 import androidx.core.content.ContextCompat
 import androidx.core.text.HtmlCompat
@@ -14,14 +15,13 @@ import androidx.core.view.isVisible
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.xabber.R
-import com.xabber.data_base.defaultRealmConfig
 import com.xabber.databinding.ItemChatListBinding
 import com.xabber.models.dto.ChatListDto
-import com.xabber.models.xmpp.account.AccountStorageItem
 import com.xabber.models.xmpp.messages.MessageSendingState
 import com.xabber.models.xmpp.presences.ResourceStatus
 import com.xabber.models.xmpp.presences.RosterItemEntity
 import com.xabber.presentation.AppConstants
+import com.xabber.presentation.AppConstants.PAYLOAD_CHAT_COLOR
 import com.xabber.presentation.AppConstants.PAYLOAD_CHAT_CUSTOM_NAME
 import com.xabber.presentation.AppConstants.PAYLOAD_CHAT_DATE
 import com.xabber.presentation.AppConstants.PAYLOAD_CHAT_DRAFT_MESSAGE
@@ -29,26 +29,28 @@ import com.xabber.presentation.AppConstants.PAYLOAD_CHAT_MESSAGE_BODY
 import com.xabber.presentation.AppConstants.PAYLOAD_CHAT_MESSAGE_STATE
 import com.xabber.presentation.AppConstants.PAYLOAD_MUTE_EXPIRED_CHAT
 import com.xabber.presentation.AppConstants.PAYLOAD_PINNED_POSITION_CHAT
-import com.xabber.presentation.application.activity.ColorManager
-import com.xabber.presentation.application.activity.MaskManager
 import com.xabber.presentation.application.dialogs.TimeMute
-import com.xabber.utils.DateFormatter
+import com.xabber.presentation.application.manage.ColorManager
+import com.xabber.presentation.application.util.dateFormat
+import com.xabber.utils.MaskManager
 import com.xabber.utils.parcelable
-import io.realm.kotlin.Realm
+import java.util.*
 
 
 class ChatListViewHolder(
     private val binding: ItemChatListBinding,
 ) : RecyclerView.ViewHolder(binding.root) {
 
-    fun bind(chatListDto: ChatListDto, listener: ChatListAdapter.ChatListener) {
+    fun getDivider(): View = binding.accountColorIndicator
 
+    fun bind(chatListDto: ChatListDto, listener: ChatListAdapter.ChatListener) {
+        binding.cardview.radius = 0f
         setColorDivider(chatListDto.colorKey)
         setAvatar(chatListDto.drawableId)
         setName(chatListDto.getChatName())
         setTextMessage(chatListDto.draftMessage, chatListDto.lastMessageBody)
         setTime(chatListDto.lastMessageDate)
-        setPin(chatListDto.pinnedDate, chatListDto.unread)
+        setPin(chatListDto.pinnedDate)
         setMuted(chatListDto)
         setUnreadMessages(chatListDto.unread, chatListDto.muteExpired)
         setMessageSendingState(chatListDto)
@@ -66,12 +68,13 @@ class ChatListViewHolder(
         }
     }
 
-    private fun setColorDivider(id: String) {
-
+    private fun setColorDivider(colorKey: String) {
+        val color = ColorManager.convertColorNameToId(colorKey)
+        binding.accountColorIndicator.setBackgroundResource(color)
     }
 
     private fun setAvatar(drawableId: Int) {
-       binding.shapeView.setDrawable(MaskManager.mask)
+        binding.shapeView.setDrawable(MaskManager.mask)
         Glide.with(itemView).load(drawableId).into(binding.imChatListItemAvatar)
     }
 
@@ -106,7 +109,7 @@ class ChatListViewHolder(
 
     private fun setTime(time: Long) {
         binding.tvTimestamp.text =
-            DateFormatter.dateFormat(time)
+            Date().dateFormat(time)
     }
 
     private fun setupChatStatus(chatListDto: ChatListDto) {
@@ -141,7 +144,7 @@ class ChatListViewHolder(
         }
     }
 
-    private fun setPin(pinnedDate: Long, unread: String) {
+    private fun setPin(pinnedDate: Long) {
         if (pinnedDate > 0) {
             binding.chatGround.setBackgroundResource(
                 R.drawable.clickable_pinned_chat_background
@@ -150,7 +153,7 @@ class ChatListViewHolder(
             binding.chatGround.setBackgroundResource(R.drawable.clickable_view_group_background)
         }
         binding.imChatListPinned.isVisible =
-            pinnedDate > 0 && unread.isEmpty()
+            pinnedDate > 0
     }
 
     private fun setUnreadMessages(unread: String, muteExpired: Long) {
@@ -247,7 +250,7 @@ class ChatListViewHolder(
 
         popup.setOnMenuItemClickListener {
             when (it.itemId) {
-                R.id.unpin -> listener.unPinChat(chatListDto.id)
+                R.id.unpin -> listener.unPinChat(chatListDto.id, absoluteAdapterPosition)
                 R.id.pin_chat -> {
                     listener.pinChat(chatListDto.id)
                 }
@@ -261,7 +264,7 @@ class ChatListViewHolder(
                     listener.openSpecialNotificationsFragment()
                 }
                 R.id.delete -> {
-                    listener.deleteChat(chatListDto.opponentNickname, chatListDto.id)
+                    listener.deleteChat(chatListDto.getChatName(), chatListDto.id)
                 }
                 R.id.clear_history -> {
                     listener.clearHistory(
@@ -284,43 +287,33 @@ class ChatListViewHolder(
             when (key) {
                 AppConstants.PAYLOAD_UNREAD_CHAT -> {
                     val unread = bundle.getString(AppConstants.PAYLOAD_UNREAD_CHAT)
-                    binding.unreadMessagesCount.isVisible = !unread.isNullOrEmpty()
-                    if (chatListDto.unread.isNotEmpty()) binding.unreadMessagesCount.text =
-                        if (unread!!.toInt() < 1000) unread else "999+"
+                  if (unread != null)  setUnreadMessages(unread, chatListDto.muteExpired)
                 }
                 PAYLOAD_PINNED_POSITION_CHAT -> {
-                    val pinnedPosition = bundle.getLong(PAYLOAD_PINNED_POSITION_CHAT)
-                    if (pinnedPosition > 0) {
-                        binding.chatGround.setBackgroundResource(
-                            R.drawable.clickable_pinned_chat_background
-                        )
-                    } else {
-                        binding.chatGround.setBackgroundResource(R.drawable.clickable_view_group_background)
-                    }
-                    binding.imChatListPinned.isVisible =
-                        pinnedPosition > 0 && chatListDto.unread.isEmpty()
+                    val pinnedDate = bundle.getLong(PAYLOAD_PINNED_POSITION_CHAT)
+                    setPin(pinnedDate)
+
                     itemView.setOnLongClickListener {
                         val popup = PopupMenu(itemView.context, itemView, Gravity.CENTER)
                         popup.inflate(R.menu.popup_menu_chat_list_item)
-                        if (chatListDto.isArchived) {
-                            popup.menu.removeItem(R.id.pin_chat)
-                            popup.menu.removeItem(R.id.unpin)
-                        } else {
-                            if (chatListDto.pinnedDate > 0) {
-                                popup.menu.removeItem(R.id.pin_chat)
-                            } else {
-                                popup.menu.removeItem(R.id.unpin)
-                            }
 
-                            if ((chatListDto.muteExpired - System.currentTimeMillis()) > 0) {
-                                popup.menu.removeItem(R.id.turn_of_notifications)
-                            } else {
-                                popup.menu.removeItem(R.id.enable_notifications)
-                            }
+                        if (chatListDto.pinnedDate > 0) {
+                            popup.menu.removeItem(R.id.pin_chat)
+                        } else {
+                            popup.menu.removeItem(R.id.unpin)
+                        }
+
+                        if ((chatListDto.muteExpired - System.currentTimeMillis()) > 0) {
+                            popup.menu.removeItem(R.id.turn_of_notifications)
+                        } else {
+                            popup.menu.removeItem(R.id.enable_notifications)
                         }
                         popup.setOnMenuItemClickListener {
                             when (it.itemId) {
-                                R.id.unpin -> listener.unPinChat(chatListDto.id)
+                                R.id.unpin -> listener.unPinChat(
+                                    chatListDto.id,
+                                    absoluteAdapterPosition
+                                )
                                 R.id.pin_chat -> {
                                     listener.pinChat(chatListDto.id)
                                 }
@@ -335,7 +328,7 @@ class ChatListViewHolder(
                                 }
                                 R.id.delete -> {
                                     listener.deleteChat(
-                                        chatListDto.opponentNickname,
+                                        chatListDto.getChatName(),
                                         chatListDto.id
                                     )
                                 }
@@ -372,19 +365,19 @@ class ChatListViewHolder(
                         } else {
                             popup.menu.removeItem(R.id.enable_notifications)
                         }
-                        if (chatListDto.isArchived) {
+
+                        if (chatListDto.pinnedDate > 0) {
                             popup.menu.removeItem(R.id.pin_chat)
-                            popup.menu.removeItem(R.id.unpin)
                         } else {
-                            if (chatListDto.pinnedDate > 0) {
-                                popup.menu.removeItem(R.id.pin_chat)
-                            } else {
-                                popup.menu.removeItem(R.id.unpin)
-                            }
+                            popup.menu.removeItem(R.id.unpin)
                         }
+
                         popup.setOnMenuItemClickListener {
                             when (it.itemId) {
-                                R.id.unpin -> listener.unPinChat(chatListDto.id)
+                                R.id.unpin -> listener.unPinChat(
+                                    chatListDto.id,
+                                    absoluteAdapterPosition
+                                )
                                 R.id.pin_chat -> {
                                     listener.pinChat(chatListDto.id)
                                 }
@@ -399,7 +392,7 @@ class ChatListViewHolder(
                                 }
                                 R.id.delete -> {
                                     listener.deleteChat(
-                                        chatListDto.opponentNickname,
+                                        chatListDto.getChatName(),
                                         chatListDto.id
                                     )
                                 }
@@ -414,7 +407,6 @@ class ChatListViewHolder(
                         popup.show()
                         true
                     }
-
                     binding.unreadMessagesCount.background =
                         if ((chatListDto.muteExpired - System.currentTimeMillis()) > 0)
                             ContextCompat.getDrawable(binding.root.context, R.drawable.circle_grey)
@@ -423,7 +415,7 @@ class ChatListViewHolder(
                 }
                 PAYLOAD_CHAT_DATE -> {
                     binding.tvTimestamp.text =
-                        DateFormatter.dateFormat(chatListDto.lastMessageDate)
+                        Date().dateFormat(chatListDto.lastMessageDate)
                 }
                 PAYLOAD_CHAT_MESSAGE_BODY -> {
                     val lastMessageBody = bundle.getString(PAYLOAD_CHAT_MESSAGE_BODY)
@@ -451,21 +443,27 @@ class ChatListViewHolder(
                     } else {
                         binding.tvChatListLastMessage.text = chatListDto.lastMessageBody
                         binding.tvTimestamp.text =
-                            DateFormatter.dateFormat(chatListDto.lastMessageDate)
+                            Date().dateFormat(chatListDto.lastMessageDate)
                         binding.imMessageStatus.isVisible =
                             (chatListDto.lastMessageBody.isNotEmpty() && chatListDto.lastMessageIsOutgoing)
                     }
                 }
                 PAYLOAD_CHAT_MESSAGE_STATE -> {
                     val messageState =
-                        bundle.parcelable(PAYLOAD_CHAT_MESSAGE_STATE) as MessageSendingState? ?: MessageSendingState.None
+                        bundle.parcelable(PAYLOAD_CHAT_MESSAGE_STATE) as MessageSendingState?
+                            ?: MessageSendingState.None
                     chatListDto.lastMessageState = messageState
                     setMessageSendingState(chatListDto)
                 }
                 PAYLOAD_CHAT_CUSTOM_NAME -> {
                     val name = bundle.getString(PAYLOAD_CHAT_CUSTOM_NAME)
-                    binding.tvChatItemName.text =
-                        if (name!!.isNotEmpty()) name else chatListDto.opponentNickname
+                    if (name != null) setName(name)
+                }
+                PAYLOAD_CHAT_COLOR -> {
+                    val color = bundle.getString(PAYLOAD_CHAT_COLOR)
+                    if (color != null) {
+                        setColorDivider(color)
+                    }
                 }
             }
         }

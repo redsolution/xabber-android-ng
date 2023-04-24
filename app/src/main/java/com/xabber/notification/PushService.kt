@@ -17,7 +17,6 @@ import androidx.core.graphics.drawable.toBitmap
 import com.xabber.R
 import com.xabber.presentation.application.activity.ApplicationActivity
 
-import com.xabber.utils.mask.MaskPrepare
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL

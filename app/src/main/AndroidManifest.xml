@@ -56,8 +56,7 @@
         <activity
             android:name=".presentation.application.fragments.chat.ViewImageActivity"
             android:exported="false"
-            android:theme="@style/ThemeImageViewer">
-        </activity>
+            android:theme="@style/ThemeImageViewer" />
         <activity
             android:name=".presentation.application.fragments.chat.geo.PickGeolocationActivity"
             android:theme="@style/PickGeolocationActivity" />

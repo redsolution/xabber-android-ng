@@ -23,7 +23,7 @@ import com.xabber.presentation.application.util.isSameDayWith
 class MessageAdapter(private val listener: Listener,
     private val context: Context,
     private val messageRealmObjects: ArrayList<MessageDto>,
-    private val fileListener: XMessageVH.FileListener? = null,
+    private val fileListener: XMessageVH.FileListener,
     private val adapterListener: AdapterListener? = null,
     private val bindListener: XIncomingMessageVH.BindListener? = null,
     private val avatarClickListener: XIncomingMessageVH.OnMessageAvatarClickListener? = null,

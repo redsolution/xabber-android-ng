@@ -2,7 +2,9 @@ package com.xabber.presentation.onboarding.fragments.signin
 
 import androidx.lifecycle.ViewModel
 import com.xabber.R
+import com.xabber.presentation.XabberApplication
 import com.xabber.presentation.onboarding.fragments.signin.feature.Feature
+import com.xabber.presentation.onboarding.util.PasswordStorageHelper
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.schedulers.Schedulers
@@ -11,6 +13,8 @@ import java.util.concurrent.TimeUnit
 const val JID_REGEX = "^(?:([^@/<>'\"]+)@)?([^@/<>'\"]+)(?:/([^<>'\"]*))?\$"
 
 class SigninViewModel : ViewModel() {
+    private val passwordStorageHelper =
+        PasswordStorageHelper(XabberApplication.applicationContext())
 
     var _features = mutableListOf(
         Feature(R.string.feature_name_1),
@@ -27,7 +31,7 @@ class SigninViewModel : ViewModel() {
 
     var isServerFeatures = false
 
-   val features: Observable<MutableList<Feature>>
+    val features: Observable<MutableList<Feature>>
         get() = Observable.fromIterable(_features)
             .map {
                 val toIndex = _features.indexOf(it) + 1
@@ -45,4 +49,10 @@ class SigninViewModel : ViewModel() {
             .observeOn(AndroidSchedulers.mainThread())
 
     fun isJidValid(jid: String): Boolean = JID_REGEX.toRegex().matches(jid)
+
+    fun verifyPassword(password: String, jid: String): Boolean {
+        return if (passwordStorageHelper.getData(jid) == null) false
+        else passwordStorageHelper.getData(jid) == password
+
+    }
 }

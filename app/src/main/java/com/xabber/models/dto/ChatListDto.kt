@@ -1,7 +1,6 @@
 package com.xabber.models.dto
 
 import android.os.Parcelable
-import androidx.annotation.ColorRes
 import com.xabber.models.xmpp.messages.MessageSendingState
 import com.xabber.models.xmpp.presences.ResourceStatus
 import com.xabber.models.xmpp.presences.RosterItemEntity

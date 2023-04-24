@@ -56,9 +56,7 @@
                 android:id="@+id/rv_accounts"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
-                android:overScrollMode="never" />
+                android:layout_marginTop="8dp" />
 
             <include
                 android:id="@+id/settings"

@@ -26,8 +26,8 @@ import com.xabber.models.dto.MessageVhExtraData
 import com.xabber.presentation.XabberApplication
 import com.xabber.presentation.application.fragments.chat.ReferenceRealmObject
 import com.xabber.presentation.application.fragments.chat.audio.VoiceManager
-import com.xabber.presentation.custom.CorrectlyTouchEventTextView
-import com.xabber.presentation.custom.CustomFlexboxLayout
+import com.xabber.utils.custom.CorrectlyTouchEventTextView
+import com.xabber.utils.custom.CustomFlexboxLayout
 import com.xabber.utils.StringUtils.getDateStringForMessage
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
@@ -390,7 +390,6 @@ open class XMessageVH(
     override fun onClick(v: View) {
         val adapterPosition = adapterPosition
         if (adapterPosition == RecyclerView.NO_POSITION) {
-            //LogManager.w(this, "onClick: no position")
             return
         }
         when (v.id) {

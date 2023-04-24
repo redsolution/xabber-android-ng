@@ -1,13 +1,12 @@
 package com.xabber.presentation.application.fragments
 
 import android.os.Bundle
-import android.util.Log
 import android.view.View
 import androidx.activity.OnBackPressedCallback
 import androidx.annotation.LayoutRes
 import com.google.android.material.appbar.MaterialToolbar
 import com.xabber.R
-import com.xabber.presentation.application.activity.DisplayManager
+import com.xabber.presentation.application.manage.DisplayManager
 import com.xabber.presentation.application.contract.navigator
 
 abstract class DetailBaseFragment(@LayoutRes contentLayoutId: Int) : BaseFragment(contentLayoutId) {

@@ -23,12 +23,13 @@ import com.xabber.models.xmpp.messages.MessageSendingState
 import com.xabber.models.xmpp.presences.ResourceStatus
 import com.xabber.models.xmpp.presences.RosterItemEntity
 import com.xabber.presentation.AppConstants
-import com.xabber.presentation.application.activity.ColorManager
+import com.xabber.presentation.application.manage.ColorManager
 import com.xabber.presentation.application.dialogs.TimeMute
 import com.xabber.presentation.application.fragments.chatlist.ChatListAdapter
-import com.xabber.utils.DateFormatter
+import com.xabber.presentation.application.util.dateFormat
 import com.xabber.utils.dp
 import com.xabber.utils.parcelable
+import java.util.*
 
 class ChatListViewHolder1(
     private val binding: ItemChatInContactListBinding
@@ -87,7 +88,7 @@ class ChatListViewHolder1(
 
             // timeStamp
             tvTimestamp.text =
-                DateFormatter.dateFormat(chatListDto.lastMessageDate)
+                Date().dateFormat(chatListDto.lastMessageDate)
 
             // pinned -> background and icon
             if (chatListDto.pinnedDate > 0) {
@@ -293,7 +294,7 @@ class ChatListViewHolder1(
         }
         popup.setOnMenuItemClickListener {
             when (it.itemId) {
-                R.id.unpin -> listener.unPinChat(chatListDto.id)
+                R.id.unpin -> listener.unPinChat(chatListDto.id, absoluteAdapterPosition)
                 R.id.pin_chat -> {
                     listener.pinChat(chatListDto.id)
                 }
@@ -370,7 +371,7 @@ class ChatListViewHolder1(
                         }
                         popup.setOnMenuItemClickListener {
                             when (it.itemId) {
-                                R.id.unpin -> listener.unPinChat(chatListDto.id)
+                                R.id.unpin -> listener.unPinChat(chatListDto.id, absoluteAdapterPosition)
                                 R.id.pin_chat -> {
                                     listener.pinChat(chatListDto.id)
                                 }
@@ -413,7 +414,7 @@ class ChatListViewHolder1(
                 }
                 AppConstants.PAYLOAD_CHAT_DATE -> {
                     binding.tvTimestamp.text =
-                        DateFormatter.dateFormat(chatListDto.lastMessageDate)
+                        Date().dateFormat(chatListDto.lastMessageDate)
                 }
                 AppConstants.PAYLOAD_CHAT_MESSAGE_BODY -> {
                     val lastMessageBody = bundle.getString(AppConstants.PAYLOAD_CHAT_MESSAGE_BODY)
@@ -441,7 +442,7 @@ class ChatListViewHolder1(
                     } else {
                         binding.tvLastMessage.text = chatListDto.lastMessageBody
                         binding.tvTimestamp.text =
-                            DateFormatter.dateFormat(chatListDto.lastMessageDate)
+                            Date().dateFormat(chatListDto.lastMessageDate)
                         binding.imMessageStatus.isVisible =
                             (chatListDto.lastMessageBody.isNotEmpty() && chatListDto.lastMessageIsOutgoing)
                     }

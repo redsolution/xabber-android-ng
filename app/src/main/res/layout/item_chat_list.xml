@@ -1,188 +1,198 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/chat_ground"
     android:layout_width="match_parent"
-    android:layout_height="@dimen/chat_list_item_height"
-    android:background="@drawable/clickable_view_group_background"
+    android:layout_height="wrap_content"
+    android:elevation="0dp"
     android:clickable="true"
-    android:focusable="true">
+    android:focusable="true"
+    android:id="@+id/cardview"
+    app:cardCornerRadius="0dp"
+    app:cardMaxElevation="0dp"
+    android:background="@color/transparent"
+    app:cardElevation="0dp">
 
-    <View
-        android:id="@+id/account_color_indicator"
-        android:layout_width="@dimen/color_indicator_width"
-        android:layout_height="0dp"
-        android:layout_marginVertical="1dp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/chat_ground"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/chat_list_item_height">
 
-    <com.xabber.presentation.custom.ShapeOfView
-        android:id="@+id/shape_view"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_margin="@dimen/margin_less_than_medium"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:shape_clip_drawable="@drawable/ic_mask_circle">
+        <View
+            android:id="@+id/account_color_indicator"
+            android:layout_width="@dimen/color_indicator_width"
+            android:layout_height="0dp"
+            android:layout_marginVertical="1dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
 
-        <ImageView
-            android:id="@+id/im_chat_list_item_avatar"
-            android:layout_width="@dimen/mask56"
-            android:layout_height="@dimen/mask56"
-            android:contentDescription="@string/chat_image_description"
-            android:scaleType="centerCrop"
+        <com.xabber.utils.custom.ShapeOfView
+            android:id="@+id/shape_view"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="@dimen/margin_less_than_medium"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
-            tools:src="@tools:sample/avatars" />
-    </com.xabber.presentation.custom.ShapeOfView>
+            app:shape_clip_drawable="@drawable/ic_mask_circle">
 
-    <TextView
-        android:id="@+id/tv_initials"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:textColor="@color/grey_900"
-        android:visibility="gone"
-        app:layout_constraintBottom_toBottomOf="@id/shape_view"
-        app:layout_constraintEnd_toEndOf="@id/shape_view"
-        app:layout_constraintStart_toStartOf="@id/shape_view"
-        app:layout_constraintTop_toTopOf="@id/shape_view" />
-
-
-    <ImageView
-        android:id="@+id/im_chat_status"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:background="@drawable/circle_white"
-        android:contentDescription="@string/chat_status_image_description"
-        android:padding="@dimen/status_rim_width"
-        app:layout_constraintBottom_toBottomOf="@id/shape_view"
-        app:layout_constraintEnd_toEndOf="@id/shape_view"
-        tools:src="@drawable/status_bot_online" />
-
-    <FrameLayout
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="@dimen/margin_10"
-        android:layout_marginEnd="@dimen/margin_small"
-        app:layout_constraintBottom_toTopOf="@id/space_center_vertical"
-        app:layout_constraintEnd_toStartOf="@id/tv_timestamp"
-        app:layout_constraintStart_toEndOf="@id/shape_view">
+            <ImageView
+                android:id="@+id/im_chat_list_item_avatar"
+                android:layout_width="@dimen/mask56"
+                android:layout_height="@dimen/mask56"
+                android:contentDescription="@string/chat_image_description"
+                android:scaleType="centerCrop"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                tools:src="@tools:sample/avatars" />
+        </com.xabber.utils.custom.ShapeOfView>
 
         <TextView
-            android:id="@+id/tv_chat_item_name"
+            android:id="@+id/tv_initials"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_gravity="start"
-            android:drawablePadding="@dimen/drawable_mute_padding"
-            android:ellipsize="end"
-            android:fontFamily="sans-serif-medium"
-            android:maxLines="1"
-            android:singleLine="true"
             android:textColor="@color/grey_900"
-            android:textSize="@dimen/text_size_item_chat_title"
+            android:visibility="gone"
+            app:layout_constraintBottom_toBottomOf="@id/shape_view"
+            app:layout_constraintEnd_toEndOf="@id/shape_view"
+            app:layout_constraintStart_toStartOf="@id/shape_view"
+            app:layout_constraintTop_toTopOf="@id/shape_view" />
+
+
+        <ImageView
+            android:id="@+id/im_chat_status"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/circle_white"
+            android:contentDescription="@string/chat_status_image_description"
+            android:padding="@dimen/status_rim_width"
+            app:layout_constraintBottom_toBottomOf="@id/shape_view"
+            app:layout_constraintEnd_toEndOf="@id/shape_view"
+            tools:src="@drawable/status_bot_online" />
+
+        <FrameLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/margin_10"
+            android:layout_marginEnd="@dimen/margin_small"
             app:layout_constraintBottom_toTopOf="@id/space_center_vertical"
-            app:layout_constraintStart_toEndOf="@id/im_chat_list_item_avatar"
-            tools:text="Name Surname" />
-    </FrameLayout>
+            app:layout_constraintEnd_toStartOf="@id/tv_timestamp"
+            app:layout_constraintStart_toEndOf="@id/shape_view">
 
-    <View
-        android:id="@+id/space_center_vertical"
-        android:layout_width="1dp"
-        android:layout_height="1dp"
-        android:layout_margin="@dimen/margin_extra_small"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+            <TextView
+                android:id="@+id/tv_chat_item_name"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="start"
+                android:drawablePadding="@dimen/drawable_mute_padding"
+                android:ellipsize="end"
+                android:fontFamily="sans-serif-medium"
+                android:maxLines="1"
+                android:singleLine="true"
+                android:textColor="@color/grey_900"
+                android:textSize="@dimen/text_size_item_chat_title"
+                app:layout_constraintBottom_toTopOf="@id/space_center_vertical"
+                app:layout_constraintStart_toEndOf="@id/im_chat_list_item_avatar"
+                tools:text="Name Surname" />
+        </FrameLayout>
 
-    <FrameLayout
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="@dimen/margin_10"
-        android:layout_marginEnd="@dimen/margin_small"
-        app:layout_constraintEnd_toStartOf="@id/lin_chat_data"
-        app:layout_constraintStart_toEndOf="@id/shape_view"
-        app:layout_constraintTop_toBottomOf="@id/space_center_vertical">
+        <View
+            android:id="@+id/space_center_vertical"
+            android:layout_width="1dp"
+            android:layout_height="1dp"
+            android:layout_margin="@dimen/margin_extra_small"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <FrameLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/margin_10"
+            android:layout_marginEnd="@dimen/margin_small"
+            app:layout_constraintEnd_toStartOf="@id/lin_chat_data"
+            app:layout_constraintStart_toEndOf="@id/shape_view"
+            app:layout_constraintTop_toBottomOf="@id/space_center_vertical">
+
+            <TextView
+                android:id="@+id/tv_chat_list_last_message"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="start"
+                android:ellipsize="end"
+                android:lines="1"
+                android:textColor="@color/grey_text_2"
+                android:textSize="@dimen/text_size_item_chat_message"
+                tools:text="@tools:sample/lorem/random" />
+
+        </FrameLayout>
 
         <TextView
-            android:id="@+id/tv_chat_list_last_message"
+            android:id="@+id/tv_timestamp"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_gravity="start"
-            android:ellipsize="end"
-            android:lines="1"
+            android:layout_marginTop="@dimen/margin_standard"
+            android:layout_marginEnd="@dimen/margin_small"
             android:textColor="@color/grey_text_2"
-            android:textSize="@dimen/text_size_item_chat_message"
-            tools:text="@tools:sample/lorem/random" />
+            android:textSize="@dimen/text_size_timestamp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            tools:text="@tools:sample/date/hhmm" />
 
-    </FrameLayout>
-
-    <TextView
-        android:id="@+id/tv_timestamp"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="@dimen/margin_standard"
-        android:layout_marginEnd="@dimen/margin_small"
-        android:textColor="@color/grey_text_2"
-        android:textSize="@dimen/text_size_timestamp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        tools:text="@tools:sample/date/hhmm" />
-
-    <LinearLayout
-        android:id="@+id/lin_chat_data"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginEnd="8dp"
-        android:orientation="horizontal"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/tv_timestamp">
-
-        <ImageView
-            android:id="@+id/im_message_status"
-            android:layout_width="@dimen/message_status_size"
-            android:layout_height="@dimen/message_status_size"
-            android:layout_gravity="center_vertical"
-            android:contentDescription="@string/message_status_content_description"
-            tools:src="@drawable/ic_check_all_green" />
-
-        <TextView
-            android:id="@+id/unread_messages_count"
+        <LinearLayout
+            android:id="@+id/lin_chat_data"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:background="@drawable/circle_green"
-            android:lines="1"
-            android:maxLength="4"
-            android:textColor="@color/white"
-            android:textSize="@dimen/unread_count_text_size"
-            tools:text="10" />
+            android:layout_marginEnd="8dp"
+            android:orientation="horizontal"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/tv_timestamp">
 
-        <ImageView
-            android:id="@+id/im_chat_list_pinned"
-            android:layout_width="28dp"
-            android:layout_height="28dp"
-            android:layout_marginStart="@dimen/margin_extra_small"
-            android:contentDescription="@string/pinned_chat_description"
-            android:src="@drawable/ic_pinned" />
+            <ImageView
+                android:id="@+id/im_message_status"
+                android:layout_width="@dimen/message_status_size"
+                android:layout_height="@dimen/message_status_size"
+                android:layout_gravity="center_vertical"
+                android:contentDescription="@string/message_status_content_description"
+                tools:src="@drawable/ic_check_all_green" />
 
-    </LinearLayout>
+            <TextView
+                android:id="@+id/unread_messages_count"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:background="@drawable/circle_green"
+                android:lines="1"
+                android:maxLength="4"
+                android:textColor="@color/white"
+                android:textSize="@dimen/unread_count_text_size"
+                tools:text="10" />
 
-    <com.google.android.material.card.MaterialCardView
-        android:id="@+id/chat_sync_image"
-        android:layout_width="4dp"
-        android:layout_height="4dp"
-        android:layout_marginStart="2dp"
-        android:theme="@style/Theme.MaterialComponents.Light.NoActionBar"
-        android:visibility="gone"
-        app:cardBackgroundColor="@color/grey_200"
-        app:cardCornerRadius="2dp"
-        app:layout_constraintBottom_toBottomOf="@id/tv_timestamp"
-        app:layout_constraintStart_toEndOf="@id/tv_timestamp"
-        app:layout_constraintTop_toTopOf="@id/tv_timestamp"
-        tools:visibility="visible" />
-</androidx.constraintlayout.widget.ConstraintLayout>
+            <ImageView
+                android:id="@+id/im_chat_list_pinned"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:layout_marginStart="@dimen/margin_extra_small"
+                android:contentDescription="@string/pinned_chat_description"
+                android:src="@drawable/ic_pinned" />
+
+        </LinearLayout>
+
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/chat_sync_image"
+            android:layout_width="4dp"
+            android:layout_height="4dp"
+            android:layout_marginStart="2dp"
+            android:theme="@style/Theme.MaterialComponents.Light.NoActionBar"
+            android:visibility="gone"
+            app:cardBackgroundColor="@color/grey_200"
+            app:cardCornerRadius="2dp"
+            app:layout_constraintBottom_toBottomOf="@id/tv_timestamp"
+            app:layout_constraintStart_toEndOf="@id/tv_timestamp"
+            app:layout_constraintTop_toTopOf="@id/tv_timestamp"
+            tools:visibility="visible" />
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</androidx.cardview.widget.CardView>

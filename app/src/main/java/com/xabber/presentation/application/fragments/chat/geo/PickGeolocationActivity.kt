@@ -26,7 +26,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.xabber.R
 import com.xabber.databinding.ActivityPickGeolocationBinding
 import com.xabber.presentation.application.fragments.chat.CustomMyLocationOsmOverlay
-import com.xabber.presentation.custom.SearchToolbar
+import com.xabber.utils.custom.SearchToolbar
 import com.xabber.remote.NominatimRetrofitModule
 import com.xabber.remote.Place
 import com.xabber.remote.prettyName

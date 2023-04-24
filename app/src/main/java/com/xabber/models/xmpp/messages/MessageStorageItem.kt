@@ -28,8 +28,7 @@ class MessageStorageItem: RealmObject {
     var isDeleted: Boolean = false
     var state_: Int = 0
     var systemMetadata_: String = ""
-    var references: ArrayList<String>? = null
-            //RealmList<MessageReferenceStorageItem> = realmListOf()
+    var references: RealmList<MessageReferenceStorageItem> = realmListOf()
     var nessageError: String? = null
     var messageErrorCode: String? = null
     var conversationType_: String = ConversationType.Regular.rawValue

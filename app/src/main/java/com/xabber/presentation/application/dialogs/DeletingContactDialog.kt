@@ -1,86 +1,63 @@
 package com.xabber.presentation.application.dialogs
 
+import android.app.AlertDialog
+import android.app.Dialog
 import android.os.Bundle
 import android.text.SpannableStringBuilder
-import android.view.LayoutInflater
-import android.view.View
-import android.view.ViewGroup
-import androidx.core.os.bundleOf
 import androidx.core.text.bold
-import androidx.core.view.isVisible
 import androidx.fragment.app.DialogFragment
+import androidx.lifecycle.lifecycleScope
 import com.xabber.R
-import com.xabber.databinding.FragmentDialogStandartBinding
+import com.xabber.data_base.defaultRealmConfig
+import com.xabber.models.xmpp.roster.RosterStorageItem
 import com.xabber.presentation.AppConstants
-import com.xabber.utils.setFragmentResult
+import io.realm.kotlin.Realm
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
-class DeletingContactDialog: DialogFragment() {
-    private var _binding: FragmentDialogStandartBinding? = null
-    private val binding get() = _binding!!
-
-    private var contactName: String? = null
+class DeletingContactDialog : DialogFragment() {
+    val realm = Realm.open(defaultRealmConfig())
 
     companion object {
-        fun newInstance(_contactName: String) = DeletingContactDialog().apply {
+        fun newInstance(contactName: String, contactId: String) = DeletingContactDialog().apply {
             arguments = Bundle().apply {
-                putString("contactNameForDeletingChatDialog", _contactName)
-                contactName = _contactName
+                putString(AppConstants.CONTACT_NAME, contactName)
+                putString(AppConstants.CONTACT_ID, contactId)
             }
-
         }
     }
 
-    override fun onCreateView(
-        inflater: LayoutInflater, container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View {
-        if (savedInstanceState != null) contactName =
-            savedInstanceState.getString(AppConstants.CONTACT_NAME)
-        _binding = FragmentDialogStandartBinding.inflate(inflater, container, false)
-        return binding.root
-    }
-
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
-        binding.tvDialogTitle.text = "Delete contact"
+    override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
+        val name = arguments?.getString(AppConstants.CONTACT_NAME)
+            ?: resources.getString(R.string.contact_name_default)
         val dialogMessage =
-            SpannableStringBuilder().append("Are you sure you want to delete contact ")
-                .bold { append(" $contactName") }.append("?")
-                .append("\n\nYou will be able to exchange messages and subscription requests.")
-        binding.tvDialogDescription.text = dialogMessage
-        binding.buttonDialogNegative.text =
-            resources.getString(R.string.dialog_button_cancel)
-        binding.buttonDialogPositive.text =
-            resources.getString(R.string.dialog_button_delete)
-binding.checkboxDialog.isVisible = true
-        binding.checkboxDialog.text = "Delete history message"
-        setupButtons()
+            SpannableStringBuilder().append(resources.getString(R.string.dialog_deleting_contact_message_part_1))
+                .bold { append(" $name") }.append("?")
+                .append(resources.getString(R.string.dialog_deleting_contact_message_part_2))
+        val dialog = AlertDialog.Builder(context, R.style.MyAlertDialogStyle)
+            .setTitle(R.string.dialog_deleting_contact_title)
+            .setMessage(dialogMessage)
+            .setPositiveButton(resources.getString(R.string.dialog_button_delete)) { _, _ ->
+                deleteContact()
+                dismiss()
+            }.setNegativeButton(resources.getString(R.string.dialog_button_cancel), null)
+        return dialog.create()
     }
 
-    private fun setupButtons() {
-        binding.buttonDialogNegative.setOnClickListener {
-            setFragmentResult(
-                AppConstants.DELETING_CONTACT_DIALOG_KEY,
-                bundleOf(
-                    AppConstants.DELETING_CONTACT_BUNDLE_KEY to false,
-                )
-            )
-            dismiss()
-        }
-        binding.buttonDialogPositive.setOnClickListener {
-            setFragmentResult(
-                AppConstants.DELETING_CONTACT_DIALOG_KEY,
-                bundleOf(
-                    AppConstants.DELETING_CONTACT_BUNDLE_KEY to true,
-                    AppConstants.DELETING_CONTACT_AND_CLEAR_HISTORY to binding.checkboxDialog.isChecked
-                )
-            )
-            dismiss()
+    private fun deleteContact() {
+        val id = arguments?.getString(AppConstants.CONTACT_ID) ?: ""
+        lifecycleScope.launch(Dispatchers.IO) {
+            realm.write {
+                val rosterStorageItem =
+                    this.query(RosterStorageItem::class, "primary = '$id'").first().find()
+                if (rosterStorageItem != null) rosterStorageItem.isDeleted = true
+            }
         }
     }
 
-    override fun onSaveInstanceState(outState: Bundle) {
-        super.onSaveInstanceState(outState)
-        outState.putString(AppConstants.CONTACT_NAME, contactName)
+    override fun onDestroy() {
+        super.onDestroy()
+        realm.close()
     }
+
 }

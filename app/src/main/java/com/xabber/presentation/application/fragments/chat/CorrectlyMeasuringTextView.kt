@@ -2,12 +2,15 @@ package com.xabber.presentation.application.fragments.chat
 
 import android.content.Context
 import android.util.AttributeSet
-import com.xabber.presentation.custom.CorrectlyTouchEventTextView
+import com.xabber.utils.custom.CorrectlyTouchEventTextView
+import kotlin.math.max
+import kotlin.math.min
+import kotlin.math.roundToInt
 
 class CorrectlyMeasuringTextView(
     context: Context,
-    private val attrs: AttributeSet? = null,
-    private val defStyleAttr: Int = 0
+    attrs: AttributeSet? = null,
+    defStyleAttr: Int = 0
 ) : CorrectlyTouchEventTextView(context, attrs, defStyleAttr) {
 
     override fun onMeasure(wms: Int, hms: Int) {
@@ -19,19 +22,19 @@ class CorrectlyMeasuringTextView(
             }
             var maxw = 0
             for (i in l.lineCount - 1 downTo 0) {
-                maxw = Math.max(
+                maxw = max(
                     maxw,
-                    Math.round(l.paint.measureText(text, l.getLineStart(i), l.getLineEnd(i)))
+                    l.paint.measureText(text, l.getLineStart(i), l.getLineEnd(i)).roundToInt()
                 )
             }
             super.onMeasure(
-                Math.min(
+                min(
                     maxw + paddingLeft + paddingRight,
                     measuredWidth
                 ) or MeasureSpec.EXACTLY, measuredHeight or MeasureSpec.EXACTLY
             )
         } catch (ignore: Exception) {
-
         }
     }
+
 }

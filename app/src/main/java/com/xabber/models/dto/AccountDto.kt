@@ -14,8 +14,8 @@ data class AccountDto(
     val colorKey: String,
     val hasAvatar: Boolean = false
 ) : Parcelable, Comparable<AccountDto> {
-    override fun compareTo(other: AccountDto): Int {
-      return if (this.enabled && other.enabled)  this.order.compareTo(other.order)
-        else this.enabled.compareTo(other.enabled)
-    }
+    override fun compareTo(other: AccountDto): Int =
+    this.order.compareTo(other.order)
+
+    fun getAccountName(): String = nickname.ifEmpty { jid }
 }

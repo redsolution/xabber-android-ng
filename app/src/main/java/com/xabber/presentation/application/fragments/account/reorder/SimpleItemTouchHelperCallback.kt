@@ -1,9 +1,7 @@
 package com.xabber.presentation.application.fragments.account.reorder
 
-import android.util.Log
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.RecyclerView
-import com.xabber.presentation.application.fragments.account.reorder.ItemTouchHelperAdapter
 
 class SimpleItemTouchHelperCallback(private val adapter: ItemTouchHelperAdapter?) :
     ItemTouchHelper.Callback() {
@@ -29,8 +27,7 @@ class SimpleItemTouchHelperCallback(private val adapter: ItemTouchHelperAdapter?
         recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder,
         target: RecyclerView.ViewHolder
     ): Boolean {
-        Log.d("drag", "touchHelper")
-        adapter?.onItemMove(viewHolder.adapterPosition, target.adapterPosition)
+        adapter?.onItemMove(viewHolder.absoluteAdapterPosition, target.absoluteAdapterPosition)
         return true
     }
 

@@ -14,7 +14,7 @@ import com.xabber.R
 import com.xabber.models.dto.MessageDto
 import com.xabber.models.dto.MessageVhExtraData
 //import com.xabber.presentation.XabberApplication
-import com.xabber.presentation.custom.CustomFlexboxLayout
+import com.xabber.utils.custom.CustomFlexboxLayout
 import java.util.*
 
 open class MessageVH(

@@ -1,35 +1,31 @@
 package com.xabber.presentation.onboarding.activity
 
 import android.graphics.Bitmap
-import android.net.Uri
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.xabber.data_base.dao.AccountStorageItemDao
+import com.xabber.data_base.dao.AvatarStorageItemDao
 import com.xabber.data_base.defaultRealmConfig
 import com.xabber.models.dto.HostListDto
 import com.xabber.models.xmpp.account.AccountStorageItem
 import com.xabber.models.xmpp.avatar.AvatarStorageItem
 import com.xabber.models.xmpp.presences.ResourceStorageItem
 import com.xabber.presentation.XabberApplication
-import com.xabber.repository.AccountRepository
+import com.xabber.presentation.onboarding.util.PasswordStorageHelper
+import com.xabber.remote.AccountRepository
 import io.reactivex.rxjava3.core.Single
 import io.realm.kotlin.Realm
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 class OnboardingViewModel : ViewModel() {
-    companion object {
-        const val PASSWORD_KEY = "password key"
-    }
-
-    private val passwordStorage: PasswordStorageHelper =
-        PasswordStorageHelper(XabberApplication.applicationContext())
-
-    private val accountRepository = AccountRepository()
     private val realm = Realm.open(defaultRealmConfig())
+    private val passwordStorage = PasswordStorageHelper(XabberApplication.applicationContext())
+    private val accountRepository = AccountRepository()
     private val defaultColor = "blue"
-    private val accountOrder = 0
+    private val primaryAccountOrder = 0
 
     private var accountNickName: String? = null
 
@@ -42,15 +38,8 @@ class OnboardingViewModel : ViewModel() {
     private val _avatarBitmap = MutableLiveData<Bitmap>()
     val avatarBitmap: LiveData<Bitmap> = _avatarBitmap
 
-    private val _avatarUri = MutableLiveData<Uri>()
-    val avatarUri: LiveData<Uri> = _avatarUri
-
     fun setAvatarBitmap(bitmap: Bitmap) {
         _avatarBitmap.value = bitmap
-    }
-
-    fun setAvatarUri(uri: Uri) {
-        _avatarUri.value = uri
     }
 
     fun setNickName(newNickName: String) {
@@ -71,37 +60,31 @@ class OnboardingViewModel : ViewModel() {
 
     fun getHost(): Single<HostListDto> = accountRepository.getHostList()
 
-    fun checkIsNameAvailable(username: String, host: String): Boolean = true
-//        accountRepository.checkIfNameAvailable(
-//            mapOf(
-//                "username" to username,
-//                "host" to host,
-//                "no_captcha_key" to AppConstants.NO_CAPTCHA_KEY,
-//            )
-//        )
-
+    fun checkIsNameAvailable(username: String, host: String): Boolean =
+        true  // здесь пока заглушка, в дальнейшем заменить реальной логикой проверки имени на сервере
 
     fun registerAccount() {
-        shiftAccountOrderList()
+        val deviceName = android.os.Build.MODEL
         if (accountNickName != null && accountJid != null && password != null) {
-            savePassword(password!!)
+            savePassword(accountJid!!, password!!)
             viewModelScope.launch(Dispatchers.IO) {
-                realm.writeBlocking {
-                   val accountResource = this.copyToRealm(ResourceStorageItem().apply {
-
+                realm.write {
+                    val accountResource = this.copyToRealm(ResourceStorageItem().apply {
+                        primary = accountJid + accountNickName + deviceName
+                        jid = accountJid!!
+                        owner = accountNickName!!
+                        resource = deviceName
                     })
-
                     this.copyToRealm(AccountStorageItem().apply {
                         primary = accountJid!!
-                        order = accountOrder
+                        order = primaryAccountOrder
                         jid = accountJid!!
-                        nickname = accountNickName!!
+                        username = accountNickName!!
                         enabled = true
                         colorKey = defaultColor
                         hasAvatar = savedUri != null
                         resource = accountResource
                     })
-
                     if (savedUri != null)
                         this.copyToRealm(AvatarStorageItem().apply {
                             primary = accountJid!!
@@ -114,27 +97,8 @@ class OnboardingViewModel : ViewModel() {
         }
     }
 
-    private fun savePassword(password: String) {
-        passwordStorage.setData(PASSWORD_KEY, password.toByteArray())
-    }
-
-    fun getPassword(): String {
-        return String((passwordStorage.getData(PASSWORD_KEY) ?: ByteArray(0)))
-    }
-
-    fun removePassword() {
-        passwordStorage.remove(PASSWORD_KEY)
-    }
-
-    private fun shiftAccountOrderList() {
-        viewModelScope.launch(Dispatchers.IO) { }
-        realm.writeBlocking {
-            val accountList = this.query(AccountStorageItem::class).find()
-            accountList.forEach { T ->
-                val order = T.order
-                T.order = order + 1
-            }
-        }
+    private fun savePassword(accountJid: String, password: String) {
+        passwordStorage.setData(accountJid, password.toByteArray())
     }
 
 }

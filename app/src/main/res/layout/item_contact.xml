@@ -8,7 +8,7 @@
     android:clickable="true"
     android:focusable="true">
 
-    <com.xabber.presentation.custom.ShapeOfView
+    <com.xabber.utils.custom.ShapeOfView
         android:id="@+id/shape_view"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -25,7 +25,7 @@
         android:layout_width="48dp"
         android:layout_height="48dp" />
 
-</com.xabber.presentation.custom.ShapeOfView>
+</com.xabber.utils.custom.ShapeOfView>
     <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"

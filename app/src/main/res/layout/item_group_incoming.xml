@@ -56,7 +56,7 @@
             android:background="@color/blue_50"
             android:backgroundTint="@color/blue_50">
 
-            <com.xabber.presentation.custom.CustomFlexboxLayout
+            <com.xabber.utils.custom.CustomFlexboxLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 app:viewPartMain="@id/tv_body"
@@ -75,7 +75,7 @@
                         android:gravity="start"
                         android:textSize="12sp" />
 
-                    <com.xabber.presentation.custom.CorrectlyTouchEventTextView
+                    <com.xabber.utils.custom.CorrectlyTouchEventTextView
                         android:id="@+id/tv_content"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
@@ -94,7 +94,7 @@
                     android:textColor="@color/grey_600"
                     android:textSize="10sp" />
 
-            </com.xabber.presentation.custom.CustomFlexboxLayout>
+            </com.xabber.utils.custom.CustomFlexboxLayout>
 
         </RelativeLayout>
     </LinearLayout>

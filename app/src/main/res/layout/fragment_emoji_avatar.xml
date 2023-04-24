@@ -211,7 +211,7 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="@+id/palette">
 
-        <com.xabber.presentation.custom.ShapeOfView
+        <com.xabber.utils.custom.ShapeOfView
             android:id="@+id/shape_view"
             android:layout_width="128dp"
             android:layout_height="128dp"
@@ -234,7 +234,7 @@
                 android:textSize="48sp"
                 app:cardElevation="0dp" />
 
-        </com.xabber.presentation.custom.ShapeOfView>
+        </com.xabber.utils.custom.ShapeOfView>
 
         <ImageView
             android:id="@+id/im_edit_smile"

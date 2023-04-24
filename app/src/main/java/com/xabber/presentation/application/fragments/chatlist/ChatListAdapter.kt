@@ -3,6 +3,7 @@ package com.xabber.presentation.application.fragments.chatlist
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.ViewGroup
+import androidx.core.view.isVisible
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.ListAdapter
@@ -11,6 +12,7 @@ import androidx.recyclerview.widget.RecyclerView.ViewHolder
 import com.xabber.databinding.HideChatItemBinding
 import com.xabber.databinding.ItemChatListBinding
 import com.xabber.models.dto.ChatListDto
+import com.xabber.presentation.AppConstants.PAYLOAD_CHAT_COLOR
 import com.xabber.presentation.AppConstants.PAYLOAD_CHAT_CUSTOM_NAME
 import com.xabber.presentation.AppConstants.PAYLOAD_CHAT_DATE
 import com.xabber.presentation.AppConstants.PAYLOAD_CHAT_DRAFT_MESSAGE
@@ -19,10 +21,13 @@ import com.xabber.presentation.AppConstants.PAYLOAD_CHAT_MESSAGE_STATE
 import com.xabber.presentation.AppConstants.PAYLOAD_MUTE_EXPIRED_CHAT
 import com.xabber.presentation.AppConstants.PAYLOAD_PINNED_POSITION_CHAT
 import com.xabber.presentation.AppConstants.PAYLOAD_UNREAD_CHAT
+import com.xabber.utils.custom.SwipeToArchiveCallback
 
 class ChatListAdapter(
     private val listener: ChatListener
 ) : ListAdapter<ChatListDto, ViewHolder>(DiffUtilCallback) {
+    lateinit var recyclerView: RecyclerView
+    var isManyOwners = false
 
     interface ChatListener {
 
@@ -30,7 +35,7 @@ class ChatListAdapter(
 
         fun pinChat(id: String)
 
-        fun unPinChat(id: String)
+        fun unPinChat(id: String, position: Int)
 
         fun swipeItem(id: String)
 
@@ -50,8 +55,6 @@ class ChatListAdapter(
         const val NORMAL_CHAT = 1
     }
 
-    lateinit var recyclerView: RecyclerView
-
     override fun onAttachedToRecyclerView(recycler: RecyclerView) {
         recyclerView = recycler
         ItemTouchHelper(SwipeToArchiveCallback(this)).attachToRecyclerView(recycler)
@@ -65,7 +68,7 @@ class ChatListAdapter(
         }
     }
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         val inflater = LayoutInflater.from(parent.context)
         return when (viewType) {
             NORMAL_CHAT -> {
@@ -83,8 +86,10 @@ class ChatListAdapter(
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        if (holder is ChatListViewHolder)
+        if (holder is ChatListViewHolder) {
+            holder.getDivider().isVisible = isManyOwners
             holder.bind(getItem(position), listener)
+        }
     }
 
     override fun onBindViewHolder(
@@ -141,6 +146,10 @@ class ChatListAdapter(
             if (oldItem.customNickname != newItem.customNickname)
                 diffBundle.putString(
                     PAYLOAD_CHAT_CUSTOM_NAME, newItem.customNickname
+                )
+            if (oldItem.colorKey != newItem.colorKey)
+                diffBundle.putString(
+                    PAYLOAD_CHAT_COLOR, newItem.colorKey
                 )
             return diffBundle
         }

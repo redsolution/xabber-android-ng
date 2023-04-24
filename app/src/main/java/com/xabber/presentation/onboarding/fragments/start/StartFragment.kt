@@ -1,6 +1,5 @@
 package com.xabber.presentation.onboarding.fragments.start
 
-import android.graphics.*
 import android.os.Bundle
 import android.view.View
 import androidx.core.view.isVisible
@@ -15,6 +14,9 @@ import com.xabber.presentation.onboarding.contract.toolbarChanger
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.schedulers.Schedulers
+import retrofit2.HttpException
+import java.net.ConnectException
+import java.net.UnknownHostException
 
 class StartFragment : Fragment(R.layout.fragment_start) {
     private val binding by viewBinding(FragmentStartBinding::bind)
@@ -44,21 +46,27 @@ class StartFragment : Fragment(R.layout.fragment_start) {
                         .subscribe({
                             progressBar.isVisible = false
                             navigator().openSignupNicknameFragment()
-                        }, @StartFragment ::showError)
+                        }, { showError(it) })
                 )
             }
-            compositeDisposable?.clear()
         }
     }
 
     private fun showError(e: Throwable) {
-        navigator().openSignupNicknameFragment()
+        val errorMessage = when (e) {
+            is ConnectException -> "Нет подключения к интернету"
+            is UnknownHostException -> "Неправильный адрес сервера"
+            is HttpException -> "Ошибка на сервере: ${e.code()}"
+            else -> "Неизвестная ошибка: ${e.message}"
+        }
+      //  showToast(errorMessage)
+        navigator().openSignupNicknameFragment() // пока что все равно переходим к регистрации, т.к. работа с сервером не реализована
     }
 
     override fun onDestroy() {
         super.onDestroy()
         compositeDisposable?.clear()
         compositeDisposable = null
-
     }
+
 }

@@ -4,7 +4,6 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
-import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -27,8 +26,6 @@ import com.xabber.R
 import com.xabber.databinding.ActivityApplicationBinding
 import com.xabber.presentation.AppConstants
 import com.xabber.presentation.AppConstants.CHAT_LIST_UNREAD_KEY
-import com.xabber.presentation.application.activity.DisplayManager.getMainContainerWidth
-import com.xabber.presentation.application.activity.DisplayManager.isDualScreenMode
 import com.xabber.presentation.application.contract.Navigator
 import com.xabber.presentation.application.fragments.account.AccountFragment
 import com.xabber.presentation.application.fragments.account.qrcode.QRCodeDialogFragment
@@ -38,7 +35,6 @@ import com.xabber.presentation.application.fragments.account.reorder.ReorderAcco
 import com.xabber.presentation.application.fragments.calls.CallsFragment
 import com.xabber.presentation.application.fragments.chat.ChatFragment
 import com.xabber.presentation.application.fragments.chat.ChatParams
-import com.xabber.presentation.application.fragments.chat.ViewImageActivity
 import com.xabber.presentation.application.fragments.chatlist.ArchiveFragment
 import com.xabber.presentation.application.fragments.chatlist.ChatListFragment
 import com.xabber.presentation.application.fragments.chatlist.ChatListViewModel
@@ -47,15 +43,15 @@ import com.xabber.presentation.application.fragments.chatlist.add.NewContactFrag
 import com.xabber.presentation.application.fragments.chatlist.add.NewGroupFragment
 import com.xabber.presentation.application.fragments.chatlist.forward.ChatListToForwardFragment
 import com.xabber.presentation.application.fragments.chatlist.spec_notifications.SpecialNotificationsFragment
-import com.xabber.presentation.application.fragments.contacts.ContactsFragment
-import com.xabber.presentation.application.fragments.contacts.StatusFragment
+import com.xabber.presentation.application.fragments.contacts.*
 import com.xabber.presentation.application.fragments.contacts.edit.EditContactFragment
-import com.xabber.presentation.application.fragments.contacts.vcard.ContactAccountFragment
-import com.xabber.presentation.application.fragments.contacts.vcard.ContactAccountParams
-import com.xabber.presentation.application.fragments.contacts.vcard.ContactProfileFragment
 import com.xabber.presentation.application.fragments.discover.DiscoverFragment
 import com.xabber.presentation.application.fragments.settings.*
+import com.xabber.presentation.application.manage.DisplayManager
+import com.xabber.presentation.application.manage.DisplayManager.getMainContainerWidth
+import com.xabber.presentation.application.manage.DisplayManager.isDualScreenMode
 import com.xabber.presentation.onboarding.activity.OnBoardingActivity
+import com.xabber.utils.MaskManager
 import com.xabber.utils.lockScreenRotation
 
 /**
@@ -81,24 +77,38 @@ class ApplicationActivity : AppCompatActivity(), Navigator {
     private val viewModel: ApplicationViewModel by viewModels()
     private val chatListViewModel: ChatListViewModel by viewModels()
 
+    private val showBadge = {
+        val count = viewModel.unreadMessage.value
+        if (count != null) {
+            if (count > 0) {
+                val creator = binding.bottomNavBar.getOrCreateBadge(R.id.chats)
+                creator.backgroundColor =
+                    ResourcesCompat.getColor(
+                        binding.bottomNavBar.resources,
+                        R.color.green_500,
+                        null
+                    )
+                creator.badgeGravity = BadgeDrawable.BOTTOM_END
+                creator.number = count
+            } else binding.bottomNavBar.removeBadge(R.id.chats)
+        } else binding.bottomNavBar.removeBadge(R.id.chats)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         setTheme(R.style.ThemeApplication)
         super.onCreate(savedInstanceState)
         setContentView(binding.root)
-        window?.statusBarColor = Color.TRANSPARENT
-        if (viewModel.checkIsEntry()) {
-            updateUiDependingOnMode(isDualScreenMode())
+        window?.statusBarColor =
+            Color.TRANSPARENT  // На некоторых устройствах не срабатывает аттрибут цвета статус бара из темы приложения, поэтому дополнительно программно задаем прозрачный цвет статус-бару
+        if (viewModel.checkIsEntry()) {  // Проверяем авторизован ли пользователь
+            updateUiDependingOnMode(isDualScreenMode()) // Определяем нужно ли нам разделение экрана
             setFullScreenMode()
-            setHeightStatusBar()
+            setHeightStatusBar()     // Вычисляем и устанавливаем высоту статус бара, чтобы устанавливать отступ
+            setMask()   // Задаем маску из Preferences, по дефолту - круглая маска
             handler.postDelayed(showBadge, 0)
             binding.slidingPaneLayout.lockMode = SlidingPaneLayout.LOCK_MODE_LOCKED_CLOSED
-            assist = SoftInputAssist(this)
-            val mask =
-                getSharedPreferences("Pref", Context.MODE_PRIVATE).getInt(
-                    AppConstants.MASK_KEY,
-                    R.drawable.ic_mask_circle
-                )
-            MaskManager.mask = mask
+            assist =
+                SoftInputAssist(window)  // Инициализируем класс, отвечающий за высоту soft keyboard в режиме full screen
             initBottomNavigation()
             subscribeToViewModelData()
             if (savedInstanceState != null) {
@@ -107,24 +117,21 @@ class ApplicationActivity : AppCompatActivity(), Navigator {
         } else goToOnboarding()
     }
 
-    private fun setupIconChat(unreadChats: Boolean) {
-        val menuItem = binding.bottomNavBar.menu.findItem(R.id.chats)
-        if (unreadChats) {
-            menuItem.setIcon(R.drawable.ic_chat_alert)
-        } else {
-            menuItem.setIcon(R.drawable.ic_chat)
-        }
-    }
-
     override fun onResume() {
         super.onResume()
         assist?.onResume()
     }
 
-    private fun goToOnboarding() {
-        val intent = Intent(applicationContext, OnBoardingActivity::class.java)
-        startActivity(intent)
-        finish()
+    private fun updateUiDependingOnMode(isDualScreenMode: Boolean) {
+        if (isDualScreenMode) {
+            setContainerWidth()
+        }
+    }
+
+    private fun setContainerWidth() {
+        binding.mainContainer.updateLayoutParams<SlidingPaneLayout.LayoutParams> {
+            this.width = getMainContainerWidth()
+        }
     }
 
     private fun setFullScreenMode() {
@@ -157,35 +164,14 @@ class ApplicationActivity : AppCompatActivity(), Navigator {
         }
     }
 
-    private fun updateUiDependingOnMode(isDualScreenMode: Boolean) {
-        if (isDualScreenMode) {
-            setContainerWidth()
-        }
+    private fun setMask() {
+        val mask =
+            getSharedPreferences(AppConstants.SHARED_PREF_MASK, Context.MODE_PRIVATE).getInt(
+                AppConstants.MASK_KEY,
+                R.drawable.ic_mask_circle
+            )
+        MaskManager.mask = mask
     }
-
-    private fun setContainerWidth() {
-        binding.mainContainer.updateLayoutParams<SlidingPaneLayout.LayoutParams> {
-            this.width = getMainContainerWidth()
-        }
-    }
-
-    private val showBadge = {
-        val count = viewModel.unreadMessage.value
-        if (count != null) {
-            if (count > 0) {
-                val creator = binding.bottomNavBar.getOrCreateBadge(R.id.chats)
-                creator.backgroundColor =
-                    ResourcesCompat.getColor(
-                        binding.bottomNavBar.resources,
-                        R.color.green_500,
-                        null
-                    )
-                creator.badgeGravity = BadgeDrawable.BOTTOM_END
-                creator.number = count
-            } else binding.bottomNavBar.removeBadge(R.id.chats)
-        } else binding.bottomNavBar.removeBadge(R.id.chats)
-    }
-
 
     private fun initBottomNavigation() {
         binding.bottomNavBar.setOnItemSelectedListener { menuItem ->
@@ -230,11 +216,6 @@ class ApplicationActivity : AppCompatActivity(), Navigator {
         }
     }
 
-    private fun showUnreadChats(showUnread: Boolean) {
-        if (activeFragment is ChatListFragment) chatListViewModel.setShowUnreadOnly(showUnread)
-        setupIconChat(showUnread)
-    }
-
     private fun subscribeToViewModelData() {
         viewModel.initAccountListListener()
         viewModel.initUnreadMessagesCountListener()
@@ -242,6 +223,27 @@ class ApplicationActivity : AppCompatActivity(), Navigator {
             handler.postDelayed(showBadge, 300)
         }
         viewModel.getUnreadMessages()
+    }
+
+    private fun setupIconChat(unreadChats: Boolean) {
+        val menuItem = binding.bottomNavBar.menu.findItem(R.id.chats)
+        if (unreadChats) {
+            menuItem.setIcon(R.drawable.ic_chat_alert)
+        } else {
+            menuItem.setIcon(R.drawable.ic_chat)
+        }
+    }
+
+    private fun goToOnboarding() {
+        val intent = Intent(applicationContext, OnBoardingActivity::class.java)
+        startActivity(intent)
+        finish()
+    }
+
+
+    private fun showUnreadChats(showUnread: Boolean) {
+        if (activeFragment is ChatListFragment) chatListViewModel.setShowUnreadOnly(showUnread)
+        setupIconChat(showUnread)
     }
 
     private fun launchFragment(fragment: Fragment) {
@@ -274,7 +276,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator {
         if (supportFragmentManager.backStackEntryCount > 0)
             supportFragmentManager.popBackStack()
         else {
-            if (isDualScreenMode()) closeDetail() else binding.slidingPaneLayout.close()
+            closeDetail()
         }
     }
 
@@ -428,13 +430,6 @@ class ApplicationActivity : AppCompatActivity(), Navigator {
 
     override fun showAddAccountFragment() {
         launchDetail(AddAccountFragment())
-    }
-
-    override fun showImageViewer(mediaUris: ArrayList<Uri>?, position: Int) {
-        val intent = Intent(this, ViewImageActivity::class.java)
-        intent.putParcelableArrayListExtra("im", mediaUris)
-        intent.putExtra("pos", position)
-        startActivity(intent)
     }
 
     override fun lockScreen(lock: Boolean) {

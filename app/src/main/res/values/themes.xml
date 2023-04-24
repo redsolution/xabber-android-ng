@@ -1,5 +1,4 @@
 <resources>
-    <!-- Base application theme. -->
 
     <style name="ThemeOnboarding" parent="Theme.AppCompat.Light.DarkActionBar">
         <item name="windowActionBar">false</item>
@@ -9,6 +8,7 @@
         <item name="colorPrimary">@color/white</item>
         <item name="homeAsUpIndicator">@drawable/ic_chevron_left_grey</item>
         <item name="bottomSheetDialogTheme">@style/BaseBottomSheetDialogTheme</item>
+        <item name="android:navigationBarColor">@color/grey_300</item>
     </style>
 
     <style name="ThemeApplication" parent="Theme.MaterialComponents.Light.Bridge">
@@ -17,10 +17,8 @@
         <item name="windowNoTitle">true</item>
         <item name="android:textColorPrimary">@color/black</item>
         <item name="android:statusBarColor">@color/transparent</item>
-        <item name="android:windowTranslucentStatus">true</item>
         <item name="toolbar_color">@color/blue_500</item>
         <item name="colorPrimary">@color/blue_300</item>
-        <item name="windowActionModeOverlay">true</item>
         <item name="android:windowLightStatusBar">false</item>
         <item name="action_with_chat_background">@color/grey_800</item>
         <item name="chat_item_background">@color/white</item>
@@ -28,6 +26,8 @@
         <item name="popupMenuStyle">@style/popupMenuStyle</item>
         <item name="transparent_rounded_background">@drawable/rounded_background_grey_transparent
         </item>
+        <item name="android:navigationBarColor">@color/grey_300</item>
+        <item name="bottomSheetDialogTheme">@style/Theme.MaterialComponents.BottomSheetDialog</item>
         <item name="avatar_initials_color">@color/grey_900</item>
         <item name="avatar_mask">@drawable/circle56</item>
         <item name="chat_input_background">@color/white</item>
@@ -36,7 +36,6 @@
     <style name="ThemeImageViewer" parent="Theme.AppCompat.Light.DarkActionBar">
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
-        <item name="android:windowNoTitle">true</item>
         <item name="android:windowTranslucentStatus">true</item>
         <item name="android:windowTranslucentNavigation">true</item>
         <item name="android:homeAsUpIndicator">@drawable/ic_arrow_left_white</item>

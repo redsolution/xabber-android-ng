@@ -7,8 +7,8 @@ class LastChatStorageItemDao(private val realm: Realm) {
 
     fun getItemByPrimary(primary: String): LastChatsStorageItem? {
         var item: LastChatsStorageItem? = null
-         realm.writeBlocking {
-            item = this.query(LastChatsStorageItem::class, "primary = '$primary").first().find()
+        realm.writeBlocking {
+            item = this.query(LastChatsStorageItem::class, "primary = '$primary'").first().find()
         }
         return item
     }
@@ -21,32 +21,47 @@ class LastChatStorageItemDao(private val realm: Realm) {
         return itemList
     }
 
-    fun setPinnedPosition(primary: String, pinnedPosition: Long) {
-        realm.writeBlocking {
-         val item = this.query(LastChatsStorageItem::class, "primary = '$primary'").first().find()
-            item?.pinnedPosition = pinnedPosition
-        }
-    }
-
-    fun setArchived(primary: String) {
-        realm.writeBlocking {
-            val item = this.query(LastChatsStorageItem::class, "primary = '$primary'").first().find()
+    suspend fun setPinnedPosition(primary: String, pinnedPosition: Long) {
+        realm.write {
+            val item =
+                this.query(LastChatsStorageItem::class, "primary = '$primary'").first().find()
             if (item != null)
-            item.isArchived = !item.isArchived
+                item.pinnedPosition = pinnedPosition
         }
     }
 
-    fun deleteItem(primary: String) {
-        realm.writeBlocking {
-            val item = this.query(LastChatsStorageItem::class, "primary = '$primary'").first().find()
+    suspend fun setArchived(primary: String) {
+        realm.write {
+            val item =
+                this.query(LastChatsStorageItem::class, "primary = '$primary'").first().find()
+            if (item != null)
+                item.isArchived = !item.isArchived
+        }
+    }
+
+    suspend fun deleteItem(primary: String) {
+        realm.write {
+            val item =
+                this.query(LastChatsStorageItem::class, "primary = '$primary'").first().find()
             if (item != null) findLatest(item)?.let { delete(it) }
         }
     }
 
-    fun setMuteExpired(primary: String, muteExpired: Long) {
+    suspend fun setMuteExpired(primary: String, muteExpired: Long) {
+        realm.write {
+            val item =
+                this.query(LastChatsStorageItem::class, "primary = '$primary'").first().find()
+            if (item != null)
+                item.muteExpired = muteExpired
+        }
+    }
+
+    fun markAllChatsAsUnread() {
         realm.writeBlocking {
-            val item = this.query(LastChatsStorageItem::class, "primary = '$primary'").first().find()
-            item?.muteExpired = muteExpired
+            val items = this.query(LastChatsStorageItem::class).find()
+            items.forEach {
+                it.unread = 0
+            }
         }
     }
 

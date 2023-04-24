@@ -6,19 +6,17 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
-import com.bumptech.glide.load.MultiTransformation
-import com.bumptech.glide.load.resource.bitmap.CircleCrop
-import com.bumptech.glide.request.RequestOptions
 import com.xabber.R
 import com.xabber.databinding.ItemChatListBinding
 import com.xabber.models.dto.ChatListDto
 import com.xabber.models.xmpp.messages.MessageSendingState
 import com.xabber.models.xmpp.presences.ResourceStatus
 import com.xabber.models.xmpp.presences.RosterItemEntity
-import com.xabber.presentation.application.activity.MaskManager
+import com.xabber.utils.MaskManager
 import com.xabber.presentation.application.dialogs.TimeMute
-import com.xabber.utils.DateFormatter
+import com.xabber.presentation.application.util.dateFormat
 import com.xabber.utils.dp
+import java.util.*
 
 class ChatListForwardHolder(
     private val binding: ItemChatListBinding,
@@ -48,7 +46,7 @@ binding.shapeView.setDrawable(MaskManager.mask)
 
             // timeStamp
             tvTimestamp.text =
-                DateFormatter.dateFormat(chatListDto.lastMessageDate)
+                Date().dateFormat(chatListDto.lastMessageDate)
 
             // pinned -> background and icon
             if (chatListDto.pinnedDate > 0) {

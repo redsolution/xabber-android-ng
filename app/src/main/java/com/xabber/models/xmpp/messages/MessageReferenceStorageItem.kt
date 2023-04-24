@@ -31,4 +31,9 @@ class MessageReferenceStorageItem: RealmObject {
     var isUploaded: Boolean = false
     var isMissed: Boolean = false
     var hasError: Boolean = false
+    var uri: String? = null
+    var isImage: Boolean = false
+    var isAudio: Boolean = false
+    var isGeo: Boolean = false
+
 }

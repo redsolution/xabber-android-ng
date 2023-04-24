@@ -7,17 +7,15 @@ import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import com.xabber.databinding.ItemAccountForPreferenceBinding
 import com.xabber.models.dto.AccountDto
-import com.xabber.models.dto.ChatListDto
 import com.xabber.presentation.AppConstants
-import com.xabber.presentation.application.fragments.chatlist.ChatListViewHolder
 
 class AccountAdapter(
     private val listener: Listener
 ) : ListAdapter<AccountDto, AccountViewHolder>(DiffUtilCallback) {
 
     interface Listener {
-        fun setEnabled(id: String, isChecked: Boolean)
         fun onClick(id: String)
+        fun setEnabled(id: String, isChecked: Boolean)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): AccountViewHolder =
@@ -26,10 +24,12 @@ class AccountAdapter(
                 LayoutInflater.from(parent.context),
                 parent,
                 false
-            ), listener)
+            ), listener
+        )
 
-    override fun onBindViewHolder(holder: AccountViewHolder, position: Int) =
+    override fun onBindViewHolder(holder: AccountViewHolder, position: Int) {
         holder.bind(getItem(position))
+    }
 
     override fun onBindViewHolder(
         holder: AccountViewHolder,
@@ -39,7 +39,7 @@ class AccountAdapter(
         if (payloads.isEmpty()) {
             super.onBindViewHolder(holder, position, payloads)
         } else {
-            holder.bind(getItem(position), payloads)
+                holder.bind(getItem(position), payloads)
         }
     }
 
@@ -53,11 +53,15 @@ class AccountAdapter(
 
         override fun getChangePayload(oldItem: AccountDto, newItem: AccountDto): Any {
             val diffBundle = Bundle()
+            if (oldItem.colorKey != newItem.colorKey) diffBundle.putString(
+                AppConstants.PAYLOAD_ACCOUNT_COLOR,
+                newItem.colorKey
+            )
             if (oldItem.enabled != newItem.enabled) diffBundle.putBoolean(
-                "enabled",
+                AppConstants.PAYLOAD_ACCOUNT_ENABLED,
                 newItem.enabled
             )
-            if (oldItem.hasAvatar != newItem.hasAvatar) diffBundle.putBoolean("avatar", newItem.hasAvatar)
+            if (oldItem.hasAvatar != newItem.hasAvatar) diffBundle.putBoolean(AppConstants.PAYLOAD_ACCOUNT_HAS_AVATAR, newItem.hasAvatar)
             return diffBundle
         }
     }

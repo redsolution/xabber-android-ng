@@ -1,12 +1,11 @@
 package com.xabber.presentation.application.contract
 
-import android.net.Uri
 import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.Fragment
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.xabber.presentation.application.fragments.account.qrcode.QRCodeParams
 import com.xabber.presentation.application.fragments.chat.ChatParams
-import com.xabber.presentation.application.fragments.contacts.vcard.ContactAccountParams
+import com.xabber.presentation.application.fragments.contacts.ContactAccountParams
 
 fun Fragment.navigator(): Navigator = requireActivity() as Navigator
 
@@ -79,8 +78,6 @@ interface Navigator {
     fun showDebugSettings()
 
     fun showAddAccountFragment()
-
-    fun showImageViewer(mediaUris: ArrayList<Uri>?, position: Int)
 
     fun lockScreen(lock: Boolean)
 

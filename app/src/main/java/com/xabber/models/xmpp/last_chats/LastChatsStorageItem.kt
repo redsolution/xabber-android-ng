@@ -13,7 +13,7 @@ class LastChatsStorageItem: RealmObject {
     @PrimaryKey
     var primary: String = ""  // автоматически jid + owner + conversation type
     var owner: String = ""   // jid наш
-    var opponentJid: String = ""     // jid собеседника
+    var jid: String = ""     // jid собеседника
     var messageDate: Long = 0    // дата последнего сообщения
     var lastReadMessageDate: Long = 0
     var rosterItem: RosterStorageItem? = null   // данные собеседника
@@ -34,24 +34,10 @@ class LastChatsStorageItem: RealmObject {
     var isPrereaded: Boolean = false
     var pinnedPosition: Long = 0 // время закрепа
     var muteExpired: Long = -1   //
-    var avatar: Int = R.drawable.dog  //
-    var colorKey: String = "blue"
     var conversationType_: String = ConversationType.Regular.rawValue
     var composingType_: String = ComposingType.none.rawValue
     var chatMarkersSupport: Boolean = false
+
     var lastPosition: String = ""
-
-//    var conversationType: ConversationType
-//        get() = ConversationType.values().firstOrNull { it.rawValue == conversationType_ } ?: ConversationType.Regular
-//        set(newValue: ConversationType) { conversationType_ = newValue.rawValue }
-//
-//    var composingType: ComposingType
-//        get() = ComposingType.values().firstOrNull { it.rawValue == composingType_ } ?: ComposingType.none
-//        set(newValue: ComposingType) { composingType_ = newValue.rawValue }
-
-//    companion object {
-//        fun genPrimary(jid: String, owner: String, conversationType: ConversationType): String {
-//            return prp(strArray = arrayOf(jid, owner, conversationType.rawValue))
-//        }
-//    }
+    var avatar: Int = R.drawable.dog
 }

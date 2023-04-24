@@ -1,10 +1,12 @@
 package com.xabber.presentation.application.fragments.chatlist
 
+import android.annotation.SuppressLint
 import android.graphics.Color
 import android.os.Bundle
 import android.view.View
 import androidx.core.view.isVisible
-import androidx.fragment.app.viewModels
+import androidx.fragment.app.activityViewModels
+import androidx.recyclerview.widget.DefaultItemAnimator
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import by.kirich1409.viewbindingdelegate.viewBinding
@@ -13,8 +15,6 @@ import com.xabber.R
 import com.xabber.databinding.FragmentArchiveBinding
 import com.xabber.models.dto.ChatListDto
 import com.xabber.presentation.AppConstants
-import com.xabber.presentation.AppConstants.TURN_OFF_NOTIFICATIONS_BUNDLE_KEY
-import com.xabber.presentation.AppConstants.TURN_OFF_NOTIFICATIONS_KEY
 import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.application.dialogs.ChatHistoryClearDialog
 import com.xabber.presentation.application.dialogs.DeletingChatDialog
@@ -22,26 +22,29 @@ import com.xabber.presentation.application.dialogs.NotificationBottomSheet
 import com.xabber.presentation.application.fragments.BaseFragment
 import com.xabber.presentation.application.fragments.chat.ChatParams
 import com.xabber.presentation.application.fragments.chatlist.archive.ArchiveViewModel
-import com.xabber.presentation.custom.DividerItemDecoration
+import com.xabber.presentation.application.manage.DisplayManager
+import com.xabber.utils.custom.DividerItemDecoration
+import com.xabber.utils.custom.SwipeToArchiveCallback
 import com.xabber.utils.partSmoothScrollToPosition
-import com.xabber.utils.setFragmentResultListener
 
 class ArchiveFragment : BaseFragment(R.layout.fragment_archive),
     ChatListAdapter.ChatListener {
     private val binding by viewBinding(FragmentArchiveBinding::bind)
     private var adapter: ChatListAdapter? = null
-    private val viewModel: ArchiveViewModel by viewModels()
+    private val viewModel: ArchiveViewModel by activityViewModels()
+    private var layoutManager: LinearLayoutManager? = null
     private val enableNotificationsCode = 0L
     private var snackbar: Snackbar? = null
-    private var currentId = ""
-    private var toPin = false
+    private var isPin = false
+    private var isUnpin = false
+    private var unpinnedChatPosition = -1
+    private var selectedChatId = ""
+    private var itemAnimator = DefaultItemAnimator().apply {
+        this.removeDuration = 0
+    }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        if (savedInstanceState != null) currentId =
-            savedInstanceState.getString(AppConstants.CURRENT_ID_KEY, "")
-        else viewModel.initListener()
-        setDialogListeners()
         setupArchiveUi()
         initToolbarActions()
         initRecyclerView()
@@ -68,8 +71,18 @@ class ArchiveFragment : BaseFragment(R.layout.fragment_archive),
     private fun initRecyclerView() {
         adapter = ChatListAdapter(this)
         binding.chatList.adapter = adapter
+        layoutManager = binding.chatList.layoutManager as LinearLayoutManager
+        setRemoveDurationAnimation()
         addItemDecoration()
         addSwipeOption()
+        addScrollListener()
+    }
+
+    private fun setRemoveDurationAnimation() {
+        binding.chatList.animation = null
+        val animator = DefaultItemAnimator()
+        animator.removeDuration = 0
+        binding.chatList.itemAnimator = animator
     }
 
     private fun addItemDecoration() {
@@ -90,53 +103,84 @@ class ArchiveFragment : BaseFragment(R.layout.fragment_archive),
         }
     }
 
-    private fun setDialogListeners() {
-        setFragmentResultListener(TURN_OFF_NOTIFICATIONS_KEY) { _, bundle ->
-            val mute =
-                bundle.getLong(TURN_OFF_NOTIFICATIONS_BUNDLE_KEY) + System.currentTimeMillis()
-            viewModel.setMute(currentId, mute)
-        }
-
-        setFragmentResultListener(AppConstants.DELETING_CHAT_KEY) { _, bundle ->
-            val result = bundle.getBoolean(AppConstants.DELETING_CHAT_BUNDLE_KEY)
-            if (result) viewModel.deleteChat(currentId)
-        }
-
-        setFragmentResultListener(AppConstants.CLEAR_HISTORY_KEY) { _, bundle ->
-            val result = bundle.getBoolean(AppConstants.CLEAR_HISTORY_BUNDLE_KEY)
-            if (result) viewModel.clearHistoryChat(currentId)
-        }
-    }
-
-    private fun subscribeOnViewModelData() {
-        viewModel.chatList.observe(viewLifecycleOwner) {
-            binding.linEmpty.isVisible = it.isEmpty() || it == null
-            adapter?.submitList(it)
-            if (toPin) {
-                scrollUp()
-                toPin = false
+    private fun addScrollListener() {   // Если находимся вверху списка делаем scrollbar невидимым
+        if (layoutManager != null) {
+            binding.chatList.setOnScrollChangeListener { _, _, _, _, _ ->
+                if (layoutManager!!.findFirstVisibleItemPosition() <= 2) {
+                    binding.chatList.scrollBarSize = 0
+                } else {
+                    binding.chatList.scrollBarSize = 10
+                }
             }
         }
     }
 
+    @SuppressLint("NotifyDataSetChanged")
+    private fun subscribeOnViewModelData() {
+        viewModel.chatList.observe(viewLifecycleOwner) {
+            val a = ArrayList<ChatListDto>()
+            a.addAll(it)
+            adapter?.isManyOwners = viewModel.getAccountsAmount() > 1
+            val positionBeforeUpdate = layoutManager?.findFirstVisibleItemPosition()
+            adapter?.submitList(a) {
+                binding.linEmpty.isVisible = it.isEmpty() || it == null
+                if (isPin) {                                           // Если это перемещение элемента вверх при видимом элементе 0 произойдет стандартная анимация, иначе выключаем анимацию
+                    if (layoutManager != null) {
+                        if (layoutManager!!.findFirstVisibleItemPosition() > 0)
+                            binding.chatList.itemAnimator = null
+                        else binding.chatList.itemAnimator = itemAnimator
+                        binding.chatList.partSmoothScrollToPosition(0)
+                        isPin = false
+                    }
+                } else if (isUnpin && unpinnedChatPosition == layoutManager?.findFirstVisibleItemPosition()) {
+                    if (positionBeforeUpdate != null)             // Меняем стандартное поведение recyclerView (при перемещении первого видимого элемента происходит скроллирование списка до его новой позиции)
+                        layoutManager?.scrollToPositionWithOffset(  // на нужное нам: остаемся на позиции beforeUpdate
+                            positionBeforeUpdate,
+                            0
+                        )
+                    isUnpin = false
+                }
+            }
+            binding.chatList.itemAnimator = itemAnimator   // включаем анимацию
+        }
+
+        baseViewModel.colorKey.observe(viewLifecycleOwner) {
+            adapter?.isManyOwners = viewModel.getAccountsAmount() > 1
+            viewModel.initListener()
+            viewModel.getChat()
+        }
+    }
+
     override fun onClickItem(chatListDto: ChatListDto) {
-        navigator().showChat(
-            ChatParams(
-                chatListDto.id,
-                chatListDto.owner,
-                chatListDto.opponentJid,
-                chatListDto.drawableId
+        if (DisplayManager.isDualScreenMode()) {
+            if (selectedChatId != chatListDto.id) {   // В режиме двух экранов перед тем как открыть чат делаем проверку на то что он уже открыт, чтобы не открывать заново
+                selectedChatId = chatListDto.id
+                navigator().showChat(
+                    ChatParams(
+                        chatListDto.id,
+                        chatListDto.drawableId  // пока не работает сервер, передаем id аватарки из ресурсов
+                    )
+                )
+            }
+        } else {
+            navigator().showChat(
+                ChatParams(
+                    chatListDto.id,
+                    chatListDto.drawableId
+                )
             )
-        )
+        }
     }
 
     override fun pinChat(id: String) {
         viewModel.pinChat(id)
-        toPin = true
+        isPin = true
     }
 
-    override fun unPinChat(id: String) {
+    override fun unPinChat(id: String, position: Int) {
         viewModel.unPinChat(id)
+        isUnpin = true
+        unpinnedChatPosition = position
     }
 
     override fun swipeItem(id: String) {
@@ -161,21 +205,18 @@ class ArchiveFragment : BaseFragment(R.layout.fragment_archive),
     }
 
     override fun deleteChat(name: String, id: String) {
-        currentId = id
-        val dialog = DeletingChatDialog.newInstance(name)
+        val dialog = DeletingChatDialog.newInstance(name, id)
         navigator().showDialogFragment(dialog, AppConstants.DELETING_CHAT_DIALOG_TAG)
     }
 
     override fun clearHistory(chatListDto: ChatListDto) {
-        currentId = chatListDto.id
         val name = chatListDto.getChatName()
-        val dialog = ChatHistoryClearDialog.newInstance(name)
+        val dialog = ChatHistoryClearDialog.newInstance(name, chatListDto.id)
         navigator().showDialogFragment(dialog, AppConstants.CLEAR_HISTORY_DIALOG_TAG)
     }
 
     override fun turnOfNotifications(id: String) {
-        currentId = id
-        val dialog = NotificationBottomSheet()
+        val dialog = NotificationBottomSheet.newInstance(id)
         navigator().showBottomSheetDialog(dialog)
     }
 
@@ -190,11 +231,6 @@ class ArchiveFragment : BaseFragment(R.layout.fragment_archive),
     override fun onStop() {
         super.onStop()
         snackbar?.dismiss()
-    }
-
-    override fun onSaveInstanceState(outState: Bundle) {
-        super.onSaveInstanceState(outState)
-        outState.putString(AppConstants.CURRENT_ID_KEY, currentId)
     }
 
     override fun onDestroy() {

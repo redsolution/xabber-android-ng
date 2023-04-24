@@ -1,6 +1,5 @@
 package com.xabber.presentation.application.fragments.account.color
 
-import android.view.View
 import android.widget.RadioButton
 import androidx.recyclerview.widget.RecyclerView
 import com.xabber.databinding.DialogColorPickerItemBinding

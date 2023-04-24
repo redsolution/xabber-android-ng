@@ -28,7 +28,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content">
 
-                <com.xabber.presentation.custom.ShapeOfView
+                <com.xabber.utils.custom.ShapeOfView
                     android:id="@+id/shape_view"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -44,7 +44,7 @@
                         android:contentDescription="@string/avatar_account_content_description"
                         android:scaleType="centerCrop"
                         tools:src="@tools:sample/avatars" />
-                </com.xabber.presentation.custom.ShapeOfView>
+                </com.xabber.utils.custom.ShapeOfView>
 
                 <TextView
                     android:id="@+id/tv_initials"
@@ -83,7 +83,7 @@
         </com.google.android.material.appbar.MaterialToolbar>
     </com.google.android.material.appbar.AppBarLayout>
 
-    <com.xabber.presentation.custom.PullRefreshLayout
+    <com.xabber.utils.custom.PullRefreshLayout
         android:id="@+id/refresh_layout"
         android:layout_width="match_parent"
         android:layout_height="0dp"
@@ -106,7 +106,7 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/appbar"
             tools:listitem="@layout/item_chat_list" />
-    </com.xabber.presentation.custom.PullRefreshLayout>
+    </com.xabber.utils.custom.PullRefreshLayout>
 
     <LinearLayout
         android:id="@+id/lin_empty"

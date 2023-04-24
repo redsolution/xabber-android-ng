@@ -5,13 +5,10 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.xabber.R
 import com.xabber.data_base.defaultRealmConfig
-import com.xabber.models.dto.ChatListDto
 import com.xabber.models.dto.ContactDto
 import com.xabber.models.xmpp.account.AccountStorageItem
 import com.xabber.models.xmpp.last_chats.LastChatsStorageItem
-import com.xabber.models.xmpp.messages.MessageSendingState
 import com.xabber.models.xmpp.presences.ResourceStatus
 import com.xabber.models.xmpp.presences.RosterItemEntity
 import com.xabber.models.xmpp.roster.RosterStorageItem
@@ -102,14 +99,14 @@ class ContactsViewModel : ViewModel() {
 
     fun getChatId(owner: String, opponent: String): String? {
         var id: String? = null
-        val item = realm.query(LastChatsStorageItem::class, "opponentJid = '$opponent'").first().find()
+        val item = realm.query(LastChatsStorageItem::class, "jid = '$opponent'").first().find()
         return item?.primary ?: null
         return id
     }
 
     fun getOwner(): String? {
         val item = realm.query(AccountStorageItem::class).first().find()
-        val nick =  item?.nickname
+        val nick =  item?.username
         Log.d("ooo", "$nick")
         return nick
     }

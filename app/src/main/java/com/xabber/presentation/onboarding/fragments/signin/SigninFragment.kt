@@ -1,21 +1,15 @@
 package com.xabber.presentation.onboarding.fragments.signin
 
-import android.annotation.SuppressLint
 import android.content.Context
-import android.graphics.Color
 import android.os.Bundle
 import android.text.*
 import android.text.method.LinkMovementMethod
 import android.text.style.ClickableSpan
-import android.text.style.ForegroundColorSpan
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.widget.TextView
 import androidx.activity.OnBackPressedCallback
-import androidx.core.content.ContextCompat
-import androidx.core.content.res.ResourcesCompat
-import androidx.core.text.color
 import androidx.core.view.isInvisible
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
@@ -23,6 +17,8 @@ import androidx.lifecycle.lifecycleScope
 import by.kirich1409.viewbindingdelegate.viewBinding
 import com.xabber.R
 import com.xabber.databinding.FragmentSigninBinding
+import com.xabber.presentation.XabberApplication
+import com.xabber.presentation.onboarding.util.PasswordStorageHelper
 import com.xabber.presentation.onboarding.contract.navigator
 import com.xabber.presentation.onboarding.contract.toolbarChanger
 import com.xabber.presentation.onboarding.fragments.signin.feature.FeatureAdapter
@@ -30,7 +26,6 @@ import com.xabber.presentation.onboarding.fragments.signin.feature.State
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.serialization.StringFormat
 
 /** This fragment is intended for user authorization. If the authorization is successful
  * and all the features are successful, too, the user gets into the application
@@ -38,10 +33,9 @@ import kotlinx.serialization.StringFormat
 
 class SigninFragment : Fragment(R.layout.fragment_signin) {
     private val binding by viewBinding(FragmentSigninBinding::bind)
-    private val password = "1"
     private val featureAdapter = FeatureAdapter()
     private val viewModel = SigninViewModel()
-    var host: String = "xabber.com"
+    private var host: String = "xabber.com"
     private var compositeDisposable: CompositeDisposable? = CompositeDisposable()
 
     private val onBackPressedCallback = object : OnBackPressedCallback(true) {
@@ -85,7 +79,10 @@ class SigninFragment : Fragment(R.layout.fragment_signin) {
                         .isNotEmpty()
                 binding.errorSubtitle.isVisible = false
                 binding.signinSubtitle1.isInvisible = false
-                binding.signinSubtitle1.setText(getSubtitleClickableSpan(true), TextView.BufferType.SPANNABLE)
+                binding.signinSubtitle1.setText(
+                    getSubtitleClickableSpan(true),
+                    TextView.BufferType.SPANNABLE
+                )
                 binding.signinSubtitle1.movementMethod = LinkMovementMethod.getInstance()
             }
         }
@@ -107,88 +104,78 @@ class SigninFragment : Fragment(R.layout.fragment_signin) {
     private fun initButton() {
         with(binding) {
             btnConnect.setOnClickListener {
-                if (editTextPassword.text?.trim()
-                        .toString(
-                        ) != password
+                val jid = editTextLogin.text?.trim().toString()
+                val password = binding.editTextPassword.text?.trim().toString()
+                if (password != "12345" || !viewModel.isJidValid(jid)  // viewModel.verifyPassword(password, jid)
                 ) {
                     binding.signinSubtitle1.isInvisible = true
                     binding.errorSubtitle.isVisible = true
                 } else {
-                    textEnabled()
-                    btnConnect.isEnabled = false
-                    binding.btnConnect.text =
-                        resources.getString(R.string.signin_connect_button_label_2)
-                    signinSubtitle1.text =
-                        getSubtitleClickableSpan(false)
-                    signinSubtitle1.movementMethod = null
-
-                    rvFeature.isVisible = true
-                    closeKeyboard()
-                    if (viewModel.isJidValid(editTextLogin.text.toString()) || editTextPassword.text!!.length > 5) {
-                        compositeDisposable?.add(viewModel.features
-                            .doOnNext { list ->
-                                if (list.count { it.nameResId == R.string.feature_name_4 } == 1) {
-                                    toolbarChanger().setTitle(R.string.signin_toolbar_title_2)
-                                    toolbarChanger().showArrowBack(false)
-                                    signinTitle.text = String.format(
-                                        resources.getString(R.string.signin_title_label_template_2),
-                                        host
-                                    )
-                                    editTextLogin.isVisible = false
-                                    editTextPassword.isVisible = false
-                                    signinSubtitle1.isVisible = false
-                                    btnConnect.isVisible = false
-                                }
-                                if (list.all { it.state != State.Error } || viewModel.isServerFeatures) {
+                    prepareUi()
+                    compositeDisposable?.add(viewModel.features
+                        .doOnNext { list ->
+                            if (list.count { it.nameResId == R.string.feature_name_4 } == 1) {
+                                toolbarChanger().setTitle(R.string.signin_toolbar_title_2)
+                                toolbarChanger().showArrowBack(false)
+                                signinTitle.text = String.format(
+                                    resources.getString(R.string.signin_title_label_template_2),
+                                    host
+                                )
+                                editTextLogin.isVisible = false
+                                editTextPassword.isVisible = false
+                                signinSubtitle1.isVisible = false
+                                btnConnect.isVisible = false
+                            }
+                            if (list.all { it.state != State.Error } || viewModel.isServerFeatures) {
+                                featureAdapter.submitList(list)
+                                featureAdapter.notifyItemChanged(list.lastIndex)
+                            }
+                            lifecycleScope.launch {
+                                delay(150)
+                                list[list.lastIndex].state =
+                                    State.Success   //    Здесь пока заглушка
+                                if (viewModel.isServerFeatures) {
                                     featureAdapter.submitList(list)
                                     featureAdapter.notifyItemChanged(list.lastIndex)
                                 }
-                                lifecycleScope.launch {
-                                    delay(150)
-                                    list[list.lastIndex].state =
-                                        State.Success   //    Здесь пока заглушка
-                                    if (viewModel.isServerFeatures) {
-                                        featureAdapter.submitList(list)
-                                        featureAdapter.notifyItemChanged(list.lastIndex)
-                                    }
-                                    if (list.count { it.nameResId == R.string.feature_name_10 } == 1 && list.all { it.state != State.Error }) {
-                                        signinSubtitle2.isVisible = true
-                                        btnRock.isVisible = true
-                                        btnRock.setOnClickListener {
-                                            navigator().goToApplicationActivity()
-                                        }
-                                    }
-                                    if (viewModel._features.count { it.state == State.Error } <= 1 &&
-                                        viewModel._features[list.lastIndex].state == State.Error
-                                    ) {
-                                        featureAdapter.submitList(list)
-                                        featureAdapter.notifyItemChanged(list.lastIndex)
-                                    }
-                                    if (viewModel._features[list.lastIndex].state == State.Success &&
-                                        viewModel._features.count { it.state == State.Error } == 0
-                                    ) {
-                                        featureAdapter.submitList(list)
-                                        featureAdapter.notifyItemChanged(list.lastIndex)
+                                if (list.count { it.nameResId == R.string.feature_name_10 } == 1 && list.all { it.state != State.Error }) {
+                                    signinSubtitle2.isVisible = true
+                                    btnRock.isVisible = true
+                                    btnRock.setOnClickListener {
+                                        navigator().goToApplicationActivity()
                                     }
                                 }
+                                if (viewModel._features.count { it.state == State.Error } <= 1 &&
+                                    viewModel._features[list.lastIndex].state == State.Error
+                                ) {
+                                    featureAdapter.submitList(list)
+                                    featureAdapter.notifyItemChanged(list.lastIndex)
+                                }
+                                if (viewModel._features[list.lastIndex].state == State.Success &&
+                                    viewModel._features.count { it.state == State.Error } == 0
+                                ) {
+                                    featureAdapter.submitList(list)
+                                    featureAdapter.notifyItemChanged(list.lastIndex)
+                                }
                             }
-                            .subscribe({}, {})
-                        )
-                    } else {
-                        signinSubtitle1.setTextColor(
-                            ResourcesCompat.getColor(
-                                resources,
-                                R.color.red_600,
-                                requireContext().theme
-                            )
-                        )
-
-                    }
+                        }
+                        .subscribe({}, {})
+                    )
                 }
             }
         }
     }
 
+    private fun prepareUi() {
+        binding.btnConnect.isEnabled = false
+        binding.btnConnect.text =
+            resources.getString(R.string.signin_connect_button_label_2)
+        binding.signinSubtitle1.text =
+            getSubtitleClickableSpan(false)
+        binding.signinSubtitle1.movementMethod = null
+        binding.rvFeature.isVisible = true
+        closeKeyboard()
+    }
 
     private fun initRecyclerView() {
         binding.rvFeature.adapter = featureAdapter
@@ -201,15 +188,17 @@ class SigninFragment : Fragment(R.layout.fragment_signin) {
         )
     }
 
-    private fun textEnabled() {
-        binding.signinSubtitle1.movementMethod = null
-    }
-
     fun getSubtitleClickableSpan(clickable: Boolean): SpannableString {
         val spannable =
-            SpannableString("${resources.getString(R.string.signin_subtitle_label_1_start)} ${resources.getString(R.string.press_here)} ${resources.getString(R.string.signin_subtitle_label_1_end)}")
+            SpannableString(
+                "${resources.getString(R.string.signin_subtitle_label_1_start)} ${
+                    resources.getString(
+                        R.string.press_here
+                    )
+                } ${resources.getString(R.string.signin_subtitle_label_1_end)}"
+            )
 
-       if (clickable)
+        if (clickable)
             spannable.setSpan(
                 object : ClickableSpan() {
                     override fun onClick(p0: View) {
@@ -222,7 +211,9 @@ class SigninFragment : Fragment(R.layout.fragment_signin) {
                     }
                 },
                 resources.getString(R.string.signin_subtitle_label_1_start).length,
-                resources.getString(R.string.signin_subtitle_label_1_start).length +1 + resources.getString(R.string.press_here).length + 1,
+                resources.getString(R.string.signin_subtitle_label_1_start).length + 1 + resources.getString(
+                    R.string.press_here
+                ).length + 1,
                 Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
             )
         return spannable

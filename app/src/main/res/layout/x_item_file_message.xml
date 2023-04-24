@@ -87,7 +87,7 @@
             tools:visibility="gone" />
 
 
-        <com.xabber.presentation.custom.PlayerVisualizerView
+        <com.xabber.utils.custom.PlayerVisualizerView
             android:id="@+id/audioVisualizer"
             android:layout_width="match_parent"
             android:layout_height="24dp"

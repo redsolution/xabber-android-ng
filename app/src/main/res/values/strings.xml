@@ -1,10 +1,6 @@
 <resources>
-    <string name="com.google.firebase.crashlytics.mapping_file_id">none</string>
     <string name="app_name">Xabber NG</string>
-
-    <!-- General -->
-    <string name="dialog_button_cancel">Cancel</string>
-    <string name="dialog_button_delete">Delete</string>
+    <string name="com.google.firebase.crashlytics.mapping_file_id">none</string>
 
     <!-- Permissions -->
     <string name="dialog_title_permission_denied">Permission denied</string>
@@ -181,7 +177,7 @@
     <string name="clear_group_chat_history_dialog_message">All message history in this chat will be cleared. This action can not be undone.</string>
     <string name="snack_bar_title_copy_text">"Copied to clipboard"</string>
     <string name="deleting_message_dialog_title">"Delete message</string>
-    <string name="deleting_message_dialog_subtitle">Are you sure you want to delete this message?</string>
+    <string name="deleting_message_dialog_subtitle">\nAre you sure you want to delete this message?</string>
     <string name="deleting_message_dialog_checkbox_text">Also delete for </string>
 
     <!-- Attach BottomSheet -->
@@ -358,10 +354,19 @@
 
     <!-- DIALOGS -->
 
+    <string name="dialog_button_cancel">Cancel</string>
+    <string name="dialog_button_delete">Delete</string>
+
+    <!-- Deleting contact -->
+    <string name="dialog_deleting_contact_title">Delete contact</string>
+    <string name="dialog_deleting_contact_message_part_1">"Are you sure you want to delete "</string>
+    <string name="dialog_deleting_contact_message_part_2">\n\nYou will be able to exchange messages and subscription requests.</string>
+
     <!-- Dialog Deleting Chat -->
     <string name="dialog_delete_chat_title">Deleting chat</string>
     <string name="dialog_delete_chat_description">Are you sure you want to delete chat with</string>
     <string name="dialog_delete_chat_sub_message">\n\nIt will be impossible to undo this action.</string>
+    <string name="dialog_block_title">Block this contact</string>
     <string name="special_notifications_title">Special notifications</string>
     <string name="appearance_settings">Appearance settings</string>
     <string name="private_chats_groups_channels">Private chats, groups, channels</string>
@@ -394,5 +399,10 @@
     <string name="xmpp_server">Xmpp server</string>
     <string name="delete_account">Delete account</string>
     <string name="slider_description">slider</string>
+    <string name="media">Media</string>
+    <string name="dialog_block_positive_button">Block</string>
+    <string name="dialog_block_message_part_1">Are you sure you want to block </string>
+    <string name="dialog_block_message_part_2">\nYou will not be able to exchange messages and presence information with this contact.</string>
+    <string name="contact_name_default">this_contact</string>
 
 </resources>

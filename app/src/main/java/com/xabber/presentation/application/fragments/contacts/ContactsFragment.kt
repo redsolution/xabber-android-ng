@@ -1,31 +1,32 @@
 package com.xabber.presentation.application.fragments.contacts
 
+import android.annotation.SuppressLint
 import android.content.SharedPreferences
 import android.os.Bundle
 import android.view.View
 import by.kirich1409.viewbindingdelegate.viewBinding
-import com.bumptech.glide.Glide
-import com.bumptech.glide.load.MultiTransformation
-import com.bumptech.glide.load.resource.bitmap.CircleCrop
-import com.bumptech.glide.request.RequestOptions
 import com.xabber.R
-import com.xabber.data_base.defaultRealmConfig
 import com.xabber.databinding.FragmentContactBinding
 import com.xabber.models.dto.ContactDto
-import com.xabber.models.xmpp.account.AccountStorageItem
-import com.xabber.presentation.application.AccountManager
+import com.xabber.presentation.AppConstants
 import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.application.dialogs.BlockContactDialog
 import com.xabber.presentation.application.dialogs.DeletingContactDialog
 import com.xabber.presentation.application.fragments.BaseFragment
 import com.xabber.presentation.application.fragments.chat.ChatParams
-import com.xabber.presentation.application.fragments.contacts.vcard.ContactAccountParams
-import io.realm.kotlin.Realm
+import com.xabber.presentation.application.manage.DisplayManager
 
 class ContactsFragment : BaseFragment(R.layout.fragment_contact), ContactAdapter.Listener {
     private val binding by viewBinding(FragmentContactBinding::bind)
     private val viewModel = ContactsViewModel()
     private var contactAdapter: ContactAdapter? = null
+    private var selectedChatId = ""
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        selectedChatId = savedInstanceState?.getString(AppConstants.SELECTED_CHAT_ID) ?: ""
+    }
+
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -34,8 +35,8 @@ class ContactsFragment : BaseFragment(R.layout.fragment_contact), ContactAdapter
         subscribeViewModel()
         viewModel.initDataListener()
         viewModel.getChatList()
-        val account = baseViewModel.getPrimaryAccount()
-        if (account != null) binding.tvContactTitle.text = account.nickname else binding.tvContactTitle.text = resources.getString(R.string.contacts_toolbar_title)
+//        val account = baseViewModel.getPrimaryAccount()
+//        if (account != null) binding.tvContactTitle.text = account.nickname else binding.tvContactTitle.text = resources.getString(R.string.contacts_toolbar_title)
 
 
     }
@@ -73,7 +74,12 @@ class ContactsFragment : BaseFragment(R.layout.fragment_contact), ContactAdapter
 
     override fun onContactClick(owner: String, opponentJid: String, avatar: Int) {
         val chatId = viewModel.getChatId(owner, opponentJid)
-        if (chatId != null) navigator().showChat(ChatParams(chatId, owner, opponentJid, avatar))
+        if (chatId != null) {
+            if (selectedChatId != chatId || !DisplayManager.isDualScreenMode()) {
+                selectedChatId = chatId
+                navigator().showChat(ChatParams(chatId, avatar))
+            }
+        }
     }
 
     override fun editContact(contactDto: ContactDto, avatar: Int, color: String) {
@@ -85,12 +91,17 @@ class ContactsFragment : BaseFragment(R.layout.fragment_contact), ContactAdapter
         )
     }
 
-    override fun deleteContact(userName: String) {
-        navigator().showDialogFragment(DeletingContactDialog.newInstance(userName), "")
+    override fun deleteContact(contactDto: String) {
+      //  navigator().showDialogFragment(DeletingContactDialog.newInstance(contactDto.nickName?: contactDto., viewMod), "")
     }
 
     override fun blockContact(userName: String) {
-        navigator().showDialogFragment(BlockContactDialog.newInstance(userName), "")
+     //   navigator().showDialogFragment(BlockContactDialog.newInstance(userName), "")
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putString(AppConstants.SELECTED_CHAT_ID, selectedChatId)
     }
 
     override fun onDestroy() {
@@ -98,6 +109,7 @@ class ContactsFragment : BaseFragment(R.layout.fragment_contact), ContactAdapter
         contactAdapter = null
     }
 
+    @SuppressLint("NotifyDataSetChanged")
     override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences?, key: String?) {
         super.onSharedPreferenceChanged(sharedPreferences, key)
         contactAdapter?.notifyDataSetChanged()
