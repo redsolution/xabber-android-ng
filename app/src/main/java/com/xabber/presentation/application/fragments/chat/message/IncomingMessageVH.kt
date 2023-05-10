@@ -17,7 +17,7 @@ import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.isVisible
 import com.google.android.material.snackbar.Snackbar
 import com.xabber.R
-import com.xabber.models.dto.MessageDto
+import com.xabber.dto.MessageDto
 import com.xabber.utils.dp
 import com.xabber.databinding.ItemMessageIncomingBinding
 import com.xabber.presentation.application.fragments.chat.Check

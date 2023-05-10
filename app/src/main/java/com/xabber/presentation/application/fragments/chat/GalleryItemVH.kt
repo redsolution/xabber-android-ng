@@ -9,7 +9,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.xabber.R
 import com.xabber.databinding.ItemImageFromGalleryBinding
-import com.xabber.models.dto.MediaDto
+import com.xabber.dto.MediaDto
 import java.util.concurrent.TimeUnit
 
 class GalleryItemVH(private val binding: ItemImageFromGalleryBinding) : RecyclerView.ViewHolder(binding.root) {

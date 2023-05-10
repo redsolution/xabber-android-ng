@@ -9,7 +9,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import by.kirich1409.viewbindingdelegate.viewBinding
 import com.xabber.R
 import com.xabber.databinding.FragmentSettingsBinding
-import com.xabber.models.dto.AccountDto
+import com.xabber.dto.AccountDto
 import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.application.fragments.BaseFragment
 import com.xabber.presentation.application.fragments.account.AccountAdapter

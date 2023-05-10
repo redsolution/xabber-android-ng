@@ -2,8 +2,7 @@ package com.xabber.remote
 
 import android.util.Log
 import com.google.gson.GsonBuilder
-import com.xabber.models.dto.HostListDto
-import com.xabber.models.dto.XabberAccountDto
+import com.xabber.dto.HostListDto
 import io.reactivex.rxjava3.core.Single
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
@@ -36,6 +35,4 @@ class AccountRepository {
     fun checkIfNameAvailable(map: Map<String, String>): Single<Any> =
         accountService.checkIfNameAvailable(map)
 
-    fun registerAccount(map: Map<String, String>): Single<XabberAccountDto> =
-        accountService.registerAccount(map)
 }

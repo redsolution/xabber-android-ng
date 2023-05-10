@@ -29,20 +29,18 @@ import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import by.kirich1409.viewbindingdelegate.viewBinding
-import com.aghajari.emojiview.AXEmojiManager
-import com.aghajari.emojiview.googleprovider.AXGoogleEmojiProvider
-import com.aghajari.emojiview.view.AXSingleEmojiView
+
 import com.xabber.R
 import com.xabber.data_base.defaultRealmConfig
+import com.xabber.data_base.models.last_chats.LastChatsStorageItem
+import com.xabber.data_base.models.messages.MessageDisplayType
+import com.xabber.data_base.models.messages.MessageSendingState
+import com.xabber.data_base.models.messages.MessageStorageItem
+import com.xabber.data_base.models.presences.ResourceStatus
 import com.xabber.databinding.FragmentChatBinding
-import com.xabber.models.dto.ChatListDto
-import com.xabber.models.dto.MessageDto
-import com.xabber.models.dto.MessageKind
-import com.xabber.models.xmpp.last_chats.LastChatsStorageItem
-import com.xabber.models.xmpp.messages.MessageDisplayType
-import com.xabber.models.xmpp.messages.MessageSendingState
-import com.xabber.models.xmpp.messages.MessageStorageItem
-import com.xabber.models.xmpp.presences.ResourceStatus
+import com.xabber.dto.ChatListDto
+import com.xabber.dto.MessageDto
+import com.xabber.dto.MessageKind
 import com.xabber.presentation.AppConstants
 import com.xabber.presentation.AppConstants.CHAT_MESSAGE_TEXT_KEY
 import com.xabber.presentation.AppConstants.DELETING_MESSAGE_BUNDLE_KEY
@@ -51,13 +49,12 @@ import com.xabber.presentation.AppConstants.DELETING_MESSAGE_FOR_ALL_BUNDLE_KEY
 import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.application.dialogs.*
 import com.xabber.presentation.application.fragments.DetailBaseFragment
-import com.xabber.presentation.application.fragments.chat.attach.AttachBottomSheet
 import com.xabber.presentation.application.fragments.chat.audio.VoiceManager
 import com.xabber.presentation.application.fragments.chat.geo.Location
 import com.xabber.presentation.application.fragments.chat.message.*
 import com.xabber.presentation.application.fragments.chatlist.ChatListViewModel
 import com.xabber.presentation.application.fragments.contacts.ContactAccountParams
-import com.xabber.presentation.application.fragments.contacts.CustomBottomSheet
+import com.xabber.presentation.application.fragments.contacts.AttachmentBottomSheet
 import com.xabber.presentation.application.fragments.test.MessageAdapter
 import com.xabber.presentation.application.fragments.test.XIncomingMessageVH
 import com.xabber.presentation.application.manage.ColorManager
@@ -449,21 +446,21 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     }
 
     private fun initializeButtonEmoji() {
-        AXEmojiManager.install(requireContext(), AXGoogleEmojiProvider(requireContext()))
-        val emojiView = AXSingleEmojiView(requireContext())
-
-        emojiView.editText = binding.chatInput
-        binding.emojiPopupLayout.initPopupView(emojiView)
-        binding.buttonEmoticon.setOnClickListener {
-            if (binding.emojiPopupLayout.isShowing) {
-                binding.buttonEmoticon.setImageResource(R.drawable.ic_emoticon_outline)
-                binding.emojiPopupLayout.hideAndOpenKeyboard()
-            } else {
-                binding.buttonEmoticon.setImageResource(R.drawable.ic_keyboard)
-                binding.emojiPopupLayout.toggle()
-                binding.chatInput.showSoftInputOnFocus = false
-            }
-        }
+//        AXEmojiManager.install(requireContext(), AXGoogleEmojiProvider(requireContext()))
+//        val emojiView = AXSingleEmojiView(requireContext())
+//
+//        emojiView.editText = binding.chatInput
+//        binding.emojiPopupLayout.initPopupView(emojiView)
+//        binding.buttonEmoticon.setOnClickListener {
+//            if (binding.emojiPopupLayout.isShowing) {
+//                binding.buttonEmoticon.setImageResource(R.drawable.ic_emoticon_outline)
+//                binding.emojiPopupLayout.hideAndOpenKeyboard()
+//            } else {
+//                binding.buttonEmoticon.setImageResource(R.drawable.ic_keyboard)
+//                binding.emojiPopupLayout.toggle()
+//                binding.chatInput.showSoftInputOnFocus = false
+//            }
+//        }
     }
 
     private fun initializeButtonAttach() {
@@ -833,7 +830,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
 
     private fun showAttachBottomSheet() {
         if (childFragmentManager.findFragmentByTag(AppConstants.ATTACH_BOTTOM_SHEET_TAG) == null)
-           CustomBottomSheet.newInstance(getParams().id).show(childFragmentManager, AppConstants.ATTACH_BOTTOM_SHEET_TAG)
+           AttachmentBottomSheet.newInstance(getParams().id).show(childFragmentManager, AppConstants.ATTACH_BOTTOM_SHEET_TAG)
     }
 
     private fun onGotAudioPermissionResult(granted: Boolean) {
@@ -1037,9 +1034,9 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
-//        outState.putBoolean(AppConstants.CHAT_SELECTION_MODE_KEY, isSelectedMode)
-//        val messageText = binding.chatInput.text.toString().trim()
-//        outState.putString(CHAT_MESSAGE_TEXT_KEY, messageText)
+        outState.putBoolean(AppConstants.CHAT_SELECTION_MODE_KEY, isSelectedMode)
+    //   val messageText = binding.chatInput.text.toString().trim()
+  //     outState.putString(CHAT_MESSAGE_TEXT_KEY, messageText)
     }
 
 
@@ -1119,14 +1116,14 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
 
     private val onBackPressedCallback = object : OnBackPressedCallback(true) {
         override fun handleOnBackPressed() {
-            if (binding.emojiPopupLayout.isShowing) {
-                binding.buttonEmoticon.setImageResource(R.drawable.ic_emoticon_outline)
-                binding.chatInput.showSoftInputOnFocus = true
-            } else if (binding.selectMessagesToolbar.toolbarSelectedMessages.isVisible) {
-                enableSelectionMode(false)
-            } else {
+//            if (binding.emojiPopupLayout.isShowing) {
+//                binding.buttonEmoticon.setImageResource(R.drawable.ic_emoticon_outline)
+//                binding.chatInput.showSoftInputOnFocus = true
+//            } else if (binding.selectMessagesToolbar.toolbarSelectedMessages.isVisible) {
+//                enableSelectionMode(false)
+//            } else {
                 navigator().closeDetail()
-            }
+        //    }
         }
     }
 

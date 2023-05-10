@@ -1,7 +1,6 @@
 package com.xabber.remote
 
-import com.xabber.models.dto.HostListDto
-import com.xabber.models.dto.XabberAccountDto
+import com.xabber.dto.HostListDto
 import io.reactivex.rxjava3.core.Single
 import retrofit2.http.Body
 import retrofit2.http.GET
@@ -32,8 +31,8 @@ interface AccountService {
      * 3) password
      * 4) captcha key
      */
-    @Headers("Content-Type: application/json")
-    @POST("accounts/signup/")
-    @JvmSuppressWildcards
-    fun registerAccount(@Body params: Map<String, String>): Single<XabberAccountDto>
+//    @Headers("Content-Type: application/json")
+//    @POST("accounts/signup/")
+//    @JvmSuppressWildcards
+//   // fun registerAccount(@Body params: Map<String, String>): Single<XabberAccountDto>
 }

@@ -1,18 +1,20 @@
 package com.xabber.presentation.application.fragments.chat
 
 
+import android.app.Activity
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.Menu
+import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.isVisible
 import androidx.viewpager2.widget.ViewPager2.OnPageChangeCallback
 import com.xabber.R
 
 import com.xabber.databinding.ActivityViewImageBinding
-import com.xabber.models.dto.MediaDto
+import com.xabber.dto.MediaDto
 import com.xabber.presentation.AppConstants
 import com.xabber.presentation.application.manage.DisplayManager
 import com.xabber.utils.showToast
@@ -29,6 +31,7 @@ class ViewImageActivity : AppCompatActivity() {
     private var messageUid = ""
     private var mediaList = ArrayList<MediaDto>()
     private var selectedItems = HashSet<Long>()
+    private val viewModel: MediaViewModel by viewModels()
 
     private val onCheckedChangeListener =
         android.widget.CompoundButton.OnCheckedChangeListener { buttonView, isChecked ->
@@ -48,18 +51,22 @@ class ViewImageActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(binding.root)
-        startPosition = savedInstanceState?.getInt(AppConstants.VIEW_PAGER_CURRENT_POSITION)
-            ?: intent.getIntExtra(AppConstants.IMAGE_POSITION_KEY, 0)
+        mediaList = viewModel.getMediaList()
+        val posId = intent.getLongExtra(AppConstants.IMAGE_POSITION_KEY, -1L)
+
+var a = 0
+        if (posId != -1L) {
+            for (i in 0 until mediaList.size) {
+                if (mediaList[i].id == posId)
+                    a = i
+            }
+        }
+        startPosition = savedInstanceState?.getInt(AppConstants.VIEW_PAGER_CURRENT_POSITION) ?: a
         val longAr =
             savedInstanceState?.getLongArray(AppConstants.SELECTED_SET) ?: intent.getLongArrayExtra(
                 AppConstants.SELECTED_IDES
             ) ?: LongArray(0)
         selectedItems = HashSet(longAr.toList())
-        mediaList = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
-            intent.getParcelableArrayListExtra(AppConstants.MEDIA_LIST, MediaDto::class.java)
-                ?: ArrayList()
-        else
-            intent.getParcelableArrayListExtra(AppConstants.MEDIA_LIST) ?: ArrayList()
         messageUid = intent.getStringExtra(AppConstants.MESSAGE_UID) ?: ""
         if (messageUid.isNotEmpty()) {
             binding.checkBox.isVisible = false
@@ -143,7 +150,7 @@ binding.toolbar.setOnMenuItemClickListener {
     private fun setResult() {
         val resultIntent = Intent()
         resultIntent.putExtra(AppConstants.VIEW_IMAGE_ACTIVITY_RESULT, selectedItems.toLongArray())
-        setResult(222, resultIntent)
+        setResult(Activity.RESULT_OK, resultIntent)
     }
 
     override fun onSaveInstanceState(outState: Bundle) {

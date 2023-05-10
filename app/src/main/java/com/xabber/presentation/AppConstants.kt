@@ -69,6 +69,7 @@ object AppConstants {
     const val QR_CODE_PARAMS = "qr code params"
     const val REQUEST_EMOJI_KEY = "request emoji key"
     const val RESPONSE_EMOJI_KEY = "response emoji key"
+    const val SAVED_INPUT_TEXT = "saved input text"
     const val SELECTED_CHAT_ID = "selected chat id"
     const val SELECTED_CHAT_PARAMS_KEY = "selected chat params key"
     const val SELECTED_IDES = "selected ides"
@@ -78,6 +79,7 @@ object AppConstants {
     const val TURN_OFF_NOTIFICATIONS_BUNDLE_KEY = "Turn off notifications bundle key"
     const val TURN_OFF_NOTIFICATIONS_KEY = "Turn off notifications key"
     const val VIEW_IMAGE_ACTIVITY_RESULT = "view image activity result"
+    const val VIEW_IMAGE_ACTIVITY_REQUEST_CODE = 222
     const val VIEW_PAGER_CURRENT_POSITION = "last position"
     const val MESSAGE_UID = "message uid"
     const val UNREAD_MESSAGES_COUNT = "unread messages count"

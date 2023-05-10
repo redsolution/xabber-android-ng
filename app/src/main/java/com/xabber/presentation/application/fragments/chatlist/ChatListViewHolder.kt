@@ -15,11 +15,11 @@ import androidx.core.view.isVisible
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.xabber.R
+import com.xabber.data_base.models.messages.MessageSendingState
+import com.xabber.data_base.models.presences.ResourceStatus
+import com.xabber.data_base.models.presences.RosterItemEntity
 import com.xabber.databinding.ItemChatListBinding
-import com.xabber.models.dto.ChatListDto
-import com.xabber.models.xmpp.messages.MessageSendingState
-import com.xabber.models.xmpp.presences.ResourceStatus
-import com.xabber.models.xmpp.presences.RosterItemEntity
+import com.xabber.dto.ChatListDto
 import com.xabber.presentation.AppConstants
 import com.xabber.presentation.AppConstants.PAYLOAD_CHAT_COLOR
 import com.xabber.presentation.AppConstants.PAYLOAD_CHAT_CUSTOM_NAME

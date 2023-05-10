@@ -404,5 +404,8 @@
     <string name="dialog_block_message_part_1">Are you sure you want to block </string>
     <string name="dialog_block_message_part_2">\nYou will not be able to exchange messages and presence information with this contact.</string>
     <string name="contact_name_default">this_contact</string>
+    <string name="music_label">Music</string>
+    <string name="contact_label">Contact</string>
+    <string name="feature_not_implemented">This feature is not implemented</string>
 
 </resources>

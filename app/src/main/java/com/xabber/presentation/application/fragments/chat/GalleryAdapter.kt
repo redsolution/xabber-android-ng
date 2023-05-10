@@ -2,12 +2,13 @@ package com.xabber.presentation.application.fragments.chat
 
 
 import android.net.Uri
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.xabber.databinding.ItemImageFromGalleryBinding
-import com.xabber.models.dto.MediaDto
+import com.xabber.dto.MediaDto
 
 
 class GalleryAdapter(private val listener: Listener) :
@@ -19,7 +20,7 @@ class GalleryAdapter(private val listener: Listener) :
     interface Listener {
         fun onRecentImagesSelected()
         fun tooManyFilesSelected()
-        fun showMediaViewer(position: Int)
+        fun showMediaViewer(id: Long)
     }
 
     fun getSelectedMedia(): HashSet<Long> = selectedMediaIdes
@@ -57,7 +58,9 @@ class GalleryAdapter(private val listener: Listener) :
         val checkBox = holder.getCheckBox()
 
         holder.itemView.setOnClickListener {
-            listener.showMediaViewer(position)
+            Log.d("uyuy", "nagato")
+            Log.d("uyuy", "id = ${mediaDto.id}")
+            listener.showMediaViewer(mediaDto.id)
         }
 
         checkBox.setOnCheckedChangeListener(null)

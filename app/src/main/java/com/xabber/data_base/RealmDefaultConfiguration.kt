@@ -1,26 +1,23 @@
 package com.xabber.data_base
 
-import com.xabber.models.xmpp.account.AccountStorageItem
-import com.xabber.models.xmpp.avatar.AvatarStorageItem
-import com.xabber.models.xmpp.last_chats.LastChatsStorageItem
-import com.xabber.models.xmpp.messages.MessageForwardsInlineStorageItem
-import com.xabber.models.xmpp.messages.MessageReferenceStorageItem
-import com.xabber.models.xmpp.messages.MessageStorageItem
-import com.xabber.models.xmpp.presences.ResourceStorageItem
-import com.xabber.models.xmpp.roster.RosterGroupStorageItem
-import com.xabber.models.xmpp.roster.RosterStorageItem
+import com.xabber.data_base.models.last_chats.LastChatsStorageItem
+import com.xabber.data_base.models.messages.MessageForwardsInlineStorageItem
+import com.xabber.data_base.models.messages.MessageReferenceStorageItem
+import com.xabber.data_base.models.messages.MessageStorageItem
+import com.xabber.data_base.models.presences.ResourceStorageItem
+import com.xabber.data_base.models.roster.RosterGroupStorageItem
+import com.xabber.data_base.models.roster.RosterStorageItem
 import io.realm.kotlin.RealmConfiguration
 
 fun defaultRealmConfig(): RealmConfiguration {
     return RealmConfiguration.Builder(
         setOf(
-            AccountStorageItem::class,
+            com.xabber.data_base.models.account.AccountStorageItem::class,
             LastChatsStorageItem::class,
             RosterStorageItem::class,
             MessageStorageItem::class,
-            AvatarStorageItem::class,
+            com.xabber.data_base.models.avatar.AvatarStorageItem::class,
             ResourceStorageItem::class,
-            MessageReferenceStorageItem::class,
             RosterGroupStorageItem::class,
             MessageReferenceStorageItem::class,
             MessageForwardsInlineStorageItem::class

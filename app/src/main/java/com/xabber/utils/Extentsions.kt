@@ -29,21 +29,16 @@ import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.xabber.R
-import com.xabber.models.dto.AccountDto
-import com.xabber.models.dto.AvatarDto
-import com.xabber.models.dto.ChatListDto
-import com.xabber.models.dto.MessageReferenceDto
-import com.xabber.models.xmpp.account.AccountStorageItem
-import com.xabber.models.xmpp.avatar.AvatarStorageItem
-import com.xabber.models.xmpp.last_chats.LastChatsStorageItem
-import com.xabber.models.xmpp.messages.MessageReferenceStorageItem
-import com.xabber.models.xmpp.messages.MessageSendingState
-import com.xabber.models.xmpp.presences.ResourceStatus
-import com.xabber.models.xmpp.presences.RosterItemEntity
+import com.xabber.dto.AccountDto
+import com.xabber.dto.AvatarDto
+import com.xabber.dto.ChatListDto
+import com.xabber.dto.MessageReferenceDto
+import com.xabber.data_base.models.last_chats.LastChatsStorageItem
+import com.xabber.data_base.models.messages.MessageReferenceStorageItem
+import com.xabber.data_base.models.messages.MessageSendingState
+import com.xabber.data_base.models.presences.ResourceStatus
+import com.xabber.data_base.models.presences.RosterItemEntity
 import com.xabber.presentation.onboarding.fragments.signup.emoji.EmojiTypeDto
-import io.realm.kotlin.Realm
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 
 
 fun Fragment.showToast(message: String) {
@@ -251,7 +246,7 @@ fun LastChatsStorageItem.toChatListDto(): ChatListDto =
         lastMessageIsOutgoing = if (lastMessage != null) lastMessage!!.outgoing else false,
     )
 
-fun AccountStorageItem.toAccountDto() =
+fun com.xabber.data_base.models.account.AccountStorageItem.toAccountDto() =
     AccountDto(
         id = primary,
         jid = jid,
@@ -263,7 +258,7 @@ fun AccountStorageItem.toAccountDto() =
         hasAvatar = hasAvatar
     )
 
-fun AvatarStorageItem.toAvatarDto() =
+fun com.xabber.data_base.models.avatar.AvatarStorageItem.toAvatarDto() =
     AvatarDto(
         id = primary,
         owner = owner,

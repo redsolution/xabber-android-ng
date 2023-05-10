@@ -9,7 +9,7 @@ import androidx.fragment.app.DialogFragment
 import androidx.lifecycle.lifecycleScope
 import com.xabber.R
 import com.xabber.data_base.defaultRealmConfig
-import com.xabber.models.xmpp.roster.RosterStorageItem
+import com.xabber.data_base.models.roster.RosterStorageItem
 import com.xabber.presentation.AppConstants
 import io.realm.kotlin.Realm
 import kotlinx.coroutines.Dispatchers

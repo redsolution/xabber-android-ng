@@ -1,452 +1,76 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <declare-styleable name="ApplicationActivity">
-        <attr name="avatar_mask" format="reference"/>
-<attr name="avatar_initials_color" format="color"/>
-        <attr name="toolbar_color" format="color" />
-        <attr name="toolbar_popup_theme" format="reference" />
-        <attr name="recent_chats_background" format="reference" />
-        <attr name="chat_background" format="reference" />
-        <attr name="chat_input_background" format="reference" />
-        <attr name="chat_input_button_color" format="reference" />
-        <attr name="chat_send_button_color" format="reference" />
-
-        <attr name="chat_incoming_balloon" format="reference" />
-        <attr name="chat_incoming_forwarded_balloon" format="reference" />
-        <attr name="chat_incoming_balloon_pressed" format="reference" />
-        <attr name="chat_incoming_forwarded_balloon_pressed" format="reference" />
-
-        <attr name="chat_unread_messages_background" format="reference" />
-
-        <attr name="contact_list_background" format="reference" />
-
-        <attr name="preference_list_background" format="reference" />
-
-        <attr name="bars_color" format="reference|color" />
-        <attr name="unread_counter_text_color" format="reference|color" />
-        <attr name="unread_counter_background_drawable" format="reference" />
-
-        <attr name="current_chat_background" format="reference" />
-        <attr name="contact_list_account_group_background" format="reference" />
-        <attr name="contact_list_account_group_separator" format="reference" />
-        <attr name="contact_list_account_group_second_line_text_color" format="reference" />
-        <attr name="contact_list_account_group_small_right_icon_color" format="reference" />
-        <attr name="contact_list_account_group_small_right_text_color" format="reference" />
-        <attr name="contact_list_account_group_status_icon_separator_color" format="reference" />
-
-        <attr name="contact_list_subgroup_background" format="reference" />
-        <attr name="contact_list_subgroup_separator" format="reference" />
-        <attr name="contact_list_subgroup_offline_indicator_color" format="reference" />
-        <attr name="contact_list_subgroup_expander_color" format="reference" />
-
+        <attr name="avatar_initials_color" format="color" />
         <attr name="chat_item_background" format="reference" />
-        <attr name="contact_list_contact_name_text_color" format="reference" />
-        <attr name="contact_list_contact_muc_private_chat_name_text_color" format="reference" />
-        <attr name="contact_list_contact_second_line_text_color" format="reference" />
-        <attr name="contact_list_contact_small_right_icon_alpha" format="reference" />
-        <attr name="contact_list_muc_indicator_color" format="reference" />
-        <attr name="chat_list_ripple_color" format="reference" />
-
-        <attr name="contact_list_active_chat_subgroup_background" format="reference" />
-
-        <attr name="account_main_color" format="reference" />
-        <attr name="account_status_bar_color" format="reference" />
-        <attr name="account_text_color" format="reference" />
-        <attr name="attachment_close_button_icon" format="reference" />
-
-        <attr name="navigation_drawer_background" format="reference" />
-
-        <attr name="conference_filter_input_background" format="reference" />
-
-        <attr name="message_status_item_background_color" format="reference|color" />
-        <attr name="settings_background_color" format="reference|color" />
-        <attr name="settings_separator_background_color" format="reference|color" />
-        <attr name="patreon_progress_background_color" format="reference|color" />
-
-        <attr name="bottom_navigation_background" format="reference|color" />
-        <attr name="bottom_navigation_background_pressed" format="reference|color" />
-        <attr name="half_transparent_background" format="reference" />
+        <attr name="chat_input_background" format="reference" />
         <attr name="action_with_chat_background" format="reference|color" />
-        <attr name="contact_list_contact_archived_background" format="reference|color" />
-        <attr name="transparent_rounded_background" format="reference|color" />
+        <attr name="transparent_rouned_background" format="reference|color" />
         <attr name="message_background" format="color|reference" />
         <attr name="forwarded_outgoing_message_background" format="color|reference" />
-        <attr name="round_background" format="reference" />
-        <attr name="shevron_file_icons_color" format="reference" />
-        <attr name="file_message_text_color" format="reference" />
-
-        <attr name="standard_text_color" format="reference|color" />
-        <attr name="standard_background_color" format="reference|color" />
-
-        <attr name="standard_icons_color" format="reference|color" />
-        <attr name="standard_arrow_left_icon" format="reference" />
-        <attr name="standard_search_icon" format="reference" />
-        <attr name="standard_clear_icon" format="reference" />
-        <attr name="standard_add_icon" format="reference" />
-        <attr name="standard_overflow_icon" format="reference" />
-        <attr name="standard_delete_icon" format="reference" />
-        <attr name="standard_sync_icon" format="reference" />
-        <attr name="standard_block_address_icon" format="reference" />
         <attr name="standard_divider_drawable" format="reference" />
-
-        <attr name="standard_show_password_icon" format="reference" />
-        <attr name="standard_hide_password_icon" format="reference" />
-        <attr name="standard_tune_icon" format="reference" />
-
-        <attr name="standard_arrow_back_icon" format="reference" />
-
-        <attr name="discover_edittext_background_color" format="color" />
+        <attr name="guidance_text_color" format="reference"/>
     </declare-styleable>
 
-      <attr name="MessageInput" format="reference" />
-
-    <declare-styleable name="MessageInput">
-        <attr name="inputButtonBackground" format="reference" />
-        <attr name="inputButtonDefaultBgColor" format="color|reference" />
-        <attr name="inputButtonDefaultBgPressedColor" format="color|reference" />
-        <attr name="inputButtonDefaultBgDisabledColor" format="color|reference" />
-
-        <attr name="inputButtonIcon" format="reference" />
-        <attr name="inputButtonDefaultIconColor" format="color|reference" />
-        <attr name="inputButtonDefaultIconPressedColor" format="color|reference" />
-        <attr name="inputButtonDefaultIconDisabledColor" format="color|reference" />
-
-        <attr name="inputButtonMargin" format="dimension|reference" />
-        <attr name="inputButtonWidth" format="dimension|reference" />
-        <attr name="inputButtonHeight" format="dimension|reference" />
-
-        <attr name="showAttachmentButton" format="boolean" />
-        <attr name="attachmentButtonBackground" format="reference" />
-        <attr name="attachmentButtonDefaultBgColor" format="color|reference" />
-        <attr name="attachmentButtonDefaultBgPressedColor" format="color|reference" />
-        <attr name="attachmentButtonDefaultBgDisabledColor" format="color|reference" />
-
-        <attr name="attachmentButtonIcon" format="reference" />
-        <attr name="attachmentButtonDefaultIconColor" format="color|reference" />
-        <attr name="attachmentButtonDefaultIconPressedColor" format="color|reference" />
-        <attr name="attachmentButtonDefaultIconDisabledColor" format="color|reference" />
-
-        <attr name="attachmentButtonMargin" format="dimension|reference" />
-        <attr name="attachmentButtonWidth" format="dimension|reference" />
-        <attr name="attachmentButtonHeight" format="dimension|reference" />
-
-        <attr name="inputMaxLines" format="integer" />
-        <attr name="inputHint" format="string" />
-
-        <attr name="inputText" format="string" />
-        <attr name="inputTextSize" format="dimension|reference" />
-        <attr name="inputTextColor" format="color|reference" />
-        <attr name="inputHintColor" format="color|reference" />
-
-        <attr name="inputBackground" format="reference" />
-        <attr name="inputCursorDrawable" format="reference" />
-
-        <attr name="delayTypingStatus" format="integer" />
+    <declare-styleable name="CustomFlexboxLayout">
+        <attr name="viewPartMain" format="reference" />
+        <attr name="viewPartSlave" format="reference" />
     </declare-styleable>
-
-    <attr name="MessagesList" format="reference" />
-
-    <declare-styleable name="MessagesList">
-
-        <attr name="textAutoLink">
-            <flag name="all" value="15" />
-            <flag name="email" value="2" />
-            <flag name="map" value="8" />
-            <flag name="none" value="0" />
-            <flag name="phone" value="4" />
-            <flag name="web" value="1" />
-        </attr>
-
-        <attr name="incomingTextLinkColor" format="color|reference" />
-        <attr name="outcomingTextLinkColor" format="color|reference" />
-
-        <attr name="incomingAvatarWidth" format="dimension|reference" />
-        <attr name="incomingAvatarHeight" format="dimension|reference" />
-
-        <attr name="incomingBubbleDrawable" format="reference" />
-        <attr name="incomingDefaultBubbleColor" format="color|reference" />
-        <attr name="incomingDefaultBubblePressedColor" format="color|reference" />
-        <attr name="incomingDefaultBubbleSelectedColor" format="color|reference" />
-
-        <attr name="incomingImageOverlayDrawable" format="reference" />
-        <attr name="incomingDefaultImageOverlayPressedColor" format="color|reference" />
-        <attr name="incomingDefaultImageOverlaySelectedColor" format="color|reference" />
-
-        <attr name="incomingBubblePaddingLeft" format="dimension|reference" />
-        <attr name="incomingBubblePaddingRight" format="dimension|reference" />
-        <attr name="incomingBubblePaddingTop" format="dimension|reference" />
-        <attr name="incomingBubblePaddingBottom" format="dimension|reference" />
-
-        <attr name="incomingTextColor" format="color|reference" />
-        <attr name="incomingTextSize" format="dimension|reference" />
-        <attr name="incomingTextStyle">
-            <flag name="normal" value="0" />
-            <flag name="bold" value="1" />
-            <flag name="italic" value="2" />
-        </attr>
-
-        <attr name="incomingTimeTextColor" format="color|reference" />
-        <attr name="incomingTimeTextSize" format="dimension|reference" />
-        <attr name="incomingTimeTextStyle">
-            <flag name="normal" value="0" />
-            <flag name="bold" value="1" />
-            <flag name="italic" value="2" />
-        </attr>
-
-        <attr name="incomingImageTimeTextColor" format="color|reference" />
-        <attr name="incomingImageTimeTextSize" format="dimension|reference" />
-        <attr name="incomingImageTimeTextStyle">
-            <flag name="normal" value="0" />
-            <flag name="bold" value="1" />
-            <flag name="italic" value="2" />
-        </attr>
-
-        <attr name="outcomingBubbleDrawable" format="reference" />
-        <attr name="outcomingDefaultBubbleColor" format="color|reference" />
-        <attr name="outcomingDefaultBubblePressedColor" format="color|reference" />
-        <attr name="outcomingDefaultBubbleSelectedColor" format="color|reference" />
-
-        <attr name="outcomingImageOverlayDrawable" format="reference" />
-        <attr name="outcomingDefaultImageOverlayPressedColor" format="color|reference" />
-        <attr name="outcomingDefaultImageOverlaySelectedColor" format="color|reference" />
-
-        <attr name="outcomingBubblePaddingLeft" format="dimension|reference" />
-        <attr name="outcomingBubblePaddingRight" format="dimension|reference" />
-        <attr name="outcomingBubblePaddingTop" format="dimension|reference" />
-        <attr name="outcomingBubblePaddingBottom" format="dimension|reference" />
-
-        <attr name="outcomingTextColor" format="color|reference" />
-        <attr name="outcomingTextSize" format="dimension|reference" />
-        <attr name="outcomingTextStyle">
-            <flag name="normal" value="0" />
-            <flag name="bold" value="1" />
-            <flag name="italic" value="2" />
-        </attr>
-
-        <attr name="outcomingTimeTextColor" format="color|reference" />
-        <attr name="outcomingTimeTextSize" format="dimension|reference" />
-        <attr name="outcomingTimeTextStyle">
-            <flag name="normal" value="0" />
-            <flag name="bold" value="1" />
-            <flag name="italic" value="2" />
-        </attr>
-
-        <attr name="outcomingImageTimeTextColor" format="color|reference" />
-        <attr name="outcomingImageTimeTextSize" format="dimension|reference" />
-        <attr name="outcomingImageTimeTextStyle">
-            <flag name="normal" value="0" />
-            <flag name="bold" value="1" />
-            <flag name="italic" value="2" />
-        </attr>
-
-        <attr name="dateHeaderPadding" format="dimension|reference" />
-        <attr name="dateHeaderFormat" format="string|reference" />
-        <attr name="dateHeaderTextColor" format="color|reference" />
-        <attr name="dateHeaderTextSize" format="dimension|reference" />
-        <attr name="dateHeaderTextStyle">
-            <flag name="normal" value="0" />
-            <flag name="bold" value="1" />
-            <flag name="italic" value="2" />
-        </attr>
-
-    </declare-styleable>
-
-    <attr name="DialogsListView" format="reference" />
-
-    <declare-styleable name="DialogsList">
-        <attr name="dialogTitleTextColor" format="color|reference" />
-        <attr name="dialogTitleTextSize" format="dimension|reference" />
-        <attr name="dialogTitleTextStyle">
-            <flag name="normal" value="0" />
-            <flag name="bold" value="1" />
-            <flag name="italic" value="2" />
-        </attr>
-        <attr name="dialogUnreadTitleTextColor" format="color|reference" />
-        <attr name="dialogUnreadTitleTextStyle">
-            <flag name="normal" value="0" />
-            <flag name="bold" value="1" />
-            <flag name="italic" value="2" />
-        </attr>
-
-        <attr name="dialogMessageTextColor" format="color|reference" />
-        <attr name="dialogMessageTextSize" format="dimension|reference" />
-        <attr name="dialogMessageTextStyle">
-            <flag name="normal" value="0" />
-            <flag name="bold" value="1" />
-            <flag name="italic" value="2" />
-        </attr>
-        <attr name="dialogUnreadMessageTextColor" format="color|reference" />
-        <attr name="dialogUnreadMessageTextStyle">
-            <flag name="normal" value="0" />
-            <flag name="bold" value="1" />
-            <flag name="italic" value="2" />
-        </attr>
-
-        <attr name="dialogDateColor" format="color|reference" />
-        <attr name="dialogDateSize" format="dimension|reference" />
-        <attr name="dialogDateStyle">
-            <flag name="normal" value="0" />
-            <flag name="bold" value="1" />
-            <flag name="italic" value="2" />
-        </attr>
-        <attr name="dialogUnreadDateColor" format="color|reference" />
-        <attr name="dialogUnreadDateStyle">
-            <flag name="normal" value="0" />
-            <flag name="bold" value="1" />
-            <flag name="italic" value="2" />
-        </attr>
-
-        <attr name="dialogUnreadBubbleEnabled" format="boolean" />
-        <attr name="dialogUnreadBubbleTextColor" format="color|reference" />
-        <attr name="dialogUnreadBubbleTextSize" format="dimension|reference" />
-        <attr name="dialogUnreadBubbleTextStyle">
-            <flag name="normal" value="0" />
-            <flag name="bold" value="1" />
-            <flag name="italic" value="2" />
-        </attr>
-        <attr name="dialogUnreadBubbleBackgroundColor" format="color|reference" />
-
-        <attr name="dialogAvatarWidth" format="dimension|reference" />
-        <attr name="dialogAvatarHeight" format="dimension|reference" />
-
-        <attr name="dialogMessageAvatarEnabled" format="boolean" />
-        <attr name="dialogMessageAvatarWidth" format="dimension|reference" />
-        <attr name="dialogMessageAvatarHeight" format="dimension|reference" />
-
-        <attr name="dialogDividerEnabled" format="boolean" />
-        <attr name="dialogDividerColor" format="color|reference" />
-        <attr name="dialogDividerLeftPadding" format="dimension|reference" />
-        <attr name="dialogDividerRightPadding" format="dimension|reference" />
-
-        <attr name="dialogItemBackground" format="color|reference" />
-        <attr name="dialogUnreadItemBackground" format="color|reference" />
-
-    </declare-styleable>
-       <declare-styleable name="CustomFlexboxLayout">
-           <attr name="viewPartMain" format="reference" />
-           <attr name="viewPartSlave" format="reference" />
-    </declare-styleable>
-
-    <declare-styleable name="RefreshView">
-        <attr name="type" format="enum">
-            <enum name="soup" value="0"/>
-        </attr>
-    </declare-styleable>
-
-    <declare-styleable name="SHCircleProgressBar">
-        <attr name="inner_radius" format="dimension" />
-        <attr name="background_color" format="color" />
-        <attr name="progress_color" format="color" />
-        <attr name="progress_stoke_width" format="dimension" />
-        <attr name="show_arrow" format="boolean" />
-        <attr name="enable_circle_background" format="boolean" />
-        <attr name="arrow_width" format="dimension" />
-        <attr name="arrow_height" format="dimension" />
-        <attr name="progress" format="integer" />
-        <attr name="max" format="integer" />
-        <attr name="progress_text_size" format="dimension" />
-        <attr name="progress_text_color" format="color" />
-        <attr name="progress_text_visibility" format="enum">
-            <enum name="visible" value="0" />
-            <enum name="invisible" value="1" />
-        </attr>
-    </declare-styleable>
-
-    <declare-styleable name="SHSwipeRefreshLayout">
-        <attr name="guidance_view_bg_color" format="color|reference" />
-        <attr name="guidance_text_color" format="color|reference" />
-        <attr name="progress_bar_color" format="color|reference" />
-        <attr name="progress_bg_color" format="color|reference" />
-        <attr name="refresh_text" format="string|reference" />
-        <attr name="load_text" format="string|reference" />
-        <attr name="pull_refresh_enable" format="boolean" />
-        <attr name="loadmore_enable" format="boolean" />
-    </declare-styleable>
-
-
-
-
-
 
     <declare-styleable name="ShapeOfView">
-        <attr name="shape_clip_drawable" format="reference"/>
+        <attr name="shape_clip_drawable" format="reference" />
     </declare-styleable>
     <declare-styleable name="TriangleView">
-        <attr name="shape_triangle_percentLeft" format="float"/>
-        <attr name="shape_triangle_percentBottom" format="float"/>
-        <attr name="shape_triangle_percentRight" format="float"/>
+        <attr name="shape_triangle_percentLeft" format="float" />
+        <attr name="shape_triangle_percentBottom" format="float" />
+        <attr name="shape_triangle_percentRight" format="float" />
     </declare-styleable>
     <declare-styleable name="StarView">
-        <attr name="shape_star_noOfPoints" format="integer"/>
+        <attr name="shape_star_noOfPoints" format="integer" />
     </declare-styleable>
     <declare-styleable name="PolygonView">
-        <attr name="shape_polygon_noOfSides" format="integer"/>
+        <attr name="shape_polygon_noOfSides" format="integer" />
     </declare-styleable>
     <declare-styleable name="CircleView">
-        <attr name="shape_circle_borderWidth" format="dimension"/>
-        <attr name="shape_circle_borderColor" format="color"/>
+        <attr name="shape_circle_borderWidth" format="dimension" />
+        <attr name="shape_circle_borderColor" format="color" />
     </declare-styleable>
     <declare-styleable name="DiagonalView">
-        <attr name="shape_diagonal_angle" format="float"/>
+        <attr name="shape_diagonal_angle" format="float" />
         <attr name="shape_diagonal_position" format="enum">
-            <enum name="bottom" value="1"/>
-            <enum name="top" value="2"/>
-            <enum name="left" value="3"/>
-            <enum name="right" value="4"/>
+            <enum name="bottom" value="1" />
+            <enum name="top" value="2" />
+            <enum name="left" value="3" />
+            <enum name="right" value="4" />
         </attr>
     </declare-styleable>
     <declare-styleable name="ArcView">
-        <attr name="shape_arc_height" format="dimension"/>
+        <attr name="shape_arc_height" format="dimension" />
         <attr name="shape_arc_position" format="enum">
-            <enum name="bottom" value="1"/>
-            <enum name="top" value="2"/>
-            <enum name="left" value="3"/>
-            <enum name="right" value="4"/>
+            <enum name="bottom" value="1" />
+            <enum name="top" value="2" />
+            <enum name="left" value="3" />
+            <enum name="right" value="4" />
         </attr>
     </declare-styleable>
     <declare-styleable name="BubbleView">
-        <attr name="shape_bubble_borderRadius" format="dimension"/>
-        <attr name="shape_bubble_arrowHeight" format="dimension"/>
-        <attr name="shape_bubble_arrowWidth" format="dimension"/>
+        <attr name="shape_bubble_borderRadius" format="dimension" />
+        <attr name="shape_bubble_arrowHeight" format="dimension" />
+        <attr name="shape_bubble_arrowWidth" format="dimension" />
         <attr name="shape_bubble_arrowPosition" format="enum">
-            <enum name="bottom" value="1"/>
-            <enum name="top" value="2"/>
-            <enum name="left" value="3"/>
-            <enum name="right" value="4"/>
+            <enum name="bottom" value="1" />
+            <enum name="top" value="2" />
+            <enum name="left" value="3" />
+            <enum name="right" value="4" />
         </attr>
-        <attr name="arrow_posititon_percent" format="float"/>
+        <attr name="arrow_posititon_percent" format="float" />
     </declare-styleable>
     <declare-styleable name="RoundRectView">
-        <attr name="shape_roundRect_topLeftRadius" format="dimension"/>
-        <attr name="shape_roundRect_topRightRadius" format="dimension"/>
-        <attr name="shape_roundRect_bottomLeftRadius" format="dimension"/>
-        <attr name="shape_roundRect_bottomRightRadius" format="dimension"/>
-        <attr name="shape_roundRect_borderWidth" format="dimension"/>
-        <attr name="shape_roundRect_borderColor" format="color"/>
+        <attr name="shape_roundRect_topLeftRadius" format="dimension" />
+        <attr name="shape_roundRect_topRightRadius" format="dimension" />
+        <attr name="shape_roundRect_bottomLeftRadius" format="dimension" />
+        <attr name="shape_roundRect_bottomRightRadius" format="dimension" />
+        <attr name="shape_roundRect_borderWidth" format="dimension" />
+        <attr name="shape_roundRect_borderColor" format="color" />
     </declare-styleable>
-
-    <declare-styleable name="CutCornerView">
-        <attr name="shape_cutCorner_topLeftSize" format="dimension"/>
-        <attr name="shape_cutCorner_topRightSize" format="dimension"/>
-        <attr name="shape_cutCorner_bottomLeftSize" format="dimension"/>
-        <attr name="shape_cutCorner_bottomRightSize" format="dimension"/>
-    </declare-styleable>
-
-    <declare-styleable name="DottedEdgesCutCornerView">
-        <attr name="shape_dottedEdgesCutCorner_topLeftSize" format="dimension"/>
-        <attr name="shape_dottedEdgesCutCorner_topRightSize" format="dimension"/>
-        <attr name="shape_dottedEdgesCutCorner_bottomLeftSize" format="dimension"/>
-        <attr name="shape_dottedEdgesCutCorner_bottomRightSize" format="dimension"/>
-        <attr name="shape_edge_position" format="flags">
-            <flag name="none" value="0"/>
-            <flag name="bottom" value="1"/>
-            <flag name="top" value="2"/>
-            <flag name="left" value="4"/>
-            <flag name="right" value="8"/>
-            <flag name="all" value="15"/>
-        </attr>
-        <attr name="shape_dot_radius" format="dimension"/>
-        <attr name="shape_dot_spacing" format="dimension"/>
-    </declare-styleable>
-
 </resources>

@@ -6,10 +6,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.xabber.data_base.dao.AccountStorageItemDao
 import com.xabber.data_base.defaultRealmConfig
-import com.xabber.models.dto.AccountDto
-import com.xabber.models.dto.AvatarDto
-import com.xabber.models.xmpp.account.AccountStorageItem
-import com.xabber.models.xmpp.avatar.AvatarStorageItem
+import com.xabber.dto.AccountDto
+import com.xabber.dto.AvatarDto
 import com.xabber.presentation.XabberApplication
 import com.xabber.presentation.onboarding.util.PasswordStorageHelper
 import com.xabber.utils.toAccountDto
@@ -56,7 +54,7 @@ class AccountViewModel : ViewModel() {
 
     fun setAvatar(jid: String, uri: String?) {
         realm.writeBlocking {
-            val item = this.query(AccountStorageItem::class).first().find()
+            val item = this.query(com.xabber.data_base.models.account.AccountStorageItem::class).first().find()
             item?.hasAvatar = !item!!.hasAvatar
         }
     }
@@ -72,8 +70,8 @@ class AccountViewModel : ViewModel() {
     fun initDataListener(jid: String) {
         viewModelScope.launch(Dispatchers.IO) {
             val request =
-                realm.query(AccountStorageItem::class, "jid = '$jid'")
-            request.asFlow().collect { changes: ResultsChange<AccountStorageItem> ->
+                realm.query(com.xabber.data_base.models.account.AccountStorageItem::class, "jid = '$jid'")
+            request.asFlow().collect { changes: ResultsChange<com.xabber.data_base.models.account.AccountStorageItem> ->
                 when (changes) {
                     is UpdatedResults -> {
                         changes.list
@@ -94,19 +92,19 @@ class AccountViewModel : ViewModel() {
 
     fun deleteAvatar(id: String) {
         realm.writeBlocking {
-            val avatar = this.query(AvatarStorageItem::class, "primary = '$id'").first().find()
+            val avatar = this.query(com.xabber.data_base.models.avatar.AvatarStorageItem::class, "primary = '$id'").first().find()
             if (avatar != null) findLatest(avatar)?.let { delete(it) }
 
-            val account = this.query(AccountStorageItem::class, "primary = '$id'").first().find()
+            val account = this.query(com.xabber.data_base.models.account.AccountStorageItem::class, "primary = '$id'").first().find()
             account?.hasAvatar = false
         }
     }
 
     fun saveAvatar(id: String, uri: String) {
         realm.writeBlocking {
-            val avatar = this.query(AvatarStorageItem::class, "primary = '$id'").first().find()
+            val avatar = this.query(com.xabber.data_base.models.avatar.AvatarStorageItem::class, "primary = '$id'").first().find()
             if (avatar == null) {
-                this.copyToRealm(AvatarStorageItem().apply {
+                this.copyToRealm(com.xabber.data_base.models.avatar.AvatarStorageItem().apply {
                     primary = id
                     fileUri = uri
                     jid = id
@@ -114,7 +112,7 @@ class AccountViewModel : ViewModel() {
 
                 })
             } else avatar.fileUri = uri
-            val account = this.query(AccountStorageItem::class, "jid = '$id'").first().find()
+            val account = this.query(com.xabber.data_base.models.account.AccountStorageItem::class, "jid = '$id'").first().find()
             account?.hasAvatar = true
         }
     }
@@ -123,7 +121,7 @@ class AccountViewModel : ViewModel() {
         var avatarDto: AvatarDto? = null
         realm.writeBlocking {
             val avatarStorageItem =
-                this.query(AvatarStorageItem::class, "primary = '$id'").first().find()
+                this.query(com.xabber.data_base.models.avatar.AvatarStorageItem::class, "primary = '$id'").first().find()
             if (avatarStorageItem != null) {
                 avatarDto = AvatarDto(
                     id = avatarStorageItem.primary,

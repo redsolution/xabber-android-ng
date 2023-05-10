@@ -159,23 +159,6 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/pin_panel" />
 
-    <TextView
-        android:id="@+id/tvTopDate"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:background="?attr/transparent_rounded_background"
-        android:paddingLeft="8dp"
-        android:paddingTop="2dp"
-        android:paddingRight="8dp"
-        android:paddingBottom="2dp"
-        android:textColor="@color/white"
-        android:textStyle="bold"
-        android:visibility="gone"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/pin_panel" />
-
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/answer"
         android:layout_width="0dp"
@@ -249,7 +232,7 @@
         android:layout_height="wrap_content"
         android:background="@color/white"
         android:elevation="1dp"
-        app:layout_constraintBottom_toTopOf="@id/emoji_popup_layout"
+        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent">
 
@@ -279,7 +262,7 @@
 
         </androidx.constraintlayout.widget.ConstraintLayout>
 
-        <com.aghajari.emojiview.view.AXEmojiEditText
+        <EditText
             android:id="@+id/chat_input"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -488,16 +471,16 @@
         app:tint="@color/white"
         tools:visibility="visible" />
 
-    <com.aghajari.emojiview.view.AXEmojiPopupLayout
-        android:id="@+id/emoji_popup_layout"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        app:flow_maxElementsWrap="3"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent">
+<!--    <View-->
+<!--        android:id="@+id/emoji_popup_layout"-->
+<!--        android:layout_width="0dp"-->
+<!--        android:layout_height="1dp"-->
+<!--        app:flow_maxElementsWrap="3"-->
+<!--        app:layout_constraintBottom_toBottomOf="parent"-->
+<!--        app:layout_constraintEnd_toEndOf="parent"-->
+<!--        app:layout_constraintStart_toStartOf="parent">-->
 
-    </com.aghajari.emojiview.view.AXEmojiPopupLayout>
+<!--    </View>-->
 
     <View
         android:id="@+id/anchor_view"

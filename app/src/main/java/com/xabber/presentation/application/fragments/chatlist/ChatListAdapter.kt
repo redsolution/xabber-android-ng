@@ -11,7 +11,7 @@ import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.RecyclerView.ViewHolder
 import com.xabber.databinding.HideChatItemBinding
 import com.xabber.databinding.ItemChatListBinding
-import com.xabber.models.dto.ChatListDto
+import com.xabber.dto.ChatListDto
 import com.xabber.presentation.AppConstants.PAYLOAD_CHAT_COLOR
 import com.xabber.presentation.AppConstants.PAYLOAD_CHAT_CUSTOM_NAME
 import com.xabber.presentation.AppConstants.PAYLOAD_CHAT_DATE

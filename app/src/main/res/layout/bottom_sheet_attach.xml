@@ -4,7 +4,7 @@
     android:id="@+id/c"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/bottom_sheet_background_white"
+    android:background="@drawable/background_rounded_corners"
     android:orientation="vertical">
 <LinearLayout
     android:id="@+id/lin"
@@ -58,14 +58,14 @@
 
             <LinearLayout
                 android:id="@+id/attach_radio_group"
-                android:layout_width="match_parent"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginVertical="4dp"
                 android:background="@color/transparent"
                 android:orientation="horizontal">
 
                 <LinearLayout
-                    android:id="@+id/attach_camera_button"
+                    android:id="@+id/camera"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_margin="8dp"
@@ -88,7 +88,7 @@
                 </LinearLayout>
 
                 <LinearLayout
-                    android:id="@+id/attach_file_button"
+                    android:id="@+id/file"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_margin="8dp"
@@ -111,7 +111,7 @@
                 </LinearLayout>
 
                 <LinearLayout
-                    android:id="@+id/attach_location_button"
+                    android:id="@+id/location"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_margin="8dp"
@@ -146,7 +146,7 @@
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent">
 
-            <com.aghajari.emojiview.view.AXEmojiEditText
+            <EditText
                 android:id="@+id/chat_input"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"

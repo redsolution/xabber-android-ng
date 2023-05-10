@@ -6,7 +6,7 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import com.xabber.databinding.ItemAccountForPreferenceBinding
-import com.xabber.models.dto.AccountDto
+import com.xabber.dto.AccountDto
 import com.xabber.presentation.AppConstants
 
 class AccountAdapter(

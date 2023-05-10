@@ -3,8 +3,7 @@ package com.xabber.presentation.application.fragments.account.reorder
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.xabber.data_base.defaultRealmConfig
-import com.xabber.models.dto.AccountDto
-import com.xabber.models.xmpp.account.AccountStorageItem
+import com.xabber.dto.AccountDto
 import com.xabber.utils.toAccountDto
 import io.realm.kotlin.Realm
 import io.realm.kotlin.query.Sort
@@ -18,7 +17,7 @@ class ReorderAccountsViewModel : ViewModel() {
     fun getAccounts(): List<AccountDto> {
         return try {
             realm.writeBlocking {
-                val accountStorageItems = this.query(AccountStorageItem::class)
+                val accountStorageItems = this.query(com.xabber.data_base.models.account.AccountStorageItem::class)
                     .sort("order", Sort.ASCENDING)
                     .find()
                 accountStorageItems.map { it.toAccountDto() }
@@ -33,7 +32,7 @@ class ReorderAccountsViewModel : ViewModel() {
             realm.write {
                 accounts.forEachIndexed { index, accountDto ->
                     val account =
-                        this.query(AccountStorageItem::class, "primary = '${accountDto.id}'")
+                        this.query(com.xabber.data_base.models.account.AccountStorageItem::class, "primary = '${accountDto.id}'")
                             .first().find()
                     account?.order = index
                 }

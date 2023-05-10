@@ -7,9 +7,9 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.xabber.R
 import com.xabber.databinding.ItemContactBinding
-import com.xabber.models.dto.ContactDto
-import com.xabber.models.xmpp.presences.ResourceStatus
-import com.xabber.models.xmpp.presences.RosterItemEntity
+import com.xabber.dto.ContactDto
+import com.xabber.data_base.models.presences.ResourceStatus
+import com.xabber.data_base.models.presences.RosterItemEntity
 import com.xabber.utils.MaskManager
 
 

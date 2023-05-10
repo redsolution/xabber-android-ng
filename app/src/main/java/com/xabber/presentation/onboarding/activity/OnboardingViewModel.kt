@@ -5,13 +5,9 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.xabber.data_base.dao.AccountStorageItemDao
-import com.xabber.data_base.dao.AvatarStorageItemDao
 import com.xabber.data_base.defaultRealmConfig
-import com.xabber.models.dto.HostListDto
-import com.xabber.models.xmpp.account.AccountStorageItem
-import com.xabber.models.xmpp.avatar.AvatarStorageItem
-import com.xabber.models.xmpp.presences.ResourceStorageItem
+import com.xabber.dto.HostListDto
+import com.xabber.data_base.models.presences.ResourceStorageItem
 import com.xabber.presentation.XabberApplication
 import com.xabber.presentation.onboarding.util.PasswordStorageHelper
 import com.xabber.remote.AccountRepository
@@ -75,7 +71,7 @@ class OnboardingViewModel : ViewModel() {
                         owner = accountNickName!!
                         resource = deviceName
                     })
-                    this.copyToRealm(AccountStorageItem().apply {
+                    this.copyToRealm(com.xabber.data_base.models.account.AccountStorageItem().apply {
                         primary = accountJid!!
                         order = primaryAccountOrder
                         jid = accountJid!!
@@ -86,7 +82,7 @@ class OnboardingViewModel : ViewModel() {
                         resource = accountResource
                     })
                     if (savedUri != null)
-                        this.copyToRealm(AvatarStorageItem().apply {
+                        this.copyToRealm(com.xabber.data_base.models.avatar.AvatarStorageItem().apply {
                             primary = accountJid!!
                             jid = accountJid!!
                             owner = accountJid!!

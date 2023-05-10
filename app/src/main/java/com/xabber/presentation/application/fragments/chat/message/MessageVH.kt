@@ -11,7 +11,7 @@ import androidx.appcompat.widget.LinearLayoutCompat
 import androidx.core.graphics.drawable.DrawableCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.xabber.R
-import com.xabber.models.dto.MessageDto
+import com.xabber.dto.MessageDto
 import com.xabber.models.dto.MessageVhExtraData
 //import com.xabber.presentation.XabberApplication
 import com.xabber.utils.custom.CustomFlexboxLayout

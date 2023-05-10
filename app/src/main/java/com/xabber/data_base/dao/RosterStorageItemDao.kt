@@ -1,6 +1,6 @@
 package com.xabber.data_base.dao
 
-import com.xabber.models.xmpp.roster.RosterStorageItem
+import com.xabber.data_base.models.roster.RosterStorageItem
 import io.realm.kotlin.Realm
 
 class RosterStorageItemDao(private val realm: Realm) {

@@ -425,4 +425,7 @@
     <string name="server_information">Информация сервера</string>
     <string name="xmpp_server">Xmpp сервер</string>
     <string name="delete_account">Удалить аккаунт</string>
+    <string name="music_label">Музыка</string>
+    <string name="feature_not_implemented">Эта функция не реализована</string>
+
 </resources>

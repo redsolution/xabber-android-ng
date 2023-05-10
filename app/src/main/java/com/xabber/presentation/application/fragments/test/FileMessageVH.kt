@@ -15,8 +15,8 @@ import com.bumptech.glide.request.target.CustomTarget
 import com.bumptech.glide.request.target.Target
 import com.bumptech.glide.request.transition.Transition
 import com.xabber.R
-import com.xabber.models.dto.MessageDto
-import com.xabber.models.xmpp.messages.MessageReferenceStorageItem
+import com.xabber.dto.MessageDto
+import com.xabber.data_base.models.messages.MessageReferenceStorageItem
 import com.xabber.presentation.application.fragments.chat.message.XMessageVH
 
 //class FileMessageVH(

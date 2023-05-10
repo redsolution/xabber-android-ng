@@ -15,11 +15,9 @@
         android:background="@color/white"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent">
+        app:layout_constraintStart_toStartOf="parent"/>
 
-    </androidx.constraintlayout.widget.ConstraintLayout>
-
-    <com.aghajari.emojiview.view.AXEmojiEditText
+    <EditText
         android:textColor="@color/black"
         android:id="@+id/chat_input"
         android:layout_width="0dp"

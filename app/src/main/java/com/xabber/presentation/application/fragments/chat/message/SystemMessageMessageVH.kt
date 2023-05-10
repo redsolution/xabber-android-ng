@@ -3,7 +3,7 @@ package com.xabber.presentation.application.fragments.chat.message
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.core.view.isVisible
-import com.xabber.models.dto.MessageDto
+import com.xabber.dto.MessageDto
 import com.xabber.databinding.ItemMessageSystemBinding
 
 class SystemMessageMessageVH(

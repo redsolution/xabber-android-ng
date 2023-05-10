@@ -4,7 +4,7 @@ import android.os.Build
 import android.view.View
 import androidx.annotation.RequiresApi
 import androidx.recyclerview.widget.RecyclerView
-import com.xabber.models.dto.MessageDto
+import com.xabber.dto.MessageDto
 
 abstract class BasicMessageVH(view: View, listener: ChatAdapter.Listener? = null) :
     RecyclerView.ViewHolder(view) {
@@ -22,11 +22,11 @@ abstract class BasicMessageVH(view: View, listener: ChatAdapter.Listener? = null
     }
 @RequiresApi(Build.VERSION_CODES.N)
     open fun bind(
-        messageDto: MessageDto,
-        isNeedTail: Boolean = true,
-        needDay: Boolean = true,
-        showCheckbox: Boolean = false,
-        isNeedTitle: Boolean, isNeedUnread: Boolean, payloads: List<Any>
+    messageDto: MessageDto,
+    isNeedTail: Boolean = true,
+    needDay: Boolean = true,
+    showCheckbox: Boolean = false,
+    isNeedTitle: Boolean, isNeedUnread: Boolean, payloads: List<Any>
     ) {
     }
 }

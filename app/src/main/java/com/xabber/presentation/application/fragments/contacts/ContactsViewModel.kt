@@ -6,12 +6,11 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.xabber.data_base.defaultRealmConfig
-import com.xabber.models.dto.ContactDto
-import com.xabber.models.xmpp.account.AccountStorageItem
-import com.xabber.models.xmpp.last_chats.LastChatsStorageItem
-import com.xabber.models.xmpp.presences.ResourceStatus
-import com.xabber.models.xmpp.presences.RosterItemEntity
-import com.xabber.models.xmpp.roster.RosterStorageItem
+import com.xabber.dto.ContactDto
+import com.xabber.data_base.models.last_chats.LastChatsStorageItem
+import com.xabber.data_base.models.presences.ResourceStatus
+import com.xabber.data_base.models.presences.RosterItemEntity
+import com.xabber.data_base.models.roster.RosterStorageItem
 import io.realm.kotlin.Realm
 import io.realm.kotlin.notifications.ResultsChange
 import io.realm.kotlin.notifications.UpdatedResults
@@ -105,7 +104,7 @@ class ContactsViewModel : ViewModel() {
     }
 
     fun getOwner(): String? {
-        val item = realm.query(AccountStorageItem::class).first().find()
+        val item = realm.query(com.xabber.data_base.models.account.AccountStorageItem::class).first().find()
         val nick =  item?.username
         Log.d("ooo", "$nick")
         return nick

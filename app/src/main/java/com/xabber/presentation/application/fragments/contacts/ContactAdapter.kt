@@ -5,7 +5,7 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import com.xabber.databinding.ItemContactBinding
-import com.xabber.models.dto.ContactDto
+import com.xabber.dto.ContactDto
 
 class ContactAdapter(
     private val listener: Listener

@@ -13,7 +13,7 @@
     </style>
 
     <style name="ThemeApplication" parent="Theme.MaterialComponents.Light.Bridge">
-         <item name="android:windowBackground">@color/white</item>
+        <item name="android:windowBackground">@color/white</item>
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
         <item name="android:textColorPrimary">@color/black</item>
@@ -21,14 +21,10 @@
         <item name="colorOnBackground">@color/grey_600</item>
         <item name="homeAsUpIndicator">@drawable/ic_arrow_left</item>
         <item name="statusBarBackground">@color/transparent</item>
-        <item name="account_status_bar_color">@color/transparent</item>
         <item name="android:windowLightStatusBar">false</item>
         <item name="android:statusBarColor">@color/transparent</item>
         <item name="popupMenuStyle">@style/popupMenuStyle</item>
-        <item name="transparent_rounded_background">@drawable/rounded_background_grey_transparent
-        </item>
         <item name="bottomSheetDialogTheme">@style/Theme.MaterialComponents.BottomSheetDialog</item>
-        <item name="avatar_mask">@drawable/circle56</item>
         <item name="standard_divider_drawable">@drawable/chat_list_divider_light</item>
         <item name="android:windowDisablePreview">true</item>
         <item name="android:navigationBarColor">@color/white</item>

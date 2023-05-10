@@ -19,6 +19,8 @@
     <dimen name="detail_container_width">300dp</dimen>
     <dimen name="detail_container_width_land">900dp</dimen>
     <dimen name="display_delimiter_width">0.1dp</dimen>
+    <dimen name="drag_handle_height">4dp</dimen>
+    <dimen name="drag_handle_width">48dp</dimen>
     <dimen name="drawable_mute_padding">4dp</dimen>
     <dimen name="extra_large_font_size">34sp</dimen>
     <dimen name="font_size_16">16sp</dimen>

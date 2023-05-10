@@ -5,10 +5,8 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.xabber.data_base.defaultRealmConfig
-import com.xabber.models.dto.AccountDto
-import com.xabber.models.dto.AvatarDto
-import com.xabber.models.xmpp.account.AccountStorageItem
-import com.xabber.models.xmpp.avatar.AvatarStorageItem
+import com.xabber.dto.AccountDto
+import com.xabber.dto.AvatarDto
 import com.xabber.utils.toAccountDto
 import com.xabber.utils.toAvatarDto
 import io.realm.kotlin.Realm
@@ -31,8 +29,8 @@ class BaseViewModel : ViewModel() {
     private fun initAccountsListener() {
         viewModelScope.launch(Dispatchers.IO) {
             val request =
-                realm.query(AccountStorageItem::class)
-            request.asFlow().collect { changes: ResultsChange<AccountStorageItem> ->
+                realm.query(com.xabber.data_base.models.account.AccountStorageItem::class)
+            request.asFlow().collect { changes: ResultsChange<com.xabber.data_base.models.account.AccountStorageItem> ->
                 when (changes) {
                     is UpdatedResults -> {
                         val a = changes.list.filter { T -> T.enabled }
@@ -50,7 +48,7 @@ class BaseViewModel : ViewModel() {
 
     fun getPrimaryAccount(): AccountDto? {
         var accountDto: AccountDto? = null
-        val realmAccounts = realm.query(AccountStorageItem::class, "enabled = true").find()
+        val realmAccounts = realm.query(com.xabber.data_base.models.account.AccountStorageItem::class, "enabled = true").find()
         val primaryAccount = realmAccounts.minByOrNull { T -> T.order }
         if (primaryAccount != null) {
             accountDto = primaryAccount.toAccountDto()
@@ -62,7 +60,7 @@ class BaseViewModel : ViewModel() {
         var avatarDto: AvatarDto? = null
         realm.writeBlocking {
             val realmAvatar =
-                this.query(AvatarStorageItem::class, "primary = '$id'").first().find()
+                this.query(com.xabber.data_base.models.avatar.AvatarStorageItem::class, "primary = '$id'").first().find()
             if (realmAvatar != null)
                 avatarDto = realmAvatar.toAvatarDto()
         }

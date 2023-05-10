@@ -21,7 +21,7 @@ import androidx.core.graphics.drawable.DrawableCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.xabber.R
-import com.xabber.models.dto.MessageDto
+import com.xabber.dto.MessageDto
 import com.xabber.models.dto.MessageVhExtraData
 import com.xabber.presentation.XabberApplication
 import com.xabber.presentation.application.fragments.chat.ReferenceRealmObject

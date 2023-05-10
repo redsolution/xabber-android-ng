@@ -2,6 +2,7 @@ package com.xabber.presentation.application.fragments.chat.geo
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -441,7 +442,7 @@ Log.d("pick", "$location lock")
 
             binding.imSendLocation.setOnClickListener {
                 setResult(
-                    RESULT_OK,
+                    Activity.RESULT_OK,
                     Intent().apply {
                         putExtra(LAT_RESULT, location.latitude)
                         putExtra(LON_RESULT, location.longitude)

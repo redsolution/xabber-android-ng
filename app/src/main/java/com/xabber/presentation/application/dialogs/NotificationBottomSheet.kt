@@ -12,7 +12,7 @@ import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.xabber.R
 import com.xabber.data_base.defaultRealmConfig
 import com.xabber.databinding.BottomSheetTurnOffNotificationsBinding
-import com.xabber.models.xmpp.last_chats.LastChatsStorageItem
+import com.xabber.data_base.models.last_chats.LastChatsStorageItem
 import com.xabber.presentation.AppConstants.TURN_OFF_NOTIFICATIONS_KEY
 import io.realm.kotlin.Realm
 

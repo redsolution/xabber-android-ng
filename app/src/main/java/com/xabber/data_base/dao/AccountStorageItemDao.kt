@@ -1,23 +1,28 @@
 package com.xabber.data_base.dao
 
-import com.xabber.models.xmpp.account.AccountStorageItem
+import com.xabber.data_base.models.account.AccountStorageItem
 import io.realm.kotlin.Realm
 
 class AccountStorageItemDao(private val realm: Realm) {
 
     fun getAccount(primary: String): AccountStorageItem? =
-        realm.query(AccountStorageItem::class, "primary = '$primary'").first().find()
+        realm.query(
+            AccountStorageItem::class,
+            "primary = '$primary'"
+        ).first().find()
 
     fun getMainAccountPrimary(): String? {
         var accountPrimary: String? = null
         realm.writeBlocking {
-            val item = this.query(AccountStorageItem::class, "order = 0").first().find()
+            val item =
+                this.query(AccountStorageItem::class, "order = 0")
+                    .first().find()
             accountPrimary = item?.jid
         }
         return accountPrimary
     }
 
-     fun createAccount(
+    fun createAccount(
         accountJid: String,
         accountName: String,
         accountColor: String?,
@@ -40,7 +45,8 @@ class AccountStorageItemDao(private val realm: Realm) {
     private fun defineAccountOrder(): Int {
         var order = 0
         realm.writeBlocking {
-            val accountList = this.query(AccountStorageItem::class).find()
+            val accountList =
+                this.query(AccountStorageItem::class).find()
             if (accountList.isNotEmpty()) order = accountList.size
         }
         return order
@@ -49,14 +55,20 @@ class AccountStorageItemDao(private val realm: Realm) {
     suspend fun setEnabled(primary: String, isChecked: Boolean) {
         realm.write {
             val account =
-                this.query(AccountStorageItem::class, "primary = '$primary'").first().find()
+                this.query(
+                    AccountStorageItem::class,
+                    "primary = '$primary'"
+                ).first().find()
             if (account != null) account.enabled = isChecked
         }
     }
 
     suspend fun setColorKey(primary: String, colorKey: String) {
         realm.write {
-            val item = this.query(AccountStorageItem::class, "primary = '$primary'").first().find()
+            val item = this.query(
+                AccountStorageItem::class,
+                "primary = '$primary'"
+            ).first().find()
             if (item != null) findLatest(item)?.colorKey = colorKey
         }
     }

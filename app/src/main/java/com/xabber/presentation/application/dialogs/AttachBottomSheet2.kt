@@ -30,25 +30,22 @@ import androidx.core.view.updateLayoutParams
 import androidx.fragment.app.viewModels
 import androidx.recyclerview.widget.SimpleItemAnimator
 import by.kirich1409.viewbindingdelegate.viewBinding
-import com.aghajari.emojiview.AXEmojiManager
-import com.aghajari.emojiview.googleprovider.AXGoogleEmojiProvider
-import com.aghajari.emojiview.view.AXSingleEmojiView
+
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.xabber.R
 import com.xabber.databinding.BottomSheetAttachBinding
-import com.xabber.models.dto.MediaDto
-import com.xabber.models.dto.MessageDto
-import com.xabber.models.dto.MessageReferenceDto
-import com.xabber.models.xmpp.messages.MessageDisplayType
-import com.xabber.models.xmpp.messages.MessageSendingState
+import com.xabber.dto.MediaDto
+import com.xabber.dto.MessageDto
+import com.xabber.dto.MessageReferenceDto
+import com.xabber.data_base.models.messages.MessageDisplayType
+import com.xabber.data_base.models.messages.MessageSendingState
 import com.xabber.presentation.AppConstants
 import com.xabber.presentation.XabberApplication
 import com.xabber.presentation.application.activity.SoftInputAssist
 import com.xabber.presentation.application.fragments.chat.*
 import com.xabber.presentation.application.fragments.chat.FileManager.getFileUri
-import com.xabber.presentation.application.fragments.chat.attach.AttachBottomSheet
 import com.xabber.presentation.application.fragments.chat.geo.PickGeolocationActivity
 import com.xabber.presentation.application.fragments.chat.geo.PickGeolocationActivity.Companion.LAT_RESULT
 import com.xabber.presentation.application.fragments.chat.geo.PickGeolocationActivity.Companion.LON_RESULT
@@ -80,11 +77,11 @@ class AttachBottomSheet2 : BottomSheetDialogFragment(R.layout.bottom_sheet_attac
 
 
     companion object {
-        fun newInstance(chatId: String): AttachBottomSheet {
+        fun newInstance(chatId: String): AttachBottomSheet2 {
             val arguments = Bundle().apply {
                 putString(AppConstants.CHAT_ID, chatId)
             }
-            val fragment = AttachBottomSheet()
+            val fragment = AttachBottomSheet2()
             fragment.arguments = arguments
             return fragment
         }
@@ -199,7 +196,7 @@ class AttachBottomSheet2 : BottomSheetDialogFragment(R.layout.bottom_sheet_attac
             binding.frameLayoutActionContainer.height  //How tall is the button + experimental distance from bottom (Change based on your view)
 
         collapsedMargin = peekHeight - buttonHeight //Button margin in bottom sheet collapsed state
-        binding.frameLayoutActionContainer.layoutParams = buttonLayoutParams
+     //   binding.frameLayoutActionContainer.layoutParams = buttonLayoutParams
 //        buttonLayoutParams?.topMargin = if (behavior?.state == BottomSheetBehavior.STATE_EXPANDED)
 //            ((expandedHeight - buttonHeight - collapsedMargin) * 1 + collapsedMargin) else collapsedMargin
 
@@ -209,8 +206,7 @@ class AttachBottomSheet2 : BottomSheetDialogFragment(R.layout.bottom_sheet_attac
         super.onViewCreated(view, savedInstanceState)
         super.onViewCreated(view, savedInstanceState)
 
-        assist =
-            SoftInputAssist(dialog!!.window!!)
+
         var set = HashSet<Long>()
         if (savedInstanceState != null) {
             val selected = savedInstanceState.getLongArray(AppConstants.SELECTED_SET)
@@ -218,19 +214,19 @@ class AttachBottomSheet2 : BottomSheetDialogFragment(R.layout.bottom_sheet_attac
         initGalleryRecyclerView(set)
         initBottomNavigationBar()
         initInputLayout()
-        initEmojiButton()
+        //initEmojiButton()
         initButtonSend()
         if (savedInstanceState != null)
             if (galleryAdapter!!.getSelectedMedia().size > 0) {
-                binding.attachFileButton.isEnabled = false
-                binding.attachCameraButton.isEnabled = false
-                binding.attachLocationButton.isEnabled = false
+//                binding.attachFileButton.isEnabled = false
+//                binding.attachCameraButton.isEnabled = false
+//                binding.attachLocationButton.isEnabled = false
                 binding.tvCountFiles.text = galleryAdapter!!.getSelectedMedia().size.toString()
             } else {
                 binding.attachScrollBar.isVisible = true
-                binding.attachFileButton.isEnabled = true
-                binding.attachCameraButton.isEnabled = true
-                binding.attachLocationButton.isEnabled = true
+//                binding.attachFileButton.isEnabled = true
+//                binding.attachCameraButton.isEnabled = true
+//                binding.attachLocationButton.isEnabled = true
                 binding.inputPanel.isVisible = false
             }
 
@@ -257,32 +253,33 @@ class AttachBottomSheet2 : BottomSheetDialogFragment(R.layout.bottom_sheet_attac
 
     private fun initBottomNavigationBar() {
         with(binding) {
-            attachCameraButton.setOnClickListener {
-                requestCameraPermissionLauncher.launch(
-                    arrayOf(
-                        Manifest.permission.CAMERA,
-                        Manifest.permission.WRITE_EXTERNAL_STORAGE
-                    )
-                )
-            }
-            attachFileButton.setOnClickListener {
-              requestFilePermissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
-            }
-            attachLocationButton.setOnClickListener {
-                dismiss()
-                openLocation()
-            }
+//            attachCameraButton.setOnClickListener {
+//                requestCameraPermissionLauncher.launch(
+//                    arrayOf(
+//                        Manifest.permission.CAMERA,
+//                        Manifest.permission.WRITE_EXTERNAL_STORAGE
+//                    )
+//                )
+//            }
+//            attachFileButton.setOnClickListener {
+//              requestFilePermissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
+//            }
+//            attachLocationButton.setOnClickListener {
+//                dismiss()
+//                openLocation()
+//            }
+//        }
         }
     }
 
-    private fun initEmojiButton() {
-        AXEmojiManager.install(requireContext(), AXGoogleEmojiProvider(requireContext()))
-        val emojiView = AXSingleEmojiView(requireContext())
-
-        binding.buttonEmoticon.setOnClickListener {
-            showToast("This feature is not implemented")
-        }
-    }
+//    private fun initEmojiButton() {
+//        AXEmojiManager.install(requireContext(), AXGoogleEmojiProvider(requireContext()))
+//        val emojiView = AXSingleEmojiView(requireContext())
+//
+//        binding.buttonEmoticon.setOnClickListener {
+//            showToast("This feature is not implemented")
+//        }
+//    }
 
     private fun initButtonSend() {
         binding.btnSend.setOnClickListener {
@@ -367,16 +364,16 @@ class AttachBottomSheet2 : BottomSheetDialogFragment(R.layout.bottom_sheet_attac
                     galleryAdapter?.notifyDataSetChanged()
                     if (galleryAdapter?.getSelectedMedia()!!.size > 0) {
                         binding.attachScrollBar.isVisible = false
-                        binding.attachFileButton.isEnabled = false
-                        binding.attachCameraButton.isEnabled = false
-                        binding.attachLocationButton.isEnabled = false
+//                        binding.attachFileButton.isEnabled = false
+//                        binding.attachCameraButton.isEnabled = false
+//                        binding.attachLocationButton.isEnabled = false
                         binding.inputPanel.isVisible = true
                         binding.tvCountFiles.text = galleryAdapter!!.getSelectedMedia().size.toString()
                     } else {
                         binding.attachScrollBar.isVisible = true
-                        binding.attachFileButton.isEnabled = true
-                        binding.attachCameraButton.isEnabled = true
-                        binding.attachLocationButton.isEnabled = true
+//                        binding.attachFileButton.isEnabled = true
+//                        binding.attachCameraButton.isEnabled = true
+//                        binding.attachLocationButton.isEnabled = true
                         binding.inputPanel.isVisible = false
                     }
                 }
@@ -413,14 +410,14 @@ class AttachBottomSheet2 : BottomSheetDialogFragment(R.layout.bottom_sheet_attac
                 binding.frameLayoutActionContainer.startAnimation(minBottom)
                 binding.attachScrollBar.startAnimation(dis)
                 binding.attachScrollBar.isVisible = false
-
-                binding.attachFileButton.isEnabled = false
-                binding.attachLocationButton.isEnabled = false
+//
+//                binding.attachFileButton.isEnabled = false
+//                binding.attachLocationButton.isEnabled = false
                 binding.inputPanel.isVisible = true
-                binding.chatInput.isEnabled = true
-                binding.chatInput.isClickable = true
-                binding.chatInput.elevation = 10f
-                binding.chatInput.isVisible = true
+//                binding.chatInput.isEnabled = true
+//                binding.chatInput.isClickable = true
+//                binding.chatInput.elevation = 10f
+//                binding.chatInput.isVisible = true
                 binding.inputPanel.setOnClickListener { }
                 binding.frameLayoutActionContainer.setOnClickListener {
 //                    binding.chatInput.isFocusable = true
@@ -461,11 +458,11 @@ class AttachBottomSheet2 : BottomSheetDialogFragment(R.layout.bottom_sheet_attac
 //                binding.frameLayoutActionContainer.layoutParams = params
                 binding.attachScrollBar.isVisible = true
                 binding.attachScrollBar.startAnimation(app)
-                binding.attachFileButton.isEnabled = true
-                binding.attachLocationButton.isEnabled = true
+//                binding.attachFileButton.isEnabled = true
+//                binding.attachLocationButton.isEnabled = true
 
 
-                binding.chatInput.isVisible = false
+             //   binding.chatInput.isVisible = false
                 // binding.chatInput.elevation = 0f
             }
         }
@@ -475,12 +472,12 @@ class AttachBottomSheet2 : BottomSheetDialogFragment(R.layout.bottom_sheet_attac
         showToast(resources.getString(R.string.attach_files_warning))
     }
 
-    override fun showMediaViewer(position: Int) {
+    override fun showMediaViewer(id: Long) {
         val intent = Intent(requireContext(), ViewImageActivity::class.java)
         val longArray = galleryAdapter?.getSelectedMedia()?.toLongArray()
         intent.putParcelableArrayListExtra(AppConstants.MEDIA_LIST, mediaList)
         intent.putExtra(AppConstants.SELECTED_IDES, longArray)
-        intent.putExtra(AppConstants.IMAGE_POSITION_KEY, position)
+        intent.putExtra(AppConstants.IMAGE_POSITION_KEY, id)
         startActivityForResult(intent, 222)
     }
 

@@ -1,13 +1,13 @@
 package com.xabber.presentation.application.fragments.account
 
 import android.os.Bundle
+import android.widget.CheckBox
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.xabber.data_base.defaultRealmConfig
 import com.xabber.databinding.ItemAccountForPreferenceBinding
-import com.xabber.models.dto.AccountDto
-import com.xabber.models.xmpp.avatar.AvatarStorageItem
+import com.xabber.dto.AccountDto
 import com.xabber.presentation.AppConstants
 import com.xabber.presentation.application.manage.ColorManager
 import com.xabber.utils.MaskManager
@@ -50,7 +50,7 @@ class AccountViewHolder(
         val realm = Realm.open(defaultRealmConfig())
         var uri: String? = null
         realm.writeBlocking {
-            val avatar = this.query(AvatarStorageItem::class, "primary = '$id'").first().find()
+            val avatar = this.query(com.xabber.data_base.models.avatar.AvatarStorageItem::class, "primary = '$id'").first().find()
             if (avatar != null) uri = avatar.fileUri
         }
         Glide.with(binding.root.context).load(uri).into(binding.imAvatarItemAccount)

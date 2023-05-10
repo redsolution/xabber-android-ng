@@ -27,7 +27,7 @@ import com.canhub.cropper.options
 import com.google.android.material.appbar.CollapsingToolbarLayout
 import com.xabber.R
 import com.xabber.databinding.FragmentAccountBinding
-import com.xabber.models.dto.AccountDto
+import com.xabber.dto.AccountDto
 import com.xabber.presentation.AppConstants
 import com.xabber.presentation.application.manage.AccountManager
 import com.xabber.presentation.application.manage.ColorManager

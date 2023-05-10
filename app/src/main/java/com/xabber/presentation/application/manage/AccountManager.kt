@@ -2,9 +2,7 @@ package com.xabber.presentation.application.manage
 
 import android.util.Log
 import com.xabber.data_base.defaultRealmConfig
-import com.xabber.models.dto.AvatarDto
-import com.xabber.models.xmpp.account.AccountStorageItem
-import com.xabber.models.xmpp.avatar.AvatarStorageItem
+import com.xabber.dto.AvatarDto
 import io.realm.kotlin.Realm
 
 
@@ -15,7 +13,7 @@ object AccountManager {
     fun getColorKey(): String {
         var colorKey = DEFAULT_COLOR
         realm.writeBlocking {
-            val primaryAccount = this.query(AccountStorageItem::class, "order = 0").first().find()
+            val primaryAccount = this.query(com.xabber.data_base.models.account.AccountStorageItem::class, "order = 0").first().find()
             colorKey = primaryAccount?.colorKey ?: DEFAULT_COLOR
         }
         return colorKey
@@ -24,10 +22,10 @@ object AccountManager {
     fun getAvatar(): AvatarDto? {
         var avatarDto: AvatarDto? = null
             realm.writeBlocking {
-                val id = this.query(AccountStorageItem::class, "order = 0").first().find()?.jid
+                val id = this.query(com.xabber.data_base.models.account.AccountStorageItem::class, "order = 0").first().find()?.jid
                 if (id != null) {
                     val realmAvatar =
-                        this.query(AvatarStorageItem::class, "primary = '$id'").first().find()
+                        this.query(com.xabber.data_base.models.avatar.AvatarStorageItem::class, "primary = '$id'").first().find()
                     if (realmAvatar != null) avatarDto = AvatarDto(
                         realmAvatar.primary,
                         jid = realmAvatar.jid,
@@ -48,7 +46,7 @@ object AccountManager {
     fun getHaveAvatar(): Boolean {
         var hasAvatar = false
         realm.writeBlocking {
-            val primaryAccount = this.query(AccountStorageItem::class, "order = 0").first().find()
+            val primaryAccount = this.query(com.xabber.data_base.models.account.AccountStorageItem::class, "order = 0").first().find()
             hasAvatar = primaryAccount?.hasAvatar ?: false
         }
         return hasAvatar
@@ -57,7 +55,7 @@ object AccountManager {
     fun getInitials(): String {
         var initials = ""
         realm.writeBlocking {
-            val primaryAccount = this.query(AccountStorageItem::class, "order = 0").first().find()
+            val primaryAccount = this.query(com.xabber.data_base.models.account.AccountStorageItem::class, "order = 0").first().find()
           val name = primaryAccount?.username
             initials =
                name?.split(' ')?.mapNotNull { it.firstOrNull()?.toString() }?.reduce { acc, s -> acc + s }

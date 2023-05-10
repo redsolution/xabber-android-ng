@@ -3,7 +3,7 @@ package com.xabber.presentation.application.fragments.chat
 import android.content.ContentUris
 import android.provider.MediaStore
 import androidx.lifecycle.ViewModel
-import com.xabber.models.dto.MediaDto
+import com.xabber.dto.MediaDto
 import com.xabber.presentation.XabberApplication
 import java.util.*
 import java.util.concurrent.TimeUnit

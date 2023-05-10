@@ -38,11 +38,9 @@
         <activity
             android:name=".presentation.application.activity.ApplicationActivity"
             android:exported="true"
-            android:theme="@style/ThemeApplication"
-            android:windowSoftInputMode="adjustResize|adjustNothing">
+            android:theme="@style/ThemeApplication">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>

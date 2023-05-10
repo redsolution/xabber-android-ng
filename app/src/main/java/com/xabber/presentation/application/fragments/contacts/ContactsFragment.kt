@@ -7,7 +7,7 @@ import android.view.View
 import by.kirich1409.viewbindingdelegate.viewBinding
 import com.xabber.R
 import com.xabber.databinding.FragmentContactBinding
-import com.xabber.models.dto.ContactDto
+import com.xabber.dto.ContactDto
 import com.xabber.presentation.AppConstants
 import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.application.dialogs.BlockContactDialog

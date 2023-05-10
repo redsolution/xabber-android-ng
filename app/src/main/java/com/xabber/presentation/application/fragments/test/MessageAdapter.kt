@@ -13,7 +13,7 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.xabber.R
 import com.xabber.models.dto.MessageBalloonColors
-import com.xabber.models.dto.MessageDto
+import com.xabber.dto.MessageDto
 import com.xabber.models.dto.MessageVhExtraData
 import com.xabber.presentation.application.fragments.chat.ReferenceRealmObject
 import com.xabber.presentation.application.fragments.chat.message.XBasicMessageVH
@@ -21,12 +21,12 @@ import com.xabber.presentation.application.fragments.chat.message.XMessageVH
 import com.xabber.presentation.application.util.isSameDayWith
 
 class MessageAdapter(private val listener: Listener,
-    private val context: Context,
-    private val messageRealmObjects: ArrayList<MessageDto>,
-    private val fileListener: XMessageVH.FileListener,
-    private val adapterListener: AdapterListener? = null,
-    private val bindListener: XIncomingMessageVH.BindListener? = null,
-    private val avatarClickListener: XIncomingMessageVH.OnMessageAvatarClickListener? = null,
+                     private val context: Context,
+                     private val messageRealmObjects: ArrayList<MessageDto>,
+                     private val fileListener: XMessageVH.FileListener,
+                     private val adapterListener: AdapterListener? = null,
+                     private val bindListener: XIncomingMessageVH.BindListener? = null,
+                     private val avatarClickListener: XIncomingMessageVH.OnMessageAvatarClickListener? = null,
 ) : ListAdapter<MessageDto, XBasicMessageVH>(MessageAdapter.DiffUtilCallback), XMessageVH.MessageClickListener,
     XMessageVH.MessageLongClickListener,
     XMessageVH.FileListener, XIncomingMessageVH.OnMessageAvatarClickListener {

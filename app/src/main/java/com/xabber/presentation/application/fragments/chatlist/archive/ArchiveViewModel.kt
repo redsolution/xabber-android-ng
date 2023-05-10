@@ -7,13 +7,12 @@ import androidx.lifecycle.viewModelScope
 import com.xabber.R
 import com.xabber.data_base.dao.LastChatStorageItemDao
 import com.xabber.data_base.defaultRealmConfig
-import com.xabber.models.dto.AccountDto
-import com.xabber.models.dto.ChatListDto
-import com.xabber.models.xmpp.account.AccountStorageItem
-import com.xabber.models.xmpp.last_chats.LastChatsStorageItem
-import com.xabber.models.xmpp.messages.MessageSendingState
-import com.xabber.models.xmpp.presences.ResourceStatus
-import com.xabber.models.xmpp.presences.RosterItemEntity
+import com.xabber.data_base.models.last_chats.LastChatsStorageItem
+import com.xabber.data_base.models.messages.MessageSendingState
+import com.xabber.data_base.models.presences.ResourceStatus
+import com.xabber.data_base.models.presences.RosterItemEntity
+import com.xabber.dto.AccountDto
+import com.xabber.dto.ChatListDto
 import com.xabber.utils.toAccountDto
 import com.xabber.utils.toChatListDto
 import io.realm.kotlin.Realm
@@ -51,7 +50,7 @@ class ArchiveViewModel : ViewModel() {
     fun getAccountsAmount(): Int {
         var amount = 0
         realm.writeBlocking {
-            amount = this.query(AccountStorageItem::class, "enabled == true").find().size
+            amount = this.query(com.xabber.data_base.models.account.AccountStorageItem::class, "enabled == true").find().size
         }
         return amount
     }
@@ -59,7 +58,7 @@ class ArchiveViewModel : ViewModel() {
     private fun getEnableAccountList(): RealmSet<String> {
         val enabledAccountsIdes = realmSetOf("")
         realm.writeBlocking {
-            val enabledAccounts = this.query(AccountStorageItem::class, "enabled = true").find()
+            val enabledAccounts = this.query(com.xabber.data_base.models.account.AccountStorageItem::class, "enabled = true").find()
             enabledAccounts.forEach { enabledAccountsIdes.add(it.primary) }
         }
         return enabledAccountsIdes
@@ -82,7 +81,7 @@ class ArchiveViewModel : ViewModel() {
                             T.toChatListDto()
                         })
                         val accountItems =
-                            realm.query(AccountStorageItem::class, "enabled = true").find()
+                            realm.query(com.xabber.data_base.models.account.AccountStorageItem::class, "enabled = true").find()
                         val accountDtoList = accountItems.map { T -> T.toAccountDto() }
                         val accountHashMap = HashMap<String, AccountDto>()
                         accountDtoList.forEach { accountHashMap[it.id] = it }
@@ -134,7 +133,7 @@ class ArchiveViewModel : ViewModel() {
             listDto.addAll(realmList.map { T ->
                 T.toChatListDto()
             })
-            val accountItems = realm.query(AccountStorageItem::class, "enabled = true").find()
+            val accountItems = realm.query(com.xabber.data_base.models.account.AccountStorageItem::class, "enabled = true").find()
             val accountDtoList = accountItems.map { T -> T.toAccountDto() }
             val accountHashMap = HashMap<String, AccountDto>()
             accountDtoList.forEach { accountHashMap[it.id] = it }
@@ -192,7 +191,7 @@ class ArchiveViewModel : ViewModel() {
     fun getColor(): String? {
         var color: String? = null
         realm.writeBlocking {
-            val account = this.query(AccountStorageItem::class).first().find()
+            val account = this.query(com.xabber.data_base.models.account.AccountStorageItem::class).first().find()
             color = account?.colorKey
         }
         return color

@@ -38,11 +38,10 @@ class ReplySwipeCallback(
     private var dXReal = 0f
     private var actionState = 0
     private var isCurrentlyActive = false
-
-    private  val fullSize = 36.dp
-    private  val paddingRight = 28
-    private  val MAX_SWIPE_DISTANCE_RATIO = 0.18f
-    private  val ACTIVE_SWIPE_DISTANCE_RATIO = 0.13f
+    private val fullSize = 36.dp
+    private val paddingRight = 28
+    private val maxSwipeDistanceRatio = 0.18f
+    private val activeSwipeDistanceRatio = 0.13f
 
     interface SwipeAction {
         fun onFullSwipe(position: Int)
@@ -141,7 +140,6 @@ class ReplySwipeCallback(
         )
     }
 
-    //skip enlarged frame of the animation.
     private val currentIconSize: Int
         get() {
             var iconSize = 0
@@ -157,7 +155,7 @@ class ReplySwipeCallback(
                     currentReplyArrowState = ReplyArrowState.VISIBLE
                 }
                 ReplyArrowState.ANIMATING_OUT -> if (currentAnimationStep > 0) {
-                    if (currentAnimationStep == 6) currentAnimationStep-- //skip enlarged frame of the animation.
+                    if (currentAnimationStep == 6) currentAnimationStep--
                     iconSize = (fullSize * scaleAnimationSteps[currentAnimationStep]).toInt()
                     isAnimating = true
                     currentAnimationStep--
@@ -199,21 +197,13 @@ class ReplySwipeCallback(
     private fun updateModifiedTouchData(dXReal: Float): Float {
         val dXModified: Float
         val dXThreshold =
-            -min(recyclerView!!.width, recyclerView!!.height) * MAX_SWIPE_DISTANCE_RATIO
+            -min(recyclerView!!.width, recyclerView!!.height) * maxSwipeDistanceRatio
         dXModified = if (isCurrentlyActive) {
-            //View is being actively moved by the user.
             max(dXReal, dXThreshold)
         } else {
-            //View is in the restoration phase
             if (dXReleasedAt < dXThreshold) {
-                //the real delta of finger movement at the time of "release" is bigger than the threshold(max swipe distance of the view).
-                //e.g. finger moved 500px, while the view stopped at the threshold of 300px
-                //
-                //by doing this we can "appropriate" original view's animation's positional data
-                //instead of overriding it until it becomes lower than the threshold
                 dXReal / dXReleasedAt * dXThreshold
             } else {
-                //the real delta of finger movement at the time of "release" is smaller than the threshold, so dXModified and dXReal should be equal.
                 dXReal
             }
         }
@@ -237,15 +227,11 @@ class ReplySwipeCallback(
                         if (currentReplyArrowState == ReplyArrowState.VISIBLE || currentReplyArrowState == ReplyArrowState.ANIMATING_IN) ReplyArrowState.ANIMATING_OUT else ReplyArrowState.GONE
                 }
                 else -> {
-                    //We set max swipe distance as 0.2f, but since we don't want the user to drag
-                    //each message all the way to the end for a reply, the "active" reply state starts at 0.15f,
-                    //and is accompanied by the haptic feedback and the appearance of the reply icon.
-                    //animations soon?
                     dXReleasedAt = 0f
                     if (dXModified < -min(
                             recyclerView!!.width,
                             recyclerView!!.height
-                        ) * ACTIVE_SWIPE_DISTANCE_RATIO
+                        ) * activeSwipeDistanceRatio
                     ) {
                         if (currentReplyArrowState == ReplyArrowState.GONE) {
                             currentReplyArrowState = ReplyArrowState.ANIMATING_IN
@@ -284,21 +270,18 @@ class ReplySwipeCallback(
 
     private fun addAnimationSteps() {
         scaleAnimationSteps.clear()
-        scaleAnimationSteps.add(0f) //0
-        scaleAnimationSteps.add(0.15f) //15ms
-        scaleAnimationSteps.add(0.32f) //30ms
-        scaleAnimationSteps.add(0.51f) //45ms
-        scaleAnimationSteps.add(0.72f) //60ms
-        scaleAnimationSteps.add(0.95f) //75ms
-        scaleAnimationSteps.add(1.15f) //90ms
-        scaleAnimationSteps.add(1f) //105ms/end
+        scaleAnimationSteps.add(0f)
+        scaleAnimationSteps.add(0.15f)
+        scaleAnimationSteps.add(0.32f)
+        scaleAnimationSteps.add(0.51f)
+        scaleAnimationSteps.add(0.72f)
+        scaleAnimationSteps.add(0.95f)
+        scaleAnimationSteps.add(1.15f)
+        scaleAnimationSteps.add(1f)
     }
 
     internal enum class ReplyArrowState {
         GONE, ANIMATING_IN, VISIBLE, ANIMATING_OUT
     }
 
-    companion object {
-
-    }
 }

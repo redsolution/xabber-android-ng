@@ -1,6 +1,6 @@
 package com.xabber.data_base.dao
 
-import com.xabber.models.xmpp.last_chats.LastChatsStorageItem
+import com.xabber.data_base.models.last_chats.LastChatsStorageItem
 import io.realm.kotlin.Realm
 
 class LastChatStorageItemDao(private val realm: Realm) {

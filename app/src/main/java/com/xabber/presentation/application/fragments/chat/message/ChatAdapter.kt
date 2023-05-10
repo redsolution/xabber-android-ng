@@ -12,8 +12,8 @@ import androidx.recyclerview.widget.ListAdapter
 import com.xabber.databinding.ItemMessageIncomingBinding
 import com.xabber.databinding.ItemMessageOutgoingBinding
 import com.xabber.databinding.ItemMessageSystemBinding
-import com.xabber.models.dto.MessageDto
-import com.xabber.models.xmpp.messages.MessageDisplayType
+import com.xabber.dto.MessageDto
+import com.xabber.data_base.models.messages.MessageDisplayType
 import com.xabber.utils.StringUtils
 
 class ChatAdapter(

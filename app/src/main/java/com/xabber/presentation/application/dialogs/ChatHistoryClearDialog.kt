@@ -11,8 +11,8 @@ import com.xabber.R
 import com.xabber.data_base.dao.LastChatStorageItemDao
 import com.xabber.data_base.dao.MessageStorageItemDao
 import com.xabber.data_base.defaultRealmConfig
-import com.xabber.models.xmpp.last_chats.LastChatsStorageItem
-import com.xabber.models.xmpp.messages.MessageStorageItem
+import com.xabber.data_base.models.last_chats.LastChatsStorageItem
+import com.xabber.data_base.models.messages.MessageStorageItem
 import com.xabber.presentation.AppConstants.CHAT_ID
 import com.xabber.presentation.AppConstants.CLEAR_HISTORY_NAME_KEY
 import io.realm.kotlin.Realm

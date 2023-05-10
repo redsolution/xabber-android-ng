@@ -23,7 +23,7 @@
                                 <PersistentState>
                                   <option name="values">
                                     <map>
-                                      <entry key="url" value="file:/$PROJECT_DIR$/../AppData/Local/Android/Sdk/icons/material/materialicons/local_police/baseline_local_police_24.xml" />
+                                      <entry key="url" value="file:/$PROJECT_DIR$/../AppData/Local/Android/Sdk/icons/material/materialicons/group/baseline_group_24.xml" />
                                     </map>
                                   </option>
                                 </PersistentState>
@@ -34,7 +34,7 @@
                         <option name="values">
                           <map>
                             <entry key="color" value="ffffff" />
-                            <entry key="outputName" value="ic_baseline_local_police_24" />
+                            <entry key="outputName" value="ic_baseline_group_24" />
                             <entry key="sourceFile" value="C:\vitaly.popov\xabber-icons\icon\material\bell-sleep.svg" />
                           </map>
                         </option>

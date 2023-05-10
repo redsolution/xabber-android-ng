@@ -17,19 +17,15 @@
         <item name="windowNoTitle">true</item>
         <item name="android:textColorPrimary">@color/black</item>
         <item name="android:statusBarColor">@color/transparent</item>
-        <item name="toolbar_color">@color/blue_500</item>
         <item name="colorPrimary">@color/blue_300</item>
         <item name="android:windowLightStatusBar">false</item>
         <item name="action_with_chat_background">@color/grey_800</item>
         <item name="chat_item_background">@color/white</item>
         <item name="android:popupMenuStyle">@style/popupMenuStyle</item>
         <item name="popupMenuStyle">@style/popupMenuStyle</item>
-        <item name="transparent_rounded_background">@drawable/rounded_background_grey_transparent
-        </item>
         <item name="android:navigationBarColor">@color/grey_300</item>
         <item name="bottomSheetDialogTheme">@style/Theme.MaterialComponents.BottomSheetDialog</item>
         <item name="avatar_initials_color">@color/grey_900</item>
-        <item name="avatar_mask">@drawable/circle56</item>
         <item name="chat_input_background">@color/white</item>
     </style>
 

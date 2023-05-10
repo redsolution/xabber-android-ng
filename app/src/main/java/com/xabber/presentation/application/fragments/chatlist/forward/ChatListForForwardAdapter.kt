@@ -5,7 +5,7 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import com.xabber.databinding.ItemChatListBinding
-import com.xabber.models.dto.ChatListDto
+import com.xabber.dto.ChatListDto
 
 class ChatListForForwardAdapter(private val listener: Listener) :
     ListAdapter<ChatListDto, ChatListForwardHolder>(DiffUtilCallback) {

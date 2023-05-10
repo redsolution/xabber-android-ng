@@ -4,15 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.xabber.R
 import com.xabber.data_base.defaultRealmConfig
-import com.xabber.models.dto.ChatListDto
-import com.xabber.models.xmpp.last_chats.LastChatsStorageItem
-import com.xabber.models.xmpp.messages.MessageSendingState
-import com.xabber.models.xmpp.presences.ResourceStatus
-import com.xabber.models.xmpp.presences.RosterItemEntity
 import io.realm.kotlin.Realm
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+
 
 class ChatListForwardViewModel: ViewModel() {
   private val realm = Realm.open(defaultRealmConfig())

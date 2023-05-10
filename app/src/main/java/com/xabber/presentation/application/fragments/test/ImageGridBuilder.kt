@@ -7,7 +7,7 @@ import android.widget.ImageView
 import android.widget.TextView
 import com.bumptech.glide.Glide
 import com.xabber.R
-import com.xabber.models.dto.MessageReferenceDto
+import com.xabber.dto.MessageReferenceDto
 
 class ImageGridBuilder {
     fun inflateView(parent: ViewGroup, imageCount: Int): View {

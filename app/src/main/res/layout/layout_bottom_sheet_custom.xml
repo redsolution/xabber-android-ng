@@ -1,47 +1,35 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.constraintlayout.motion.widget.MotionLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/bottom_sheet_layout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:id="@+id/bottom_sheet_layout"
-    android:background="@drawable/bottom_sheet_background_white"
+    android:background="@drawable/background_rounded_corners"
     app:behavior_hideable="true"
-    app:layoutDescription="@xml/sheet_scene"
-    tools:ignore="MotionLayoutInvalidSceneFileReference">
+    app:layoutDescription="@xml/attachment_bottom_sheet_scene">
 
     <View
-        android:id="@+id/sheetIndicator"
-        android:layout_width="48dp"
-        android:layout_height="2dp"
+        android:id="@+id/drug_handle_view"
+        android:layout_width="@dimen/drag_handle_width"
+        android:layout_height="@dimen/drag_handle_height"
         android:layout_gravity="center_horizontal"
-        android:layout_marginTop="8dp"
+        android:layout_marginTop="@dimen/margin_small"
         android:background="@drawable/sheet_indicator" />
 
-    <com.google.android.material.appbar.AppBarLayout
+    <com.google.android.material.appbar.MaterialToolbar
         android:id="@+id/appBarLayout"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="?attr/colorOnPrimary">
-
-        <com.google.android.material.appbar.MaterialToolbar
-            android:id="@+id/toolBar"
-            android:layout_width="match_parent"
-            android:layout_height="?attr/actionBarSize"
-            android:background="@color/white"
-            app:title="Gallery"
-            app:titleTextColor="@color/black" />
-    </com.google.android.material.appbar.AppBarLayout>
+        android:layout_height="?attr/actionBarSize"
+        android:background="@drawable/background_rounded_corners"
+        app:title="@string/gallery_label"
+        app:titleTextColor="@color/black" />
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recyclerGallery"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_marginEnd="8dp"
-        android:clipToPadding="false"
+        android:layout_marginEnd="@dimen/margin_small"
         app:layoutManager="androidx.recyclerview.widget.GridLayoutManager"
-        app:spanCount="3"
-        tools:listitem="@layout/item_image" />
+        app:spanCount="3" />
 
 </androidx.constraintlayout.motion.widget.MotionLayout>

@@ -1,21 +1,17 @@
 package com.xabber.presentation.application.fragments.settings
 
-import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.xabber.data_base.defaultRealmConfig
-import com.xabber.models.dto.AccountDto
-import com.xabber.models.dto.AvatarDto
-import com.xabber.models.xmpp.account.AccountStorageItem
-import com.xabber.models.xmpp.avatar.AvatarStorageItem
+import com.xabber.dto.AccountDto
+import com.xabber.dto.AvatarDto
 import com.xabber.utils.toAccountDto
 import com.xabber.utils.toAvatarDto
 import io.realm.kotlin.Realm
 import io.realm.kotlin.notifications.ResultsChange
 import io.realm.kotlin.notifications.UpdatedResults
-import io.realm.kotlin.query.Sort
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -36,8 +32,8 @@ class SettingsViewModel : ViewModel() {
         viewModelScope.launch(Dispatchers.IO) {
             val dataSource = ArrayList<AccountDto>()
             val request =
-                realm.query(AccountStorageItem::class)
-            request.asFlow().collect { changes: ResultsChange<AccountStorageItem> ->
+                realm.query(com.xabber.data_base.models.account.AccountStorageItem::class)
+            request.asFlow().collect { changes: ResultsChange<com.xabber.data_base.models.account.AccountStorageItem> ->
                 when (changes) {
                     is UpdatedResults -> {
                         changes.list
@@ -61,7 +57,7 @@ class SettingsViewModel : ViewModel() {
         viewModelScope.launch(Dispatchers.IO) {
             val dataSource = ArrayList<AccountDto>()
             realm.writeBlocking {
-                val accountStorageItems = this.query(AccountStorageItem::class)
+                val accountStorageItems = this.query(com.xabber.data_base.models.account.AccountStorageItem::class)
                     .find()
                 dataSource.addAll(accountStorageItems.map { T ->
                     T.toAccountDto()
@@ -78,8 +74,8 @@ class SettingsViewModel : ViewModel() {
     fun initAvatarsListener() {
         viewModelScope.launch(Dispatchers.IO) {
             val request =
-                realm.query(AvatarStorageItem::class)
-            request.asFlow().collect { changes: ResultsChange<AvatarStorageItem> ->
+                realm.query(com.xabber.data_base.models.avatar.AvatarStorageItem::class)
+            request.asFlow().collect { changes: ResultsChange<com.xabber.data_base.models.avatar.AvatarStorageItem> ->
                 when (changes) {
                     is UpdatedResults -> {
                         changes.list
@@ -101,7 +97,7 @@ class SettingsViewModel : ViewModel() {
         viewModelScope.launch(Dispatchers.IO) {
             realm.writeBlocking {
                 val account =
-                    this.query(AccountStorageItem::class, "jid = '$id'").first().find()
+                    this.query(com.xabber.data_base.models.account.AccountStorageItem::class, "jid = '$id'").first().find()
                 if (account != null) findLatest(account)?.enabled = isChecked
             }
         }

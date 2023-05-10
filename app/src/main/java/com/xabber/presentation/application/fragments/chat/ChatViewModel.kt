@@ -3,17 +3,16 @@ package com.xabber.presentation.application.fragments.chat
 import android.util.Log
 import androidx.lifecycle.*
 import com.xabber.data_base.defaultRealmConfig
-import com.xabber.models.dto.AccountDto
-import com.xabber.models.dto.ChatListDto
-import com.xabber.models.dto.MessageDto
-import com.xabber.models.dto.MessageReferenceDto
-import com.xabber.models.xmpp.account.AccountStorageItem
-import com.xabber.models.xmpp.last_chats.LastChatsStorageItem
-import com.xabber.models.xmpp.messages.MessageDisplayType
-import com.xabber.models.xmpp.messages.MessageReferenceStorageItem
-import com.xabber.models.xmpp.messages.MessageSendingState
-import com.xabber.models.xmpp.messages.MessageStorageItem
-import com.xabber.models.xmpp.sync.ConversationType
+import com.xabber.data_base.models.last_chats.LastChatsStorageItem
+import com.xabber.data_base.models.messages.MessageDisplayType
+import com.xabber.data_base.models.messages.MessageReferenceStorageItem
+import com.xabber.data_base.models.messages.MessageSendingState
+import com.xabber.data_base.models.messages.MessageStorageItem
+import com.xabber.data_base.models.sync.ConversationType
+import com.xabber.dto.AccountDto
+import com.xabber.dto.ChatListDto
+import com.xabber.dto.MessageDto
+import com.xabber.dto.MessageReferenceDto
 import com.xabber.utils.toAccountDto
 import com.xabber.utils.toChatListDto
 import com.xabber.utils.toMessageReferenceDto
@@ -21,7 +20,6 @@ import io.realm.kotlin.Realm
 import io.realm.kotlin.ext.realmListOf
 import io.realm.kotlin.notifications.ResultsChange
 import io.realm.kotlin.notifications.UpdatedResults
-import io.realm.kotlin.types.RealmList
 import kotlinx.coroutines.*
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
@@ -87,7 +85,7 @@ class ChatViewModel : ViewModel() {
     fun getAccountColor(owner: String): String {
         var colorKey = "blue"
         realm.writeBlocking {
-            val account = this.query(AccountStorageItem::class, "jid = '$owner'").first().find()
+            val account = this.query(com.xabber.data_base.models.account.AccountStorageItem::class, "jid = '$owner'").first().find()
             if (account != null) colorKey = account.colorKey
         }
         return colorKey
@@ -250,7 +248,7 @@ class ChatViewModel : ViewModel() {
     fun getAccount(): AccountDto? {
         var account: AccountDto? = null
         realm.writeBlocking {
-            val acc = this.query(AccountStorageItem::class).first().find()
+            val acc = this.query(com.xabber.data_base.models.account.AccountStorageItem::class).first().find()
             account = if (acc != null) acc.toAccountDto() else null
         }
         return account
