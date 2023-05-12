@@ -407,5 +407,9 @@
     <string name="music_label">Music</string>
     <string name="contact_label">Contact</string>
     <string name="feature_not_implemented">This feature is not implemented</string>
+    <plurals name="images_amount" >
+        <item quantity="one">%1$d image</item>
+        <item quantity="other">%1d$ images</item>
+    </plurals>
 
 </resources>

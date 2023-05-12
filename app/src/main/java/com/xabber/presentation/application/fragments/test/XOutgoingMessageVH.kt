@@ -8,6 +8,7 @@ import android.view.Gravity
 import android.view.View
 import android.view.View.OnAttachStateChangeListener
 import android.view.ViewGroup
+import android.widget.FrameLayout
 import android.widget.LinearLayout
 import androidx.annotation.StyleRes
 import androidx.appcompat.widget.PopupMenu
@@ -20,6 +21,7 @@ import com.xabber.data_base.models.messages.MessageSendingState
 import com.xabber.presentation.application.fragments.chat.Check
 import com.xabber.presentation.application.fragments.chat.message.MessageDeliveryStatusHelper
 import com.xabber.presentation.application.fragments.chat.message.XMessageVH
+import com.xabber.utils.MaskManager
 import com.xabber.utils.StringUtils
 import com.xabber.utils.dipToPx
 import java.util.*
@@ -34,10 +36,12 @@ class XOutgoingMessageVH internal constructor(
     override fun bind(message: MessageDto, extraData: MessageVhExtraData) {
         super.bind(message, extraData)
         val context: Context = itemView.context
-        val needTail: Boolean = extraData.isNeedTail
+        var needTail: Boolean = extraData.isNeedTail
+        if (message.references.size > 0) needTail = false
         if (message.isChecked) itemView.setBackgroundResource(R.color.selected) else itemView.setBackgroundResource(
             R.color.transparent
         )
+
         // text & appearance
         messageTextTv.text = message.messageBody
 
@@ -46,41 +50,36 @@ class XOutgoingMessageVH internal constructor(
         val time = StringUtils.getTimeText(context, date)
         messageTime.text = if (message.editTimestamp > 0) "edit $time" else time
 
-        // setup BACKGROUND
+//        // setup BACKGROUND
         val shadowDrawable = ContextCompat.getDrawable(
-            context,
-            if (needTail) R.drawable.msg_out_shadow else R.drawable.msg_shadow
+            context, if (MaskManager.tail == 8) {
+                if (needTail) R.drawable.bubble_out_tail_smooth_bottom_8 else R.drawable.bubble_out_simple_8
+            } else if (MaskManager.tail == 12) {
+                if (needTail) R.drawable.bubble_out_tail_smooth_bottom_12 else R.drawable.bubble_out_simple_12
+            } else if (MaskManager.tail == 80){
+                if (needTail) R.drawable.bubble_out_tail_corner_top_8 else R.drawable.bubble_out_simple_8
+            } else if (MaskManager.tail == 800) {  if (needTail) R.drawable.bubble_out_tail_cloud_bottom_8 else R.drawable.bubble_out_simple_8}
+else { if (needTail) R.drawable.bubble_out_tail_stripes_top_8 else R.drawable.bubble_out_simple_8}
         )
-        shadowDrawable?.setColorFilter(
-            ContextCompat.getColor(context, R.color.black),
-            PorterDuff.Mode.MULTIPLY
-        )
-        messageBalloon.background = ContextCompat.getDrawable(
-            context,
-            if (needTail) R.drawable.msg_out else R.drawable.msg
-        )
-
-        messageShadow.background = shadowDrawable
+       messageBalloon.background = shadowDrawable
 
         // setup BALLOON margins
-        val layoutParams = LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
-        )
+        val layoutParams = messageBalloon.layoutParams as FrameLayout.LayoutParams
         layoutParams.setMargins(
             dipToPx(0f, context),
             dipToPx(3f, context),
-            dipToPx(if (needTail) 3f else 11f, context),
+            dipToPx(if (needTail) 3f else 3f, context),
             dipToPx(3f, context)
         )
-        messageShadow.layoutParams = layoutParams
+     //   messageBalloon.layoutParams = layoutParams
 
         // setup MESSAGE padding
         val border = 3.5f
 
         messageBalloon.setPadding(
-            dipToPx(12f, context),
-            dipToPx(8f, context),  //Utils.dipToPx(needTail ? 20f : 12f, context),
-            dipToPx(if (needTail) 14.5f else 6.5f, context),
+            dipToPx(if (needTail) 12f else 12f, context),
+            dipToPx(8f, context),
+            dipToPx(14.5f, context),
             dipToPx(8f, context)
         )
       if (message.references.size > 0) {

@@ -12,22 +12,24 @@ import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.xabber.R
-import com.xabber.models.dto.MessageBalloonColors
 import com.xabber.dto.MessageDto
+import com.xabber.models.dto.MessageBalloonColors
 import com.xabber.models.dto.MessageVhExtraData
 import com.xabber.presentation.application.fragments.chat.ReferenceRealmObject
 import com.xabber.presentation.application.fragments.chat.message.XBasicMessageVH
 import com.xabber.presentation.application.fragments.chat.message.XMessageVH
 import com.xabber.presentation.application.util.isSameDayWith
 
-class MessageAdapter(private val listener: Listener,
-                     private val context: Context,
-                     private val messageRealmObjects: ArrayList<MessageDto>,
-                     private val fileListener: XMessageVH.FileListener,
-                     private val adapterListener: AdapterListener? = null,
-                     private val bindListener: XIncomingMessageVH.BindListener? = null,
-                     private val avatarClickListener: XIncomingMessageVH.OnMessageAvatarClickListener? = null,
-) : ListAdapter<MessageDto, XBasicMessageVH>(MessageAdapter.DiffUtilCallback), XMessageVH.MessageClickListener,
+class MessageAdapter(
+    private val listener: Listener,
+    private val context: Context,
+    private val messageRealmObjects: ArrayList<MessageDto>,
+    private val fileListener: XMessageVH.FileListener,
+    private val adapterListener: AdapterListener? = null,
+    private val bindListener: XIncomingMessageVH.BindListener? = null,
+    private val avatarClickListener: XIncomingMessageVH.OnMessageAvatarClickListener? = null,
+) : ListAdapter<MessageDto, XBasicMessageVH>(MessageAdapter.DiffUtilCallback),
+    XMessageVH.MessageClickListener,
     XMessageVH.MessageLongClickListener,
     XMessageVH.FileListener, XIncomingMessageVH.OnMessageAvatarClickListener {
 
@@ -120,7 +122,8 @@ class MessageAdapter(private val listener: Listener,
 //                )
 //            )
 
-            VIEW_TYPE_INCOMING_MESSAGE -> XIncomingMessageVH(listener,
+            VIEW_TYPE_INCOMING_MESSAGE -> XIncomingMessageVH(
+                listener,
                 LayoutInflater.from(parent.context).inflate(
                     R.layout.item_message_incoming_dev, parent, false
                 ),
@@ -134,7 +137,8 @@ class MessageAdapter(private val listener: Listener,
 //                this, this, this, bindListener, this, SettingsManager.chatsAppearanceStyle()
 //            )
 
-            VIEW_TYPE_OUTGOING_MESSAGE -> XOutgoingMessageVH(listener,
+            VIEW_TYPE_OUTGOING_MESSAGE -> XOutgoingMessageVH(
+                listener,
                 LayoutInflater.from(parent.context).inflate(
                     R.layout.item_message_outgoing_dev, parent, false
                 ),
@@ -155,8 +159,7 @@ class MessageAdapter(private val listener: Listener,
         val viewType = getItemViewType(position)
         val message = getMessageItem(position) ?: return true
         val nextMessage = getMessageItem(position + 1) ?: return true
-        return message.isOutgoing xor nextMessage.isOutgoing
-
+        return if (message.references.size > 0 && message.messageBody.isEmpty()) false else message.isOutgoing xor nextMessage.isOutgoing
     }
 
     private fun isMessageNeedDate(position: Int): Boolean {
@@ -458,9 +461,9 @@ class MessageAdapter(private val listener: Listener,
         var id: String? = null
         for (i in 0 until messageRealmObjects.size) {
             if (!messageRealmObjects[i].isOutgoing && messageRealmObjects[i].isUnread) {
-                if (i != 0 ) {
-                  if  (messageRealmObjects[i-1] != null && !messageRealmObjects[i-1].isUnread)
-                      id = messageRealmObjects[i].primary
+                if (i != 0) {
+                    if (messageRealmObjects[i - 1] != null && !messageRealmObjects[i - 1].isUnread)
+                        id = messageRealmObjects[i].primary
                     return id
                 }
             }

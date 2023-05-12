@@ -10,12 +10,7 @@
         android:layout_height="wrap_content"
         android:layout_gravity="end"
         android:gravity="end"
-        android:orientation="vertical"
-        android:paddingTop="3dp"
-        android:paddingEnd="2dp"
-        android:paddingBottom="3dp">
-
-
+        android:orientation="vertical">
         <include
             android:id="@+id/message_date"
             layout="@layout/item_message_date" />

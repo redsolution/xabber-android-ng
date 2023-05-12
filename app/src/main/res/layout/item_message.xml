@@ -2,24 +2,11 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/message_shadow"
+    android:id="@+id/message_balloon"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
-    android:background="@drawable/msg_shadow"
-    android:backgroundTint="@color/black"
     android:gravity="end"
-    android:orientation="horizontal">
-
-    <LinearLayout
-        android:id="@+id/message_balloon"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:background="@drawable/msg"
-        android:orientation="vertical"
-        android:paddingLeft="3dp"
-        android:paddingTop="3dp"
-        android:paddingRight="3dp"
-        android:paddingBottom="8dp">
+    android:orientation="vertical">
 
         <TextView
             android:id="@+id/message_sender_tv"
@@ -102,5 +89,3 @@
             android:visibility="gone" />
 
     </LinearLayout>
-
-</LinearLayout>

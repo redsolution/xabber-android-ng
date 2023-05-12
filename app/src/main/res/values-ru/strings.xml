@@ -428,4 +428,10 @@
     <string name="music_label">Музыка</string>
     <string name="feature_not_implemented">Эта функция не реализована</string>
 
+    <plurals name="images_amount" tools:ignore="MissingQuantity">
+        <item quantity="one">%1$d изображение</item>
+        <item quantity="two">%1$d изображения</item>
+        <item quantity="other">%1d$ изображений</item>
+    </plurals>
+
 </resources>

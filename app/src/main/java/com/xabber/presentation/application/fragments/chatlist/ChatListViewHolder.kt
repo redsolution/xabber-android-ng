@@ -16,6 +16,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.xabber.R
 import com.xabber.data_base.models.messages.MessageSendingState
+import com.xabber.data_base.models.messages.MessageStorageItem
 import com.xabber.data_base.models.presences.ResourceStatus
 import com.xabber.data_base.models.presences.RosterItemEntity
 import com.xabber.databinding.ItemChatListBinding
@@ -104,6 +105,11 @@ class ChatListViewHolder(
                 lastMessageBody,
                 HtmlCompat.FROM_HTML_MODE_COMPACT
             )
+//            if (lastMessageBody.isEmpty() && lastMessage.references.size > 0) {
+//                binding.tvChatListLastMessage.text =
+//                    lastMessage.references.size.toString() + binding.imMessageStatus.context.resources.getQuantityString(
+//                        R.plurals.images_amount, lastMessage.references.size)
+//            }
         }
     }
 

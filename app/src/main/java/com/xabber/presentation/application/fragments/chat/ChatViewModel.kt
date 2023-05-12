@@ -100,7 +100,6 @@ class ChatViewModel : ViewModel() {
                 when (changes) {
                     is UpdatedResults -> {
                         changes.list
-                        Log.d("VM", "MESSAGE VM CHANGE")
                         val list = ArrayList<MessageDto>()
                         list.addAll(changes.list.map { T ->
                             MessageDto(
@@ -388,7 +387,7 @@ class ChatViewModel : ViewModel() {
         }
     }
 
-    fun clearHistory(idChat: String, owner: String, opponentJid: String) {
+    fun clearHistory(chatId: String, opponentJid: String) {
         viewModelScope.launch(Dispatchers.IO) {
             realm.write {
                 val messages =
@@ -396,7 +395,7 @@ class ChatViewModel : ViewModel() {
                 delete(messages)
 
                 val chat =
-                    this.query(LastChatsStorageItem::class, "primary = '$idChat'").first().find()
+                    this.query(LastChatsStorageItem::class, "primary = '$chatId'").first().find()
                 chat?.lastMessage = null
                 chat?.lastPosition = ""
                 chat?.unread = 0
@@ -432,8 +431,11 @@ class ChatViewModel : ViewModel() {
                     val oldDraft = it?.draftMessage
                     if (oldDraft != draft) {
                         it?.draftMessage = draft
-                        if (draft != null)
+                        if (!draft.isNullOrEmpty())
                             it?.messageDate = System.currentTimeMillis()
+                        else {
+                            it?.messageDate = it?.lastMessage?.date ?: 0
+                        }
                     }
                 }
             }

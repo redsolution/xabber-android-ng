@@ -6,6 +6,7 @@ import com.xabber.data_base.models.presences.ResourceStatus
 import com.xabber.data_base.models.presences.RosterItemEntity
 import kotlinx.parcelize.Parcelize
 
+
 @Parcelize
 data class ChatListDto(
     val id: String,
