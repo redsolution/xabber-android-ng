@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+<item
+    android:id="@+id/smooth_bottom_8"
+    android:title="Smooth bottom 8" />
+
+<item
+    android:id="@+id/smooth_bottom_12"
+    android:title="Smooth bottom 12"/>
+
+    <item
+        android:id="@+id/corner_top_8"
+        android:title="Corner top 8"/>
+
+    <item
+        android:id="@+id/bubble_bottom_8"
+        android:title="Bubble bottom 8"/>
+
+    <item
+        android:id="@+id/stripes_8"
+        android:title="Stripes top 8"/>
+
+</menu>

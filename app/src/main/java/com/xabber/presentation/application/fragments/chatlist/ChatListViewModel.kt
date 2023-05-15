@@ -63,7 +63,7 @@ class ChatListViewModel : ViewModel() {
     fun getAccountsAmount(): Int {
         var amount = 0
         realm.writeBlocking {
-            amount = this.query(com.xabber.data_base.models.account.AccountStorageItem::class, "enabled == true").find().size
+            amount = this.query(com.xabber.data_base.models.account.AccountStorageItem::class, "enabled = true").find().size
         }
         return amount
     }

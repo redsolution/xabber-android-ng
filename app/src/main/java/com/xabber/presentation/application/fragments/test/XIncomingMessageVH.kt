@@ -2,8 +2,6 @@ package com.xabber.presentation.application.fragments.test
 
 import android.annotation.SuppressLint
 import android.content.Context
-import android.graphics.PorterDuff
-import android.util.Log
 import android.view.Gravity
 import android.view.View
 import android.view.View.OnAttachStateChangeListener
@@ -19,15 +17,17 @@ import com.xabber.dto.MessageDto
 import com.xabber.models.dto.MessageVhExtraData
 import com.xabber.presentation.application.fragments.chat.Check
 import com.xabber.presentation.application.fragments.chat.message.XMessageVH
+import com.xabber.utils.MaskManager
 import com.xabber.utils.StringUtils
 import com.xabber.utils.dipToPx
 import java.util.*
 
-class XIncomingMessageVH internal constructor(private val listener: MessageAdapter.Listener,
-                                              itemView: View, messageListener: MessageClickListener?,
-                                              longClickListener: MessageLongClickListener?, fileListener: FileListener?,
-                                              val listen: BindListener?, avatarClickListener: OnMessageAvatarClickListener,
-                                              @StyleRes appearance: Int
+class XIncomingMessageVH internal constructor(
+    private val listener: MessageAdapter.Listener,
+    itemView: View, messageListener: MessageClickListener?,
+    longClickListener: MessageLongClickListener?, fileListener: FileListener?,
+    val listen: BindListener?, avatarClickListener: OnMessageAvatarClickListener,
+    @StyleRes appearance: Int
 ) : XMessageVH(itemView, messageListener!!, longClickListener!!, fileListener, appearance) {
 
     interface BindListener {
@@ -44,7 +44,9 @@ class XIncomingMessageVH internal constructor(private val listener: MessageAdapt
         val context: Context = itemView.getContext()
         val needTail: Boolean = extraData.isNeedTail
 
-        if (messageRealmObject.isChecked) itemView.setBackgroundResource(R.color.selected) else itemView.setBackgroundResource(R.color.transparent)
+        if (messageRealmObject.isChecked) itemView.setBackgroundResource(R.color.selected) else itemView.setBackgroundResource(
+            R.color.transparent
+        )
         statusIcon.isVisible = false
         bottomStatusIcon.isVisible = false
         val avatar = itemView.findViewById<ImageView>(R.id.avatar)
@@ -59,42 +61,48 @@ class XIncomingMessageVH internal constructor(private val listener: MessageAdapt
 
         // setup BACKGROUND
         val balloonDrawable = ContextCompat.getDrawable(
-            context,
-            if (needTail) R.drawable.msg_in else R.drawable.msg
+            context, if (MaskManager.tail == 8) {
+                if (needTail) R.drawable.bubble_in_tail_smooth_bottom_12 else R.drawable.bubble_in_simple_8
+            } else if (MaskManager.tail == 12) {
+                if (needTail) R.drawable.bubble_in_tail_smooth_bottom_12 else R.drawable.bubble_in_simple_12
+            } else if (MaskManager.tail == 80){
+                if (needTail) R.drawable.bubble_in_tail_corner_top_8 else R.drawable.bubble_in_simple_8
+            } else if (MaskManager.tail == 800) { if (needTail) R.drawable.bubble_in_tail_cloud_bottom_8 else R.drawable.bubble_in_simple_8 }
+       else { if (needTail) R.drawable.bubble_in_tail_stripes_top_8 else R.drawable.bubble_in_simple_8 }
         )
-        val shadowDrawable = ContextCompat.getDrawable(
-            context,
-            if (needTail) R.drawable.msg_in_shadow else R.drawable.msg_shadow
-        )
-        shadowDrawable?.setColorFilter(
-            ContextCompat.getColor(context, R.color.black),
-            PorterDuff.Mode.MULTIPLY
-        )
+//        val shadowDrawable = ContextCompat.getDrawable(
+//            context,
+//            if (needTail) R.drawable.msg_in_shadow else R.drawable.msg_shadow
+//        )
+//        shadowDrawable?.setColorFilter(
+//            ContextCompat.getColor(context, R.color.black),
+//            PorterDuff.Mode.MULTIPLY
+//        )
 
-        balloonDrawable?.setColorFilter(
-            itemView.resources.getColor(
-                R.color.blue_100,
-                itemView.context.theme
-            ), PorterDuff.Mode.MULTIPLY
-        )
+//        balloonDrawable?.setColorFilter(
+//            itemView.resources.getColor(
+//                R.color.blue_100,
+//                itemView.context.theme
+//            ), PorterDuff.Mode.MULTIPLY
+//        )
         messageBalloon.background = balloonDrawable
-        messageShadow.background = shadowDrawable
+        //    messageShadow.background = shadowDrawable
 
         // setup BALLOON margins
         val layoutParams = LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
         )
         layoutParams.setMargins(
-            dipToPx(if (needTail) 3f else 11f, context),
+            dipToPx(3f, context),
             dipToPx(3f, context),
             dipToPx(0f, context),
             dipToPx(3f, context)
         )
-        messageShadow.layoutParams = layoutParams
+        messageBalloon.layoutParams = layoutParams
 
         // setup MESSAGE padding
         messageBalloon.setPadding(
-            dipToPx(if (needTail) 20f else 12f, context),
+            dipToPx(20f, context),
             dipToPx(8f, context),
             dipToPx(8f, context),
             dipToPx(8f, context)
@@ -121,8 +129,8 @@ class XIncomingMessageVH internal constructor(private val listener: MessageAdapt
         itemView.addOnAttachStateChangeListener(object : OnAttachStateChangeListener {
 
             override fun onViewAttachedToWindow(view: View) {
-              if (messageRealmObject.isUnread)
-                listen?.onBind(messageRealmObject)
+                if (messageRealmObject.isUnread)
+                    listen?.onBind(messageRealmObject)
             }
 
             override fun onViewDetachedFromWindow(v: View) {
@@ -278,9 +286,6 @@ class XIncomingMessageVH internal constructor(private val listener: MessageAdapt
             true
         }
     }
-
-
-
 
 
 }

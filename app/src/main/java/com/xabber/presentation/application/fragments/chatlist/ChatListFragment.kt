@@ -90,12 +90,6 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
                 R.id.add -> {
                    if (chatListViewModel.chatIsEmpty()) chatListViewModel.addSomeChats()
                     else navigator().showNewChat()
-//                    context?.startActivity(
-//                        Intent().apply {
-//                            action = Intent.ACTION_VIEW
-//                            data = Uri.parse("geo:${456.89},${453.78}?q=${456.89},${453.78}")
-//                        }
-//                    )
                 }
                 else -> {}
             }; true

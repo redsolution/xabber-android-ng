@@ -44,13 +44,14 @@ class ArchiveViewModel : ViewModel() {
     )
 
     init {
+        initListener()
         getChat()
     }
 
     fun getAccountsAmount(): Int {
         var amount = 0
         realm.writeBlocking {
-            amount = this.query(com.xabber.data_base.models.account.AccountStorageItem::class, "enabled == true").find().size
+            amount = this.query(com.xabber.data_base.models.account.AccountStorageItem::class, "enabled = true").find().size
         }
         return amount
     }
@@ -126,7 +127,7 @@ class ArchiveViewModel : ViewModel() {
             val realmList =
                 realm.query(
                     LastChatsStorageItem::class,
-                    "owner IN {${accounts.joinToString { "'$it'" }}} && isArchived == true"
+                    "owner IN {${accounts.joinToString { "'$it'" }}} && isArchived = true"
                 )
                     .find()
             val listDto = ArrayList<ChatListDto>()
@@ -153,23 +154,15 @@ class ArchiveViewModel : ViewModel() {
         }
     }
 
-    fun movieChatToArchive(id: String, isArchived: Boolean) {
+    fun setArchived(id: String) {
         viewModelScope.launch(Dispatchers.IO) {
-            realm.writeBlocking {
-                val item: LastChatsStorageItem? =
-                    this.query(LastChatsStorageItem::class, "primary = '$id'").first().find()
-                item?.isArchived = isArchived
-            }
+            lastChatDao.setArchived(id)
         }
     }
 
     fun deleteChat(id: String) {
         viewModelScope.launch(Dispatchers.IO) {
-            realm.writeBlocking {
-                val deletedChat =
-                    realm.query(LastChatsStorageItem::class, "primary = '$id'").first().find()
-                if (deletedChat != null) findLatest(deletedChat)?.let { delete(it) }
-            }
+            lastChatDao.deleteItem(id)
         }
     }
 

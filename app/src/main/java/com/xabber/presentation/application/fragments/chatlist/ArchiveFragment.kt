@@ -6,6 +6,7 @@ import android.os.Bundle
 import android.view.View
 import androidx.core.view.isVisible
 import androidx.fragment.app.activityViewModels
+import androidx.fragment.app.viewModels
 import androidx.recyclerview.widget.DefaultItemAnimator
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -118,11 +119,11 @@ class ArchiveFragment : BaseFragment(R.layout.fragment_archive),
     @SuppressLint("NotifyDataSetChanged")
     private fun subscribeOnViewModelData() {
         viewModel.chatList.observe(viewLifecycleOwner) {
-            val a = ArrayList<ChatListDto>()
-            a.addAll(it)
-            adapter?.isManyOwners = viewModel.getAccountsAmount() > 1
             val positionBeforeUpdate = layoutManager?.findFirstVisibleItemPosition()
-            adapter?.submitList(a) {
+            adapter?.isManyOwners = viewModel.getAccountsAmount() > 1
+            val list = ArrayList<ChatListDto>()
+            list.addAll(it)
+            adapter?.submitList(list) {
                 binding.linEmpty.isVisible = it.isEmpty() || it == null
                 if (isPin) {                                           // Если это перемещение элемента вверх при видимом элементе 0 произойдет стандартная анимация, иначе выключаем анимацию
                     if (layoutManager != null) {
@@ -146,7 +147,7 @@ class ArchiveFragment : BaseFragment(R.layout.fragment_archive),
 
         baseViewModel.colorKey.observe(viewLifecycleOwner) {
             adapter?.isManyOwners = viewModel.getAccountsAmount() > 1
-            viewModel.initListener()
+          //  viewModel.initListener()
             viewModel.getChat()
         }
     }
@@ -184,7 +185,7 @@ class ArchiveFragment : BaseFragment(R.layout.fragment_archive),
     }
 
     override fun swipeItem(id: String) {
-        viewModel.movieChatToArchive(id, false)
+        viewModel.setArchived(id)
         showSnackbar(id)
     }
 
@@ -198,7 +199,7 @@ class ArchiveFragment : BaseFragment(R.layout.fragment_archive),
         snackbar?.setAction(
             R.string.snackbar_button_cancel
         ) {
-            viewModel.movieChatToArchive(id, true)
+            viewModel.setArchived(id)
         }
         snackbar?.setActionTextColor(Color.YELLOW)
         snackbar?.show()

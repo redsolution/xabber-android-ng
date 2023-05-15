@@ -18,6 +18,7 @@ import android.view.animation.AnimationUtils
 import android.view.animation.TranslateAnimation
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.widget.PopupMenu
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
@@ -29,7 +30,6 @@ import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import by.kirich1409.viewbindingdelegate.viewBinding
-
 import com.xabber.R
 import com.xabber.data_base.defaultRealmConfig
 import com.xabber.data_base.models.last_chats.LastChatsStorageItem
@@ -53,8 +53,8 @@ import com.xabber.presentation.application.fragments.chat.audio.VoiceManager
 import com.xabber.presentation.application.fragments.chat.geo.Location
 import com.xabber.presentation.application.fragments.chat.message.*
 import com.xabber.presentation.application.fragments.chatlist.ChatListViewModel
-import com.xabber.presentation.application.fragments.contacts.ContactAccountParams
 import com.xabber.presentation.application.fragments.contacts.AttachmentBottomSheet
+import com.xabber.presentation.application.fragments.contacts.ContactAccountParams
 import com.xabber.presentation.application.fragments.test.MessageAdapter
 import com.xabber.presentation.application.fragments.test.XIncomingMessageVH
 import com.xabber.presentation.application.manage.ColorManager
@@ -187,6 +187,40 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+
+        val popup = PopupMenu(requireContext(), binding.tvChatTitle, Gravity.CENTER)
+        popup.inflate(R.menu.popup_bubble)
+        popup.setOnMenuItemClickListener {
+            when (it.itemId) {
+                R.id.smooth_bottom_8 -> {
+                    MaskManager.tail = 8
+                    messageAdapter?.notifyDataSetChanged()
+                }
+                R.id.smooth_bottom_12 -> {
+                    MaskManager.tail = 12
+                    messageAdapter?.notifyDataSetChanged()
+                }
+                R.id.corner_top_8 -> {
+                    MaskManager.tail = 80
+                    messageAdapter?.notifyDataSetChanged()
+                }
+                R.id.bubble_bottom_8 -> {
+                    MaskManager.tail = 800
+                    messageAdapter?.notifyDataSetChanged()
+                }
+                R.id.stripes_8 -> {
+                    MaskManager.tail = 18
+                    messageAdapter?.notifyDataSetChanged()
+                }
+
+                else -> {}
+            }
+            true
+        }
+        binding.tvChatTitle.setOnClickListener {
+            popup.show()
+        }
+
 
         val chat = viewModel.getChat(getParams().id)
         if (chat == null) navigator().closeDetail()
@@ -792,7 +826,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
                 c = false
                 a++
 
-              viewModel.insertMessage(
+                viewModel.insertMessage(
                     getParams().id,
                     MessageDto(
                         "$a ${opponentJid} ${System.currentTimeMillis()}",
@@ -830,7 +864,8 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
 
     private fun showAttachBottomSheet() {
         if (childFragmentManager.findFragmentByTag(AppConstants.ATTACH_BOTTOM_SHEET_TAG) == null)
-           AttachmentBottomSheet.newInstance(getParams().id).show(childFragmentManager, AppConstants.ATTACH_BOTTOM_SHEET_TAG)
+            AttachmentBottomSheet.newInstance(getParams().id)
+                .show(childFragmentManager, AppConstants.ATTACH_BOTTOM_SHEET_TAG)
     }
 
     private fun onGotAudioPermissionResult(granted: Boolean) {
@@ -1035,8 +1070,8 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putBoolean(AppConstants.CHAT_SELECTION_MODE_KEY, isSelectedMode)
-    //   val messageText = binding.chatInput.text.toString().trim()
-  //     outState.putString(CHAT_MESSAGE_TEXT_KEY, messageText)
+        //   val messageText = binding.chatInput.text.toString().trim()
+        //     outState.putString(CHAT_MESSAGE_TEXT_KEY, messageText)
     }
 
 
@@ -1122,8 +1157,8 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
 //            } else if (binding.selectMessagesToolbar.toolbarSelectedMessages.isVisible) {
 //                enableSelectionMode(false)
 //            } else {
-                navigator().closeDetail()
-        //    }
+            navigator().closeDetail()
+            //    }
         }
     }
 
@@ -1139,14 +1174,14 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
             replySwipeCallback?.setSwipeEnabled(false)
             isSelectedMode = true
             Check.setSelectedMode(true)
-                  viewModel.getMessageList(getParams().id)
+            viewModel.getMessageList(getParams().id)
 
             binding.buttonEmoticon.isEnabled = false
             binding.buttonAttach.isEnabled = false
             binding.btnRecord.isEnabled = false
             binding.chatInput.isEnabled = false
         } else {
-        val color = viewModel.getAccountColor(viewModel.getChat(getParams().id)!!.owner)
+            val color = viewModel.getAccountColor(viewModel.getChat(getParams().id)!!.owner)
             val c = ColorManager.convertColorNameToId(color)
             binding.chatAppbar.setBackgroundResource(c)
             //   chatAdapter?.setSelectedMode(false)
@@ -1162,7 +1197,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
             }
             Check.setSelectedMode(false)
             viewModel.clearAllSelected()
-               viewModel.getMessageList(getParams().id)
+            viewModel.getMessageList(getParams().id)
             replySwipeCallback?.setSwipeEnabled(true)
             isSelectedMode = false
             binding.buttonEmoticon.isEnabled = true
@@ -1207,7 +1242,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
                 false,
                 false,
                 null,
-                false, messageKindDto, false,  isUnread = true
+                false, messageKindDto, false, isUnread = true
             )
         )
         binding.answer.isVisible = false

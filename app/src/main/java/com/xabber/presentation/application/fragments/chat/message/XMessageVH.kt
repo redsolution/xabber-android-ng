@@ -51,7 +51,7 @@ open class XMessageVH(
     protected val messageTime: TextView = itemView.findViewById(R.id.message_time)
     protected val messageHeader: TextView = itemView.findViewById(R.id.message_sender_tv)
     protected val messageBalloon: View = itemView.findViewById(R.id.message_balloon)
-    protected val messageShadow: View = itemView.findViewById(R.id.message_shadow)
+  //  protected val messageShadow: View = itemView.findViewById(R.id.message_shadow)
     protected val statusIcon: ImageView = itemView.findViewById(R.id.message_status_icon)
     protected val messageInfo: View = itemView.findViewById(R.id.message_info)
     private val flexboxLayout: CustomFlexboxLayout = itemView.findViewById(R.id.message_flex_layout)

@@ -459,7 +459,6 @@ Log.d("pick", "$location lock")
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putBoolean(IS_BUBBLE_SHOW_KEY, binding.bottomBubble.isVisible)
-        Log.d("pick", "myLocationOverlay = $myLocationOverlay, mylocationOverlay.myLocation = ${myLocationOverlay?.myLocation}, lat = ${myLocationOverlay?.myLocation!!.latitude}")
      //   outState.putParcelable("location", Location(myLocationOverlay.myLocation.latitude, myLocationOverlay?.myLocation.longitude))
     }
 
