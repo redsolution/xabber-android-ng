@@ -2,6 +2,8 @@ package com.xabber.presentation.application.fragments.test
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.res.ColorStateList
+import android.graphics.PorterDuff
 import android.view.Gravity
 import android.view.View
 import android.view.View.OnAttachStateChangeListener
@@ -10,20 +12,23 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import androidx.annotation.StyleRes
 import androidx.appcompat.widget.PopupMenu
+import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import com.xabber.R
 import com.xabber.dto.MessageDto
 import com.xabber.models.dto.MessageVhExtraData
 import com.xabber.presentation.application.fragments.chat.Check
+import com.xabber.presentation.application.fragments.chat.MessageChanger
 import com.xabber.presentation.application.fragments.chat.message.XMessageVH
 import com.xabber.utils.MaskManager
 import com.xabber.utils.StringUtils
 import com.xabber.utils.dipToPx
+import com.xabber.utils.dp
 import java.util.*
 
 class XIncomingMessageVH internal constructor(
-    private val listener: MessageAdapter.Listener,
+    private val listener: MessageAdapter.Listener?,
     itemView: View, messageListener: MessageClickListener?,
     longClickListener: MessageLongClickListener?, fileListener: FileListener?,
     val listen: BindListener?, avatarClickListener: OnMessageAvatarClickListener,
@@ -49,8 +54,8 @@ class XIncomingMessageVH internal constructor(
         )
         statusIcon.isVisible = false
         bottomStatusIcon.isVisible = false
-        val avatar = itemView.findViewById<ImageView>(R.id.avatar)
-        avatar.isVisible = false
+//        val avatar = itemView.findViewById<ImageView>(R.id.avatar)
+//        avatar.isVisible = false
         // text & appearance
         messageTextTv.text = messageRealmObject.messageBody
 
@@ -60,20 +65,10 @@ class XIncomingMessageVH internal constructor(
         messageTime.text = time
 
         // setup BACKGROUND
-        val balloonDrawable = ContextCompat.getDrawable(
-            context, if (MaskManager.tail == 8) {
-                if (needTail) R.drawable.bubble_in_tail_smooth_bottom_12 else R.drawable.bubble_in_simple_8
-            } else if (MaskManager.tail == 12) {
-                if (needTail) R.drawable.bubble_in_tail_smooth_bottom_12 else R.drawable.bubble_in_simple_12
-            } else if (MaskManager.tail == 80){
-                if (needTail) R.drawable.bubble_in_tail_corner_top_8 else R.drawable.bubble_in_simple_8
-            } else if (MaskManager.tail == 800) { if (needTail) R.drawable.bubble_in_tail_cloud_bottom_8 else R.drawable.bubble_in_simple_8 }
-       else { if (needTail) R.drawable.bubble_in_tail_stripes_top_8 else R.drawable.bubble_in_simple_8 }
-        )
-//        val shadowDrawable = ContextCompat.getDrawable(
-//            context,
-//            if (needTail) R.drawable.msg_in_shadow else R.drawable.msg_shadow
+//        val balloonDrawable = ContextCompat.getDrawable(
+//            context, if (needTail) MessageChanger.tail else MessageChanger.simple
 //        )
+//
 //        shadowDrawable?.setColorFilter(
 //            ContextCompat.getColor(context, R.color.black),
 //            PorterDuff.Mode.MULTIPLY
@@ -85,27 +80,37 @@ class XIncomingMessageVH internal constructor(
 //                itemView.context.theme
 //            ), PorterDuff.Mode.MULTIPLY
 //        )
-        messageBalloon.background = balloonDrawable
+      //  messageBalloon.background = balloonDrawable
         //    messageShadow.background = shadowDrawable
 
         // setup BALLOON margins
-        val layoutParams = LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+        val im = itemView.findViewById<ImageView>(R.id.im)
+
+        val shadowDrawable = ContextCompat.getDrawable(
+            context,
+            if (needTail) MessageChanger.tail else MessageChanger.simple
         )
-        layoutParams.setMargins(
-            dipToPx(3f, context),
-            dipToPx(3f, context),
-            dipToPx(0f, context),
-            dipToPx(3f, context)
-        )
-        messageBalloon.layoutParams = layoutParams
+        im.background = shadowDrawable
+            // im.scaleX = -1f
+        im.backgroundTintList = ColorStateList.valueOf(ContextCompat.getColor(im.context, R.color.blue_100))
+
+//        val layoutParams = messageBalloon.layoutParams as ConstraintLayout.LayoutParams
+//        layoutParams.setMargins(
+//              4.dp,
+//            2.dp,
+//            0,
+//            2.dp
+//
+//        )
+//        messageBalloon.layoutParams = layoutParams
+
 
         // setup MESSAGE padding
         messageBalloon.setPadding(
-            dipToPx(20f, context),
-            dipToPx(8f, context),
-            dipToPx(8f, context),
-            dipToPx(8f, context)
+           16.dp,
+           2.dp,
+            8.dp,
+            2.dp
         )
 
         //   setUpAvatar(context, extraData.groupMember, messageRealmObject, needTail)
@@ -212,7 +217,7 @@ class XIncomingMessageVH internal constructor(
 //    }
         messageTextTv.setOnClickListener {
             if (Check.getSelectedMode()) {
-                listener.checkItem(!messageRealmObject.isChecked, messageRealmObject.primary)
+                listener?.checkItem(!messageRealmObject.isChecked, messageRealmObject.primary)
             } else {
                 val popup = PopupMenu(it.context, it, Gravity.CENTER)
                 popup.setForceShowIcon(true)
@@ -223,19 +228,19 @@ class XIncomingMessageVH internal constructor(
                     when (menuItem.itemId) {
                         R.id.copy -> {
                             val text = messageTextTv.text.toString()
-                            listener.copyText(text)
+                            listener?.copyText(text)
                         }
                         R.id.pin -> {
-                            listener.pinMessage(messageRealmObject)
+                            listener?.pinMessage(messageRealmObject)
                         }
                         R.id.forward -> {
-                            listener.forwardMessage(messageRealmObject)
+                            listener?.forwardMessage(messageRealmObject)
                         }
                         R.id.reply -> {
-                            listener.replyMessage(messageRealmObject)
+                            listener?.replyMessage(messageRealmObject)
                         }
                         R.id.delete_message -> {
-                            listener.deleteMessage(messageRealmObject.primary)
+                            listener?.deleteMessage(messageRealmObject.primary)
                         }
                     }
                     true
@@ -246,7 +251,7 @@ class XIncomingMessageVH internal constructor(
 
         itemView.setOnClickListener {
             if (Check.getSelectedMode()) {
-                listener.checkItem(!messageRealmObject.isChecked, messageRealmObject.primary)
+                listener?.checkItem(!messageRealmObject.isChecked, messageRealmObject.primary)
             } else {
                 val popup = PopupMenu(messageTextTv.context, messageTextTv, Gravity.CENTER)
                 popup.setForceShowIcon(true)
@@ -257,19 +262,19 @@ class XIncomingMessageVH internal constructor(
                     when (menuItem.itemId) {
                         R.id.copy -> {
                             val text = messageTextTv.text.toString()
-                            listener.copyText(text)
+                            listener?.copyText(text)
                         }
                         R.id.pin -> {
-                            listener.pinMessage(messageRealmObject)
+                            listener?.pinMessage(messageRealmObject)
                         }
                         R.id.forward -> {
-                            listener.forwardMessage(messageRealmObject)
+                            listener?.forwardMessage(messageRealmObject)
                         }
                         R.id.reply -> {
-                            listener.replyMessage(messageRealmObject)
+                            listener?.replyMessage(messageRealmObject)
                         }
                         R.id.delete_message -> {
-                            listener.deleteMessage(messageRealmObject.primary)
+                            listener?.deleteMessage(messageRealmObject.primary)
                         }
                     }
                     true
@@ -279,9 +284,9 @@ class XIncomingMessageVH internal constructor(
         }
 
         itemView.setOnLongClickListener {
-            if (!Check.getSelectedMode()) listener.onLongClick(messageRealmObject.primary)
+            if (!Check.getSelectedMode()) listener?.onLongClick(messageRealmObject.primary)
             else {
-                listener.checkItem(!messageRealmObject.isChecked, messageRealmObject.primary)
+                listener?.checkItem(!messageRealmObject.isChecked, messageRealmObject.primary)
             }
             true
         }

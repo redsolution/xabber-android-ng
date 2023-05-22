@@ -25,4 +25,9 @@
         android:id="@+id/delete_chat"
         android:title="@string/menu_item_delete_chat"
         app:showAsAction="never" />
+
+<!--    <item-->
+<!--        android:id="@+id/message_view_settings"-->
+<!--        android:title="Message view settings"-->
+<!--        app:showAsAction="never"/>-->
 </menu>

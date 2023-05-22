@@ -15,16 +15,17 @@ import com.xabber.R
 import com.xabber.dto.MessageDto
 import com.xabber.models.dto.MessageBalloonColors
 import com.xabber.models.dto.MessageVhExtraData
+import com.xabber.presentation.application.fragments.chat.MessageChanger
 import com.xabber.presentation.application.fragments.chat.ReferenceRealmObject
 import com.xabber.presentation.application.fragments.chat.message.XBasicMessageVH
 import com.xabber.presentation.application.fragments.chat.message.XMessageVH
 import com.xabber.presentation.application.util.isSameDayWith
 
 class MessageAdapter(
-    private val listener: Listener,
+    private val listener: Listener? = null,
     private val context: Context,
     private val messageRealmObjects: ArrayList<MessageDto>,
-    private val fileListener: XMessageVH.FileListener,
+    private val fileListener: XMessageVH.FileListener? = null,
     private val adapterListener: AdapterListener? = null,
     private val bindListener: XIncomingMessageVH.BindListener? = null,
     private val avatarClickListener: XIncomingMessageVH.OnMessageAvatarClickListener? = null,
@@ -156,10 +157,15 @@ class MessageAdapter(
     }
 
     private fun isMessageNeedTail(position: Int): Boolean {
-        val viewType = getItemViewType(position)
+      if (MessageChanger.typeValue % 2 != 0) {
         val message = getMessageItem(position) ?: return true
         val nextMessage = getMessageItem(position + 1) ?: return true
-        return if (message.references.size > 0 && message.messageBody.isEmpty()) false else message.isOutgoing xor nextMessage.isOutgoing
+        return if (message.references.size > 0 && message.messageBody.isEmpty()) false else message.isOutgoing xor nextMessage.isOutgoing }
+        else {
+          val message = getMessageItem(position) ?: return true
+          val preMessage = getMessageItem(position - 1) ?: return true
+          return if (message.references.size > 0 && message.messageBody.isEmpty()) false else message.isOutgoing xor preMessage.isOutgoing
+      }
     }
 
     private fun isMessageNeedDate(position: Int): Boolean {

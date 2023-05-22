@@ -15,4 +15,6 @@ data class MessageReferenceDto(
     var isUploaded: Boolean = false,
     var isMissed: Boolean = false,
     var hasError: Boolean = false,
-    var uri: String? = null)
+    var uri: String? = null,
+var width: Int = 0,
+    var height: Int = 0)

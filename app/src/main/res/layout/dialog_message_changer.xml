@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:orientation="vertical"
+    android:background="@color/white"
+    android:layout_height="match_parent">
+
+    <com.google.android.material.appbar.AppBarLayout
+        android:id="@+id/appbar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/toolbar"
+            app:title="Chat settings"
+            style="@style/ApplicationToolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize">
+
+        </com.google.android.material.appbar.MaterialToolbar>
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <androidx.core.widget.NestedScrollView
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingBottom="12dp">
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:paddingVertical="12dp"
+        android:id="@+id/rv_chat_demonstration"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/gradi_purple"/>
+
+    <TextView
+        android:textStyle="bold"
+        android:textSize="16sp"
+        android:id="@+id/tv_message_corners"
+        android:layout_marginTop="40dp"
+        android:layout_marginStart="16dp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Message corners"
+        android:textColor="@color/blue_500" />
+
+    <SeekBar
+        android:layout_marginHorizontal="32dp"
+        android:id="@+id/seek_bar"
+        android:layout_width="match_parent"
+        android:layout_marginTop="16dp"
+        android:max="16"
+        android:min="1"
+        android:layout_height="wrap_content"/>
+
+    <TextView
+        android:text="1"
+        android:textStyle="bold"
+        android:layout_gravity="center"
+        android:textSize="16sp"
+        android:textColor="@color/blue_500"
+        android:layout_marginTop="8dp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/tv_progress_value"/>
+
+    <TextView
+        android:textStyle="bold"
+        android:text="Message tail"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textSize="16sp"
+        android:layout_marginTop="40dp"
+        android:layout_marginStart="16dp"
+        android:textColor="@color/blue_500"/>
+
+    <RadioGroup
+        android:id="@+id/radio_group"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="24dp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/appbar">
+
+    <RadioButton
+        android:id="@+id/bubble"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Bubble"
+        style="@style/RadioButton"/>
+
+    <RadioButton
+        android:id="@+id/corner"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Corner"
+        style="@style/RadioButton"/>
+
+    <RadioButton
+        android:id="@+id/curvy"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Curvy"
+        style="@style/RadioButton"/>
+
+    <RadioButton
+        android:id="@+id/smooth"
+        style="@style/RadioButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Smooth" />
+
+    <RadioButton
+        style="@style/RadioButton"
+        android:id="@+id/stripes"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Stripes" />
+
+    <RadioButton
+        style="@style/RadioButton"
+        android:id="@+id/wedge"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Wedge" /></RadioGroup>
+
+    <LinearLayout
+        android:layout_marginTop="12dp"
+        android:layout_gravity="center"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+<TextView
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:textStyle="italic"
+    android:id="@+id/tv_bottom"
+    android:text="bottom"  android:layout_marginEnd="8dp"
+    android:textColor="@color/blue_500"/>
+
+    <androidx.appcompat.widget.SwitchCompat
+
+        android:id="@+id/switch_side"
+        android:textOff="bottom"
+
+        android:textOn="top"
+        android:textStyle="italic"
+        android:textColor="@color/blue_500"
+        android:layout_gravity="center"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        />
+
+        <TextView
+            android:id="@+id/tvTop"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textStyle="italic"
+            android:text="top"
+            android:layout_marginStart="8dp"
+            android:textColor="@color/blue_500"/>
+    </LinearLayout>
+        </LinearLayout></androidx.core.widget.NestedScrollView>
+</LinearLayout>

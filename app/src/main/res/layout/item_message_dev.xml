@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/message_shadow"
@@ -20,6 +19,7 @@
             android:layout_height="wrap_content"
             android:maxLines="1"
             android:paddingTop="1dp"
+            android:visibility="gone"
             android:paddingBottom="3dp"
             android:textSize="12sp"
             tools:text="nickname@example.com" />
@@ -37,32 +37,34 @@
             android:layout_height="wrap_content"
             android:paddingTop="2dp"
             android:paddingBottom="2dp"
-            android:visibility="gone"/>
+            android:visibility="gone" />
 
-        <include android:id="@+id/include_non_external_geolocation"
+        <include
+            android:id="@+id/include_non_external_geolocation"
             layout="@layout/non_external_location_item"
-            android:visibility="gone"/>
+            android:visibility="gone" />
 
         <FrameLayout
             android:id="@+id/image_grid_container_fl"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:visibility="gone">
-        </FrameLayout>
+            android:visibility="gone"></FrameLayout>
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/file_list_rv"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:visibility="gone"/>
+            android:visibility="gone" />
 
         <androidx.appcompat.widget.AppCompatImageView
             android:id="@+id/message_map_view"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:visibility="gone"/>
+            android:visibility="gone" />
 
         <com.xabber.utils.custom.CustomFlexboxLayout
+            android:paddingVertical="2dp"
+            android:paddingHorizontal="8dp"
             android:id="@+id/message_flex_layout"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -76,12 +78,13 @@
                 android:layout_marginEnd="4dp"
                 android:autoLink="all"
                 android:textColor="@color/black_text"
-                app:lineHeight="18dp"
+                android:textSize="14sp"
+                app:lineHeight="20dp"
                 tools:text="Some text" />
 
             <include
                 android:id="@+id/message_info"
-                layout="@layout/item_message_status"/>
+                layout="@layout/item_message_status" />
 
         </com.xabber.utils.custom.CustomFlexboxLayout>
 
@@ -91,7 +94,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="end"
-            android:visibility="gone"/>
+            android:visibility="gone" />
 
     </LinearLayout>
 

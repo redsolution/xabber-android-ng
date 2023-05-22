@@ -13,10 +13,12 @@
         android:layout_width="260dp"
         android:layout_height="200dp"
         android:orientation="horizontal">
+
     <androidx.cardview.widget.CardView
+        android:id="@+id/cardview_1"
+        app:cardCornerRadius="4dp"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        app:cardCornerRadius="4dp"
         android:layout_weight="1">
 
         <ImageView
@@ -29,8 +31,9 @@
     <androidx.cardview.widget.CardView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        app:cardCornerRadius="4dp"
+        android:id="@+id/cardview_2"
         android:layout_weight="1"
+        app:cardCornerRadius="4dp"
         android:elevation="1dp">
     <ImageView
         android:id="@+id/ivImage1"
@@ -42,11 +45,14 @@
 </androidx.cardview.widget.CardView>
 
 </LinearLayout>
-<LinearLayout
+
+    <LinearLayout
 android:id="@+id/image_message_info"
 android:layout_width="wrap_content"
 android:elevation="10dp"
 android:paddingStart="8dp"
+        android:layout_marginBottom="3dp"
+        android:layout_marginEnd="3dp"
 android:paddingEnd="4dp"
 android:layout_height="wrap_content"
 android:background="@drawable/system_message_background"

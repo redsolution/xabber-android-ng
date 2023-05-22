@@ -25,16 +25,17 @@
         android:id="@+id/message_time"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginEnd="4dp"
         android:singleLine="true"
+        android:lineHeight="12sp"
         android:textColor="@color/grey_600"
-        android:textSize="10sp"
+        android:textSize="11sp"
         tools:text="11:40" />
 
     <ImageView
+        android:layout_gravity="bottom"
         android:id="@+id/message_status_icon"
-        android:layout_width="14dp"
-        android:layout_height="14dp"
-        android:layout_marginStart="4dp" />
+        android:layout_width="12dp"
+        android:layout_height="12dp"
+        android:layout_marginStart="2dp" />
 
 </androidx.appcompat.widget.LinearLayoutCompat>

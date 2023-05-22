@@ -81,4 +81,8 @@ interface Navigator {
 
     fun lockScreen(lock: Boolean)
 
+    fun showChatSettings()
+
+    fun showMaskSettings()
+
 }

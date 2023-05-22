@@ -1,7 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
+    android:layout_height="wrap_content"
+    android:layout_width="wrap_content">
+    <ImageView
+        android:id="@+id/im"
+        android:scaleX="-1"
+        app:layout_constraintStart_toStartOf="@id/message_balloon"
+        app:layout_constraintEnd_toEndOf="@id/message_balloon"
+        app:layout_constraintTop_toTopOf="@id/message_balloon"
+        app:layout_constraintBottom_toBottomOf="@id/message_balloon"
+        android:layout_width="0dp"
+        android:layout_height="0dp" />
+<LinearLayout
+    app:layout_constraintStart_toStartOf="parent"
+    app:layout_constraintEnd_toEndOf="parent"
+    app:layout_constraintTop_toTopOf="parent"
+    app:layout_constraintBottom_toBottomOf="parent"
     android:id="@+id/message_balloon"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
@@ -13,6 +29,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:maxLines="1"
+            android:visibility="gone"
             android:paddingTop="1dp"
             android:paddingBottom="3dp"
             android:textSize="12sp"
@@ -70,8 +87,9 @@
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="4dp"
                 android:autoLink="all"
+                android:textSize="14sp"
                 android:textColor="@color/black_text"
-                app:lineHeight="18dp"
+                app:lineHeight="20dp"
                 tools:text="Some text" />
 
             <include
@@ -89,3 +107,4 @@
             android:visibility="gone" />
 
     </LinearLayout>
+    </androidx.constraintlayout.widget.ConstraintLayout>

@@ -26,16 +26,21 @@
         </com.google.android.material.appbar.MaterialToolbar>
     </com.google.android.material.appbar.AppBarLayout>
 
-    <TextView
+
+    <ImageView
+        android:src="@drawable/chat_background_repeat"
         android:id="@+id/tv_discover"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:textSize="26sp"
         android:text="Discover"
+        android:foregroundTintMode="multiply"
+        android:foregroundTint="@color/yellow_500"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toTopOf="parent"
+       />
 
 
     </androidx.constraintlayout.widget.ConstraintLayout>

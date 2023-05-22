@@ -15,8 +15,8 @@ android {
         applicationId "com.xabber.android.ng"
         minSdk 23
         targetSdk 33
-        versionCode 3
-        versionName "3.0"
+        versionCode 1
+        versionName "6.0"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         lintOptions {

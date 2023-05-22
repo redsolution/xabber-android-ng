@@ -67,7 +67,7 @@ open class XMessageVH(
     protected var bottomStatusIcon: ImageView = messageStatusLayout.findViewById(R.id.message_status_icon)
 
     private val uploadProgressBar: ProgressBar? = itemView.findViewById(R.id.uploadProgressBar)
-    private val ivCancelUpload: ImageButton? = itemView.findViewById(R.id.ivCancelUpload)
+   // private val ivCancelUpload: ImageButton? = itemView.findViewById(R.id.ivCancelUpload)
 
     private var imageCount = 0
     private var fileCount = 0
@@ -399,7 +399,7 @@ open class XMessageVH(
             R.id.ivImage3 -> fileListener?.onImageClick(adapterPosition, 3, messageId)
             R.id.ivImage4 -> fileListener?.onImageClick(adapterPosition, 4, messageId)
             R.id.ivImage5 -> fileListener?.onImageClick(adapterPosition, 5, messageId)
-            R.id.ivCancelUpload -> fileListener?.onUploadCancel()
+         //   R.id.ivCancelUpload -> fileListener?.onUploadCancel()
             else -> listener.onMessageClick(messageBalloon, adapterPosition)
         }
     }
@@ -466,12 +466,12 @@ open class XMessageVH(
     }
 
     private fun showFileUploadProgress(view: View, show: Boolean) {
-        view.findViewById<ProgressBar>(R.id.uploadProgressBar)?.visibility =
-            if (show) {
-                View.VISIBLE
-            } else {
-                View.GONE
-            }
+//        view.findViewById<ProgressBar>(R.id.uploadProgressBar)?.visibility =
+//            if (show) {
+//                View.VISIBLE
+//            } else {
+//                View.GONE
+//            }
     }
 
 
@@ -642,7 +642,7 @@ open class XMessageVH(
     }
 
     init {
-        ivCancelUpload?.setOnClickListener(this)
+        //ivCancelUpload?.setOnClickListener(this)
         itemView.setOnClickListener(this)
         itemView.setOnLongClickListener(this)
     }

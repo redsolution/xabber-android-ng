@@ -18,7 +18,6 @@ class XabberApplication : Application() {
 
 
     override fun onCreate() {
-        Log.d("all", "onCreate")
         super.onCreate()
         instance = this
         val context: Context = XabberApplication.applicationContext()

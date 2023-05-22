@@ -3,14 +3,7 @@ package com.xabber.presentation.application.activity
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
-import android.graphics.BitmapFactory
-import android.graphics.Canvas
 import android.graphics.Color
-import android.graphics.LinearGradient
-import android.graphics.Paint
-import android.graphics.Shader
-import android.graphics.drawable.GradientDrawable
-import android.graphics.drawable.LayerDrawable
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -42,6 +35,8 @@ import com.xabber.presentation.application.fragments.account.reorder.ReorderAcco
 import com.xabber.presentation.application.fragments.calls.CallsFragment
 import com.xabber.presentation.application.fragments.chat.ChatFragment
 import com.xabber.presentation.application.fragments.chat.ChatParams
+import com.xabber.presentation.application.fragments.chat.MessageChanger
+import com.xabber.presentation.application.fragments.chat.MessageChangerDialog
 import com.xabber.presentation.application.fragments.chatlist.ArchiveFragment
 import com.xabber.presentation.application.fragments.chatlist.ChatListFragment
 import com.xabber.presentation.application.fragments.chatlist.ChatListViewModel
@@ -112,6 +107,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator {
             setFullScreenMode()
             setHeightStatusBar()     // Вычисляем и устанавливаем высоту статус бара, чтобы устанавливать отступ
             setMask()   // Задаем маску из Preferences, по дефолту - круглая маска
+            setChatSettings()
             handler.postDelayed(showBadge, 0)
             binding.slidingPaneLayout.lockMode = SlidingPaneLayout.LOCK_MODE_LOCKED_CLOSED
             assist =
@@ -178,6 +174,15 @@ class ApplicationActivity : AppCompatActivity(), Navigator {
                 R.drawable.ic_mask_circle
             )
         MaskManager.mask = mask
+    }
+
+    private fun setChatSettings() {
+        val corner = getSharedPreferences(AppConstants.SHARED_PREF_CORNER, Context.MODE_PRIVATE).getInt(
+            AppConstants.CORNER_KEY,
+            7
+        )
+        val type = getSharedPreferences(AppConstants.SHARED_PREF_TYPE, Context.MODE_PRIVATE).getInt(AppConstants.TYPE_TAIL_KEY, 7)
+        MessageChanger.defineMessageDrawable(corner, type)
     }
 
     private fun initBottomNavigation() {
@@ -441,6 +446,14 @@ class ApplicationActivity : AppCompatActivity(), Navigator {
 
     override fun lockScreen(lock: Boolean) {
         lockScreenRotation(lock)
+    }
+
+    override fun showChatSettings() {
+        launchDetailInStack(MessageChangerDialog())
+    }
+
+    override fun showMaskSettings() {
+       launchDetailInStack(MaskFragment())
     }
 
     override fun onPause() {

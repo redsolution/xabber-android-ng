@@ -30,6 +30,9 @@ import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import by.kirich1409.viewbindingdelegate.viewBinding
+import com.aghajari.emojiview.AXEmojiManager
+import com.aghajari.emojiview.googleprovider.AXGoogleEmojiProvider
+import com.aghajari.emojiview.view.AXSingleEmojiView
 import com.xabber.R
 import com.xabber.data_base.defaultRealmConfig
 import com.xabber.data_base.models.last_chats.LastChatsStorageItem
@@ -188,40 +191,6 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        val popup = PopupMenu(requireContext(), binding.tvChatTitle, Gravity.CENTER)
-        popup.inflate(R.menu.popup_bubble)
-        popup.setOnMenuItemClickListener {
-            when (it.itemId) {
-                R.id.smooth_bottom_8 -> {
-                    MaskManager.tail = 8
-                    messageAdapter?.notifyDataSetChanged()
-                }
-                R.id.smooth_bottom_12 -> {
-                    MaskManager.tail = 12
-                    messageAdapter?.notifyDataSetChanged()
-                }
-                R.id.corner_top_8 -> {
-                    MaskManager.tail = 80
-                    messageAdapter?.notifyDataSetChanged()
-                }
-                R.id.bubble_bottom_8 -> {
-                    MaskManager.tail = 800
-                    messageAdapter?.notifyDataSetChanged()
-                }
-                R.id.stripes_8 -> {
-                    MaskManager.tail = 18
-                    messageAdapter?.notifyDataSetChanged()
-                }
-
-                else -> {}
-            }
-            true
-        }
-        binding.tvChatTitle.setOnClickListener {
-            popup.show()
-        }
-
-
         val chat = viewModel.getChat(getParams().id)
         if (chat == null) navigator().closeDetail()
         else {
@@ -309,6 +278,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
                 R.id.enable_notifications -> enableNotifications()
                 R.id.clear_message_history -> clearHistory(chat)
                 R.id.delete_chat -> deleteChat(chat)
+             //   R.id.message_view_settings -> navigator().showMessageSettings()
             }; true
         }
     }
@@ -480,17 +450,19 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     }
 
     private fun initializeButtonEmoji() {
-//        AXEmojiManager.install(requireContext(), AXGoogleEmojiProvider(requireContext()))
-//        val emojiView = AXSingleEmojiView(requireContext())
-//
-//        emojiView.editText = binding.chatInput
-//        binding.emojiPopupLayout.initPopupView(emojiView)
+        AXEmojiManager.install(requireContext(), AXGoogleEmojiProvider(requireContext()))
+        val emojiView = AXSingleEmojiView(requireContext())
+
+        emojiView.editText = binding.chatInput
+        binding.emojiPopupLayout.initPopupView(emojiView)
 //        binding.buttonEmoticon.setOnClickListener {
 //            if (binding.emojiPopupLayout.isShowing) {
 //                binding.buttonEmoticon.setImageResource(R.drawable.ic_emoticon_outline)
 //                binding.emojiPopupLayout.hideAndOpenKeyboard()
+//                binding.emojiPopupLayout.hidePopupView()
 //            } else {
 //                binding.buttonEmoticon.setImageResource(R.drawable.ic_keyboard)
+//
 //                binding.emojiPopupLayout.toggle()
 //                binding.chatInput.showSoftInputOnFocus = false
 //            }
@@ -1151,14 +1123,14 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
 
     private val onBackPressedCallback = object : OnBackPressedCallback(true) {
         override fun handleOnBackPressed() {
-//            if (binding.emojiPopupLayout.isShowing) {
-//                binding.buttonEmoticon.setImageResource(R.drawable.ic_emoticon_outline)
-//                binding.chatInput.showSoftInputOnFocus = true
-//            } else if (binding.selectMessagesToolbar.toolbarSelectedMessages.isVisible) {
-//                enableSelectionMode(false)
-//            } else {
+            if (binding.emojiPopupLayout.isShowing) {
+                binding.buttonEmoticon.setImageResource(R.drawable.ic_emoticon_outline)
+                binding.chatInput.showSoftInputOnFocus = true
+            } else if (binding.selectMessagesToolbar.toolbarSelectedMessages.isVisible) {
+                enableSelectionMode(false)
+            } else {
             navigator().closeDetail()
-            //    }
+              }
         }
     }
 

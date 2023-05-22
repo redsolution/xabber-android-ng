@@ -3,58 +3,23 @@ package com.xabber.presentation.application.fragments.settings
 import android.content.Context
 import android.os.Bundle
 import android.view.View
+import android.widget.SeekBar
 import by.kirich1409.viewbindingdelegate.viewBinding
 import com.xabber.R
 import com.xabber.databinding.FragmentInterfaceBinding
 import com.xabber.presentation.AppConstants
+import com.xabber.presentation.application.contract.navigator
 import com.xabber.utils.MaskManager
 import com.xabber.presentation.application.fragments.DetailBaseFragment
+import com.xabber.presentation.application.fragments.chat.MessageChanger
 
 class InterfaceFragment : DetailBaseFragment(R.layout.fragment_interface) {
     private val binding by viewBinding(FragmentInterfaceBinding::bind)
 
-    private val maskMap = mapOf(
-        R.drawable.ic_mask_circle to R.id.circle,
-        R.drawable.ic_mask_hexagon to R.id.hexagon,
-        R.drawable.ic_mask_octagon to R.id.octagon,
-        R.drawable.ic_mask_pentagon to R.id.pentagon,
-        R.drawable.ic_mask_rounded to R.id.rounded,
-        R.drawable.ic_mask_squircle to R.id.squirсle,
-        R.drawable.ic_mask_star to R.id.star
-    )
-
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        setupRadioGroup()
+        binding.tvMask.setOnClickListener { navigator().showMaskSettings() }
+        binding.tvChatSettings.setOnClickListener { navigator().showChatSettings() }
     }
 
-    private fun setupRadioGroup() {
-        binding.radioGroup.setOnCheckedChangeListener { radioGroup, checkedId ->
-            radioGroup.jumpDrawablesToCurrentState()
-        }
-        binding.radioGroup.check(getCheckedItemId())
-        binding.imDemonstration.setImageResource(MaskManager.mask)
-
-        binding.radioGroup.setOnCheckedChangeListener { _, checkedId ->
-            maskMap.values.find { it == checkedId }?.let {
-                setAvatarsShape(
-                    maskMap.entries.find { entry -> entry.value == it }?.key
-                        ?: R.drawable.ic_mask_circle
-                )
-            }
-        }
-    }
-
-    private fun getCheckedItemId(): Int {
-        return maskMap[MaskManager.mask] ?: R.id.circle
-    }
-
-    private fun setAvatarsShape(mask: Int) {
-        binding.imDemonstration.setImageResource(mask)
-        MaskManager.mask = mask
-        val pref =
-            activity?.getSharedPreferences(AppConstants.SHARED_PREF_MASK, Context.MODE_PRIVATE)
-                ?: return
-        pref.edit()?.putInt(AppConstants.MASK_KEY, mask)?.apply()
-    }
 }

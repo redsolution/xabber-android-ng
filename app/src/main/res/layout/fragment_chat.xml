@@ -4,7 +4,6 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/chat_background_repeat_dark"
     tools:context=".presentation.application.fragments.chat.ChatFragment">
 
     <com.google.android.material.appbar.AppBarLayout
@@ -472,16 +471,16 @@
         app:tint="@color/white"
         tools:visibility="visible" />
 
-<!--    <View-->
-<!--        android:id="@+id/emoji_popup_layout"-->
-<!--        android:layout_width="0dp"-->
-<!--        android:layout_height="1dp"-->
-<!--        app:flow_maxElementsWrap="3"-->
-<!--        app:layout_constraintBottom_toBottomOf="parent"-->
-<!--        app:layout_constraintEnd_toEndOf="parent"-->
-<!--        app:layout_constraintStart_toStartOf="parent">-->
+    <com.aghajari.emojiview.view.AXEmojiPopupLayout
+        android:id="@+id/emoji_popup_layout"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        app:flow_maxElementsWrap="3"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent">
 
-<!--    </View>-->
+    </com.aghajari.emojiview.view.AXEmojiPopupLayout>
 
     <View
         android:id="@+id/anchor_view"
@@ -489,5 +488,41 @@
         android:layout_height="10dp"
         app:layout_constraintBottom_toTopOf="@id/input_layout"
         app:layout_constraintStart_toStartOf="parent" />
+
+    <LinearLayout
+android:visibility="gone"
+        app:layout_constraintBottom_toTopOf="@id/input_layout"
+        app:layout_constraintStart_toStartOf="parent"
+        android:layout_width="12dp"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="28dp"
+            android:background="@color/yellow_50"/>
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="2dp"
+            android:background="@color/red_600"/>
+    </LinearLayout>
+
+    <LinearLayout
+android:visibility="gone"
+        app:layout_constraintBottom_toTopOf="@id/input_layout"
+       app:layout_constraintEnd_toEndOf="parent"
+        android:layout_width="12dp"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="28dp"
+            android:background="@color/yellow_50"/>
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="2dp"
+            android:background="@color/red_600"/>
+    </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

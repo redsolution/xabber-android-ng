@@ -8,45 +8,45 @@
     <RelativeLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_alignParentEnd="true"
-        android:layout_alignParentTop="true">
+        android:layout_alignParentEnd="true">
 
         <LinearLayout
+            android:layout_marginEnd="4dp"
+            android:layout_marginVertical="2dp"
             android:orientation="vertical"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:gravity="end">
-
-            <include layout="@layout/item_message_dev" />
+            <include layout="@layout/item_message" />
 
         </LinearLayout>
 
-        <ProgressBar
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:id="@+id/uploadProgressBar"
-            android:layout_centerHorizontal="true"
-            android:layout_centerVertical="true"
-            android:indeterminate="true"
-            android:max="100"
-            android:progress="50"
-            android:background="@drawable/round_shape_transparent"
-            android:indeterminateTint="@color/white"
-            android:layout_centerInParent="true"
-            android:visibility="gone"
-            android:elevation="1dp" />
+<!--        <ProgressBar-->
+<!--            android:layout_width="48dp"-->
+<!--            android:layout_height="48dp"-->
+<!--            android:id="@+id/uploadProgressBar"-->
+<!--            android:layout_centerHorizontal="true"-->
+<!--            android:layout_centerVertical="true"-->
+<!--            android:indeterminate="true"-->
+<!--            android:max="100"-->
+<!--            android:progress="50"-->
+<!--            android:background="@drawable/round_shape_transparent"-->
+<!--            android:indeterminateTint="@color/white"-->
+<!--            android:layout_centerInParent="true"-->
+<!--            android:visibility="gone"-->
+<!--            android:elevation="1dp" />-->
 
-        <ImageButton
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:id="@+id/ivCancelUpload"
-            android:src="@drawable/ic_close"
-            android:background="@drawable/ripple_background_circle"
-            android:padding="16dp"
-            android:layout_centerHorizontal="true"
-            android:layout_centerVertical="true"
-            android:visibility="gone"
-            android:elevation="1dp" />
+<!--        <ImageButton-->
+<!--            android:layout_width="wrap_content"-->
+<!--            android:layout_height="wrap_content"-->
+<!--            android:id="@+id/ivCancelUpload"-->
+<!--            android:src="@drawable/ic_close"-->
+<!--            android:background="@drawable/ripple_background_circle"-->
+<!--            android:padding="16dp"-->
+<!--            android:layout_centerHorizontal="true"-->
+<!--            android:layout_centerVertical="true"-->
+<!--            android:visibility="gone"-->
+<!--            android:elevation="1dp" />-->
 
     </RelativeLayout>
 

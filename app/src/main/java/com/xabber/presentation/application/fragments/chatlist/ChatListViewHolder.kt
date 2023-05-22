@@ -53,7 +53,7 @@ class ChatListViewHolder(
         setTime(chatListDto.lastMessageDate)
         setPin(chatListDto.pinnedDate)
         setMuted(chatListDto)
-        setUnreadMessages(chatListDto.unread, chatListDto.muteExpired)
+        setUnreadMessages(chatListDto, chatListDto.unread, chatListDto.muteExpired)
         setMessageSendingState(chatListDto)
         setupChatStatus(chatListDto)
 
@@ -162,8 +162,9 @@ class ChatListViewHolder(
             pinnedDate > 0
     }
 
-    private fun setUnreadMessages(unread: String, muteExpired: Long) {
+    private fun setUnreadMessages(chatListDto: ChatListDto, unread: String, muteExpired: Long) {
         binding.unreadMessagesCount.isVisible = unread.isNotEmpty()
+        binding.imMessageStatus.isVisible = unread.isEmpty() && chatListDto.lastMessageIsOutgoing
         if (unread.isNotEmpty()) binding.unreadMessagesCount.text =
             if (unread.toInt() < 1000) unread else "999+"
         binding.unreadMessagesCount.background =
@@ -192,7 +193,7 @@ class ChatListViewHolder(
         var image: Int? = null
         var tint: Int? = null
         binding.imMessageStatus.isVisible =
-            chatListDto.lastMessageBody.isNotEmpty() && chatListDto.lastMessageIsOutgoing && chatListDto.draftMessage == null
+            chatListDto.lastMessageBody.isNotEmpty() && chatListDto.lastMessageIsOutgoing && chatListDto.draftMessage == null && chatListDto.unread.isEmpty()
 
         if (binding.imMessageStatus.isVisible) {
             when (chatListDto.lastMessageState) {
@@ -293,7 +294,7 @@ class ChatListViewHolder(
             when (key) {
                 AppConstants.PAYLOAD_UNREAD_CHAT -> {
                     val unread = bundle.getString(AppConstants.PAYLOAD_UNREAD_CHAT)
-                  if (unread != null)  setUnreadMessages(unread, chatListDto.muteExpired)
+                  if (unread != null)  setUnreadMessages(chatListDto, unread, chatListDto.muteExpired)
                 }
                 PAYLOAD_PINNED_POSITION_CHAT -> {
                     val pinnedDate = bundle.getLong(PAYLOAD_PINNED_POSITION_CHAT)
