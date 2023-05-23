@@ -19,6 +19,7 @@ import com.xabber.presentation.application.fragments.chat.MessageChanger
 import com.xabber.presentation.application.fragments.chat.ReferenceRealmObject
 import com.xabber.presentation.application.fragments.chat.message.XBasicMessageVH
 import com.xabber.presentation.application.fragments.chat.message.XMessageVH
+import com.xabber.presentation.application.fragments.test.MessageAdapter.Companion.VIEW_TYPE_INCOMING_MESSAGE
 import com.xabber.presentation.application.util.isSameDayWith
 
 class MessageAdapter(
@@ -116,7 +117,9 @@ class MessageAdapter(
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): XBasicMessageVH {
+        Log.d("uuu", "onCreate")
         return when (viewType) {
+
 //            VIEW_TYPE_SYSTEM_MESSAGE -> SystemMessageVH(
 //                LayoutInflater.from(parent.context).inflate(
 //                    R.layout.item_system_message, parent, false
@@ -141,7 +144,7 @@ class MessageAdapter(
             VIEW_TYPE_OUTGOING_MESSAGE -> XOutgoingMessageVH(
                 listener,
                 LayoutInflater.from(parent.context).inflate(
-                    R.layout.item_message_outgoing_dev, parent, false
+                    R.layout.item_message_outgoing_test, parent, false
                 ),
                 this, this, this, R.style.ThemeApplication
             )
@@ -230,13 +233,13 @@ class MessageAdapter(
         val isNeedDate = isMessageNeedDate(position)
 
         val outgoingRegularTypedValue = TypedValue()
-        context.theme.resolveAttribute(R.attr.message_background, outgoingRegularTypedValue, true)
-        val outgoingForwardedTypedValue = TypedValue()
-        context.theme.resolveAttribute(
-            R.attr.forwarded_outgoing_message_background,
-            outgoingForwardedTypedValue,
-            true
-        )
+//        context.theme.resolveAttribute(R.attr.message_background, outgoingRegularTypedValue, true)
+//        val outgoingForwardedTypedValue = TypedValue()
+//        context.theme.resolveAttribute(
+//            R.attr.forwarded_outgoing_message_background,
+//            outgoingForwardedTypedValue,
+//            true
+//        )
 
         // val isAuthorMe = groupMember?.isMe ?: !message.isIncoming
         val states = arrayOf(

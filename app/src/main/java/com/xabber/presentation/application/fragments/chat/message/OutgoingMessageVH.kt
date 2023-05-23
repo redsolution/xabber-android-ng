@@ -91,17 +91,17 @@ class OutgoingMessageVH(
             ViewGroup.LayoutParams.WRAP_CONTENT
         )
 
-        params.setMargins(24.dp, 0, if (isNeedTail) 2.dp else 10.dp, 0)
+     //   params.setMargins(24.dp, 0, if (isNeedTail) 2.dp else 10.dp, 0)
 
         params.gravity = Gravity.END
         binding.balloon.layoutParams = params
-        if (messageDto.references == null && messageDto.messageBody!!.isNotEmpty()) {
-            binding.balloon.setPadding(16.dp, 8.dp, if (isNeedTail) 16.dp else 8.dp, 10.dp)
-        } else if (messageDto.references != null && messageDto.messageBody!!.isNotEmpty()) {
-            binding.balloon.setPadding(4.dp, 4.dp, if (isNeedTail) 12.dp else 8.dp, 10.dp)
-        } else {
-            binding.balloon.setPadding(4.dp, 4.dp, 4.dp, -17.dp)
-        }
+//        if (messageDto.references == null && messageDto.messageBody!!.isNotEmpty()) {
+//            binding.balloon.setPadding(16.dp, 8.dp, if (isNeedTail) 16.dp else 8.dp, 10.dp)
+//        } else if (messageDto.references != null && messageDto.messageBody!!.isNotEmpty()) {
+//            binding.balloon.setPadding(4.dp, 4.dp, if (isNeedTail) 12.dp else 8.dp, 10.dp)
+//        } else {
+//            binding.balloon.setPadding(4.dp, 4.dp, 4.dp, -17.dp)
+//        }
 
 
         val typedValue = TypedValue()

@@ -1,8 +1,11 @@
 package com.xabber.presentation.application.fragments.chat
 
 import com.xabber.R
+import com.xabber.utils.dp
 
 object MessageChanger {
+var w = 90
+    var h = 28
 
      var cornerValue = 7
     var typeValue = 7
@@ -48,7 +51,7 @@ object MessageChanger {
                     6 -> R.drawable.bubble_bottom_6px
                     7 -> R.drawable.bubble_bottom_7px
                     8 -> R.drawable.bubble_bottom_8px
-                    9 -> R.drawable.bubble_bottom_9px
+                    9 -> R.drawable.bubble_bottom_9pxtest
                     10 -> R.drawable.bubble_bottom_10px
                     11 -> R.drawable.bubble_bottom_11px
                     12 -> R.drawable.bubble_bottom_12px

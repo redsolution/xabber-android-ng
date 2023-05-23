@@ -463,9 +463,9 @@
         android:background="@color/blue_500"
         android:baselineAlignBottom="false"
         android:clickable="false"
+        android:src="@drawable/ic_send_white"
         android:visibility="invisible"
         app:fabCustomSize="84dp"
-        android:src="@drawable/ic_send_white"
         app:layout_constraintBottom_toBottomOf="@id/input_layout"
         app:layout_constraintEnd_toEndOf="parent"
         app:tint="@color/white"
@@ -490,39 +490,41 @@
         app:layout_constraintStart_toStartOf="parent" />
 
     <LinearLayout
-android:visibility="gone"
-        app:layout_constraintBottom_toTopOf="@id/input_layout"
-        app:layout_constraintStart_toStartOf="parent"
         android:layout_width="12dp"
         android:layout_height="wrap_content"
-        android:orientation="vertical">
+        android:orientation="vertical"
+        android:visibility="gone"
+        app:layout_constraintBottom_toTopOf="@id/input_layout"
+        app:layout_constraintStart_toStartOf="parent">
 
         <View
             android:layout_width="match_parent"
             android:layout_height="28dp"
-            android:background="@color/yellow_50"/>
+            android:background="@color/yellow_50" />
+
         <View
             android:layout_width="match_parent"
             android:layout_height="2dp"
-            android:background="@color/red_600"/>
+            android:background="@color/red_600" />
     </LinearLayout>
 
     <LinearLayout
-android:visibility="gone"
-        app:layout_constraintBottom_toTopOf="@id/input_layout"
-       app:layout_constraintEnd_toEndOf="parent"
         android:layout_width="12dp"
         android:layout_height="wrap_content"
-        android:orientation="vertical">
+        android:orientation="vertical"
+        android:visibility="gone"
+        app:layout_constraintBottom_toTopOf="@id/input_layout"
+        app:layout_constraintEnd_toEndOf="parent">
 
         <View
             android:layout_width="match_parent"
             android:layout_height="28dp"
-            android:background="@color/yellow_50"/>
+            android:background="@color/yellow_50" />
+
         <View
             android:layout_width="match_parent"
             android:layout_height="2dp"
-            android:background="@color/red_600"/>
+            android:background="@color/red_600" />
     </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

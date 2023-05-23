@@ -49,24 +49,24 @@ open class XMessageVH(
  //   private val subscriptions = CompositeSubscription()
 
     protected val messageTime: TextView = itemView.findViewById(R.id.message_time)
-    protected val messageHeader: TextView = itemView.findViewById(R.id.message_sender_tv)
+   // protected val messageHeader: TextView = itemView.findViewById(R.id.message_sender_tv)
     protected val messageBalloon: View = itemView.findViewById(R.id.message_balloon)
   //  protected val messageShadow: View = itemView.findViewById(R.id.message_shadow)
     protected val statusIcon: ImageView = itemView.findViewById(R.id.message_status_icon)
     protected val messageInfo: View = itemView.findViewById(R.id.message_info)
-    private val flexboxLayout: CustomFlexboxLayout = itemView.findViewById(R.id.message_flex_layout)
-    protected val forwardedMessagesRV: RecyclerView = itemView.findViewById(R.id.forwardedRecyclerView)
-    protected val messageFileInfo: TextView = itemView.findViewById(R.id.message_file_info)
-    protected val progressBar: ProgressBar = itemView.findViewById(R.id.message_progress_bar)
-    protected val rvFileList: RecyclerView = itemView.findViewById(R.id.file_list_rv)
-    protected val imageGridContainer: FrameLayout = itemView.findViewById(R.id.image_grid_container_fl)
+     val flexboxLayout: CustomFlexboxLayout = itemView.findViewById(R.id.message_flex_layout)
+//    protected val forwardedMessagesRV: RecyclerView = itemView.findViewById(R.id.forwardedRecyclerView)
+  //  protected val messageFileInfo: TextView = itemView.findViewById(R.id.message_file_info)
+ //   protected val progressBar: ProgressBar = itemView.findViewById(R.id.message_progress_bar)
+//    protected val rvFileList: RecyclerView = itemView.findViewById(R.id.file_list_rv)
+ //   protected val imageGridContainer: FrameLayout = itemView.findViewById(R.id.image_grid_container_fl)
 
     //todo there are duplicated views! (or else triplicated!)
-    private val messageStatusLayout: LinearLayoutCompat = itemView.findViewById(R.id.message_bottom_status)
-    protected val bottomMessageTime: TextView = messageStatusLayout.findViewById(R.id.message_time)
-    protected var bottomStatusIcon: ImageView = messageStatusLayout.findViewById(R.id.message_status_icon)
+  //  private val messageStatusLayout: LinearLayoutCompat = itemView.findViewById(R.id.message_bottom_status)
+ //   protected val bottomMessageTime: TextView = messageStatusLayout.findViewById(R.id.message_time)
+ //   protected var bottomStatusIcon: ImageView = messageStatusLayout.findViewById(R.id.message_status_icon)
 
-    private val uploadProgressBar: ProgressBar? = itemView.findViewById(R.id.uploadProgressBar)
+ //   private val uploadProgressBar: ProgressBar? = itemView.findViewById(R.id.uploadProgressBar)
    // private val ivCancelUpload: ImageButton? = itemView.findViewById(R.id.ivCancelUpload)
 
     private var imageCount = 0
@@ -173,7 +173,7 @@ open class XMessageVH(
 //
 
         if (messageTextTv.text.isNotEmpty()) {
-            messageStatusLayout.visibility = View.GONE
+          //  messageStatusLayout.visibility = View.GONE
         }
 
 //        if (messageRealmObject.hasReferences() || messageRealmObject.hasForwardedMessages()) {
@@ -181,9 +181,9 @@ open class XMessageVH(
 //                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
 //            )
 //        } else {
-            flexboxLayout.layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
-            )
+//            flexboxLayout.layoutParams = LinearLayout.LayoutParams(
+//                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+//            )
     //    }
 
         messageTextTv.movementMethod = CorrectlyTouchEventTextView.LocalLinkMovementMethod
@@ -195,7 +195,7 @@ open class XMessageVH(
         needDate = vhExtraData.isNeedDate
         date = getDateStringForMessage(messageDto.sentTimestamp)
         if (!vhExtraData.isNeedName) {
-            messageHeader.visibility = View.GONE
+         //   messageHeader.visibility = View.GONE
         }
 
 //        if (messageRealmObject.text.isNullOrEmpty()
@@ -235,14 +235,12 @@ open class XMessageVH(
 //                getTimeText(Date(it))
 //            )
 //        }
-        messageTime.text = time
-        bottomMessageTime.text = time
     }
 
     private fun setupReferences(messageDto: MessageDto, vhExtraData: MessageVhExtraData) {
-        rvFileList.visibility = View.GONE
-        imageGridContainer.removeAllViews()
-        imageGridContainer.visibility = View.GONE
+//        rvFileList.visibility = View.GONE
+//        imageGridContainer.removeAllViews()
+//        imageGridContainer.visibility = View.GONE
 //        if (messageRealmObject.hasReferences()) {
 //            setUpImage(messageRealmObject, vhExtraData)
 //            setUpFile(messageRealmObject.referencesRealmObjects, vhExtraData)
@@ -451,9 +449,9 @@ open class XMessageVH(
     }
 
     private fun showProgress(show: Boolean) {
-        messageFileInfo.visibility = if (show) View.VISIBLE else View.GONE
+       // messageFileInfo.visibility = if (show) View.VISIBLE else View.GONE
         messageTime.visibility = if (show) View.GONE else View.VISIBLE
-        bottomMessageTime.visibility = if (show) View.GONE else View.VISIBLE
+       // bottomMessageTime.visibility = if (show) View.GONE else View.VISIBLE
     }
 
     private fun showFileProgressModified(view: RecyclerView, startAt: Int, endAt: Int) {

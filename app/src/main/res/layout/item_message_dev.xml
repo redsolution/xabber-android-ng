@@ -8,6 +8,7 @@
     android:gravity="end">
 
     <LinearLayout
+        android:backgroundTint="@color/white"
         android:id="@+id/message_balloon"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -20,7 +21,6 @@
             android:maxLines="1"
             android:paddingTop="1dp"
             android:visibility="gone"
-            android:paddingBottom="3dp"
             android:textSize="12sp"
             tools:text="nickname@example.com" />
 
@@ -63,7 +63,6 @@
             android:visibility="gone" />
 
         <com.xabber.utils.custom.CustomFlexboxLayout
-            android:paddingVertical="2dp"
             android:paddingHorizontal="8dp"
             android:id="@+id/message_flex_layout"
             android:layout_width="wrap_content"

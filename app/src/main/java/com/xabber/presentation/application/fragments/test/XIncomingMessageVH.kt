@@ -15,6 +15,7 @@ import androidx.appcompat.widget.PopupMenu
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
+import by.kirich1409.viewbindingdelegate.viewBinding
 import com.xabber.R
 import com.xabber.dto.MessageDto
 import com.xabber.models.dto.MessageVhExtraData
@@ -53,7 +54,7 @@ class XIncomingMessageVH internal constructor(
             R.color.transparent
         )
         statusIcon.isVisible = false
-        bottomStatusIcon.isVisible = false
+      //  bottomStatusIcon.isVisible = false
 //        val avatar = itemView.findViewById<ImageView>(R.id.avatar)
 //        avatar.isVisible = false
         // text & appearance
@@ -84,15 +85,15 @@ class XIncomingMessageVH internal constructor(
         //    messageShadow.background = shadowDrawable
 
         // setup BALLOON margins
-        val im = itemView.findViewById<ImageView>(R.id.im)
+      //  val im = itemView.findViewById<ImageView>(R.id.im)
 
         val shadowDrawable = ContextCompat.getDrawable(
             context,
             if (needTail) MessageChanger.tail else MessageChanger.simple
         )
-        im.background = shadowDrawable
+    //    im.background = shadowDrawable
             // im.scaleX = -1f
-        im.backgroundTintList = ColorStateList.valueOf(ContextCompat.getColor(im.context, R.color.blue_100))
+  //      im.backgroundTintList = ColorStateList.valueOf(ContextCompat.getColor(im.context, R.color.blue_100))
 
 //        val layoutParams = messageBalloon.layoutParams as ConstraintLayout.LayoutParams
 //        layoutParams.setMargins(
@@ -102,7 +103,15 @@ class XIncomingMessageVH internal constructor(
 //            2.dp
 //
 //        )
-//        messageBalloon.layoutParams = layoutParams
+        shadowDrawable?.setColorFilter(
+            itemView.resources.getColor(
+                R.color.blue_100,
+                itemView.context.theme
+            ), PorterDuff.Mode.MULTIPLY
+        )
+
+     messageBalloon.background = shadowDrawable
+    //    im.scaleX = -1f
 
 
         // setup MESSAGE padding

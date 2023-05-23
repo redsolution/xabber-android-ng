@@ -38,6 +38,7 @@ class CustomFlexboxLayout @JvmOverloads constructor(
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         super.onMeasure(widthMeasureSpec, heightMeasureSpec)
 
+        val minHeight = minimumHeight
         var widthSize: Int = MeasureSpec.getSize(widthMeasureSpec)
         var heightSize: Int = MeasureSpec.getSize(heightMeasureSpec)
 
@@ -92,12 +93,14 @@ class CustomFlexboxLayout @JvmOverloads constructor(
             }
         }
 
+        if (minHeight > 0 && heightSize < minHeight) heightSize = minHeight
         setMeasuredDimension(widthSize, heightSize)
         super.onMeasure(
             MeasureSpec.makeMeasureSpec(widthSize, MeasureSpec.EXACTLY),
             MeasureSpec.makeMeasureSpec(heightSize, MeasureSpec.EXACTLY)
         )
     }
+
 
     override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
         super.onLayout(changed, left, top, right, bottom)
@@ -116,4 +119,5 @@ class CustomFlexboxLayout @JvmOverloads constructor(
             bottom - top - paddingBottom
         )
     }
+
 }

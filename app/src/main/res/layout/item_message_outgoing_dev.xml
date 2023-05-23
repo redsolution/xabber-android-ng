@@ -5,22 +5,7 @@
     android:layout_height="wrap_content"
     android:paddingStart="50dp">
 
-    <RelativeLayout
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignParentEnd="true">
-
-        <LinearLayout
-            android:layout_marginEnd="4dp"
-            android:layout_marginVertical="2dp"
-            android:orientation="vertical"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:gravity="end">
             <include layout="@layout/item_message" />
-
-        </LinearLayout>
-
 <!--        <ProgressBar-->
 <!--            android:layout_width="48dp"-->
 <!--            android:layout_height="48dp"-->
@@ -47,7 +32,5 @@
 <!--            android:layout_centerVertical="true"-->
 <!--            android:visibility="gone"-->
 <!--            android:elevation="1dp" />-->
-
-    </RelativeLayout>
 
 </RelativeLayout>

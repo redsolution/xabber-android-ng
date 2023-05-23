@@ -30,7 +30,6 @@ class DiscoverFragment : BaseFragment(R.layout.fragment_discover) {
         val drawable = BitmapDrawable(resources, bitmap).apply { setColorFilter(filter) }
          //   binding.tvDiscover.setColorFilter(Color.,  PorterDuff.Mode.MULTIPLY)
        // val list = ColorStateList
-Glide.with(binding.tvDiscover).load("content://media/external/images/media/411797").into(binding.tvDiscover)
     }
 
 }

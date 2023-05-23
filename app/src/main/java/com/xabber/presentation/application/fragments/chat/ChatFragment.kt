@@ -693,7 +693,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         viewModel.messages.observe(viewLifecycleOwner) {
             Log.d("iii", "observe")
             messageAdapter?.submitList(it) {
-                messageAdapter?.notifyDataSetChanged()
+         //       messageAdapter?.notifyDataSetChanged()
                 if (layoutManager != null && messageAdapter != null) {
                     if (layoutManager!!.findLastVisibleItemPosition() >= messageAdapter!!.itemCount - 2 && !isSelectedMode) scrollDown()
                     if (isNeedScrollDown) {
@@ -704,7 +704,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
             }
 
             messageAdapter?.updateAdapter(it)
-            messageAdapter?.notifyDataSetChanged()
+          //  messageAdapter?.notifyDataSetChanged()
             if (layoutManager != null && messageAdapter != null) {
                 if (layoutManager!!.findLastVisibleItemPosition() >= messageAdapter!!.itemCount - 2 && !isSelectedMode) scrollDown()
                 if (isNeedScrollDown) {
@@ -1032,8 +1032,8 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
 
 
     private fun updateTopDateIfNeed() {
-        val layoutManager = binding.messageList.layoutManager as LinearLayoutManager
-        val position = layoutManager.findFirstVisibleItemPosition()
+    //    val layoutManager = binding.messageList.layoutManager as LinearLayoutManager
+     //   val position = layoutManager.findFirstVisibleItemPosition()
 // val message : MessageDto = messageAdapter!!.getItem(position)
 // if (message != null)
 // binding.tvTopDate.setText(StringUtils.getDateStringForMessage(message.t)
