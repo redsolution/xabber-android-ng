@@ -62,7 +62,7 @@ class MessageChangerDialog : DetailBaseFragment(R.layout.dialog_message_changer)
                 binding.tvProgressValue.text = value.toString()
                 MessageChanger.defineMessageDrawable(
                     binding.seekBar.progress,
-                    MessageChanger.typeValue
+                    MessageChanger.typeValue, !binding.switchSide.isChecked
                 )
 //                Log.d("sss","adapter = $adapter")
 //                val g = ArrayList<MessageDto>()
@@ -116,17 +116,17 @@ class MessageChangerDialog : DetailBaseFragment(R.layout.dialog_message_changer)
                     )
                 )
                 val type = when (binding.radioGroup.checkedRadioButtonId) {
-                    R.id.bubble -> 2
-                    R.id.corner -> 4
-                    R.id.curvy -> 6
-                    R.id.smooth -> 8
-                    R.id.stripes -> 10
-                    R.id.wedge -> 12
+                    R.id.bubble -> 1
+                    R.id.corner -> 2
+                    R.id.curvy -> 3
+                    R.id.smooth -> 4
+                    R.id.stripes -> 5
+                    R.id.wedge -> 6
                     else -> {
-                        8
+                        4
                     }
                 }
-                MessageChanger.defineMessageDrawable(binding.seekBar.progress, type)
+                MessageChanger.defineMessageDrawable(binding.seekBar.progress, type, !binding.switchSide.isChecked)
                 adapter?.notifyDataSetChanged()
             } else {
                 binding.tvBottom.setTextColor(
@@ -143,16 +143,16 @@ class MessageChangerDialog : DetailBaseFragment(R.layout.dialog_message_changer)
                 )
                 val type = when (binding.radioGroup.checkedRadioButtonId) {
                     R.id.bubble -> 1
-                    R.id.corner -> 3
-                    R.id.curvy -> 5
-                    R.id.smooth -> 7
-                    R.id.stripes -> 9
-                    R.id.wedge -> 11
+                    R.id.corner -> 2
+                    R.id.curvy -> 3
+                    R.id.smooth -> 4
+                    R.id.stripes -> 5
+                    R.id.wedge -> 6
                     else -> {
-                        7
+                        4
                     }
                 }
-                MessageChanger.defineMessageDrawable(binding.seekBar.progress, type)
+                MessageChanger.defineMessageDrawable(binding.seekBar.progress, type, !binding.switchSide.isChecked)
                 adapter?.notifyDataSetChanged()
             }
 
@@ -165,38 +165,38 @@ class MessageChangerDialog : DetailBaseFragment(R.layout.dialog_message_changer)
         binding.radioGroup.check(getCheckedItemId())
 
         binding.bubble.setOnClickListener {
-            val type = if (binding.switchSide.isChecked) 2 else 1
-            MessageChanger.defineMessageDrawable(binding.seekBar.progress, type)
+            val type =  1
+            MessageChanger.defineMessageDrawable(binding.seekBar.progress, type, !binding.switchSide.isChecked)
             adapter?.notifyDataSetChanged()
         }
 
         binding.corner.setOnClickListener {
-            val type = if (binding.switchSide.isChecked) 4 else 3
-            MessageChanger.defineMessageDrawable(binding.seekBar.progress, type)
+            val type = 2
+            MessageChanger.defineMessageDrawable(binding.seekBar.progress, type, !binding.switchSide.isChecked)
             adapter?.notifyDataSetChanged()
         }
 
         binding.curvy.setOnClickListener {
-            val type = if (binding.switchSide.isChecked) 6 else 5
-            MessageChanger.defineMessageDrawable(binding.seekBar.progress, type)
+            val type = 3
+            MessageChanger.defineMessageDrawable(binding.seekBar.progress, type, !binding.switchSide.isChecked)
             adapter?.notifyDataSetChanged()
         }
 
         binding.smooth.setOnClickListener {
-            val type = if (binding.switchSide.isChecked) 8 else 7
-            MessageChanger.defineMessageDrawable(binding.seekBar.progress, type)
+            val type = 4
+            MessageChanger.defineMessageDrawable(binding.seekBar.progress, type, !binding.switchSide.isChecked)
             adapter?.notifyDataSetChanged()
         }
 
         binding.stripes.setOnClickListener {
-            val type = if (binding.switchSide.isChecked) 10 else 9
-            MessageChanger.defineMessageDrawable(binding.seekBar.progress, type)
+            val type = 5
+            MessageChanger.defineMessageDrawable(binding.seekBar.progress, type, !binding.switchSide.isChecked)
             adapter?.notifyDataSetChanged()
         }
 
         binding.wedge.setOnClickListener {
-            val type = if (binding.switchSide.isChecked) 12 else 11
-            MessageChanger.defineMessageDrawable(binding.seekBar.progress, type)
+            val type = 6
+            MessageChanger.defineMessageDrawable(binding.seekBar.progress, type, !binding.switchSide.isChecked)
             adapter?.notifyDataSetChanged()
         }
     }
@@ -204,17 +204,11 @@ class MessageChangerDialog : DetailBaseFragment(R.layout.dialog_message_changer)
     private fun getCheckedItemId(): Int {
         return when (MessageChanger.typeValue) {
             1 -> R.id.bubble
-            2 -> R.id.bubble
-            3 -> R.id.corner
-            4 -> R.id.corner
-            5 -> R.id.curvy
-            6 -> R.id.curvy
-            7 -> R.id.smooth
-            8 -> R.id.smooth
-            9 -> R.id.stripes
-            10 -> R.id.stripes
-            11 -> R.id.wedge
-            12 -> R.id.wedge
+            2 -> R.id.corner
+            3 -> R.id.curvy
+            4 -> R.id.smooth
+            5 -> R.id.stripes
+            6 -> R.id.wedge
             else -> {
                 R.id.smooth
             }
@@ -223,14 +217,14 @@ class MessageChangerDialog : DetailBaseFragment(R.layout.dialog_message_changer)
 
     private fun getTypeChecked(): Int {
         return when (binding.radioGroup.checkedRadioButtonId) {
-            R.id.bubble -> if (binding.switchSide.isChecked) 2 else 1
-            R.id.corner -> if (binding.switchSide.isChecked) 4 else 3
-            R.id.curvy -> if (binding.switchSide.isChecked) 6 else 5
-            R.id.smooth -> if (binding.switchSide.isChecked) 8 else 7
-            R.id.stripes -> if (binding.switchSide.isChecked) 10 else 9
-            R.id.wedge -> if (binding.switchSide.isChecked) 12 else 11
+            R.id.bubble ->  1
+            R.id.corner -> 2
+            R.id.curvy -> 3
+            R.id.smooth -> 4
+            R.id.stripes -> 5
+            R.id.wedge -> 6
             else -> {
-                if (binding.switchSide.isChecked) 8 else 7
+                4
             }
         }
     }
@@ -243,9 +237,13 @@ class MessageChangerDialog : DetailBaseFragment(R.layout.dialog_message_changer)
         val typePref =
             activity?.getSharedPreferences(AppConstants.SHARED_PREF_TYPE, Context.MODE_PRIVATE)
                 ?: return
+        val botPref =
+            activity?.getSharedPreferences("bottom", Context.MODE_PRIVATE)
+                ?: return
+        val bi = !binding.switchSide.isChecked
         cornerPref.edit()?.putInt(AppConstants.CORNER_KEY, binding.seekBar.progress)?.apply()
         typePref.edit()?.putInt(AppConstants.TYPE_TAIL_KEY, getTypeChecked())?.apply()
+        botPref.edit()?.putBoolean("bot", bi)?.apply()
     }
-
 
 }

@@ -53,17 +53,17 @@ class XIncomingMessageVH internal constructor(
         if (messageRealmObject.isChecked) itemView.setBackgroundResource(R.color.selected) else itemView.setBackgroundResource(
             R.color.transparent
         )
-        statusIcon.isVisible = false
+  //      statusIcon.isVisible = false
       //  bottomStatusIcon.isVisible = false
 //        val avatar = itemView.findViewById<ImageView>(R.id.avatar)
 //        avatar.isVisible = false
         // text & appearance
-        messageTextTv.text = messageRealmObject.messageBody
+      //  messageTextTv.text = messageRealmObject.messageBody
 
         // time
         val date = Date(messageRealmObject.sentTimestamp)
-        val time = StringUtils.getTimeText(messageTime.context, date)
-        messageTime.text = time
+   //     val time = StringUtils.getTimeText(messageTime.context, date)
+   //     messageTime.text = time
 
         // setup BACKGROUND
 //        val balloonDrawable = ContextCompat.getDrawable(
@@ -89,7 +89,7 @@ class XIncomingMessageVH internal constructor(
 
         val shadowDrawable = ContextCompat.getDrawable(
             context,
-            if (needTail) MessageChanger.tail else MessageChanger.simple
+            R.drawable.bubble_1px
         )
     //    im.background = shadowDrawable
             // im.scaleX = -1f
@@ -151,9 +151,9 @@ class XIncomingMessageVH internal constructor(
                 unsubscribeAll()
             }
         })
-        if (messageTextTv.getText().toString().trim().isEmpty()) {
-            messageTextTv.setVisibility(View.GONE)
-        }
+//        if (messageTextTv.getText().toString().trim().isEmpty()) {
+//            messageTextTv.setVisibility(View.GONE)
+//        }
 
 
 //    private fun setUpAvatar(
@@ -224,73 +224,73 @@ class XIncomingMessageVH internal constructor(
 //            }
 //        }
 //    }
-        messageTextTv.setOnClickListener {
-            if (Check.getSelectedMode()) {
-                listener?.checkItem(!messageRealmObject.isChecked, messageRealmObject.primary)
-            } else {
-                val popup = PopupMenu(it.context, it, Gravity.CENTER)
-                popup.setForceShowIcon(true)
-                popup.inflate(R.menu.popup_menu_message_incoming)
+//        messageTextTv.setOnClickListener {
+//            if (Check.getSelectedMode()) {
+//                listener?.checkItem(!messageRealmObject.isChecked, messageRealmObject.primary)
+//            } else {
+//                val popup = PopupMenu(it.context, it, Gravity.CENTER)
+//                popup.setForceShowIcon(true)
+//                popup.inflate(R.menu.popup_menu_message_incoming)
+//
+//
+//                popup.setOnMenuItemClickListener { menuItem ->
+//                    when (menuItem.itemId) {
+//                        R.id.copy -> {
+//                            val text = messageTextTv.text.toString()
+//                            listener?.copyText(text)
+//                        }
+//                        R.id.pin -> {
+//                            listener?.pinMessage(messageRealmObject)
+//                        }
+//                        R.id.forward -> {
+//                            listener?.forwardMessage(messageRealmObject)
+//                        }
+//                        R.id.reply -> {
+//                            listener?.replyMessage(messageRealmObject)
+//                        }
+//                        R.id.delete_message -> {
+//                            listener?.deleteMessage(messageRealmObject.primary)
+//                        }
+//                    }
+//                    true
+//                }
+//                popup.show()
+//            }
+//        }
 
-
-                popup.setOnMenuItemClickListener { menuItem ->
-                    when (menuItem.itemId) {
-                        R.id.copy -> {
-                            val text = messageTextTv.text.toString()
-                            listener?.copyText(text)
-                        }
-                        R.id.pin -> {
-                            listener?.pinMessage(messageRealmObject)
-                        }
-                        R.id.forward -> {
-                            listener?.forwardMessage(messageRealmObject)
-                        }
-                        R.id.reply -> {
-                            listener?.replyMessage(messageRealmObject)
-                        }
-                        R.id.delete_message -> {
-                            listener?.deleteMessage(messageRealmObject.primary)
-                        }
-                    }
-                    true
-                }
-                popup.show()
-            }
-        }
-
-        itemView.setOnClickListener {
-            if (Check.getSelectedMode()) {
-                listener?.checkItem(!messageRealmObject.isChecked, messageRealmObject.primary)
-            } else {
-                val popup = PopupMenu(messageTextTv.context, messageTextTv, Gravity.CENTER)
-                popup.setForceShowIcon(true)
-                popup.inflate(R.menu.popup_menu_message_incoming)
-
-
-                popup.setOnMenuItemClickListener { menuItem ->
-                    when (menuItem.itemId) {
-                        R.id.copy -> {
-                            val text = messageTextTv.text.toString()
-                            listener?.copyText(text)
-                        }
-                        R.id.pin -> {
-                            listener?.pinMessage(messageRealmObject)
-                        }
-                        R.id.forward -> {
-                            listener?.forwardMessage(messageRealmObject)
-                        }
-                        R.id.reply -> {
-                            listener?.replyMessage(messageRealmObject)
-                        }
-                        R.id.delete_message -> {
-                            listener?.deleteMessage(messageRealmObject.primary)
-                        }
-                    }
-                    true
-                }
-                popup.show()
-            }
-        }
+//        itemView.setOnClickListener {
+//            if (Check.getSelectedMode()) {
+//                listener?.checkItem(!messageRealmObject.isChecked, messageRealmObject.primary)
+//            } else {
+//                val popup = PopupMenu(messageTextTv.context, messageTextTv, Gravity.CENTER)
+//                popup.setForceShowIcon(true)
+//                popup.inflate(R.menu.popup_menu_message_incoming)
+//
+//
+//                popup.setOnMenuItemClickListener { menuItem ->
+//                    when (menuItem.itemId) {
+//                        R.id.copy -> {
+//                            val text = messageTextTv.text.toString()
+//                            listener?.copyText(text)
+//                        }
+//                        R.id.pin -> {
+//                            listener?.pinMessage(messageRealmObject)
+//                        }
+//                        R.id.forward -> {
+//                            listener?.forwardMessage(messageRealmObject)
+//                        }
+//                        R.id.reply -> {
+//                            listener?.replyMessage(messageRealmObject)
+//                        }
+//                        R.id.delete_message -> {
+//                            listener?.deleteMessage(messageRealmObject.primary)
+//                        }
+//                    }
+//                    true
+//                }
+//                popup.show()
+//            }
+//        }
 
         itemView.setOnLongClickListener {
             if (!Check.getSelectedMode()) listener?.onLongClick(messageRealmObject.primary)

@@ -692,7 +692,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
 
         viewModel.messages.observe(viewLifecycleOwner) {
             Log.d("iii", "observe")
-            messageAdapter?.submitList(it) {
+            messageAdapter?.updateAdapter(it)
          //       messageAdapter?.notifyDataSetChanged()
                 if (layoutManager != null && messageAdapter != null) {
                     if (layoutManager!!.findLastVisibleItemPosition() >= messageAdapter!!.itemCount - 2 && !isSelectedMode) scrollDown()
@@ -701,17 +701,17 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
                         isNeedScrollDown = false
                     }
                 }
-            }
 
-            messageAdapter?.updateAdapter(it)
+
+         //   messageAdapter?.updateAdapter(it)
           //  messageAdapter?.notifyDataSetChanged()
-            if (layoutManager != null && messageAdapter != null) {
-                if (layoutManager!!.findLastVisibleItemPosition() >= messageAdapter!!.itemCount - 2 && !isSelectedMode) scrollDown()
-                if (isNeedScrollDown) {
-                    scrollDown()
-                    isNeedScrollDown = false
-                }
-            }
+//            if (layoutManager != null && messageAdapter != null) {
+//                if (layoutManager!!.findLastVisibleItemPosition() >= messageAdapter!!.itemCount - 2 && !isSelectedMode) scrollDown()
+//                if (isNeedScrollDown) {
+//                    scrollDown()
+//                    isNeedScrollDown = false
+//                }
+//            }
         }
 
 

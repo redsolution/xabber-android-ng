@@ -160,7 +160,7 @@ class MessageAdapter(
     }
 
     private fun isMessageNeedTail(position: Int): Boolean {
-      if (MessageChanger.typeValue % 2 != 0) {
+      if (MessageChanger.bottom) {
         val message = getMessageItem(position) ?: return true
         val nextMessage = getMessageItem(position + 1) ?: return true
         return if (message.references.size > 0 && message.messageBody.isEmpty()) false else message.isOutgoing xor nextMessage.isOutgoing }

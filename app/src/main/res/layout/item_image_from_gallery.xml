@@ -24,7 +24,7 @@
         app:layout_constraintTop_toTopOf="parent"
         android:contentDescription="Media" />
 
-    <androidx.appcompat.widget.AppCompatCheckBox
+    <CheckBox
         android:id="@+id/recent_image_item_checkbox"
         android:layout_width="@dimen/check_box_size"
         android:layout_height="@dimen/check_box_size"

@@ -76,7 +76,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator {
     private var assist: SoftInputAssist? = null
     private val activeFragment: Fragment?
         get() = supportFragmentManager.findFragmentById(R.id.application_container)
-    private val viewModel: ApplicationViewModel by viewModels()
+    private val viewModel = ApplicationViewModel()
     private val chatListViewModel: ChatListViewModel by viewModels()
 
     private val showBadge = {
@@ -182,7 +182,8 @@ class ApplicationActivity : AppCompatActivity(), Navigator {
             7
         )
         val type = getSharedPreferences(AppConstants.SHARED_PREF_TYPE, Context.MODE_PRIVATE).getInt(AppConstants.TYPE_TAIL_KEY, 7)
-        MessageChanger.defineMessageDrawable(corner, type)
+        val bottom = getSharedPreferences("bottom", Context.MODE_PRIVATE).getBoolean("bot", true)
+       MessageChanger.defineMessageDrawable(corner, type, bottom)
     }
 
     private fun initBottomNavigation() {

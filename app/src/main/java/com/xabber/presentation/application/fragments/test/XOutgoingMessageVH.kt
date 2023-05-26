@@ -9,13 +9,11 @@ import android.view.Gravity
 import android.view.View
 import android.view.View.OnAttachStateChangeListener
 import android.widget.FrameLayout
-import android.widget.LinearLayout
 import androidx.annotation.StyleRes
 import androidx.appcompat.widget.PopupMenu
-import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.ContextCompat
+import androidx.core.view.isInvisible
 import androidx.core.view.isVisible
-import by.kirich1409.viewbindingdelegate.fragmentViewBinding
 import com.xabber.R
 import com.xabber.data_base.models.messages.MessageSendingState
 import com.xabber.dto.MessageDto
@@ -25,8 +23,6 @@ import com.xabber.presentation.application.fragments.chat.MessageChanger
 import com.xabber.presentation.application.fragments.chat.message.MessageDeliveryStatusHelper
 import com.xabber.presentation.application.fragments.chat.message.XMessageVH
 import com.xabber.utils.StringUtils
-import com.xabber.utils.custom.CustomFlexboxLayout
-import com.xabber.utils.dipToPx
 import com.xabber.utils.dp
 import java.util.*
 
@@ -47,26 +43,23 @@ class XOutgoingMessageVH internal constructor(
         )
 
 
-
-Log.d("uuu", "${MessageChanger.w}, ${MessageChanger.h}")
-
-
-        val fram = itemView.findViewById<FrameLayout>(R.id.fram)
-        val params = messageBalloon.layoutParams as ConstraintLayout.LayoutParams
+        //  val fram = itemView.findViewById<FrameLayout>(R.id.fram)
+        //      val params = messageBalloon.layoutParams as ConstraintLayout.LayoutParams
 //        messageBalloon.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED)
 //        val width = fram.measuredWidth
 //      //   Math.round(fram.measuredWidth.toFloat() / 2) * 2 + 50
 //        val height = fram.measuredHeight
 //        //  Math.round(fram.measuredHeight.toFloat() / 2) * 2 + 40
-      //  params.width = dpToPx(MessageChanger.w, itemView)
-   //     params.height = dpToPx(MessageChanger.h, itemView)
+        //  params.width = dpToPx(MessageChanger.w, itemView)
+        //     params.height = dpToPx(MessageChanger.h, itemView)
 
         //  messageBalloon.layoutParams = params
 
         // text & appearance
-        messageTextTv.text = "${MessageChanger.w.toString()} x ${MessageChanger.h}"
-        MessageChanger.w = MessageChanger.w + 10
-        MessageChanger.h = MessageChanger.h + 1
+        messageTextTv.text = message.messageBody
+//            "${MessageChanger.w.toString()} x ${MessageChanger.h}"
+//        MessageChanger.w = MessageChanger.w + 10
+//        MessageChanger.h = MessageChanger.h + 1
 
         // time
         val date = Date(message.sentTimestamp)
@@ -76,82 +69,34 @@ Log.d("uuu", "${MessageChanger.w}, ${MessageChanger.h}")
 //        // setup BACKGROUND
         val shadowDrawable = ContextCompat.getDrawable(
             context,
-            if (needTail) R.drawable.fwd_out else MessageChanger.tail
+             if (needTail) MessageChanger.tail else
+           MessageChanger.simple
+
         )
 //        shadowDrawable?.setColorFilter(
 //            ContextCompat.getColor(context, R.color.white),
 //            PorterDuff.Mode.MULTIPLY
 //        )
-        val mesBack = itemView.findViewById<FrameLayout>(R.id.mes_back)
-       // messageBalloon.background = shadowDrawable
-mesBack.background = shadowDrawable
-  //      val im = itemView.findViewById<ImageView>(R.id.im)
-  //    messageBalloon.background = shadowDrawable
-   // im.scaleX = 1f
+        val mesBack = itemView.findViewById<FrameLayout>(R.id.frame_background)
+        mesBack.background = ContextCompat.getDrawable(
+            context, MessageChanger.hvost
+        )
 
-
-        val text = message.messageBody
-        val paint = Paint()
-//
-//// Установка размера шрифта и высоты строки
-//        paint.textSize = context.resources.getDimension(R.dimen.text_size_item_chat_message)
-//        paint.textAlign = Paint.Align.LEFT
-//        paint.style = Paint.Style.FILL
-//        paint.typeface = Typeface.DEFAULT
-//        paint.isAntiAlias = true
-//        paint.isFilterBitmap = true
-//        paint.color = Color.BLACK
-//
-//        val bounds = Rect()
-//        paint.getTextBounds(text, 0, text.length, bounds)
-//        val lineHeight = paint.fontMetrics.descent - paint.fontMetrics.ascent
-//        val width = paint.measureText(text)
-//
-//        val he = bounds.height() + (lineHeight * (text.split("\n").size - 1)).toInt()
-//
-//
-//        val flex = itemView.findViewById<CustomFlexboxLayout>(R.id.message_flex_layout)
-//        val params = flex.layoutParams
-//        params.width = width.toInt() + 90
-//        params.height = he + 120
-     //   flex.layoutParams = params
-
-
-// Высота текста с учетом lineHeight
-      //  val height = bounds.height() + (lineHeight * (text.split("\n").size - 1)).toInt()
-
-
-        //    messageBalloon.background = shadowDrawable
-
-        // setup BALLOON margins
-  //    val layoutParams = LinearLayout.LayoutParams(
-//            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
-//        )
-//        val layoutParams = messageBalloon.layoutParams as ConstraintLayout.LayoutParams
-//
-//      messageBalloon.layoutParams = layoutParams
-//        val constraint = itemView.findViewById<ConstraintLayout>(R.id.co)
-
+        mesBack.isInvisible = !needTail
+        messageBalloon.background = shadowDrawable
 //        messageBalloon.layoutParams = layoutParams
 //        val cons = ConstraintSet()
 //        cons.clone(constraint)
 //        cons.connect(R.id.message_balloon, ConstraintSet.END, ConstraintSet.PARENT_ID, ConstraintSet.END)
 
-//val height =
+
         messageBalloon.setPadding(
+            0,
+            2.dp,
             8.dp,
-           2.dp,
-            16.dp,
-          2.dp
+            2.dp
         )
 
-
-//        messageBalloon.setPadding(
-//            dipToPx(8f , context),
-//            dipToPx(2f, context),
-//            dipToPx(16f, context),
-//            dipToPx(0f, context)
-//        )
 //      if (message.references.size > 0) {
 //        //  if (message.hasImage) {
 //              messageBalloon.setPadding(
@@ -268,25 +213,25 @@ mesBack.background = shadowDrawable
             true
         }
 
-      //  imageGridContainer.removeAllViews()
-    //    imageGridContainer.isVisible = false
+        //  imageGridContainer.removeAllViews()
+        //    imageGridContainer.isVisible = false
         Log.d("ppp", "size ${message.references.size}")
         if (message.references.isNotEmpty()) {
-Log.d("ppp", "grid is not empty")
-        //    imageGridContainer.isVisible = true
+            Log.d("ppp", "grid is not empty")
+            //    imageGridContainer.isVisible = true
             val builder = ImageGridBuilder()
-           // val imageGridView: View =
-         //       builder.inflateView(imageGridContainer, message.references.size)
-       //     builder.bindView(imageGridView, message.references, this)
-       //     imageGridContainer.addView(imageGridView)
-       //     imageGridContainer.visibility = View.VISIBLE
+            // val imageGridView: View =
+            //       builder.inflateView(imageGridContainer, message.references.size)
+            //     builder.bindView(imageGridView, message.references, this)
+            //     imageGridContainer.addView(imageGridView)
+            //     imageGridContainer.visibility = View.VISIBLE
         }
 
-     //   if (imageGridContainer.isVisible) {
-      //      imageGridContainer.setOnClickListener {
+        //   if (imageGridContainer.isVisible) {
+        //      imageGridContainer.setOnClickListener {
 
-       //     }
-      //  }
+        //     }
+        //  }
 
 
     }
@@ -294,12 +239,12 @@ Log.d("ppp", "grid is not empty")
 
     private fun setStatusIcon(messageRealmObject: MessageDto) {
         statusIcon.isVisible = true
-      //  bottomStatusIcon.isVisible = true
-     //   progressBar.isVisible = false
+        //  bottomStatusIcon.isVisible = true
+        //   progressBar.isVisible = false
         if (messageRealmObject.messageSendingState === MessageSendingState.Uploading) {
             messageTextTv.text = ""
             statusIcon.isVisible = false
-        //    bottomStatusIcon.isVisible = false
+            //    bottomStatusIcon.isVisible = false
         } else {
             MessageDeliveryStatusHelper.setupStatusImageView(
                 messageRealmObject, statusIcon
@@ -310,9 +255,10 @@ Log.d("ppp", "grid is not empty")
         }
     }
 
-private fun dpToPx(dp: Int, itemView: View?): Int {
-    val displayMetrics = itemView?.context?.resources?.displayMetrics
-    return TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, dp.toFloat(), displayMetrics).toInt()
-}
+    private fun dpToPx(dp: Int, itemView: View?): Int {
+        val displayMetrics = itemView?.context?.resources?.displayMetrics
+        return TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, dp.toFloat(), displayMetrics)
+            .toInt()
+    }
 
 }

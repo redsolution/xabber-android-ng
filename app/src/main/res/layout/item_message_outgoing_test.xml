@@ -1,42 +1,37 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto"
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:id="@+id/co"
     android:layout_height="wrap_content">
 
     <FrameLayout
-        android:id="@+id/mes_back"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        app:layout_constraintEnd_toEndOf="@id/message_balloon"
-        app:layout_constraintTop_toTopOf="@id/message_balloon"
+        android:id="@+id/frame_background"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="4dp"
         app:layout_constraintBottom_toBottomOf="@id/message_balloon"
-        app:layout_constraintStart_toStartOf="@id/message_balloon"/>
+        app:layout_constraintEnd_toEndOf="parent" />
 
     <LinearLayout
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent"
-        android:layout_marginVertical="2dp"
-        android:layout_marginEnd="4dp"
-        android:layout_gravity="end"
         android:id="@+id/message_balloon"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:orientation="vertical">
-
-        <FrameLayout
-            android:id="@+id/fram"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content" >
+        android:layout_gravity="end"
+        android:layout_marginEnd="-6dp"
+        android:layout_marginVertical="2dp"
+        android:orientation="vertical"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/frame_background"
+        app:layout_constraintTop_toTopOf="parent">
 
         <com.xabber.utils.custom.CustomFlexboxLayout
-            android:layout_marginVertical="2dp"
-            android:minHeight="20dp"
-            android:layout_gravity="end|center_vertical"
             android:id="@+id/message_flex_layout"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_gravity="end|center_vertical"
+            android:minHeight="20dp"
+            android:paddingHorizontal="8dp"
+            android:paddingVertical="2dp"
             app:viewPartMain="@+id/message_text"
             app:viewPartSlave="@+id/message_info">
 
@@ -46,16 +41,13 @@
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="4dp"
                 android:autoLink="all"
-                android:textSize="14sp"
+                android:lineHeight="20dp"
                 android:textColor="@color/black_text"
-                android:lineHeight="20dp" />
+                android:textSize="14sp" />
 
             <include
                 android:id="@+id/message_info"
                 layout="@layout/item_message_status" />
-
         </com.xabber.utils.custom.CustomFlexboxLayout>
-        </FrameLayout>
     </LinearLayout>
-
 </androidx.constraintlayout.widget.ConstraintLayout>
