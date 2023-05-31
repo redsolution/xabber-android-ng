@@ -3,7 +3,7 @@
         xmlns:android="http://schemas.android.com/apk/res/android"
         xmlns:app="http://schemas.android.com/apk/res-auto"
         xmlns:tools="http://schemas.android.com/tools"
-        android:id="@+id/message_balloon"
+        android:id="@+id/tail"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:background="@drawable/msg"
@@ -64,7 +64,7 @@
             android:visibility="gone"/>
 
         <com.xabber.utils.custom.CustomFlexboxLayout
-            android:id="@+id/message_flex_layout"
+            android:id="@+id/text_box"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             app:viewPartMain="@+id/message_text"

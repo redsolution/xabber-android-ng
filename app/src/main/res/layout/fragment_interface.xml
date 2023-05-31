@@ -25,27 +25,115 @@
         </com.google.android.material.appbar.MaterialToolbar>
     </com.google.android.material.appbar.AppBarLayout>
 
-   <TextView
-       android:textColor="@color/black"
-
-       android:textSize="20sp"
-       android:paddingVertical="16dp"
-       android:paddingStart="80dp"
-       android:id="@+id/tv_mask"
-       android:layout_width="match_parent"
-       android:layout_height="wrap_content"
-       android:background="@drawable/clickable_view_group_background"
-       android:text="Mask"/>
-
-    <TextView
-        android:textColor="@color/black"
-        android:paddingStart="80dp"
-        android:paddingVertical="16dp"
-        android:textSize="20sp"
-        android:id="@+id/tv_chat_settings"
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_marginTop="16dp"
+        android:id="@+id/avatar_settings"
+        style="@style/ClickableViewGroup"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="@drawable/clickable_view_group_background"
-        android:text="Chat settings"/>
+        android:layout_height="wrap_content">
 
+        <ImageView
+            android:src="@drawable/circle_star_face"
+            android:id="@+id/image_avatar"
+            style="@style/AccountSettingsIcon"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <TextView
+            style="@style/AccountSettingsTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Avatar"
+            app:layout_constraintBottom_toTopOf="@id/tv_subtitle_avatar"
+            app:layout_constraintStart_toEndOf="@id/image_avatar"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <TextView
+            android:id="@+id/tv_subtitle_avatar"
+            style="@style/AccountSettingsSubtitle"
+            android:layout_width="wrap_content"
+            android:ellipsize="end"
+            android:singleLine="true"
+            android:maxLines="1"
+            android:layout_height="wrap_content"
+            android:text="Circle"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toEndOf="@id/image_avatar" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/chat_settings"
+        style="@style/ClickableViewGroup"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <ImageView
+            android:id="@+id/image_chat"
+            style="@style/AccountSettingsIcon"
+            android:src="@drawable/circle_chat_settings"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <TextView
+            style="@style/AccountSettingsTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Chat settings"
+            app:layout_constraintBottom_toTopOf="@id/tv_subtitle_chat"
+            app:layout_constraintStart_toEndOf="@id/image_chat"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <TextView
+            android:id="@+id/tv_subtitle_chat"
+            style="@style/AccountSettingsSubtitle"
+            android:layout_width="wrap_content"
+            android:ellipsize="end"
+            android:singleLine="true"
+            android:text="Wallpaper, color theme, message shape"
+            android:maxLines="1"
+            android:layout_height="wrap_content"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toEndOf="@id/image_chat" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/app_icon_settings"
+        style="@style/ClickableViewGroup"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <ImageView
+            android:src="@drawable/circle_light"
+            android:id="@+id/image_app_icon"
+            style="@style/AccountSettingsIcon"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <TextView
+            style="@style/AccountSettingsTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="App icon"
+            app:layout_constraintBottom_toTopOf="@id/tv_subtitle_app_icon"
+            app:layout_constraintStart_toEndOf="@id/image_app_icon"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <TextView
+            android:id="@+id/tv_subtitle_app_icon"
+            style="@style/AccountSettingsSubtitle"
+            android:layout_width="wrap_content"
+            android:ellipsize="end"
+            android:singleLine="true"
+            android:text="Default"
+            android:maxLines="1"
+            android:layout_height="wrap_content"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toEndOf="@id/image_app_icon" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
 </LinearLayout>

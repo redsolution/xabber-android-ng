@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<bitmap  xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle"
+    android:dither="true"
+    android:alpha="0.1"
+    android:tint="@color/white"
+    android:src="@drawable/hearts"
+    android:tileMode="repeat" />

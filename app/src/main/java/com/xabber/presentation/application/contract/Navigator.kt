@@ -85,4 +85,6 @@ interface Navigator {
 
     fun showMaskSettings()
 
+    fun setDesignBackground()
+
 }

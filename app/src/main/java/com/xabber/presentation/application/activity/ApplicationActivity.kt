@@ -118,6 +118,8 @@ class ApplicationActivity : AppCompatActivity(), Navigator {
                 setupIconChat(chatListViewModel.showUnreadOnly.value ?: false)
             } else launchFragment(ChatListFragment())
         } else goToOnboarding()
+
+        binding.slidingPaneLayout.lockMode = SlidingPaneLayout.LOCK_MODE_LOCKED
     }
 
     override fun onResume() {
@@ -184,6 +186,35 @@ class ApplicationActivity : AppCompatActivity(), Navigator {
         val type = getSharedPreferences(AppConstants.SHARED_PREF_TYPE, Context.MODE_PRIVATE).getInt(AppConstants.TYPE_TAIL_KEY, 7)
         val bottom = getSharedPreferences("bottom", Context.MODE_PRIVATE).getBoolean("bot", true)
        MessageChanger.defineMessageDrawable(corner, type, bottom)
+
+        val designType = getSharedPreferences("design", Context.MODE_PRIVATE).getInt("des", 1)
+        MessageChanger.designType = designType
+
+        val gradi = getSharedPreferences("gradient", Context.MODE_PRIVATE).getInt("gradi", 7)
+        MessageChanger.designType = designType
+        MessageChanger.gradient = gradi
+       val gradientDraw = when(gradi) {
+           1 -> R.drawable.gradi_bordo
+           2 -> R.drawable.gradi_red
+           3 -> R.drawable.gradi_orange
+           4 -> R.drawable.gradi_yellish_blue
+           5 -> R.drawable.gradi_light_green
+           6 -> R.drawable.gradi_sea
+           7 -> R.drawable.gradi_blue
+           8 -> R.drawable.gradi_purple
+           else -> { R.drawable.gradi_blue}
+       }
+        binding.detailContainer.setBackgroundResource(gradientDraw)
+        val designDrawable = when(designType) {
+            1 -> R.drawable.aliens_repeat
+            2 -> R.drawable.cats_repeat
+            3 -> R.drawable.hearts_repeat
+            4 -> R.drawable.flowers_repeat
+            5 -> R.drawable.flower_daisy_repeat
+            6 -> R.drawable.summer_repeat
+            else -> {R.drawable.aliens_repeat}
+        }
+        binding.fr.setBackgroundResource(designDrawable)
     }
 
     private fun initBottomNavigation() {
@@ -455,6 +486,31 @@ class ApplicationActivity : AppCompatActivity(), Navigator {
 
     override fun showMaskSettings() {
        launchDetailInStack(MaskFragment())
+    }
+
+    override fun setDesignBackground() {
+        val gradientDraw = when(MessageChanger.gradient) {
+            1 -> R.drawable.gradi_bordo
+            2 -> R.drawable.gradi_red
+            3 -> R.drawable.gradi_orange
+            4 -> R.drawable.gradi_yellish_blue
+            5 -> R.drawable.gradi_light_green
+            6 -> R.drawable.gradi_sea
+            7 -> R.drawable.gradi_blue
+            8 -> R.drawable.gradi_purple
+            else -> { R.drawable.gradi_blue}
+        }
+        binding.detailContainer.setBackgroundResource(gradientDraw)
+        val designDrawable = when(MessageChanger.designType) {
+            1 -> R.drawable.aliens_repeat
+            2 -> R.drawable.cats_repeat
+            3 -> R.drawable.hearts_repeat
+            4 -> R.drawable.flowers_repeat
+            5 -> R.drawable.flower_daisy_repeat
+            6 -> R.drawable.summer_repeat
+            else -> {R.drawable.aliens_repeat}
+        }
+        binding.fr.setBackgroundResource(designDrawable)
     }
 
     override fun onPause() {

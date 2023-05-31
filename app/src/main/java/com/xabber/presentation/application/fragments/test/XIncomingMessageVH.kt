@@ -2,29 +2,26 @@ package com.xabber.presentation.application.fragments.test
 
 import android.annotation.SuppressLint
 import android.content.Context
-import android.content.res.ColorStateList
 import android.graphics.PorterDuff
-import android.view.Gravity
 import android.view.View
 import android.view.View.OnAttachStateChangeListener
-import android.view.ViewGroup
-import android.widget.ImageView
+import android.widget.FrameLayout
 import android.widget.LinearLayout
+import android.widget.RelativeLayout
 import androidx.annotation.StyleRes
-import androidx.appcompat.widget.PopupMenu
 import androidx.constraintlayout.widget.ConstraintLayout
+import androidx.constraintlayout.widget.ConstraintSet
+import androidx.constraintlayout.widget.Group
 import androidx.core.content.ContextCompat
+import androidx.core.view.isInvisible
 import androidx.core.view.isVisible
-import by.kirich1409.viewbindingdelegate.viewBinding
 import com.xabber.R
 import com.xabber.dto.MessageDto
 import com.xabber.models.dto.MessageVhExtraData
 import com.xabber.presentation.application.fragments.chat.Check
 import com.xabber.presentation.application.fragments.chat.MessageChanger
 import com.xabber.presentation.application.fragments.chat.message.XMessageVH
-import com.xabber.utils.MaskManager
 import com.xabber.utils.StringUtils
-import com.xabber.utils.dipToPx
 import com.xabber.utils.dp
 import java.util.*
 
@@ -45,64 +42,77 @@ class XIncomingMessageVH internal constructor(
     }
 
     @SuppressLint("UseCompatLoadingForDrawables")
-    override fun bind(messageRealmObject: MessageDto, extraData: MessageVhExtraData) {
-        super.bind(messageRealmObject, extraData)
-        val context: Context = itemView.getContext()
-        val needTail: Boolean = extraData.isNeedTail
+    override fun bind(message: MessageDto, extraData: MessageVhExtraData) {
+        super.bind(message, extraData)
+        val context: Context = itemView.context
+        var needTail: Boolean = extraData.isNeedTail
 
-        if (messageRealmObject.isChecked) itemView.setBackgroundResource(R.color.selected) else itemView.setBackgroundResource(
+        val balloon = itemView.findViewById<FrameLayout>(R.id.balloon)
+        val messageBalloon = itemView.findViewById<LinearLayout>(R.id.message_balloon)
+        val tail = itemView.findViewById<FrameLayout>(R.id.tail)
+
+        if (message.hasReferences) needTail = false
+
+        // checked background
+        if (message.isChecked) itemView.setBackgroundResource(R.color.selected) else itemView.setBackgroundResource(
             R.color.transparent
         )
-  //      statusIcon.isVisible = false
+
+        // text
+        messageTextTv.text = message.messageBody
+
+        // time
+        val date = Date(message.sentTimestamp)
+        val time = StringUtils.getTimeText(context, date)
+        messageTime.text = if (message.editTimestamp > 0) "edit $time" else time
+
+
+        // background
+        val balloonBackground = ContextCompat.getDrawable(
+            context,
+            if (needTail) MessageChanger.tail else
+                MessageChanger.simple
+        )
+
+        val tailBackground = ContextCompat.getDrawable(
+            context, MessageChanger.hvost
+        )
+        tailBackground?.setColorFilter(ContextCompat.getColor(context, R.color.blue_100), PorterDuff.Mode.MULTIPLY)
+        balloonBackground?.setColorFilter(ContextCompat.getColor(context, R.color.blue_100), PorterDuff.Mode.MULTIPLY)
+        balloon.background = balloonBackground
+
+        tail.background = tailBackground
+
+        if (!MessageChanger.bottom) {
+            balloon.scaleY = -1f
+            tail.scaleY = -1f
+        } else {
+            balloon.scaleY = 1f
+            tail.scaleY = 1f
+        }
+
+        // visible tail
+        tail.isInvisible = !needTail || MessageChanger.typeValue == 2
+
+
+        if (MessageChanger.bottom) {
+
+        } else {
+            val layoutParams = tail.layoutParams as RelativeLayout.LayoutParams
+            layoutParams.removeRule(RelativeLayout.ALIGN_BOTTOM) // Удаляем правило ALIGN_BOTTOM
+            layoutParams.addRule(RelativeLayout.ALIGN_TOP, R.id.message_balloon) // Добавляем правило ALIGN_TOP с нужным id
+            tail.layoutParams = layoutParams
+        }
+       statusIcon.isVisible = false
       //  bottomStatusIcon.isVisible = false
 //        val avatar = itemView.findViewById<ImageView>(R.id.avatar)
 //        avatar.isVisible = false
-        // text & appearance
-      //  messageTextTv.text = messageRealmObject.messageBody
-
-        // time
-        val date = Date(messageRealmObject.sentTimestamp)
-   //     val time = StringUtils.getTimeText(messageTime.context, date)
-   //     messageTime.text = time
-
-        // setup BACKGROUND
-//        val balloonDrawable = ContextCompat.getDrawable(
-//            context, if (needTail) MessageChanger.tail else MessageChanger.simple
-//        )
-//
-//        shadowDrawable?.setColorFilter(
-//            ContextCompat.getColor(context, R.color.black),
-//            PorterDuff.Mode.MULTIPLY
-//        )
-
-//        balloonDrawable?.setColorFilter(
-//            itemView.resources.getColor(
-//                R.color.blue_100,
-//                itemView.context.theme
-//            ), PorterDuff.Mode.MULTIPLY
-//        )
-      //  messageBalloon.background = balloonDrawable
-        //    messageShadow.background = shadowDrawable
-
-        // setup BALLOON margins
-      //  val im = itemView.findViewById<ImageView>(R.id.im)
 
         val shadowDrawable = ContextCompat.getDrawable(
             context,
             R.drawable.bubble_1px
         )
-    //    im.background = shadowDrawable
-            // im.scaleX = -1f
-  //      im.backgroundTintList = ColorStateList.valueOf(ContextCompat.getColor(im.context, R.color.blue_100))
 
-//        val layoutParams = messageBalloon.layoutParams as ConstraintLayout.LayoutParams
-//        layoutParams.setMargins(
-//              4.dp,
-//            2.dp,
-//            0,
-//            2.dp
-//
-//        )
         shadowDrawable?.setColorFilter(
             itemView.resources.getColor(
                 R.color.blue_100,
@@ -110,17 +120,7 @@ class XIncomingMessageVH internal constructor(
             ), PorterDuff.Mode.MULTIPLY
         )
 
-     messageBalloon.background = shadowDrawable
-    //    im.scaleX = -1f
 
-
-        // setup MESSAGE padding
-        messageBalloon.setPadding(
-           16.dp,
-           2.dp,
-            8.dp,
-            2.dp
-        )
 
         //   setUpAvatar(context, extraData.groupMember, messageRealmObject, needTail)
 
@@ -143,8 +143,8 @@ class XIncomingMessageVH internal constructor(
         itemView.addOnAttachStateChangeListener(object : OnAttachStateChangeListener {
 
             override fun onViewAttachedToWindow(view: View) {
-                if (messageRealmObject.isUnread)
-                    listen?.onBind(messageRealmObject)
+                if (message.isUnread)
+                    listen?.onBind(message)
             }
 
             override fun onViewDetachedFromWindow(v: View) {
@@ -293,9 +293,9 @@ class XIncomingMessageVH internal constructor(
 //        }
 
         itemView.setOnLongClickListener {
-            if (!Check.getSelectedMode()) listener?.onLongClick(messageRealmObject.primary)
+            if (!Check.getSelectedMode()) listener?.onLongClick(message.primary)
             else {
-                listener?.checkItem(!messageRealmObject.isChecked, messageRealmObject.primary)
+                listener?.checkItem(!message.isChecked, message.primary)
             }
             true
         }

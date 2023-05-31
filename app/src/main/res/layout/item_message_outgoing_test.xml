@@ -1,53 +1,81 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content">
+    android:layout_height="wrap_content"
+    android:layout_gravity="end"
+    android:paddingStart="50dp">
 
-    <FrameLayout
-        android:id="@+id/frame_background"
-        android:layout_width="wrap_content"
+    <RelativeLayout
+        android:id="@+id/outgoing_message"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginEnd="4dp"
-        app:layout_constraintBottom_toBottomOf="@id/message_balloon"
-        app:layout_constraintEnd_toEndOf="parent" />
+        android:layout_gravity="end">
 
-    <LinearLayout
-        android:id="@+id/message_balloon"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="end"
-        android:layout_marginEnd="-6dp"
-        android:layout_marginVertical="2dp"
-        android:orientation="vertical"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toStartOf="@id/frame_background"
-        app:layout_constraintTop_toTopOf="parent">
+        <FrameLayout
+            android:id="@+id/balloon"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_alignStart="@id/message_balloon"
+            android:layout_alignTop="@id/message_balloon"
+            android:layout_alignEnd="@id/message_balloon"
+            android:layout_alignBottom="@id/message_balloon" />
 
-        <com.xabber.utils.custom.CustomFlexboxLayout
-            android:id="@+id/message_flex_layout"
+        <LinearLayout
+            android:id="@+id/message_balloon"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_gravity="end|center_vertical"
-            android:minHeight="20dp"
-            android:paddingHorizontal="8dp"
+            android:layout_marginVertical="2dp"
+            android:layout_marginEnd="-6dp"
+            android:layout_toStartOf="@id/tail"
+            android:gravity="end"
+            android:orientation="vertical"
             android:paddingVertical="2dp"
-            app:viewPartMain="@+id/message_text"
-            app:viewPartSlave="@+id/message_info">
+            app:layout_constraintHorizontal_bias="1">
 
-            <com.xabber.utils.custom.CorrectlyTouchEventTextView
-                android:id="@+id/message_text"
-                android:layout_width="match_parent"
+            <com.xabber.utils.custom.CustomFlexboxLayout
+                android:id="@+id/text_box"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginEnd="4dp"
-                android:autoLink="all"
-                android:lineHeight="20dp"
-                android:textColor="@color/black_text"
-                android:textSize="14sp" />
+                android:layout_gravity="end|center_vertical"
+                android:minHeight="20dp"
+                android:paddingHorizontal="8dp"
+                android:paddingVertical="2dp"
+                app:viewPartMain="@+id/message_text"
+                app:viewPartSlave="@+id/message_info">
 
-            <include
-                android:id="@+id/message_info"
-                layout="@layout/item_message_status" />
-        </com.xabber.utils.custom.CustomFlexboxLayout>
-    </LinearLayout>
-</androidx.constraintlayout.widget.ConstraintLayout>
+                <com.xabber.utils.custom.CorrectlyTouchEventTextView
+                    android:id="@+id/message_text"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="4dp"
+                    android:autoLink="all"
+                    android:lineHeight="20dp"
+                    android:textColor="@color/black_text"
+                    android:textSize="14sp"
+                    tools:targetApi="p" />
+
+                <include
+                    android:id="@+id/message_info"
+                    layout="@layout/item_message_status" />
+            </com.xabber.utils.custom.CustomFlexboxLayout>
+
+        </LinearLayout>
+
+        <FrameLayout
+            android:id="@+id/tail"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignBottom="@id/message_balloon"
+            android:layout_alignParentEnd="true"
+            android:layout_marginEnd="4dp" />
+
+        <androidx.constraintlayout.widget.Group
+            android:id="@+id/background_group"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:scaleY="-1" />
+
+    </RelativeLayout>
+</FrameLayout>

@@ -1,36 +1,22 @@
 package com.xabber.presentation.application.fragments.chat.message
 
-import android.content.Intent
 import android.content.res.ColorStateList
-import android.graphics.Rect
-import android.net.Uri
-import android.os.Build
-import android.text.Html
 import android.text.SpannableStringBuilder
-import android.text.Spanned
 import android.text.format.DateFormat
 import android.text.style.QuoteSpan
 import android.util.DisplayMetrics
-import android.util.Log
 import android.view.View
-import android.view.ViewGroup
 import android.widget.*
 import androidx.annotation.StyleRes
-import androidx.appcompat.widget.LinearLayoutCompat
-import androidx.core.graphics.drawable.DrawableCompat
-import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.xabber.R
 import com.xabber.dto.MessageDto
 import com.xabber.models.dto.MessageVhExtraData
 import com.xabber.presentation.XabberApplication
 import com.xabber.presentation.application.fragments.chat.ReferenceRealmObject
-import com.xabber.presentation.application.fragments.chat.audio.VoiceManager
 import com.xabber.utils.custom.CorrectlyTouchEventTextView
 import com.xabber.utils.custom.CustomFlexboxLayout
 import com.xabber.utils.StringUtils.getDateStringForMessage
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
 import java.util.*
 
 open class XMessageVH(
@@ -50,11 +36,11 @@ open class XMessageVH(
 
     protected val messageTime: TextView = itemView.findViewById(R.id.message_time)
    // protected val messageHeader: TextView = itemView.findViewById(R.id.message_sender_tv)
-    protected val messageBalloon: View = itemView.findViewById(R.id.message_balloon)
+    protected val messageBalloon: LinearLayout = itemView.findViewById(R.id.message_balloon)
   //  protected val messageShadow: View = itemView.findViewById(R.id.message_shadow)
     protected val statusIcon: ImageView = itemView.findViewById(R.id.message_status_icon)
     protected val messageInfo: View = itemView.findViewById(R.id.message_info)
-     val flexboxLayout: CustomFlexboxLayout = itemView.findViewById(R.id.message_flex_layout)
+     val flexboxLayout: CustomFlexboxLayout = itemView.findViewById(R.id.text_box)
 //    protected val forwardedMessagesRV: RecyclerView = itemView.findViewById(R.id.forwardedRecyclerView)
   //  protected val messageFileInfo: TextView = itemView.findViewById(R.id.message_file_info)
  //   protected val progressBar: ProgressBar = itemView.findViewById(R.id.message_progress_bar)

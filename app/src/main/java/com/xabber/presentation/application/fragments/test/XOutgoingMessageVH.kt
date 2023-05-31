@@ -8,9 +8,15 @@ import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
 import android.view.View.OnAttachStateChangeListener
+import android.view.ViewOutlineProvider
 import android.widget.FrameLayout
+import android.widget.LinearLayout
+import android.widget.RelativeLayout
 import androidx.annotation.StyleRes
 import androidx.appcompat.widget.PopupMenu
+import androidx.constraintlayout.widget.ConstraintLayout
+import androidx.constraintlayout.widget.ConstraintSet
+import androidx.constraintlayout.widget.Group
 import androidx.core.content.ContextCompat
 import androidx.core.view.isInvisible
 import androidx.core.view.isVisible
@@ -35,78 +41,73 @@ class XOutgoingMessageVH internal constructor(
     @SuppressLint("UseCompatLoadingForDrawables")
     override fun bind(message: MessageDto, extraData: MessageVhExtraData) {
         super.bind(message, extraData)
+
         val context: Context = itemView.context
         var needTail: Boolean = extraData.isNeedTail
-        if (message.references.size > 0) needTail = false
+
+        val balloon = itemView.findViewById<FrameLayout>(R.id.balloon)
+        val messageBalloon = itemView.findViewById<LinearLayout>(R.id.message_balloon)
+        val tail = itemView.findViewById<FrameLayout>(R.id.tail)
+        val backgroundGroup = itemView.findViewById<Group>(R.id.background_group)
+
+        if (message.hasReferences) needTail = false
+
+        // checked background
         if (message.isChecked) itemView.setBackgroundResource(R.color.selected) else itemView.setBackgroundResource(
             R.color.transparent
         )
-
-
-        //  val fram = itemView.findViewById<FrameLayout>(R.id.fram)
-        //      val params = messageBalloon.layoutParams as ConstraintLayout.LayoutParams
-//        messageBalloon.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED)
-//        val width = fram.measuredWidth
-//      //   Math.round(fram.measuredWidth.toFloat() / 2) * 2 + 50
-//        val height = fram.measuredHeight
-//        //  Math.round(fram.measuredHeight.toFloat() / 2) * 2 + 40
-        //  params.width = dpToPx(MessageChanger.w, itemView)
-        //     params.height = dpToPx(MessageChanger.h, itemView)
-
-        //  messageBalloon.layoutParams = params
-
-        // text & appearance
+if (message.hasReferences) { messageBalloon.removeAllViews() }
+        // text
         messageTextTv.text = message.messageBody
-//            "${MessageChanger.w.toString()} x ${MessageChanger.h}"
-//        MessageChanger.w = MessageChanger.w + 10
-//        MessageChanger.h = MessageChanger.h + 1
 
         // time
         val date = Date(message.sentTimestamp)
         val time = StringUtils.getTimeText(context, date)
         messageTime.text = if (message.editTimestamp > 0) "edit $time" else time
 
-//        // setup BACKGROUND
-        val shadowDrawable = ContextCompat.getDrawable(
-            context,
-             if (needTail) MessageChanger.tail else
-           MessageChanger.simple
 
+        // background
+        val balloonBackground = ContextCompat.getDrawable(
+            context,
+            if (needTail) MessageChanger.tail else
+                MessageChanger.simple
         )
-//        shadowDrawable?.setColorFilter(
-//            ContextCompat.getColor(context, R.color.white),
-//            PorterDuff.Mode.MULTIPLY
-//        )
-        val mesBack = itemView.findViewById<FrameLayout>(R.id.frame_background)
-        mesBack.background = ContextCompat.getDrawable(
+
+        val tailBackground = ContextCompat.getDrawable(
             context, MessageChanger.hvost
         )
 
-        mesBack.isInvisible = !needTail
-        messageBalloon.background = shadowDrawable
-//        messageBalloon.layoutParams = layoutParams
-//        val cons = ConstraintSet()
-//        cons.clone(constraint)
-//        cons.connect(R.id.message_balloon, ConstraintSet.END, ConstraintSet.PARENT_ID, ConstraintSet.END)
+        balloon.background = balloonBackground
+
+        tail.background = tailBackground
+
+        if (!MessageChanger.bottom) {
+            balloon.scaleY = -1f
+            tail.scaleY = -1f
+        } else {
+            balloon.scaleY = 1f
+            tail.scaleY = 1f
+        }
+
+        // visible tail
+        tail.isInvisible = !needTail || MessageChanger.typeValue == 2
 
 
-        messageBalloon.setPadding(
-            0,
-            2.dp,
-            8.dp,
-            2.dp
-        )
+        if (MessageChanger.bottom) {
 
-//      if (message.references.size > 0) {
-//        //  if (message.hasImage) {
-//              messageBalloon.setPadding(
-//                  dipToPx(border, context),
-//                  dipToPx(border - 0.05f, context),
-//                  dipToPx(border, context),
-//                  dipToPx( border, context)
-//              )
-//       //   }
-//      }
+        } else {
+            val layoutParams = tail.layoutParams as RelativeLayout.LayoutParams
+            layoutParams.removeRule(RelativeLayout.ALIGN_BOTTOM) // Удаляем правило ALIGN_BOTTOM
+            layoutParams.addRule(RelativeLayout.ALIGN_TOP, R.id.message_balloon) // Добавляем правило ALIGN_TOP с нужным id
+            tail.layoutParams = layoutParams
+        }
+
+
+
+// Задаем тень сообщения
+
+
+
         setStatusIcon(message)
 
         // subscribe for FILE UPLOAD PROGRESS

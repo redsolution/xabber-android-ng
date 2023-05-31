@@ -9,7 +9,7 @@
 
     <LinearLayout
         android:backgroundTint="@color/white"
-        android:id="@+id/message_balloon"
+        android:id="@+id/tail"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:orientation="vertical">
@@ -64,7 +64,7 @@
 
         <com.xabber.utils.custom.CustomFlexboxLayout
             android:paddingHorizontal="8dp"
-            android:id="@+id/message_flex_layout"
+            android:id="@+id/text_box"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             app:viewPartMain="@+id/message_text"

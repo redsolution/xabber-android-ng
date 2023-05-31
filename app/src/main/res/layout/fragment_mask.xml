@@ -18,7 +18,7 @@
             style="@style/ApplicationToolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            app:title="Mask"
+            app:title="Avatar shape"
             app:titleTextColor="@color/white">
 
         </com.google.android.material.appbar.MaterialToolbar>

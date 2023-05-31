@@ -15,8 +15,8 @@ android {
         applicationId "com.xabber.android.ng"
         minSdk 23
         targetSdk 33
-        versionCode 1
-        versionName "6.0"
+        versionCode 4
+        versionName "7.0"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         lintOptions {
@@ -53,7 +53,7 @@ dependencies {
     api files('src/main/java/opus.aar')
 
     // Android Support
-    implementation 'androidx.core:core-ktx:1.10.0'
+    implementation 'androidx.core:core-ktx:1.10.1'
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'androidx.legacy:legacy-support-v13:1.0.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'

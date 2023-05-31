@@ -67,11 +67,16 @@
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
-    <androidx.fragment.app.FragmentContainerView
-        android:id="@+id/detail_container"
+    <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="@dimen/detail_container_width"
         android:layout_height="match_parent"
         android:layout_weight="1"
-        android:background="@drawable/gradi_purple" />
+        android:id="@+id/detail_container">
+    <androidx.fragment.app.FragmentContainerView
+        android:id="@+id/fr"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_weight="1" />
 
+</androidx.constraintlayout.widget.ConstraintLayout>
 </androidx.slidingpanelayout.widget.SlidingPaneLayout>

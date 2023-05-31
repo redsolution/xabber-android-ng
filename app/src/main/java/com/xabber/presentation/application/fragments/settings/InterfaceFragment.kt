@@ -18,8 +18,8 @@ class InterfaceFragment : DetailBaseFragment(R.layout.fragment_interface) {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        binding.tvMask.setOnClickListener { navigator().showMaskSettings() }
-        binding.tvChatSettings.setOnClickListener { navigator().showChatSettings() }
+        binding.avatarSettings.setOnClickListener { navigator().showMaskSettings() }
+        binding.chatSettings.setOnClickListener { navigator().showChatSettings() }
     }
 
 }

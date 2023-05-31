@@ -145,7 +145,7 @@
     </style>
 
     <style name="RadioButton" parent="ThemeApplication">
-        <item name="android:textSize">18sp</item>
+        <item name="android:textSize">17sp</item>
         <item name="android:layout_margin">8dp</item>
     </style>
 
