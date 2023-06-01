@@ -183,7 +183,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator {
             AppConstants.CORNER_KEY,
             7
         )
-        val type = getSharedPreferences(AppConstants.SHARED_PREF_TYPE, Context.MODE_PRIVATE).getInt(AppConstants.TYPE_TAIL_KEY, 7)
+        val type = getSharedPreferences(AppConstants.SHARED_PREF_TYPE, Context.MODE_PRIVATE).getInt(AppConstants.TYPE_TAIL_KEY, 4)
         val bottom = getSharedPreferences("bottom", Context.MODE_PRIVATE).getBoolean("bot", true)
        MessageChanger.defineMessageDrawable(corner, type, bottom)
 

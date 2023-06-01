@@ -3,47 +3,36 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/grid_1"
     android:layout_width="wrap_content"
-    android:layout_height="wrap_content">
+    android:layout_height="wrap_content"
+    android:paddingHorizontal="4dp"
+    android:paddingVertical="2dp">
 
-    <androidx.cardview.widget.CardView
-        android:paddingVertical="2dp"
-        android:paddingHorizontal="4dp"
-        android:id="@+id/cv_message_image"
+    <com.xabber.utils.custom.ShapeOfView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:background="@color/white"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
-
+        app:shape_clip_drawable="@drawable/bubble_12px">
         <ImageView
-            android:maxHeight="372dp"
-            android:maxWidth="372dp"
-            android:adjustViewBounds="true"
-            android:minHeight="100dp"
-            android:minWidth="100dp"
+
             android:id="@+id/ivImage0"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:scaleType="centerCrop"
+            android:layout_width="240dp"
+            android:layout_height="400dp"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent"/>
-   </androidx.cardview.widget.CardView>
-
+            app:layout_constraintTop_toTopOf="parent" />
+</com.xabber.utils.custom.ShapeOfView>
     <LinearLayout
         android:id="@+id/image_message_info"
         android:layout_width="wrap_content"
-        android:elevation="10dp"
-        android:paddingStart="8dp"
-        android:paddingEnd="4dp"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
         android:layout_marginEnd="3dp"
         android:layout_marginBottom="3dp"
-        android:layout_height="wrap_content"
         android:background="@drawable/system_message_background"
         android:orientation="horizontal"
-        android:layout_gravity="bottom|end"
+        android:paddingStart="8dp"
+        android:paddingEnd="4dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
@@ -51,8 +40,8 @@
             android:id="@+id/tv_image_sending_time"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:lineHeight="12dp"
             android:gravity="bottom"
+            android:lineHeight="12dp"
             android:singleLine="true"
             android:text="14:30"
             android:textColor="@color/white"

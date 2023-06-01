@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <bool name="isTablet">true</bool>
-    <dimen name="itemWidth">144dp</dimen>
-    <dimen name="width">600dp</dimen>
-    <integer name="spaneCount">4</integer>
+    <dimen name="maxWidth">600dp</dimen>
+
 </resources>

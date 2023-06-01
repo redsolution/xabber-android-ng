@@ -77,7 +77,7 @@ class AttachmentBottomSheet : BottomSheetDialogFragment(R.layout.layout_bottom_s
     ) { success ->
         if (success && currentPhotoUri != null) sendMessageWithAttachment(
             currentPhotoUri!!,
-            ""
+            chatInput.text.trimEnd().toString()
         ) else dismiss()
     }
 
@@ -89,7 +89,7 @@ class AttachmentBottomSheet : BottomSheetDialogFragment(R.layout.layout_bottom_s
     private val fileResultLauncher = registerForActivityResult(
         ActivityResultContracts.OpenDocument()
     ) { uri: Uri? ->
-        if (uri != null) sendMessageWithAttachment(uri, "") else dismiss()
+        if (uri != null) sendMessageWithAttachment(uri, chatInput.text.trimEnd().toString()) else dismiss()
     }
 
     @SuppressLint("NotifyDataSetChanged")
@@ -461,9 +461,12 @@ class AttachmentBottomSheet : BottomSheetDialogFragment(R.layout.layout_bottom_s
         if (uries != null) {
             for (i in uries.indices) {
                 val r = MessageReferenceDto(
+                    width= 10,
+                    height= 6,
                     id = uries[i].toString(),
                     uri = uries[i].toString(),
                     mimeType = getMimeType(uries[i])!!
+
                 )
                 refer.add(r)
             }
@@ -486,7 +489,7 @@ class AttachmentBottomSheet : BottomSheetDialogFragment(R.layout.layout_bottom_s
                 opponentJid = chat.opponentJid,
                 canDeleteMessage = false,
                 canEditMessage = false,
-                messageBody = "  " + body,
+                messageBody = "" + body,
                 messageSendingState = MessageSendingState.Sending,
                 sentTimestamp = System.currentTimeMillis(),
                 isGroup = false

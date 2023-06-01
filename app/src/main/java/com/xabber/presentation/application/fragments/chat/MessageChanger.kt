@@ -170,7 +170,7 @@ object MessageChanger {
                 }
             }
             else -> {
-                R.drawable.smooth_bottom_7px
+                R.drawable.bubble_corner_7px
             }
         }
         margin = if (type == 2) 0 else 1

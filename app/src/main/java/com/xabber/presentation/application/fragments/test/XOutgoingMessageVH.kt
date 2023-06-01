@@ -5,13 +5,13 @@ import android.content.Context
 import android.graphics.*
 import android.util.Log
 import android.util.TypedValue
-import android.view.Gravity
-import android.view.View
+import android.view.*
 import android.view.View.OnAttachStateChangeListener
-import android.view.ViewOutlineProvider
 import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.RelativeLayout
+import android.widget.TextView
 import androidx.annotation.StyleRes
 import androidx.appcompat.widget.PopupMenu
 import androidx.constraintlayout.widget.ConstraintLayout
@@ -29,6 +29,8 @@ import com.xabber.presentation.application.fragments.chat.MessageChanger
 import com.xabber.presentation.application.fragments.chat.message.MessageDeliveryStatusHelper
 import com.xabber.presentation.application.fragments.chat.message.XMessageVH
 import com.xabber.utils.StringUtils
+import com.xabber.utils.custom.CorrectlyTouchEventTextView
+import com.xabber.utils.custom.CustomFlexboxLayout
 import com.xabber.utils.dp
 import java.util.*
 
@@ -50,13 +52,15 @@ class XOutgoingMessageVH internal constructor(
         val tail = itemView.findViewById<FrameLayout>(R.id.tail)
         val backgroundGroup = itemView.findViewById<Group>(R.id.background_group)
 
-        if (message.hasReferences) needTail = false
+        Log.d("fff", "message.references.isNotEmpty() = ${message.references.isNotEmpty()}, message.messageBody.isEmpty() = '${message.messageBody.isEmpty()}'")
+        if (message.references.isNotEmpty() && message.messageBody.isEmpty()) needTail = false
 
         // checked background
         if (message.isChecked) itemView.setBackgroundResource(R.color.selected) else itemView.setBackgroundResource(
             R.color.transparent
         )
-if (message.hasReferences) { messageBalloon.removeAllViews() }
+
+
         // text
         messageTextTv.text = message.messageBody
 
@@ -104,8 +108,45 @@ if (message.hasReferences) { messageBalloon.removeAllViews() }
 
 
 
-// Задаем тень сообщения
+        // References
 
+            if (message.references.isNotEmpty() && message.messageBody.isEmpty()) {
+                messageBalloon.removeAllViews()
+                Log.d("ppp", "grid is not empty")
+                val builder = ImageGridBuilder()
+                 val imageGridView: View =
+                       builder.inflateView(messageBalloon, message.references.size)
+                     builder.bindView(imageGridView, message.references, this)
+                     messageBalloon.addView(imageGridView)
+        } else if (message.references.isNotEmpty() && message.messageBody.isNotEmpty()) {
+
+                messageBalloon.removeAllViews()
+                val builder = ImageGridBuilder()
+                val imageGridView: View =
+                    builder.inflateView(messageBalloon, message.references.size)
+                builder.bindView(imageGridView, message.references, this)
+                messageBalloon.addView(imageGridView)
+           val v =    inflateText(messageBalloon)
+                messageBalloon.addView(v)
+                val text = v.findViewById<CorrectlyTouchEventTextView>(R.id.message_text)
+                text.text = message.messageBody
+                val imageTime = imageGridView.findViewById<LinearLayout>(R.id.image_message_info)
+                imageTime.isVisible = false
+                val date = v.findViewById<TextView>(R.id.message_time)
+                val dates = Date(message.sentTimestamp)
+                val time = StringUtils.getTimeText(context, dates)
+                date.text = if (message.editTimestamp > 0) "edit $time" else time
+
+                val status = v.findViewById<ImageView>(R.id.message_status_icon)
+
+                    MessageDeliveryStatusHelper.setupStatusImageView(
+                        message, status
+                    )
+                    MessageDeliveryStatusHelper.setupStatusImageView(
+                        message, status
+                    )
+
+            }
 
 
         setStatusIcon(message)
@@ -260,6 +301,11 @@ if (message.hasReferences) { messageBalloon.removeAllViews() }
         val displayMetrics = itemView?.context?.resources?.displayMetrics
         return TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, dp.toFloat(), displayMetrics)
             .toInt()
+    }
+
+    fun inflateText(parent: ViewGroup): View {
+        return LayoutInflater.from(parent.context)
+            .inflate(R.layout.flex, parent, false)
     }
 
 }

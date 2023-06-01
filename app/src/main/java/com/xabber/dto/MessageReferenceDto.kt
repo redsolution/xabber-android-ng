@@ -16,5 +16,6 @@ data class MessageReferenceDto(
     var isMissed: Boolean = false,
     var hasError: Boolean = false,
     var uri: String? = null,
-var width: Int = 0,
-    var height: Int = 0)
+    var width: Int = 0,
+    var height: Int = 0
+)
