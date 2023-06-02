@@ -106,12 +106,7 @@ class OutgoingMessageVH(
 
         val typedValue = TypedValue()
         binding.root.context.theme.resolveAttribute(R.attr.message_background, typedValue, true)
-        val shadowDrawable: Drawable =
-            ContextCompat.getDrawable(binding.root.context, R.drawable.fwd_out_shadow)!!
-        shadowDrawable.setColorFilter(
-            ContextCompat.getColor(binding.root.context, R.color.black),
-            PorterDuff.Mode.MULTIPLY
-        )
+
 
 
         if (messageDto.isChecked) {
@@ -121,12 +116,6 @@ class OutgoingMessageVH(
         }
 
 
-        binding.balloon.setBackgroundDrawable(
-            ContextCompat.getDrawable(
-                binding.root.context,
-                if (isNeedTail) R.drawable.msg_out else R.drawable.msg
-            )
-        )
 
 
         if (messageDto.kind == null) {
@@ -262,34 +251,9 @@ class OutgoingMessageVH(
         messageDto: MessageDto,
         isMessageNeedTail: Boolean
     ) {
-        val balloonDrawable = ResourcesCompat.getDrawable(
-            itemView.resources,
-            if (isMessageNeedTail)
-                R.drawable.msg_out
-            else
-                R.drawable.msg,
-            itemView.context.theme
-        )!!
-        if (!messageDto.isOutgoing)
-            balloonDrawable.setColorFilter(
-                itemView.resources.getColor(
-                    R.color.blue_100,
-                    itemView.context.theme
-                ), PorterDuff.Mode.MULTIPLY
-            )
-        binding.balloon.background = balloonDrawable
 
-        val shadowDrawable = ResourcesCompat.getDrawable(
-            itemView.resources,
-            if (isMessageNeedTail)
-                if (messageDto.isOutgoing)
-                    R.drawable.msg_out_shadow
-                else
-                    R.drawable.msg_in_shadow
-            else
-                R.drawable.msg_shadow,
-            itemView.context.theme
-        )!!
+
+
 // if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
 // shadowDrawable.colorFilter = BlendModeColorFilterCompat.createBlendModeColorFilterCompat(
 // itemView.resources.getColor(R.color.grey_300, itemView.context.theme),
@@ -297,12 +261,7 @@ class OutgoingMessageVH(
 // )
 // }
 // else {
-        shadowDrawable.setColorFilter(
-            itemView.resources.getColor(
-                R.color.black,
-                itemView.context.theme
-            ), PorterDuff.Mode.MULTIPLY
-        )
+
     }
 // }
 // messageShadow.background = shadowDrawable

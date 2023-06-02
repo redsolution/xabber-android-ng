@@ -14,8 +14,6 @@ import android.widget.RelativeLayout
 import android.widget.TextView
 import androidx.annotation.StyleRes
 import androidx.appcompat.widget.PopupMenu
-import androidx.constraintlayout.widget.ConstraintLayout
-import androidx.constraintlayout.widget.ConstraintSet
 import androidx.constraintlayout.widget.Group
 import androidx.core.content.ContextCompat
 import androidx.core.view.isInvisible
@@ -30,8 +28,6 @@ import com.xabber.presentation.application.fragments.chat.message.MessageDeliver
 import com.xabber.presentation.application.fragments.chat.message.XMessageVH
 import com.xabber.utils.StringUtils
 import com.xabber.utils.custom.CorrectlyTouchEventTextView
-import com.xabber.utils.custom.CustomFlexboxLayout
-import com.xabber.utils.dp
 import java.util.*
 
 class XOutgoingMessageVH internal constructor(
@@ -80,7 +76,8 @@ class XOutgoingMessageVH internal constructor(
         val tailBackground = ContextCompat.getDrawable(
             context, MessageChanger.hvost
         )
-
+        balloonBackground?.setColorFilter(ContextCompat.getColor(context, R.color.white), PorterDuff.Mode.MULTIPLY)
+        if (message.isOutgoing)  tailBackground?.setColorFilter(ContextCompat.getColor(context, R.color.white), PorterDuff.Mode.MULTIPLY) else tailBackground?.setColorFilter(ContextCompat.getColor(context, R.color.blue_100), PorterDuff.Mode.MULTIPLY)
         balloon.background = balloonBackground
 
         tail.background = tailBackground
@@ -130,7 +127,7 @@ class XOutgoingMessageVH internal constructor(
                 messageBalloon.addView(v)
                 val text = v.findViewById<CorrectlyTouchEventTextView>(R.id.message_text)
                 text.text = message.messageBody
-                val imageTime = imageGridView.findViewById<LinearLayout>(R.id.image_message_info)
+                val imageTime = imageGridView.findViewById<LinearLayout>(R.id.message_info)
                 imageTime.isVisible = false
                 val date = v.findViewById<TextView>(R.id.message_time)
                 val dates = Date(message.sentTimestamp)

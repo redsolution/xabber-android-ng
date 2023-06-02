@@ -6,29 +6,24 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.cardview.widget.CardView
 import com.bumptech.glide.Glide
-import com.bumptech.glide.load.DataSource
 import com.bumptech.glide.load.MultiTransformation
-import com.bumptech.glide.load.engine.GlideException
 import com.bumptech.glide.load.resource.bitmap.BitmapTransformation
 import com.bumptech.glide.load.resource.bitmap.CenterCrop
 import com.bumptech.glide.load.resource.bitmap.RoundedCorners
-import com.bumptech.glide.request.RequestListener
 import com.bumptech.glide.request.target.CustomTarget
-import com.bumptech.glide.request.target.Target
 import com.bumptech.glide.request.transition.Transition
 import com.xabber.R
 import com.xabber.dto.MessageDto
 import com.xabber.dto.MessageReferenceDto
-import com.xabber.models.dto.MessageVhExtraData
 import com.xabber.presentation.application.fragments.chat.MessageChanger
-import com.xabber.presentation.application.fragments.chat.RoundedCornerOutlineProvider
 import com.xabber.presentation.application.fragments.chat.message.ImageGrid
 import com.xabber.presentation.application.fragments.chat.message.RoundedBorders
-import com.xabber.presentation.application.manage.DisplayManager
 import com.xabber.utils.dp
 
 class ImageGridBuilder {
@@ -86,7 +81,6 @@ class ImageGridBuilder {
     }
 
 
-
     fun bindView(
         view: View,
         messageRealmObject: MessageDto,
@@ -124,23 +118,21 @@ class ImageGridBuilder {
                         setOnClickListener(clickListener)
                     }
                     .also {
-                    //setupImageViewIntoRigidGridCell(attachmentRealmObject, it) }
+                        //setupImageViewIntoRigidGridCell(attachmentRealmObject, it) }
                     }
             }
 
             view.findViewById<TextView>(R.id.tvCounter)?.apply {
                 if (attachmentRealmObjects.size > MAX_IMAGE_IN_GRID) {
-                    text = StringBuilder("+").append(attachmentRealmObjects.size - MAX_IMAGE_IN_GRID)
+                    text =
+                        StringBuilder("+").append(attachmentRealmObjects.size - MAX_IMAGE_IN_GRID)
                     visibility = View.VISIBLE
                 } else {
                     visibility = View.GONE
                 }
             }
         }
-
     }
-
-
 
     private fun bindImage(attachment: MessageReferenceDto, parent: View, imageView: ImageView) {
 
@@ -151,12 +143,19 @@ class ImageGridBuilder {
             .into(imageView)
     }
 
-    private fun bindOneImage(attachment: MessageReferenceDto, parent: View, imageView: ImageView, view: View) {
-
+    private fun bindOneImage(
+        attachment: MessageReferenceDto,
+        parent: View,
+        imageView: ImageView,
+        view: View
+    ) {
         val radius =
             if (MessageChanger.cornerValue > 4) (MessageChanger.cornerValue - 4) else 1
+        val card = view.findViewById<CardView>(R.id.card)
+        card.radius = radius.dp.toFloat()
         val timeStampRadius = if (radius > 3) radius - 3 else 1
-        val timeStampBackground = when(timeStampRadius) {
+
+        val timeStampBackground = when (timeStampRadius) {
             1 -> R.drawable.time_stamp_1px
             2 -> R.drawable.time_stamp_2px
             3 -> R.drawable.time_stamp_3px
@@ -166,17 +165,29 @@ class ImageGridBuilder {
             7 -> R.drawable.time_stamp_7px
             8 -> R.drawable.time_stamp_8px
             9 -> R.drawable.time_stamp_9px
+            10 -> R.drawable.time_stamp_10px
+            11 -> R.drawable.time_stamp_11px
+            12 -> R.drawable.time_stamp_12px
+            13 -> R.drawable.time_stamp_13px
+
             else -> R.drawable.time_stamp_1px
         }
-        val lin = view.findViewById<LinearLayout>(R.id.image_message_info)
+        val lin = view.findViewById<LinearLayout>(R.id.message_info)
+
+       val params = lin.layoutParams as FrameLayout.LayoutParams
+        val margin = MessageChanger.timeStampMargin.dp
+        Log.d("fff", "m = $margin")
+        params.setMargins(margin, margin, margin, margin)
+        lin.layoutParams = params
         lin.setBackgroundResource(timeStampBackground)
 //            imageView.outlineProvider = RoundedCornerOutlineProvider(radius.dp.toFloat())
 //                    imageView.clipToOutline = true
-      // imageView.maxWidth = DisplayManager.getWidthDp()
-      //  imageView.maxHeight = DisplayManager.getMainContainerWidth() + 100
+        // imageView.maxWidth = DisplayManager.getWidthDp()
+        //  imageView.maxHeight = DisplayManager.getMainContainerWidth() + 100
 
         Glide.with(imageView.context)
-            .load(attachment.uri)
+            .load(R.color.blue_700)
+            .error(R.color.blue_700)
             .centerCrop()
             .into(imageView)
 //var width = 0
@@ -294,9 +305,10 @@ class ImageGridBuilder {
                 }
                 width < MIN_IMAGE_SIZE -> {
                     scaledWidth = MIN_IMAGE_SIZE
-                    scaledHeight = (height / (width.toDouble() / MIN_IMAGE_SIZE)).toInt().coerceAtMost(
-                        MAX_IMAGE_HEIGHT_SIZE
-                    )
+                    scaledHeight =
+                        (height / (width.toDouble() / MIN_IMAGE_SIZE)).toInt().coerceAtMost(
+                            MAX_IMAGE_HEIGHT_SIZE
+                        )
                 }
                 else -> {
                     scaledWidth = width
@@ -310,9 +322,10 @@ class ImageGridBuilder {
                     scaledHeight = (height / (width.toDouble() / MAX_IMAGE_SIZE)).toInt()
                 }
                 height < MIN_IMAGE_SIZE -> {
-                    scaledWidth = (width / (height.toDouble() / MIN_IMAGE_SIZE)).toInt().coerceAtMost(
-                        MAX_IMAGE_SIZE
-                    )
+                    scaledWidth =
+                        (width / (height.toDouble() / MIN_IMAGE_SIZE)).toInt().coerceAtMost(
+                            MAX_IMAGE_SIZE
+                        )
                     scaledHeight = MIN_IMAGE_SIZE
                 }
                 else -> {

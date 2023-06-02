@@ -6,7 +6,6 @@
         android:id="@+id/tail"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:background="@drawable/msg"
         android:orientation="vertical"
         android:paddingLeft="3dp"
         android:paddingTop="3dp"

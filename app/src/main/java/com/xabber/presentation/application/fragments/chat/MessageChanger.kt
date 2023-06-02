@@ -8,8 +8,8 @@ object MessageChanger {
     var bottom = true
     var cornerValue = 7
     var typeValue = 4
-    var margin = 1
 
+    var timeStampMargin = 3
     var simple: Int = 0
 
     var tail: Int = 0
@@ -20,6 +20,7 @@ object MessageChanger {
         cornerValue = corner
         typeValue = type
         bottom = bot
+        timeStampMargin = if (corner < 16) 3 else if (corner == 16) 4 else if (corner == 17) 5 else if (corner == 18) 6 else if (corner == 19) 7 else if (corner == 20) 8 else 3
         simple = when (corner) {
             1 -> R.drawable.bubble_1px
             2 -> R.drawable.bubble_2px
@@ -37,8 +38,12 @@ object MessageChanger {
             14 -> R.drawable.bubble_14px
             15 -> R.drawable.bubble_15px
             16 -> R.drawable.bubble_16px
+            17 -> R.drawable.bubble_17px
+            18 -> R.drawable.bubble_18px
+            19 -> R.drawable.bubble_19px
+            20 -> R.drawable.bubble_20px
             else -> {
-                R.drawable.simple_7px
+                R.drawable.bubble_7px
             }
         }
 
@@ -60,6 +65,10 @@ object MessageChanger {
                 14 -> R.drawable.bubble_circle_14px
                 15 -> R.drawable.bubble_circle_15px
                 16 -> R.drawable.bubble_circle_16px
+                17 -> R.drawable.bubble_circle_17px
+                18 -> R.drawable.bubble_circle_18px
+                19 -> R.drawable.bubble_circle_19px
+                20 -> R.drawable.bubble_circle_20px
                 else -> {
                     R.drawable.bubble_circle_7px
                 }
@@ -81,6 +90,10 @@ object MessageChanger {
                 14 -> R.drawable.bubble_corner_14px
                 15 -> R.drawable.bubble_corner_15px
                 16 -> R.drawable.bubble_corner_16px
+                17 -> R.drawable.bubble_corner_17px
+                18 -> R.drawable.bubble_corner_18px
+                19 -> R.drawable.bubble_corner_19px
+                20 -> R.drawable.bubble_corner_20px
                 else -> {
                     R.drawable.bubble_corner_7px
                 }
@@ -102,6 +115,10 @@ object MessageChanger {
                 14 -> R.drawable.bubble_14px
                 15 -> R.drawable.bubble_15px
                 16 -> R.drawable.bubble_16px
+                17 -> R.drawable.bubble_17px
+                18 -> R.drawable.bubble_18px
+                19 -> R.drawable.bubble_19px
+                20 -> R.drawable.bubble_20px
                 else -> {
                     R.drawable.bubble_7px
                 }
@@ -123,6 +140,10 @@ object MessageChanger {
                 14 -> R.drawable.bubble_corner_14px
                 15 -> R.drawable.bubble_corner_15px
                 16 -> R.drawable.bubble_corner_16px
+                17 -> R.drawable.bubble_corner_17px
+                18 -> R.drawable.bubble_corner_18px
+                19 -> R.drawable.bubble_corner_19px
+                20 -> R.drawable.bubble_corner_20px
                 else -> {
                     R.drawable.bubble_corner_7px
                 }
@@ -144,6 +165,10 @@ object MessageChanger {
                 14 -> R.drawable.bubble_stripes_14px
                 15 -> R.drawable.bubble_stripes_15px
                 16 -> R.drawable.bubble_stripes_16px
+                17 -> R.drawable.bubble_stripes_17px
+                18 -> R.drawable.bubble_stripes_18px
+                19 -> R.drawable.bubble_stripes_19px
+                20 -> R.drawable.bubble_stripes_20px
                 else -> {
                     R.drawable.bubble_stripes_7px
                 }
@@ -165,6 +190,11 @@ object MessageChanger {
                 14 -> R.drawable.bubble_corner_14px
                 15 -> R.drawable.bubble_corner_15px
                 16 -> R.drawable.bubble_corner_16px
+                17 -> R.drawable.bubble_corner_17px
+                18 -> R.drawable.bubble_corner_18px
+                19 -> R.drawable.bubble_corner_19px
+                20 -> R.drawable.bubble_corner_20px
+
                 else -> {
                     R.drawable.bubble_corner_7px
                 }
@@ -173,10 +203,10 @@ object MessageChanger {
                 R.drawable.bubble_corner_7px
             }
         }
-        margin = if (type == 2) 0 else 1
+
         hvost = when (type) {
             1 -> R.drawable.bubble
-            3 -> R.drawable.curvy_14_new
+            3 -> R.drawable.curvy_14__test
             4 -> R.drawable.smooth_new
             5 -> R.drawable.stripes_new
             6 -> R.drawable.wedge_new

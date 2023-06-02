@@ -103,38 +103,7 @@ class IncomingMessageVH(
         binding.balloon.setPadding(if (isNeedTail) 54 else 26, 26, 26, 26)
 
 
-        // background
-        val balloonDrawable = ResourcesCompat.getDrawable(
-            itemView.resources,
-            if (isNeedTail)
-                R.drawable.msg_in
-            else
-                R.drawable.msg,
-            itemView.context.theme
-        )!!
-        balloonDrawable.setColorFilter(
-            itemView.resources.getColor(
-                R.color.blue_100,
-                itemView.context.theme
-            ), PorterDuff.Mode.MULTIPLY
-        )
-        binding.balloon.background = balloonDrawable
 
-        // shadow
-        val shadowDrawable = ResourcesCompat.getDrawable(
-            itemView.resources,
-            if (isNeedTail)
-                R.drawable.msg_in_shadow
-            else
-                R.drawable.msg_shadow,
-            itemView.context.theme
-        )
-        shadowDrawable?.setColorFilter(
-            itemView.resources.getColor(
-                R.color.black,
-                itemView.context.theme
-            ), PorterDuff.Mode.MULTIPLY
-        )
 
 if (binding.avatarContact.isVisible) {
 

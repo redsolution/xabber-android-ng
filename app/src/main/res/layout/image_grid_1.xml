@@ -7,51 +7,28 @@
     android:paddingHorizontal="4dp"
     android:paddingVertical="2dp">
 
-    <com.xabber.utils.custom.ShapeOfView
+    <androidx.cardview.widget.CardView
+        android:id="@+id/card"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        app:shape_clip_drawable="@drawable/bubble_12px">
-        <ImageView
+        android:background="@color/transparent"
+        android:elevation="0dp"
+        app:cardBackgroundColor="@color/transparent"
+        app:cardCornerRadius="12dp"
+        app:cardElevation="0dp">
 
+        <ImageView
             android:id="@+id/ivImage0"
-            android:scaleType="centerCrop"
             android:layout_width="240dp"
             android:layout_height="400dp"
+            android:background="@color/transparent"
+            android:scaleType="centerCrop"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
-</com.xabber.utils.custom.ShapeOfView>
-    <LinearLayout
-        android:id="@+id/image_message_info"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom|end"
-        android:layout_marginEnd="3dp"
-        android:layout_marginBottom="3dp"
-        android:background="@drawable/system_message_background"
-        android:orientation="horizontal"
-        android:paddingStart="8dp"
-        android:paddingEnd="4dp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
+            app:layout_constraintTop_toTopOf="parent"
+            android:contentDescription="@string/image" />
+    </androidx.cardview.widget.CardView>
 
-        <TextView
-            android:id="@+id/tv_image_sending_time"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:gravity="bottom"
-            android:lineHeight="12dp"
-            android:singleLine="true"
-            android:text="14:30"
-            android:textColor="@color/white"
-            android:textSize="10sp" />
 
-        <ImageView
-            android:id="@+id/im_image_message_status"
-            android:layout_width="14dp"
-            android:layout_height="14dp"
-            android:layout_marginStart="4dp"
-            android:src="@drawable/ic_check_green" />
-    </LinearLayout>
 </FrameLayout>

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/message_info"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_gravity="bottom|end"
+    android:layout_margin="3dp"
+    android:background="@drawable/system_message_background"
+    android:orientation="horizontal"
+    android:paddingVertical="1dp"
+    android:paddingStart="4dp"
+    android:paddingEnd="3dp">
+
+    <TextView
+        android:id="@+id/tv_image_sending_time"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:lineHeight="12dp"
+        android:singleLine="true"
+        tools:text="12:32"
+        android:textColor="@color/white"
+        android:textSize="10sp" />
+
+    <ImageView
+        android:id="@+id/im_image_message_status"
+        android:layout_width="12dp"
+        android:layout_height="12dp"
+        android:layout_marginStart="4dp"
+        android:contentDescription="@string/sending_status"
+        android:src="@drawable/ic_check_green" />
+</LinearLayout>
