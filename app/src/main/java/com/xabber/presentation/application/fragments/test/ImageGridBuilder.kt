@@ -1,11 +1,15 @@
 package com.xabber.presentation.application.fragments.test
 
+import android.content.res.Resources
 import android.graphics.Bitmap
 import android.graphics.drawable.Drawable
+import android.graphics.drawable.ShapeDrawable
+import android.graphics.drawable.shapes.RoundRectShape
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.ViewTreeObserver
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -21,10 +25,15 @@ import com.bumptech.glide.request.transition.Transition
 import com.xabber.R
 import com.xabber.dto.MessageDto
 import com.xabber.dto.MessageReferenceDto
+import com.xabber.presentation.XabberApplication
 import com.xabber.presentation.application.fragments.chat.MessageChanger
 import com.xabber.presentation.application.fragments.chat.message.ImageGrid
 import com.xabber.presentation.application.fragments.chat.message.RoundedBorders
+import com.xabber.utils.StringUtils
+import com.xabber.utils.custom.ShapeOfView
 import com.xabber.utils.dp
+import java.util.*
+import kotlin.collections.ArrayList
 
 class ImageGridBuilder {
 
@@ -52,14 +61,18 @@ class ImageGridBuilder {
     }
 
     fun bindView(
-        view: View,
+        view: View, message: MessageDto,
         attachments: ArrayList<MessageReferenceDto>,
         clickListener: View.OnClickListener?
     ) {
+        val tvTime = view.findViewById<TextView>(R.id.tv_image_sending_time)
+        val dates = Date(message.sentTimestamp)
+        val time = StringUtils.getTimeText(view.context, dates)
+        tvTime.text = time
         if (attachments.size == 1) {
             val imageView = getImageView(view, 0)
 
-            bindOneImage(attachments[0], view, imageView, view)
+            bindOneImage(message, attachments[0], view, imageView, view)
             imageView.setOnClickListener(clickListener)
         } else {
             val tvCounter = view.findViewById<TextView>(R.id.tvCounter)
@@ -67,12 +80,12 @@ class ImageGridBuilder {
             loop@ for (attachment in attachments) {
                 if (index > 5) break@loop
                 val imageView = getImageView(view, index)
-                bindImage(attachment, view, imageView)
+                bindImage(message, attachment, view, imageView, view)
                 imageView.setOnClickListener(clickListener)
                 index++
             }
             if (tvCounter != null) {
-                if (attachments.size > MAX_IMAGE_IN_GRID) {
+                if (attachments.size > 6) {
                     tvCounter.text = StringBuilder("+").append(attachments.size - MAX_IMAGE_IN_GRID)
                     tvCounter.visibility = View.VISIBLE
                 } else tvCounter.visibility = View.GONE
@@ -134,7 +147,69 @@ class ImageGridBuilder {
         }
     }
 
-    private fun bindImage(attachment: MessageReferenceDto, parent: View, imageView: ImageView) {
+    private fun bindImage(message: MessageDto,
+        attachment: MessageReferenceDto,
+        parent: View,
+        imageView: ImageView,
+        view: View
+    ) {
+        val hasText = message.messageBody.isNotEmpty()
+        val radius =
+            if (MessageChanger.cornerValue > 4) (MessageChanger.cornerValue - 4) else 1
+        val innerRadius = if (radius <= 2) radius else 2
+        Log.d("yyy", "hasText = $hasText")
+        val sh = view.findViewById<ShapeOfView>(R.id.cardview_1)
+       val card2 = view.findViewById<ShapeOfView>(R.id.cardview_2)
+       val card3 = view.findViewById<ShapeOfView>(R.id.cardview_3)
+        val card4 = view.findViewById<ShapeOfView>(R.id.cardview_4)
+       val card5 = view.findViewById<ShapeOfView>(R.id.cardview_5)
+       val card6 = view.findViewById<ShapeOfView>(R.id.cardview_6)
+
+        if (sh != null) {
+            val radii = if (message.references.size < 5) floatArrayOf(radius.dp.toFloat(), radius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), if (hasText) innerRadius.dp.toFloat() else radius.dp.toFloat(), if (hasText) innerRadius.dp.toFloat() else radius.dp.toFloat()) else
+                floatArrayOf(radius.dp.toFloat(), radius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat())    // массив радиусов углов в dp, по часовой стрелке
+            val shape = ShapeDrawable(RoundRectShape(radii, null, null)) // создаем объект ShapeDrawable с заданными радиусами
+
+            sh.setDrawable(shape)// устанавливаем объект ShapeDrawable в качестве фона ImageView
+        }
+        if (card2 != null) {
+            val radii = if (message.references.size < 3) floatArrayOf(innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), radius.dp.toFloat(), radius.dp.toFloat(), if (hasText) innerRadius.dp.toFloat() else radius.dp.toFloat(), if (hasText) innerRadius.dp.toFloat() else radius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat()) else
+                floatArrayOf(innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), radius.dp.toFloat(), radius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat())    // массив радиусов углов в dp, по часовой стрелке
+            val shape = ShapeDrawable(RoundRectShape(radii, null, null)) // создаем объект ShapeDrawable с заданными радиусами
+            card2.setDrawable(shape)
+        }
+        if (card3 != null) {
+            val radii = floatArrayOf(innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), if (hasText) innerRadius.dp.toFloat() else radius.dp.toFloat(), if (hasText) innerRadius.dp.toFloat() else radius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat())
+            val shape = ShapeDrawable(RoundRectShape(radii, null, null)) // создаем объект ShapeDrawable с заданными радиусами
+            card3.setDrawable(shape)
+        }
+        if (card4 != null) {
+            val radii =  floatArrayOf(innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat())
+            val shape = ShapeDrawable(RoundRectShape(radii, null, null)) // создаем объект ShapeDrawable с заданными радиусами
+            card4.setDrawable(shape)
+        }
+        if (card5 != null) {
+            val radii =  floatArrayOf(innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), if (hasText) innerRadius.dp.toFloat() else radius.dp.toFloat(), if (hasText) innerRadius.dp.toFloat() else radius.dp.toFloat())
+            val shape = ShapeDrawable(RoundRectShape(radii, null, null)) // создаем объект ShapeDrawable с заданными радиусами
+            card5.setDrawable(shape)
+        }
+        if (card6 != null) {
+            val radii =  floatArrayOf(innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat())
+            val shape = ShapeDrawable(RoundRectShape(radii, null, null)) // создаем объект ShapeDrawable с заданными радиусами
+            card6.setDrawable(shape)
+        }
+
+
+        val timeStampRadius = if (radius > 3) radius - 3 else 1
+
+        val lin = view.findViewById<LinearLayout>(R.id.message_info)
+
+        val params = lin.layoutParams as FrameLayout.LayoutParams
+        val margin = MessageChanger.timeStampMargin.dp
+        params.setMargins(margin, margin, margin, margin)
+        lin.layoutParams = params
+        val timeStampBackground = getTimeStampBackground(timeStampRadius)
+        lin.setBackgroundResource(timeStampBackground)
 
         Glide.with(imageView.context)
             .load(attachment.uri)
@@ -143,7 +218,7 @@ class ImageGridBuilder {
             .into(imageView)
     }
 
-    private fun bindOneImage(
+    private fun bindOneImage(message: MessageDto,
         attachment: MessageReferenceDto,
         parent: View,
         imageView: ImageView,
@@ -151,11 +226,66 @@ class ImageGridBuilder {
     ) {
         val radius =
             if (MessageChanger.cornerValue > 4) (MessageChanger.cornerValue - 4) else 1
-        val card = view.findViewById<CardView>(R.id.card)
-        card.radius = radius.dp.toFloat()
+        val card = view.findViewById<ShapeOfView>(R.id.card)
+        val innerRadius = if (radius <= 2) radius else 2
+        val hasText = message.messageBody.isNotEmpty()
+        if (card != null) {
+            val radii = floatArrayOf(radius.dp.toFloat(), radius.dp.toFloat(), radius.dp.toFloat(), radius.dp.toFloat(), if (hasText) innerRadius.dp.toFloat() else radius.dp.toFloat(), if (hasText) innerRadius.dp.toFloat() else radius.dp.toFloat(), if (hasText) innerRadius.dp.toFloat() else radius.dp.toFloat(), if (hasText) innerRadius.dp.toFloat() else radius.dp.toFloat())
+            val shape = ShapeDrawable(RoundRectShape(radii, null, null)) // создаем объект ShapeDrawable с заданными радиусами
+
+            card.setDrawable(shape)// устанавливаем объект ShapeDrawable в качестве фона ImageView
+        }
         val timeStampRadius = if (radius > 3) radius - 3 else 1
 
-        val timeStampBackground = when (timeStampRadius) {
+        val lin = view.findViewById<LinearLayout>(R.id.message_info)
+
+       val params = lin.layoutParams as FrameLayout.LayoutParams
+        val margin = MessageChanger.timeStampMargin.dp
+        params.setMargins(margin, margin, margin, margin)
+        lin.layoutParams = params
+        val timeStampBackground = getTimeStampBackground(timeStampRadius)
+        lin.setBackgroundResource(timeStampBackground)
+
+
+
+        val displayMetrics = Resources.getSystem().displayMetrics
+        val screenWidth = displayMetrics.widthPixels
+        val screenHeight = displayMetrics.heightPixels
+
+// Вычислим максимально допустимые значения ширины и высоты
+        val maxWidth = (screenWidth * 0.8).toInt()
+        val maxHeight = (screenHeight * 0.5).toInt()
+        Glide.with(imageView.context)
+            .asBitmap()
+            .load(attachment.uri)
+            .override(maxWidth, maxHeight)
+            .fitCenter()
+          //  .placeholder(R.drawable.ic_recent_image_placeholder)
+            .error(R.drawable.ic_recent_image_placeholder)
+            .into(imageView)
+
+    }
+
+    private fun getDrawable1(radius: Int): Int = 1
+//        when (radius) {
+//            1 -> R.drawable.bubble_1px
+//            2 -> R.drawable.bubble_2px
+//            3 -> R.drawable.bubble_3px
+//            4 -> R.drawable.bubble_4px
+//            5 ->
+//                6->
+//            7->
+//            8->
+//            9->
+//            10->
+//            11->
+//            12->
+//
+//        }
+   // }
+
+    private fun getTimeStampBackground(timeStampRadius: Int): Int {
+       return when (timeStampRadius) {
             1 -> R.drawable.time_stamp_1px
             2 -> R.drawable.time_stamp_2px
             3 -> R.drawable.time_stamp_3px
@@ -172,59 +302,6 @@ class ImageGridBuilder {
 
             else -> R.drawable.time_stamp_1px
         }
-        val lin = view.findViewById<LinearLayout>(R.id.message_info)
-
-       val params = lin.layoutParams as FrameLayout.LayoutParams
-        val margin = MessageChanger.timeStampMargin.dp
-        Log.d("fff", "m = $margin")
-        params.setMargins(margin, margin, margin, margin)
-        lin.layoutParams = params
-        lin.setBackgroundResource(timeStampBackground)
-//            imageView.outlineProvider = RoundedCornerOutlineProvider(radius.dp.toFloat())
-//                    imageView.clipToOutline = true
-        // imageView.maxWidth = DisplayManager.getWidthDp()
-        //  imageView.maxHeight = DisplayManager.getMainContainerWidth() + 100
-
-        Glide.with(imageView.context)
-            .load(R.color.blue_700)
-            .error(R.color.blue_700)
-            .centerCrop()
-            .into(imageView)
-//var width = 0
-//        var height = 0
-//
-//        Glide.with(imageView.context)
-//            .asBitmap()
-//            .load(attachment.uri)
-//            .listener(object : RequestListener<Bitmap> {
-//                override fun onResourceReady(
-//                    resource: Bitmap?,
-//                    model: Any?,
-//                    target: com.bumptech.glide.request.target.Target<Bitmap>?,
-//                    dataSource: DataSource?,
-//                    isFirstResource: Boolean
-//                ): Boolean {
-//                   width = resource?.width ?: 0
-//                    height = resource?.height ?: 0
-//                   return true
-//                  //  if (width <= 0 || height <= 0) return
-//                }
-//
-//                override fun onLoadFailed(
-//                    e: GlideException?,
-//                    model: Any?,
-//                    target: Target<Bitmap>?,
-//                    isFirstResource: Boolean
-//                ): Boolean {
-//                    return false
-//                }
-//            })
-//            .into(imageView)
-//
-//        if (height > MAX_IMAGE_HEIGHT_SIZE) height = MAX_IMAGE_HEIGHT_SIZE
-//        Glide.with(imageView.context)
-//            .asBitmap().centerCrop().override(width, height)
-//            .load(attachment.uri).into(imageView)
     }
 
     private fun setupImageViewIntoFlexibleSingleImageCell(

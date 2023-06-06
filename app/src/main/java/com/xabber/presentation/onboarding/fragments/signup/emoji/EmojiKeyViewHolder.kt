@@ -14,4 +14,5 @@ class EmojiKeyViewHolder(
             keyText.setOnClickListener { onKeyClick(item) }
         }
     }
+
 }

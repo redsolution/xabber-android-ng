@@ -166,8 +166,10 @@
         <item name="android:layout_margin">8dp</item>
     </style>
 
-    <style name="ShapeAppearanceOverlay.App.CornerSize10Percent" parent="">
-        <item name="cornerSize">10%</item>
+    <style name="CardViewWithoutShadow" parent="CardView.Light">
+        <item name="cardBackgroundColor">@color/transparent</item>
+        <item name="android:background">"@color/transparent"</item>
+        <item name="cardElevation">0dp</item>
     </style>
 
 </resources>

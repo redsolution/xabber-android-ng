@@ -111,9 +111,8 @@ class XOutgoingMessageVH internal constructor(
                 messageBalloon.removeAllViews()
                 Log.d("ppp", "grid is not empty")
                 val builder = ImageGridBuilder()
-                 val imageGridView: View =
-                       builder.inflateView(messageBalloon, message.references.size)
-                     builder.bindView(imageGridView, message.references, this)
+                 val imageGridView: View = builder.inflateView(messageBalloon, message.references.size)
+                     builder.bindView(imageGridView, message, message.references, this)
                      messageBalloon.addView(imageGridView)
         } else if (message.references.isNotEmpty() && message.messageBody.isNotEmpty()) {
 
@@ -121,7 +120,7 @@ class XOutgoingMessageVH internal constructor(
                 val builder = ImageGridBuilder()
                 val imageGridView: View =
                     builder.inflateView(messageBalloon, message.references.size)
-                builder.bindView(imageGridView, message.references, this)
+                builder.bindView(imageGridView, message, message.references, this)
                 messageBalloon.addView(imageGridView)
            val v =    inflateText(messageBalloon)
                 messageBalloon.addView(v)

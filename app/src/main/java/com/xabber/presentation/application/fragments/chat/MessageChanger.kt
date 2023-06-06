@@ -3,6 +3,7 @@ package com.xabber.presentation.application.fragments.chat
 import com.xabber.R
 
 object MessageChanger {
+    var color = R.color.blue_100
     var gradient = 7
     var designType = 1
     var bottom = true

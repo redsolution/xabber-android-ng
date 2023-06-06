@@ -27,4 +27,5 @@ private object DiffUtilCallback : DiffUtil.ItemCallback<String>() {
 
     override fun areContentsTheSame(oldItem: String, newItem: String) =
         oldItem == newItem
+
 }

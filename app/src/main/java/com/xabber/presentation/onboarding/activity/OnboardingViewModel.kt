@@ -57,7 +57,7 @@ class OnboardingViewModel : ViewModel() {
     fun getHost(): Single<HostListDto> = accountRepository.getHostList()
 
     fun checkIsNameAvailable(username: String, host: String): Boolean =
-        true  // здесь пока заглушка, в дальнейшем заменить реальной логикой проверки имени на сервере
+        true  // здесь пока заглушка, в дальнейшем заменить реальной проверкой имени на сервере
 
     fun registerAccount() {
         val deviceName = android.os.Build.MODEL

@@ -15,6 +15,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.MenuProvider
 import androidx.core.view.isVisible
+import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import by.kirich1409.viewbindingdelegate.viewBinding
@@ -33,9 +34,12 @@ import com.xabber.presentation.application.manage.AccountManager
 import com.xabber.presentation.application.manage.ColorManager
 import com.xabber.presentation.application.manage.DisplayManager
 import com.xabber.presentation.application.contract.navigator
+import com.xabber.presentation.application.dialogs.NotificationBottomSheet
 import com.xabber.presentation.application.fragments.DetailBaseFragment
 import com.xabber.presentation.application.fragments.account.color.AccountColorDialog
 import com.xabber.presentation.application.fragments.account.qrcode.QRCodeParams
+import com.xabber.presentation.application.fragments.chat.AvatarChangerBottomSheet
+import com.xabber.presentation.onboarding.fragments.signup.AvatarBottomSheet
 import com.xabber.utils.askUserForOpeningAppSettings
 import com.xabber.utils.blur.BlurTransformation
 import com.xabber.utils.dp
@@ -47,31 +51,6 @@ class AccountFragment : DetailBaseFragment(R.layout.fragment_account) {
     private val viewModel: AccountViewModel by viewModels()
     private var hasAvatar = false
     private var popupMenu: PopupMenu? = null
-
-    private val requestCameraPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission(), ::onGotCameraPermissionResult
-    )
-
-    private val requestGalleryPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission(), ::onGotGalleryPermissionResult
-    )
-
-    private val cropImage = registerForActivityResult(CropImageContract()) {
-        when {
-            it.isSuccessful -> {
-                Glide.with(binding.accountAppbar.avatarGr.imAccountAvatar).load(it.uriContent)
-                    .into(binding.accountAppbar.avatarGr.imAccountAvatar)
-                viewModel.saveAvatar(getJid(), it.uriContent.toString())
-            }
-            it is CropImage.CancelledResult -> Log.d(
-                "Avatar",
-                "cropping image was cancelled by the user"
-            )
-            else -> {
-                Log.d("Avatar", "${it.error}")
-            }
-        }
-    }
 
     companion object {
         fun newInstance(jid: String): AccountFragment {
@@ -85,41 +64,6 @@ class AccountFragment : DetailBaseFragment(R.layout.fragment_account) {
 
     private fun getJid(): String =
         requireArguments().getString(AppConstants.PARAMS_ACCOUNT_FRAGMENT)!!
-
-
-    private fun onGotCameraPermissionResult(result: Boolean) {
-        if (result) {
-            cropImageFromCamera()
-        } else askUserForOpeningAppSettings()
-    }
-
-    private fun onGotGalleryPermissionResult(granted: Boolean) {
-        if (granted) {
-            cropImageFromGallery()
-        } else {
-            if (!shouldShowRequestPermissionRationale(Manifest.permission.READ_EXTERNAL_STORAGE)) {
-                askUserForOpeningAppSettings()
-            }
-        }
-    }
-
-    private fun cropImageFromCamera() {
-        startCrop(includeCamera = true, includeGallery = false)
-    }
-
-    private fun cropImageFromGallery() {
-        startCrop(includeCamera = false, includeGallery = true)
-    }
-
-    private fun startCrop(includeCamera: Boolean, includeGallery: Boolean) {
-        cropImage.launch(options {
-            setGuidelines(CropImageView.Guidelines.OFF).setImageSource(
-                includeGallery, includeCamera
-            ).setOutputCompressFormat(Bitmap.CompressFormat.PNG).setAspectRatio(
-                1, 1
-            ).setMinCropWindowSize(800, 800).setActivityBackgroundColor(Color.BLACK)
-        })
-    }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -153,7 +97,22 @@ class AccountFragment : DetailBaseFragment(R.layout.fragment_account) {
 //            viewModel.saveAvatar(getJid(), avatarUri.toString())
 //        }
 
+        viewModel.avatarBitmap.observe(viewLifecycleOwner) {
+            setAvatar(it)
+        }
+        viewModel.avatarUri.observe(viewLifecycleOwner) {
+            Glide.with(binding.accountAppbar.avatarGr.imAccountAvatar).load(it)
+                .into(binding.accountAppbar.avatarGr.imAccountAvatar)
+            viewModel.saveAvatar(getJid(), it.toString())
+        }
+    }
 
+    private fun setAvatar(bitmap: Bitmap) {
+        Glide.with(requireContext())
+            .load(bitmap)
+            .skipMemoryCache(true)
+            .into(binding.accountAppbar.avatarGr.imAccountAvatar)
+      //  viewModel.saveAvatar(getJid(), )
     }
 
     private fun setupTitle() {
@@ -266,18 +225,22 @@ class AccountFragment : DetailBaseFragment(R.layout.fragment_account) {
     private fun createAvatarPopupMenu() {
         popupMenu =
             PopupMenu(requireContext(), binding.accountAppbar.avatarGr.imAvatarGroup, Gravity.TOP)
-        popupMenu!!.inflate(R.menu.popup_menu_account_avatar)
-        popupMenu!!.menu.findItem(R.id.delete_avatar).isVisible =
+        popupMenu?.inflate(R.menu.popup_menu_account_avatar)
+      if (popupMenu != null)  popupMenu?.menu?.findItem(R.id.delete_avatar)?.isVisible =
             viewModel.getAccount(getJid())!!.hasAvatar
-        popupMenu!!.setOnMenuItemClickListener {
+        popupMenu?.setOnMenuItemClickListener {
             when (it.itemId) {
-                R.id.choose_image -> requestGalleryPermissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
+                R.id.change_avatar -> showAvatarBottomSheet()
                 R.id.delete_avatar -> deleteAvatar()
-                R.id.take_photo -> requestCameraPermissionLauncher.launch(Manifest.permission.CAMERA)
             }
             true
         }
         binding.accountAppbar.avatarGr.imAvatarGroup.setOnClickListener { popupMenu!!.show() }
+    }
+
+    private fun showAvatarBottomSheet() {
+        val dialog = AvatarChangerBottomSheet.newInstance(getJid())
+        dialog.show(childFragmentManager, AppConstants.AVATAR_BOTTOM_SHEET_TAG)
     }
 
     private fun deleteAvatar() {
@@ -293,8 +256,6 @@ class AccountFragment : DetailBaseFragment(R.layout.fragment_account) {
             override fun onMenuItemSelected(menuItem: MenuItem): Boolean {
                 when (menuItem.itemId) {
                     R.id.colors -> {
-//                            val colors = listOf("red", "blue", "teal", "amber", "pink", "brown", "cyan", "green", "deep-orange", "orange")
-//                     viewModel.setColor("знс@xabber.com", colors.random())
                    val dialog =  AccountColorDialog.newInstance(viewModel.getAccount(getJid())?.colorKey ?: "blue")
                         navigator().showDialogFragment(dialog, "")
                     }
@@ -363,9 +324,10 @@ class AccountFragment : DetailBaseFragment(R.layout.fragment_account) {
     private fun subscribeToViewModelData(){
         viewModel.initDataListener(getJid())
         viewModel.accounts.observe(viewLifecycleOwner) {
+            loadAvatar(it[0])
             if (hasAvatar != it[0].hasAvatar) {
                 loadAvatar(it[0])
-                popupMenu!!.menu.findItem(R.id.delete_avatar).isVisible = it[0].hasAvatar
+                popupMenu?.menu?.findItem(R.id.delete_avatar)?.isVisible = it[0].hasAvatar
                 hasAvatar = it[0].hasAvatar
             }
             binding.accountAppbar.switchAccountEnable.setOnCheckedChangeListener(null)

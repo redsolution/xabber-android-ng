@@ -1,4 +1,4 @@
-package com.xabber.presentation.onboarding.fragments.signup.emoji
+package com.xabber.presentation.application.fragments.chat.message
 
 import android.content.res.Resources
 import android.graphics.Paint
@@ -8,6 +8,8 @@ import androidx.lifecycle.ViewModel
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.xabber.R
+import com.xabber.presentation.onboarding.fragments.signup.emoji.EmojiKeyboardBottomSheet
+import com.xabber.presentation.onboarding.fragments.signup.emoji.EmojiTypeDto
 import com.xabber.utils.toMap
 import java.io.BufferedReader
 import java.io.InputStream
@@ -50,5 +52,4 @@ class EmojiKeyboardViewModel : ViewModel() {
 
         return resultMap
     }
-
 }

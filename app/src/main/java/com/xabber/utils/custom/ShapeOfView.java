@@ -106,14 +106,6 @@ public class ShapeOfView extends FrameLayout {
         }
     }
 
-    protected float dpToPx(float dp) {
-        return dp * this.getContext().getResources().getDisplayMetrics().density;
-    }
-
-    protected float pxToDp(float px) {
-        return px / this.getContext().getResources().getDisplayMetrics().density;
-    }
-
     @Override
     protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
         super.onLayout(changed, left, top, right, bottom);

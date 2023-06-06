@@ -2,6 +2,8 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/grid_2"
+    android:paddingHorizontal="4dp"
+    android:paddingVertical="2dp"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content">
 
@@ -14,69 +16,40 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
 
-        <androidx.cardview.widget.CardView
+        <com.xabber.utils.custom.ShapeOfView
             android:id="@+id/cardview_1"
+           android:layout_marginEnd="1dp"
+            app:shape_clip_drawable="@drawable/ic_mask_circle"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:layout_weight="1"
-            app:cardCornerRadius="4dp">
+            android:layout_weight="1">
 
             <ImageView
                 android:id="@+id/ivImage0"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:scaleType="centerCrop" />
-        </androidx.cardview.widget.CardView>
+        </com.xabber.utils.custom.ShapeOfView>
 
-        <androidx.cardview.widget.CardView
+        <com.xabber.utils.custom.ShapeOfView
+            app:cardElevation="0dp"
+            app:cardBackgroundColor="@color/transparent"
+           android:layout_marginStart="1dp"
             android:id="@+id/cardview_2"
+            app:cardCornerRadius="6dp"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:elevation="1dp"
-            app:cardCornerRadius="4dp">
+            android:layout_weight="1">
 
             <ImageView
                 android:id="@+id/ivImage1"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:layout_marginLeft="2dp"
                 android:layout_weight="1"
                 android:scaleType="centerCrop" />
-        </androidx.cardview.widget.CardView>
+        </com.xabber.utils.custom.ShapeOfView>
 
     </LinearLayout>
 
-    <LinearLayout
-        android:id="@+id/message_info"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom|end"
-        android:layout_marginEnd="3dp"
-        android:layout_marginBottom="3dp"
-        android:background="@drawable/system_message_background"
-        android:elevation="10dp"
-        android:orientation="horizontal"
-        android:paddingStart="8dp"
-        android:paddingEnd="4dp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
-
-        <TextView
-            android:id="@+id/tv_image_sending_time"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:gravity="bottom"
-            android:singleLine="true"
-            android:text="14:30"
-            android:textColor="@color/white"
-            android:textSize="10sp" />
-
-        <ImageView
-            android:id="@+id/im_image_message_status"
-            android:layout_width="14dp"
-            android:layout_height="14dp"
-            android:layout_marginStart="4dp"
-            android:src="@drawable/ic_check_green" />
-    </LinearLayout>
+   <include layout="@layout/message_information_stamp"/>
 </FrameLayout>

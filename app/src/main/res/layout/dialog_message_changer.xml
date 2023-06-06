@@ -24,11 +24,12 @@
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content">
+
         <FrameLayout
+            android:id="@+id/frame_gradient"
             android:layout_width="0dp"
             android:layout_height="0dp"
             android:background="@drawable/gradi_purple"
-android:id="@+id/frame_gradient"
             app:layout_constraintBottom_toBottomOf="@id/rv_chat_demonstration"
             app:layout_constraintEnd_toEndOf="@id/rv_chat_demonstration"
             app:layout_constraintStart_toStartOf="@id/rv_chat_demonstration"
@@ -174,14 +175,14 @@ android:id="@+id/frame_gradient"
 
                 <RadioButton
                     android:id="@+id/bottom_tails"
+                    style="@style/RadioButton"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                   style="@style/RadioButton"
                     android:text="Bottom" />
 
                 <RadioButton
-                    style="@style/RadioButton"
                     android:id="@+id/top_tails"
+                    style="@style/RadioButton"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Top" />
@@ -225,54 +226,54 @@ android:id="@+id/frame_gradient"
                 app:layout_constraintTop_toTopOf="parent" />
 
             <RadioGroup
-                android:layout_marginTop="16dp"
                 android:id="@+id/radio_group_design"
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content">
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp">
 
                 <RadioButton
-                    style="@style/RadioButton"
                     android:id="@+id/space"
+                    style="@style/RadioButton"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Aliens" />
 
                 <RadioButton
-                    style="@style/RadioButton"
                     android:id="@+id/cats"
+                    style="@style/RadioButton"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Cats" />
 
                 <RadioButton
-                    style="@style/RadioButton"
                     android:id="@+id/hearts"
+                    style="@style/RadioButton"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Hearts" />
 
                 <RadioButton
-                    style="@style/RadioButton"
                     android:id="@+id/flowers"
+                    style="@style/RadioButton"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Flowers" />
 
 
-            <RadioButton
-                style="@style/RadioButton"
-                android:id="@+id/meadow"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Meadow" />
+                <RadioButton
+                    android:id="@+id/meadow"
+                    style="@style/RadioButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Meadow" />
 
-            <RadioButton
-                style="@style/RadioButton"
-                android:id="@+id/summer"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Summer" />
-        </RadioGroup>
+                <RadioButton
+                    android:id="@+id/summer"
+                    style="@style/RadioButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Summer" />
+            </RadioGroup>
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 </LinearLayout>

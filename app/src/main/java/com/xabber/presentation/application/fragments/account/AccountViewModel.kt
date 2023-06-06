@@ -1,5 +1,7 @@
 package com.xabber.presentation.application.fragments.account
 
+import android.graphics.Bitmap
+import android.net.Uri
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
@@ -138,4 +140,17 @@ class AccountViewModel : ViewModel() {
         realm.close()
     }
 
+    private val _avatarBitmap = MutableLiveData<Bitmap>()
+    val avatarBitmap: LiveData<Bitmap> = _avatarBitmap
+
+    private val _avatarUri = MutableLiveData<Uri>()
+    val avatarUri: LiveData<Uri> = _avatarUri
+
+    fun setAvatarBitmap(bitmap: Bitmap) {
+        _avatarBitmap.value = bitmap
+    }
+
+    fun setAvatarUri(uri: Uri) {
+        _avatarUri.value= uri
+    }
 }

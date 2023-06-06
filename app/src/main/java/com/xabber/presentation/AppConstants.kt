@@ -6,6 +6,7 @@ object AppConstants {
 
     const val ACCOUNT_COLOR_KEY = "account color key"
     const val ATTACH_BOTTOM_SHEET_TAG = "attach bottom sheet tag"
+    const val AVATAR_BOTTOM_SHEET_TAG = "avatar bottom sheet tag"
     const val BLOCK_CONTACT = "block contact"
     const val BLOCK_CONTACT_BUNDLE_KEY = "block contact bundle key"
     const val BOTTOM_SHEET_STATE = "bottom sheet state"
@@ -41,6 +42,7 @@ object AppConstants {
     const val DIALOG_CHECKBOX_VALUE = "dialog checkbox value"
     const val DIALOG_TAG = "dialog_tag"
     const val EDIT_CONTACT_PARAMS = "edit contact params"
+    const val EMOJI_BOTTOM_SHEET_TAG = "emoji bottom sheet tag"
     const val IMAGE_POSITION_KEY = "position"
     const val MASK_KEY = "mask key"
     const val MEDIA_LIST = "media list"

@@ -27,4 +27,5 @@ private object DiffUtilCallbackEmoji : DiffUtil.ItemCallback<Int>() {
 
     override fun areContentsTheSame(oldItem: Int, newItem: Int) =
         oldItem == newItem
+
 }

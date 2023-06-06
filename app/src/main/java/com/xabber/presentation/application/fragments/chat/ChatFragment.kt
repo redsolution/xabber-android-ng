@@ -18,7 +18,6 @@ import android.view.animation.AnimationUtils
 import android.view.animation.TranslateAnimation
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.appcompat.widget.PopupMenu
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
@@ -278,7 +277,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
                 R.id.enable_notifications -> enableNotifications()
                 R.id.clear_message_history -> clearHistory(chat)
                 R.id.delete_chat -> deleteChat(chat)
-             //   R.id.message_view_settings -> navigator().showMessageSettings()
+                //   R.id.message_view_settings -> navigator().showMessageSettings()
             }; true
         }
     }
@@ -694,17 +693,17 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
             Log.d("iii", "observe")
             messageAdapter?.updateAdapter(it)
             messageAdapter?.notifyDataSetChanged()
-                if (layoutManager != null && messageAdapter != null) {
-                    if (layoutManager!!.findLastVisibleItemPosition() >= messageAdapter!!.itemCount - 2 && !isSelectedMode) scrollDown()
-                    if (isNeedScrollDown) {
-                        scrollDown()
-                        isNeedScrollDown = false
-                    }
+            if (layoutManager != null && messageAdapter != null) {
+                if (layoutManager!!.findLastVisibleItemPosition() >= messageAdapter!!.itemCount - 2 && !isSelectedMode) scrollDown()
+                if (isNeedScrollDown) {
+                    scrollDown()
+                    isNeedScrollDown = false
                 }
+            }
 
 
-         //   messageAdapter?.updateAdapter(it)
-          //  messageAdapter?.notifyDataSetChanged()
+            //   messageAdapter?.updateAdapter(it)
+            //  messageAdapter?.notifyDataSetChanged()
 //            if (layoutManager != null && messageAdapter != null) {
 //                if (layoutManager!!.findLastVisibleItemPosition() >= messageAdapter!!.itemCount - 2 && !isSelectedMode) scrollDown()
 //                if (isNeedScrollDown) {
@@ -1032,8 +1031,8 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
 
 
     private fun updateTopDateIfNeed() {
-    //    val layoutManager = binding.messageList.layoutManager as LinearLayoutManager
-     //   val position = layoutManager.findFirstVisibleItemPosition()
+        //    val layoutManager = binding.messageList.layoutManager as LinearLayoutManager
+        //   val position = layoutManager.findFirstVisibleItemPosition()
 // val message : MessageDto = messageAdapter!!.getItem(position)
 // if (message != null)
 // binding.tvTopDate.setText(StringUtils.getDateStringForMessage(message.t)
@@ -1129,8 +1128,8 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
             } else if (binding.selectMessagesToolbar.toolbarSelectedMessages.isVisible) {
                 enableSelectionMode(false)
             } else {
-            navigator().closeDetail()
-              }
+                navigator().closeDetail()
+            }
         }
     }
 

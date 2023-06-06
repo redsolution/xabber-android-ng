@@ -292,7 +292,7 @@
     <string name="menu_item_chat_list_add">Add</string>
     <string name="menu_item_choose_from_gallery">Choose image</string>
     <string name="menu_item_take_a_photo">Take a photo</string>
-    <string name="menu_item_delete_avatar">Delete avatar</string>
+    <string name="menu_item_delete_avatar">Delete</string>
     <string name="encryption_settings_toolbar_title">Encryption and keys</string>
 
     <plurals name="estimated_in_seconds">
@@ -418,4 +418,5 @@
     <string name="message_status">message status</string>
     <string name="sending_status">sending status</string>
     <string name="image">image</string>
+    <string name="menu_item_change_avatar">Change avatar</string>
 </resources>

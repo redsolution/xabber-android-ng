@@ -7,20 +7,15 @@
     android:paddingHorizontal="4dp"
     android:paddingVertical="2dp">
 
-    <androidx.cardview.widget.CardView
+    <com.xabber.utils.custom.ShapeOfView
         android:id="@+id/card"
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:background="@color/transparent"
-        android:elevation="0dp"
-        app:cardBackgroundColor="@color/transparent"
-        app:cardCornerRadius="12dp"
-        app:cardElevation="0dp">
+        android:layout_height="wrap_content">
 
         <ImageView
             android:id="@+id/ivImage0"
-            android:layout_width="240dp"
-            android:layout_height="400dp"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
             android:background="@color/transparent"
             android:scaleType="centerCrop"
             app:layout_constraintBottom_toBottomOf="parent"
@@ -28,7 +23,8 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
             android:contentDescription="@string/image" />
-    </androidx.cardview.widget.CardView>
+    </com.xabber.utils.custom.ShapeOfView>
 
-
+    <include
+        layout="@layout/message_information_stamp"/>
 </FrameLayout>

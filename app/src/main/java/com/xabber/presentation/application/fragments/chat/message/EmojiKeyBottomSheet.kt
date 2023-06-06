@@ -1,9 +1,10 @@
-package com.xabber.presentation.onboarding.fragments.signup.emoji
+package com.xabber.presentation.application.fragments.chat.message
 
 import android.app.Dialog
 import android.content.DialogInterface
 import android.graphics.Color
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -17,15 +18,44 @@ import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.xabber.R
 import com.xabber.databinding.FragmentEmojiKeyboardBinding
 import com.xabber.presentation.AppConstants
+import com.xabber.presentation.application.manage.DisplayManager.requireArguments
+import com.xabber.presentation.onboarding.fragments.signup.emoji.EmojiAvatarBottomSheet
+import com.xabber.presentation.onboarding.fragments.signup.emoji.EmojiKeyAdapter
+import com.xabber.presentation.onboarding.fragments.signup.emoji.EmojiKeyboardViewModel
+import com.xabber.presentation.onboarding.fragments.signup.emoji.EmojiTypeAdapter
 import com.xabber.utils.dp
 import com.xabber.utils.setFragmentResult
 
-class EmojiKeyboardBottomSheet : BottomSheetDialogFragment() {
+class EmojiKeyBottomSheet : BottomSheetDialogFragment() {
     private val binding by viewBinding(FragmentEmojiKeyboardBinding::bind)
     private val viewModel = EmojiKeyboardViewModel()
     private var keysAdapter: EmojiKeyAdapter? = null
     private var typesAdapter: EmojiTypeAdapter? = null
     private lateinit var dataset: Map<Int, List<String>>
+    private var currentEmojiType: Int? = null
+
+    companion object {
+        fun newInstance(accountId: String) = EmojiKeyBottomSheet().apply {
+            arguments = Bundle().apply {
+                putString("oo", accountId)
+            }
+        }
+
+        val emojiTypes = mapOf(
+            "smileysAndPeople" to R.string.smileysAndPeople,
+            "animalsAndNature" to R.string.animalsAndNature,
+            "foodAndDrink" to R.string.foodAndDrink,
+            "activity" to R.string.activity,
+            "travelAndPlaces" to R.string.travelAndPlaces,
+            "objects" to R.string.objects,
+            "symbols" to R.string.symbols,
+            "flags" to R.string.flags
+        )
+    }
+
+override fun getTheme(): Int = R.style.Theme_NoWiredStrapInNavigationBar
+private fun getAccountId(): String =
+    requireArguments().getString("oo")!!
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -58,6 +88,8 @@ class EmojiKeyboardBottomSheet : BottomSheetDialogFragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        currentEmojiType = savedInstanceState?.getInt("emojiType") ?: R.string.smileysAndPeople
+
         binding.recyclerViewKeys.layoutManager = GridLayoutManager(context, 8)
         binding.recyclerViewKeysTypes.scrollBarFadeDuration = 0
         dataset = viewModel.getEmojiMap(resources)
@@ -67,20 +99,14 @@ class EmojiKeyboardBottomSheet : BottomSheetDialogFragment() {
                     onEmojiClick(it)
                 }.also { keysAdapter = it }
             }
-            keysAdapter!!.submitList(dataset[R.string.smileysAndPeople])
+            keysAdapter?.submitList(dataset[currentEmojiType])
             with(recyclerViewKeysTypes) {
                 adapter = EmojiTypeAdapter {
                     onEmojiTypeClick(it)
                 }.also { typesAdapter = it }
             }
-            typesAdapter!!.submitList(dataset.keys.toMutableList())
+            typesAdapter?.submitList(dataset.keys.toMutableList())
         }
-    }
-
-    override fun onDestroy() {
-        keysAdapter = null
-        typesAdapter = null
-        super.onDestroy()
     }
 
     private fun onEmojiClick(emoji: String) {
@@ -89,24 +115,23 @@ class EmojiKeyboardBottomSheet : BottomSheetDialogFragment() {
             bundleOf(AppConstants.RESPONSE_EMOJI_KEY to emoji)
         )
         dismiss()
-        EmojiAvatarBottomSheet().show(parentFragmentManager, null)
+        EmojiBottomSheet.newInstance(getAccountId()).show(parentFragmentManager, null)
     }
 
     private fun onEmojiTypeClick(emojiType: Int) {
+        currentEmojiType = emojiType
         keysAdapter?.submitList(dataset[emojiType])
     }
 
-    companion object {
-        val emojiTypes = mapOf(
-            "smileysAndPeople" to R.string.smileysAndPeople,
-            "animalsAndNature" to R.string.animalsAndNature,
-            "foodAndDrink" to R.string.foodAndDrink,
-            "activity" to R.string.activity,
-            "travelAndPlaces" to R.string.travelAndPlaces,
-            "objects" to R.string.objects,
-            "symbols" to R.string.symbols,
-            "flags" to R.string.flags
-        )
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putInt("emojiType", currentEmojiType ?: R.string.smileysAndPeople)
+    }
+
+    override fun onDestroy() {
+        keysAdapter = null
+        typesAdapter = null
+        super.onDestroy()
     }
 
 }
