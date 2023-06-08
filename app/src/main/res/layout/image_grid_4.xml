@@ -12,23 +12,30 @@
         android:layout_height="match_parent"
         android:orientation="horizontal">
 
-        <com.xabber.utils.custom.ShapeOfView
-            android:id="@+id/cardview_1"
-            app:cardElevation="0dp"
-            android:background="@color/transparent"
-            app:cardBackgroundColor="@color/transparent"
+        <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:layout_marginEnd="1dp"
             android:layout_weight="1">
-
+        <com.xabber.utils.custom.ShapeOfView
+            android:id="@+id/cardview_1"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_marginEnd="1dp">
             <ImageView
                 android:id="@+id/ivImage0"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:scaleType="centerCrop" />
         </com.xabber.utils.custom.ShapeOfView>
+            <ImageView
+                android:id="@+id/im_video_label"
+                android:visibility="gone"
+                android:layout_gravity="center"
+                android:src="@drawable/circle_grey_transparent"
+                android:layout_width="36dp"
+                android:layout_height="36dp" />
 
+        </FrameLayout>
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent"
@@ -36,12 +43,15 @@
             android:layout_weight="2"
             android:orientation="vertical">
 
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent" android:layout_weight="1">
             <com.xabber.utils.custom.ShapeOfView
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:layout_marginBottom="1dp"
                 android:id="@+id/cardview_2"
-                android:layout_weight="1">
+               >
 
                 <ImageView
                     android:id="@+id/ivImage1"
@@ -50,15 +60,25 @@
                     android:layout_weight="1"
                     android:scaleType="centerCrop" />
             </com.xabber.utils.custom.ShapeOfView>
+                <ImageView
+                    android:id="@+id/im_video_label_1"
+                    android:visibility="gone"
+                    android:layout_gravity="center"
+                    android:src="@drawable/circle_grey_transparent"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp" />
+            </FrameLayout>
 
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent" android:layout_weight="1">
             <com.xabber.utils.custom.ShapeOfView
-                android:background="@color/transparent"
                 android:id="@+id/cardview_4"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:layout_marginTop="1dp"
                 android:layout_marginBottom="1dp"
-                android:layout_weight="1">
+               >
 
                 <ImageView
                     android:id="@+id/ivImage2"
@@ -67,12 +87,23 @@
                     android:layout_weight="1"
                     android:scaleType="centerCrop" />
             </com.xabber.utils.custom.ShapeOfView>
+                <ImageView
+                    android:id="@+id/im_video_label_2"
+                    android:visibility="gone"
+                    android:layout_gravity="center"
+                    android:src="@drawable/circle_grey_transparent"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp" />
+            </FrameLayout>
 
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_weight="1">
             <com.xabber.utils.custom.ShapeOfView
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:layout_marginTop="1dp"
-                android:layout_weight="1"
                 android:id="@+id/cardview_3">
 
                 <ImageView
@@ -82,6 +113,14 @@
                     android:layout_weight="1"
                     android:scaleType="centerCrop" />
             </com.xabber.utils.custom.ShapeOfView>
+                <ImageView
+                    android:id="@+id/im_video_label_3"
+                    android:visibility="gone"
+                    android:layout_gravity="center"
+                    android:src="@drawable/circle_grey_transparent"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp" />
+            </FrameLayout>
         </LinearLayout>
 
     </LinearLayout>

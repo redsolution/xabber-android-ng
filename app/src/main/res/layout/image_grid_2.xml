@@ -2,10 +2,10 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/grid_2"
-    android:paddingHorizontal="4dp"
-    android:paddingVertical="2dp"
     android:layout_width="wrap_content"
-    android:layout_height="wrap_content">
+    android:layout_height="wrap_content"
+    android:paddingHorizontal="4dp"
+    android:paddingVertical="2dp">
 
     <LinearLayout
         android:layout_width="260dp"
@@ -16,40 +16,60 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
 
-        <com.xabber.utils.custom.ShapeOfView
-            android:id="@+id/cardview_1"
-           android:layout_marginEnd="1dp"
-            app:shape_clip_drawable="@drawable/ic_mask_circle"
+        <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent"
+            android:layout_marginEnd="1dp"
             android:layout_weight="1">
 
-            <ImageView
-                android:id="@+id/ivImage0"
+            <com.xabber.utils.custom.ShapeOfView
+                android:id="@+id/cardview_1"
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:scaleType="centerCrop" />
-        </com.xabber.utils.custom.ShapeOfView>
+                android:layout_height="match_parent">
 
-        <com.xabber.utils.custom.ShapeOfView
-            app:cardElevation="0dp"
-            app:cardBackgroundColor="@color/transparent"
-           android:layout_marginStart="1dp"
-            android:id="@+id/cardview_2"
-            app:cardCornerRadius="6dp"
+                <ImageView
+                    android:id="@+id/ivImage0"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:scaleType="centerCrop" />
+            </com.xabber.utils.custom.ShapeOfView>
+
+            <ImageView
+                android:id="@+id/im_video_label"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:layout_gravity="center"
+                android:src="@drawable/circle_grey_transparent"
+                android:visibility="gone" />
+        </FrameLayout>
+
+        <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent"
+            android:layout_marginStart="1dp"
             android:layout_weight="1">
 
-            <ImageView
-                android:id="@+id/ivImage1"
+            <com.xabber.utils.custom.ShapeOfView
+                android:id="@+id/cardview_2"
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:layout_weight="1"
-                android:scaleType="centerCrop" />
-        </com.xabber.utils.custom.ShapeOfView>
+                android:layout_height="match_parent">
 
+                <ImageView
+                    android:id="@+id/ivImage1"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:scaleType="centerCrop" />
+            </com.xabber.utils.custom.ShapeOfView>
+
+            <ImageView
+                android:id="@+id/im_video_label_1"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:layout_gravity="center"
+                android:src="@drawable/circle_grey_transparent"
+                android:visibility="gone" />
+        </FrameLayout>
     </LinearLayout>
 
-   <include layout="@layout/message_information_stamp"/>
+    <include layout="@layout/message_information_stamp" />
 </FrameLayout>

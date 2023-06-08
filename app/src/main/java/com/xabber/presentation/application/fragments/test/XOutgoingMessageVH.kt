@@ -28,13 +28,15 @@ import com.xabber.presentation.application.fragments.chat.message.MessageDeliver
 import com.xabber.presentation.application.fragments.chat.message.XMessageVH
 import com.xabber.utils.StringUtils
 import com.xabber.utils.custom.CorrectlyTouchEventTextView
+import com.xabber.utils.custom.ShapeOfView
 import java.util.*
+import kotlin.collections.ArrayList
 
 class XOutgoingMessageVH internal constructor(
     private val listener: MessageAdapter.Listener?,
     itemView: View?, messageListener: MessageClickListener?,
     longClickListener: MessageLongClickListener?,
-    fileListener: FileListener?, @StyleRes appearance: Int
+    val fileListener: FileListener?, @StyleRes appearance: Int
 ) : XMessageVH(itemView!!, messageListener!!, longClickListener!!, fileListener, appearance) {
     @SuppressLint("UseCompatLoadingForDrawables")
     override fun bind(message: MessageDto, extraData: MessageVhExtraData) {
@@ -104,7 +106,19 @@ class XOutgoingMessageVH internal constructor(
         }
 
 
-
+        val image0 = itemView.findViewById<ShapeOfView>(R.id.card)
+        val image1 =itemView.findViewById<ImageView>(R.id.ivImage1)
+        val image2 =itemView.findViewById<ImageView>(R.id.ivImage2)
+        val image3 = itemView.findViewById<ImageView>(R.id.ivImage3)
+        val image4 =itemView.findViewById<ImageView>(R.id.ivImage4)
+        val image5 = itemView.findViewById<ImageView>(R.id.ivImage5)
+        val list = ArrayList<String>()
+        for (i in 0 until message.references.size) {
+            list.add(message.references[i].uri!!)
+        }
+        image0?.setOnClickListener {
+            Log.d("iii", "XX")
+        }
         // References
 
             if (message.references.isNotEmpty() && message.messageBody.isEmpty()) {
@@ -274,7 +288,6 @@ class XOutgoingMessageVH internal constructor(
 
     }
 
-
     private fun setStatusIcon(messageRealmObject: MessageDto) {
         statusIcon.isVisible = true
         //  bottomStatusIcon.isVisible = true
@@ -293,11 +306,6 @@ class XOutgoingMessageVH internal constructor(
         }
     }
 
-    private fun dpToPx(dp: Int, itemView: View?): Int {
-        val displayMetrics = itemView?.context?.resources?.displayMetrics
-        return TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, dp.toFloat(), displayMetrics)
-            .toInt()
-    }
 
     fun inflateText(parent: ViewGroup): View {
         return LayoutInflater.from(parent.context)

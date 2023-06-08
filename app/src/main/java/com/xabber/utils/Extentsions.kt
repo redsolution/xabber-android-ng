@@ -276,5 +276,6 @@ fun MessageReferenceStorageItem.toMessageReferenceDto() =
     MessageReferenceDto(
         id = primary,
         uri = uri,
-        mimeType = mimeType
+        mimeType = mimeType,
+        isImage = isImage
     )

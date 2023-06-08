@@ -261,6 +261,7 @@ class ChatViewModel : ViewModel() {
                         primary = messageDto.references[i].id + "${System.currentTimeMillis()}"
                         uri = messageDto.references[i].uri
                         mimeType = messageDto.references[i].mimeType
+                        isImage = messageDto.references[i].isImage
                     })
                     rreferences.add(ref)
                 }

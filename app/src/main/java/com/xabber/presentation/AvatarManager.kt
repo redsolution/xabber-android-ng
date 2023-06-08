@@ -1,6 +1,7 @@
 package com.xabber.presentation
 
 import com.xabber.data_base.defaultRealmConfig
+
 import io.realm.kotlin.Realm
 
 object AvatarManager {

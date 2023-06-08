@@ -68,6 +68,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.File
 import java.util.*
+import kotlin.collections.ArrayList
 
 class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.Listener,
     XIncomingMessageVH.BindListener, XMessageVH.FileListener,
@@ -1287,15 +1288,15 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         }
     }
 
-    override fun onImageClick(messagePosition: Int, attachmentPosition: Int, messageUID: String?) {
+    override fun onImageClick(pos: Int, messagePosition: Int, messageId: String) {
         val intent = Intent(requireContext(), ViewImageActivity::class.java)
-        intent.putExtra(AppConstants.IMAGE_POSITION_KEY, attachmentPosition)
-        intent.putExtra(AppConstants.MESSAGE_UID, messageUID)
+        intent.putExtra("uu", messagePosition)
+        intent.putExtra(AppConstants.MESSAGE_UID, messageId)
         startActivity(intent)
     }
 
     override fun onFileClick(messagePosition: Int, attachmentPosition: Int, messageUID: String?) {
-        TODO("Not yet implemented")
+      //  TODO("Not yet implemented")
     }
 
     override fun onVoiceClick(

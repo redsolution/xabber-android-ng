@@ -25,6 +25,17 @@
             android:contentDescription="@string/image" />
     </com.xabber.utils.custom.ShapeOfView>
 
+    <ImageView
+        android:id="@+id/im_video_label"
+        android:visibility="gone"
+        android:padding="8dp"
+        android:layout_gravity="center"
+        android:background="@drawable/circle_grey_transparent"
+        android:layout_width="44dp"
+        android:layout_height="44dp"
+        android:src="@drawable/ic_play"
+        app:tint="@color/white" />
+
     <include
         layout="@layout/message_information_stamp"/>
 </FrameLayout>

@@ -1,5 +1,6 @@
 package com.xabber.presentation.application.fragments.test
 
+import android.content.Intent
 import android.content.res.Resources
 import android.graphics.Bitmap
 import android.graphics.drawable.Drawable
@@ -8,6 +9,7 @@ import android.graphics.drawable.shapes.RoundRectShape
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
+import android.view.View.OnClickListener
 import android.view.ViewGroup
 import android.view.ViewTreeObserver
 import android.widget.FrameLayout
@@ -15,6 +17,8 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.cardview.widget.CardView
+import androidx.core.view.isVisible
+import androidx.fragment.app.Fragment
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.MultiTransformation
 import com.bumptech.glide.load.resource.bitmap.BitmapTransformation
@@ -25,8 +29,12 @@ import com.bumptech.glide.request.transition.Transition
 import com.xabber.R
 import com.xabber.dto.MessageDto
 import com.xabber.dto.MessageReferenceDto
+import com.xabber.presentation.AppConstants
+import com.xabber.presentation.AvatarManager
 import com.xabber.presentation.XabberApplication
+import com.xabber.presentation.application.dialogs.Go
 import com.xabber.presentation.application.fragments.chat.MessageChanger
+import com.xabber.presentation.application.fragments.chat.ViewImageActivity
 import com.xabber.presentation.application.fragments.chat.message.ImageGrid
 import com.xabber.presentation.application.fragments.chat.message.RoundedBorders
 import com.xabber.utils.StringUtils
@@ -35,7 +43,7 @@ import com.xabber.utils.dp
 import java.util.*
 import kotlin.collections.ArrayList
 
-class ImageGridBuilder {
+ class ImageGridBuilder {
 
     private val centerCropTransformation: MultiTransformation<Bitmap> by lazy {
         val radius =
@@ -65,6 +73,27 @@ class ImageGridBuilder {
         attachments: ArrayList<MessageReferenceDto>,
         clickListener: View.OnClickListener?
     ) {
+        val image0 = view.findViewById<ImageView>(R.id.ivImage0)
+        val image1 = view.findViewById<ImageView>(R.id.ivImage1)
+        val image2 = view.findViewById<ImageView>(R.id.ivImage2)
+        val image3 = view.findViewById<ImageView>(R.id.ivImage3)
+        val image4 = view.findViewById<ImageView>(R.id.ivImage4)
+        val image5 = view.findViewById<ImageView>(R.id.ivImage5)
+
+        val videoImage = view.findViewById<ImageView>(R.id.im_video_label)
+        val videoImage1 = view.findViewById<ImageView>(R.id.im_video_label_1)
+        val videoImage2 = view.findViewById<ImageView>(R.id.im_video_label_2)
+        val videoImage3 = view.findViewById<ImageView>(R.id.im_video_label_3)
+        val videoImage4 = view.findViewById<ImageView>(R.id.im_video_label_4)
+        val videoImage5 = view.findViewById<ImageView>(R.id.im_video_label_5)
+
+
+        videoImage.isVisible = !attachments[0].isImage
+        if (attachments.size > 1)  videoImage1.isVisible = !attachments[1].isImage
+        if (attachments.size > 2)  videoImage2.isVisible = !attachments[2].isImage
+        if (attachments.size > 3)  videoImage3.isVisible = !attachments[3].isImage
+        if (attachments.size > 4)  videoImage4.isVisible = !attachments[4].isImage
+        if (attachments.size > 5)  videoImage5.isVisible = !attachments[5].isImage
         val tvTime = view.findViewById<TextView>(R.id.tv_image_sending_time)
         val dates = Date(message.sentTimestamp)
         val time = StringUtils.getTimeText(view.context, dates)
@@ -86,11 +115,13 @@ class ImageGridBuilder {
             }
             if (tvCounter != null) {
                 if (attachments.size > 6) {
+                    tvCounter.setBackgroundResource(R.color.grey_transparent)
                     tvCounter.text = StringBuilder("+").append(attachments.size - MAX_IMAGE_IN_GRID)
                     tvCounter.visibility = View.VISIBLE
                 } else tvCounter.visibility = View.GONE
             }
         }
+
     }
 
 
@@ -224,6 +255,9 @@ class ImageGridBuilder {
         imageView: ImageView,
         view: View
     ) {
+        val videoImage = view.findViewById<ImageView>(R.id.im_video_label)
+       videoImage.isVisible = !attachment.isImage
+Log.d("uiui", "visible = ${videoImage.isVisible}, isIm = ${attachment.isImage}")
         val radius =
             if (MessageChanger.cornerValue > 4) (MessageChanger.cornerValue - 4) else 1
         val card = view.findViewById<ShapeOfView>(R.id.card)
@@ -256,7 +290,7 @@ class ImageGridBuilder {
         val maxWidth = (screenWidth * 0.8).toInt()
         val maxHeight = (screenHeight * 0.5).toInt()
         Glide.with(imageView.context)
-            .asBitmap()
+        //    .asBitmap()
             .load(attachment.uri)
             .override(maxWidth, maxHeight)
             .fitCenter()
@@ -265,24 +299,6 @@ class ImageGridBuilder {
             .into(imageView)
 
     }
-
-    private fun getDrawable1(radius: Int): Int = 1
-//        when (radius) {
-//            1 -> R.drawable.bubble_1px
-//            2 -> R.drawable.bubble_2px
-//            3 -> R.drawable.bubble_3px
-//            4 -> R.drawable.bubble_4px
-//            5 ->
-//                6->
-//            7->
-//            8->
-//            9->
-//            10->
-//            11->
-//            12->
-//
-//        }
-   // }
 
     private fun getTimeStampBackground(timeStampRadius: Int): Int {
        return when (timeStampRadius) {
@@ -439,7 +455,7 @@ class ImageGridBuilder {
     }
 
     companion object {
-        private const val MAX_IMAGE_IN_GRID = 5
+        private const val MAX_IMAGE_IN_GRID = 6
 
         private val MAX_IMAGE_SIZE = 288
         private val MIN_IMAGE_SIZE = 100

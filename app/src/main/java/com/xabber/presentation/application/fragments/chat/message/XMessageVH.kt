@@ -5,6 +5,7 @@ import android.text.SpannableStringBuilder
 import android.text.format.DateFormat
 import android.text.style.QuoteSpan
 import android.util.DisplayMetrics
+import android.util.Log
 import android.view.View
 import android.widget.*
 import androidx.annotation.StyleRes
@@ -18,6 +19,7 @@ import com.xabber.utils.custom.CorrectlyTouchEventTextView
 import com.xabber.utils.custom.CustomFlexboxLayout
 import com.xabber.utils.StringUtils.getDateStringForMessage
 import java.util.*
+import kotlin.collections.ArrayList
 
 open class XMessageVH(
     itemView: View,
@@ -59,7 +61,7 @@ open class XMessageVH(
     private var fileCount = 0
 
     interface FileListener {
-        fun onImageClick(messagePosition: Int, attachmentPosition: Int, messageUID: String?)
+        fun onImageClick(messagePosition: Int, position: Int, id: String)
         fun onFileClick(messagePosition: Int, attachmentPosition: Int, messageUID: String?)
         fun onVoiceClick(
             messagePosition: Int,
@@ -372,20 +374,21 @@ open class XMessageVH(
 //    }
 
     override fun onClick(v: View) {
-        val adapterPosition = adapterPosition
-        if (adapterPosition == RecyclerView.NO_POSITION) {
-            return
-        }
+       Log.d("iii", "onClick")
+       val adapterPosition = adapterPosition
+//        if (adapterPosition == RecyclerView.NO_POSITION) {
+//            return
+//        }
         when (v.id) {
-            R.id.ivImage0 -> fileListener?.onImageClick(adapterPosition, 0, messageId)
-            R.id.ivImage1 -> fileListener?.onImageClick(adapterPosition, 1, messageId)
-            R.id.ivImage2 -> fileListener?.onImageClick(adapterPosition, 2, messageId)
-            R.id.ivImage3 -> fileListener?.onImageClick(adapterPosition, 3, messageId)
-            R.id.ivImage4 -> fileListener?.onImageClick(adapterPosition, 4, messageId)
-            R.id.ivImage5 -> fileListener?.onImageClick(adapterPosition, 5, messageId)
-         //   R.id.ivCancelUpload -> fileListener?.onUploadCancel()
+            R.id.ivImage0 -> fileListener?.onImageClick( adapterPosition,0, messageId!!)
+            R.id.ivImage1 -> fileListener?.onImageClick(adapterPosition, 1, messageId!!)
+            R.id.ivImage2 -> fileListener?.onImageClick( adapterPosition,2, messageId!!)
+            R.id.ivImage3 -> fileListener?.onImageClick(adapterPosition,3, messageId!!)
+            R.id.ivImage4 -> fileListener?.onImageClick( adapterPosition,4, messageId!!)
+            R.id.ivImage5 -> fileListener?.onImageClick(adapterPosition,5, messageId!!)
+//         //   R.id.ivCancelUpload -> fileListener?.onUploadCancel()
             else -> listener.onMessageClick(messageBalloon, adapterPosition)
-        }
+       }
     }
 
     /** Upload progress subscription  */

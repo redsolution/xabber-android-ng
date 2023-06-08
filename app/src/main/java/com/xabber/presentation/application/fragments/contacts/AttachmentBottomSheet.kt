@@ -11,6 +11,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.util.DisplayMetrics
+import android.util.Log
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
@@ -465,19 +466,23 @@ class AttachmentBottomSheet : BottomSheetDialogFragment(R.layout.layout_bottom_s
                     height= 6,
                     id = uries[i].toString(),
                     uri = uries[i].toString(),
-                    mimeType = getMimeType(uries[i])!!
-
-                )
+                    mimeType = getMimeType(uries[i])!!,
+isImage =  getMimeType(uries[i])!!.startsWith("image/"))
+                Log.d("uiui","mime[i] = ${getMimeType(uries[i])!!}")
                 refer.add(r)
             }
         }
-        if (uri != null) refer.add(
-            MessageReferenceDto(
-                id = uri.toString(),
-                uri = uri.toString(),
-                mimeType = getMimeType(uri)!!
-            )
-        )
+        if (uri != null) {
+            refer.add(
+                MessageReferenceDto(
+                    id = uri.toString(),
+                    uri = uri.toString(),
+                    mimeType = getMimeType(uri)!!,
+                    isImage =  getMimeType(uri)!!.startsWith("image/"))
+                )
+            Log.d("uiui","mime = ${getMimeType(uri!!)!!}, isImage = ${getMimeType(uri)!!.startsWith("image/")}")
+        }
+
         val chat = chatVM.getChat(getChatId())
         chatVM.insertMessage(
             getChatId(),

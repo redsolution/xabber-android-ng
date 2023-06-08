@@ -318,13 +318,14 @@ class MessageAdapter(
         firstUnreadMessageID = id
     }
 
-    override fun onImageClick(messagePosition: Int, attachmentPosition: Int, messageUID: String?) {
+    override fun onImageClick(messagePosition: Int, attachmentPosition: Int, messageUID: String) {
         if (isCheckMode) {
             addOrRemoveCheckedItem(messagePosition)
         } else {
-            fileListener?.onImageClick(messagePosition, attachmentPosition, messageUID)
+fileListener?.onImageClick(messagePosition, attachmentPosition, messageUID)
         }
     }
+
 
     override fun onFileClick(messagePosition: Int, attachmentPosition: Int, messageUID: String?) {
         if (isCheckMode) {

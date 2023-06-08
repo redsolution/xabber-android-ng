@@ -9,18 +9,28 @@ import android.util.Log
 import android.view.Menu
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.net.toUri
 import androidx.core.view.isVisible
 import androidx.viewpager2.widget.ViewPager2.OnPageChangeCallback
 import com.xabber.R
+import com.xabber.data_base.defaultRealmConfig
+import com.xabber.data_base.models.messages.MessageStorageItem
 
 import com.xabber.databinding.ActivityViewImageBinding
 import com.xabber.dto.MediaDto
+import com.xabber.dto.MessageDto
 import com.xabber.presentation.AppConstants
 import com.xabber.presentation.application.manage.DisplayManager
 import com.xabber.utils.showToast
+import io.realm.kotlin.Realm
+import java.util.*
+import kotlin.collections.ArrayList
+import kotlin.collections.HashSet
 
 
 class ViewImageActivity : AppCompatActivity() {
+    private var first = -1
+    val realm = Realm.open(defaultRealmConfig())
     private val binding: ActivityViewImageBinding by lazy {
         ActivityViewImageBinding.inflate(
             layoutInflater
@@ -51,10 +61,11 @@ class ViewImageActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(binding.root)
+
         mediaList = viewModel.getMediaList()
         val posId = intent.getLongExtra(AppConstants.IMAGE_POSITION_KEY, -1L)
-
-var a = 0
+        first = intent.getIntExtra("uu", -1)
+        var a = 0
         if (posId != -1L) {
             for (i in 0 until mediaList.size) {
                 if (mediaList[i].id == posId)
@@ -71,6 +82,7 @@ var a = 0
         if (messageUid.isNotEmpty()) {
             binding.checkBox.isVisible = false
         }
+
         setAppbarPadding()
         setupToolbarActions()
         initMediaPager()
@@ -81,9 +93,10 @@ var a = 0
     }
 
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
-        if (messageUid.isNotEmpty()){
-        val inflater = menuInflater
-        inflater.inflate(R.menu.menu_view_image_activity, menu)}
+        if (messageUid.isNotEmpty()) {
+            val inflater = menuInflater
+            inflater.inflate(R.menu.menu_view_image_activity, menu)
+        }
         return true
     }
 
@@ -94,23 +107,25 @@ var a = 0
         setAppbarTitle(startPosition)
         if (messageUid.isNotEmpty()) {
             binding.checkBox.isVisible = false
-binding.toolbar.setOnMenuItemClickListener {
-    when(it.itemId) {
-        R.id.share -> shareMedia()
-    }; true
-}
+            binding.toolbar.setOnMenuItemClickListener {
+                when (it.itemId) {
+                    R.id.share -> shareMedia()
+                }; true
+            }
         } else {
 
-        val startMediaDto = mediaList[startPosition]
-        binding.checkBox.isChecked = selectedItems.contains(startMediaDto.id)
-        binding.checkBox.setOnCheckedChangeListener(onCheckedChangeListener) }
+            val startMediaDto = mediaList[startPosition]
+            binding.checkBox.isChecked = selectedItems.contains(startMediaDto.id)
+            binding.checkBox.setOnCheckedChangeListener(onCheckedChangeListener)
+        }
     }
 
     private fun shareMedia() {
         val shareIntent = Intent(Intent.ACTION_SEND)
         shareIntent.type = "image/*"
         shareIntent.putExtra(Intent.EXTRA_STREAM, binding.viewPager.currentItem)
-        startActivity(Intent.createChooser(shareIntent, "Поделиться через"))    }
+        startActivity(Intent.createChooser(shareIntent, "Поделиться через"))
+    }
 
     private fun setAppbarTitle(position: Int) {
         supportActionBar?.title =
@@ -118,6 +133,15 @@ binding.toolbar.setOnMenuItemClickListener {
     }
 
     private fun initMediaPager() {
+
+if (messageUid.isNotEmpty()) {
+    mediaList.clear()
+  val message = realm.query(MessageStorageItem::class, "primary = '$messageUid'").first().find()
+    for (i in 0 until message?.references!!.size) {
+        mediaList.add(MediaDto(i.toLong(), "", Date(), message.references[i].uri!!.toUri()))
+    }
+  if (first >= 0)  startPosition = first
+}
         adapter = PhotoPagerAdapter(mediaList, this)
         binding.viewPager.adapter = adapter
         binding.viewPager.setCurrentItem(startPosition, false)

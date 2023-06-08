@@ -4,6 +4,7 @@
     <color name="dialog_divider">#ebebeb</color>
     <color name="selected">#2F595C5E</color>
     <color name="forwarded_background_color">#007aff</color>
+    <color name="grey_transparent">#80424242</color>
 
 
     <array name="account_500">
