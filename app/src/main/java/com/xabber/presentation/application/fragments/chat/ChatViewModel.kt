@@ -262,6 +262,9 @@ class ChatViewModel : ViewModel() {
                         uri = messageDto.references[i].uri
                         mimeType = messageDto.references[i].mimeType
                         isImage = messageDto.references[i].isImage
+                        isGeo = messageDto.references[i].isGeo
+                        latitude = messageDto.references[i].latitude
+                        longitude = messageDto.references[i].longitude
                     })
                     rreferences.add(ref)
                 }

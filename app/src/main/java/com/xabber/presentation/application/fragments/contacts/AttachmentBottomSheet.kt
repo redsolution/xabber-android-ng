@@ -372,6 +372,7 @@ class AttachmentBottomSheet : BottomSheetDialogFragment(R.layout.layout_bottom_s
 
     private fun openMap() {
         val intent = Intent(requireContext(), PickGeolocationActivity::class.java)
+        intent.putExtra("id", getChatId())
         pickGeolocationActivityLauncher.launch(intent)
     }
 
@@ -425,7 +426,7 @@ class AttachmentBottomSheet : BottomSheetDialogFragment(R.layout.layout_bottom_s
     }
 
     override fun showMediaViewer(id: Long) {
-        val intent = Intent(requireContext(), ViewImageActivity::class.java)
+        val intent = Intent(requireContext(), MediaDetailsActivity::class.java)
         val longArray = galleryAdapter?.getSelectedMedia()?.toLongArray()
         intent.putExtra(AppConstants.SELECTED_IDES, longArray)
         intent.putExtra(AppConstants.IMAGE_POSITION_KEY, id)
@@ -452,7 +453,28 @@ class AttachmentBottomSheet : BottomSheetDialogFragment(R.layout.layout_bottom_s
     }
 
     private fun sendGeolocation(lon: Double?, lat: Double?) {
-
+        if (lon != null && lat != null) {
+            val geoMessage = MessageReferenceDto(
+                isGeo = true,
+                latitude = lat,
+                longitude = lon,
+            )
+            val refer = java.util.ArrayList<MessageReferenceDto>()
+            refer.add(geoMessage)
+            val chat = chatVM.getChat(getChatId())
+            val message = MessageDto(primary = getChatId() + System.currentTimeMillis(),
+                references = refer,
+                isOutgoing = true,
+                owner = chat!!.owner,
+                opponentJid = chat.opponentJid,
+                canDeleteMessage = false,
+                canEditMessage = false,
+                messageBody = "",
+                messageSendingState = MessageSendingState.Sending,
+                sentTimestamp = System.currentTimeMillis(),
+                isGroup = false)
+            chatVM.insertMessage(getChatId(), message)
+        }
     }
 
     private fun sendMessageWithAttachment(uri: Uri?, body: String) {

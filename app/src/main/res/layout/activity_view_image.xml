@@ -24,11 +24,11 @@
         android:layout_height="?attr/actionBarSize">
 
         <CheckBox
+            android:paddingHorizontal="16dp"
             android:id="@+id/check_box"
             android:layout_width="48dp"
             android:layout_gravity="end"
             android:button="@drawable/checkbox_selector_circle_big"
-            android:layout_marginHorizontal="16dp"
             android:layout_height="48dp"/>
     </androidx.appcompat.widget.Toolbar>
 

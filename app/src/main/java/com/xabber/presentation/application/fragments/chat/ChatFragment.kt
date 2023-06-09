@@ -8,6 +8,7 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Canvas
 import android.graphics.drawable.Drawable
+import android.net.Uri
 import android.os.*
 import android.text.Editable
 import android.text.TextWatcher
@@ -1289,7 +1290,8 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     }
 
     override fun onImageClick(pos: Int, messagePosition: Int, messageId: String) {
-        val intent = Intent(requireContext(), ViewImageActivity::class.java)
+
+        val intent = Intent(requireContext(), MediaDetailsActivity::class.java)
         intent.putExtra("uu", messagePosition)
         intent.putExtra(AppConstants.MESSAGE_UID, messageId)
         startActivity(intent)

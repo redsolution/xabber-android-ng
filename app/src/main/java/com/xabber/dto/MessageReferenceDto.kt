@@ -18,5 +18,8 @@ data class MessageReferenceDto(
     var uri: String? = null,
     var width: Int = 0,
     var height: Int = 0,
-var isImage: Boolean
+var isImage: Boolean = false,
+var isGeo: Boolean = false,
+    var latitude: Double = 0.0,
+    var longitude: Double = 0.0
 )

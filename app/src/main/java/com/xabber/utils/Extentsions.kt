@@ -277,5 +277,8 @@ fun MessageReferenceStorageItem.toMessageReferenceDto() =
         id = primary,
         uri = uri,
         mimeType = mimeType,
-        isImage = isImage
+        isImage = isImage,
+        isGeo = isGeo,
+        latitude = latitude,
+        longitude = longitude
     )

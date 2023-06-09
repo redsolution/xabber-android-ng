@@ -1,6 +1,5 @@
 package com.xabber.presentation.application.fragments.test
 
-import android.content.Intent
 import android.content.res.Resources
 import android.graphics.Bitmap
 import android.graphics.drawable.Drawable
@@ -9,16 +8,12 @@ import android.graphics.drawable.shapes.RoundRectShape
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
-import android.view.View.OnClickListener
 import android.view.ViewGroup
-import android.view.ViewTreeObserver
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
-import androidx.cardview.widget.CardView
 import androidx.core.view.isVisible
-import androidx.fragment.app.Fragment
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.MultiTransformation
 import com.bumptech.glide.load.resource.bitmap.BitmapTransformation
@@ -29,12 +24,7 @@ import com.bumptech.glide.request.transition.Transition
 import com.xabber.R
 import com.xabber.dto.MessageDto
 import com.xabber.dto.MessageReferenceDto
-import com.xabber.presentation.AppConstants
-import com.xabber.presentation.AvatarManager
-import com.xabber.presentation.XabberApplication
-import com.xabber.presentation.application.dialogs.Go
 import com.xabber.presentation.application.fragments.chat.MessageChanger
-import com.xabber.presentation.application.fragments.chat.ViewImageActivity
 import com.xabber.presentation.application.fragments.chat.message.ImageGrid
 import com.xabber.presentation.application.fragments.chat.message.RoundedBorders
 import com.xabber.utils.StringUtils
@@ -255,8 +245,10 @@ import kotlin.collections.ArrayList
         imageView: ImageView,
         view: View
     ) {
+        val marker = view.findViewById<ImageView>(R.id.im_marker)
+      marker.isVisible = attachment.isGeo
         val videoImage = view.findViewById<ImageView>(R.id.im_video_label)
-       videoImage.isVisible = !attachment.isImage
+       videoImage.isVisible = !attachment.isImage && !attachment.isGeo
 Log.d("uiui", "visible = ${videoImage.isVisible}, isIm = ${attachment.isImage}")
         val radius =
             if (MessageChanger.cornerValue > 4) (MessageChanger.cornerValue - 4) else 1

@@ -2,13 +2,22 @@ package com.xabber.presentation.application.fragments.chat
 
 import android.content.ContentUris
 import android.provider.MediaStore
+import androidx.core.net.toUri
 import androidx.lifecycle.ViewModel
+import com.xabber.data_base.defaultRealmConfig
+import com.xabber.data_base.models.messages.MessageReferenceStorageItem
 import com.xabber.dto.MediaDto
+import com.xabber.dto.MessageReferenceDto
 import com.xabber.presentation.XabberApplication
+import com.xabber.utils.toMessageReferenceDto
+import io.realm.kotlin.Realm
+import io.realm.kotlin.ext.query
 import java.util.*
 import java.util.concurrent.TimeUnit
+import kotlin.collections.ArrayList
 
 class MediaViewModel : ViewModel() {
+    val realm = Realm.open(defaultRealmConfig())
 
     fun getMediaList(): ArrayList<MediaDto> {
         val images = getImages()
@@ -100,5 +109,20 @@ class MediaViewModel : ViewModel() {
         return videos
     }
 
+    fun getMessageMedia(messageId: String): ArrayList<MediaDto> {
+        val mediaList = ArrayList<MediaDto>()
+        val messageReferenceStorageItems =
+            realm.query(MessageReferenceStorageItem::class, "messagePrimary = '$messageId'").find()
+        for (reference in messageReferenceStorageItems) {
+            if (reference.isImage || reference.isVideo)
+                mediaList.add(MediaDto(0L, "", Date(), reference.uri!!.toUri()))
+        }
+        return mediaList
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        realm.close()
+    }
 
 }

@@ -7,7 +7,9 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.location.LocationManager
+import android.net.Uri
 import android.os.Bundle
 import android.os.PersistableBundle
 import android.preference.PreferenceManager
@@ -15,17 +17,23 @@ import android.provider.Settings
 import android.util.Log
 import android.view.View
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.isVisible
+import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.xabber.R
+import com.xabber.data_base.models.messages.MessageSendingState
 import com.xabber.databinding.ActivityPickGeolocationBinding
+import com.xabber.dto.MessageDto
+import com.xabber.dto.MessageReferenceDto
+import com.xabber.presentation.application.fragments.chat.ChatViewModel
 import com.xabber.presentation.application.fragments.chat.CustomMyLocationOsmOverlay
 import com.xabber.utils.custom.SearchToolbar
 import com.xabber.remote.NominatimRetrofitModule
@@ -48,12 +56,14 @@ import org.osmdroid.views.drawing.MapSnapshot
 import org.osmdroid.views.overlay.MapEventsOverlay
 import org.osmdroid.views.overlay.Marker
 import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay
+import java.io.File
+import java.io.FileOutputStream
 import java.util.*
 import java.util.concurrent.TimeUnit
 
 
 class PickGeolocationActivity : AppCompatActivity() {
-
+    private val chatVM: ChatViewModel by viewModels()
     private val binding: ActivityPickGeolocationBinding by lazy {
         ActivityPickGeolocationBinding.inflate(
             layoutInflater
@@ -73,6 +83,7 @@ class PickGeolocationActivity : AppCompatActivity() {
     private val pSpeed = 1L
     private var isBubbleShow = false
     private var location = Location(0.0, 0.0)
+
 
     private val foundPlacesAdapter = FoundPlacesRecyclerViewAdapter(
         onPlaceClickListener = {
@@ -133,7 +144,6 @@ class PickGeolocationActivity : AppCompatActivity() {
         initSearchRecycler()
         setupMap()
         initMapButtons()
-
     }
 
     private fun setFullScreenMode() {
@@ -189,6 +199,7 @@ class PickGeolocationActivity : AppCompatActivity() {
         }
     }
 
+    @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
 
         if (binding.bottomBubble.isVisible) {
@@ -203,8 +214,19 @@ class PickGeolocationActivity : AppCompatActivity() {
 
     private fun initMapButtons() {
         binding.imSendLocation.setOnClickListener {
-            setResult(RESULT_CANCELED)
-            finish()
+            val bitmap = Bitmap.createBitmap(
+                200,
+                200,
+                Bitmap.Config.ARGB_8888
+            )
+            val canvas = Canvas(bitmap)
+            binding.mapView.draw(canvas)
+            binding.imZoomIn.setImageBitmap(bitmap)
+            Log.d("ooo", "klick ${myLocationOverlay?.myLocation?.longitude}")
+//            val resultIntent = Intent()
+//            resultIntent.putExtra(LON_RESULT, myLocationOverlay?.myLocation?.longitude)
+//            resultIntent.putExtra(LAT_RESULT, myLocationOverlay?.myLocation?.latitude)
+//            finish()
         }
 
         binding.imMyGeolocation.setOnClickListener {
@@ -441,13 +463,55 @@ Log.d("pick", "$location lock")
             }
 
             binding.imSendLocation.setOnClickListener {
-                setResult(
-                    Activity.RESULT_OK,
-                    Intent().apply {
-                        putExtra(LAT_RESULT, location.latitude)
-                        putExtra(LON_RESULT, location.longitude)
-                    }
+                val bitmap = Bitmap.createBitmap(
+                    binding.mapView.width,
+                    binding.mapView.height,
+                    Bitmap.Config.ARGB_8888
                 )
+                val canvas = Canvas(bitmap)
+                binding.mapView.draw(canvas)
+                val fileName = "${System.currentTimeMillis()} location"
+                val filePath = externalCacheDir?.absolutePath + File.separator + fileName
+                val file = File(filePath)
+                val outputStream = FileOutputStream(file)
+                bitmap?.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
+                outputStream.flush()
+                outputStream.close()
+
+
+//                setResult(
+//                    Activity.RESULT_OK,
+//                    Intent().apply {
+//                        putExtra(LAT_RESULT, location.latitude)
+//                        putExtra(LON_RESULT, location.longitude)
+//                    }
+//                )
+val lon = location.longitude
+                val lat = location.latitude
+                if (lon != null && lat != null) {
+                    val geoMessage = MessageReferenceDto(
+                        isGeo = true,
+                        latitude = lat,
+                        longitude = lon,
+                        uri = Uri.fromFile(file).toString()
+                    )
+                    val refer = java.util.ArrayList<MessageReferenceDto>()
+                    refer.add(geoMessage)
+                    val id = intent.getStringExtra("id") ?: ""
+                    val chat = chatVM.getChat(id)
+                    val message = MessageDto(primary = id + System.currentTimeMillis(),
+                        references = refer,
+                        isOutgoing = true,
+                        owner = chat!!.owner,
+                        opponentJid = chat.opponentJid,
+                        canDeleteMessage = false,
+                        canEditMessage = false,
+                        messageBody = "",
+                        messageSendingState = MessageSendingState.Sending,
+                        sentTimestamp = System.currentTimeMillis(),
+                        isGroup = false)
+                    chatVM.insertMessage(id, message)
+                }
                 finish()
             }
             binding.bottomBubble.isVisible = true

@@ -3,10 +3,10 @@ package com.xabber.presentation.application.fragments.chat
 
 import android.app.Activity
 import android.content.Intent
-import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.Menu
+import android.widget.CompoundButton
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.net.toUri
@@ -15,20 +15,16 @@ import androidx.viewpager2.widget.ViewPager2.OnPageChangeCallback
 import com.xabber.R
 import com.xabber.data_base.defaultRealmConfig
 import com.xabber.data_base.models.messages.MessageStorageItem
-
 import com.xabber.databinding.ActivityViewImageBinding
 import com.xabber.dto.MediaDto
-import com.xabber.dto.MessageDto
 import com.xabber.presentation.AppConstants
 import com.xabber.presentation.application.manage.DisplayManager
 import com.xabber.utils.showToast
 import io.realm.kotlin.Realm
 import java.util.*
-import kotlin.collections.ArrayList
-import kotlin.collections.HashSet
 
 
-class ViewImageActivity : AppCompatActivity() {
+class MediaDetailsActivity : AppCompatActivity() {
     private var first = -1
     val realm = Realm.open(defaultRealmConfig())
     private val binding: ActivityViewImageBinding by lazy {
@@ -38,13 +34,13 @@ class ViewImageActivity : AppCompatActivity() {
     }
     private var adapter: PhotoPagerAdapter? = null
     private var startPosition = 0
-    private var messageUid = ""
+    private var messageId = ""
     private var mediaList = ArrayList<MediaDto>()
     private var selectedItems = HashSet<Long>()
     private val viewModel: MediaViewModel by viewModels()
 
     private val onCheckedChangeListener =
-        android.widget.CompoundButton.OnCheckedChangeListener { buttonView, isChecked ->
+        CompoundButton.OnCheckedChangeListener { buttonView, isChecked ->
             val currentItem = binding.viewPager.currentItem
             if (isChecked) {
                 if (selectedItems.size >= 10) {
@@ -62,6 +58,7 @@ class ViewImageActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(binding.root)
 
+        messageId = intent.getStringExtra(AppConstants.MESSAGE_UID) ?: ""
         mediaList = viewModel.getMediaList()
         val posId = intent.getLongExtra(AppConstants.IMAGE_POSITION_KEY, -1L)
         first = intent.getIntExtra("uu", -1)
@@ -78,8 +75,8 @@ class ViewImageActivity : AppCompatActivity() {
                 AppConstants.SELECTED_IDES
             ) ?: LongArray(0)
         selectedItems = HashSet(longAr.toList())
-        messageUid = intent.getStringExtra(AppConstants.MESSAGE_UID) ?: ""
-        if (messageUid.isNotEmpty()) {
+
+        if (messageId.isNotEmpty()) {
             binding.checkBox.isVisible = false
         }
 
@@ -93,7 +90,7 @@ class ViewImageActivity : AppCompatActivity() {
     }
 
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
-        if (messageUid.isNotEmpty()) {
+        if (messageId.isNotEmpty()) {
             val inflater = menuInflater
             inflater.inflate(R.menu.menu_view_image_activity, menu)
         }
@@ -101,11 +98,12 @@ class ViewImageActivity : AppCompatActivity() {
     }
 
     private fun setupToolbarActions() {
+
         setSupportActionBar(binding.toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
-
-        setAppbarTitle(startPosition)
-        if (messageUid.isNotEmpty()) {
+        Log.d("ooo", "start = $startPosition, first = $first")
+        setAppbarTitle(if (first >= 0) first else startPosition)
+        if (messageId.isNotEmpty()) {
             binding.checkBox.isVisible = false
             binding.toolbar.setOnMenuItemClickListener {
                 when (it.itemId) {
@@ -127,36 +125,47 @@ class ViewImageActivity : AppCompatActivity() {
         startActivity(Intent.createChooser(shareIntent, "Поделиться через"))
     }
 
-    private fun setAppbarTitle(position: Int) {
+    private fun setAppbarTitle(pos: Int) {
+        if (messageId.isNotEmpty()) {
+            mediaList.clear()
+            val message =
+                realm.query(MessageStorageItem::class, "primary = '$messageId'").first().find()
+            for (i in 0 until message?.references!!.size) {
+                mediaList.add(MediaDto(i.toLong(), "", Date(), message.references[i].uri!!.toUri()))
+            }
+        }
+        Log.d("ooo", "pos = $pos")
         supportActionBar?.title =
-            "${position + 1} " + resources.getString(R.string.of) + " ${mediaList.size}"
+            "${pos + 1} " + resources.getString(R.string.of) + " ${mediaList.size}"
     }
 
     private fun initMediaPager() {
 
-if (messageUid.isNotEmpty()) {
-    mediaList.clear()
-  val message = realm.query(MessageStorageItem::class, "primary = '$messageUid'").first().find()
-    for (i in 0 until message?.references!!.size) {
-        mediaList.add(MediaDto(i.toLong(), "", Date(), message.references[i].uri!!.toUri()))
-    }
-  if (first >= 0)  startPosition = first
-}
+        if (messageId.isNotEmpty()) {
+            mediaList.clear()
+            val message =
+                realm.query(MessageStorageItem::class, "primary = '$messageId'").first().find()
+            for (i in 0 until message?.references!!.size) {
+                mediaList.add(MediaDto(i.toLong(), "", Date(), message.references[i].uri!!.toUri()))
+            }
+            if (first >= 0) startPosition = first
+        }
         adapter = PhotoPagerAdapter(mediaList, this)
         binding.viewPager.adapter = adapter
         binding.viewPager.setCurrentItem(startPosition, false)
-        if (messageUid.isEmpty()) {
-            binding.viewPager.registerOnPageChangeCallback(object : OnPageChangeCallback() {
-                override fun onPageSelected(position: Int) {
-                    super.onPageSelected(position)
-                    setAppbarTitle(position)
-                    binding.checkBox.setOnCheckedChangeListener(null)
-                    binding.checkBox.isChecked =
-                        (mediaList[binding.viewPager.currentItem].let { selectedItems.contains(it.id) })
-                    binding.checkBox.setOnCheckedChangeListener(onCheckedChangeListener)
-                }
-            })
-        }
+        //  if (messageId.isEmpty()) {
+        binding.viewPager.registerOnPageChangeCallback(object : OnPageChangeCallback() {
+            override fun onPageSelected(position: Int) {
+                super.onPageSelected(position)
+                Log.d("ooo", "onPageSelected $position")
+                setAppbarTitle(position)
+                binding.checkBox.setOnCheckedChangeListener(null)
+                binding.checkBox.isChecked =
+                    (mediaList[binding.viewPager.currentItem].let { selectedItems.contains(it.id) })
+                binding.checkBox.setOnCheckedChangeListener(onCheckedChangeListener)
+            }
+        })
+        //     }
     }
 
     override fun onSupportNavigateUp(): Boolean {

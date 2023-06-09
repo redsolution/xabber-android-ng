@@ -16,7 +16,7 @@ android {
         minSdk 23
         targetSdk 33
         versionCode 4
-        versionName "8.0"
+        versionName "9.0"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         lintOptions {
@@ -60,10 +60,10 @@ dependencies {
     implementation 'com.google.android.material:material:1.9.0'
     implementation "androidx.recyclerview:recyclerview:1.3.0"
     implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.6.1'
-    implementation "androidx.fragment:fragment-ktx:1.5.7"
+    implementation "androidx.fragment:fragment-ktx:1.6.0"
 
     // Kotlin
-    implementation 'org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.8.10'
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlinVersion"
 
     // Test
     testImplementation 'junit:junit:4.13.2'
@@ -118,6 +118,7 @@ dependencies {
 
     implementation "io.github.aghajari:AXEmojiView:$emojiViewVersion"
     implementation "io.github.aghajari:AXEmojiView-$emojiViewProvider:$emojiViewVersion"
+
     // PhotoView
     implementation 'com.github.chrisbanes:PhotoView:2.3.0'
 

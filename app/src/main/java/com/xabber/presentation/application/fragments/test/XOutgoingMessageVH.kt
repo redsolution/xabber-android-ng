@@ -2,7 +2,9 @@ package com.xabber.presentation.application.fragments.test
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.Intent
 import android.graphics.*
+import android.net.Uri
 import android.util.Log
 import android.util.TypedValue
 import android.view.*
@@ -16,11 +18,13 @@ import androidx.annotation.StyleRes
 import androidx.appcompat.widget.PopupMenu
 import androidx.constraintlayout.widget.Group
 import androidx.core.content.ContextCompat
+import androidx.core.net.toUri
 import androidx.core.view.isInvisible
 import androidx.core.view.isVisible
 import com.xabber.R
 import com.xabber.data_base.models.messages.MessageSendingState
 import com.xabber.dto.MessageDto
+import com.xabber.dto.MessageReferenceDto
 import com.xabber.models.dto.MessageVhExtraData
 import com.xabber.presentation.application.fragments.chat.Check
 import com.xabber.presentation.application.fragments.chat.MessageChanger
@@ -29,6 +33,16 @@ import com.xabber.presentation.application.fragments.chat.message.XMessageVH
 import com.xabber.utils.StringUtils
 import com.xabber.utils.custom.CorrectlyTouchEventTextView
 import com.xabber.utils.custom.ShapeOfView
+import org.osmdroid.tileprovider.MapTileProviderBasic
+import org.osmdroid.tileprovider.constants.OpenStreetMapTileProviderConstants
+import org.osmdroid.tileprovider.modules.MapTileDownloader
+import org.osmdroid.tileprovider.modules.MapTileModuleProviderBase
+import org.osmdroid.tileprovider.tilesource.TileSourceFactory
+import org.osmdroid.util.BoundingBox
+import org.osmdroid.util.GeoPoint
+import org.osmdroid.views.MapView
+import org.osmdroid.views.overlay.Marker
+import org.osmdroid.views.overlay.TilesOverlay
 import java.util.*
 import kotlin.collections.ArrayList
 
@@ -50,7 +64,10 @@ class XOutgoingMessageVH internal constructor(
         val tail = itemView.findViewById<FrameLayout>(R.id.tail)
         val backgroundGroup = itemView.findViewById<Group>(R.id.background_group)
 
-        Log.d("fff", "message.references.isNotEmpty() = ${message.references.isNotEmpty()}, message.messageBody.isEmpty() = '${message.messageBody.isEmpty()}'")
+        Log.d(
+            "fff",
+            "message.references.isNotEmpty() = ${message.references.isNotEmpty()}, message.messageBody.isEmpty() = '${message.messageBody.isEmpty()}'"
+        )
         if (message.references.isNotEmpty() && message.messageBody.isEmpty()) needTail = false
 
         // checked background
@@ -78,8 +95,19 @@ class XOutgoingMessageVH internal constructor(
         val tailBackground = ContextCompat.getDrawable(
             context, MessageChanger.hvost
         )
-        balloonBackground?.setColorFilter(ContextCompat.getColor(context, R.color.white), PorterDuff.Mode.MULTIPLY)
-        if (message.isOutgoing)  tailBackground?.setColorFilter(ContextCompat.getColor(context, R.color.white), PorterDuff.Mode.MULTIPLY) else tailBackground?.setColorFilter(ContextCompat.getColor(context, R.color.blue_100), PorterDuff.Mode.MULTIPLY)
+        balloonBackground?.setColorFilter(
+            ContextCompat.getColor(context, R.color.white),
+            PorterDuff.Mode.MULTIPLY
+        )
+        if (message.isOutgoing) tailBackground?.setColorFilter(
+            ContextCompat.getColor(
+                context,
+                R.color.white
+            ), PorterDuff.Mode.MULTIPLY
+        ) else tailBackground?.setColorFilter(
+            ContextCompat.getColor(context, R.color.blue_100),
+            PorterDuff.Mode.MULTIPLY
+        )
         balloon.background = balloonBackground
 
         tail.background = tailBackground
@@ -101,64 +129,57 @@ class XOutgoingMessageVH internal constructor(
         } else {
             val layoutParams = tail.layoutParams as RelativeLayout.LayoutParams
             layoutParams.removeRule(RelativeLayout.ALIGN_BOTTOM) // Удаляем правило ALIGN_BOTTOM
-            layoutParams.addRule(RelativeLayout.ALIGN_TOP, R.id.message_balloon) // Добавляем правило ALIGN_TOP с нужным id
+            layoutParams.addRule(
+                RelativeLayout.ALIGN_TOP,
+                R.id.message_balloon
+            ) // Добавляем правило ALIGN_TOP с нужным id
             tail.layoutParams = layoutParams
         }
 
-
-        val image0 = itemView.findViewById<ShapeOfView>(R.id.card)
-        val image1 =itemView.findViewById<ImageView>(R.id.ivImage1)
-        val image2 =itemView.findViewById<ImageView>(R.id.ivImage2)
-        val image3 = itemView.findViewById<ImageView>(R.id.ivImage3)
-        val image4 =itemView.findViewById<ImageView>(R.id.ivImage4)
-        val image5 = itemView.findViewById<ImageView>(R.id.ivImage5)
-        val list = ArrayList<String>()
-        for (i in 0 until message.references.size) {
-            list.add(message.references[i].uri!!)
-        }
-        image0?.setOnClickListener {
-            Log.d("iii", "XX")
-        }
         // References
 
-            if (message.references.isNotEmpty() && message.messageBody.isEmpty()) {
-                messageBalloon.removeAllViews()
-                Log.d("ppp", "grid is not empty")
-                val builder = ImageGridBuilder()
-                 val imageGridView: View = builder.inflateView(messageBalloon, message.references.size)
-                     builder.bindView(imageGridView, message, message.references, this)
-                     messageBalloon.addView(imageGridView)
-        } else if (message.references.isNotEmpty() && message.messageBody.isNotEmpty()) {
-
-                messageBalloon.removeAllViews()
+        if (message.references.isNotEmpty() && message.messageBody.isEmpty()) {
+            if (message.references[0].isGeo) showGeolocation(message.references[0], message.references[0].latitude, message.references[0].longitude)
+              else {  messageBalloon.removeAllViews()
                 val builder = ImageGridBuilder()
                 val imageGridView: View =
                     builder.inflateView(messageBalloon, message.references.size)
                 builder.bindView(imageGridView, message, message.references, this)
-                messageBalloon.addView(imageGridView)
-           val v =    inflateText(messageBalloon)
-                messageBalloon.addView(v)
-                val text = v.findViewById<CorrectlyTouchEventTextView>(R.id.message_text)
-                text.text = message.messageBody
-                val imageTime = imageGridView.findViewById<LinearLayout>(R.id.message_info)
-                imageTime.isVisible = false
-                val date = v.findViewById<TextView>(R.id.message_time)
-                val dates = Date(message.sentTimestamp)
-                val time = StringUtils.getTimeText(context, dates)
-                date.text = if (message.editTimestamp > 0) "edit $time" else time
+                messageBalloon.addView(imageGridView) }
+        } else if (message.references.isNotEmpty() && message.messageBody.isNotEmpty()) {
 
-                val status = v.findViewById<ImageView>(R.id.message_status_icon)
+            messageBalloon.removeAllViews()
+            val builder = ImageGridBuilder()
+            val imageGridView: View =
+                builder.inflateView(messageBalloon, message.references.size)
+            builder.bindView(imageGridView, message, message.references, this)
+            messageBalloon.addView(imageGridView)
+            val v = inflateText(messageBalloon)
+            messageBalloon.addView(v)
+            val text = v.findViewById<CorrectlyTouchEventTextView>(R.id.message_text)
+            text.text = message.messageBody
+            val imageTime = imageGridView.findViewById<LinearLayout>(R.id.message_info)
+            imageTime.isVisible = false
+            val date = v.findViewById<TextView>(R.id.message_time)
+            val dates = Date(message.sentTimestamp)
+            val time = StringUtils.getTimeText(context, dates)
+            date.text = if (message.editTimestamp > 0) "edit $time" else time
 
-                    MessageDeliveryStatusHelper.setupStatusImageView(
-                        message, status
-                    )
-                    MessageDeliveryStatusHelper.setupStatusImageView(
-                        message, status
-                    )
+            val status = v.findViewById<ImageView>(R.id.message_status_icon)
 
-            }
+            MessageDeliveryStatusHelper.setupStatusImageView(
+                message, status
+            )
+            MessageDeliveryStatusHelper.setupStatusImageView(
+                message, status
+            )
 
+        }
 
+//if (message.references.isNotEmpty()) {
+// //  if (message.references[0].isGeo)
+//       showGeolocation()
+//}
         setStatusIcon(message)
 
         // subscribe for FILE UPLOAD PROGRESS
@@ -264,28 +285,31 @@ class XOutgoingMessageVH internal constructor(
             }
             true
         }
+    }
 
-        //  imageGridContainer.removeAllViews()
-        //    imageGridContainer.isVisible = false
-        Log.d("ppp", "size ${message.references.size}")
-        if (message.references.isNotEmpty()) {
-            Log.d("ppp", "grid is not empty")
-            //    imageGridContainer.isVisible = true
-            val builder = ImageGridBuilder()
-            // val imageGridView: View =
-            //       builder.inflateView(imageGridContainer, message.references.size)
-            //     builder.bindView(imageGridView, message.references, this)
-            //     imageGridContainer.addView(imageGridView)
-            //     imageGridContainer.visibility = View.VISIBLE
+    private fun showGeolocation(referenceDto: MessageReferenceDto, latitude: Double, longitude: Double) {
+        messageBalloon.removeAllViews()
+        val inflater = LayoutInflater.from(itemView.context)
+        val geo = inflater.inflate(
+            R.layout.geo_location,
+            messageBalloon,
+            false
+        )
+        val point = GeoPoint(latitude, longitude)
+        val mapView =
+            geo.findViewById<FrameLayout>(R.id.map_container) // создание карты, 256 - размер тайла в пикселях
+        val map = mapView.findViewById<ImageView>(R.id.map_image)
+        map.setImageURI(referenceDto.uri?.toUri())
+      //  val mapi = mapView.findViewById<MapView>(R.id.map)
+        messageBalloon.addView(geo)
+        geo.setOnClickListener {
+            itemView.context.startActivity(
+                Intent().apply {
+                    action = Intent.ACTION_VIEW
+                    data = Uri.parse("geo:$latitude,$longitude?q=$latitude,$longitude")
+                }
+            )
         }
-
-        //   if (imageGridContainer.isVisible) {
-        //      imageGridContainer.setOnClickListener {
-
-        //     }
-        //  }
-
-
     }
 
     private fun setStatusIcon(messageRealmObject: MessageDto) {

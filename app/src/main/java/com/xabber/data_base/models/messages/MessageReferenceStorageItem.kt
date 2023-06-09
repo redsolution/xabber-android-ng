@@ -19,7 +19,7 @@ enum class Kind(val rawValue: String) {
 class MessageReferenceStorageItem: RealmObject {
     @PrimaryKey
     var primary: String = ""
-    var messageId: String = ""
+    var messagePrimary: String = ""
     var sentDate: Double = 0.0
     var owner: String = ""
     var jid: String = ""
@@ -36,4 +36,7 @@ class MessageReferenceStorageItem: RealmObject {
     var isImage: Boolean = false
     var isAudio: Boolean = false
     var isGeo: Boolean = false
+    var isVideo = false
+    var latitude = 0.0
+    var longitude = 0.0
 }
