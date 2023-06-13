@@ -1,4 +1,4 @@
-package com.xabber.presentation.application.fragments.test
+package com.xabber.presentation.application.fragments.chat.message
 
 import android.content.res.Resources
 import android.graphics.Bitmap
@@ -24,9 +24,7 @@ import com.bumptech.glide.request.transition.Transition
 import com.xabber.R
 import com.xabber.dto.MessageDto
 import com.xabber.dto.MessageReferenceDto
-import com.xabber.presentation.application.fragments.chat.MessageChanger
-import com.xabber.presentation.application.fragments.chat.message.ImageGrid
-import com.xabber.presentation.application.fragments.chat.message.RoundedBorders
+import com.xabber.presentation.application.fragments.chat.ChatSettingsManager
 import com.xabber.utils.StringUtils
 import com.xabber.utils.custom.ShapeOfView
 import com.xabber.utils.dp
@@ -37,7 +35,7 @@ import kotlin.collections.ArrayList
 
     private val centerCropTransformation: MultiTransformation<Bitmap> by lazy {
         val radius =
-            if (MessageChanger.cornerValue > 4) (MessageChanger.cornerValue - 4).dp else 1.dp
+            if (ChatSettingsManager.cornerValue > 4) (ChatSettingsManager.cornerValue - 4).dp else 1.dp
         createStandardTransformation(radius, CenterCrop())
     }
 
@@ -176,7 +174,7 @@ import kotlin.collections.ArrayList
     ) {
         val hasText = message.messageBody.isNotEmpty()
         val radius =
-            if (MessageChanger.cornerValue > 4) (MessageChanger.cornerValue - 4) else 1
+            if (ChatSettingsManager.cornerValue > 4) (ChatSettingsManager.cornerValue - 4) else 1
         val innerRadius = if (radius <= 2) radius else 2
         Log.d("yyy", "hasText = $hasText")
         val sh = view.findViewById<ShapeOfView>(R.id.cardview_1)
@@ -226,7 +224,7 @@ import kotlin.collections.ArrayList
         val lin = view.findViewById<LinearLayout>(R.id.message_info)
 
         val params = lin.layoutParams as FrameLayout.LayoutParams
-        val margin = MessageChanger.timeStampMargin.dp
+        val margin = ChatSettingsManager.timeStampMargin.dp
         params.setMargins(margin, margin, margin, margin)
         lin.layoutParams = params
         val timeStampBackground = getTimeStampBackground(timeStampRadius)
@@ -251,7 +249,7 @@ import kotlin.collections.ArrayList
        videoImage.isVisible = !attachment.isImage && !attachment.isGeo
 Log.d("uiui", "visible = ${videoImage.isVisible}, isIm = ${attachment.isImage}")
         val radius =
-            if (MessageChanger.cornerValue > 4) (MessageChanger.cornerValue - 4) else 1
+            if (ChatSettingsManager.cornerValue > 4) (ChatSettingsManager.cornerValue - 4) else 1
         val card = view.findViewById<ShapeOfView>(R.id.card)
         val innerRadius = if (radius <= 2) radius else 2
         val hasText = message.messageBody.isNotEmpty()
@@ -266,7 +264,7 @@ Log.d("uiui", "visible = ${videoImage.isVisible}, isIm = ${attachment.isImage}")
         val lin = view.findViewById<LinearLayout>(R.id.message_info)
 
        val params = lin.layoutParams as FrameLayout.LayoutParams
-        val margin = MessageChanger.timeStampMargin.dp
+        val margin = ChatSettingsManager.timeStampMargin.dp
         params.setMargins(margin, margin, margin, margin)
         lin.layoutParams = params
         val timeStampBackground = getTimeStampBackground(timeStampRadius)

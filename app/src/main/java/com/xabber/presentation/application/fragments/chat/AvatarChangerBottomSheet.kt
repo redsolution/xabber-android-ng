@@ -12,7 +12,6 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.view.updateLayoutParams
-import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.viewModels
 import by.kirich1409.viewbindingdelegate.viewBinding
 import com.canhub.cropper.CropImage
@@ -24,16 +23,12 @@ import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.xabber.R
 import com.xabber.databinding.BottomSheetAvatarBinding
-import com.xabber.presentation.AppConstants
 import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.application.fragments.account.AccountViewModel
 import com.xabber.presentation.application.fragments.chat.message.EmojiBottomSheet
-import com.xabber.presentation.application.fragments.chat.message.EmojiKeyBottomSheet
-import com.xabber.presentation.onboarding.fragments.signup.emoji.EmojiAvatarBottomSheet
 import com.xabber.utils.askUserForOpeningAppSettings
 import com.xabber.utils.dp
 import com.xabber.utils.isPermissionGranted
-import com.xabber.utils.parcelable
 
 class AvatarChangerBottomSheet : BottomSheetDialogFragment() {
     private val binding by viewBinding(BottomSheetAvatarBinding::bind)
@@ -108,7 +103,7 @@ class AvatarChangerBottomSheet : BottomSheetDialogFragment() {
         super.onViewCreated(view, savedInstanceState)
         with(binding) {
             emojiViewGroup.setOnClickListener {
-                MessageChanger.color = R.color.blue_100
+                ChatSettingsManager.color = R.color.blue_100
                 val dialog = EmojiBottomSheet.newInstance(getAccountId())
                 navigator().showBottomSheetDialog(dialog)
                 dismiss()

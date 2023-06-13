@@ -1,4 +1,4 @@
-package com.xabber.presentation.application.fragments.test
+package com.xabber.presentation.application.fragments.chat.message
 
 import android.content.Context
 import android.content.res.ColorStateList
@@ -15,25 +15,22 @@ import com.xabber.R
 import com.xabber.dto.MessageDto
 import com.xabber.models.dto.MessageBalloonColors
 import com.xabber.models.dto.MessageVhExtraData
-import com.xabber.presentation.application.fragments.chat.MessageChanger
+import com.xabber.presentation.application.fragments.chat.ChatSettingsManager
 import com.xabber.presentation.application.fragments.chat.ReferenceRealmObject
-import com.xabber.presentation.application.fragments.chat.message.XBasicMessageVH
-import com.xabber.presentation.application.fragments.chat.message.XMessageVH
-import com.xabber.presentation.application.fragments.test.MessageAdapter.Companion.VIEW_TYPE_INCOMING_MESSAGE
 import com.xabber.presentation.application.util.isSameDayWith
 
 class MessageAdapter(
     private val listener: Listener? = null,
     private val context: Context,
     private val messageRealmObjects: ArrayList<MessageDto>,
-    private val fileListener: XMessageVH.FileListener? = null,
+    private val fileListener: MessageVH.FileListener? = null,
     private val adapterListener: AdapterListener? = null,
-    private val bindListener: XIncomingMessageVH.BindListener? = null,
-    private val avatarClickListener: XIncomingMessageVH.OnMessageAvatarClickListener? = null,
-) : ListAdapter<MessageDto, XBasicMessageVH>(MessageAdapter.DiffUtilCallback),
-    XMessageVH.MessageClickListener,
-    XMessageVH.MessageLongClickListener,
-    XMessageVH.FileListener, XIncomingMessageVH.OnMessageAvatarClickListener {
+    private val bindListener: IncomingMessageVH.BindListener? = null,
+    private val avatarClickListener: IncomingMessageVH.OnMessageAvatarClickListener? = null,
+) : ListAdapter<MessageDto, BasicMessageVH>(DiffUtilCallback),
+    MessageVH.MessageClickListener,
+    MessageVH.MessageLongClickListener,
+    MessageVH.FileListener, IncomingMessageVH.OnMessageAvatarClickListener {
 
     private var firstUnreadMessageID: String? = null
     private var isCheckMode = false
@@ -116,7 +113,7 @@ class MessageAdapter(
         this.recyclerView = recyclerView
     }
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): XBasicMessageVH {
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): BasicMessageVH {
         Log.d("uuu", "onCreate")
         return when (viewType) {
 
@@ -126,25 +123,18 @@ class MessageAdapter(
 //                )
 //            )
 
-            VIEW_TYPE_INCOMING_MESSAGE -> XIncomingMessageVH(
+            VIEW_TYPE_INCOMING_MESSAGE -> IncomingMessageVH(
                 listener,
                 LayoutInflater.from(parent.context).inflate(
-                    R.layout.item_message_incoming_dev, parent, false
+                    R.layout.item_message_incoming, parent, false
                 ),
                 this, this, this, bindListener, this, R.style.ThemeApplication
             )
 
-//            VIEW_TYPE_SAVED_SINGLE_COMPANION_MESSAGE -> SavedCompanionMessageVH(
-//                LayoutInflater.from(parent.context).inflate(
-//                    R.layout.item_message_incoming, parent, false
-//                ),
-//                this, this, this, bindListener, this, SettingsManager.chatsAppearanceStyle()
-//            )
-
-            VIEW_TYPE_OUTGOING_MESSAGE -> XOutgoingMessageVH(
+            VIEW_TYPE_OUTGOING_MESSAGE -> OutgoingMessageVH(
                 listener,
                 LayoutInflater.from(parent.context).inflate(
-                    R.layout.item_message_outgoing_test, parent, false
+                    R.layout.item_message_outgoing, parent, false
                 ),
                 this, this, this, R.style.ThemeApplication
             )
@@ -160,7 +150,7 @@ class MessageAdapter(
     }
 
     private fun isMessageNeedTail(position: Int): Boolean {
-      if (MessageChanger.bottom) {
+      if (ChatSettingsManager.bottom) {
         val message = getMessageItem(position) ?: return true
         val nextMessage = getMessageItem(position + 1) ?: return true
         return if (message.references.size > 0 && message.messageBody.isEmpty()) false else message.isOutgoing xor nextMessage.isOutgoing }
@@ -209,7 +199,7 @@ class MessageAdapter(
         return false
     }
 
-    override fun onBindViewHolder(holder: XBasicMessageVH, position: Int) {
+    override fun onBindViewHolder(holder: BasicMessageVH, position: Int) {
         val viewType = getItemViewType(position)
         val message = getMessageItem(position)
 
@@ -221,7 +211,7 @@ class MessageAdapter(
         holder.setIsRecyclable(false)
 
         // setup message uniqueId
-        (holder as? XMessageVH)?.messageId = message.primary
+        (holder as? MessageVH)?.messageId = message.primary
 
 //        val groupMember =
 //            if (message.groupchatUserId != null && message.groupchatUserId.isNotEmpty()) {
@@ -277,11 +267,11 @@ class MessageAdapter(
 
         when (viewType) {
             VIEW_TYPE_INCOMING_MESSAGE -> {
-                (holder as? XIncomingMessageVH)?.bind(message, extraData)
+                (holder as? IncomingMessageVH)?.bind(message, extraData)
             }
 
             VIEW_TYPE_OUTGOING_MESSAGE -> {
-                (holder as? XOutgoingMessageVH)?.bind(message, extraData)
+                (holder as? OutgoingMessageVH)?.bind(message, extraData)
             }
 
         }

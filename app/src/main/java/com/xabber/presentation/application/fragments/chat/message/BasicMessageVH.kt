@@ -1,32 +1,21 @@
 package com.xabber.presentation.application.fragments.chat.message
 
-import android.os.Build
 import android.view.View
-import androidx.annotation.RequiresApi
+import androidx.annotation.StyleRes
+import androidx.appcompat.widget.AppCompatTextView
 import androidx.recyclerview.widget.RecyclerView
-import com.xabber.dto.MessageDto
+import com.xabber.R
 
-abstract class BasicMessageVH(view: View, listener: ChatAdapter.Listener? = null) :
-    RecyclerView.ViewHolder(view) {
+abstract class BasicMessageVH internal constructor(
+    itemView: View, @StyleRes appearance: Int
+) : RecyclerView.ViewHolder(itemView) {
+
+   val messageTextTv: AppCompatTextView = itemView.findViewById(R.id.message_text)
     var needDate = false
     var date: String? = null
 
-    @RequiresApi(Build.VERSION_CODES.N)
-    open fun bind(
-        messageDto: MessageDto,
-        isNeedTail: Boolean = true,
-        needDay: Boolean = true,
-        showCheckbox: Boolean = false,
-        isNeedTitle: Boolean, isNeedUnread: Boolean
-    ) {
+    init {
+      //  messageTextTv.setTextAppearance(itemView.context, appearance)
     }
-@RequiresApi(Build.VERSION_CODES.N)
-    open fun bind(
-    messageDto: MessageDto,
-    isNeedTail: Boolean = true,
-    needDay: Boolean = true,
-    showCheckbox: Boolean = false,
-    isNeedTitle: Boolean, isNeedUnread: Boolean, payloads: List<Any>
-    ) {
-    }
+
 }

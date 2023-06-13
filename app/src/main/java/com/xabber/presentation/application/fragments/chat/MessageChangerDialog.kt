@@ -13,7 +13,7 @@ import com.xabber.dto.MessageDto
 import com.xabber.presentation.AppConstants
 import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.application.fragments.DetailBaseFragment
-import com.xabber.presentation.application.fragments.test.MessageAdapter
+import com.xabber.presentation.application.fragments.chat.message.MessageAdapter
 
 class MessageChangerDialog : DetailBaseFragment(R.layout.dialog_message_changer),
     GradientAdapter.TryOnWallpaper {
@@ -71,15 +71,15 @@ class MessageChangerDialog : DetailBaseFragment(R.layout.dialog_message_changer)
 
         adapter = MessageAdapter(context = requireContext(), messageRealmObjects = list)
         binding.rvChatDemonstration.adapter = adapter
-        binding.seekBar.progress = MessageChanger.cornerValue
-        binding.tvProgressValue.text = MessageChanger.cornerValue.toString()
+        binding.seekBar.progress = ChatSettingsManager.cornerValue
+        binding.tvProgressValue.text = ChatSettingsManager.cornerValue.toString()
         binding.seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
                 val value = binding.seekBar.progress
                 binding.tvProgressValue.text = value.toString()
-                MessageChanger.defineMessageDrawable(
+                ChatSettingsManager.defineMessageDrawable(
                     binding.seekBar.progress,
-                    MessageChanger.typeValue, binding.bottomTails.isChecked
+                    ChatSettingsManager.typeValue, binding.bottomTails.isChecked
                 )
                 adapter?.notifyDataSetChanged()
             }
@@ -94,7 +94,7 @@ class MessageChangerDialog : DetailBaseFragment(R.layout.dialog_message_changer)
 
         })
 
-        if (MessageChanger.bottom) binding.bottomTails.isChecked =
+        if (ChatSettingsManager.bottom) binding.bottomTails.isChecked =
             true else binding.topTails.isChecked = true
         binding.topTails.setOnClickListener {
             val type = when (binding.radioGroup.checkedRadioButtonId) {
@@ -108,7 +108,7 @@ class MessageChangerDialog : DetailBaseFragment(R.layout.dialog_message_changer)
                     4
                 }
             }
-            MessageChanger.defineMessageDrawable(
+            ChatSettingsManager.defineMessageDrawable(
                 binding.seekBar.progress,
                 type,
                 binding.bottomTails.isChecked
@@ -128,7 +128,7 @@ class MessageChangerDialog : DetailBaseFragment(R.layout.dialog_message_changer)
                     4
                 }
             }
-            MessageChanger.defineMessageDrawable(
+            ChatSettingsManager.defineMessageDrawable(
                 binding.seekBar.progress,
                 type,
                 binding.bottomTails.isChecked
@@ -143,7 +143,7 @@ class MessageChangerDialog : DetailBaseFragment(R.layout.dialog_message_changer)
 
         binding.bubble.setOnClickListener {
             val type = 1
-            MessageChanger.defineMessageDrawable(
+            ChatSettingsManager.defineMessageDrawable(
                 binding.seekBar.progress,
                 type,
                 binding.bottomTails.isChecked
@@ -153,7 +153,7 @@ class MessageChangerDialog : DetailBaseFragment(R.layout.dialog_message_changer)
 
         binding.corner.setOnClickListener {
             val type = 2
-            MessageChanger.defineMessageDrawable(
+            ChatSettingsManager.defineMessageDrawable(
                 binding.seekBar.progress,
                 type,
                 binding.bottomTails.isChecked
@@ -163,7 +163,7 @@ class MessageChangerDialog : DetailBaseFragment(R.layout.dialog_message_changer)
 
         binding.curvy.setOnClickListener {
             val type = 3
-            MessageChanger.defineMessageDrawable(
+            ChatSettingsManager.defineMessageDrawable(
                 binding.seekBar.progress,
                 type,
                 binding.bottomTails.isChecked
@@ -173,7 +173,7 @@ class MessageChangerDialog : DetailBaseFragment(R.layout.dialog_message_changer)
 
         binding.smooth.setOnClickListener {
             val type = 4
-            MessageChanger.defineMessageDrawable(
+            ChatSettingsManager.defineMessageDrawable(
                 binding.seekBar.progress,
                 type,
                 binding.bottomTails.isChecked
@@ -183,7 +183,7 @@ class MessageChangerDialog : DetailBaseFragment(R.layout.dialog_message_changer)
 
         binding.stripes.setOnClickListener {
             val type = 5
-            MessageChanger.defineMessageDrawable(
+            ChatSettingsManager.defineMessageDrawable(
                 binding.seekBar.progress,
                 type,
                 binding.bottomTails.isChecked
@@ -193,14 +193,14 @@ class MessageChangerDialog : DetailBaseFragment(R.layout.dialog_message_changer)
 
         binding.wedge.setOnClickListener {
             val type = 6
-            MessageChanger.defineMessageDrawable(
+            ChatSettingsManager.defineMessageDrawable(
                 binding.seekBar.progress,
                 type,
                 binding.bottomTails.isChecked
             )
             adapter?.notifyDataSetChanged()
         }
-        val grad = MessageChanger.gradient
+        val grad = ChatSettingsManager.gradient
         val drawable = when(grad) {
             1 -> R.drawable.gradi_bordo
             2 -> R.drawable.gradi_red
@@ -225,48 +225,48 @@ class MessageChangerDialog : DetailBaseFragment(R.layout.dialog_message_changer)
         list.add(Gradient(R.drawable.gradi_sea, 6))
         list.add(Gradient(R.drawable.gradi_blue, 7))
         list.add(Gradient(R.drawable.gradi_purple, 8))
-        val pos = MessageChanger.gradient
+        val pos = ChatSettingsManager.gradient
 
-        gAdapter = GradientAdapter(this, list, arrayListOf(MessageChanger.gradient-1))
+        gAdapter = GradientAdapter(this, list, arrayListOf(ChatSettingsManager.gradient-1))
         binding.rvGradients.adapter = gAdapter
 
         binding.radioGroupDesign.check(getCheckedDesign())
-        binding.rvChatDemonstration.setBackgroundResource(getDrawableDesign(MessageChanger.designType))
+        binding.rvChatDemonstration.setBackgroundResource(getDrawableDesign(ChatSettingsManager.designType))
 
         binding.space.setOnClickListener {
-            MessageChanger.designType = 1
+            ChatSettingsManager.designType = 1
             binding.rvChatDemonstration.setBackgroundResource(R.drawable.aliens_repeat)
         }
 
         binding.cats.setOnClickListener {
-            MessageChanger.designType = 2
+            ChatSettingsManager.designType = 2
             binding.rvChatDemonstration.setBackgroundResource(R.drawable.cats_repeat)
         }
 
         binding.hearts.setOnClickListener {
-            MessageChanger.designType = 3
+            ChatSettingsManager.designType = 3
             binding.rvChatDemonstration.setBackgroundResource(R.drawable.hearts_repeat)
         }
 
         binding.flowers.setOnClickListener {
-            MessageChanger.designType = 4
+            ChatSettingsManager.designType = 4
             binding.rvChatDemonstration.setBackgroundResource(R.drawable.flowers_repeat)
         }
 
         binding.meadow.setOnClickListener {
-            MessageChanger.designType = 5
+            ChatSettingsManager.designType = 5
             binding.rvChatDemonstration.setBackgroundResource(R.drawable.flower_daisy_repeat)
         }
 
         binding.summer.setOnClickListener {
-            MessageChanger.designType = 6
+            ChatSettingsManager.designType = 6
             binding.rvChatDemonstration.setBackgroundResource(R.drawable.summer_repeat)
         }
 
     }
 
     private fun getCheckedDesign(): Int {
-        return when (MessageChanger.designType) {
+        return when (ChatSettingsManager.designType) {
             1 -> R.id.space
             2 -> R.id.cats
             3 -> R.id.hearts
@@ -292,7 +292,7 @@ class MessageChangerDialog : DetailBaseFragment(R.layout.dialog_message_changer)
     }
 
     private fun getCheckedItemId(): Int {
-        return when (MessageChanger.typeValue) {
+        return when (ChatSettingsManager.typeValue) {
             1 -> R.id.bubble
             2 -> R.id.corner
             3 -> R.id.curvy
@@ -340,14 +340,14 @@ class MessageChangerDialog : DetailBaseFragment(R.layout.dialog_message_changer)
             activity?.getSharedPreferences("gradient", Context.MODE_PRIVATE) ?: return
         val designPref = activity?.getSharedPreferences("design", Context.MODE_PRIVATE) ?: return
 
-        gradientPref.edit()?.putInt("gradi", MessageChanger.gradient)?.apply()
+        gradientPref.edit()?.putInt("gradi", ChatSettingsManager.gradient)?.apply()
         designPref.edit()?.putInt("des", getDesign())?.apply()
 
     }
 
     override fun onClickElement(gradient: Gradient) {
         binding.frameGradient.setBackgroundResource(gradient.background)
-        MessageChanger.gradient = gradient.value
+        ChatSettingsManager.gradient = gradient.value
     }
 
     private fun getDesign(): Int {

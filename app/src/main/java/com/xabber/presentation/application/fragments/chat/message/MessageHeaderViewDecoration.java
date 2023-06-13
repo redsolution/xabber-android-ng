@@ -135,18 +135,18 @@ public class MessageHeaderViewDecoration extends RecyclerView.ItemDecoration {
             View child = parent.getChildAt(i);
             RecyclerView.ViewHolder holder = parent.getChildViewHolder(child);
             if (i != 0) {
-                if (holder instanceof XBasicMessageVH && ((XBasicMessageVH) holder).getNeedDate()) {
+                if (holder instanceof BasicMessageVH && ((BasicMessageVH) holder).getNeedDate()) {
                     // Draw a Date view for all visible messages that require one.
                     // Since the position is != 0, these dates will not behave in the same way
                     // as the sticky date, they will simply be directly tied to the message.
-                    drawDateMessageHeader(c, parent, child, (XBasicMessageVH) holder);
+                    drawDateMessageHeader(c, parent, child, (BasicMessageVH) holder);
                 }
-                if (holder instanceof XMessageVH && ((XMessageVH) holder).isUnread()) {
-                    drawUnreadMessageHeader(c, parent, child, (XMessageVH) holder);
+                if (holder instanceof MessageVH && ((MessageVH) holder).isUnread()) {
+                    drawUnreadMessageHeader(c, parent, child, (MessageVH) holder);
                 }
             }
             if (i == 0) {
-                i = measureFirstChildren(c, parent, child, (XBasicMessageVH) holder, 0);
+                i = measureFirstChildren(c, parent, child, (BasicMessageVH) holder, 0);
             }
         }
     }
@@ -154,19 +154,19 @@ public class MessageHeaderViewDecoration extends RecyclerView.ItemDecoration {
     // A recursive check that measures whether we can draw the date as a sticky properly or not.
     // Since this check starts in a for loop, we return the iteration at which we stopped here to the main loop
     // To skip the iterations we already checked here.
-    private int measureFirstChildren(Canvas c, RecyclerView parent, View originalChild, XBasicMessageVH holder, int currentLoopIteration) {
+    private int measureFirstChildren(Canvas c, RecyclerView parent, View originalChild, BasicMessageVH holder, int currentLoopIteration) {
         // Check if we need to draw an "Unread messages" header above originalChild message
         if (needToDrawUnreadHeader(holder)) {
-            drawUnreadMessageHeader(c, parent, originalChild, (XMessageVH) holder);
+            drawUnreadMessageHeader(c, parent, originalChild, (MessageVH) holder);
         }
         if (parent.getChildCount() > currentLoopIteration + 1) {
             View nextChild = parent.getChildAt(currentLoopIteration + 1);
             RecyclerView.ViewHolder nextHolder = parent.getChildViewHolder(nextChild);
 
-            if (nextHolder instanceof XBasicMessageVH) {
+            if (nextHolder instanceof BasicMessageVH) {
                 // Check if the date of the originalChild is
                 // the same as the date of the nextChild
-                if (holder.getDate().equals(((XBasicMessageVH) nextHolder).getDate())) {
+                if (holder.getDate().equals(((BasicMessageVH) nextHolder).getDate())) {
                     // if same, make sure we have enough space to draw the sticky header
                     if (checkIfStickyHeaderFitsAboveNextChild(nextChild)) {
                         drawDateStickyHeader(c, parent, originalChild, holder, true);
@@ -174,8 +174,8 @@ public class MessageHeaderViewDecoration extends RecyclerView.ItemDecoration {
                         // We only try to examine nextChild for unread message header if we will not
                         // recursively call measureFirstChild again, to avoid a double check
                         // (as nextChild in the first loop, and as originalChild in the next one).
-                        if (needToDrawUnreadHeader((XBasicMessageVH) nextHolder)) {
-                            drawUnreadMessageHeader(c, parent, nextChild, (XMessageVH) nextHolder);
+                        if (needToDrawUnreadHeader((BasicMessageVH) nextHolder)) {
+                            drawUnreadMessageHeader(c, parent, nextChild, (MessageVH) nextHolder);
                         }
 
                         // after drawing it, leave the recursive call with the current loop + 1,
@@ -185,18 +185,18 @@ public class MessageHeaderViewDecoration extends RecyclerView.ItemDecoration {
                     } else {
                         // Since sticky doesn't fit, we can't do much at this loop.
                         // Just return the call to the method, while iterating the current loop by 1
-                        return measureFirstChildren(c, parent, nextChild, (XBasicMessageVH) nextHolder, currentLoopIteration + 1);
+                        return measureFirstChildren(c, parent, nextChild, (BasicMessageVH) nextHolder, currentLoopIteration + 1);
                     }
                 } else {
                     // If the dates are different, then that means that the next child
                     // is the first message with a different date, i.e. it needs a date header.
-                    drawDateMessageHeader(c, parent, nextChild, (XBasicMessageVH) nextHolder);
+                    drawDateMessageHeader(c, parent, nextChild, (BasicMessageVH) nextHolder);
                     // We did what we needed with nextChild, so we bump the loop iteration by 1,
                     // but since we didn't do anything with the originalChild, we can't return yet.
 
                     // Same as above nextHolder Unread check. Just avoiding repeated same checks.
-                    if (needToDrawUnreadHeader((XBasicMessageVH) nextHolder)) {
-                        drawUnreadMessageHeader(c, parent, nextChild, (XMessageVH) nextHolder);
+                    if (needToDrawUnreadHeader((BasicMessageVH) nextHolder)) {
+                        drawUnreadMessageHeader(c, parent, nextChild, (MessageVH) nextHolder);
                     }
 
                     currentLoopIteration++;
@@ -222,13 +222,13 @@ public class MessageHeaderViewDecoration extends RecyclerView.ItemDecoration {
         return date.bottom - messageTopBound > alphaThreshold;
     }
 
-    private boolean needToDrawUnreadHeader(XBasicMessageVH holder) {
-        return holder instanceof XMessageVH && ((XMessageVH) holder).isUnread();
+    private boolean needToDrawUnreadHeader(BasicMessageVH holder) {
+        return holder instanceof MessageVH && ((MessageVH) holder).isUnread();
     }
 
     // Draws a date that appears at the top of chat window, either as a sticky date
     // that stays in one place, or a date of the partially visible message
-    private void drawDateStickyHeader(Canvas c, RecyclerView parent, View child, XBasicMessageVH holder, boolean forceDrawAsSticky) {
+    private void drawDateStickyHeader(Canvas c, RecyclerView parent, View child, BasicMessageVH holder, boolean forceDrawAsSticky) {
         int width = measureText(paintFont, holder.getDate());
 
         headerViewXMargin = (parent.getMeasuredWidth() - width) / 2;
@@ -315,7 +315,7 @@ public class MessageHeaderViewDecoration extends RecyclerView.ItemDecoration {
 
     // Draws a date that appears on top of the first message of the day.
     // This date nearly always stays directly tied to the message position.
-    private void drawDateMessageHeader(Canvas c, RecyclerView parent, View child, XBasicMessageVH holder) {
+    private void drawDateMessageHeader(Canvas c, RecyclerView parent, View child, BasicMessageVH holder) {
         int width = measureText(paintFont, holder.getDate());
         // additional vertical offset for the Date header.
         int additionalOffset = 0;
@@ -347,7 +347,7 @@ public class MessageHeaderViewDecoration extends RecyclerView.ItemDecoration {
         drawString(c, holder.getDate(), drawableBounds, 255);
     }
 
-    private void drawUnreadMessageHeader(Canvas c, RecyclerView parent, View child, XMessageVH holder) {
+    private void drawUnreadMessageHeader(Canvas c, RecyclerView parent, View child, MessageVH holder) {
         int width = measureText(paintFont, unread);
         int alpha;
 
@@ -402,10 +402,10 @@ public class MessageHeaderViewDecoration extends RecyclerView.ItemDecoration {
     public void getItemOffsets(@NonNull Rect outRect, @NonNull View view, @NonNull RecyclerView parent, @NonNull RecyclerView.State state) {
         RecyclerView.ViewHolder holder = parent.getChildViewHolder(view);
         int topOffset = 0;
-        if (holder instanceof XBasicMessageVH && ((XBasicMessageVH) holder).getNeedDate()) {
+        if (holder instanceof BasicMessageVH && ((BasicMessageVH) holder).getNeedDate()) {
             topOffset += dateLayoutHeight;
         }
-        if (holder instanceof XMessageVH && ((XMessageVH) holder).isUnread()) {
+        if (holder instanceof MessageVH && ((MessageVH) holder).isUnread()) {
             topOffset += dateLayoutHeight;
         }
         outRect.set(0, topOffset, 0, 0);

@@ -8,7 +8,6 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Canvas
 import android.graphics.drawable.Drawable
-import android.net.Uri
 import android.os.*
 import android.text.Editable
 import android.text.TextWatcher
@@ -58,8 +57,8 @@ import com.xabber.presentation.application.fragments.chat.message.*
 import com.xabber.presentation.application.fragments.chatlist.ChatListViewModel
 import com.xabber.presentation.application.fragments.contacts.AttachmentBottomSheet
 import com.xabber.presentation.application.fragments.contacts.ContactAccountParams
-import com.xabber.presentation.application.fragments.test.MessageAdapter
-import com.xabber.presentation.application.fragments.test.XIncomingMessageVH
+import com.xabber.presentation.application.fragments.chat.message.MessageAdapter
+import com.xabber.presentation.application.fragments.chat.message.IncomingMessageVH
 import com.xabber.presentation.application.manage.ColorManager
 import com.xabber.presentation.application.manage.DisplayManager
 import com.xabber.utils.*
@@ -72,7 +71,7 @@ import java.util.*
 import kotlin.collections.ArrayList
 
 class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.Listener,
-    XIncomingMessageVH.BindListener, XMessageVH.FileListener,
+    IncomingMessageVH.BindListener, MessageVH.FileListener,
     ReplySwipeCallback.SwipeAction {
     private val binding by viewBinding(FragmentChatBinding::bind)
     private val handler = Handler(Looper.getMainLooper())

@@ -2,10 +2,9 @@ package com.xabber.models.dto
 
 import android.content.res.ColorStateList
 import com.xabber.presentation.application.fragments.chat.message.MessageVH
-import com.xabber.presentation.application.fragments.chat.message.XMessageVH
 
 data class MessageVhExtraData(
-    val listener: XMessageVH.FileListener?,
+    val listener: MessageVH.FileListener?,
    // val fwdListener: ForwardedAdapter.ForwardListener?,
     val colors: MessageBalloonColors,
     val mainMessageTimestamp: Long?,

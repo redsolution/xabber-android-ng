@@ -9,7 +9,7 @@ import android.view.View
 import android.view.View.OnTouchListener
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.RecyclerView
-import com.xabber.presentation.application.fragments.chat.message.SystemMessageMessageVH
+import com.xabber.presentation.application.fragments.chat.message.SystemMessageVH
 import com.xabber.utils.dp
 import kotlin.math.max
 import kotlin.math.min
@@ -55,7 +55,7 @@ class ReplySwipeCallback(
         recyclerView: RecyclerView,
         viewHolder: RecyclerView.ViewHolder
     ): Int {
-        return if (viewHolder is SystemMessageMessageVH) 0 else makeMovementFlags(
+        return if (viewHolder is SystemMessageVH) 0 else makeMovementFlags(
             0,
             if (swipeEnabled) ItemTouchHelper.LEFT else 0
         )

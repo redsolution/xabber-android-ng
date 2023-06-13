@@ -35,7 +35,7 @@ import com.xabber.presentation.application.fragments.account.reorder.ReorderAcco
 import com.xabber.presentation.application.fragments.calls.CallsFragment
 import com.xabber.presentation.application.fragments.chat.ChatFragment
 import com.xabber.presentation.application.fragments.chat.ChatParams
-import com.xabber.presentation.application.fragments.chat.MessageChanger
+import com.xabber.presentation.application.fragments.chat.ChatSettingsManager
 import com.xabber.presentation.application.fragments.chat.MessageChangerDialog
 import com.xabber.presentation.application.fragments.chatlist.ArchiveFragment
 import com.xabber.presentation.application.fragments.chatlist.ChatListFragment
@@ -185,14 +185,14 @@ class ApplicationActivity : AppCompatActivity(), Navigator {
         )
         val type = getSharedPreferences(AppConstants.SHARED_PREF_TYPE, Context.MODE_PRIVATE).getInt(AppConstants.TYPE_TAIL_KEY, 4)
         val bottom = getSharedPreferences("bottom", Context.MODE_PRIVATE).getBoolean("bot", true)
-       MessageChanger.defineMessageDrawable(corner, type, bottom)
+       ChatSettingsManager.defineMessageDrawable(corner, type, bottom)
 
         val designType = getSharedPreferences("design", Context.MODE_PRIVATE).getInt("des", 1)
-        MessageChanger.designType = designType
+        ChatSettingsManager.designType = designType
 
         val gradi = getSharedPreferences("gradient", Context.MODE_PRIVATE).getInt("gradi", 7)
-        MessageChanger.designType = designType
-        MessageChanger.gradient = gradi
+        ChatSettingsManager.designType = designType
+        ChatSettingsManager.gradient = gradi
        val gradientDraw = when(gradi) {
            1 -> R.drawable.gradi_bordo
            2 -> R.drawable.gradi_red
@@ -489,7 +489,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator {
     }
 
     override fun setDesignBackground() {
-        val gradientDraw = when(MessageChanger.gradient) {
+        val gradientDraw = when(ChatSettingsManager.gradient) {
             1 -> R.drawable.gradi_bordo
             2 -> R.drawable.gradi_red
             3 -> R.drawable.gradi_orange
@@ -501,7 +501,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator {
             else -> { R.drawable.gradi_blue}
         }
         binding.detailContainer.setBackgroundResource(gradientDraw)
-        val designDrawable = when(MessageChanger.designType) {
+        val designDrawable = when(ChatSettingsManager.designType) {
             1 -> R.drawable.aliens_repeat
             2 -> R.drawable.cats_repeat
             3 -> R.drawable.hearts_repeat

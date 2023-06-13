@@ -1,207 +1,342 @@
 package com.xabber.presentation.application.fragments.chat.message
 
 import android.annotation.SuppressLint
-import android.graphics.Color
+import android.content.Context
 import android.graphics.PorterDuff
-import android.os.Build
 import android.util.Log
-import android.view.Gravity
 import android.view.View
-import android.view.ViewGroup
+import android.view.View.OnAttachStateChangeListener
+import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.LinearLayout
-import androidx.annotation.RequiresApi
-import androidx.appcompat.view.menu.MenuBuilder
-import androidx.appcompat.view.menu.MenuPopupHelper
-import androidx.appcompat.widget.PopupMenu
-import androidx.core.content.res.ResourcesCompat
+import android.widget.RelativeLayout
+import android.widget.TextView
+import androidx.annotation.StyleRes
+import androidx.core.content.ContextCompat
+import androidx.core.view.isInvisible
 import androidx.core.view.isVisible
-import com.google.android.material.snackbar.Snackbar
 import com.xabber.R
 import com.xabber.dto.MessageDto
-import com.xabber.utils.dp
-import com.xabber.databinding.ItemMessageIncomingBinding
+import com.xabber.models.dto.MessageVhExtraData
+import com.xabber.presentation.application.fragments.chat.ChatSettingsManager
 import com.xabber.presentation.application.fragments.chat.Check
 import com.xabber.utils.StringUtils
+import com.xabber.utils.custom.CorrectlyTouchEventTextView
+import com.xabber.utils.custom.CustomFlexboxLayout
+import com.xabber.utils.custom.ShapeOfView
 import java.util.*
 
-class IncomingMessageVH(
-    private val binding: ItemMessageIncomingBinding,
-    private val listener: ChatAdapter.Listener,
-) : BasicMessageVH(binding.root) {
-    @RequiresApi(Build.VERSION_CODES.N)
-    @SuppressLint("RestrictedApi", "ResourceAsColor")
-    override fun bind(
-        messageDto: MessageDto,
-        isNeedTail: Boolean,
-        needDay: Boolean,
-        showCheckbox: Boolean,
-        isNeedTitle: Boolean, isNeedUnread: Boolean
-    ) {
+class IncomingMessageVH internal constructor(
+    private val listener: MessageAdapter.Listener?,
+    itemView: View, messageListener: MessageClickListener?,
+    longClickListener: MessageLongClickListener?, fileListener: FileListener?,
+    val listen: BindListener?, avatarClickListener: OnMessageAvatarClickListener,
+    @StyleRes appearance: Int
+) : MessageVH(itemView, messageListener!!, longClickListener!!, fileListener, appearance) {
+
+    interface BindListener {
+        fun onBind(message: MessageDto?)
+    }
+
+    interface OnMessageAvatarClickListener {
+        fun onMessageAvatarClick(position: Int)
+    }
+
+    @SuppressLint("UseCompatLoadingForDrawables")
+    override fun bind(message: MessageDto, extraData: MessageVhExtraData) {
+        super.bind(message, extraData)
+        val tvMessageUserName = itemView.findViewById<TextView>(R.id.tv_message_username)
+        val linearLayoutTextBox = itemView.findViewById<CustomFlexboxLayout>(R.id.text_box)
+        tvMessageUserName.measure(0, 0)
+        val usernameWidth: Int = tvMessageUserName.measuredWidth
+        val textBoxWidth = messageTextTv.measuredWidth
+        val avatarShape = itemView.findViewById<ShapeOfView>(R.id.avatar_shape)
+        val avatar = itemView.findViewById<ImageView>(R.id.im_message_avatar)
+
+      //  avatarShape.isVisible = extraData.isNeedTail
+
+      //  tvMessageUserName.isVisible = extraData.isNeedName
 
 
-        Log.d("show", "$isNeedUnread")
-        // text & appearance
-        binding.tvContent.isVisible = messageDto.messageBody != null
-        binding.tvContent.text = messageDto.messageBody
 
+        if (ChatSettingsManager.bottom) {
 
-        //  tvContent.setTextAppearance(SettingsManager.chatsAppearanceStyle()) - берем из класса настроек
-
-        // date
-        binding.messageDate.tvDate.isVisible = needDay
-        if (binding.messageDate.tvDate.isVisible) {
-            binding.messageDate.tvDate.text =
-                StringUtils.getDateStringForMessage(messageDto.sentTimestamp)
+        }
+        if (message.messageBody.length < tvMessageUserName.text.length) {
+            linearLayoutTextBox.setMinimumWidth(usernameWidth)
+        }
+        else {
+            val par = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+            linearLayoutTextBox.layoutParams = par
         }
 
-     binding.unreadMessages.ttv.isVisible = isNeedUnread
+
+        val context: Context = itemView.context
+        var needTail: Boolean = extraData.isNeedTail
+
+        val balloon = itemView.findViewById<FrameLayout>(R.id.balloon)
+        val messageBalloon = itemView.findViewById<LinearLayout>(R.id.message_balloon)
+        val tail = itemView.findViewById<FrameLayout>(R.id.tail)
+
+        if (message.hasReferences) needTail = false
+
+        // checked background
+        if (message.isChecked) itemView.setBackgroundResource(R.color.selected) else itemView.setBackgroundResource(
+            R.color.transparent
+        )
+
+        // text
+        messageTextTv.text = message.messageBody
+
         // time
-        val date = Date(messageDto.sentTimestamp)
-        val time = StringUtils.getTimeText(binding.tvSendingTime.context, date)
-        binding.tvSendingTime.text = time
+        val date = Date(message.sentTimestamp)
+        val time = StringUtils.getTimeText(context, date)
+        messageTime.text = if (message.editTimestamp > 0) "edit $time" else time
 
-        // for group chat
-        binding.tvContactName.isVisible = messageDto.isGroup && isNeedTitle
-        if (binding.tvContactName.isVisible) binding.tvContactName.text = messageDto.owner
-        binding.avatarContact.isVisible = messageDto.isGroup && isNeedTail
 
-        // margins and paddings
-        val params = LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT,
-            ViewGroup.LayoutParams.WRAP_CONTENT
+        // background
+        val balloonBackground = ContextCompat.getDrawable(
+            context,
+            if (needTail) ChatSettingsManager.tail else
+                ChatSettingsManager.simple
+        )
+
+        val tailBackground = ContextCompat.getDrawable(
+            context, ChatSettingsManager.hvost
+        )
+        tailBackground?.setColorFilter(
+            ContextCompat.getColor(context, R.color.blue_100),
+            PorterDuff.Mode.MULTIPLY
+        )
+        balloonBackground?.setColorFilter(
+            ContextCompat.getColor(context, R.color.blue_100),
+            PorterDuff.Mode.MULTIPLY
+        )
+        balloon.background = balloonBackground
+
+        tail.background = tailBackground
+
+        if (!ChatSettingsManager.bottom) {
+            balloon.scaleY = -1f
+            tail.scaleY = -1f
+        } else {
+            balloon.scaleY = 1f
+            tail.scaleY = 1f
+        }
+
+        // visible tail
+        tail.isInvisible = !needTail || ChatSettingsManager.typeValue == 2
+
+
+        if (ChatSettingsManager.bottom) {
+
+        } else {
+            val layoutParams = tail.layoutParams as RelativeLayout.LayoutParams
+            layoutParams.removeRule(RelativeLayout.ALIGN_BOTTOM) // Удаляем правило ALIGN_BOTTOM
+            layoutParams.addRule(
+                RelativeLayout.ALIGN_TOP,
+                R.id.message_balloon
+            ) // Добавляем правило ALIGN_TOP с нужным id
+            tail.layoutParams = layoutParams
+        }
+        statusIcon.isVisible = false
+        //  bottomStatusIcon.isVisible = false
+//        val avatar = itemView.findViewById<ImageView>(R.id.avatar)
+//        avatar.isVisible = false
+
+        val shadowDrawable = ContextCompat.getDrawable(
+            context,
+            R.drawable.bubble_1px
+        )
+
+        shadowDrawable?.setColorFilter(
+            itemView.resources.getColor(
+                R.color.blue_100,
+                itemView.context.theme
+            ), PorterDuff.Mode.MULTIPLY
         )
 
 
-        if (messageDto.isChecked) {
-            binding.frameLayoutBlackout.setBackgroundResource(R.color.selected)
-          //  binding.tvContent.setTextIsSelectable(true)
-        } else {
-            binding.frameLayoutBlackout.setBackgroundResource(R.color.transparent)
-         //   binding.tvContent.setTextIsSelectable(false)
-        }
+        //   setUpAvatar(context, extraData.groupMember, messageRealmObject, needTail)
 
+        // hide empty message
+//        if (messageRealmObject.messageBody.trim().isEmpty()
+//            && !messageRealmObject.hasForwardedMessages()
+//            && !messageRealmObject.hasReferences()
+//        ) {
+//            getMessageBalloon().setVisibility(View.GONE)
+//            getMessageShadow().setVisibility(View.GONE)
+//            getMessageTime().setVisibility(View.GONE)
+//            getBottomMessageTime().setVisibility(View.GONE)
+//            avatar.visibility = View.GONE
+//            LogManager.w(this, "Empty message! Hidden, but need to correct")
+//        } else {
+//            getMessageBalloon().setVisibility(View.VISIBLE)
+//            getMessageTime().setVisibility(View.VISIBLE)
+//            getBottomMessageTime().setVisibility(View.VISIBLE)
+//        }
+        itemView.addOnAttachStateChangeListener(object : OnAttachStateChangeListener {
 
-        val marginRight =
-            if (messageDto.isGroup && !showCheckbox) 46.dp else if (messageDto.isGroup && showCheckbox) 12.dp else 40.dp
-        if (!messageDto.isGroup || binding.avatarContact.isVisible) {
-            params.setMargins(
-                if (isNeedTail) 2.dp else 10.dp,
-                0,
-                marginRight,
-                0
-            )
-        } else if (messageDto.isGroup && !binding.avatarContact.isVisible) {
-            params.setMargins(
-                58.dp,
-                0,
-                marginRight,
-                0
-            )
-        }
-
-        binding.balloon.layoutParams = params
-        binding.balloon.setPadding(if (isNeedTail) 54 else 26, 26, 26, 26)
-
-
-
-
-if (binding.avatarContact.isVisible) {
-
-}
-        //   val popupMenu = createPopupMenu(messageDto, binding.root)
-
-        binding.root.setOnClickListener {
-            if (Check.getSelectedMode()) {
-                listener.checkItem(!messageDto.isChecked, messageDto.primary)
-            } else {
-                 val popup = PopupMenu(it.context, it, Gravity.CENTER)
-                popup.setForceShowIcon(true)
-           popup.inflate(R.menu.popup_menu_message_incoming)
-
-            val menuHealper = MenuPopupHelper(it.context, popup.menu as MenuBuilder, binding.root)
-            menuHealper.setForceShowIcon(true)
-            menuHealper.show()
-
-            popup.setOnMenuItemClickListener { menuItem ->
-                when (menuItem.itemId) {
-                    R.id.copy -> {
-                        val text = binding.tvContent.text.toString()
-                        listener.copyText(text)
-                    }
-                    R.id.pin -> {
-                        listener.pinMessage(messageDto)
-                    }
-                    R.id.forward -> {
-                        listener.forwardMessage(messageDto)
-                    }
-                    R.id.reply -> {
-                        listener.replyMessage(messageDto)
-                    }
-                    R.id.delete_message -> {
-                        listener.deleteMessage(messageDto.primary)
-                    }
-                }
-                true
+            override fun onViewAttachedToWindow(view: View) {
+                if (message.isUnread)
+                    listen?.onBind(message)
             }
-            popup.show()
-            }
-        }
 
-        binding.root.setOnLongClickListener {
-            if (!Check.getSelectedMode()) listener.onLongClick(messageDto.primary)
-            else  {listener.checkItem(!messageDto.isChecked, messageDto.primary)
-           Log.d("uuu", "isChecked ${messageDto.isChecked}") }
+            override fun onViewDetachedFromWindow(v: View) {
+                unsubscribeAll()
+            }
+        })
+//        if (messageTextTv.getText().toString().trim().isEmpty()) {
+//            messageTextTv.setVisibility(View.GONE)
+//        }
+
+
+//    private fun setUpAvatar(
+//        context: Context, groupMember: GroupMemberRealmObject?,
+//        messageRealmObject: MessageRealmObject, needTail: Boolean
+//    ) {
+//        var needAvatar: Boolean = SettingsManager.chatsShowAvatars()
+//        // for new groupchats (0GGG)
+//        if (groupMember != null) {
+//            needAvatar = true
+//        }
+//        if (!needAvatar) {
+//            avatar.visibility = View.GONE
+//            return
+//        }
+//        if (!needTail) {
+//            avatar.visibility = View.INVISIBLE
+//            return
+//        }
+//        avatar.visibility = View.VISIBLE
+//
+//        //groupchat avatar
+//        if (groupMember != null) {
+//            val placeholder: Drawable
+//            placeholder = try {
+//                val contactJid: ContactJid = ContactJid.from(
+//                    messageRealmObject.getUser().getJid().toString()
+//                            + "/"
+//                            + groupMember.getNickname()
+//                )
+//                AvatarManager.getInstance().getOccupantAvatar(
+//                    contactJid, groupMember.getNickname()
+//                )
+//            } catch (e: ContactJid.ContactJidCreateException) {
+//                AvatarManager.getInstance().generateDefaultAvatar(
+//                    groupMember.getNickname(), groupMember.getNickname()
+//                )
+//            }
+//            Glide.with(context)
+//                .load(
+//                    AvatarManager.getInstance().getGroupMemberAvatar(
+//                        groupMember, messageRealmObject.getAccount()
+//                    )
+//                )
+//                .centerCrop()
+//                .placeholder(placeholder)
+//                .error(placeholder)
+//                .into(avatar)
+//            return
+//        }
+//        val user: ContactJid = messageRealmObject.getUser()
+//        val resource: Resourcepart = messageRealmObject.getResource()
+//        if (resource.equals(Resourcepart.EMPTY)) {
+//            avatar.setImageDrawable(AvatarManager.getInstance().getRoomAvatarForContactList(user))
+//        } else {
+//            val nick: String = resource.toString()
+//            val contactJid: ContactJid
+//            try {
+//                contactJid = ContactJid.from(user.getJid().toString() + "/" + resource.toString())
+//                avatar.setImageDrawable(
+//                    AvatarManager.getInstance().getOccupantAvatar(contactJid, nick)
+//                )
+//            } catch (e: ContactJid.ContactJidCreateException) {
+//                LogManager.exception(this, e)
+//                avatar.setImageDrawable(
+//                    AvatarManager.getInstance().generateDefaultAvatar(nick, nick)
+//                )
+//            }
+//        }
+//    }
+//        messageTextTv.setOnClickListener {
+//            if (Check.getSelectedMode()) {
+//                listener?.checkItem(!messageRealmObject.isChecked, messageRealmObject.primary)
+//            } else {
+//                val popup = PopupMenu(it.context, it, Gravity.CENTER)
+//                popup.setForceShowIcon(true)
+//                popup.inflate(R.menu.popup_menu_message_incoming)
+//
+//
+//                popup.setOnMenuItemClickListener { menuItem ->
+//                    when (menuItem.itemId) {
+//                        R.id.copy -> {
+//                            val text = messageTextTv.text.toString()
+//                            listener?.copyText(text)
+//                        }
+//                        R.id.pin -> {
+//                            listener?.pinMessage(messageRealmObject)
+//                        }
+//                        R.id.forward -> {
+//                            listener?.forwardMessage(messageRealmObject)
+//                        }
+//                        R.id.reply -> {
+//                            listener?.replyMessage(messageRealmObject)
+//                        }
+//                        R.id.delete_message -> {
+//                            listener?.deleteMessage(messageRealmObject.primary)
+//                        }
+//                    }
+//                    true
+//                }
+//                popup.show()
+//            }
+//        }
+
+//        itemView.setOnClickListener {
+//            if (Check.getSelectedMode()) {
+//                listener?.checkItem(!messageRealmObject.isChecked, messageRealmObject.primary)
+//            } else {
+//                val popup = PopupMenu(messageTextTv.context, messageTextTv, Gravity.CENTER)
+//                popup.setForceShowIcon(true)
+//                popup.inflate(R.menu.popup_menu_message_incoming)
+//
+//
+//                popup.setOnMenuItemClickListener { menuItem ->
+//                    when (menuItem.itemId) {
+//                        R.id.copy -> {
+//                            val text = messageTextTv.text.toString()
+//                            listener?.copyText(text)
+//                        }
+//                        R.id.pin -> {
+//                            listener?.pinMessage(messageRealmObject)
+//                        }
+//                        R.id.forward -> {
+//                            listener?.forwardMessage(messageRealmObject)
+//                        }
+//                        R.id.reply -> {
+//                            listener?.replyMessage(messageRealmObject)
+//                        }
+//                        R.id.delete_message -> {
+//                            listener?.deleteMessage(messageRealmObject.primary)
+//                        }
+//                    }
+//                    true
+//                }
+//                popup.show()
+//            }
+//        }
+
+        itemView.setOnLongClickListener {
+            if (!Check.getSelectedMode()) listener?.onLongClick(message.primary)
+            else {
+                listener?.checkItem(!message.isChecked, message.primary)
+            }
             true
         }
     }
 
 
-     private fun showSnackbar(view: View) {
-        var snackbar: Snackbar? = null
-
-        snackbar = view.let {
-            Snackbar.make(
-                it,
-                "The message has copied to the clipboard",
-                Snackbar.LENGTH_SHORT
-            )
-        }
-        snackbar.setTextColor(Color.YELLOW)
-        snackbar.show()
-    }
-
-    @SuppressLint("RestrictedApi")
-    fun createPopupMenu(messageDto: MessageDto, view: View): PopupMenu {
-        val popup = PopupMenu(view.context, view, Gravity.CENTER)
-        popup.setForceShowIcon(true)
-        if (messageDto.isOutgoing) popup.inflate(R.menu.popup_menu_message_outgoing)
-        else popup.inflate(R.menu.popup_menu_message_incoming)
-
-        val menuHelper = MenuPopupHelper(view.context, popup.menu as MenuBuilder, binding.root)
-        menuHelper.setForceShowIcon(true)
-        menuHelper.show()
-
-        popup.setOnMenuItemClickListener { menuItem ->
-            when (menuItem.itemId) {
-                R.id.copy -> {
-                    val text = binding.tvContent.text.toString()
-                    listener.copyText(text)
-                }
-                R.id.forward -> {
-                    listener.forwardMessage(messageDto)
-                }
-                R.id.reply -> {
-                    listener.replyMessage(messageDto)
-                }
-                R.id.delete_message -> {
-                    listener.deleteMessage(messageDto.primary)
-                }
-            }
-            true
-        }
-        return popup
-    }
 }
-
-
-

@@ -7,18 +7,14 @@ import android.graphics.Color
 import android.graphics.drawable.BitmapDrawable
 import android.net.Uri
 import android.os.Bundle
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.core.content.ContextCompat
-import androidx.core.graphics.drawable.toDrawable
 import androidx.core.view.isVisible
 import androidx.core.view.updateLayoutParams
-import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.viewModels
 import by.kirich1409.viewbindingdelegate.viewBinding
-import com.bumptech.glide.Glide
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
@@ -26,11 +22,8 @@ import com.xabber.R
 import com.xabber.databinding.FragmentEmojiAvatarBinding
 import com.xabber.presentation.AppConstants
 import com.xabber.presentation.application.fragments.account.AccountViewModel
-import com.xabber.presentation.application.fragments.chat.AvatarChangerBottomSheet
-import com.xabber.presentation.application.fragments.chat.MessageChanger
-import com.xabber.presentation.onboarding.activity.OnboardingViewModel
+import com.xabber.presentation.application.fragments.chat.ChatSettingsManager
 import com.xabber.presentation.onboarding.fragments.signup.emoji.EmojiAvatarViewModel
-import com.xabber.presentation.onboarding.fragments.signup.emoji.EmojiKeyboardBottomSheet
 import com.xabber.utils.dp
 import com.xabber.utils.setFragmentResultListener
 import io.realm.kotlin.internal.RealmInitializer
@@ -120,7 +113,7 @@ class EmojiBottomSheet : BottomSheetDialogFragment() {
             color = savedInstanceState.getInt("color")
             binding.avatarBackground.setBackgroundResource(color)
             binding.profileImage.setBackgroundResource(color)
-        } else color = MessageChanger.color
+        } else color = ChatSettingsManager.color
 
      val toggledView =   when(color) {
          R.color.blue_100 -> binding.blueTint
@@ -141,7 +134,7 @@ class EmojiBottomSheet : BottomSheetDialogFragment() {
         palette.forEach { mapElem ->
             mapElem.key.setOnClickListener {
                 color = mapElem.value
-                MessageChanger.color = mapElem.value
+                ChatSettingsManager.color = mapElem.value
                 binding.avatarBackground.setBackgroundColor(
                     ContextCompat.getColor(requireContext(), mapElem.value)
                 )

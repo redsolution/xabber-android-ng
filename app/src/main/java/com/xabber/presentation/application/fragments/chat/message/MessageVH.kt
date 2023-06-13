@@ -1,63 +1,66 @@
 package com.xabber.presentation.application.fragments.chat.message
 
 import android.content.res.ColorStateList
-import android.os.Build
+import android.text.SpannableStringBuilder
+import android.text.format.DateFormat
+import android.text.style.QuoteSpan
+import android.util.DisplayMetrics
 import android.util.Log
 import android.view.View
-import android.view.ViewGroup
 import android.widget.*
-import androidx.annotation.RequiresApi
-import androidx.appcompat.widget.LinearLayoutCompat
-import androidx.core.graphics.drawable.DrawableCompat
+import androidx.annotation.StyleRes
 import androidx.recyclerview.widget.RecyclerView
 import com.xabber.R
 import com.xabber.dto.MessageDto
 import com.xabber.models.dto.MessageVhExtraData
-//import com.xabber.presentation.XabberApplication
+import com.xabber.presentation.XabberApplication
+import com.xabber.presentation.application.fragments.chat.ReferenceRealmObject
+import com.xabber.utils.custom.CorrectlyTouchEventTextView
 import com.xabber.utils.custom.CustomFlexboxLayout
+import com.xabber.utils.StringUtils.getDateStringForMessage
 import java.util.*
 
 open class MessageVH(
     itemView: View,
     private val listener: MessageClickListener,
     private val longClickListener: MessageLongClickListener,
-    private val fileListener: FileListener?
-) : BasicMessageVH(itemView), View.OnClickListener,
-    View.OnLongClickListener, FilesAdapter.FileListListener {
+    private val fileListener: FileListener?,
+    @StyleRes appearance: Int
+) : BasicMessageVH(itemView, appearance), View.OnClickListener,
+    //FileListListener,
+    View.OnLongClickListener {
 
     var isUnread = false
     var messageId: String? = null
 
+ //   private val subscriptions = CompositeSubscription()
+
     protected val messageTime: TextView = itemView.findViewById(R.id.message_time)
-    protected val messageHeader: TextView = itemView.findViewById(R.id.message_sender_tv)
-    protected val messageBalloon: View = itemView.findViewById(R.id.tail)
-    protected val messageShadow: View = itemView.findViewById(R.id.message_shadow)
+   // protected val messageHeader: TextView = itemView.findViewById(R.id.message_sender_tv)
+    protected val messageBalloon: LinearLayout = itemView.findViewById(R.id.message_balloon)
+  //  protected val messageShadow: View = itemView.findViewById(R.id.message_shadow)
     protected val statusIcon: ImageView = itemView.findViewById(R.id.message_status_icon)
     protected val messageInfo: View = itemView.findViewById(R.id.message_info)
-    private val flexboxLayout: CustomFlexboxLayout = itemView.findViewById(R.id.text_box)
-    protected val forwardedMessagesRV: RecyclerView =
-        itemView.findViewById(R.id.forwardedRecyclerView)
-    protected val messageFileInfo: TextView = itemView.findViewById(R.id.message_file_info)
-    protected val progressBar: ProgressBar = itemView.findViewById(R.id.message_progress_bar)
-    private val rvFileList: RecyclerView = itemView.findViewById(R.id.file_list_rv)
-    private val imageGridContainer: FrameLayout =
-        itemView.findViewById(R.id.image_grid_container_fl)
+     val flexboxLayout: CustomFlexboxLayout = itemView.findViewById(R.id.text_box)
+//    protected val forwardedMessagesRV: RecyclerView = itemView.findViewById(R.id.forwardedRecyclerView)
+  //  protected val messageFileInfo: TextView = itemView.findViewById(R.id.message_file_info)
+ //   protected val progressBar: ProgressBar = itemView.findViewById(R.id.message_progress_bar)
+//    protected val rvFileList: RecyclerView = itemView.findViewById(R.id.file_list_rv)
+ //   protected val imageGridContainer: FrameLayout = itemView.findViewById(R.id.image_grid_container_fl)
 
     //todo there are duplicated views! (or else triplicated!)
-    private val messageStatusLayout: LinearLayoutCompat =
-        itemView.findViewById(R.id.message_bottom_status)
-    protected val bottomMessageTime: TextView = messageStatusLayout.findViewById(R.id.message_time)
-    protected var bottomStatusIcon: ImageView =
-        messageStatusLayout.findViewById(R.id.message_status_icon)
+  //  private val messageStatusLayout: LinearLayoutCompat = itemView.findViewById(R.id.message_bottom_status)
+ //   protected val bottomMessageTime: TextView = messageStatusLayout.findViewById(R.id.message_time)
+ //   protected var bottomStatusIcon: ImageView = messageStatusLayout.findViewById(R.id.message_status_icon)
 
-    private val uploadProgressBar: ProgressBar? = itemView.findViewById(R.id.uploadProgressBar)
+ //   private val uploadProgressBar: ProgressBar? = itemView.findViewById(R.id.uploadProgressBar)
    // private val ivCancelUpload: ImageButton? = itemView.findViewById(R.id.ivCancelUpload)
 
     private var imageCount = 0
     private var fileCount = 0
 
     interface FileListener {
-        fun onImageClick(messagePosition: Int, attachmentPosition: Int, messageUID: String?)
+        fun onImageClick(messagePosition: Int, position: Int, id: String)
         fun onFileClick(messagePosition: Int, attachmentPosition: Int, messageUID: String?)
         fun onVoiceClick(
             messagePosition: Int,
@@ -67,7 +70,7 @@ open class MessageVH(
             timestamp: Long?
         )
 
-        fun onFileLongClick(messageDto: MessageDto?, caller: View?)
+        fun onFileLongClick(referenceRealmObject: ReferenceRealmObject?, caller: View?)
         fun onDownloadCancel()
         fun onUploadCancel()
         fun onDownloadError(error: String?)
@@ -81,9 +84,8 @@ open class MessageVH(
         fun onLongMessageClick(position: Int)
     }
 
-    @RequiresApi(Build.VERSION_CODES.N)
     open fun bind(messageDto: MessageDto, vhExtraData: MessageVhExtraData) {
-
+//        GlobalScope.launch { bottomMessageTime.text = "" }
 //        val chat = ChatManager.getInstance().getChat(
 //            messageRealmObject.account, messageRealmObject.user
 //        )
@@ -109,21 +111,21 @@ open class MessageVH(
 //                        0.8f
 //                    )
 //                )
-//                messageHeader.visibility = View.VISIBLE
-//            } else {
-//                messageHeader.visibility = View.GONE
-//            }
-//        } else {
-//            messageHeader.visibility = View.GONE
-//        }
-//
-       // if (Build.VERSION.SDK_INT > Build.VERSION_CODES.M) {
-       //     if (SettingsManager.interfaceTheme() == SettingsManager.InterfaceTheme.dark) {
-       //         messageTextTv.setTextColor(itemView.context.getColor(R.color.grey_200))
+          //      messageHeader.visibility = View.VISIBLE
        //     } else {
-         //       messageTextTv.setTextColor(itemView.context.getColor(R.color.black))
+     //           messageHeader.visibility = View.GONE
      //       }
+   //     } else {
+      //      messageHeader.visibility = View.GONE
     //    }
+
+//        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.M) {
+//            if (SettingsManager.interfaceTheme() == SettingsManager.InterfaceTheme.dark) {
+//                messageTextTv.setTextColor(itemView.context.getColor(R.color.grey_200))
+//            } else {
+//                messageTextTv.setTextColor(itemView.context.getColor(R.color.black))
+//            }
+//        }
 
         // Added .concat("&zwj;") and .concat(String.valueOf(Character.MIN_VALUE)
         // to avoid click by empty space after ClickableSpan
@@ -151,42 +153,36 @@ open class MessageVH(
 //                color
 //            )
 //            messageTextTv.setText(spannable, TextView.BufferType.SPANNABLE)
-//        } else {
-//            if (Build.VERSION.SDK_INT > Build.VERSION_CODES.KITKAT) {
 //                messageTextTv.setText(
 //                    getDecodedSpannable(messageRealmObject.text.trim { it <= ' ' } + Character.MIN_VALUE.toString()),
 //                    TextView.BufferType.SPANNABLE
 //                )
-//            } else {
-//                messageTextTv.text =
-//                    messageRealmObject.text.trim { it <= ' ' } + Character.MIN_VALUE.toString()
-//            }
-//        }
 //
-//        if (messageTextTv.text.isNotEmpty()) {
-//            messageStatusLayout.visibility = View.GONE
-//        }
 
-        if (messageDto.references != null || messageDto.kind != null) {
-            flexboxLayout.layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
-            )
-        } else {
-            flexboxLayout.layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
-            )
+        if (messageTextTv.text.isNotEmpty()) {
+          //  messageStatusLayout.visibility = View.GONE
         }
 
-     //   messageTextTv.movementMethod = CorrectlyTouchEventTextView.LocalLinkMovementMethod
+//        if (messageRealmObject.hasReferences() || messageRealmObject.hasForwardedMessages()) {
+//            flexboxLayout.layoutParams = LinearLayout.LayoutParams(
+//                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+//            )
+//        } else {
+//            flexboxLayout.layoutParams = LinearLayout.LayoutParams(
+//                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+//            )
+    //    }
+
+        messageTextTv.movementMethod = CorrectlyTouchEventTextView.LocalLinkMovementMethod
 
         // set unread status
-        isUnread = vhExtraData.isUnread
+    //    isUnread = vhExtraData.isUnread
 
         // set date
-        // needDate = vhExtraData.isNeedDate
-        //   date = getDateStringForMessage(messageDto.sentTimestamp)
+        needDate = vhExtraData.isNeedDate
+        date = getDateStringForMessage(messageDto.sentTimestamp)
         if (!vhExtraData.isNeedName) {
-            messageHeader.visibility = View.GONE
+         //   messageHeader.visibility = View.GONE
         }
 
 //        if (messageRealmObject.text.isNullOrEmpty()
@@ -199,21 +195,20 @@ open class MessageVH(
 //        }
 
         // setup CHECKED
-//        if (vhExtraData.isChecked) {
-//            itemView.setBackgroundColor(
-//                itemView.context.resources.getColor(R.color.unread_messages_background)
-//            )
-//        } else {
-//            itemView.background = null
-//        }
+        if (vhExtraData.isChecked) {
+            itemView.setBackgroundColor(
+                itemView.context.resources.getColor(R.color.message_selected)
+            )
+        } else {
+            itemView.background = null
+        }
 
-//        setupTime(messageRealmObject)
-//        setupReferences(messageRealmObject, vhExtraData)
-//    }
+        setupTime(messageDto)
+        setupReferences(messageDto, vhExtraData)
     }
 
-    fun setupTime(messageDto: MessageDto) {
-//        var time = getTimeText(Date(messageDto.sentTimestamp)).toString()
+    protected fun setupTime(messageDto: MessageDto) {
+        var time = getTimeText(Date(messageDto.sentTimestamp))
 //        messageRealmObject.delayTimestamp?.let {
 //            val delay = itemView.context.getString(
 //                if (messageRealmObject.isIncoming) R.string.chat_delay else R.string.chat_typed,
@@ -227,11 +222,9 @@ open class MessageVH(
 //                getTimeText(Date(it))
 //            )
 //        }
-//        messageTime.text = time
-//        bottomMessageTime.text = time
-//    }
-//
-//    private fun setupReferences(messageRealmObject: MessageRealmObject, vhExtraData: MessageVhExtraData) {
+    }
+
+    private fun setupReferences(messageDto: MessageDto, vhExtraData: MessageVhExtraData) {
 //        rvFileList.visibility = View.GONE
 //        imageGridContainer.removeAllViews()
 //        imageGridContainer.visibility = View.GONE
@@ -242,13 +235,8 @@ open class MessageVH(
 //        }
     }
 
-
-  private fun setupNonExternalGeo(messageDto: MessageDto){ }
-    override fun onFileClick(position: Int) {
-        TODO("Not yet implemented")
-    }
-
-    //        messageRealmObject.referencesRealmObjects?.firstOrNull { it.isGeo }?.let {
+    private fun setupNonExternalGeo(messageRealmObject: MessageDto){
+//        messageRealmObject.referencesRealmObjects?.firstOrNull { it.isGeo }?.let {
 //
 //
 //            itemView.findViewById<RelativeLayout>(R.id.include_non_external_geolocation).apply {
@@ -275,9 +263,9 @@ open class MessageVH(
 //                findViewById<TextView>(R.id.location_coordinates).text = "${coordFormatString.format(it.longitude)}, ${coordFormatString.format(it.latitude)}"
 //            }
 //        }
-//    }
-//
-//    private fun setUpImage(message: MessageRealmObject, messageVhExtraData: MessageVhExtraData) {
+    }
+
+    private fun setUpImage(message: MessageDto, messageVhExtraData: MessageVhExtraData) {
 //        if (!SettingsManager.connectionLoadImages()) {
 //            return
 //        }
@@ -300,8 +288,8 @@ open class MessageVH(
 //                imageGridContainer.addView(imageGridView)
 //                imageGridContainer.visibility = View.VISIBLE
 //            }
-//    }
-//
+    }
+
 //    private fun setUpFile(
 //        referenceRealmObjects: RealmList<ReferenceRealmObject>, vhExtraData: MessageVhExtraData
 //    ) {
@@ -320,75 +308,62 @@ open class MessageVH(
 //                }
 //            }
 //    }
-//
-//    /** File list Listener  */
+
+    /** File list Listener  */
 //    override fun onFileClick(attachmentPosition: Int) {
 //        val messagePosition = adapterPosition
 //        if (messagePosition == RecyclerView.NO_POSITION) {
-//            LogManager.w(this, "onClick: no position")
+//           // LogManager.w(this, "onClick: no position")
 //            return
 //        }
 //        fileListener?.onFileClick(messagePosition, attachmentPosition, messageId)
 //    }
-//
-    override fun onVoiceClick(
-        attachmentPosition: Int,
-       attachmentId: String,
-       saved: Boolean,
-       mainMessageTimestamp: Long
-    ) {
-        val messagePosition = adapterPosition
-        if (messagePosition == RecyclerView.NO_POSITION) {
-            Log.w("tag", "onClick: no position")
-          return
-        }
-        if (!saved) {
-           fileListener?.onVoiceClick(
-                messagePosition,
-               attachmentPosition,
-                attachmentId,
-               messageId,
-               mainMessageTimestamp
-           )
-       } else {
-         //  VoiceManager.getInstance().voiceClicked(
+
+//    override fun onVoiceClick(
+//        attachmentPosition: Int,
+//        attachmentId: String,
+//        saved: Boolean,
+//        mainMessageTimestamp: Long
+//    ) {
+//        val messagePosition = absoluteAdapterPosition
+//        if (messagePosition == RecyclerView.NO_POSITION) {
+//            Log.d("this", "onClick: no position")
+//            return
+//        }
+//        if (!saved) {
+//            fileListener?.onVoiceClick(
+//                messagePosition,
+//                attachmentPosition,
+//                attachmentId,
+//                messageId,
+//                mainMessageTimestamp
+//            )
+//        } else {
+//            VoiceManager.getInstance().voiceClicked(
 //                messageId, attachmentPosition, mainMessageTimestamp
 //            )
-       }
-    }
-//
-    override fun onVoiceProgressClick(
-        attachmentPosition: Int,
-        attachmentId: String,
-        timestamp: Long,
-        current: Int,
-        max: Int
-    ) {
-    val messagePosition = adapterPosition
-    if (messagePosition == RecyclerView.NO_POSITION) {
-
-        return
-    }
-}
-
-    override fun onFileLongClick(caller: View) {
-
-    }
-
-    override fun onDownLoadCancel() {
-
-    }
-
-    override fun onDownLoadError(error: String) {
-
-    }
-//        VoiceManager.seekAudioPlaybackTo(attachmentId, timestamp, current, max)
-//    }
-//
-//   override fun onFileLongClick(messageDto: MessageDto, caller: View) {
-//        fileListener?.onFileLongClick(messageDto, caller)
+//        }
 //    }
 
+//    override fun onVoiceProgressClick(
+//        attachmentPosition: Int,
+//        attachmentId: String,
+//        timestamp: Long,
+//        current: Int,
+//        max: Int
+//    ) {
+//        val messagePosition = adapterPosition
+//        if (messagePosition == RecyclerView.NO_POSITION) {
+//            Log.d("this", "onClick: no position")
+//            return
+//        }
+//        VoiceManager.getInstance().seekAudioPlaybackTo(attachmentId, timestamp, current, max)
+//    }
+
+//    override fun onFileLongClick(referenceRealmObject: ReferenceRealmObject, caller: View) {
+//        fileListener?.onFileLongClick(referenceRealmObject, caller)
+//    }
+//
 //    override fun onDownloadCancel() {
 //        fileListener?.onDownloadCancel()
 //    }
@@ -398,24 +373,24 @@ open class MessageVH(
 //    }
 
     override fun onClick(v: View) {
-        val adapterPosition = adapterPosition
-        if (adapterPosition == RecyclerView.NO_POSITION) {
-            Log.w("tag", "onClick: no position")
-            return
-        }
+       Log.d("iii", "onClick")
+       val adapterPosition = adapterPosition
+//        if (adapterPosition == RecyclerView.NO_POSITION) {
+//            return
+//        }
         when (v.id) {
-            R.id.ivImage0 -> fileListener?.onImageClick(adapterPosition, 0, messageId)
-            R.id.ivImage1 -> fileListener?.onImageClick(adapterPosition, 1, messageId)
-            R.id.ivImage2 -> fileListener?.onImageClick(adapterPosition, 2, messageId)
-            R.id.ivImage3 -> fileListener?.onImageClick(adapterPosition, 3, messageId)
-            R.id.ivImage4 -> fileListener?.onImageClick(adapterPosition, 4, messageId)
-            R.id.ivImage5 -> fileListener?.onImageClick(adapterPosition, 5, messageId)
-         //   R.id.ivCancelUpload -> fileListener?.onUploadCancel()
+            R.id.ivImage0 -> fileListener?.onImageClick( adapterPosition,0, messageId!!)
+            R.id.ivImage1 -> fileListener?.onImageClick(adapterPosition, 1, messageId!!)
+            R.id.ivImage2 -> fileListener?.onImageClick( adapterPosition,2, messageId!!)
+            R.id.ivImage3 -> fileListener?.onImageClick(adapterPosition,3, messageId!!)
+            R.id.ivImage4 -> fileListener?.onImageClick( adapterPosition,4, messageId!!)
+            R.id.ivImage5 -> fileListener?.onImageClick(adapterPosition,5, messageId!!)
+//         //   R.id.ivCancelUpload -> fileListener?.onUploadCancel()
             else -> listener.onMessageClick(messageBalloon, adapterPosition)
-        }
+       }
     }
 
-//    /** Upload progress subscription  */
+    /** Upload progress subscription  */
 //    protected fun subscribeForUploadProgress() {
 //        fun setUpProgress(progressData: HttpFileUploadManager.ProgressData?) {
 //            if (progressData != null && messageId == progressData.messageId) {
@@ -448,45 +423,45 @@ open class MessageVH(
 //                showProgressModified(false, 0, imageCount)
 //            }
 //        }
-//
+
 //        subscriptions.add(
 //            HttpFileUploadManager.getInstance()
 //                .subscribeForProgress()
 //                .doOnNext { progressData -> setUpProgress(progressData) }
 //                .subscribe()
 //        )
-//    }
-//
-//    protected fun unsubscribeAll() {
-//        subscriptions.clear()
-//    }
-//
-//    private fun showProgress(show: Boolean) {
-//        messageFileInfo.visibility = if (show) View.VISIBLE else View.GONE
-//        messageTime.visibility = if (show) View.GONE else View.VISIBLE
-//        bottomMessageTime.visibility = if (show) View.GONE else View.VISIBLE
-//    }
-//
-//    private fun showFileProgressModified(view: RecyclerView, startAt: Int, endAt: Int) {
-//        for (i in 0 until startAt) {
-//            showFileUploadProgress(view.getChildAt(i), false)
-//        }
-//        for (j in startAt.coerceAtLeast(0) until endAt) {
-//            showFileUploadProgress(view.getChildAt(j), true)
-//        }
-//    }
-//
-//    private fun showFileUploadProgress(view: View, show: Boolean) {
+  //  }
+
+    protected fun unsubscribeAll() {
+     //   subscriptions.clear()
+    }
+
+    private fun showProgress(show: Boolean) {
+       // messageFileInfo.visibility = if (show) View.VISIBLE else View.GONE
+        messageTime.visibility = if (show) View.GONE else View.VISIBLE
+       // bottomMessageTime.visibility = if (show) View.GONE else View.VISIBLE
+    }
+
+    private fun showFileProgressModified(view: RecyclerView, startAt: Int, endAt: Int) {
+        for (i in 0 until startAt) {
+            showFileUploadProgress(view.getChildAt(i), false)
+        }
+        for (j in startAt.coerceAtLeast(0) until endAt) {
+            showFileUploadProgress(view.getChildAt(j), true)
+        }
+    }
+
+    private fun showFileUploadProgress(view: View, show: Boolean) {
 //        view.findViewById<ProgressBar>(R.id.uploadProgressBar)?.visibility =
 //            if (show) {
 //                View.VISIBLE
 //            } else {
 //                View.GONE
 //            }
-//    }
-//
-//
-//    //todo yep, these methods must be in ImageGrid 🗿
+    }
+
+
+    //todo yep, these methods must be in ImageGrid 🗿
 //    private fun showProgressModified(show: Boolean, current: Int, last: Int) {
 //        fun getProgressView(view: View, index: Int): ProgressBar {
 //            return when (index) {
@@ -496,10 +471,10 @@ open class MessageVH(
 //                4 -> view.findViewById(R.id.uploadProgressBar4)
 //                5 -> view.findViewById(R.id.uploadProgressBar5)
 //                else -> view.findViewById(R.id.uploadProgressBar0)
-//            }
-//        }
-//
-//        fun getImageShadow(view: View, index: Int): ImageView {
+   //         }
+  //      }
+
+     //   fun getImageShadow(view: View, index: Int): ImageView {
 //            return when (index) {
 //                1 -> view.findViewById(R.id.ivImage1Shadow)
 //                2 -> view.findViewById(R.id.ivImage2Shadow)
@@ -508,8 +483,8 @@ open class MessageVH(
 //                5 -> view.findViewById(R.id.ivImage5Shadow)
 //                else -> view.findViewById(R.id.ivImage0Shadow)
 //            }
-//        }
-//
+    //    }
+
 //        if (show) {
 //            for (i in 0 until current) {
 //                getProgressView(imageGridContainer, i).visibility = View.GONE
@@ -526,9 +501,9 @@ open class MessageVH(
 //            }
 //        }
 //    }
-//
-    fun setupForwarded(messageRealmObject: MessageDto, vhExtraData: MessageVhExtraData) {
-    //        val forwardedIDs = messageRealmObject.forwardedIdsAsArray
+
+//    fun setupForwarded(messageRealmObject: MessageRealmObject, vhExtraData: MessageVhExtraData) {
+//        val forwardedIDs = messageRealmObject.forwardedIdsAsArray
 //        if (!forwardedIDs.contains(null)) {
 //            DatabaseManager.getInstance().defaultRealmInstance
 //                .where(MessageRealmObject::class.java)
@@ -558,121 +533,104 @@ open class MessageVH(
 //                }
 //        }
 //    }
-//
-//    override fun onLongClick(v: View): Boolean {
-//        val adapterPosition = adapterPosition
-//        return if (adapterPosition == RecyclerView.NO_POSITION) {
-//            LogManager.w(this, "onClick: no position")
-//            false
-//        } else {
-//            longClickListener.onLongMessageClick(adapterPosition)
-//            true
-//        }
-//    }
-//
-    fun setUpMessageBalloonBackground(view: View, colorList: ColorStateList?) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            view.background.setTintList(colorList)
+
+    override fun onLongClick(v: View): Boolean {
+        val adapterPosition = adapterPosition
+        return if (adapterPosition == RecyclerView.NO_POSITION) {
+        //    LogManager.w(this, "onClick: no position")
+            false
         } else {
-            val wrapDrawable = DrawableCompat.wrap(view.background)
-            DrawableCompat.setTintList(wrapDrawable, colorList)
-            val pL = view.paddingLeft
-            val pT = view.paddingTop
-            val pR = view.paddingRight
-            val pB = view.paddingBottom
-            view.background = wrapDrawable
-            view.setPadding(pL, pT, pR, pB)
+            longClickListener.onLongMessageClick(adapterPosition)
+            true
         }
     }
-//
-//    private fun modifySpannableWithCustomQuotes(
-//        spannable: SpannableStringBuilder, displayMetrics: DisplayMetrics, color: Int
-//    ) {
-//        for (span in spannable.getSpans(0, spannable.length, QuoteSpan::class.java).reversed()){
-//            var spanEnd = spannable.getSpanEnd(span)
-//            var spanStart = spannable.getSpanStart(span)
-//
-//            spannable.removeSpan(span)
-//
-//            if (spanEnd < 0 || spanStart < 0) {
-//                break
-//            }
-//
-//            var newlineCount = 0
-//            if ('\n' == spannable[spanEnd]) {
-//                newlineCount++
-//                if (spanEnd + 1 < spannable.length && '\n' == spannable[spanEnd + 1]) {
-//                    newlineCount++
-//                }
-//                if ('\n' == spannable[spanEnd - 1]) {
-//                    newlineCount++
-//                }
-//            }
-//            when (newlineCount) {
-//                3 -> {
-//                    spannable.delete(spanEnd - 1, spanEnd + 1)
-//                    spanEnd -= 2
-//                }
-//                2 -> {
-//                    spannable.delete(spanEnd, spanEnd + 1)
-//                    spanEnd--
-//                }
-//            }
-//
-//            if (spanStart > 1 && '\n' == spannable[spanStart - 1]) {
-//                if ('\n' == spannable[spanStart - 2]) {
-//                    spannable.delete(spanStart - 2, spanStart - 1)
-//                    spanStart--
-//                }
-//            }
-//
+
+    protected fun setUpMessageBalloonBackground(view: View, colorList: ColorStateList?) {
+            view.background.setTintList(colorList)
+    }
+
+    private fun modifySpannableWithCustomQuotes(
+        spannable: SpannableStringBuilder, displayMetrics: DisplayMetrics, color: Int
+    ) {
+        for (span in spannable.getSpans(0, spannable.length, QuoteSpan::class.java).reversed()){
+            var spanEnd = spannable.getSpanEnd(span)
+            var spanStart = spannable.getSpanStart(span)
+
+            spannable.removeSpan(span)
+
+            if (spanEnd < 0 || spanStart < 0) {
+                break
+            }
+
+            var newlineCount = 0
+            if ('\n' == spannable[spanEnd]) {
+                newlineCount++
+                if (spanEnd + 1 < spannable.length && '\n' == spannable[spanEnd + 1]) {
+                    newlineCount++
+                }
+                if ('\n' == spannable[spanEnd - 1]) {
+                    newlineCount++
+                }
+            }
+            when (newlineCount) {
+                3 -> {
+                    spannable.delete(spanEnd - 1, spanEnd + 1)
+                    spanEnd -= 2
+                }
+                2 -> {
+                    spannable.delete(spanEnd, spanEnd + 1)
+                    spanEnd--
+                }
+            }
+
+            if (spanStart > 1 && '\n' == spannable[spanStart - 1]) {
+                if ('\n' == spannable[spanStart - 2]) {
+                    spannable.delete(spanStart - 2, spanStart - 1)
+                    spanStart--
+                }
+            }
+
 //            spannable.setSpan(
 //                CustomQuoteSpan(color, displayMetrics),
 //                spanStart,
 //                spanEnd,
 //                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
 //            )
-//
-//            var current: Char
-//            var waitForNewLine = false
-//            var j = spanStart
-//            while (j < spanEnd) {
-//                if (j >= spannable.length) {
-//                    break
-//                }
-//                current = spannable[j]
-//                waitForNewLine =
-//                    if (waitForNewLine && current != '\n') {
-//                        j++
-//                        continue
-//                    } else {
-//                        false
-//                    }
-//
-//                if (current == '>') {
-//                    spannable.delete(j, j + 1)
-//                    j--
-//                    waitForNewLine = true
-//                }
-//                j++
-//            }
-//        }
-//    }
-//
-}
-    private fun getTimeText(timeStamp: Date): String { return ""
-     //   return DateFormat.getTimeFormat(XabberApplication.newInstance()).format(timeStamp)
+
+            var current: Char
+            var waitForNewLine = false
+            var j = spanStart
+            while (j < spanEnd) {
+                if (j >= spannable.length) {
+                    break
+                }
+                current = spannable[j]
+                waitForNewLine =
+                    if (waitForNewLine && current != '\n') {
+                        j++
+                        continue
+                    } else {
+                        false
+                    }
+
+                if (current == '>') {
+                    spannable.delete(j, j + 1)
+                    j--
+                    waitForNewLine = true
+                }
+                j++
+            }
+        }
+    }
+
+    private fun getTimeText(timeStamp: Date): String {
+        return DateFormat.getTimeFormat(XabberApplication.applicationContext()).format(timeStamp)
     }
 
     init {
-      //  ivCancelUpload?.setOnClickListener(this)
+        //ivCancelUpload?.setOnClickListener(this)
         itemView.setOnClickListener(this)
         itemView.setOnLongClickListener(this)
     }
-
-    override fun onLongClick(p0: View?): Boolean {
-     return false
-    }
-
 
 }
