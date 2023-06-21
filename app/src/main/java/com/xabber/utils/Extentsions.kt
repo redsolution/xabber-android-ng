@@ -1,5 +1,6 @@
 package com.xabber.utils
 
+import android.app.Activity
 import android.content.Context
 import android.content.Context.INPUT_METHOD_SERVICE
 import android.content.DialogInterface
@@ -9,9 +10,9 @@ import android.content.pm.PackageManager
 import android.content.res.Resources
 import android.graphics.Bitmap
 import android.graphics.Canvas
-import android.graphics.Point
 import android.graphics.drawable.Drawable
 import android.net.Uri
+import android.os.Build
 import android.os.Build.VERSION.SDK_INT
 import android.os.Bundle
 import android.os.Parcelable
@@ -29,15 +30,16 @@ import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.xabber.R
-import com.xabber.dto.AccountDto
-import com.xabber.dto.AvatarDto
-import com.xabber.dto.ChatListDto
-import com.xabber.dto.MessageReferenceDto
 import com.xabber.data_base.models.last_chats.LastChatsStorageItem
 import com.xabber.data_base.models.messages.MessageReferenceStorageItem
 import com.xabber.data_base.models.messages.MessageSendingState
 import com.xabber.data_base.models.presences.ResourceStatus
 import com.xabber.data_base.models.presences.RosterItemEntity
+import com.xabber.data_base.models.sync.ConversationType
+import com.xabber.dto.AccountDto
+import com.xabber.dto.AvatarDto
+import com.xabber.dto.ChatListDto
+import com.xabber.dto.MessageReferenceDto
 import com.xabber.presentation.onboarding.fragments.signup.emoji.EmojiTypeDto
 
 
@@ -108,42 +110,22 @@ fun AppCompatActivity.showToast(message: Int) {
     Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
 }
 
-fun AppCompatActivity.lockScreenRotation(isLock: Boolean) {
-    this.requestedOrientation =
+fun Activity.lockScreenRotation(isLock: Boolean) {
+    requestedOrientation =
         if (isLock) {
-            val display: Display = this.windowManager.defaultDisplay
-            val rotation = display.rotation
-            val size = Point()
-            display.getSize(size)
-            if (rotation == Surface.ROTATION_0 || rotation == Surface.ROTATION_180) {
-                if (size.x > size.y) {
-                    if (rotation == Surface.ROTATION_0) {
-                        ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
-                    } else {
-                        ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE
-                    }
-                } else {
-                    if (rotation == Surface.ROTATION_0) {
-                        ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-                    } else {
-                        ActivityInfo.SCREEN_ORIENTATION_REVERSE_PORTRAIT
-                    }
-                }
+            val display: Display? = if (SDK_INT >= Build.VERSION_CODES.R) {
+                this.display
             } else {
-                if (size.x > size.y) {
-                    if (rotation == Surface.ROTATION_90) {
-                        ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
-                    } else {
-                        ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE
-                    }
-                } else {
-                    if (rotation == Surface.ROTATION_90) {
-                        ActivityInfo.SCREEN_ORIENTATION_REVERSE_PORTRAIT
-                    } else {
-                        ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-                    }
-                }
+                windowManager.defaultDisplay
             }
+            var rotation = 0
+            when (display?.rotation) {
+                Surface.ROTATION_0 -> rotation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                Surface.ROTATION_90 -> rotation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+                Surface.ROTATION_180 -> rotation = ActivityInfo.SCREEN_ORIENTATION_REVERSE_PORTRAIT
+                Surface.ROTATION_270 -> rotation = ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE
+            }
+            rotation
         } else {
             ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
         }
@@ -170,18 +152,6 @@ fun Drawable.getBitmap(): Bitmap {
     return bitmap
 }
 
-fun dipToPx(dip: Float, context: Context): Int {
-    return dipToPxFloat(dip, context).toInt()
-}
-
-fun dipToPxFloat(dip: Float, context: Context): Float {
-    return TypedValue.applyDimension(
-        TypedValue.COMPLEX_UNIT_DIP,
-        dip,
-        context.resources.displayMetrics
-    )
-}
-
 fun spToPxFloat(sp: Float, context: Context): Float {
     return TypedValue.applyDimension(
         TypedValue.COMPLEX_UNIT_SP,
@@ -189,7 +159,6 @@ fun spToPxFloat(sp: Float, context: Context): Float {
         context.resources.displayMetrics
     )
 }
-
 
 fun RecyclerView.partSmoothScrollToPosition(targetItem: Int) {
     layoutManager?.apply {
@@ -218,7 +187,7 @@ inline fun <reified T : Parcelable> Bundle.parcelable(key: String): T? = when {
     else -> @Suppress("DEPRECATION") getParcelable(key) as? T
 }
 
-  // Mapping
+// Mapping
 fun LastChatsStorageItem.toChatListDto(): ChatListDto =
     ChatListDto(
         id = primary,
@@ -244,6 +213,7 @@ fun LastChatsStorageItem.toChatListDto(): ChatListDto =
         drawableId = avatar,
         isHide = false,
         lastMessageIsOutgoing = if (lastMessage != null) lastMessage!!.outgoing else false,
+        isGroup = conversationType_ == ConversationType.Group.rawValue
     )
 
 fun com.xabber.data_base.models.account.AccountStorageItem.toAccountDto() =

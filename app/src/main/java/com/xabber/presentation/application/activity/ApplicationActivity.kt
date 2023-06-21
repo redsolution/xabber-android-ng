@@ -36,7 +36,7 @@ import com.xabber.presentation.application.fragments.calls.CallsFragment
 import com.xabber.presentation.application.fragments.chat.ChatFragment
 import com.xabber.presentation.application.fragments.chat.ChatParams
 import com.xabber.presentation.application.fragments.chat.ChatSettingsManager
-import com.xabber.presentation.application.fragments.chat.MessageChangerDialog
+import com.xabber.presentation.application.fragments.chat.ChatSettingsFragment
 import com.xabber.presentation.application.fragments.chatlist.ArchiveFragment
 import com.xabber.presentation.application.fragments.chatlist.ChatListFragment
 import com.xabber.presentation.application.fragments.chatlist.ChatListViewModel
@@ -179,40 +179,58 @@ class ApplicationActivity : AppCompatActivity(), Navigator {
     }
 
     private fun setChatSettings() {
-        val corner = getSharedPreferences(AppConstants.SHARED_PREF_CORNER, Context.MODE_PRIVATE).getInt(
-            AppConstants.CORNER_KEY,
-            7
+        val corner =
+            getSharedPreferences(AppConstants.SHARED_PREF_CORNER, Context.MODE_PRIVATE).getInt(
+                AppConstants.CORNER_KEY,
+                7
+            )
+        val type = getSharedPreferences(AppConstants.SHARED_PREF_TYPE, Context.MODE_PRIVATE).getInt(
+            AppConstants.TYPE_TAIL_KEY,
+            MessageTailType.SMOOTH.rawValue
         )
-        val type = getSharedPreferences(AppConstants.SHARED_PREF_TYPE, Context.MODE_PRIVATE).getInt(AppConstants.TYPE_TAIL_KEY, 4)
-        val bottom = getSharedPreferences("bottom", Context.MODE_PRIVATE).getBoolean("bot", true)
-       ChatSettingsManager.defineMessageDrawable(corner, type, bottom)
+        val tailPosition = getSharedPreferences(
+            AppConstants.SHARED_PREF_TAIL_POSITION,
+            Context.MODE_PRIVATE
+        ).getBoolean(AppConstants.TAIL_POSITION, true)
 
-        val designType = getSharedPreferences("design", Context.MODE_PRIVATE).getInt("des", 1)
+        ChatSettingsManager.defineMessageDrawable(corner, type, tailPosition)
+
+        val designType =
+            getSharedPreferences(AppConstants.SHARED_PREF_CHAT_DESIGN, Context.MODE_PRIVATE).getInt(
+                AppConstants.CHAT_DESIGN_TYPE,
+                1
+            )
         ChatSettingsManager.designType = designType
 
-        val gradi = getSharedPreferences("gradient", Context.MODE_PRIVATE).getInt("gradi", 7)
+        val gradient = getSharedPreferences(AppConstants.SHARED_PREF_GRADIENT, Context.MODE_PRIVATE).getInt(AppConstants.GRADIENT, 7)
+
         ChatSettingsManager.designType = designType
-        ChatSettingsManager.gradient = gradi
-       val gradientDraw = when(gradi) {
-           1 -> R.drawable.gradi_bordo
-           2 -> R.drawable.gradi_red
-           3 -> R.drawable.gradi_orange
-           4 -> R.drawable.gradi_yellish_blue
-           5 -> R.drawable.gradi_light_green
-           6 -> R.drawable.gradi_sea
-           7 -> R.drawable.gradi_blue
-           8 -> R.drawable.gradi_purple
-           else -> { R.drawable.gradi_blue}
-       }
+        ChatSettingsManager.gradient = gradient
+
+        val gradientDraw = when (gradient) {
+            1 -> R.drawable.gradient_bordo
+            2 -> R.drawable.gradient_red
+            3 -> R.drawable.gradient_orange
+            4 -> R.drawable.gradient_yellish_blue
+            5 -> R.drawable.gradient_light_green
+            6 -> R.drawable.gradient_light_yellish_blue
+            7 -> R.drawable.gradient_blue
+            8 -> R.drawable.gradient_purple
+            else -> {
+                R.drawable.gradient_blue
+            }
+        }
         binding.detailContainer.setBackgroundResource(gradientDraw)
-        val designDrawable = when(designType) {
+        val designDrawable = when (designType) {
             1 -> R.drawable.aliens_repeat
             2 -> R.drawable.cats_repeat
             3 -> R.drawable.hearts_repeat
             4 -> R.drawable.flowers_repeat
-            5 -> R.drawable.flower_daisy_repeat
+            5 -> R.drawable.meadow_repeat
             6 -> R.drawable.summer_repeat
-            else -> {R.drawable.aliens_repeat}
+            else -> {
+                R.drawable.aliens_repeat
+            }
         }
         binding.fr.setBackgroundResource(designDrawable)
     }
@@ -481,34 +499,38 @@ class ApplicationActivity : AppCompatActivity(), Navigator {
     }
 
     override fun showChatSettings() {
-        launchDetailInStack(MessageChangerDialog())
+        launchDetailInStack(ChatSettingsFragment())
     }
 
     override fun showMaskSettings() {
-       launchDetailInStack(MaskFragment())
+        launchDetailInStack(MaskFragment())
     }
 
     override fun setDesignBackground() {
-        val gradientDraw = when(ChatSettingsManager.gradient) {
-            1 -> R.drawable.gradi_bordo
-            2 -> R.drawable.gradi_red
-            3 -> R.drawable.gradi_orange
-            4 -> R.drawable.gradi_yellish_blue
-            5 -> R.drawable.gradi_light_green
-            6 -> R.drawable.gradi_sea
-            7 -> R.drawable.gradi_blue
-            8 -> R.drawable.gradi_purple
-            else -> { R.drawable.gradi_blue}
+        val gradientDraw = when (ChatSettingsManager.gradient) {
+            1 -> R.drawable.gradient_bordo
+            2 -> R.drawable.gradient_red
+            3 -> R.drawable.gradient_orange
+            4 -> R.drawable.gradient_yellish_blue
+            5 -> R.drawable.gradient_light_green
+            6 -> R.drawable.gradient_light_yellish_blue
+            7 -> R.drawable.gradient_blue
+            8 -> R.drawable.gradient_purple
+            else -> {
+                R.drawable.gradient_blue
+            }
         }
         binding.detailContainer.setBackgroundResource(gradientDraw)
-        val designDrawable = when(ChatSettingsManager.designType) {
+        val designDrawable = when (ChatSettingsManager.designType) {
             1 -> R.drawable.aliens_repeat
             2 -> R.drawable.cats_repeat
             3 -> R.drawable.hearts_repeat
             4 -> R.drawable.flowers_repeat
-            5 -> R.drawable.flower_daisy_repeat
+            5 -> R.drawable.meadow_repeat
             6 -> R.drawable.summer_repeat
-            else -> {R.drawable.aliens_repeat}
+            else -> {
+                R.drawable.aliens_repeat
+            }
         }
         binding.fr.setBackgroundResource(designDrawable)
     }

@@ -3,7 +3,9 @@ package com.xabber.presentation.application.fragments.account.qrcode
 import android.content.Intent
 import android.graphics.Bitmap
 import android.os.Bundle
+import android.view.LayoutInflater
 import android.view.View
+import android.view.ViewGroup
 import androidx.core.content.FileProvider
 import by.kirich1409.viewbindingdelegate.viewBinding
 import com.xabber.R
@@ -30,7 +32,6 @@ class QRCodeFragment : DetailBaseFragment(R.layout.fragment_qr_code) {
             return fragment
         }
     }
-
 
     private fun getParams(): QRCodeParams =
         requireArguments().parcelable(AppConstants.QR_CODE_PARAMS)!!

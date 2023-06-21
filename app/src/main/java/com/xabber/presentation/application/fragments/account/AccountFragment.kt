@@ -112,7 +112,6 @@ class AccountFragment : DetailBaseFragment(R.layout.fragment_account) {
             .load(bitmap)
             .skipMemoryCache(true)
             .into(binding.accountAppbar.avatarGr.imAccountAvatar)
-      //  viewModel.saveAvatar(getJid(), )
     }
 
     private fun setupTitle() {
@@ -279,7 +278,6 @@ class AccountFragment : DetailBaseFragment(R.layout.fragment_account) {
         var scrollRange = -1
         with(binding.accountAppbar) {
             appbar.addOnOffsetChangedListener { bar, verticalOffset ->
-
                 if (scrollRange == -1) {
                     scrollRange = bar.totalScrollRange
                 }

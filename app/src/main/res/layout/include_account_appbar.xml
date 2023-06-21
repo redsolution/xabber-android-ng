@@ -25,8 +25,8 @@
 
             <include
                 android:id="@+id/avatar_gr"
-                android:layout_width="@dimen/mask256"
-                android:layout_height="@dimen/mask256"
+                android:layout_width="@dimen/avatar256"
+                android:layout_height="@dimen/avatar256"
                 layout="@layout/include_avatar_group"
                 android:layout_gravity="start|center_vertical"
                 android:layout_marginStart="@dimen/margin_larger_medium"

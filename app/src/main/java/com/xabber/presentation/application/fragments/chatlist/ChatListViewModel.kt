@@ -245,7 +245,7 @@ class ChatListViewModel : ViewModel() {
                         sentDate = System.currentTimeMillis()
                         editDate = 0
                         outgoing = true
-                        conversationType_ = ConversationType.Channel.toString()
+                        conversationType_ = ConversationType.Group.toString()
                     })
                     item.lastMessage = message
                     item.messageDate = message.date
@@ -426,6 +426,7 @@ class ChatListViewModel : ViewModel() {
                         isArchived = false
                         unread = 0
                         avatar = av
+                        conversationType_ = ConversationType.Group.rawValue
                     })
                     b++
                 }

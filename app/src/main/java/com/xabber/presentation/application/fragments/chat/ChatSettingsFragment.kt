@@ -8,16 +8,16 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import by.kirich1409.viewbindingdelegate.viewBinding
 import com.xabber.R
 import com.xabber.data_base.models.messages.MessageSendingState
-import com.xabber.databinding.DialogMessageChangerBinding
+import com.xabber.databinding.FragmentChatSettingsBinding
 import com.xabber.dto.MessageDto
 import com.xabber.presentation.AppConstants
 import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.application.fragments.DetailBaseFragment
 import com.xabber.presentation.application.fragments.chat.message.MessageAdapter
 
-class MessageChangerDialog : DetailBaseFragment(R.layout.dialog_message_changer),
+class ChatSettingsFragment : DetailBaseFragment(R.layout.fragment_chat_settings),
     GradientAdapter.TryOnWallpaper {
-    private val binding by viewBinding(DialogMessageChangerBinding::bind)
+    private val binding by viewBinding(FragmentChatSettingsBinding::bind)
     private var adapter: MessageAdapter? = null
     val list = ArrayList<MessageDto>()
     private var gAdapter: GradientAdapter? = null
@@ -28,7 +28,7 @@ class MessageChangerDialog : DetailBaseFragment(R.layout.dialog_message_changer)
         binding.rvChatDemonstration.layoutManager = LinearLayoutManager(requireContext())
         list.add(
             MessageDto(
-                ",hjj",
+                ",hjjp",
                 false,
                 "hh",
                 opponentJid = "jhg",
@@ -69,7 +69,7 @@ class MessageChangerDialog : DetailBaseFragment(R.layout.dialog_message_changer)
             )
         )
 
-        adapter = MessageAdapter(context = requireContext(), messageRealmObjects = list)
+        adapter = MessageAdapter(messages = list, isGroup = false)
         binding.rvChatDemonstration.adapter = adapter
         binding.seekBar.progress = ChatSettingsManager.cornerValue
         binding.tvProgressValue.text = ChatSettingsManager.cornerValue.toString()
@@ -79,7 +79,7 @@ class MessageChangerDialog : DetailBaseFragment(R.layout.dialog_message_changer)
                 binding.tvProgressValue.text = value.toString()
                 ChatSettingsManager.defineMessageDrawable(
                     binding.seekBar.progress,
-                    ChatSettingsManager.typeValue, binding.bottomTails.isChecked
+                    ChatSettingsManager.messageTypeValue!!.rawValue, binding.bottomTails.isChecked
                 )
                 adapter?.notifyDataSetChanged()
             }
@@ -202,29 +202,29 @@ class MessageChangerDialog : DetailBaseFragment(R.layout.dialog_message_changer)
         }
         val grad = ChatSettingsManager.gradient
         val drawable = when(grad) {
-            1 -> R.drawable.gradi_bordo
-            2 -> R.drawable.gradi_red
-            3 -> R.drawable.gradi_orange
-            4 -> R.drawable.gradi_yellish_blue
-            5 -> R.drawable.gradi_light_green
-            6 -> R.drawable.gradi_sea
-            7 -> R.drawable.gradi_blue
-            8 -> R.drawable.gradi_purple
-            else -> R.drawable.gradi_blue
+            1 -> R.drawable.gradient_bordo
+            2 -> R.drawable.gradient_red
+            3 -> R.drawable.gradient_orange
+            4 -> R.drawable.gradient_yellish_blue
+            5 -> R.drawable.gradient_light_green
+            6 -> R.drawable.gradient_light_yellish_blue
+            7 -> R.drawable.gradient_blue
+            8 -> R.drawable.gradient_purple
+            else -> R.drawable.gradient_blue
         }
         binding.frameGradient.setBackgroundResource(drawable)
         val layoutManager =
             LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
         binding.rvGradients.layoutManager = layoutManager
         val list = ArrayList<Gradient>()
-        list.add(Gradient(R.drawable.gradi_bordo, 1))
-        list.add(Gradient(R.drawable.gradi_red, 2))
-        list.add(Gradient(R.drawable.gradi_orange, 3))
-        list.add(Gradient(R.drawable.gradi_yellish_blue, 4))
-        list.add(Gradient(R.drawable.gradi_light_green, 5))
-        list.add(Gradient(R.drawable.gradi_sea, 6))
-        list.add(Gradient(R.drawable.gradi_blue, 7))
-        list.add(Gradient(R.drawable.gradi_purple, 8))
+        list.add(Gradient(R.drawable.gradient_bordo, 1))
+        list.add(Gradient(R.drawable.gradient_red, 2))
+        list.add(Gradient(R.drawable.gradient_orange, 3))
+        list.add(Gradient(R.drawable.gradient_yellish_blue, 4))
+        list.add(Gradient(R.drawable.gradient_light_green, 5))
+        list.add(Gradient(R.drawable.gradient_light_yellish_blue, 6))
+        list.add(Gradient(R.drawable.gradient_blue, 7))
+        list.add(Gradient(R.drawable.gradient_purple, 8))
         val pos = ChatSettingsManager.gradient
 
         gAdapter = GradientAdapter(this, list, arrayListOf(ChatSettingsManager.gradient-1))
@@ -255,7 +255,7 @@ class MessageChangerDialog : DetailBaseFragment(R.layout.dialog_message_changer)
 
         binding.meadow.setOnClickListener {
             ChatSettingsManager.designType = 5
-            binding.rvChatDemonstration.setBackgroundResource(R.drawable.flower_daisy_repeat)
+            binding.rvChatDemonstration.setBackgroundResource(R.drawable.meadow_repeat)
         }
 
         binding.summer.setOnClickListener {
@@ -285,14 +285,14 @@ class MessageChangerDialog : DetailBaseFragment(R.layout.dialog_message_changer)
             2 -> R.drawable.cats_repeat
             3 -> R.drawable.hearts_repeat
             4 -> R.drawable.flowers_repeat
-            5 -> R.drawable.flower_daisy_repeat
+            5 -> R.drawable.meadow_repeat
             6 -> R.drawable.summer_repeat
             else -> R.drawable.aliens_repeat
         }
     }
 
     private fun getCheckedItemId(): Int {
-        return when (ChatSettingsManager.typeValue) {
+        return when (ChatSettingsManager.messageTypeValue?.rawValue) {
             1 -> R.id.bubble
             2 -> R.id.corner
             3 -> R.id.curvy
@@ -322,6 +322,10 @@ class MessageChangerDialog : DetailBaseFragment(R.layout.dialog_message_changer)
     override fun onDestroyView() {
         super.onDestroyView()
         navigator().setDesignBackground()
+        saveSettings()
+    }
+
+    private fun saveSettings() {
         val cornerPref =
             activity?.getSharedPreferences(AppConstants.SHARED_PREF_CORNER, Context.MODE_PRIVATE)
                 ?: return
@@ -329,20 +333,18 @@ class MessageChangerDialog : DetailBaseFragment(R.layout.dialog_message_changer)
             activity?.getSharedPreferences(AppConstants.SHARED_PREF_TYPE, Context.MODE_PRIVATE)
                 ?: return
         val botPref =
-            activity?.getSharedPreferences("bottom", Context.MODE_PRIVATE)
+            activity?.getSharedPreferences(AppConstants.SHARED_PREF_TAIL_POSITION, Context.MODE_PRIVATE)
                 ?: return
+        val gradientPref =
+            activity?.getSharedPreferences(AppConstants.SHARED_PREF_GRADIENT, Context.MODE_PRIVATE) ?: return
+        val designPref = activity?.getSharedPreferences(AppConstants.SHARED_PREF_CHAT_DESIGN, Context.MODE_PRIVATE) ?: return
+
         val bi = binding.bottomTails.isChecked
         cornerPref.edit()?.putInt(AppConstants.CORNER_KEY, binding.seekBar.progress)?.apply()
         typePref.edit()?.putInt(AppConstants.TYPE_TAIL_KEY, getTypeChecked())?.apply()
-        botPref.edit()?.putBoolean("bot", bi)?.apply()
-
-        val gradientPref =
-            activity?.getSharedPreferences("gradient", Context.MODE_PRIVATE) ?: return
-        val designPref = activity?.getSharedPreferences("design", Context.MODE_PRIVATE) ?: return
-
-        gradientPref.edit()?.putInt("gradi", ChatSettingsManager.gradient)?.apply()
-        designPref.edit()?.putInt("des", getDesign())?.apply()
-
+        botPref.edit()?.putBoolean(AppConstants.TAIL_POSITION, bi)?.apply()
+        gradientPref.edit()?.putInt(AppConstants.GRADIENT, ChatSettingsManager.gradient)?.apply()
+        designPref.edit()?.putInt(AppConstants.CHAT_DESIGN_TYPE, getDesign())?.apply()
     }
 
     override fun onClickElement(gradient: Gradient) {

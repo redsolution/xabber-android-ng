@@ -10,7 +10,6 @@ import androidx.recyclerview.widget.RecyclerView
 import com.xabber.databinding.ItemImageFromGalleryBinding
 import com.xabber.dto.MediaDto
 
-
 class GalleryAdapter(private val listener: Listener) :
     RecyclerView.Adapter<GalleryItemVH>() {
     private val selectedMediaIdes = HashSet<Long>()

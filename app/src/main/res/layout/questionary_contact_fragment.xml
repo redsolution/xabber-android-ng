@@ -38,8 +38,8 @@
 
             <ImageView
                 android:id="@+id/im_contact_avatar"
-                android:layout_width="@dimen/mask256"
-                android:layout_height="@dimen/mask256"
+                android:layout_width="@dimen/avatar256"
+                android:layout_height="@dimen/avatar256"
                 android:layout_gravity="start"
                 android:layout_marginStart="20dp"
                 android:layout_marginTop="16dp" />

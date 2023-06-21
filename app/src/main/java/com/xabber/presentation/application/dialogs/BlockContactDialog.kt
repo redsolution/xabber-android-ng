@@ -35,7 +35,7 @@ class BlockContactDialog : DialogFragment() {
             SpannableStringBuilder().append(resources.getString(R.string.dialog_block_message_part_1))
                 .bold { append(" $name") }.append("?")
                 .append(resources.getString(R.string.dialog_block_message_part_2))
-        val dialog = AlertDialog.Builder(context, R.style.MyAlertDialogStyle)
+        val dialog = AlertDialog.Builder(context, R.style.AlertDialogStyle)
             .setTitle(R.string.dialog_block_title)
             .setMessage(dialogMessage)
             .setPositiveButton(

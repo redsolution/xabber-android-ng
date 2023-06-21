@@ -29,7 +29,7 @@
             android:id="@+id/frame_gradient"
             android:layout_width="0dp"
             android:layout_height="0dp"
-            android:background="@drawable/gradi_purple"
+            android:background="@drawable/gradient_purple"
             app:layout_constraintBottom_toBottomOf="@id/rv_chat_demonstration"
             app:layout_constraintEnd_toEndOf="@id/rv_chat_demonstration"
             app:layout_constraintStart_toStartOf="@id/rv_chat_demonstration"

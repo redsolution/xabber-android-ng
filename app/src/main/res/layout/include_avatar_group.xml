@@ -17,8 +17,8 @@
 
         <ImageView
             android:id="@+id/im_account_avatar"
-            android:layout_width="@dimen/mask256"
-            android:layout_height="@dimen/mask256"
+            android:layout_width="@dimen/avatar256"
+            android:layout_height="@dimen/avatar256"
             android:contentDescription="@string/account_photo_image_description"
             android:scaleType="centerCrop" />
     </com.xabber.utils.custom.ShapeOfView>

@@ -29,6 +29,7 @@
         android:fullBackupContent="false"
         android:name=".presentation.XabberApplication"
         android:allowBackup="false"
+        android:usesCleartextTraffic="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:requestLegacyExternalStorage="true"

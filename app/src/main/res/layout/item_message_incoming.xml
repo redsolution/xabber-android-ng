@@ -13,9 +13,8 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_alignParentStart="true"
-        android:layout_alignParentBottom="true"
         android:layout_marginStart="4dp"
-        app:shape_clip_drawable="@drawable/circle">
+        app:shape_clip_drawable="@drawable/ic_mask_circle">
 
         <ImageView
             android:id="@+id/im_message_avatar"
@@ -29,10 +28,10 @@
         android:id="@+id/balloon"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:layout_alignStart="@id/message_balloon"
-        android:layout_alignTop="@id/message_balloon"
-        android:layout_alignEnd="@id/message_balloon"
-        android:layout_alignBottom="@id/message_balloon"
+        android:layout_alignStart="@id/message_container"
+        android:layout_alignTop="@id/message_container"
+        android:layout_alignEnd="@id/message_container"
+        android:layout_alignBottom="@id/message_container"
         android:layout_alignParentBottom="true"
         android:scaleX="-1" />
 
@@ -40,14 +39,23 @@
         android:id="@+id/tail"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_alignBottom="@id/message_balloon"
+
+        android:layout_alignParentBottom="true"
         android:layout_marginStart="4dp"
         android:layout_toEndOf="@id/avatar_shape"
-        android:layout_alignParentBottom="true"
+        android:scaleX="-1" />
+
+    <FrameLayout
+        android:id="@+id/tail_top"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignTop="@id/message_container"
+        android:layout_marginStart="4dp"
+        android:layout_toEndOf="@id/avatar_shape"
         android:scaleX="-1" />
 
     <LinearLayout
-        android:id="@+id/message_balloon"
+        android:id="@+id/message_container"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_alignParentBottom="true"
@@ -57,16 +65,18 @@
         android:paddingVertical="2dp">
 
         <TextView
-            android:id="@+id/tv_message_username"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:text="Анна Белова"
+            android:gravity="start"
             android:lineHeight="20dp"
             android:maxLines="1"
-            android:paddingHorizontal="8dp"
-            android:text="Анна Белова"
             android:textColor="#673AB7"
             android:textSize="14sp"
-            android:textStyle="bold" />
+            android:textStyle="bold"
+            android:paddingHorizontal="8dp"
+            android:layout_gravity="start"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:id="@+id/tv_message_username"/>
 
         <com.xabber.utils.custom.CustomFlexboxLayout
             android:id="@+id/text_box"

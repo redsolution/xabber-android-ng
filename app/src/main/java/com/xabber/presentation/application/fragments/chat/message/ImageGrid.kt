@@ -1,10 +1,8 @@
 package com.xabber.presentation.application.fragments.chat.message
 
-import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.drawable.Drawable
-import android.net.Uri
 import android.text.format.DateFormat
 import android.view.LayoutInflater
 import android.view.View
@@ -14,7 +12,6 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.annotation.LayoutRes
 import androidx.appcompat.widget.LinearLayoutCompat
-import androidx.core.graphics.drawable.RoundedBitmapDrawable
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.MultiTransformation
 import com.bumptech.glide.load.resource.bitmap.BitmapTransformation
@@ -25,10 +22,8 @@ import com.bumptech.glide.request.transition.Transition
 import com.xabber.R
 import com.xabber.dto.MessageDto
 import com.xabber.dto.MessageReferenceDto
-import com.xabber.models.dto.MessageVhExtraData
+import com.xabber.presentation.application.fragments.chat.MessageVhExtraData
 import com.xabber.presentation.XabberApplication
-import com.xabber.presentation.application.fragments.chat.ReferenceRealmObject
-import io.realm.kotlin.Realm
 import java.util.*
 
 class ImageGrid {

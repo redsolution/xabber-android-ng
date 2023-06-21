@@ -71,7 +71,7 @@ class SettingsViewModel : ViewModel() {
     }
 
 
-    fun initAvatarsListener() {
+    private fun initAvatarsListener() {
         viewModelScope.launch(Dispatchers.IO) {
             val request =
                 realm.query(com.xabber.data_base.models.avatar.AvatarStorageItem::class)
@@ -97,7 +97,7 @@ class SettingsViewModel : ViewModel() {
         viewModelScope.launch(Dispatchers.IO) {
             realm.writeBlocking {
                 val account =
-                    this.query(com.xabber.data_base.models.account.AccountStorageItem::class, "jid = '$id'").first().find()
+                    this.query(com.xabber.data_base.models.account.AccountStorageItem::class, "primary = '$id'").first().find()
                 if (account != null) findLatest(account)?.enabled = isChecked
             }
         }

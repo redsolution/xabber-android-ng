@@ -1,77 +1,103 @@
 package com.xabber.presentation.application.fragments.chat.message
 
-import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.graphics.*
+import android.graphics.drawable.ShapeDrawable
+import android.graphics.drawable.shapes.RoundRectShape
 import android.net.Uri
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
-import android.view.*
-import android.view.View.OnAttachStateChangeListener
-import android.widget.FrameLayout
+import android.view.Gravity
+import android.view.LayoutInflater
+import android.view.View
 import android.widget.ImageView
-import android.widget.LinearLayout
 import android.widget.RelativeLayout
 import android.widget.TextView
-import androidx.annotation.StyleRes
+import androidx.appcompat.widget.LinearLayoutCompat
 import androidx.appcompat.widget.PopupMenu
-import androidx.constraintlayout.widget.Group
 import androidx.core.content.ContextCompat
-import androidx.core.net.toUri
 import androidx.core.view.isInvisible
 import androidx.core.view.isVisible
 import com.xabber.R
 import com.xabber.data_base.models.messages.MessageSendingState
 import com.xabber.dto.MessageDto
-import com.xabber.dto.MessageReferenceDto
-import com.xabber.models.dto.MessageVhExtraData
-import com.xabber.presentation.application.fragments.chat.Check
 import com.xabber.presentation.application.fragments.chat.ChatSettingsManager
+import com.xabber.presentation.application.fragments.chat.Check
+import com.xabber.presentation.application.fragments.chat.MessageVhExtraData
 import com.xabber.utils.StringUtils
-import com.xabber.utils.custom.CorrectlyTouchEventTextView
+import com.xabber.utils.custom.ShapeOfView
+import com.xabber.utils.dp
+import org.osmdroid.config.Configuration
+import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
+import org.osmdroid.views.MapView
 import java.util.*
 
 class OutgoingMessageVH internal constructor(
     private val listener: MessageAdapter.Listener?,
     itemView: View?, messageListener: MessageClickListener?,
     longClickListener: MessageLongClickListener?,
-    val fileListener: FileListener?, @StyleRes appearance: Int
-) : MessageVH(itemView!!, messageListener!!, longClickListener!!, fileListener, appearance) {
-    @SuppressLint("UseCompatLoadingForDrawables")
+    private val fileListener: FileListener?
+) : MessageVH(itemView!!, messageListener!!, longClickListener!!, fileListener) {
+    lateinit var context: Context
+    lateinit var canvas: Canvas
+    lateinit var bitmap: Bitmap
+    lateinit var mapView: MapView
+    lateinit var mapImage: ImageView
+
+
+    val im = {
+
+        mapImage.setImageBitmap(bitmap)
+    }
+
     override fun bind(message: MessageDto, extraData: MessageVhExtraData) {
         super.bind(message, extraData)
+        context = itemView.context
+        val inflater = LayoutInflater.from(context)
+        val needTail: Boolean =
+            if (message.references.isNotEmpty() && message.messageBody.isEmpty()) false else extraData.isNeedTail
 
-        val context: Context = itemView.context
-        var needTail: Boolean = extraData.isNeedTail
+        setBalloonBackground(needTail)
+        setItemCheckedBackground(message.isChecked)
 
-        val balloon = itemView.findViewById<FrameLayout>(R.id.balloon)
-        val messageBalloon = itemView.findViewById<LinearLayout>(R.id.message_balloon)
-        val tail = itemView.findViewById<FrameLayout>(R.id.tail)
-        val backgroundGroup = itemView.findViewById<Group>(R.id.background_group)
+        balloon?.removeAllViews()
+        if (message.kind != null) {
 
-        Log.d(
-            "fff",
-            "message.references.isNotEmpty() = ${message.references.isNotEmpty()}, message.messageBody.isEmpty() = '${message.messageBody.isEmpty()}'"
-        )
-        if (message.references.isNotEmpty() && message.messageBody.isEmpty()) needTail = false
+        }
+        if (message.references.size > 0) {
+            if (message.references[0].isGeo) addGeoLocationBox(
+                inflater,
+                message.references[0].latitude,
+                message.references[0].longitude
+            )
+            else {
+                val builder = ImageGridBuilder()
+                val imageGridView: View =
+                    builder.inflateView(messageContainer!!, message.references.size)
+                builder.bindView(imageGridView, message, message.references, this)
+                messageContainer?.addView(imageGridView)
+                val infoStamp = imageGridView.findViewById<LinearLayoutCompat>(R.id.message_info)
+                val imageTime = imageGridView.findViewById<TextView>(R.id.tv_image_sending_time)
+                val status = imageGridView.findViewById<ImageView>(R.id.im_image_message_status)
+                infoStamp.isVisible = message.messageBody.isEmpty()
+                if (infoStamp.isVisible) {
+                    val date = Date(message.sentTimestamp)
+                    val time = StringUtils.getTimeText(context, date)
+                    imageTime.text = if (message.editTimestamp > 0) "edit $time" else time
+                    setStatusIcon(status, message)
+                }
+            }
+        }
+        if (message.messageBody.isNotEmpty()) addTextBox(inflater, message)
 
-        // checked background
-        if (message.isChecked) itemView.setBackgroundResource(R.color.selected) else itemView.setBackgroundResource(
-            R.color.transparent
-        )
+        setupOnClick(message)
+        setupOnLongClick(message.primary, message.isChecked)
+    }
 
-
-        // text
-        messageTextTv.text = message.messageBody
-
-        // time
-        val date = Date(message.sentTimestamp)
-        val time = StringUtils.getTimeText(context, date)
-        messageTime.text = if (message.editTimestamp > 0) "edit $time" else time
-
-
-        // background
+    private fun setBalloonBackground(needTail: Boolean) {
         val balloonBackground = ContextCompat.getDrawable(
             context,
             if (needTail) ChatSettingsManager.tail else
@@ -81,214 +107,93 @@ class OutgoingMessageVH internal constructor(
         val tailBackground = ContextCompat.getDrawable(
             context, ChatSettingsManager.hvost
         )
-        balloonBackground?.setColorFilter(
-            ContextCompat.getColor(context, R.color.white),
-            PorterDuff.Mode.MULTIPLY
-        )
-        if (message.isOutgoing) tailBackground?.setColorFilter(
-            ContextCompat.getColor(
-                context,
-                R.color.white
-            ), PorterDuff.Mode.MULTIPLY
-        ) else tailBackground?.setColorFilter(
-            ContextCompat.getColor(context, R.color.blue_100),
-            PorterDuff.Mode.MULTIPLY
-        )
-        balloon.background = balloonBackground
 
-        tail.background = tailBackground
+        val colorFilter = PorterDuffColorFilter(Color.WHITE, PorterDuff.Mode.SRC_IN)
+        balloonBackground?.colorFilter = colorFilter
+        tailBackground?.colorFilter = colorFilter
 
-        if (!ChatSettingsManager.bottom) {
-            balloon.scaleY = -1f
-            tail.scaleY = -1f
-        } else {
-            balloon.scaleY = 1f
-            tail.scaleY = 1f
-        }
+        balloon?.background = balloonBackground
+        tail?.background = tailBackground
 
-        // visible tail
-        tail.isInvisible = !needTail || ChatSettingsManager.typeValue == 2
+        tail?.isInvisible = !needTail || ChatSettingsManager.messageTypeValue?.rawValue == 2
 
-
-        if (ChatSettingsManager.bottom) {
-
-        } else {
-            val layoutParams = tail.layoutParams as RelativeLayout.LayoutParams
-            layoutParams.removeRule(RelativeLayout.ALIGN_BOTTOM) // Удаляем правило ALIGN_BOTTOM
-            layoutParams.addRule(
-                RelativeLayout.ALIGN_TOP,
-                R.id.message_balloon
-            ) // Добавляем правило ALIGN_TOP с нужным id
-            tail.layoutParams = layoutParams
-        }
-
-        // References
-
-        if (message.references.isNotEmpty() && message.messageBody.isEmpty()) {
-            if (message.references[0].isGeo) showGeolocation(message.references[0], message.references[0].latitude, message.references[0].longitude)
-              else {  messageBalloon.removeAllViews()
-                val builder = ImageGridBuilder()
-                val imageGridView: View =
-                    builder.inflateView(messageBalloon, message.references.size)
-                builder.bindView(imageGridView, message, message.references, this)
-                messageBalloon.addView(imageGridView) }
-        } else if (message.references.isNotEmpty() && message.messageBody.isNotEmpty()) {
-
-            messageBalloon.removeAllViews()
-            val builder = ImageGridBuilder()
-            val imageGridView: View =
-                builder.inflateView(messageBalloon, message.references.size)
-            builder.bindView(imageGridView, message, message.references, this)
-            messageBalloon.addView(imageGridView)
-            val v = inflateText(messageBalloon)
-            messageBalloon.addView(v)
-            val text = v.findViewById<CorrectlyTouchEventTextView>(R.id.message_text)
-            text.text = message.messageBody
-            val imageTime = imageGridView.findViewById<LinearLayout>(R.id.message_info)
-            imageTime.isVisible = false
-            val date = v.findViewById<TextView>(R.id.message_time)
-            val dates = Date(message.sentTimestamp)
-            val time = StringUtils.getTimeText(context, dates)
-            date.text = if (message.editTimestamp > 0) "edit $time" else time
-
-            val status = v.findViewById<ImageView>(R.id.message_status_icon)
-
-            MessageDeliveryStatusHelper.setupStatusImageView(
-                message, status
-            )
-            MessageDeliveryStatusHelper.setupStatusImageView(
-                message, status
-            )
-
-        }
-
-//if (message.references.isNotEmpty()) {
-// //  if (message.references[0].isGeo)
-//       showGeolocation()
-//}
-        setStatusIcon(message)
-
-        // subscribe for FILE UPLOAD PROGRESS
-        itemView.addOnAttachStateChangeListener(object : OnAttachStateChangeListener {
-            override fun onViewAttachedToWindow(view: View) {
-                // subscribeForUploadProgress()
-            }
-
-            override fun onViewDetachedFromWindow(v: View) {
-                unsubscribeAll()
-            }
-        })
-        if (messageTextTv.getText().toString().trim().isEmpty()) {
-            messageTextTv.setVisibility(View.GONE)
-        }
-        messageTextTv.setOnClickListener {
-            if (Check.getSelectedMode()) {
-                Log.d(
-                    "sel",
-                    "Check.getSelectedMode ${Check.getSelectedMode()}, mess isChecked = ${message.isChecked}"
-                )
-                listener?.checkItem(!message.isChecked, message.primary)
-            } else {
-                val popup = PopupMenu(it.context, it, Gravity.CENTER)
-                popup.setForceShowIcon(true)
-                if (message.isOutgoing) popup.inflate(R.menu.popup_menu_message_outgoing)
-                else popup.inflate(R.menu.popup_menu_message_incoming)
-
-
-                popup.setOnMenuItemClickListener { menuItem ->
-                    when (menuItem.itemId) {
-                        R.id.copy -> {
-                            val text = message.messageBody
-                            listener?.copyText(text)
-                        }
-                        R.id.pin -> {
-                            listener?.pinMessage(message)
-                        }
-                        R.id.forward -> {
-                            listener?.forwardMessage(message)
-                        }
-                        R.id.reply -> {
-                            listener?.replyMessage(message)
-                        }
-                        R.id.delete_message -> {
-                            listener?.deleteMessage(message.primary)
-                        }
-                        R.id.edit -> {
-                            listener?.editMessage(message.primary, message.messageBody)
-                        }
-                    }
-                    true
-                }
-                popup.show()
-            }
-        }
-        itemView.setOnClickListener {
-            Log.d(
-                "sel",
-                "ITEM Check.getSelectedMode ${Check.getSelectedMode()}, mess isChecked = ${message.isChecked}"
-            )
-            if (Check.getSelectedMode()) {
-                listener?.checkItem(!message.isChecked, message.primary)
-            } else {
-                val popup = PopupMenu(messageTextTv.context, messageTextTv, Gravity.CENTER)
-                popup.setForceShowIcon(true)
-                if (message.isOutgoing) popup.inflate(R.menu.popup_menu_message_outgoing)
-                else popup.inflate(R.menu.popup_menu_message_incoming)
-
-
-                popup.setOnMenuItemClickListener { menuItem ->
-                    when (menuItem.itemId) {
-                        R.id.copy -> {
-                            val text = message.messageBody
-                            listener?.copyText(text)
-                        }
-                        R.id.pin -> {
-                            listener?.pinMessage(message)
-                        }
-                        R.id.forward -> {
-                            listener?.forwardMessage(message)
-                        }
-                        R.id.reply -> {
-                            listener?.replyMessage(message)
-                        }
-                        R.id.delete_message -> {
-                            listener?.deleteMessage(message.primary)
-                        }
-                        R.id.edit -> {
-                            listener?.editMessage(message.primary, message.messageBody)
-                        }
-                    }
-                    true
-                }
-                popup.show()
-            }
-        }
-
-        itemView.setOnLongClickListener {
-            if (!Check.getSelectedMode()) listener?.onLongClick(message.primary)
-            else {
-                listener?.checkItem(!message.isChecked, message.primary)
-            }
-            true
-        }
+        if (tail != null)
+            if (tail!!.isVisible && !ChatSettingsManager.bottom) turnOverTail()
     }
 
-    private fun showGeolocation(referenceDto: MessageReferenceDto, latitude: Double, longitude: Double) {
-        messageBalloon.removeAllViews()
-        val inflater = LayoutInflater.from(itemView.context)
-        val geo = inflater.inflate(
-            R.layout.geo_location,
-            messageBalloon,
+    private fun turnOverTail() {
+        balloon?.scaleY = -1f
+        tail?.scaleY = -1f
+        setAlign()
+    }
+
+    private fun setAlign() {
+        val layoutParams = tail?.layoutParams as RelativeLayout.LayoutParams
+        layoutParams.removeRule(RelativeLayout.ALIGN_BOTTOM)
+        layoutParams.addRule(
+            RelativeLayout.ALIGN_TOP,
+            R.id.message_container
+        )
+        tail?.layoutParams = layoutParams
+    }
+
+    private fun setItemCheckedBackground(isChecked: Boolean) {
+        if (isChecked) itemView.setBackgroundResource(R.color.selected) else itemView.setBackgroundResource(
+            R.color.transparent
+        )
+    }
+
+    private fun addGeoLocationBox(
+        inflater: LayoutInflater,
+        latitude: Double,
+        longitude: Double
+    ) {
+        Log.d("test", "$latitude, $longitude")
+        Configuration.getInstance().load(context, androidx.preference.PreferenceManager.getDefaultSharedPreferences(context))
+        val locationBox = inflater.inflate(
+            R.layout.geo_location_box,
+            messageContainer,
             false
         )
-        val point = GeoPoint(latitude, longitude)
-        val mapView =
-            geo.findViewById<FrameLayout>(R.id.map_container) // создание карты, 256 - размер тайла в пикселях
-        val map = mapView.findViewById<ImageView>(R.id.map_image)
-        map.setImageURI(referenceDto.uri?.toUri())
-      //  val mapi = mapView.findViewById<MapView>(R.id.map)
-        messageBalloon.addView(geo)
-        geo.setOnClickListener {
+        messageContainer?.addView(locationBox)
+        mapImage = locationBox.findViewById(R.id.map_image)
+        val shape = locationBox.findViewById<ShapeOfView>(R.id.geo_shape)
+        val radius =
+            if (ChatSettingsManager.cornerValue > 4) (ChatSettingsManager.cornerValue - 4) else 1
+        //  val radii = floatArrayOf(radius.dp.toFloat(), radius.dp.toFloat(), radius.dp.toFloat(), radius.dp.toFloat(), radius.dp.toFloat(), radius.dp.toFloat())
+
+        val cornerRadii = floatArrayOf(
+            radius.dp.toFloat(),
+            radius.dp.toFloat(),
+            radius.dp.toFloat(),
+            radius.dp.toFloat(),
+            radius.dp.toFloat(),
+            radius.dp.toFloat(),
+            radius.dp.toFloat(),
+            radius.dp.toFloat()
+        )
+        val sh = ShapeDrawable(RoundRectShape(cornerRadii, null, null))
+        shape.setDrawable(sh)
+
+        mapView = MapView(context).apply {
+        val location = GeoPoint(latitude, longitude)
+      controller.setCenter(location)
+        setTileSource(TileSourceFactory.MAPNIK)
+       isTilesScaledToDpi = true
+          //  controller.setZoom(5.0)
+        }
+        bitmap = Bitmap.createBitmap(200.dp, 200.dp, Bitmap.Config.ARGB_8888)
+        canvas = Canvas(bitmap)
+        mapView.draw(canvas)
+        mapImage.setImageBitmap(bitmap)
+        handler.postDelayed(im, 2000)
+        setLocationOnClick(locationBox, latitude, longitude)
+    }
+
+    val handler = Handler(Looper.getMainLooper())
+
+    private fun setLocationOnClick(view: View, latitude: Double, longitude: Double) {
+        view.setOnClickListener {
             itemView.context.startActivity(
                 Intent().apply {
                     action = Intent.ACTION_VIEW
@@ -298,28 +203,96 @@ class OutgoingMessageVH internal constructor(
         }
     }
 
-    private fun setStatusIcon(messageRealmObject: MessageDto) {
+    private fun addTextBox(inflater: LayoutInflater, message: MessageDto) {
+        val textBox = inflater.inflate(
+            R.layout.text_box,
+            messageContainer,
+            false
+        )
+        messageContainer?.addView(textBox)
+        setMessageText(message.messageBody)
+        setMessageInfo(message)
+    }
+
+    private fun setMessageText(text: String) {
+        tvMessageText = itemView.findViewById(R.id.message_text)
+        tvMessageText?.text = text
+    }
+
+    private fun setMessageInfo(message: MessageDto) {
+        tvTime = itemView.findViewById(R.id.message_time)
+        statusIcon = itemView.findViewById(R.id.message_status_icon)
+        setTime(message.sentTimestamp, message.editTimestamp)
+        if (statusIcon != null) setStatusIcon(statusIcon!!, message)
+    }
+
+    private fun setTime(sentTime: Long, editTime: Long) {
+        val date = Date(sentTime)
+        val time = StringUtils.getTimeText(itemView.context, date)
+        tvTime?.text = if (editTime > 0) "edit $time" else time
+    }
+
+
+    private fun setStatusIcon(statusIcon: ImageView, messageDto: MessageDto) {
         statusIcon.isVisible = true
-        //  bottomStatusIcon.isVisible = true
-        //   progressBar.isVisible = false
-        if (messageRealmObject.messageSendingState === MessageSendingState.Uploading) {
-            messageTextTv.text = ""
+        if (messageDto.messageSendingState === MessageSendingState.Uploading) {
             statusIcon.isVisible = false
-            //    bottomStatusIcon.isVisible = false
         } else {
             MessageDeliveryStatusHelper.setupStatusImageView(
-                messageRealmObject, statusIcon
+                messageDto, statusIcon
             )
             MessageDeliveryStatusHelper.setupStatusImageView(
-                messageRealmObject, statusIcon
+                messageDto, statusIcon
             )
         }
     }
 
+    private fun setupOnClick(message: MessageDto) {
+        itemView.setOnClickListener {
+            if (Check.getSelectedMode()) {
+                listener?.checkItem(!message.isChecked, message.primary)
+            } else {
+                val popup = PopupMenu(it.context, it, Gravity.START)
+                popup.setForceShowIcon(true)
+                popup.inflate(R.menu.popup_menu_message_outgoing)
 
-    fun inflateText(parent: ViewGroup): View {
-        return LayoutInflater.from(parent.context)
-            .inflate(R.layout.flex, parent, false)
+                popup.setOnMenuItemClickListener { menuItem ->
+                    when (menuItem.itemId) {
+                        R.id.copy -> {
+                            val text = message.messageBody
+                            listener?.copyText(text)
+                        }
+                        R.id.pin -> {
+                            listener?.pinMessage(message)
+                        }
+                        R.id.forward -> {
+                            listener?.forwardMessage(message)
+                        }
+                        R.id.reply -> {
+                            listener?.replyMessage(message)
+                        }
+                        R.id.delete_message -> {
+                            listener?.deleteMessage(message.primary)
+                        }
+                        R.id.edit -> {
+                            listener?.editMessage(message.primary, message.messageBody)
+                        }
+                    }
+                    true
+                }
+                popup.show()
+            }
+        }
+    }
+
+    private fun setupOnLongClick(messagePrimary: String, isChecked: Boolean) {
+        itemView.setOnLongClickListener {
+            if (!Check.getSelectedMode()) listener?.onLongClick(messagePrimary)
+            else {
+                listener?.checkItem(!isChecked, messagePrimary)
+            }
+            true
+        }
     }
 
 }

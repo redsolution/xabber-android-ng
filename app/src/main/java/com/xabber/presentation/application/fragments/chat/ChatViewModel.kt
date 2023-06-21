@@ -3,6 +3,7 @@ package com.xabber.presentation.application.fragments.chat
 import android.util.Log
 import androidx.lifecycle.*
 import com.xabber.data_base.defaultRealmConfig
+import com.xabber.data_base.models.account.AccountStorageItem
 import com.xabber.data_base.models.last_chats.LastChatsStorageItem
 import com.xabber.data_base.models.messages.MessageDisplayType
 import com.xabber.data_base.models.messages.MessageReferenceStorageItem
@@ -121,6 +122,7 @@ class ChatViewModel : ViewModel() {
                                 references= T.references.map { T -> T.toMessageReferenceDto() } as ArrayList<MessageReferenceDto>,
                                 isChecked = selectedItems.contains(T.primary),
                                 isUnread = !T.isRead// почему дабл
+
                             )
                         })
 
@@ -244,10 +246,10 @@ class ChatViewModel : ViewModel() {
         }
     }
 
-    fun getAccount(): AccountDto? {
+    fun getAccount(id: String): AccountDto? {
         var account: AccountDto? = null
         realm.writeBlocking {
-            val acc = this.query(com.xabber.data_base.models.account.AccountStorageItem::class).first().find()
+            val acc = this.query(AccountStorageItem::class, "primary = '$id'").first().find()
             account = if (acc != null) acc.toAccountDto() else null
         }
         return account

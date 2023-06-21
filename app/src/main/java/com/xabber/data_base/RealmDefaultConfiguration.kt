@@ -1,5 +1,7 @@
 package com.xabber.data_base
 
+import com.xabber.data_base.models.account.AccountStorageItem
+import com.xabber.data_base.models.avatar.AvatarStorageItem
 import com.xabber.data_base.models.last_chats.LastChatsStorageItem
 import com.xabber.data_base.models.messages.MessageForwardsInlineStorageItem
 import com.xabber.data_base.models.messages.MessageReferenceStorageItem
@@ -12,11 +14,11 @@ import io.realm.kotlin.RealmConfiguration
 fun defaultRealmConfig(): RealmConfiguration {
     return RealmConfiguration.Builder(
         setOf(
-            com.xabber.data_base.models.account.AccountStorageItem::class,
+            AccountStorageItem::class,
             LastChatsStorageItem::class,
             RosterStorageItem::class,
             MessageStorageItem::class,
-            com.xabber.data_base.models.avatar.AvatarStorageItem::class,
+            AvatarStorageItem::class,
             ResourceStorageItem::class,
             RosterGroupStorageItem::class,
             MessageReferenceStorageItem::class,

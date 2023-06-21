@@ -35,7 +35,7 @@ public class ShapeOfView extends FrameLayout {
     @Nullable
     protected Drawable drawable = null;
     private final ClipManager clipManager = new ClipPathManager();
-    private boolean requiersShapeUpdate = true;
+    private boolean requareShapeUpdate = true;
     private Bitmap clipBitmap;
 
     final Path rectView = new Path();
@@ -115,7 +115,7 @@ public class ShapeOfView extends FrameLayout {
     }
 
     private boolean requiresBitmap() {
-        return isInEditMode() || (clipManager != null && clipManager.requiresBitmap()) || drawable != null;
+        return isInEditMode() || (clipManager.requiresBitmap()) || drawable != null;
     }
 
     public void setDrawable(Drawable drawable) {
@@ -131,9 +131,9 @@ public class ShapeOfView extends FrameLayout {
     protected void dispatchDraw(Canvas canvas) {
         super.dispatchDraw(canvas);
 
-        if (requiersShapeUpdate) {
+        if (requareShapeUpdate) {
             calculateLayout(canvas.getWidth(), canvas.getHeight());
-            requiersShapeUpdate = false;
+            requareShapeUpdate = false;
         }
         if (requiresBitmap()) {
             clipPaint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.DST_IN));
@@ -155,7 +155,6 @@ public class ShapeOfView extends FrameLayout {
         rectView.reset();
         rectView.addRect(0f, 0f, 1f * getWidth(), 1f * getHeight(), Path.Direction.CW);
 
-        if (clipManager != null) {
             if (width > 0 && height > 0) {
                 clipManager.setupClipLayout(width, height);
                 clipPath.reset();
@@ -182,7 +181,7 @@ public class ShapeOfView extends FrameLayout {
                 }
 
                 //this needs to be fixed for 25.4.0
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP && ViewCompat.getElevation(this) > 0f) {
+                if (ViewCompat.getElevation(this) > 0f) {
                     try {
                         setOutlineProvider(getOutlineProvider());
                     } catch (Exception e) {
@@ -190,18 +189,17 @@ public class ShapeOfView extends FrameLayout {
                     }
                 }
             }
-        }
 
         postInvalidate();
     }
 
-    @TargetApi(Build.VERSION_CODES.LOLLIPOP)
+
     @Override
     public ViewOutlineProvider getOutlineProvider() {
         return new ViewOutlineProvider() {
             @Override
             public void getOutline(View view, Outline outline) {
-                if (clipManager != null && !isInEditMode()) {
+                if (!isInEditMode()) {
                     final Path shadowConvexPath = clipManager.getShadowConvexPath();
                     if (shadowConvexPath != null) {
                         try {
@@ -216,13 +214,9 @@ public class ShapeOfView extends FrameLayout {
         };
     }
 
-    public void setClipPathCreator(ClipPathManager.ClipPathCreator createClipPath) {
-        ((ClipPathManager) clipManager).setClipPathCreator(createClipPath);
-        requiresShapeUpdate();
-    }
 
     public void requiresShapeUpdate() {
-        this.requiersShapeUpdate = true;
+        this.requareShapeUpdate = true;
         postInvalidate();
     }
 

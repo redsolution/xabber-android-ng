@@ -35,7 +35,7 @@ class DeletingChatDialog : DialogFragment() {
             SpannableStringBuilder().append(resources.getString(R.string.dialog_delete_chat_description))
                 .bold { append(" $name") }.append("?")
                 .append(resources.getString(R.string.chat_dialog_sub_message))
-        val dialog = AlertDialog.Builder(context, R.style.MyAlertDialogStyle)
+        val dialog = AlertDialog.Builder(context, R.style.AlertDialogStyle)
             .setTitle(R.string.dialog_delete_chat_title)
             .setMessage(dialogMessage)
             .setPositiveButton(resources.getString(R.string.dialog_button_delete)) { _, _ ->

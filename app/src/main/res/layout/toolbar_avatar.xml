@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_marginStart="@dimen/toolbar_avatar_margin_start"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content">
+
+    <com.xabber.utils.custom.ShapeOfView
+        android:id="@+id/shape_view"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:shape_clip_drawable="@drawable/ic_mask_circle">
+
+        <ImageView
+            android:scaleType="centerCrop"
+            android:id="@+id/im_avatar"
+            android:layout_width="@dimen/avatar32"
+            android:layout_height="@dimen/avatar32"
+            android:contentDescription="@string/avatar_content_description"
+            tools:src="@tools:sample/avatars" />
+    </com.xabber.utils.custom.ShapeOfView>
+
+    <TextView
+        android:id="@+id/tv_initials"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textAllCaps="true"
+        android:textColor="@color/grey_900"
+        android:textSize="14dp"
+        android:layout_gravity="center"
+        android:visibility="gone" />
+
+<!--    В tv_initials textSize указан в dp, не менять на sp! -->
+<!--    Это нужно чтобы инициалы масштабировались в правильном соотношении с аватаркой при изменении display size -->
+<!--    и не реагировали на изменения font size -->
+
+    <ImageView
+        android:id="@+id/avatar_status"
+        android:layout_width="@dimen/status_size_toolbar"
+        android:layout_height="@dimen/status_size_toolbar"
+        android:contentDescription="@string/status"
+        android:src="@drawable/status_chat"
+        android:layout_gravity="end|bottom" />
+</FrameLayout>

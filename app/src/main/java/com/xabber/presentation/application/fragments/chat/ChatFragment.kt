@@ -228,7 +228,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     }
 
     private fun loadContactAvatar() {
-        binding.avatarGroup.chatAvatar.setImageResource(getParams().avatar!!)
+        binding.avatar.setImageResource(getParams().avatar!!)
     }
 
     private fun setTitle(opponentName: String) {
@@ -253,11 +253,11 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     }
 
     private fun initializeToolbarActions(chat: ChatListDto) {
-        binding.imBack.isVisible = !DisplayManager.isDualScreenMode()
-        binding.imBack.setOnClickListener {
-            navigator().closeDetail()
-        }
-        binding.avatarGroup.chatAvatar.setOnClickListener {
+//        binding.imBack.isVisible = !DisplayManager.isDualScreenMode()
+//        binding.imBack.setOnClickListener {
+//            navigator().closeDetail()
+//        }
+        binding.avatar.setOnClickListener {
             val contactId = viewModel.getContactId(getParams().id)
             if (contactId != null) navigator().showContactAccount(
                 ContactAccountParams(
@@ -271,7 +271,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     }
 
     private fun initToolbarMenu(chat: ChatListDto) {
-        binding.messageToolbar.setOnMenuItemClickListener {
+        binding.toolbar.setOnMenuItemClickListener {
             when (it.itemId) {
                 R.id.call_out -> sendIncomingMessages(chat.owner, chat.opponentJid)
                 R.id.disable_notifications -> disableNotifications()
@@ -285,9 +285,9 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
 
     private fun setupToolbarMenu(mute: Long) {
         val muteExpired = mute - System.currentTimeMillis()
-        binding.messageToolbar.menu.findItem(R.id.enable_notifications).isVisible =
+        binding.toolbar.menu.findItem(R.id.enable_notifications).isVisible =
             muteExpired > 0
-        binding.messageToolbar.menu.findItem(R.id.disable_notifications).isVisible =
+        binding.toolbar.menu.findItem(R.id.disable_notifications).isVisible =
             muteExpired <= 0
     }
 
@@ -329,8 +329,8 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
 
     private fun enableNotifications() {
         viewModel.setMute(getParams().id, enableNotificationsCode)
-        binding.messageToolbar.menu.findItem(R.id.enable_notifications).isVisible = false
-        binding.messageToolbar.menu.findItem(R.id.disable_notifications).isVisible = true
+        binding.toolbar.menu.findItem(R.id.enable_notifications).isVisible = false
+        binding.toolbar.menu.findItem(R.id.disable_notifications).isVisible = true
     }
 
     private fun clearHistory(chat: ChatListDto) {
@@ -344,12 +344,12 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     }
 
     private fun initializeRecyclerView() {
+        val isGroup = viewModel.getChat(getParams().id)!!.isGroup
         messageAdapter = MessageAdapter(
             this,
             bindListener = this,
             fileListener = this,
-            context = requireContext(),
-            messageRealmObjects = ArrayList<MessageDto>()
+            messages = ArrayList<MessageDto>(), isGroup= isGroup
         )
         binding.messageList.adapter = messageAdapter
         layoutManager = LinearLayoutManager(context)
@@ -498,6 +498,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
 
                 val text = binding.chatInput.text.toString().trim()
                 binding.chatInput.text?.clear()
+                val chat = viewModel.getChat(getParams().id)
                 val timeStamp = System.currentTimeMillis()
                 viewModel.insertMessage(
                     getParams().id,
@@ -696,6 +697,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
             messageAdapter?.notifyDataSetChanged()
             if (layoutManager != null && messageAdapter != null) {
                 if (layoutManager!!.findLastVisibleItemPosition() >= messageAdapter!!.itemCount - 2 && !isSelectedMode) scrollDown()
+             if (it.isNotEmpty())   isNeedScrollDown = it[it.size-1].isOutgoing
                 if (isNeedScrollDown) {
                     scrollDown()
                     isNeedScrollDown = false
@@ -767,6 +769,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     }
 
     private fun initializeSelectedMessagePanel() {
+        val chat = viewModel.getChat(getParams().id)
         binding.interaction.linReply.setOnClickListener {
             val message = viewModel.getMessage()
             enableSelectionMode(false)
@@ -777,7 +780,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
             enableSelectionMode(false)
             GlobalScope.launch {
                 delay(300)
-                navigator().showForwardFragment(text, viewModel.getAccount()?.jid ?: "")
+                navigator().showForwardFragment(text, viewModel.getAccount(chat!!.owner)?.jid ?: "")
             }
 
         }
@@ -809,12 +812,12 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
                         MessageSendingState.Deliver,
                         System.currentTimeMillis(),
                         0,
-                        MessageDisplayType.Text,
+                        MessageDisplayType.System,
                         false,
                         false,
                         null,
                         isUnread = true,
-                        isGroup = false, location = Location(2.8604, 14.540)
+                        isGroup = true, location = Location(2.8604, 14.540)
                     )
                 )
                 Log.d(
@@ -1081,7 +1084,8 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     override fun forwardMessage(messageDto: MessageDto) {
         val text = "${messageDto.owner} \n ${messageDto.messageBody}"
         Log.d("yyy", "1 message text = $text")
-        navigator().showForwardFragment(text, viewModel.getAccount()?.jid ?: "")
+        val chat = viewModel.getChat(getParams().id)
+        navigator().showForwardFragment(text, viewModel.getAccount(chat!!.owner)?.jid ?: "")
     }
 
     override fun replyMessage(messageDto: MessageDto) {
@@ -1105,6 +1109,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     }
 
     override fun onLongClick(primary: String) {
+        Log.d("ppp", "onLongClick")
         enableSelectionMode(true)
         Check.setSelectedMode(true)
         viewModel.selectMessage(primary, true)
@@ -1137,7 +1142,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     private fun enableSelectionMode(enable: Boolean) {
         if (enable) {
             binding.chatAppbar.setBackgroundResource(R.color.white)
-            binding.messageToolbar.isVisible = false
+            binding.toolbar.isVisible = false
             binding.selectMessagesToolbar.toolbarSelectedMessages.isVisible = true
             saveDraft()
             //  binding.chatPanelGroup.isVisible = false
@@ -1153,14 +1158,14 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
             binding.btnRecord.isEnabled = false
             binding.chatInput.isEnabled = false
         } else {
-            val color = viewModel.getAccountColor(viewModel.getChat(getParams().id)!!.owner)
-            val c = ColorManager.convertColorNameToId(color)
+            val color = baseViewModel.getPrimaryAccount()?.colorKey
+            val c = ColorManager.convertColorNameToId(color?: "blue")
             binding.chatAppbar.setBackgroundResource(c)
             //   chatAdapter?.setSelectedMode(false)
             //  binding.chatPanelGroup.isVisible = true
             binding.selectMessagesToolbar.toolbarSelectedMessages.isVisible = false
             binding.interaction.interactionView.isVisible = false
-            binding.messageToolbar.isVisible = true
+            binding.toolbar.isVisible = true
             val textMessage = binding.chatInput.text.toString().trim()
             if (textMessage.isNotEmpty()) {
                 //   binding.buttonSendMessage.isVisible = true
@@ -1199,6 +1204,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         }
         val timeStamp = System.currentTimeMillis()
         var c = System.currentTimeMillis()
+        val chat = viewModel.getChat(getParams().id)
         viewModel.insertMessage(
             getParams().id,
             MessageDto(

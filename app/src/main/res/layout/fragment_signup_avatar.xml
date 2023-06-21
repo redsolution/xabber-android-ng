@@ -61,8 +61,8 @@
         app:shape_clip_drawable="@drawable/ic_mask_circle">
     <ImageView
         android:id="@+id/profile_image"
-        android:layout_width="@dimen/mask176"
-        android:layout_height="@dimen/mask176"
+        android:layout_width="@dimen/avatar176"
+        android:layout_height="@dimen/avatar176"
         android:scaleType="centerCrop"
         android:contentDescription="@string/image_view_description_profile_image"
         android:src="@drawable/avatar_place_holder" />

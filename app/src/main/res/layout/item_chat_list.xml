@@ -31,7 +31,7 @@
             android:id="@+id/shape_view"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_margin="@dimen/margin_less_than_medium"
+            android:layout_marginHorizontal="16dp"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
@@ -39,8 +39,8 @@
 
             <ImageView
                 android:id="@+id/im_chat_list_item_avatar"
-                android:layout_width="@dimen/mask56"
-                android:layout_height="@dimen/mask56"
+                android:layout_width="@dimen/avatar56"
+                android:layout_height="@dimen/avatar56"
                 android:contentDescription="@string/chat_image_description"
                 android:scaleType="centerCrop"
                 app:layout_constraintBottom_toBottomOf="parent"
@@ -59,7 +59,6 @@
             app:layout_constraintEnd_toEndOf="@id/shape_view"
             app:layout_constraintStart_toStartOf="@id/shape_view"
             app:layout_constraintTop_toTopOf="@id/shape_view" />
-
 
         <ImageView
             android:id="@+id/im_chat_status"

@@ -13,7 +13,7 @@ class ProfileSettingsFragment : DetailBaseFragment(R.layout.fragment_profile_set
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-binding.toolbar.setNavigationIcon(null)
+        binding.toolbar.navigationIcon = null
         binding.left.setOnClickListener { navigator().goBack() }
     }
 

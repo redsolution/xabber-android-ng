@@ -1,29 +1,23 @@
 package com.xabber.presentation.application.fragments.chat.message
 
-import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.PorterDuff
-import android.util.Log
+import android.view.LayoutInflater
 import android.view.View
 import android.view.View.OnAttachStateChangeListener
-import android.widget.FrameLayout
-import android.widget.ImageView
-import android.widget.LinearLayout
-import android.widget.RelativeLayout
-import android.widget.TextView
-import androidx.annotation.StyleRes
+import android.view.ViewGroup
+import android.widget.*
 import androidx.core.content.ContextCompat
 import androidx.core.view.isInvisible
 import androidx.core.view.isVisible
 import com.xabber.R
 import com.xabber.dto.MessageDto
-import com.xabber.models.dto.MessageVhExtraData
+import com.xabber.presentation.application.fragments.chat.MessageVhExtraData
 import com.xabber.presentation.application.fragments.chat.ChatSettingsManager
 import com.xabber.presentation.application.fragments.chat.Check
 import com.xabber.utils.StringUtils
-import com.xabber.utils.custom.CorrectlyTouchEventTextView
-import com.xabber.utils.custom.CustomFlexboxLayout
 import com.xabber.utils.custom.ShapeOfView
+import com.xabber.utils.dp
 import java.util.*
 
 class IncomingMessageVH internal constructor(
@@ -31,8 +25,7 @@ class IncomingMessageVH internal constructor(
     itemView: View, messageListener: MessageClickListener?,
     longClickListener: MessageLongClickListener?, fileListener: FileListener?,
     val listen: BindListener?, avatarClickListener: OnMessageAvatarClickListener,
-    @StyleRes appearance: Int
-) : MessageVH(itemView, messageListener!!, longClickListener!!, fileListener, appearance) {
+) : MessageVH(itemView, messageListener!!, longClickListener!!, fileListener) {
 
     interface BindListener {
         fun onBind(message: MessageDto?)
@@ -42,58 +35,74 @@ class IncomingMessageVH internal constructor(
         fun onMessageAvatarClick(position: Int)
     }
 
-    @SuppressLint("UseCompatLoadingForDrawables")
-    override fun bind(message: MessageDto, extraData: MessageVhExtraData) {
-        super.bind(message, extraData)
-        val tvMessageUserName = itemView.findViewById<TextView>(R.id.tv_message_username)
-        val linearLayoutTextBox = itemView.findViewById<CustomFlexboxLayout>(R.id.text_box)
-        tvMessageUserName.measure(0, 0)
-        val usernameWidth: Int = tvMessageUserName.measuredWidth
-        val textBoxWidth = messageTextTv.measuredWidth
+    override fun bind(messageDto: MessageDto, vhExtraData: MessageVhExtraData) {
+        super.bind(messageDto, vhExtraData)
+       val tvMessageUserName = itemView.findViewById<TextView>(R.id.tv_message_username)
         val avatarShape = itemView.findViewById<ShapeOfView>(R.id.avatar_shape)
         val avatar = itemView.findViewById<ImageView>(R.id.im_message_avatar)
 
-      //  avatarShape.isVisible = extraData.isNeedTail
 
-      //  tvMessageUserName.isVisible = extraData.isNeedName
-
+      avatarShape.isVisible = vhExtraData.isGroup && vhExtraData.isNeedTail
 
 
-        if (ChatSettingsManager.bottom) {
 
-        }
-        if (message.messageBody.length < tvMessageUserName.text.length) {
-            linearLayoutTextBox.setMinimumWidth(usernameWidth)
-        }
-        else {
-            val par = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT
-            )
-            linearLayoutTextBox.layoutParams = par
-        }
+        val shapeParams = avatarShape.layoutParams as RelativeLayout.LayoutParams
+        val containerParams = messageContainer?.layoutParams as RelativeLayout.LayoutParams
+       if (!ChatSettingsManager.bottom) {
+
+//           containerParams.removeRule(RelativeLayout.ALIGN_PARENT_BOTTOM)
+//           containerParams.addRule(RelativeLayout.ALIGN_PARENT_TOP)
+           shapeParams.removeRule(RelativeLayout.ALIGN_PARENT_BOTTOM)
+           shapeParams.addRule(RelativeLayout.ALIGN_PARENT_TOP)
+       } else {
+//           containerParams.removeRule(RelativeLayout.ALIGN_PARENT_TOP)
+//           containerParams.addRule(RelativeLayout.ALIGN_PARENT_BOTTOM)
+           shapeParams.removeRule(RelativeLayout.ALIGN_PARENT_TOP)
+           shapeParams.addRule(RelativeLayout.ALIGN_PARENT_BOTTOM)
+       }
+        avatarShape.layoutParams = shapeParams
+//messageContainer?.layoutParams = containerParams
+
+    tvMessageUserName.isVisible = vhExtraData.isNeedName
+
+//if (extraData.isGroup && extraData.isNeedName) {
+//    messageBalloon.removeAllViews()
+//    val v = inflateText(messageBalloon)
+//    messageBalloon.addView(v)
+//}
+
+//        if (message.messageBody.length < tvMessageUserName.text.length) {
+//            linearLayoutTextBox.setMinimumWidth(usernameWidth)
+//        }
+//        else {
+//            val par = LinearLayout.LayoutParams(
+//                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT
+//            )
+//            linearLayoutTextBox.layoutParams = par
+//        }
 
 
         val context: Context = itemView.context
-        var needTail: Boolean = extraData.isNeedTail
+        var needTail: Boolean = vhExtraData.isNeedTail
 
         val balloon = itemView.findViewById<FrameLayout>(R.id.balloon)
-        val messageBalloon = itemView.findViewById<LinearLayout>(R.id.message_balloon)
+        val messageBalloon = itemView.findViewById<LinearLayout>(R.id.message_container)
         val tail = itemView.findViewById<FrameLayout>(R.id.tail)
 
-        if (message.hasReferences) needTail = false
+        if (messageDto.hasReferences) needTail = false
 
         // checked background
-        if (message.isChecked) itemView.setBackgroundResource(R.color.selected) else itemView.setBackgroundResource(
+        if (messageDto.isChecked) itemView.setBackgroundResource(R.color.selected) else itemView.setBackgroundResource(
             R.color.transparent
         )
 
         // text
-        messageTextTv.text = message.messageBody
+      //  messageTextTv.text = messageDto.messageBody
 
         // time
-        val date = Date(message.sentTimestamp)
+        val date = Date(messageDto.sentTimestamp)
         val time = StringUtils.getTimeText(context, date)
-        messageTime.text = if (message.editTimestamp > 0) "edit $time" else time
+        tvTime?.text = if (messageDto.editTimestamp > 0) "edit $time" else time
 
 
         // background
@@ -127,21 +136,10 @@ class IncomingMessageVH internal constructor(
         }
 
         // visible tail
-        tail.isInvisible = !needTail || ChatSettingsManager.typeValue == 2
+        tail.isInvisible = !needTail || ChatSettingsManager.messageTypeValue?.rawValue == 2
 
 
-        if (ChatSettingsManager.bottom) {
-
-        } else {
-            val layoutParams = tail.layoutParams as RelativeLayout.LayoutParams
-            layoutParams.removeRule(RelativeLayout.ALIGN_BOTTOM) // Удаляем правило ALIGN_BOTTOM
-            layoutParams.addRule(
-                RelativeLayout.ALIGN_TOP,
-                R.id.message_balloon
-            ) // Добавляем правило ALIGN_TOP с нужным id
-            tail.layoutParams = layoutParams
-        }
-        statusIcon.isVisible = false
+        statusIcon?.isVisible = false
         //  bottomStatusIcon.isVisible = false
 //        val avatar = itemView.findViewById<ImageView>(R.id.avatar)
 //        avatar.isVisible = false
@@ -180,14 +178,25 @@ class IncomingMessageVH internal constructor(
         itemView.addOnAttachStateChangeListener(object : OnAttachStateChangeListener {
 
             override fun onViewAttachedToWindow(view: View) {
-                if (message.isUnread)
-                    listen?.onBind(message)
+                if (messageDto.isUnread)
+                    listen?.onBind(messageDto)
             }
 
             override fun onViewDetachedFromWindow(v: View) {
-                unsubscribeAll()
+
             }
         })
+
+        val params = tail?.layoutParams as RelativeLayout.LayoutParams
+        params.marginStart = if (vhExtraData.isGroup && !vhExtraData.isNeedTail) 56.dp else 4.dp
+//        if (ChatSettingsManager.bottom) {
+//            params.removeRule(RelativeLayout.ALIGN_TOP)
+//            params.addRule(RelativeLayout.ALIGN_PARENT_BOTTOM)
+//        } else {
+//            params.removeRule(RelativeLayout.ALIGN_PARENT_BOTTOM)
+//            params.addRule(RelativeLayout.ALIGN_TOP, R.id.balloon)
+//        }
+       tail?.layoutParams = params
 //        if (messageTextTv.getText().toString().trim().isEmpty()) {
 //            messageTextTv.setVisibility(View.GONE)
 //        }
@@ -330,13 +339,16 @@ class IncomingMessageVH internal constructor(
 //        }
 
         itemView.setOnLongClickListener {
-            if (!Check.getSelectedMode()) listener?.onLongClick(message.primary)
+            if (!Check.getSelectedMode()) listener?.onLongClick(messageDto.primary)
             else {
-                listener?.checkItem(!message.isChecked, message.primary)
+                listener?.checkItem(!messageDto.isChecked, messageDto.primary)
             }
             true
         }
     }
 
-
+    fun inflateText(parent: ViewGroup): View {
+        return LayoutInflater.from(parent.context)
+            .inflate(R.layout.user_name, parent, false)
+    }
 }

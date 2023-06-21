@@ -223,8 +223,8 @@
 
             <TextView
                 android:id="@+id/avatarBackground"
-                android:layout_width="@dimen/mask128"
-                android:layout_height="@dimen/mask128"
+                android:layout_width="@dimen/avatar128"
+                android:layout_height="@dimen/avatar128"
                 android:background="@drawable/backround_blue"
                 android:clickable="true"
                 android:focusable="true"

@@ -37,7 +37,6 @@ class LastChatsStorageItem: RealmObject {
     var conversationType_: String = ConversationType.Regular.rawValue
     var composingType_: String = ComposingType.none.rawValue
     var chatMarkersSupport: Boolean = false
-
     var lastPosition: String = ""
     var avatar: Int = R.drawable.dog
 }

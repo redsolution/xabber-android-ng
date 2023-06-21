@@ -1,7 +1,6 @@
 package com.xabber.presentation.application.fragments.account
 
 import android.os.Bundle
-import android.widget.CheckBox
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
@@ -28,10 +27,14 @@ class AccountViewHolder(
             account.colorKey
         ) else loadAvatar(account.jid)
         binding.root.setOnClickListener { listener.onClick(account.id) }
+        setEnable(account.id, account.enabled)
+    }
+
+    private fun setEnable(accountId: String, enable: Boolean) {
         binding.switchAccountEnable.setOnCheckedChangeListener(null)
-        binding.switchAccountEnable.isChecked = account.enabled
+        binding.switchAccountEnable.isChecked = enable
         binding.switchAccountEnable.setOnCheckedChangeListener { _, isChecked ->
-            listener.setEnabled(account.jid, isChecked)
+            listener.setEnabled(accountId, isChecked)
         }
     }
 
@@ -50,10 +53,14 @@ class AccountViewHolder(
         val realm = Realm.open(defaultRealmConfig())
         var uri: String? = null
         realm.writeBlocking {
-            val avatar = this.query(com.xabber.data_base.models.avatar.AvatarStorageItem::class, "primary = '$id'").first().find()
+            val avatar = this.query(
+                com.xabber.data_base.models.avatar.AvatarStorageItem::class,
+                "primary = '$id'"
+            ).first().find()
             if (avatar != null) uri = avatar.fileUri
         }
         Glide.with(binding.root.context).load(uri).into(binding.imAvatarItemAccount)
+        realm.close()
     }
 
 
@@ -66,11 +73,7 @@ class AccountViewHolder(
             when (key) {
                 AppConstants.PAYLOAD_ACCOUNT_ENABLED -> {
                     val enable = bundle.getBoolean(AppConstants.PAYLOAD_ACCOUNT_ENABLED)
-                    binding.switchAccountEnable.setOnCheckedChangeListener(null)
-                    binding.switchAccountEnable.isChecked = enable
-                    binding.switchAccountEnable.setOnCheckedChangeListener { _, isChecked ->
-                        listener.setEnabled(account.id, isChecked)
-                    }
+                    setEnable(account.id, enable)
                 }
                 AppConstants.PAYLOAD_ACCOUNT_COLOR -> {
                     if (!account.hasAvatar) {
@@ -80,8 +83,8 @@ class AccountViewHolder(
                 }
                 AppConstants.PAYLOAD_ACCOUNT_HAS_AVATAR -> {
                     val hasAvatar = bundle.getBoolean(AppConstants.PAYLOAD_ACCOUNT_HAS_AVATAR)
-                        if (!hasAvatar) loadAvatarWithInitials(account.nickname, account.colorKey)
-                        else loadAvatar(account.id)
+                    if (!hasAvatar) loadAvatarWithInitials(account.nickname, account.colorKey)
+                    else loadAvatar(account.id)
                 }
             }
         }

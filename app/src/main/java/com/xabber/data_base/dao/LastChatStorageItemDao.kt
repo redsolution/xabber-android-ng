@@ -56,13 +56,4 @@ class LastChatStorageItemDao(private val realm: Realm) {
         }
     }
 
-    fun markAllChatsAsUnread() {
-        realm.writeBlocking {
-            val items = this.query(LastChatsStorageItem::class).find()
-            items.forEach {
-                it.unread = 0
-            }
-        }
-    }
-
 }

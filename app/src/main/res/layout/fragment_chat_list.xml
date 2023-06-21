@@ -20,66 +20,17 @@
             style="@style/ApplicationToolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            android:background="@color/transparent"
             app:menu="@menu/menu_toolbar_chat_list">
 
-            <androidx.constraintlayout.widget.ConstraintLayout
-                android:id="@+id/cl_toolbar_content"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content">
-
-                <com.xabber.utils.custom.ShapeOfView
-                    android:id="@+id/shape_view"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="@dimen/margin_small"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toTopOf="parent"
-                    app:shape_clip_drawable="@drawable/ic_mask_circle">
-
-                    <ImageView
-                        android:id="@+id/im_avatar"
-                        android:layout_width="@dimen/mask32"
-                        android:layout_height="@dimen/mask32"
-                        android:contentDescription="@string/avatar_account_content_description"
-                        android:scaleType="centerCrop"
-                        tools:src="@tools:sample/avatars" />
-                </com.xabber.utils.custom.ShapeOfView>
-
-                <TextView
-                    android:id="@+id/tv_initials"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textAllCaps="true"
-                    android:textColor="@color/grey_900"
-                    android:textSize="14sp"
-                    android:visibility="gone"
-                    app:layout_constraintBottom_toBottomOf="@id/shape_view"
-                    app:layout_constraintEnd_toEndOf="@id/shape_view"
-                    app:layout_constraintStart_toStartOf="@id/shape_view"
-                    app:layout_constraintTop_toTopOf="@id/shape_view" />
-
-                <ImageView
-                    android:id="@+id/avatar_status"
-                    android:layout_width="@dimen/status_size_toolbar"
-                    android:layout_height="@dimen/status_size_toolbar"
-                    android:contentDescription="@string/status_content_description"
-                    android:src="@drawable/status_chat"
-                    app:layout_constraintBottom_toBottomOf="@id/shape_view"
-                    app:layout_constraintEnd_toEndOf="@id/shape_view" />
+           <include layout="@layout/toolbar_avatar"/>
 
                 <TextView
                     android:id="@+id/tv_chat_title"
                     style="@style/ApplicationToolbarTitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="@string/application_title"
-                    app:layout_constraintBottom_toBottomOf="parent"
-                    app:layout_constraintStart_toEndOf="@id/shape_view"
-                    app:layout_constraintTop_toTopOf="parent"
-                    app:layout_goneMarginStart="0dp" />
+                    android:text="@string/application_title" />
 
-            </androidx.constraintlayout.widget.ConstraintLayout>
         </com.google.android.material.appbar.MaterialToolbar>
     </com.google.android.material.appbar.AppBarLayout>
 
@@ -122,8 +73,8 @@
 
         <ImageView
             android:id="@+id/empty_logo"
-            android:layout_width="@dimen/logo_empty"
-            android:layout_height="@dimen/logo_empty"
+            android:layout_width="@dimen/logo_empty_size"
+            android:layout_height="@dimen/logo_empty_size"
             android:contentDescription="@string/xabber_logo_image_description"
             android:src="@drawable/xabber_logo_work"
             app:layout_constraintBottom_toBottomOf="parent"

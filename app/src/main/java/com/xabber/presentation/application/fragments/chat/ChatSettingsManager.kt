@@ -1,14 +1,17 @@
 package com.xabber.presentation.application.fragments.chat
 
 import com.xabber.R
+import com.xabber.presentation.application.fragments.settings.MessageTailType
 
 object ChatSettingsManager {
     var color = R.color.blue_100
+
     var gradient = 7
     var designType = 1
+
     var bottom = true
     var cornerValue = 7
-    var typeValue = 4
+    var messageTypeValue: MessageTailType? = MessageTailType.SMOOTH
 
     var timeStampMargin = 3
     var simple: Int = 0
@@ -19,7 +22,9 @@ object ChatSettingsManager {
 
     fun defineMessageDrawable(corner: Int, type: Int, bot: Boolean) {
         cornerValue = corner
-        typeValue = type
+
+        messageTypeValue = MessageTailType.values().find { it.rawValue == type }
+
         bottom = bot
         timeStampMargin = if (corner < 16) 3 else if (corner == 16) 4 else if (corner == 17) 5 else if (corner == 18) 6 else if (corner == 19) 7 else if (corner == 20) 8 else 3
         simple = when (corner) {

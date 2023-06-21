@@ -53,8 +53,8 @@
 
         <ImageView
             android:id="@+id/empty_logo"
-            android:layout_width="@dimen/logo_empty"
-            android:layout_height="@dimen/logo_empty"
+            android:layout_width="@dimen/logo_empty_size"
+            android:layout_height="@dimen/logo_empty_size"
             android:contentDescription="@string/xabber_logo_image_description"
             android:src="@drawable/xabber_logo_work"
             app:layout_constraintBottom_toBottomOf="parent"

@@ -1,11 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools"
+<androidx.appcompat.widget.LinearLayoutCompat xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/message_info"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
     android:layout_gravity="bottom|end"
     android:layout_margin="3dp"
-    android:background="@drawable/system_message_background"
     android:orientation="horizontal"
     android:paddingVertical="1dp"
     android:paddingStart="4dp"
@@ -19,13 +18,13 @@
         android:singleLine="true"
         tools:text="12:32"
         android:textColor="@color/white"
-        android:textSize="10sp" />
+        android:textSize="@dimen/text_size_timestamp" />
 
     <ImageView
         android:id="@+id/im_image_message_status"
-        android:layout_width="12dp"
-        android:layout_height="12dp"
-        android:layout_marginStart="4dp"
+        android:layout_width="@dimen/status_size_from_timestamp"
+        android:layout_height="@dimen/status_size_from_timestamp"
+        android:layout_marginStart="@dimen/margin_extra_small"
         android:contentDescription="@string/sending_status"
         android:src="@drawable/ic_check_green" />
-</LinearLayout>
+</androidx.appcompat.widget.LinearLayoutCompat>

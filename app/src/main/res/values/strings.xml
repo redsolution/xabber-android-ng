@@ -419,4 +419,5 @@
     <string name="sending_status">sending status</string>
     <string name="image">image</string>
     <string name="menu_item_change_avatar">Change avatar</string>
+    <string name="image_description">image</string>
 </resources>

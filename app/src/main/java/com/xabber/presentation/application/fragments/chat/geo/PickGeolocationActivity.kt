@@ -214,29 +214,18 @@ class PickGeolocationActivity : AppCompatActivity() {
 
     private fun initMapButtons() {
         binding.imSendLocation.setOnClickListener {
-            val bitmap = Bitmap.createBitmap(
-                200,
-                200,
-                Bitmap.Config.ARGB_8888
-            )
-            val canvas = Canvas(bitmap)
-            binding.mapView.draw(canvas)
-            binding.imZoomIn.setImageBitmap(bitmap)
-            Log.d("ooo", "klick ${myLocationOverlay?.myLocation?.longitude}")
-//            val resultIntent = Intent()
-//            resultIntent.putExtra(LON_RESULT, myLocationOverlay?.myLocation?.longitude)
-//            resultIntent.putExtra(LAT_RESULT, myLocationOverlay?.myLocation?.latitude)
-//            finish()
+            val resultIntent = Intent()
+            resultIntent.putExtra(LON_RESULT, myLocationOverlay?.myLocation?.longitude)
+            resultIntent.putExtra(LAT_RESULT, myLocationOverlay?.myLocation?.latitude)
+            finish()
         }
 
         binding.imMyGeolocation.setOnClickListener {
             if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
                 tryToGetMyLocation()
             } else requestGeolocationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
-
         }
     }
-
 
     @SuppressLint("NotifyDataSetChanged")
     private fun setupSearchList(list: List<Place>) {
@@ -379,11 +368,10 @@ class PickGeolocationActivity : AppCompatActivity() {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
     }
 
-
-
     private fun setupMap() {
-        Configuration.getInstance().load(this, PreferenceManager.getDefaultSharedPreferences(this))
+        Configuration.getInstance().load(this, androidx.preference.PreferenceManager.getDefaultSharedPreferences(this))
         binding.mapView.apply {
+            setUseDataConnection(true)
             overlays.add(
                 MapEventsOverlay(
                     object : MapEventsReceiver {

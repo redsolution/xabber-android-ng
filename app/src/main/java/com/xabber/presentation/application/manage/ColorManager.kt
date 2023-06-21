@@ -29,29 +29,6 @@ object ColorManager {
         return colors[colorName] ?: R.color.grey_500
     }
 
-
-    fun convertIndexToColorName(colorIndex: Int): String? {
-        val colors = SparseArray<String>()
-        colors.put(0, "red")
-        colors.put(1, "deep-orange")
-        colors.put(2, "orange")
-        colors.put(3, "amber")
-        colors.put(4, "lime")
-        colors.put(5, "light-green")
-        colors.put(6, "green")
-        colors.put(7, "teal")
-        colors.put(8, "cyan")
-        colors.put(9, "light-blue")
-        colors.put(10, "blue")
-        colors.put(11, "indigo")
-        colors.put(12, "deep-purple")
-        colors.put(13, "purple")
-        colors.put(14, "pink")
-        colors.put(15, "blue-grey")
-        colors.put(16, "brown")
-        return colors[colorIndex]
-    }
-
     fun convertColorNameToIndex(colorName: String): Int {
         Log.d("color", "colorManager colorName = $colorName")
         val colors = java.util.HashMap<String, Int>()

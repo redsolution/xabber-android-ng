@@ -108,6 +108,7 @@ class AttachmentBottomSheet : BottomSheetDialogFragment(R.layout.layout_bottom_s
                         actionPanel.isVisible = false
                         inputPanel.isVisible = galleryAdapter?.getSelectedMedia()!!.size > 0
                         if (galleryAdapter?.getSelectedMedia()!!.size > 0) {
+                        if (galleryAdapter?.getSelectedMedia()!!.size > 0) {
                             sendGroup.startAnimation(animLeft)
                             tvCount.text = galleryAdapter!!.getSelectedMedia().size.toString()
                         }
@@ -118,6 +119,7 @@ class AttachmentBottomSheet : BottomSheetDialogFragment(R.layout.layout_bottom_s
                 }
             }
         }
+        }
 
 
     private val pickGeolocationActivityLauncher =
@@ -126,8 +128,8 @@ class AttachmentBottomSheet : BottomSheetDialogFragment(R.layout.layout_bottom_s
                 val lon = result.data?.getDoubleExtra(PickGeolocationActivity.LON_RESULT, 0.0)
                 val lat = result.data?.getDoubleExtra(PickGeolocationActivity.LAT_RESULT, 0.0)
                 sendGeolocation(lon, lat)
-                dismiss()
             }
+            dismiss()
         }
 
     private val windowHeight: Int

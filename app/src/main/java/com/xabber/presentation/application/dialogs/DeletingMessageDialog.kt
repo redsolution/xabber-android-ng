@@ -53,7 +53,7 @@ class DeletingMessageDialog : DialogFragment() {
         layoutParams.setMargins(16.dp, 0, 0, 0)
         checkBoxLayout.addView(checkBox, layoutParams)
 
-        val dialog = AlertDialog.Builder(context, R.style.MyAlertDialogStyle)
+        val dialog = AlertDialog.Builder(context, R.style.AlertDialogStyle)
             .setView(checkBoxLayout)
             .setTitle(R.string.deleting_message_dialog_title)
             .setMessage(R.string.deleting_message_dialog_subtitle)

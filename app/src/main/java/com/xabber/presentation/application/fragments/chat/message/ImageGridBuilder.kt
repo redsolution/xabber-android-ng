@@ -13,6 +13,7 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.appcompat.widget.LinearLayoutCompat
 import androidx.core.view.isVisible
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.MultiTransformation
@@ -32,12 +33,6 @@ import java.util.*
 import kotlin.collections.ArrayList
 
  class ImageGridBuilder {
-
-    private val centerCropTransformation: MultiTransformation<Bitmap> by lazy {
-        val radius =
-            if (ChatSettingsManager.cornerValue > 4) (ChatSettingsManager.cornerValue - 4).dp else 1.dp
-        createStandardTransformation(radius, CenterCrop())
-    }
 
     private fun createStandardTransformation(
         radius: Int,
@@ -125,21 +120,7 @@ import kotlin.collections.ArrayList
             getImageView(view, 0)
                 .apply {
                     setOnLongClickListener(wholeGridLongTapListener)
-//                    if (attachmentRealmObjects[0].isGeo == true) {
-//                        val ref = attachmentRealmObjects[0]
-//                        val lon =  ref.longitude
-//                        val lat = ref.latitude
-//                        setOnClickListener {
-//                            context.startActivity(
-//                                Intent().apply {
-//                                    action = Intent.ACTION_VIEW
-//                                    data = Uri.parse("geo:$lat,$lon?q=$lat,$lon")
-//                                }
-//                            )
-//                        }
-//                    } else {
                     setOnClickListener(clickListener)
-                    //     }
                 }
                 .also { setupImageViewIntoFlexibleSingleImageCell(attachmentRealmObjects[0], it) }
         } else {
@@ -221,7 +202,7 @@ import kotlin.collections.ArrayList
 
         val timeStampRadius = if (radius > 3) radius - 3 else 1
 
-        val lin = view.findViewById<LinearLayout>(R.id.message_info)
+        val lin = view.findViewById<LinearLayoutCompat>(R.id.message_info)
 
         val params = lin.layoutParams as FrameLayout.LayoutParams
         val margin = ChatSettingsManager.timeStampMargin.dp
@@ -243,8 +224,7 @@ import kotlin.collections.ArrayList
         imageView: ImageView,
         view: View
     ) {
-        val marker = view.findViewById<ImageView>(R.id.im_marker)
-      marker.isVisible = attachment.isGeo
+
         val videoImage = view.findViewById<ImageView>(R.id.im_video_label)
        videoImage.isVisible = !attachment.isImage && !attachment.isGeo
 Log.d("uiui", "visible = ${videoImage.isVisible}, isIm = ${attachment.isImage}")
@@ -261,7 +241,7 @@ Log.d("uiui", "visible = ${videoImage.isVisible}, isIm = ${attachment.isImage}")
         }
         val timeStampRadius = if (radius > 3) radius - 3 else 1
 
-        val lin = view.findViewById<LinearLayout>(R.id.message_info)
+        val lin = view.findViewById<LinearLayoutCompat>(R.id.message_info)
 
        val params = lin.layoutParams as FrameLayout.LayoutParams
         val margin = ChatSettingsManager.timeStampMargin.dp
@@ -269,8 +249,6 @@ Log.d("uiui", "visible = ${videoImage.isVisible}, isIm = ${attachment.isImage}")
         lin.layoutParams = params
         val timeStampBackground = getTimeStampBackground(timeStampRadius)
         lin.setBackgroundResource(timeStampBackground)
-
-
 
         val displayMetrics = Resources.getSystem().displayMetrics
         val screenWidth = displayMetrics.widthPixels

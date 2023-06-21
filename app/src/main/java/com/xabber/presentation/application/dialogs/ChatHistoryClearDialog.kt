@@ -21,8 +21,6 @@ import kotlinx.coroutines.launch
 
 class ChatHistoryClearDialog : DialogFragment() {
     private val realm = Realm.open(defaultRealmConfig())
-    private val lastChatStorageItemDao = LastChatStorageItemDao(realm)
-    private val messageStorageItemDao = MessageStorageItemDao(realm)
 
     companion object {
         fun newInstance(name: String, id: String) = ChatHistoryClearDialog().apply {
@@ -40,7 +38,7 @@ class ChatHistoryClearDialog : DialogFragment() {
             SpannableStringBuilder().append(resources.getString(R.string.dialog_message_clear_history))
                 .bold { append(" $name") }.append("?")
                 .append(resources.getString(R.string.chat_dialog_sub_message))
-        val dialog = AlertDialog.Builder(context, R.style.MyAlertDialogStyle)
+        val dialog = AlertDialog.Builder(context, R.style.AlertDialogStyle)
             .setTitle(R.string.dialog_clear_history_chat_title)
             .setMessage(dialogMessage)
             .setPositiveButton(resources.getString(R.string.dialog_chat_positive_button)) { _, _ ->
