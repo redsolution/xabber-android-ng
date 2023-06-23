@@ -263,7 +263,6 @@ class ChatViewModel : ViewModel() {
                         primary = messageDto.references[i].id + "${System.currentTimeMillis()}"
                         uri = messageDto.references[i].uri
                         mimeType = messageDto.references[i].mimeType
-                        isImage = messageDto.references[i].isImage
                         isGeo = messageDto.references[i].isGeo
                         latitude = messageDto.references[i].latitude
                         longitude = messageDto.references[i].longitude

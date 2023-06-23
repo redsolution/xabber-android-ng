@@ -1,51 +1,35 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_gravity="end"
     android:paddingStart="50dp">
 
-    <RelativeLayout
-        android:id="@+id/outgoing_message"
-        android:layout_width="match_parent"
+    <FrameLayout
+        android:id="@+id/balloon"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_alignStart="@id/message_container"
+        android:layout_alignTop="@id/message_container"
+        android:layout_alignEnd="@id/message_container"
+        android:layout_alignBottom="@id/message_container" />
+
+    <LinearLayout
+        android:id="@+id/message_container"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="end">
+        android:layout_marginVertical="2dp"
+        android:layout_marginEnd="-6.5dp"
+        android:layout_toStartOf="@id/tail"
+        android:gravity="end"
+        android:orientation="vertical"
+        android:paddingVertical="2dp" />
 
-        <FrameLayout
-            android:id="@+id/balloon"
-            android:layout_width="0dp"
-            android:layout_height="0dp"
-            android:layout_alignStart="@id/message_container"
-            android:layout_alignTop="@id/message_container"
-            android:layout_alignEnd="@id/message_container"
-            android:layout_alignBottom="@id/message_container" />
-
-        <LinearLayout
-            android:id="@+id/message_container"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginVertical="2dp"
-            android:layout_marginEnd="-6.5dp"
-            android:layout_toStartOf="@id/tail"
-            android:gravity="end"
-            android:orientation="vertical"
-            android:paddingVertical="2dp"
-            app:layout_constraintHorizontal_bias="1"/>
-
-        <FrameLayout
-            android:id="@+id/tail"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_alignBottom="@id/message_container"
-            android:layout_alignParentEnd="true"
-            android:layout_marginEnd="4dp" />
-
-        <androidx.constraintlayout.widget.Group
-            android:id="@+id/background_group"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:scaleY="-1" />
-
-    </RelativeLayout>
-</FrameLayout>
+    <FrameLayout
+        android:id="@+id/tail"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignBottom="@id/message_container"
+        android:layout_alignParentEnd="true"
+        android:layout_marginEnd="4dp" />
+</RelativeLayout>

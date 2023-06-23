@@ -1,47 +1,42 @@
 package com.xabber.presentation.application.fragments.chat.message
 
 import android.view.LayoutInflater
-import android.view.View
 import android.view.ViewGroup
-import androidx.recyclerview.widget.RecyclerView
+import android.widget.ImageView
+import androidx.recyclerview.widget.DiffUtil
+import androidx.recyclerview.widget.ListAdapter
 import com.xabber.R
+import com.xabber.databinding.ItemFileMessageBinding
+import com.xabber.dto.MessageReferenceDto
 
 
-class FilesAdapter(private val fileListListener: FileListListener, private val timeStamp: Long) :
-    RecyclerView.Adapter<FileViewHolder>() {
+class FilesAdapter(private val files: ArrayList<MessageReferenceDto>, private val timeStamp: Long) :
+    ListAdapter<MessageReferenceDto, FileViewHolder>(object :
+        DiffUtil.ItemCallback<MessageReferenceDto>() {
+        override fun areItemsTheSame(oldItem: MessageReferenceDto, newItem: MessageReferenceDto) =
+            oldItem == newItem
 
-    interface FileListListener {
-        fun onFileClick(position: Int)
-
-        fun onVoiceClick(position: Int, attachmentId: String, saved: Boolean, timeStamp: Long)
-
-        fun onVoiceProgressClick(
-            position: Int,
-            attachmentId: String,
-            timestamp: Long,
-            current: Int,
-            max: Int
-        )
-
-        fun onFileLongClick(caller: View)
-
-        fun onDownLoadCancel()
-
-        fun onDownLoadError(error: String)
-    }
+        override fun areContentsTheSame(
+            oldItem: MessageReferenceDto,
+            newItem: MessageReferenceDto
+        ) =
+            oldItem == newItem
+    }) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): FileViewHolder {
-        val view: View = LayoutInflater.from(parent.context).inflate(
-            R.layout.item_message, parent, false
-        )
-        return FileViewHolder(view)
+        val inflater = LayoutInflater.from(parent.context)
+        val binding = ItemFileMessageBinding.inflate(inflater, parent, false)
+        return FileViewHolder(binding)
     }
 
     override fun onBindViewHolder(holder: FileViewHolder, position: Int) {
-
+        val icon = holder.view.findViewById<ImageView>(R.id.ivFileIcon)
+        icon.setImageResource(getFileIconByCategory(FileCategory.determineFileCategory(files[position].mimeType)))
     }
 
-    override fun getItemCount(): Int = 0
+    override fun getItemCount() = files.size
+
+    override fun getItem(position: Int) = files[position]
 
     private fun getFileIconByCategory(category: FileCategory): Int {
         return when (category) {
@@ -56,4 +51,5 @@ class FilesAdapter(private val fileListListener: FileListListener, private val t
             else -> R.drawable.ic_file_grey
         }
     }
+
 }

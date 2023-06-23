@@ -11,14 +11,12 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.ImageView
-import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.widget.LinearLayoutCompat
 import androidx.core.view.isVisible
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.MultiTransformation
 import com.bumptech.glide.load.resource.bitmap.BitmapTransformation
-import com.bumptech.glide.load.resource.bitmap.CenterCrop
 import com.bumptech.glide.load.resource.bitmap.RoundedCorners
 import com.bumptech.glide.request.target.CustomTarget
 import com.bumptech.glide.request.transition.Transition
@@ -53,16 +51,8 @@ import kotlin.collections.ArrayList
 
     fun bindView(
         view: View, message: MessageDto,
-        attachments: ArrayList<MessageReferenceDto>,
-        clickListener: View.OnClickListener?
+        attachments: ArrayList<MessageReferenceDto>
     ) {
-        val image0 = view.findViewById<ImageView>(R.id.ivImage0)
-        val image1 = view.findViewById<ImageView>(R.id.ivImage1)
-        val image2 = view.findViewById<ImageView>(R.id.ivImage2)
-        val image3 = view.findViewById<ImageView>(R.id.ivImage3)
-        val image4 = view.findViewById<ImageView>(R.id.ivImage4)
-        val image5 = view.findViewById<ImageView>(R.id.ivImage5)
-
         val videoImage = view.findViewById<ImageView>(R.id.im_video_label)
         val videoImage1 = view.findViewById<ImageView>(R.id.im_video_label_1)
         val videoImage2 = view.findViewById<ImageView>(R.id.im_video_label_2)
@@ -70,13 +60,12 @@ import kotlin.collections.ArrayList
         val videoImage4 = view.findViewById<ImageView>(R.id.im_video_label_4)
         val videoImage5 = view.findViewById<ImageView>(R.id.im_video_label_5)
 
-
-        videoImage.isVisible = !attachments[0].isImage
-        if (attachments.size > 1)  videoImage1.isVisible = !attachments[1].isImage
-        if (attachments.size > 2)  videoImage2.isVisible = !attachments[2].isImage
-        if (attachments.size > 3)  videoImage3.isVisible = !attachments[3].isImage
-        if (attachments.size > 4)  videoImage4.isVisible = !attachments[4].isImage
-        if (attachments.size > 5)  videoImage5.isVisible = !attachments[5].isImage
+        videoImage.isVisible = FileCategory.determineFileCategory(attachments[0].mimeType) == FileCategory.VIDEO
+        if (attachments.size > 1)  videoImage1.isVisible = FileCategory.determineFileCategory(attachments[1].mimeType) == FileCategory.VIDEO
+        if (attachments.size > 2)  videoImage2.isVisible = FileCategory.determineFileCategory(attachments[2].mimeType) == FileCategory.VIDEO
+        if (attachments.size > 3)  videoImage3.isVisible = FileCategory.determineFileCategory(attachments[3].mimeType) == FileCategory.VIDEO
+        if (attachments.size > 4)  videoImage4.isVisible = FileCategory.determineFileCategory(attachments[4].mimeType) == FileCategory.VIDEO
+        if (attachments.size > 5)  videoImage5.isVisible = FileCategory.determineFileCategory(attachments[5].mimeType) == FileCategory.VIDEO
         val tvTime = view.findViewById<TextView>(R.id.tv_image_sending_time)
         val dates = Date(message.sentTimestamp)
         val time = StringUtils.getTimeText(view.context, dates)
@@ -85,15 +74,16 @@ import kotlin.collections.ArrayList
             val imageView = getImageView(view, 0)
 
             bindOneImage(message, attachments[0], view, imageView, view)
-            imageView.setOnClickListener(clickListener)
+           // imageView.setOnClickListener(clickListener)
         } else {
             val tvCounter = view.findViewById<TextView>(R.id.tvCounter)
             var index = 0
             loop@ for (attachment in attachments) {
                 if (index > 5) break@loop
                 val imageView = getImageView(view, index)
-                bindImage(message, attachment, view, imageView, view)
-                imageView.setOnClickListener(clickListener)
+                val noBottomCorners = message.messageBody.isNotEmpty() || message.references.size > attachments.size
+                bindImage(message, attachment, imageView, view, noBottomCorners)
+           //     imageView.setOnClickListener(clickListener)
                 index++
             }
             if (tvCounter != null) {
@@ -111,15 +101,14 @@ import kotlin.collections.ArrayList
     fun bindView(
         view: View,
         messageRealmObject: MessageDto,
-        clickListener: View.OnClickListener?,
-        wholeGridLongTapListener: View.OnLongClickListener? = null,
+        clickListener: View.OnClickListener?
     ) {
         val attachmentRealmObjects = messageRealmObject.references
 
         if (attachmentRealmObjects.size == 1) {
             getImageView(view, 0)
                 .apply {
-                    setOnLongClickListener(wholeGridLongTapListener)
+                 //   setOnLongClickListener(wholeGridLongTapListener)
                     setOnClickListener(clickListener)
                 }
                 .also { setupImageViewIntoFlexibleSingleImageCell(attachmentRealmObjects[0], it) }
@@ -127,7 +116,7 @@ import kotlin.collections.ArrayList
             attachmentRealmObjects.take(5).forEachIndexed { index, attachmentRealmObject ->
                 getImageView(view, index)
                     .apply {
-                        setOnLongClickListener(wholeGridLongTapListener)
+                      //  setOnLongClickListener(wholeGridLongTapListener)
                         setOnClickListener(clickListener)
                     }
                     .also {
@@ -149,15 +138,12 @@ import kotlin.collections.ArrayList
 
     private fun bindImage(message: MessageDto,
         attachment: MessageReferenceDto,
-        parent: View,
         imageView: ImageView,
-        view: View
+        view: View, noBottomCorners:Boolean
     ) {
-        val hasText = message.messageBody.isNotEmpty()
         val radius =
             if (ChatSettingsManager.cornerValue > 4) (ChatSettingsManager.cornerValue - 4) else 1
         val innerRadius = if (radius <= 2) radius else 2
-        Log.d("yyy", "hasText = $hasText")
         val sh = view.findViewById<ShapeOfView>(R.id.cardview_1)
        val card2 = view.findViewById<ShapeOfView>(R.id.cardview_2)
        val card3 = view.findViewById<ShapeOfView>(R.id.cardview_3)
@@ -166,20 +152,20 @@ import kotlin.collections.ArrayList
        val card6 = view.findViewById<ShapeOfView>(R.id.cardview_6)
 
         if (sh != null) {
-            val radii = if (message.references.size < 5) floatArrayOf(radius.dp.toFloat(), radius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), if (hasText) innerRadius.dp.toFloat() else radius.dp.toFloat(), if (hasText) innerRadius.dp.toFloat() else radius.dp.toFloat()) else
+            val radii = if (message.references.size < 5) floatArrayOf(radius.dp.toFloat(), radius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), if (noBottomCorners) innerRadius.dp.toFloat() else radius.dp.toFloat(), if (noBottomCorners) innerRadius.dp.toFloat() else radius.dp.toFloat()) else
                 floatArrayOf(radius.dp.toFloat(), radius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat())    // массив радиусов углов в dp, по часовой стрелке
             val shape = ShapeDrawable(RoundRectShape(radii, null, null)) // создаем объект ShapeDrawable с заданными радиусами
 
             sh.setDrawable(shape)// устанавливаем объект ShapeDrawable в качестве фона ImageView
         }
         if (card2 != null) {
-            val radii = if (message.references.size < 3) floatArrayOf(innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), radius.dp.toFloat(), radius.dp.toFloat(), if (hasText) innerRadius.dp.toFloat() else radius.dp.toFloat(), if (hasText) innerRadius.dp.toFloat() else radius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat()) else
+            val radii = if (message.references.size < 3) floatArrayOf(innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), radius.dp.toFloat(), radius.dp.toFloat(), if (noBottomCorners) innerRadius.dp.toFloat() else radius.dp.toFloat(), if (noBottomCorners) innerRadius.dp.toFloat() else radius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat()) else
                 floatArrayOf(innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), radius.dp.toFloat(), radius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat())    // массив радиусов углов в dp, по часовой стрелке
             val shape = ShapeDrawable(RoundRectShape(radii, null, null)) // создаем объект ShapeDrawable с заданными радиусами
             card2.setDrawable(shape)
         }
         if (card3 != null) {
-            val radii = floatArrayOf(innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), if (hasText) innerRadius.dp.toFloat() else radius.dp.toFloat(), if (hasText) innerRadius.dp.toFloat() else radius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat())
+            val radii = floatArrayOf(innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), if (noBottomCorners) innerRadius.dp.toFloat() else radius.dp.toFloat(), if (noBottomCorners) innerRadius.dp.toFloat() else radius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat())
             val shape = ShapeDrawable(RoundRectShape(radii, null, null)) // создаем объект ShapeDrawable с заданными радиусами
             card3.setDrawable(shape)
         }
@@ -189,7 +175,7 @@ import kotlin.collections.ArrayList
             card4.setDrawable(shape)
         }
         if (card5 != null) {
-            val radii =  floatArrayOf(innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), if (hasText) innerRadius.dp.toFloat() else radius.dp.toFloat(), if (hasText) innerRadius.dp.toFloat() else radius.dp.toFloat())
+            val radii =  floatArrayOf(innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), if (noBottomCorners) innerRadius.dp.toFloat() else radius.dp.toFloat(), if (noBottomCorners) innerRadius.dp.toFloat() else radius.dp.toFloat())
             val shape = ShapeDrawable(RoundRectShape(radii, null, null)) // создаем объект ShapeDrawable с заданными радиусами
             card5.setDrawable(shape)
         }
@@ -224,10 +210,8 @@ import kotlin.collections.ArrayList
         imageView: ImageView,
         view: View
     ) {
-
         val videoImage = view.findViewById<ImageView>(R.id.im_video_label)
-       videoImage.isVisible = !attachment.isImage && !attachment.isGeo
-Log.d("uiui", "visible = ${videoImage.isVisible}, isIm = ${attachment.isImage}")
+       videoImage.isVisible = FileCategory.determineFileCategory(attachment.mimeType) == FileCategory.VIDEO
         val radius =
             if (ChatSettingsManager.cornerValue > 4) (ChatSettingsManager.cornerValue - 4) else 1
         val card = view.findViewById<ShapeOfView>(R.id.card)

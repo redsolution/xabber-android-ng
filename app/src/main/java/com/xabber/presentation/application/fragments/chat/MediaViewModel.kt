@@ -109,17 +109,6 @@ class MediaViewModel : ViewModel() {
         return videos
     }
 
-    fun getMessageMedia(messageId: String): ArrayList<MediaDto> {
-        val mediaList = ArrayList<MediaDto>()
-        val messageReferenceStorageItems =
-            realm.query(MessageReferenceStorageItem::class, "messagePrimary = '$messageId'").find()
-        for (reference in messageReferenceStorageItems) {
-            if (reference.isImage || reference.isVideo)
-                mediaList.add(MediaDto(0L, "", Date(), reference.uri!!.toUri()))
-        }
-        return mediaList
-    }
-
     override fun onCleared() {
         super.onCleared()
         realm.close()

@@ -8,6 +8,7 @@ data class MessageReferenceDto(
     var jid: String = "",
     var kind_: String = "",
     var mimeType: String = "",
+    val size: String,
     var begin: Int = 0,
     var end: Int = 0,
     var metadata_: String = "",
@@ -18,7 +19,6 @@ data class MessageReferenceDto(
     var uri: String? = null,
     var width: Int = 0,
     var height: Int = 0,
-    var isImage: Boolean = false,
     var isGeo: Boolean = false,
     var latitude: Double = 0.0,
     var longitude: Double = 0.0

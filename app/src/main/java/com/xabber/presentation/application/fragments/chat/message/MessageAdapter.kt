@@ -11,28 +11,26 @@ import com.xabber.data_base.models.messages.MessageDisplayType
 import com.xabber.dto.MessageDto
 import com.xabber.presentation.application.fragments.chat.ChatSettingsManager
 import com.xabber.presentation.application.fragments.chat.MessageVhExtraData
-import com.xabber.presentation.application.fragments.chat.ReferenceRealmObject
 import com.xabber.presentation.application.util.isSameDayWith
 
 class MessageAdapter(
-    private val listener: Listener? = null,
+    private val listener: MenuItemListener? = null,
+    private val onViewClickListener: OnViewClickListener? = null,
     private val messages: ArrayList<MessageDto>,
-    private val fileListener: MessageVH.FileListener? = null,
     private val bindListener: IncomingMessageVH.BindListener? = null,
     private val avatarClickListener: IncomingMessageVH.OnMessageAvatarClickListener? = null,
     private val isGroup: Boolean
-) : ListAdapter<MessageDto, BasicMessageVH>(DiffUtilCallback),
+) : ListAdapter<MessageDto, MessageVH>(DiffUtilCallback),
     MessageVH.MessageClickListener,
     MessageVH.MessageLongClickListener,
-    MessageVH.FileListener, IncomingMessageVH.OnMessageAvatarClickListener {
+    IncomingMessageVH.OnMessageAvatarClickListener {
 
     private var firstUnreadMessageID: String? = null
     private var isCheckMode = false
-
     private var recyclerView: RecyclerView? = null
     private val checkedItemIds: MutableList<String> = ArrayList()
 
-    interface Listener {
+    interface MenuItemListener {
 
         fun copyText(text: String)
 
@@ -45,10 +43,17 @@ class MessageAdapter(
         fun deleteMessage(primary: String)
 
         fun editMessage(primary: String, text: String)
+    }
+
+    interface OnViewClickListener {
 
         fun onLongClick(primary: String)
 
         fun checkItem(isChecked: Boolean, primary: String)
+
+        fun onImageOrVideoClick(startPosition: Int, messageId: String)
+
+        fun onLocationClick(latitude: Double, longitude: Double)
     }
 
     override fun getItemCount(): Int = messages.size
@@ -62,30 +67,33 @@ class MessageAdapter(
         return if (messages[position].displayType == MessageDisplayType.System) SYSTEM_MESSAGE else if (!messages[position].isOutgoing) INCOMING_MESSAGE else OUTGOING_MESSAGE
     }
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): BasicMessageVH {
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): MessageVH {
         return when (viewType) {
 
             OUTGOING_MESSAGE -> OutgoingMessageVH(
-                listener,
+
                 LayoutInflater.from(parent.context).inflate(
                     R.layout.item_message_outgoing, parent, false
                 ),
-                this, this, this
+                listener,
+                onViewClickListener,
             )
 
             INCOMING_MESSAGE -> IncomingMessageVH(
-                listener,
+
                 LayoutInflater.from(parent.context).inflate(
                     R.layout.item_message_incoming, parent, false
                 ),
-                this, this, this, bindListener, this
+                listener,
+                onViewClickListener, bindListener, this
             )
 
             SYSTEM_MESSAGE -> SystemMessageVH(
-                listener,
+
                 LayoutInflater.from(parent.context).inflate(
                     R.layout.item_message_system, parent, false
-                ), this, this, this
+                ),
+                listener, onViewClickListener
             )
 
             else -> throw IllegalStateException("Unsupported view type!")
@@ -114,10 +122,10 @@ class MessageAdapter(
         if (!isGroup) return false
         val message = getMessageItem(position)
         val preMessage = getMessageItem(position - 1)
-        if (message?.isOutgoing == false && preMessage?.isOutgoing == true) return true else return message?.opponentJid != preMessage?.opponentJid
+        return if (message?.isOutgoing == false && preMessage?.isOutgoing == true) true else message?.opponentJid != preMessage?.opponentJid
     }
 
-    override fun onBindViewHolder(holder: BasicMessageVH, position: Int) {
+    override fun onBindViewHolder(holder: MessageVH, position: Int) {
         val viewType = getItemViewType(position)
         val message = getMessageItem(position)
         holder.setIsRecyclable(false)
@@ -126,8 +134,6 @@ class MessageAdapter(
         val isNeedDate = isMessageNeedDate(position)
 
         val extraData = MessageVhExtraData(
-            fileListener,
-            message.sentTimestamp,
             message.primary == firstUnreadMessageID,
             checkedItemIds.contains(message.primary),
             isMessageNeedTail(position),
@@ -147,7 +153,6 @@ class MessageAdapter(
             SYSTEM_MESSAGE -> {
                 (holder as? SystemMessageVH)?.bind(message, extraData)
             }
-
         }
     }
 
@@ -159,20 +164,20 @@ class MessageAdapter(
         }
 
     override fun onMessageClick(caller: View, position: Int) {
-//        if (isCheckMode && recyclerView?.isComputingLayout != true) {
-//            addOrRemoveCheckedItem(position)
-//        } else {
-//            messageListener?.onMessageClick(caller, position)
-//        }
+        if (isCheckMode && recyclerView?.isComputingLayout != true) {
+          //  addOrRemoveCheckedItem(position)
+        } else {
+         //   messageListener?.onMessageClick(caller, position)
+        }
     }
 
     override fun onLongMessageClick(position: Int) {
-        addOrRemoveCheckedItem(position)
+     //   addOrRemoveCheckedItem(position)
     }
 
     override fun onMessageAvatarClick(position: Int) {
         if (isCheckMode && recyclerView?.isComputingLayout != true) {
-            addOrRemoveCheckedItem(position)
+        //    addOrRemoveCheckedItem(position)
         } else {
             avatarClickListener?.onMessageAvatarClick(position)
         }
@@ -182,86 +187,21 @@ class MessageAdapter(
         firstUnreadMessageID = id
     }
 
-    override fun onImageClick(messagePosition: Int, attachmentPosition: Int, messageUID: String) {
-        if (isCheckMode) {
-            addOrRemoveCheckedItem(messagePosition)
-        } else {
-            fileListener?.onImageClick(messagePosition, attachmentPosition, messageUID)
-        }
-    }
-
-
-    override fun onFileClick(messagePosition: Int, attachmentPosition: Int, messageUID: String?) {
-        if (isCheckMode) {
-            addOrRemoveCheckedItem(messagePosition)
-        } else {
-            fileListener?.onFileClick(messagePosition, attachmentPosition, messageUID)
-        }
-    }
-
-    override fun onVoiceClick(
-        messagePosition: Int,
-        attachmentPosition: Int,
-        attachmentId: String?,
-        messageUID: String?,
-        timestamp: Long?
-    ) {
-        if (isCheckMode) {
-            addOrRemoveCheckedItem(messagePosition)
-        } else {
-            fileListener?.onVoiceClick(
-                messagePosition, attachmentPosition, attachmentId, messageUID, timestamp
-            )
-        }
-    }
-
-    override fun onFileLongClick(referenceRealmObject: ReferenceRealmObject?, caller: View?) {
-
-    }
-
-
-    override fun onDownloadCancel() {
-        fileListener?.onDownloadCancel()
-    }
-
-    override fun onUploadCancel() {
-        fileListener?.onUploadCancel()
-    }
-
-    override fun onDownloadError(error: String?) {
-        fileListener?.onDownloadError(error)
-    }
-
-    /** Checked items  */
-    private fun addOrRemoveCheckedItem(position: Int) {
-//        if (recyclerView?.isComputingLayout == true || recyclerView?.isAnimating == true) {
-//            return
-//        }
-//
-//        recyclerView?.stopScroll()
-//        val messageRealmObject = getMessageItem(position)
-//        val uniqueId = messageRealmObject?.primaryKey
-//
-//        if (checkedItemIds.contains(uniqueId)) {
-//            checkedMessageRealmObjects.remove(messageRealmObject)
-//            checkedItemIds.remove(uniqueId)
+//    override fun onVoiceClick(
+//        messagePosition: Int,
+//        attachmentPosition: Int,
+//        attachmentId: String?,
+//        messageUID: String?,
+//        timestamp: Long?
+//    ) {
+//        if (isCheckMode) {
+//           // addOrRemoveCheckedItem(messagePosition)
 //        } else {
-//            uniqueId?.let { checkedItemIds.add(it) }
-//            checkedMessageRealmObjects.add(messageRealmObject)
+//            fileListener?.onVoiceClick(
+//                messagePosition, attachmentPosition, attachmentId, messageUID, timestamp
+//            )
 //        }
-//
-//        val isCheckModePrevious = isCheckMode
-//
-//        isCheckMode = checkedItemIds.size > 0
-//        if (isCheckMode != isCheckModePrevious) {
-//            notifyDataSetChanged()
-//        } else {
-//            notifyItemChanged(position)
-//        }
-//
-//        adapterListener?.onChangeCheckedItems(checkedItemIds.size)
-    }
-
+//    }
 
     private object DiffUtilCallback : DiffUtil.ItemCallback<MessageDto>() {
 

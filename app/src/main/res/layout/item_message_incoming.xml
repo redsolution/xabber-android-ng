@@ -1,60 +1,36 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/outgoing_message"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:paddingVertical="2dp"
     android:paddingEnd="50dp">
 
-    <com.xabber.utils.custom.ShapeOfView
-        android:id="@+id/avatar_shape"
+    <RelativeLayout
+        android:id="@+id/incoming_message"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="start">
+
+    <FrameLayout
+        android:id="@+id/tail"
+        android:layout_alignBottom="@id/message_container"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_alignParentStart="true"
         android:layout_marginStart="4dp"
-        app:shape_clip_drawable="@drawable/ic_mask_circle">
-
-        <ImageView
-            android:id="@+id/im_message_avatar"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:scaleType="centerCrop"
-            android:src="@drawable/sea" />
-    </com.xabber.utils.custom.ShapeOfView>
+        android:layout_alignParentStart="true"
+        android:scaleX="-1" />
 
     <FrameLayout
         android:id="@+id/balloon"
         android:layout_width="0dp"
         android:layout_height="0dp"
+        android:scaleX="-1"
         android:layout_alignStart="@id/message_container"
         android:layout_alignTop="@id/message_container"
         android:layout_alignEnd="@id/message_container"
-        android:layout_alignBottom="@id/message_container"
-        android:layout_alignParentBottom="true"
-        android:scaleX="-1" />
-
-    <FrameLayout
-        android:id="@+id/tail"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-
-        android:layout_alignParentBottom="true"
-        android:layout_marginStart="4dp"
-        android:layout_toEndOf="@id/avatar_shape"
-        android:scaleX="-1" />
-
-    <FrameLayout
-        android:id="@+id/tail_top"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignTop="@id/message_container"
-        android:layout_marginStart="4dp"
-        android:layout_toEndOf="@id/avatar_shape"
-        android:scaleX="-1" />
+        android:layout_alignBottom="@id/message_container" />
 
     <LinearLayout
+        android:layout_marginVertical="2dp"
         android:id="@+id/message_container"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -77,31 +53,6 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:id="@+id/tv_message_username"/>
-
-        <com.xabber.utils.custom.CustomFlexboxLayout
-            android:id="@+id/text_box"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:minHeight="20dp"
-            android:paddingHorizontal="8dp"
-            android:paddingVertical="2dp"
-            app:viewPartMain="@+id/message_text"
-            app:viewPartSlave="@+id/message_info">
-
-            <com.xabber.utils.custom.CorrectlyTouchEventTextView
-                android:id="@+id/message_text"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginEnd="4dp"
-                android:autoLink="all"
-                android:lineHeight="20dp"
-                android:textColor="@color/black_text"
-                android:textSize="14sp"
-                tools:targetApi="p" />
-
-            <include
-                android:id="@+id/message_info"
-                layout="@layout/item_message_status" />
-        </com.xabber.utils.custom.CustomFlexboxLayout>
     </LinearLayout>
-</RelativeLayout>
+    </RelativeLayout>
+</FrameLayout>

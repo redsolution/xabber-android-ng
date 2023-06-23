@@ -122,7 +122,7 @@ class ImageGrid {
             return time
         }
 
-        if (message.isAttachmentImageOnly) {
+        if (message.references.size == 1) {
             view.findViewById<LinearLayoutCompat>(R.id.message_info).apply {
                 visibility = View.VISIBLE
                 setBackgroundColor(Color.BLACK)

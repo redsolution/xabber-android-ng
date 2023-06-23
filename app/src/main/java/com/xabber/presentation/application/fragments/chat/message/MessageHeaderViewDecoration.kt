@@ -97,7 +97,7 @@ class MessageHeaderViewDecoration(context: Context) : ItemDecoration() {
             val child = parent.getChildAt(i)
             val holder = parent.getChildViewHolder(child)
             if (i != 0) {
-                if (holder is BasicMessageVH && holder.needDate) {
+                if (holder is MessageVH && holder.needDate) {
                     drawDateMessageHeader(c, parent, child, holder)
                 }
                 if (holder is MessageVH && holder.isUnread) {
@@ -106,7 +106,7 @@ class MessageHeaderViewDecoration(context: Context) : ItemDecoration() {
             }
             if (i == 0) {
                 if (holder != null) {
-                    i = measureFirstChildren(c, parent, child, holder as BasicMessageVH, 0)
+                    i = measureFirstChildren(c, parent, child, holder as MessageVH, 0)
                 }
             }
             i++
@@ -117,7 +117,7 @@ class MessageHeaderViewDecoration(context: Context) : ItemDecoration() {
         c: Canvas,
         parent: RecyclerView,
         child: View,
-        holder: BasicMessageVH
+        holder: MessageVH
     ) {
         val width = measureText(paintFont, holder.date)
         var additionalOffset = 0
@@ -144,7 +144,7 @@ class MessageHeaderViewDecoration(context: Context) : ItemDecoration() {
         canvas: Canvas,
         parent: RecyclerView,
         originalChild: View,
-        holder: BasicMessageVH,
+        holder: MessageVH,
         loopIteration: Int
     ): Int {
         var currentLoopIteration = loopIteration
@@ -154,7 +154,7 @@ class MessageHeaderViewDecoration(context: Context) : ItemDecoration() {
         if (parent.childCount > currentLoopIteration + 1) {
             val nextChild = parent.getChildAt(currentLoopIteration + 1)
             val nextHolder = parent.getChildViewHolder(nextChild)
-            if (nextHolder is BasicMessageVH) {
+            if (nextHolder is MessageVH) {
                 if (holder.date == nextHolder.date) {
                     return if (checkIfStickyHeaderFitsAboveNextChild(nextChild)) {
                         drawDateStickyHeader(canvas, parent, originalChild, holder, true)
@@ -192,7 +192,7 @@ class MessageHeaderViewDecoration(context: Context) : ItemDecoration() {
         return date.bottom - messageTopBound > alphaThreshold
     }
 
-    private fun needToDrawUnreadHeader(holder: BasicMessageVH): Boolean {
+    private fun needToDrawUnreadHeader(holder: MessageVH): Boolean {
         return holder is MessageVH && holder.isUnread
     }
 
@@ -200,7 +200,7 @@ class MessageHeaderViewDecoration(context: Context) : ItemDecoration() {
         c: Canvas,
         parent: RecyclerView,
         child: View,
-        holder: BasicMessageVH,
+        holder: MessageVH,
         forceDrawAsSticky: Boolean
     ) {
         val width = measureText(paintFont, holder.date)
@@ -312,7 +312,7 @@ class MessageHeaderViewDecoration(context: Context) : ItemDecoration() {
     ) {
         val holder = parent.getChildViewHolder(view)
         var topOffset = 0
-        if (holder is BasicMessageVH && holder.needDate) {
+        if (holder is MessageVH && holder.needDate) {
             topOffset += dateLayoutHeight
         }
         if (holder is MessageVH && holder.isUnread) {

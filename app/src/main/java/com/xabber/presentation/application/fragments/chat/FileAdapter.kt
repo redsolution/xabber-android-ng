@@ -87,7 +87,7 @@ class FileAdapter(private val listener: FilesListener) :
 
     private fun getFileIconByCategory(category: FileCategory): Int {
         return when (category) {
-            FileCategory.IMAGE -> R.drawable.ic_image_grey
+            FileCategory.IMAGE -> R.drawable.ic_image_dark
             FileCategory.AUDIO -> R.drawable.ic_audio
             FileCategory.VIDEO -> R.drawable.ic_video
             FileCategory.DOCUMENT -> R.drawable.ic_document
@@ -97,7 +97,7 @@ class FileAdapter(private val listener: FilesListener) :
             FileCategory.ARCHIVE -> R.drawable.ic_archive
             else -> R.drawable.ic_file_grey
         }
-
     }
+
 }
 

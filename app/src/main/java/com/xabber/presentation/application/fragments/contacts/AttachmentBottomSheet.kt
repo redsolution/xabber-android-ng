@@ -87,11 +87,15 @@ class AttachmentBottomSheet : BottomSheetDialogFragment(R.layout.layout_bottom_s
         ::onGotFilePermissionResult
     )
 
-    private val fileResultLauncher = registerForActivityResult(
-        ActivityResultContracts.OpenDocument()
-    ) { uri: Uri? ->
-        if (uri != null) sendMessageWithAttachment(uri, chatInput.text.trimEnd().toString()) else dismiss()
-    }
+    private val fileResultLauncher =
+        registerForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris: List<Uri>? ->
+            if (uris != null && uris.isNotEmpty()) {
+                sendMessageWithAttachment(uris, chatInput.text.trimEnd().toString())
+
+            } else {
+                dismiss()
+            }
+        }
 
     @SuppressLint("NotifyDataSetChanged")
     private val viewImageActivityLauncher =
@@ -108,19 +112,18 @@ class AttachmentBottomSheet : BottomSheetDialogFragment(R.layout.layout_bottom_s
                         actionPanel.isVisible = false
                         inputPanel.isVisible = galleryAdapter?.getSelectedMedia()!!.size > 0
                         if (galleryAdapter?.getSelectedMedia()!!.size > 0) {
-                        if (galleryAdapter?.getSelectedMedia()!!.size > 0) {
-                            sendGroup.startAnimation(animLeft)
-                            tvCount.text = galleryAdapter!!.getSelectedMedia().size.toString()
+                            if (galleryAdapter?.getSelectedMedia()!!.size > 0) {
+                                sendGroup.startAnimation(animLeft)
+                                tvCount.text = galleryAdapter!!.getSelectedMedia().size.toString()
+                            }
+                        } else {
+                            actionPanel.isVisible = true
+                            inputPanel.isVisible = false
                         }
-                    } else {
-                        actionPanel.isVisible = true
-                        inputPanel.isVisible = false
                     }
                 }
             }
         }
-        }
-
 
     private val pickGeolocationActivityLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -137,7 +140,7 @@ class AttachmentBottomSheet : BottomSheetDialogFragment(R.layout.layout_bottom_s
             val displayMetrics = DisplayMetrics()
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                 requireContext().display?.getRealMetrics(displayMetrics)
-            } else  activity?.windowManager?.defaultDisplay?.getMetrics(displayMetrics)
+            } else activity?.windowManager?.defaultDisplay?.getMetrics(displayMetrics)
             return displayMetrics.heightPixels
         }
 
@@ -336,7 +339,7 @@ class AttachmentBottomSheet : BottomSheetDialogFragment(R.layout.layout_bottom_s
 
     private fun initInputPanel() {
         sendGroup.setOnClickListener {
-            sendMessageWithAttachment(null, this.chatInput.text?.trimEnd().toString())
+            sendMessageWithAttachment(uri = null, this.chatInput.text?.trimEnd().toString())
         }
     }
 
@@ -369,7 +372,7 @@ class AttachmentBottomSheet : BottomSheetDialogFragment(R.layout.layout_bottom_s
     }
 
     private fun onGotFilePermissionResult(granted: Boolean) {
-        if (granted) fileResultLauncher.launch(arrayOf("*/*"))
+        if (granted) fileResultLauncher.launch("*/*")
     }
 
     private fun openMap() {
@@ -460,11 +463,13 @@ class AttachmentBottomSheet : BottomSheetDialogFragment(R.layout.layout_bottom_s
                 isGeo = true,
                 latitude = lat,
                 longitude = lon,
+               size= ""
             )
             val refer = java.util.ArrayList<MessageReferenceDto>()
             refer.add(geoMessage)
             val chat = chatVM.getChat(getChatId())
-            val message = MessageDto(primary = getChatId() + System.currentTimeMillis(),
+            val message = MessageDto(
+                primary = getChatId() + System.currentTimeMillis(),
                 references = refer,
                 isOutgoing = true,
                 owner = chat!!.owner,
@@ -474,7 +479,8 @@ class AttachmentBottomSheet : BottomSheetDialogFragment(R.layout.layout_bottom_s
                 messageBody = "",
                 messageSendingState = MessageSendingState.Sending,
                 sentTimestamp = System.currentTimeMillis(),
-                isGroup = false)
+                isGroup = false
+            )
             chatVM.insertMessage(getChatId(), message)
         }
     }
@@ -486,13 +492,14 @@ class AttachmentBottomSheet : BottomSheetDialogFragment(R.layout.layout_bottom_s
         if (uries != null) {
             for (i in uries.indices) {
                 val r = MessageReferenceDto(
-                    width= 10,
-                    height= 6,
+                    width = 10,
+                    height = 6,
                     id = uries[i].toString(),
                     uri = uries[i].toString(),
                     mimeType = getMimeType(uries[i])!!,
-isImage =  getMimeType(uries[i])!!.startsWith("image/"))
-                Log.d("uiui","mime[i] = ${getMimeType(uries[i])!!}")
+                    size = ""
+                )
+                Log.d("uiui", "mime[i] = ${getMimeType(uries[i])!!}")
                 refer.add(r)
             }
         }
@@ -502,9 +509,50 @@ isImage =  getMimeType(uries[i])!!.startsWith("image/"))
                     id = uri.toString(),
                     uri = uri.toString(),
                     mimeType = getMimeType(uri)!!,
-                    isImage =  getMimeType(uri)!!.startsWith("image/"))
+                    size = ""
                 )
-            Log.d("uiui","mime = ${getMimeType(uri!!)!!}, isImage = ${getMimeType(uri)!!.startsWith("image/")}")
+            )
+            Log.d(
+                "uiui",
+                "mime = ${getMimeType(uri!!)!!}, isImage = ${getMimeType(uri)!!.startsWith("image/")}"
+            )
+        }
+
+        val chat = chatVM.getChat(getChatId())
+        chatVM.insertMessage(
+            getChatId(),
+            MessageDto(
+                primary = getChatId() + System.currentTimeMillis(),
+                references = refer,
+                isOutgoing = true,
+                owner = chat!!.owner,
+                opponentJid = chat.opponentJid,
+                canDeleteMessage = false,
+                canEditMessage = false,
+                messageBody = "" + body,
+                messageSendingState = MessageSendingState.Sending,
+                sentTimestamp = System.currentTimeMillis(),
+                isGroup = false
+            )
+        )
+        dismiss()
+    }
+
+    private fun sendMessageWithAttachment(uris: List<Uri>?, body: String) {
+        val refer = java.util.ArrayList<MessageReferenceDto>()
+        if (uris != null) {
+            for (i in uris.indices) {
+                val r = MessageReferenceDto(
+                    width = 10,
+                    height = 6,
+                    id = uris[i].toString(),
+                    uri = uris[i].toString(),
+                    mimeType = getMimeType(uris[i])!!,
+                    size = ""
+                )
+                Log.d("uiui", "mime[i] = ${getMimeType(uris[i])!!}")
+                refer.add(r)
+            }
         }
 
         val chat = chatVM.getChat(getChatId())

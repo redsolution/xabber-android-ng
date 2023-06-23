@@ -39,7 +39,7 @@ import java.util.*
 
 
 class ChatListViewHolder(
-    private val binding: ItemChatListBinding,
+    private val binding: ItemChatListBinding
 ) : RecyclerView.ViewHolder(binding.root) {
 
     fun getDivider(): View = binding.accountColorIndicator

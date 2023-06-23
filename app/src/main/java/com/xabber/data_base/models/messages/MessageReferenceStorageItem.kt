@@ -24,6 +24,8 @@ class MessageReferenceStorageItem: RealmObject {
     var owner: String = ""
     var jid: String = ""
     var kind_: String = ""
+    var fileName: String = ""
+    var fileSize: Long = 0L
     var mimeType: String = ""
     var begin: Int = 0
     var end: Int = 0
@@ -33,8 +35,6 @@ class MessageReferenceStorageItem: RealmObject {
     var isMissed: Boolean = false
     var hasError: Boolean = false
     var uri: String? = null
-    var isImage: Boolean = false
-    var isAudio: Boolean = false
     var isGeo: Boolean = false
     var isVideo = false
     var latitude = 0.0

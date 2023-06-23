@@ -3,14 +3,18 @@ package com.xabber.presentation.application.fragments.chat.message
 import android.view.View
 import androidx.recyclerview.widget.RecyclerView
 import com.xabber.R
+import com.xabber.databinding.ItemChatListBinding
+import com.xabber.databinding.ItemFileBinding
+import com.xabber.databinding.ItemFileMessageBinding
+import com.xabber.dto.MessageReferenceDto
 
-class FileViewHolder(var itemView: View): RecyclerView.ViewHolder(itemView) {
-    private val attachmentId: String? = null
-    private var voiceMessage = false
+class FileViewHolder(private val binding: ItemFileMessageBinding) :
+    RecyclerView.ViewHolder(binding.root) {
+    val view: View
+        get() = itemView
 
-    init {
-      // itemView = itemView.findViewById(R.id.file_message)
-
+    fun bind(reference: MessageReferenceDto) {
+        binding.tvFileName.text = reference.mimeType
+        binding.tvFileSize.text = reference.size
     }
-
 }

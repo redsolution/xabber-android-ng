@@ -1,8 +1,7 @@
 package com.xabber.presentation.application.fragments.chat.message
 
 enum class FileCategory {
-    IMAGE, AUDIO, VIDEO, DOCUMENT, PDF, TABLE, PRESENTATION, ARCHIVE, FILE;
-
+    IMAGE, AUDIO, VIDEO, DOCUMENT, PDF, TABLE, PRESENTATION, ARCHIVE, FILE, APK;
 
     companion object {
         fun determineFileCategory(mimeType: String?): FileCategory {
@@ -23,6 +22,8 @@ enum class FileCategory {
                 PRESENTATION
             } else if (mimeType == "application/zip" || mimeType == "application/gzip" || mimeType == "application/x-rar-compressed" || mimeType == "application/x-tar" || mimeType == "application/x-7z-compressed") {
                 ARCHIVE
+            } else if (mimeType == "application/vnd.android.package-archive") {
+                APK
             } else {
                 FILE
             }
@@ -38,6 +39,7 @@ enum class FileCategory {
                 TABLE -> if (withHtml) "<font color='#1565c0'>Table:</font> " else "Table: "
                 PRESENTATION -> if (withHtml) "<font color='#1565c0'>Presentation:</font> " else "Presentation: "
                 ARCHIVE -> if (withHtml) "<font color='#1565c0'>Archive:</font> " else "Archive: "
+                APK -> if (withHtml) "<font color='#1565c0'>Archive:</font> " else "Apk: "
                 else -> if (withHtml) "<font color='#1565c0'>File:</font> " else "File: "
             }
         }

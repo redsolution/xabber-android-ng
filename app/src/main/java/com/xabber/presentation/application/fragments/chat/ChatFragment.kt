@@ -8,6 +8,7 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Canvas
 import android.graphics.drawable.Drawable
+import android.net.Uri
 import android.os.*
 import android.text.Editable
 import android.text.TextWatcher
@@ -52,15 +53,11 @@ import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.application.dialogs.*
 import com.xabber.presentation.application.fragments.DetailBaseFragment
 import com.xabber.presentation.application.fragments.chat.audio.VoiceManager
-import com.xabber.presentation.application.fragments.chat.geo.Location
 import com.xabber.presentation.application.fragments.chat.message.*
 import com.xabber.presentation.application.fragments.chatlist.ChatListViewModel
 import com.xabber.presentation.application.fragments.contacts.AttachmentBottomSheet
 import com.xabber.presentation.application.fragments.contacts.ContactAccountParams
-import com.xabber.presentation.application.fragments.chat.message.MessageAdapter
-import com.xabber.presentation.application.fragments.chat.message.IncomingMessageVH
 import com.xabber.presentation.application.manage.ColorManager
-import com.xabber.presentation.application.manage.DisplayManager
 import com.xabber.utils.*
 import io.realm.kotlin.Realm
 import kotlinx.coroutines.GlobalScope
@@ -68,10 +65,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.File
 import java.util.*
-import kotlin.collections.ArrayList
 
-class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.Listener,
-    IncomingMessageVH.BindListener, MessageVH.FileListener,
+class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.MenuItemListener, MessageAdapter.OnViewClickListener,
+    IncomingMessageVH.BindListener,
     ReplySwipeCallback.SwipeAction {
     private val binding by viewBinding(FragmentChatBinding::bind)
     private val handler = Handler(Looper.getMainLooper())
@@ -348,8 +344,8 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         messageAdapter = MessageAdapter(
             this,
             bindListener = this,
-            fileListener = this,
-            messages = ArrayList<MessageDto>(), isGroup= isGroup
+            onViewClickListener = this,
+            messages = ArrayList<MessageDto>(), isGroup = isGroup
         )
         binding.messageList.adapter = messageAdapter
         layoutManager = LinearLayoutManager(context)
@@ -517,9 +513,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
                         null,
                         isSelected = false,
                         isUnread = true,
-                        isGroup = false,
-                        kind = messageKindDto,
-                        location = Location(2.8604, 14.540)
+                        isGroup = false
                     )
                 )
                 binding.answer.isVisible = false
@@ -697,7 +691,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
             messageAdapter?.notifyDataSetChanged()
             if (layoutManager != null && messageAdapter != null) {
                 if (layoutManager!!.findLastVisibleItemPosition() >= messageAdapter!!.itemCount - 2 && !isSelectedMode) scrollDown()
-             if (it.isNotEmpty())   isNeedScrollDown = it[it.size-1].isOutgoing
+                if (it.isNotEmpty()) isNeedScrollDown = it[it.size - 1].isOutgoing
                 if (isNeedScrollDown) {
                     scrollDown()
                     isNeedScrollDown = false
@@ -817,7 +811,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
                         false,
                         null,
                         isUnread = true,
-                        isGroup = true, location = Location(2.8604, 14.540)
+                        isGroup = true
                     )
                 )
                 Log.d(
@@ -896,7 +890,8 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
 //        badgeDrawable.badgeGravity = BadgeDrawable.BOTTOM_END
 ////        binding.tvNewReceivedCount.viewTreeObserver.addOnGlobalLayoutListener(object :
 ////            ViewTreeObserver.OnGlobalLayoutListener {
-////            override fun onGlobalLayout() {
+////            override fun onGlobalLay
+    // out() {
 //                if (count > 0) {
 //                    BadgeUtils.attachBadgeDrawable(badgeDrawable, binding.btnDownward)
 //                    badgeDrawable.number = count
@@ -914,7 +909,6 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         messageAdapter?.setFirstUnreadMessageId(null)
         viewModel.markAllMessageUnread(getParams().id)
     }
-
 
     private fun startAudioRecord() {
         handler.postDelayed(timer, 500)
@@ -1109,7 +1103,6 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     }
 
     override fun onLongClick(primary: String) {
-        Log.d("ppp", "onLongClick")
         enableSelectionMode(true)
         Check.setSelectedMode(true)
         viewModel.selectMessage(primary, true)
@@ -1119,7 +1112,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     override fun checkItem(isChecked: Boolean, primary: String) {
         viewModel.selectMessage(primary, isChecked)
         viewModel.getMessageList(getParams().id)
-//        chatAdapter?.notifyDataSetChanged()
+        messageAdapter?.notifyDataSetChanged()
     }
 
     override fun onFullSwipe(position: Int) {
@@ -1159,7 +1152,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
             binding.chatInput.isEnabled = false
         } else {
             val color = baseViewModel.getPrimaryAccount()?.colorKey
-            val c = ColorManager.convertColorNameToId(color?: "blue")
+            val c = ColorManager.convertColorNameToId(color ?: "blue")
             binding.chatAppbar.setBackgroundResource(c)
             //   chatAdapter?.setSelectedMode(false)
             //  binding.chatPanelGroup.isVisible = true
@@ -1294,42 +1287,20 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         }
     }
 
-    override fun onImageClick(pos: Int, messagePosition: Int, messageId: String) {
-
+    override fun onImageOrVideoClick(startPosition: Int, messageId: String) {
         val intent = Intent(requireContext(), MediaDetailsActivity::class.java)
-        intent.putExtra("uu", messagePosition)
+        intent.putExtra("uu", startPosition)
         intent.putExtra(AppConstants.MESSAGE_UID, messageId)
         startActivity(intent)
     }
 
-    override fun onFileClick(messagePosition: Int, attachmentPosition: Int, messageUID: String?) {
-      //  TODO("Not yet implemented")
-    }
-
-    override fun onVoiceClick(
-        messagePosition: Int,
-        attachmentPosition: Int,
-        attachmentId: String?,
-        messageUID: String?,
-        timestamp: Long?
-    ) {
-        TODO("Not yet implemented")
-    }
-
-    override fun onFileLongClick(referenceRealmObject: ReferenceRealmObject?, caller: View?) {
-        TODO("Not yet implemented")
-    }
-
-    override fun onDownloadCancel() {
-        TODO("Not yet implemented")
-    }
-
-    override fun onUploadCancel() {
-        TODO("Not yet implemented")
-    }
-
-    override fun onDownloadError(error: String?) {
-        TODO("Not yet implemented")
+    override fun onLocationClick(latitude: Double, longitude: Double) {
+        context?.startActivity(
+            Intent().apply {
+                action = Intent.ACTION_VIEW
+                data = Uri.parse("geo:$latitude,$longitude?q=$latitude,$longitude")
+            }
+        )
     }
 
     private val VALID_IMAGE_EXTENSIONS = arrayOf("webp", "jpeg", "jpg", "png", "jpe", "gif")

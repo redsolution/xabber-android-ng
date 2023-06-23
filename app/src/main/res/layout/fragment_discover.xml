@@ -26,21 +26,4 @@
                 android:text="@string/discover_toolbar_title" />
         </com.google.android.material.appbar.MaterialToolbar>
     </com.google.android.material.appbar.AppBarLayout>
-
-
-    <com.xabber.utils.custom.ShapeOfView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        app:shape_clip_drawable="@drawable/circle">
-
-        <ImageView
-            android:src="@drawable/ic_qrcode"
-            android:id="@+id/map_image"
-            android:layout_width="300dp"
-            android:layout_height="300dp"
-            android:background="@color/grey_200"
-            android:elevation="10dp"
-            android:scaleType="fitXY" />
-    </com.xabber.utils.custom.ShapeOfView>
-
 </LinearLayout>

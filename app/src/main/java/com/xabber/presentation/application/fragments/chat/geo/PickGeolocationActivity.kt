@@ -2,17 +2,11 @@ package com.xabber.presentation.application.fragments.chat.geo
 
 import android.Manifest
 import android.annotation.SuppressLint
-import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.graphics.Bitmap
-import android.graphics.Canvas
 import android.location.LocationManager
-import android.net.Uri
 import android.os.Bundle
-import android.os.PersistableBundle
-import android.preference.PreferenceManager
 import android.provider.Settings
 import android.util.Log
 import android.view.View
@@ -24,7 +18,6 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.isVisible
-import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -35,13 +28,14 @@ import com.xabber.dto.MessageDto
 import com.xabber.dto.MessageReferenceDto
 import com.xabber.presentation.application.fragments.chat.ChatViewModel
 import com.xabber.presentation.application.fragments.chat.CustomMyLocationOsmOverlay
-import com.xabber.utils.custom.SearchToolbar
 import com.xabber.remote.NominatimRetrofitModule
 import com.xabber.remote.Place
 import com.xabber.remote.prettyName
 import com.xabber.remote.toGeoPoint
+import com.xabber.utils.custom.SearchToolbar
 import com.xabber.utils.getBitmap
 import com.xabber.utils.hideSoftKeyboard
+import com.xabber.utils.showToast
 import io.reactivex.rxjava3.subjects.PublishSubject
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.cancel
@@ -52,12 +46,9 @@ import org.osmdroid.events.MapEventsReceiver
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.CustomZoomButtonsController
-import org.osmdroid.views.drawing.MapSnapshot
 import org.osmdroid.views.overlay.MapEventsOverlay
 import org.osmdroid.views.overlay.Marker
 import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay
-import java.io.File
-import java.io.FileOutputStream
 import java.util.*
 import java.util.concurrent.TimeUnit
 
@@ -83,6 +74,7 @@ class PickGeolocationActivity : AppCompatActivity() {
     private val pSpeed = 1L
     private var isBubbleShow = false
     private var location = Location(0.0, 0.0)
+    private var isMyLocation = true
 
 
     private val foundPlacesAdapter = FoundPlacesRecyclerViewAdapter(
@@ -144,6 +136,7 @@ class PickGeolocationActivity : AppCompatActivity() {
         initSearchRecycler()
         setupMap()
         initMapButtons()
+        initSendButton()
     }
 
     private fun setFullScreenMode() {
@@ -245,7 +238,6 @@ class PickGeolocationActivity : AppCompatActivity() {
     }
 
     private fun tryToGetMyLocation() {
-
         fun createMyLocationsOverlay() {
             val locationsProvider = ObservableOsmLocationProvider(
                 binding.mapView.context
@@ -265,17 +257,18 @@ class PickGeolocationActivity : AppCompatActivity() {
         }
 
         fun centerOnMyLocation() {
-            Log.d("uuu", "centerLoc")
-            var x = ""
-            var y = ""
             lifecycleScope.launch {
                 repeat(15) {
                     if (myLocationOverlay?.myLocation != null) {
                         myLocationOverlay?.enableFollowLocation()
                         binding.mapView.controller.setZoom(16.5)
                         cancel()
-//
                         binding.tvLocationTitle.text = "Send current location "
+                        if (myLocationOverlay != null) location = Location(
+                            myLocationOverlay!!.myLocation.latitude,
+                            myLocationOverlay!!.myLocation.longitude
+                        )
+                        isMyLocation = true
                         val location = myLocationOverlay?.myLocation.toString()
                         val list = location.split(",")
                         val a = list[1]
@@ -298,10 +291,13 @@ class PickGeolocationActivity : AppCompatActivity() {
                     delay(300)
                 }
 
-                //todo possible show error while location retrieving
             }
 
-            if (PermissionsRequester.requestLocationPermissionIfNeeded(this, REQUEST_LOCATION_PERMISSION_CODE)) {
+            if (PermissionsRequester.requestLocationPermissionIfNeeded(
+                    this,
+                    REQUEST_LOCATION_PERMISSION_CODE
+                )
+            ) {
                 if (isLocationAllowed()) {
                     if (myLocationOverlay == null) {
                         createMyLocationsOverlay()
@@ -313,10 +309,6 @@ class PickGeolocationActivity : AppCompatActivity() {
             }
         }
 
-
-        //       binding.frameSnack.isVisible = false
-//        binding.bottomBubble.isVisible = true
-
         if (PermissionsRequester.requestLocationPermissionIfNeeded(
                 this,
                 REQUEST_LOCATION_PERMISSION_CODE
@@ -327,9 +319,6 @@ class PickGeolocationActivity : AppCompatActivity() {
                     createMyLocationsOverlay()
                 }
                 centerOnMyLocation()
-                Log.d("uuu", "завершение")
-
-
             } else {
                 showDialogNeedToEnableLocations()
             }
@@ -369,7 +358,8 @@ class PickGeolocationActivity : AppCompatActivity() {
     }
 
     private fun setupMap() {
-        Configuration.getInstance().load(this, androidx.preference.PreferenceManager.getDefaultSharedPreferences(this))
+        Configuration.getInstance()
+            .load(this, androidx.preference.PreferenceManager.getDefaultSharedPreferences(this))
         binding.mapView.apply {
             setUseDataConnection(true)
             overlays.add(
@@ -418,11 +408,11 @@ class PickGeolocationActivity : AppCompatActivity() {
         updateLocationInfoBubble(location)
     }
 
-
     @SuppressLint("SetTextI18n")
-    private fun updateLocationInfoBubble(location: GeoPoint?) {
-Log.d("pick", "$location lock")
-        if (location != null) {
+    private fun updateLocationInfoBubble(newLocation: GeoPoint?) {
+        if (newLocation != null) location = Location(newLocation.latitude, newLocation.longitude)
+        isMyLocation = false
+        if (newLocation != null) {
             binding.progressbarSearchLocations.visibility = View.VISIBLE
             lifecycleScope.launch(CoroutineExceptionHandler { _, _ ->
                 binding.progressbarSearchLocations.visibility = View.INVISIBLE
@@ -430,7 +420,7 @@ Log.d("pick", "$location lock")
             }) {
                 val lang = Locale.getDefault().language
                 val place = NominatimRetrofitModule.api.fromLonLat(
-                    location.longitude, location.latitude, lang
+                    newLocation.longitude, newLocation.latitude, lang
                 )
                 binding.tvLocationTitle.text =
                     if (place.prettyName != null) place.prettyName else "Location not defined"
@@ -443,51 +433,41 @@ Log.d("pick", "$location lock")
                     )
                 )
                 binding.tvLocationCoordinates.text =
-                    "${coordFormatString.format(location.longitude)}, ${
+                    "${coordFormatString.format(newLocation.longitude)}, ${
                         coordFormatString.format(
-                            location.latitude
+                            newLocation.latitude
                         )
                     }"
             }
 
-            binding.imSendLocation.setOnClickListener {
-                val bitmap = Bitmap.createBitmap(
-                    binding.mapView.width,
-                    binding.mapView.height,
-                    Bitmap.Config.ARGB_8888
-                )
-                val canvas = Canvas(bitmap)
-                binding.mapView.draw(canvas)
-                val fileName = "${System.currentTimeMillis()} location"
-                val filePath = externalCacheDir?.absolutePath + File.separator + fileName
-                val file = File(filePath)
-                val outputStream = FileOutputStream(file)
-                bitmap?.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
-                outputStream.flush()
-                outputStream.close()
 
+            binding.bottomBubble.isVisible = true
+        } else {
+            binding.bottomBubble.isVisible = false
+        }
+    }
 
-//                setResult(
-//                    Activity.RESULT_OK,
-//                    Intent().apply {
-//                        putExtra(LAT_RESULT, location.latitude)
-//                        putExtra(LON_RESULT, location.longitude)
-//                    }
-//                )
-val lon = location.longitude
+    private fun initSendButton() {
+        binding.imSendLocation.setOnClickListener {
+            Log.d("faf", "isMyLocation = $isMyLocation, ${myLocationOverlay?.myLocation}")
+            val sendingLocation = if (isMyLocation) myLocationOverlay?.myLocation else location
+            if (sendingLocation == null) showToast("Пожалуйста, подождите пока карта загрузится")
+            else {
+                val lon = location.longitude
                 val lat = location.latitude
                 if (lon != null && lat != null) {
                     val geoMessage = MessageReferenceDto(
                         isGeo = true,
                         latitude = lat,
                         longitude = lon,
-                        uri = Uri.fromFile(file).toString()
+                        size = ""
                     )
-                    val refer = java.util.ArrayList<MessageReferenceDto>()
+                    val refer = ArrayList<MessageReferenceDto>()
                     refer.add(geoMessage)
                     val id = intent.getStringExtra("id") ?: ""
                     val chat = chatVM.getChat(id)
-                    val message = MessageDto(primary = id + System.currentTimeMillis(),
+                    val message = MessageDto(
+                        primary = id + System.currentTimeMillis(),
                         references = refer,
                         isOutgoing = true,
                         owner = chat!!.owner,
@@ -497,21 +477,19 @@ val lon = location.longitude
                         messageBody = "",
                         messageSendingState = MessageSendingState.Sending,
                         sentTimestamp = System.currentTimeMillis(),
-                        isGroup = false)
+                        isGroup = false
+                    )
                     chatVM.insertMessage(id, message)
                 }
                 finish()
             }
-            binding.bottomBubble.isVisible = true
-        } else {
-            binding.bottomBubble.isVisible = false
         }
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putBoolean(IS_BUBBLE_SHOW_KEY, binding.bottomBubble.isVisible)
-     //   outState.putParcelable("location", Location(myLocationOverlay.myLocation.latitude, myLocationOverlay?.myLocation.longitude))
+        //   outState.putParcelable("location", Location(myLocationOverlay.myLocation.latitude, myLocationOverlay?.myLocation.longitude))
     }
 
     companion object {

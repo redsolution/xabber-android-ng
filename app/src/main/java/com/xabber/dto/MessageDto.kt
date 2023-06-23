@@ -22,11 +22,6 @@ data class MessageDto(
     val kind: MessageKind? = null,
     var isSelected: Boolean = false,
     var references: ArrayList<MessageReferenceDto> = ArrayList(),
-    val location: Location? = null,
-    val hasForwardedMessages: Boolean = false,
-    val hasReferences: Boolean = false,
-    val hasImage: Boolean = false,
-    val isAttachmentImageOnly: Boolean = false,
     val isUnread: Boolean = true,
     var isChecked: Boolean = false
 ) : Comparable<MessageDto> {

@@ -11,7 +11,7 @@ abstract class BasicMessageVH internal constructor(
     itemView: View
 ) : RecyclerView.ViewHolder(itemView) {
 
-    var needDate = false
-    var date: String? = null
+ //   var needDate = false
+ //   var date: String? = null
 
 }
