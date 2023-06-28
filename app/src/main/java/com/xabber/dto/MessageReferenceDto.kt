@@ -1,13 +1,13 @@
 package com.xabber.dto
 
 data class MessageReferenceDto(
-    var id: String = "",
-    var messageId: String = "",
-    var sentDate: Double = 0.0,
-    var owner: String = "",
-    var jid: String = "",
-    var kind_: String = "",
-    var mimeType: String = "",
+    val id: String = "",
+    val messageId: String = "",
+    val sentDate: Double = 0.0,
+    val owner: String = "",
+    val jid: String = "",
+    val kind_: String = "",
+    val mimeType: String = "",
     val size: String,
     var begin: Int = 0,
     var end: Int = 0,
@@ -19,7 +19,8 @@ data class MessageReferenceDto(
     var uri: String? = null,
     var width: Int = 0,
     var height: Int = 0,
-    var isGeo: Boolean = false,
-    var latitude: Double = 0.0,
-    var longitude: Double = 0.0
+    val isGeo: Boolean = false,
+    val latitude: Double = 0.0,
+    val longitude: Double = 0.0,
+    val isAudioMessage:Boolean = false
 )

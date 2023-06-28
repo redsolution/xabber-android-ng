@@ -6,6 +6,7 @@ import android.media.MediaExtractor;
 import android.media.MediaFormat;
 import android.os.Build;
 import android.os.Handler;
+import android.util.Log;
 
 import androidx.annotation.NonNull;
 
@@ -95,29 +96,24 @@ public final class VoiceMessagePresenterManager {
     public void sendWaveDataIfSaved(final String filePath, final PlayerVisualizerView view) {
         if (voiceWaveData.get(filePath) != null) {
             view.updateVisualizer(voiceWaveData.get(filePath));
-        } else
-            new Runnable() {
-                @Override
-                public void run() {
-                    File file = new File(filePath);
-                    int size = (int) file.length();
-                    final byte[] bytes = new byte[size];
-                    try {
-                        BufferedInputStream buf = new BufferedInputStream(new FileInputStream(file));
-                        buf.read(bytes, 0, bytes.length);
-                        buf.close();
-                    } catch (Exception e) {
-//                        LogManager.exception(getClass().getSimpleName(), e);
-                    }
-                    voiceWaveFreshViews.put(filePath, view);
-                    if (!voiceWaveInProgress.contains(filePath)) {
-                        voiceWaveInProgress.add(filePath);
-                        createWaveform(file, view);
-                    }
-                }
-            };
+        } else {
+            File file = new File(filePath);
+            int size = (int) file.length();
+            final byte[] bytes = new byte[size];
+            try {
+                BufferedInputStream buf = new BufferedInputStream(new FileInputStream(file));
+                buf.read(bytes, 0, bytes.length);
+                buf.close();
+            } catch (Exception e) {
+                Log.d("iii", "file" + e);
+            }
+            voiceWaveFreshViews.put(filePath, view);
+            if (!voiceWaveInProgress.contains(filePath)) {
+                voiceWaveInProgress.add(filePath);
+                createWaveform(file, view);
+            }
+        }
     }
-
 
     public void createWaveform(final File file, final PlayerVisualizerView view) {
         final MediaCodec codec;

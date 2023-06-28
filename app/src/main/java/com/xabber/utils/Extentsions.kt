@@ -182,7 +182,7 @@ fun RecyclerView.partSmoothScrollToPosition(targetItem: Int) {
     }
 }
 
-inline fun <reified T : Parcelable> Bundle.parcelable(key: String): T? = when {
+ inline fun <reified T : Parcelable> Bundle.parcelable(key: String): T? = when {
     SDK_INT >= 33 -> getParcelable(key, T::class.java)
     else -> @Suppress("DEPRECATION") getParcelable(key) as? T
 }
@@ -250,5 +250,6 @@ fun MessageReferenceStorageItem.toMessageReferenceDto() =
         size = "",
         isGeo = isGeo,
         latitude = latitude,
-        longitude = longitude
+        longitude = longitude,
+        isAudioMessage = isAudioMessage
     )

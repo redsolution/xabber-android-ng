@@ -266,6 +266,7 @@ class ChatViewModel : ViewModel() {
                         isGeo = messageDto.references[i].isGeo
                         latitude = messageDto.references[i].latitude
                         longitude = messageDto.references[i].longitude
+                        isAudioMessage = messageDto.references[i].isAudioMessage
                     })
                     rreferences.add(ref)
                 }

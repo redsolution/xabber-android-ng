@@ -1,5 +1,6 @@
 package com.xabber.presentation.application.fragments.chat
 
+
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.ClipData
@@ -44,6 +45,7 @@ import com.xabber.databinding.FragmentChatBinding
 import com.xabber.dto.ChatListDto
 import com.xabber.dto.MessageDto
 import com.xabber.dto.MessageKind
+import com.xabber.dto.MessageReferenceDto
 import com.xabber.presentation.AppConstants
 import com.xabber.presentation.AppConstants.CHAT_MESSAGE_TEXT_KEY
 import com.xabber.presentation.AppConstants.DELETING_MESSAGE_BUNDLE_KEY
@@ -52,19 +54,29 @@ import com.xabber.presentation.AppConstants.DELETING_MESSAGE_FOR_ALL_BUNDLE_KEY
 import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.application.dialogs.*
 import com.xabber.presentation.application.fragments.DetailBaseFragment
+import com.xabber.presentation.application.fragments.chat.audio.AudioRecord
 import com.xabber.presentation.application.fragments.chat.audio.VoiceManager
+import com.xabber.presentation.application.fragments.chat.audio.VoiceMessagePresenterManager
 import com.xabber.presentation.application.fragments.chat.message.*
 import com.xabber.presentation.application.fragments.chatlist.ChatListViewModel
 import com.xabber.presentation.application.fragments.contacts.AttachmentBottomSheet
 import com.xabber.presentation.application.fragments.contacts.ContactAccountParams
 import com.xabber.presentation.application.manage.ColorManager
 import com.xabber.utils.*
+import com.xabber.utils.custom.PlayerVisualizerView
+import io.reactivex.rxjava3.disposables.Disposable
 import io.realm.kotlin.Realm
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.File
+import java.io.FileInputStream
+import java.io.IOException
+import java.io.InputStream
 import java.util.*
+import java.util.concurrent.TimeUnit
+import kotlin.experimental.and
+
 
 class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.MenuItemListener, MessageAdapter.OnViewClickListener,
     IncomingMessageVH.BindListener,
@@ -86,9 +98,13 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     private var recordingPath: String? = null
     private var stopTypingTimer: Timer? = Timer()
     private var saveAudioMessage = true
+    private var audioProgressSubscription: Disposable? = null
     private var lockIsClosed = false
     var isVibrate = false
     val realm = Realm.open(defaultRealmConfig())
+    var ignoreReceiver = true
+    val audioRecord = AudioRecord()
+    var isPlaying = false
 
     private val requestAudioPermissionResult = registerForActivityResult(
         ActivityResultContracts.RequestPermission(),
@@ -135,7 +151,12 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     }
 
     private val record = Runnable {
-        VoiceManager.getInstance().startRecording()
+       // VoiceManager.getInstance().startRecording()
+        val outputDir = context?.getExternalFilesDir(null) // Получаем директорию, где будет сохраняться файл
+        val fileName = "${System.currentTimeMillis()} audio_file.mp4" // Название файла
+
+        val outputPath = File(outputDir, fileName).absolutePath
+        audioRecord.startRecord(outputPath)
     }
 
     private val shake = Runnable {
@@ -145,6 +166,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     }
 
     private val stop = Runnable {
+
         binding.imLockBar.clearAnimation()
         binding.imLock.clearAnimation()
         binding.linRecordLock.clearAnimation()
@@ -292,6 +314,19 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         binding.chatInput.setText(messageText)
         isSelectedMode = savedInstanceState.getBoolean(AppConstants.CHAT_SELECTION_MODE_KEY)
         enableSelectionMode(isSelectedMode)
+
+
+        if (savedInstanceState != null) {
+            val voiceRecordPath = savedInstanceState.getString("VOICE_MESSAGE")
+            ignoreReceiver = savedInstanceState.getBoolean("VOICE_MESSAGE_RECEIVER_IGNORE")
+            if (voiceRecordPath != null) {
+                recordingPath = voiceRecordPath
+                currentVoiceRecordingState = VoiceRecordState.StoppedRecording
+                binding.record.recordLayout.isVisible = false
+                binding.audioPresenter.recordingPresenterLayout.isVisible = true
+                if (recordingPath != null) setUpVoiceMessagePresenter(recordingPath!!)
+            }
+        }
     }
 
     private fun restoreDraft() {
@@ -541,43 +576,47 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
                     }
                 }
                 MotionEvent.ACTION_UP -> {
-                    if (currentVoiceRecordingState == VoiceRecordState.InitiatedRecording || currentVoiceRecordingState == VoiceRecordState.NotRecording) {
-                        handler.removeCallbacks(record)
-                        handler.removeCallbacks(timer)
-                        hideRecordPanel()
-                        beginTimer(false)
-                        enabledInputPanelButtons(true)
-                        navigator().lockScreen(false)
-                        currentVoiceRecordingState = VoiceRecordState.NotRecording
-                    } else if (currentVoiceRecordingState == VoiceRecordState.TouchRecording) {
-                        if (binding.record.chrRecordingTimer.text != "00:00") sendVoiceMessage()
-                        hideRecordPanel()
-                        navigator().lockScreen(false)
-                    }
-//                    if (binding.imLock.animation != null) currentVoiceRecordingState =
-//                        VoiceRecordState.StoppedRecording
-                    else if (currentVoiceRecordingState == VoiceRecordState.NoTouchRecording) {
-                        handler.post(stop)
-                    } else {
-                        binding.record.chrRecordingTimer.stop()
+                    when (currentVoiceRecordingState) {
+                        VoiceRecordState.InitiatedRecording, VoiceRecordState.NotRecording -> {
+                            handler.removeCallbacks(record)
+                            handler.removeCallbacks(timer)
+                            hideRecordPanel()
+                            beginTimer(false)
+                            enabledInputPanelButtons(true)
+                            navigator().lockScreen(false)
+                            currentVoiceRecordingState = VoiceRecordState.NotRecording
+                        }
+                        VoiceRecordState.TouchRecording -> {
+                            if (binding.record.chrRecordingTimer.text != "00:00")
+                                audioRecord.stopRecord()
+                                sendVoiceMessage(audioRecord.getRecordedFilePath()!!)
+                            hideRecordPanel()
+                            navigator().lockScreen(false)
+                        }
 
-                        val animRight =
-                            AnimationUtils.loadAnimation(context, R.anim.slide_to_right)
-                        binding.record.recordLayout.startAnimation(animRight)
-                        binding.record.recordLayout.isVisible = false
-                        binding.linRecordLock.isVisible = false
-                        binding.btnRecordExpanded.isVisible = false
-                        handler.removeCallbacks(record)
-                        handler.removeCallbacks(timer)
-                        stopTypingTimer?.cancel()
-                        navigator().lockScreen(false)
-                        if (saveAudioMessage && isPermissionGranted(Manifest.permission.RECORD_AUDIO)) sendMessage(
-                            "Audio message",
-                            null
-                        )
-                        hideRecordPanel()
-                        currentVoiceRecordingState = VoiceRecordState.NotRecording
-                        //   binding.buttonAttach.isVisible = true
+                        //                    if (binding.imLock.animation != null) currentVoiceRecordingState =
+                        //                        VoiceRecordState.StoppedRecording
+                        VoiceRecordState.NoTouchRecording -> {
+                            handler.post(stop)
+                        }
+                        else -> {
+                            binding.record.chrRecordingTimer.stop()
+
+                            val animRight =
+                                AnimationUtils.loadAnimation(context, R.anim.slide_to_right)
+                            binding.record.recordLayout.startAnimation(animRight)
+                            binding.record.recordLayout.isVisible = false
+                            binding.linRecordLock.isVisible = false
+                            binding.btnRecordExpanded.isVisible = false
+                            handler.removeCallbacks(record)
+                            handler.removeCallbacks(timer)
+                            stopTypingTimer?.cancel()
+                            navigator().lockScreen(false)
+                            if (saveAudioMessage && isPermissionGranted(Manifest.permission.RECORD_AUDIO)) sendVoiceMessage(audioRecord.getRecordedFilePath()!!)
+                            hideRecordPanel()
+                            currentVoiceRecordingState = VoiceRecordState.NotRecording
+                            //   binding.buttonAttach.isVisible = true
+                        }
                     }
                 }
                 MotionEvent.ACTION_MOVE -> {
@@ -632,14 +671,16 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
 
 
         binding.frameStop.setOnClickListener {
-            binding.frameStop.isVisible = false
-            binding.linRecordLock.isVisible = false
-            binding.record.slideLayout.isVisible = false
-            binding.record.linChronometr.isVisible = false
-            binding.btnRecordExpanded.hide()
-            binding.record.recordingPresenterLayout.isVisible = true
-            binding.record.voicePresenterTime.text =
-                binding.record.chrRecordingTimer.text.toString()
+          binding.frameStop.isVisible = false
+//            binding.linRecordLock.isVisible = false
+//            binding.record.slideLayout.isVisible = false
+//            binding.record.linChronometr.isVisible = false
+           binding.btnRecordExpanded.hide()
+            binding.record.recordLayout.isVisible = false
+            binding.audioPresenter.recordingPresenterLayout.isVisible = true
+         //   VoiceManager.getInstance().stopRecording(false)
+         audioRecord.stopRecord()
+            setUpVoiceMessagePresenter(audioRecord.getRecordedFilePath()!!)
         }
 
         binding.record.tvCancelRecording.setOnClickListener {
@@ -648,20 +689,21 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
             clearVoiceMessage()
         }
 
-        binding.record.voicePresenterDelete.setOnClickListener {
+        binding.audioPresenter.btnDeleteAudioMessage.setOnClickListener {
             currentVoiceRecordingState = VoiceRecordState.NotRecording
             hideRecordPanel()
             clearVoiceMessage()
         }
 
-        binding.record.btnSendStop.setOnClickListener {
-            sendMessage("Audio message", null)
+        binding.audioPresenter.btnSendAudioMessage.setOnClickListener {
+           sendVoiceMessage(audioRecord.getRecordedFilePath()!!)
             clearVoiceMessage()
+            enableStandardPanelButtons(true)
         }
 
         binding.btnRecordExpanded.setOnClickListener {
             if (isPermissionGranted(Manifest.permission.RECORD_AUDIO)) {
-                sendMessage("Audio message", null)
+                sendVoiceMessage(audioRecord.getRecordedFilePath()!!)
                 clearVoiceMessage()
             }
         }
@@ -914,6 +956,14 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         handler.postDelayed(timer, 500)
         handler.postDelayed(record, 500)
         saveAudioMessage = true
+        enableStandardPanelButtons(false)
+    }
+
+    private fun enableStandardPanelButtons(enable: Boolean) {
+        binding.buttonEmoticon.isEnabled = enable
+     //   binding.btnRecord.isEnabled = enable
+        binding.buttonAttach.isEnabled = enable
+        binding.buttonSendMessage.isEnabled = enable
     }
 
     private fun prepareUiForRecording() {
@@ -938,10 +988,29 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         }
     }
 
-    private fun sendVoiceMessage() {
+    private fun sendVoiceMessage(path: String) {
         beginTimer(false)
         VoiceManager.getInstance().stopRecording(false)
-        sendMessage("Audio Message", null)
+
+        val reference = MessageReferenceDto("a ${System.currentTimeMillis()},", uri=path, size = "", isAudioMessage = true)
+        val list = ArrayList<MessageReferenceDto>()
+        list.add(reference)
+        viewModel.insertMessage(getParams().id, MessageDto(
+            "${System.currentTimeMillis()}",
+            true,
+            viewModel.getChat(getParams().id)!!.owner,
+            viewModel.getChat(getParams().id)!!.opponentJid,
+            "",
+            MessageSendingState.Deliver,
+            System.currentTimeMillis(),
+            0,
+            MessageDisplayType.Text,
+            false,
+            false,
+            null,
+            false, null, false, isUnread = true, references = list
+        ))
+
         manageVoiceMessage(recordSaveAllowed)
         hideRecordPanel()
         scrollDown()
@@ -988,7 +1057,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         binding.record.slideLayout.clearAnimation()
         binding.imLock.setImageResource(R.drawable.ic_lock_base)
         binding.imLockBar.isVisible = true
-        binding.record.recordingPresenterLayout.isVisible = false
+        binding.audioPresenter.recordingPresenterLayout.isVisible = false
         binding.frameStop.clearAnimation()
         binding.frameStop.isVisible = false
 
@@ -1020,7 +1089,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
 
     private fun stopRecordingAndSend(send: Boolean) {
         if (send) {
-            sendMessage("Audio Message", null)
+           sendVoiceMessage(audioRecord.getRecordedFilePath()!!)
             currentVoiceRecordingState = VoiceRecordState.NotRecording
         } else {
             currentVoiceRecordingState = VoiceRecordState.NotRecording
@@ -1315,5 +1384,178 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         else return VALID_IMAGE_EXTENSIONS.contains(path)
     }
 
+
+
+    private fun createWaveformFromAudioData(audioData: ByteArray): ArrayList<Int> {
+        // Здесь следует реализовать логику создания волны из аудио данных
+        // Приведенный здесь код является примером и может потребоваться более сложная логика для создания волны
+        val waveform: ArrayList<Int> = ArrayList()
+
+        // Цикл обработки аудио данных
+        for (i in audioData.indices) {
+            // Пример: преобразование байта в целое число и добавление в волну
+            val value: Byte = audioData[i] and 0xFF.toByte() // Преобразование байта в беззнаковое целое число
+            waveform.add(value.toInt())
+        }
+        return waveform
+    }
+
+
+    private fun createWaveform(filePath: String, view: PlayerVisualizerView) {
+        // Получение файла из пути
+        val file = File(filePath)
+
+        // Проверка наличия файла
+        if (!file.exists()) {
+            // Обработка ошибки - файл не найден
+            return
+        }
+        try {
+            // Чтение аудио данных из файла
+            val inputStream: InputStream = FileInputStream(file)
+            val audioData = ByteArray(file.length().toInt())
+            inputStream.read(audioData)
+            inputStream.close()
+
+            // Создание волны из аудио данных
+            val waveform = createWaveformFromAudioData(audioData)
+view.updateVisualizer(waveform)
+            // Обновление визуализатора с волной
+        } catch (e: IOException) {
+            e.printStackTrace()
+        }
+    }
+
+
+   fun setUpVoiceMessagePresenter(path: String) {
+        Log.d("iii", "presenter $path")
+        val time = HttpFileUploadManager.getVoiceLength(path)
+        binding.audioPresenter.tvDuration.text = String.format(
+            Locale.getDefault(), "%02d:%02d",
+            TimeUnit.SECONDS.toMinutes(time),
+            TimeUnit.SECONDS.toSeconds(time)
+        )
+        subscribeForRecordedAudioProgress()
+    //    binding.record.recordingPresenterLayout.visibility = View.VISIBLE
+      //  createWaveform(path,  binding.record.voicePresenterVisualizer)
+       VoiceMessagePresenterManager.getInstance().sendWaveDataIfSaved(path, binding.audioPresenter.playerVisualizer)
+      //  recordingPresenter.updateVisualizerFromFile();
+//        VoiceMessagePresenterManager.getInstance()
+//            .sendWaveDataIfSaved(path, binding.record.voicePresenterVisualizer)
+       // binding.record.voicePresenterVisualizer.refreshVisualizer()
+       binding.audioPresenter.playerVisualizer.updatePlayerPercent(0f, false)
+
+        binding.audioPresenter.playerVisualizer.setOnTouchListener(object : PlayerVisualizerView.onProgressTouch() {
+            override fun onTouch(view: View, motionEvent: MotionEvent): Boolean {
+                when (motionEvent.action) {
+                    MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> return if (VoiceManager.getInstance()
+                            .playbackInProgress("", null)
+                    ) super.onTouch(view, motionEvent) else {
+                        (view as PlayerVisualizerView).updatePlayerPercent(0f, true)
+                        true
+                    }
+                    MotionEvent.ACTION_UP -> {
+                        if (VoiceManager.getInstance()
+                                .playbackInProgress("", null)
+                        ) VoiceManager.getInstance().seekAudioPlaybackTo(
+                            "", null, motionEvent.x
+                                .toInt(), view.width
+                        )
+                        view.performClick()
+                        return super.onTouch(view, motionEvent)
+                    }
+                }
+                return super.onTouch(view, motionEvent)
+            }
+        })
+     if (isPlaying) binding.audioPresenter.btnPlay.setImageResource(R.drawable.ic_pause) else binding.audioPresenter.btnPlay.setImageResource(R.drawable.ic_play)
+
+        binding.audioPresenter.btnPlay.setOnClickListener {
+         if (isPlaying) {
+
+         } else {
+
+         }
+        }
+        binding.audioPresenter.btnDeleteAudioMessage.setOnClickListener {
+            releaseRecordedVoicePlayback(path)
+            finishVoiceRecordLayout()
+            recordingPath = null
+            audioProgressSubscription?.dispose()
+            enableStandardPanelButtons(true)
+        }
+        binding.audioPresenter.btnSendAudioMessage.setOnClickListener {
+                sendStoppedVoiceMessage(path)
+            scrollDown()
+         //   setFirstUnreadMessageId(null)
+            finishVoiceRecordLayout()
+            recordingPath = null
+            audioProgressSubscription?.dispose()
+            binding.record.recordLayout.isVisible = false
+
+           binding.audioPresenter.recordingPresenterLayout.isVisible = false
+            enableStandardPanelButtons(true)
+        }
+    }
+
+  private  fun sendStoppedVoiceMessage(filePath: String?) {
+        sendStoppedVoiceMessage(filePath, null)
+    }
+
+   private fun sendStoppedVoiceMessage(filePath: String?, forwardIDs: List<String?>?) {
+      sendVoiceMessage(filePath!!)
+    }
+
+    private fun uploadVoiceFile(path: String) {
+        // отправляем на сервер
+    }
+
+    private fun releaseRecordedVoicePlayback(filePath: String?): Boolean {
+        VoiceManager.getInstance().releaseMediaPlayer()
+        VoiceMessagePresenterManager.getInstance().deleteOldPath(filePath)
+        val file = File(filePath)
+        if (file.exists()) {
+            FileManager.deleteTempFile(file)
+            return !file.exists()
+        }
+        return true
+    }
+
+    private fun subscribeForRecordedAudioProgress() {
+        val audioProgress = VoiceManager.PublishAudioProgress.getInstance().subscribeForProgress()
+        audioProgressSubscription =
+            audioProgress.doOnNext { info: VoiceManager.PublishAudioProgress.AudioInfo -> setUpAudioProgress(info) }
+                .subscribe()
+    }
+
+    private fun setUpAudioProgress(info: VoiceManager.PublishAudioProgress.AudioInfo) {
+        if (info.attachmentIdHash == 0) {
+            binding.audioPresenter.playerVisualizer.updatePlayerPercent(
+                info.currentPosition.toFloat() / info.duration,
+                false
+            )
+            if (info.resultCode == VoiceManager.COMPLETED_AUDIO_PROGRESS
+                || info.resultCode == VoiceManager.PAUSED_AUDIO_PROGRESS
+            ) {
+                binding.audioPresenter.btnPlay.setImageResource(R.drawable.ic_play)
+            } else binding.audioPresenter.btnPlay.setImageResource(R.drawable.ic_pause)
+        }
+    }
+
+    private fun finishVoiceRecordLayout() {
+        binding.record.recordLayout.isVisible = false
+        binding.audioPresenter.recordingPresenterLayout.isVisible = false
+        binding.audioPresenter.playerVisualizer.updateVisualizer(null)
+        currentVoiceRecordingState = VoiceRecordState.NotRecording
+    }
+
+
+//    fun setVoicePresenterData(tempFilePath: String?) {
+//        recordingPath = tempFilePath
+//        if (recordingPath != null) {
+//            setUpVoiceMessagePresenter()
+//
+//        }
+//    }
 
 }

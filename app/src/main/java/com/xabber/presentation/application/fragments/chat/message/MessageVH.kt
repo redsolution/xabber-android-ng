@@ -24,9 +24,11 @@ import com.xabber.dto.MessageReferenceDto
 import com.xabber.presentation.application.fragments.chat.ChatSettingsManager
 import com.xabber.presentation.application.fragments.chat.Check
 import com.xabber.presentation.application.fragments.chat.MessageVhExtraData
+import com.xabber.presentation.application.fragments.chat.audio.VoiceMessagePresenterManager
 import com.xabber.utils.StringUtils
 import com.xabber.utils.StringUtils.getDateStringForMessage
 import com.xabber.utils.custom.CorrectlyTouchEventTextView
+import com.xabber.utils.custom.PlayerVisualizerView
 import com.xabber.utils.custom.ShapeOfView
 import com.xabber.utils.dp
 import org.osmdroid.views.overlay.Polygon.OnClickListener
@@ -67,15 +69,15 @@ abstract class MessageVH(
         initViews()
 
         if (message.displayType != MessageDisplayType.System) {
-
-
             balloon?.removeAllViews()
+
             if (message.references.size > 0) {
                 if (message.references[0].isGeo) addGeoLocationBox(
                     inflater,
                     message.references[0].latitude,
                     message.references[0].longitude
                 )
+                else if (message.references[0].isAudioMessage) addVoiceMessageBox(inflater, message.references[0].uri!!)
                 else {
                     val images = ArrayList<MessageReferenceDto>()
                     val otherFiles = ArrayList<MessageReferenceDto>()
@@ -97,13 +99,11 @@ abstract class MessageVH(
             setBalloonBackground(message.isOutgoing, needTail)
             setItemCheckedBackground(message.isChecked)
         }
-
         if (tvTime != null) {
             val dates = Date(message.sentTimestamp)
             val time = StringUtils.getTimeText(itemView.context, dates)
             tvTime?.text = if (message.editTimestamp > 0) "edit $time" else time
         }
-
         needDate = vhExtraData.isNeedDate
         date = getDateStringForMessage(message.sentTimestamp)
     }
@@ -200,6 +200,17 @@ abstract class MessageVH(
 //        mapImage.setImageBitmap(bitmap)
 //        handler.postDelayed(im, 2000)
         locationBox.setOnClickListener { onViewClickListener?.onLocationClick(latitude, longitude) }
+    }
+
+    private fun addVoiceMessageBox(inflater: LayoutInflater, path: String) {
+        val voiceMessageBox = inflater.inflate(
+            R.layout.voice_message_box,
+            messageContainer,
+            false
+        )
+        messageContainer?.addView(voiceMessageBox)
+val presenter = messageContainer?.findViewById<PlayerVisualizerView>(R.id.player_visualizer)
+        VoiceMessagePresenterManager.getInstance().sendWaveDataIfSaved(path, presenter)
     }
 
     private fun addImageAndVideoBox(

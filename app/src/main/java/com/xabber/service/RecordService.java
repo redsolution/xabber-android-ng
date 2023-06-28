@@ -89,7 +89,6 @@ public class RecordService extends Service {
 
     public static void record(Context context, String fileName) {
         Intent intent = new Intent(context, RecordService.class);
-        intent.setAction(ACTION_OPUSSERVICE);
         intent.putExtra(EXTRA_CMD, CMD_RECORD);
         intent.putExtra(EXTRA_FILE_NAME, fileName);
         context.startService(intent);
@@ -101,7 +100,6 @@ public class RecordService extends Service {
         intent.putExtra(EXTRA_CMD, CMD_STOP_RECORDING);
         context.startService(intent);
     }
-
 
     public void onHandleIntent(Intent intent) {
         if (intent != null) {

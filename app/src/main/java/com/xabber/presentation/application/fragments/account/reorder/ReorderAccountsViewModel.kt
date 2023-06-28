@@ -37,7 +37,6 @@ class ReorderAccountsViewModel : ViewModel() {
                     account?.order = index
                 }
             }
-
         }
     }
 

@@ -39,4 +39,5 @@ class MessageReferenceStorageItem: RealmObject {
     var isVideo = false
     var latitude = 0.0
     var longitude = 0.0
+    var isAudioMessage = false
 }

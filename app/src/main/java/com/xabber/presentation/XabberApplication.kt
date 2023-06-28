@@ -2,9 +2,11 @@ package com.xabber.presentation
 
 import android.app.Application
 import android.content.Context
-import android.util.Log
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 
 class XabberApplication : Application() {
+    private var backgroundExecutorForUserActions: ExecutorService? = null
 
     companion object {
         private var instance: XabberApplication? = null
@@ -25,6 +27,17 @@ class XabberApplication : Application() {
       //  a.startCounter()
     }
 
+
+
+    fun runInBackgroundUserRequest(runnable: Runnable) {
+        backgroundExecutorForUserActions?.submit(Runnable {
+            try {
+                runnable.run()
+            } catch (e: Exception) {
+
+            }
+        })
+    }
 
 }
      //   FirebaseApp.initializeApp(applicationContext)

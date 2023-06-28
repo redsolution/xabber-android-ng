@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/record_layout"
     android:layout_width="match_parent"
     android:layout_height="?attr/actionBarSize"
@@ -83,73 +82,4 @@
             android:layout_weight="1"
             android:alpha="0.7" />
     </LinearLayout>
-
-    <androidx.constraintlayout.widget.ConstraintLayout
-        android:id="@+id/recording_presenter_layout"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:orientation="horizontal"
-        android:visibility="gone">
-
-        <ImageButton
-            android:id="@+id/voice_presenter_delete"
-            android:layout_width="52dp"
-            android:layout_height="52dp"
-            android:background="@color/transparent"
-            android:src="@drawable/ic_trash_grey"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
-
-        <LinearLayout
-            android:id="@+id/recording_playbar_layout"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_marginTop="6dp"
-            android:layout_marginBottom="6dp"
-            android:background="@drawable/rounded_background_grey"
-            android:gravity="center_vertical"
-            android:orientation="horizontal"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toStartOf="@id/btn_send_stop"
-            app:layout_constraintStart_toEndOf="@id/voice_presenter_delete"
-            app:layout_constraintTop_toTopOf="parent">
-
-
-            <com.xabber.utils.custom.PlayerVisualizerView
-                android:id="@+id/voice_presenter_visualizer"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:layout_marginLeft="5dp"
-                android:layout_weight="8"
-                android:visibility="visible" />
-
-            <TextView
-                android:id="@+id/voice_presenter_time"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:gravity="center|right"
-                android:maxLines="1"
-                android:paddingLeft="5dp"
-                android:text="1:23"
-                android:textColor="@color/white"
-                tools:text="1:23" />
-        </LinearLayout>
-
-        <ImageButton
-            android:id="@+id/btn_send_stop"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="16dp"
-            android:layout_marginEnd="12dp"
-            android:background="@color/transparent"
-            android:src="@drawable/ic_send_blue"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toEndOf="@id/recording_playbar_layout"
-            app:layout_constraintTop_toTopOf="parent" />
-
-
-    </androidx.constraintlayout.widget.ConstraintLayout>
-
 </androidx.constraintlayout.widget.ConstraintLayout>

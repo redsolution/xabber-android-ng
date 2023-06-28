@@ -8,6 +8,7 @@ import android.media.MediaMetadataRetriever;
 import android.media.MediaPlayer;
 import android.media.MediaRecorder;
 import android.os.Build;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
@@ -49,6 +50,7 @@ public final class VoiceManager implements MediaPlayer.OnCompletionListener, Med
     private int voiceFileDuration;
     private int voiceAttachmentDuration;
     private int result;
+    private File audioFile;
 
     private final Object mFocusLock = new Object();
 
@@ -65,8 +67,13 @@ public final class VoiceManager implements MediaPlayer.OnCompletionListener, Med
     }
 
     private VoiceManager() {
-        Log.d("iii", "XabberApplication.Companion.newInstance() =" +  XabberApplication.Companion.applicationContext());
         audioManager = (AudioManager) XabberApplication.Companion.applicationContext().getSystemService(Context.AUDIO_SERVICE);
+    }
+
+
+    public File getAudioFile() {
+        Log.d("iii", "get =" + tempOpusPath);
+        return audioFile;
     }
 
     private final Runnable updateAudioProgress = new Runnable() {
@@ -415,16 +422,22 @@ public final class VoiceManager implements MediaPlayer.OnCompletionListener, Med
     }
 
     public void startRecording() {
+        File directory = new File(Environment.getExternalStorageDirectory(), "AudioRecordings");
+        if (!directory.exists()) {
+            directory.mkdirs();
+        }
+
+        // Создаем файл для сохранения аудио
+        audioFile = new File(directory, "audio" + System.currentTimeMillis());
         File tempOpusFile;
         try {
-            tempOpusFile = FileManager.createTempOpusFile("tempOpusFile");
-            RecordService.record(XabberApplication.Companion.applicationContext().getApplicationContext(), tempOpusFile.getPath());
+           // tempOpusFile = FileManager.createTempOpusFile("tempOpusFile");
+            RecordService.record(XabberApplication.Companion.applicationContext().getApplicationContext(), audioFile.getPath());
             deleteRecordedFile();
-            tempOpusPath = tempOpusFile.getPath();
-            Log.d("iii", tempOpusPath + " " + tempOpusFile.exists());
+        //    tempOpusPath = tempOpusFile.getPath();
+        //    Log.d("iii", tempOpusPath + " " + tempOpusFile.exists());
         } catch (Exception e) {
-            Log.d("iii", "ERROr");
-           // LogManager.exception(getClass().getSimpleName(), e);
+
         }
     }
 
@@ -472,13 +485,12 @@ public final class VoiceManager implements MediaPlayer.OnCompletionListener, Med
     }
 
     public boolean stopRecording(boolean deleteTempFile) {
+        Log.d("iii", "stop" + tempOpusPath);
         try {
             RecordService.stopRecording(XabberApplication.Companion.applicationContext().getApplicationContext());
-            if (deleteTempFile)
-                deleteRecordedFile();
+            if (deleteTempFile) deleteRecordedFile();
             return true;
         } catch (Exception e) {
-           // LogManager.exception(getClass().getSimpleName(), e);
         }
         return false;
     }
