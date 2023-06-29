@@ -54,7 +54,7 @@ import java.util.concurrent.TimeUnit
 
 
 class PickGeolocationActivity : AppCompatActivity() {
-    private val chatVM: ChatViewModel by viewModels()
+    private val chatVM: PickGeolocationViewModel by viewModels()
     private val binding: ActivityPickGeolocationBinding by lazy {
         ActivityPickGeolocationBinding.inflate(
             layoutInflater
@@ -460,7 +460,7 @@ class PickGeolocationActivity : AppCompatActivity() {
                         isGeo = true,
                         latitude = lat,
                         longitude = lon,
-                        size = ""
+                        size = 0L
                     )
                     val refer = ArrayList<MessageReferenceDto>()
                     refer.add(geoMessage)

@@ -2,7 +2,7 @@ package com.xabber.presentation.application.fragments.chat.audio
 
 import android.media.MediaRecorder
 class AudioRecord {
-
+    private val currentPlayingAttachmentId: String? = null
     private var recorder: MediaRecorder? = null
     private var outputFile: String? = null
 
@@ -41,6 +41,5 @@ class AudioRecord {
     fun getRecordedFilePath(): String? {
         return outputFile
     }
-
 
 }

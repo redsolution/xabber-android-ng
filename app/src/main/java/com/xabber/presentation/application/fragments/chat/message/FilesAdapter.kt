@@ -1,5 +1,8 @@
 package com.xabber.presentation.application.fragments.chat.message
 
+import android.annotation.SuppressLint
+import android.content.Context
+import android.net.Uri
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import android.widget.ImageView
@@ -10,7 +13,7 @@ import com.xabber.databinding.ItemFileMessageBinding
 import com.xabber.dto.MessageReferenceDto
 
 
-class FilesAdapter(private val files: ArrayList<MessageReferenceDto>, private val timeStamp: Long) :
+class FilesAdapter(private val files: ArrayList<MessageReferenceDto>, private val timeStamp: Long, private val listener: OnFileClickListener) :
     ListAdapter<MessageReferenceDto, FileViewHolder>(object :
         DiffUtil.ItemCallback<MessageReferenceDto>() {
         override fun areItemsTheSame(oldItem: MessageReferenceDto, newItem: MessageReferenceDto) =
@@ -23,6 +26,10 @@ class FilesAdapter(private val files: ArrayList<MessageReferenceDto>, private va
             oldItem == newItem
     }) {
 
+    interface OnFileClickListener {
+        fun onFileClick(path: String)
+    }
+
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): FileViewHolder {
         val inflater = LayoutInflater.from(parent.context)
         val binding = ItemFileMessageBinding.inflate(inflater, parent, false)
@@ -32,6 +39,10 @@ class FilesAdapter(private val files: ArrayList<MessageReferenceDto>, private va
     override fun onBindViewHolder(holder: FileViewHolder, position: Int) {
         val icon = holder.view.findViewById<ImageView>(R.id.ivFileIcon)
         icon.setImageResource(getFileIconByCategory(FileCategory.determineFileCategory(files[position].mimeType)))
+        holder.view.setOnClickListener {
+          if (files[position].uri != null)  listener.onFileClick(files[position].uri!!)
+        }
+        holder.bind(files[position])
     }
 
     override fun getItemCount() = files.size
@@ -48,8 +59,11 @@ class FilesAdapter(private val files: ArrayList<MessageReferenceDto>, private va
             FileCategory.TABLE -> R.drawable.ic_table
             FileCategory.PRESENTATION -> R.drawable.ic_presentation
             FileCategory.ARCHIVE -> R.drawable.ic_archive
+            FileCategory.APK -> R.drawable.ic_baseline_get_app_24
             else -> R.drawable.ic_file_grey
         }
     }
+
+
 
 }

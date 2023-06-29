@@ -1,10 +1,12 @@
 package com.xabber.presentation.application.fragments.chat.message
 
 import android.content.Context
+import android.content.Intent
 import android.graphics.PorterDuff
 import android.graphics.PorterDuffColorFilter
 import android.graphics.drawable.ShapeDrawable
 import android.graphics.drawable.shapes.RoundRectShape
+import android.media.MediaPlayer
 import android.util.Log
 import android.view.Gravity
 import android.view.LayoutInflater
@@ -13,6 +15,7 @@ import android.widget.*
 import androidx.appcompat.widget.LinearLayoutCompat
 import androidx.appcompat.widget.PopupMenu
 import androidx.core.content.ContextCompat
+import androidx.core.net.toUri
 import androidx.core.view.isInvisible
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.RecyclerView
@@ -21,6 +24,7 @@ import com.xabber.data_base.models.messages.MessageDisplayType
 import com.xabber.data_base.models.messages.MessageSendingState
 import com.xabber.dto.MessageDto
 import com.xabber.dto.MessageReferenceDto
+import com.xabber.presentation.XabberApplication
 import com.xabber.presentation.application.fragments.chat.ChatSettingsManager
 import com.xabber.presentation.application.fragments.chat.Check
 import com.xabber.presentation.application.fragments.chat.MessageVhExtraData
@@ -31,15 +35,13 @@ import com.xabber.utils.custom.CorrectlyTouchEventTextView
 import com.xabber.utils.custom.PlayerVisualizerView
 import com.xabber.utils.custom.ShapeOfView
 import com.xabber.utils.dp
-import org.osmdroid.views.overlay.Polygon.OnClickListener
 import java.util.*
-import kotlin.collections.ArrayList
 
 abstract class MessageVH(
     itemView: View,
     private val menuItemListener: MessageAdapter.MenuItemListener?,
     private val onViewClickListener: MessageAdapter.OnViewClickListener?
-) : RecyclerView.ViewHolder(itemView) {
+) : RecyclerView.ViewHolder(itemView), FilesAdapter.OnFileClickListener {
     var needDate = false
     var date: String? = null
     var isUnread = false
@@ -55,16 +57,40 @@ abstract class MessageVH(
 
     interface MessageClickListener {
         fun onMessageClick(caller: View, position: Int)
+    //   fun onFileClick(path: String)
     }
 
     interface MessageLongClickListener {
         fun onLongMessageClick(position: Int)
     }
 
+    override fun onFileClick(path: String) {
+        val contentResolver = XabberApplication.applicationContext().contentResolver
+        val intent = Intent(Intent.ACTION_VIEW)
+        intent.setDataAndType(path.toUri(), contentResolver.getType(path.toUri()))
+        intent.flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_CLEAR_TOP
+
+        try {
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            Toast.makeText(context, "Невозможно открыть файл", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     open fun bind(message: MessageDto, vhExtraData: MessageVhExtraData) {
         val inflater = LayoutInflater.from(context)
-        var needTail: Boolean =
-            if (message.references.isNotEmpty() && message.messageBody.isEmpty()) false else vhExtraData.isNeedTail
+        val images = ArrayList<MessageReferenceDto>()
+        val otherFiles = ArrayList<MessageReferenceDto>()
+        if (message.references.isNotEmpty()) {
+            for (reference in message.references) {
+                val category = FileCategory.determineFileCategory(reference.mimeType)
+                if (category == FileCategory.IMAGE || category == FileCategory.VIDEO)
+                    images.add(reference)
+                else otherFiles.add(reference)
+            }
+        }
+        val needTail: Boolean =
+            if ((message.references.isNotEmpty() && message.messageBody.isEmpty() && otherFiles.isEmpty()) || message.references[0].isGeo) false else vhExtraData.isNeedTail
 
         initViews()
 
@@ -77,7 +103,10 @@ abstract class MessageVH(
                     message.references[0].latitude,
                     message.references[0].longitude
                 )
-                else if (message.references[0].isAudioMessage) addVoiceMessageBox(inflater, message.references[0].uri!!)
+                else if (message.references[0].isAudioMessage) addVoiceMessageBox(
+                    inflater,
+                    message.references[0].uri!!
+                )
                 else {
                     val images = ArrayList<MessageReferenceDto>()
                     val otherFiles = ArrayList<MessageReferenceDto>()
@@ -87,9 +116,10 @@ abstract class MessageVH(
                             images.add(reference)
                         else otherFiles.add(reference)
                     }
-                   if (images.isNotEmpty()) addImageAndVideoBox(message, images)
-                    if (otherFiles.isNotEmpty()) { addFilesBox(inflater, message, otherFiles)
-                    needTail = true}
+                    if (images.isNotEmpty()) addImageAndVideoBox(message, images)
+                    if (otherFiles.isNotEmpty()) {
+                        addFilesBox(inflater, message, otherFiles)
+                    }
                 }
             }
             if (message.messageBody.isNotEmpty()) addTextBox(inflater, message)
@@ -209,8 +239,42 @@ abstract class MessageVH(
             false
         )
         messageContainer?.addView(voiceMessageBox)
-val presenter = messageContainer?.findViewById<PlayerVisualizerView>(R.id.player_visualizer)
+        val presenter = voiceMessageBox?.findViewById<PlayerVisualizerView>(R.id.player_visualizer)
+        val button = voiceMessageBox?.findViewById<ImageButton>(R.id.btn_play)
+
         VoiceMessagePresenterManager.getInstance().sendWaveDataIfSaved(path, presenter)
+        val mediaPlayer = MediaPlayer()
+        var isPlaying = false
+
+// Устанавливаем источник аудиофайла
+        mediaPlayer.setDataSource(path)
+
+// Подготавливаем MediaPlayer перед воспроизведением
+        mediaPlayer.prepare()
+
+// Воспроизводим аудиофайл
+//        mediaPlayer.start()
+//
+//// Ставим воспроизведение на паузу
+//        mediaPlayer.pause()
+//
+//// Возобновляем воспроизведение с паузы
+//        mediaPlayer.start()
+
+// Освобождаем ресурсы MediaPlayer после окончания воспроизведения
+        //   mediaPlayer.release()
+        button?.setOnClickListener {
+            if (isPlaying) {
+
+                mediaPlayer.pause()
+                button.setImageResource(R.drawable.ic_play)
+                isPlaying = false
+            } else {
+                mediaPlayer.start()
+                isPlaying = true
+                button.setImageResource(R.drawable.ic_pause)
+            }
+        }
     }
 
     private fun addImageAndVideoBox(
@@ -257,16 +321,21 @@ val presenter = messageContainer?.findViewById<PlayerVisualizerView>(R.id.player
         image3?.setOnClickListener(onClickListener)
         image4?.setOnClickListener(onClickListener)
         image5?.setOnClickListener(onClickListener)
-        }
+    }
 
-    private fun addFilesBox(inflater: LayoutInflater, message: MessageDto, files: ArrayList<MessageReferenceDto>) {
+    private fun addFilesBox(
+        inflater: LayoutInflater,
+        message: MessageDto,
+        files: ArrayList<MessageReferenceDto>
+    ) {
+        Log.d("iii", "files[0].fileName ${files[0].fileName}")
         val filesBox = inflater.inflate(
             R.layout.files_box,
             messageContainer,
             false
         )
         messageContainer?.addView(filesBox)
-        val adapter = FilesAdapter(files, message.sentTimestamp)
+        val adapter = FilesAdapter(files, message.sentTimestamp, this)
         val recyclerView = filesBox.findViewById<RecyclerView>(R.id.file_list_rv)
         recyclerView.adapter = adapter
         adapter.submitList(files)

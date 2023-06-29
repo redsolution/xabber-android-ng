@@ -22,6 +22,8 @@ import io.realm.kotlin.ext.realmListOf
 import io.realm.kotlin.notifications.ResultsChange
 import io.realm.kotlin.notifications.UpdatedResults
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.flowOn
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody.Companion.asRequestBody
@@ -35,14 +37,14 @@ import retrofit2.converter.gson.GsonConverterFactory
 import java.io.File
 
 
-class ChatViewModel : ViewModel() {
+class ChatViewModel(private val chatId: String, private val chatRepository: ChatRepository) : ViewModel() {
     val realm = Realm.open(defaultRealmConfig())
 
     private val _chat = MutableLiveData<ChatListDto?>()
     val chat: LiveData<ChatListDto?> = _chat
 
-    private val _messages = MutableLiveData<ArrayList<MessageDto>>()
-    val messages: LiveData<ArrayList<MessageDto>> = _messages
+    private val _messages = MutableLiveData<List<MessageDto>>()
+    val messages: LiveData<List<MessageDto>> = _messages
 
     private var job: Job? = null
 
@@ -66,30 +68,23 @@ class ChatViewModel : ViewModel() {
 
     private var count = 0
 
-    companion object {
-
-        val Factory: ViewModelProvider.Factory = object : ViewModelProvider.Factory {
-            override fun <T : ViewModel> create(
-                modelClass: Class<T>
-            ): T {
-                return ChatViewModel(
-                ) as T
-            }
-        }
-    }
-
-
     init {
-
+         loadChat()
+      //   observeMessages()
     }
 
-    fun getAccountColor(owner: String): String {
-        var colorKey = "blue"
-        realm.writeBlocking {
-            val account = this.query(com.xabber.data_base.models.account.AccountStorageItem::class, "jid = '$owner'").first().find()
-            if (account != null) colorKey = account.colorKey
+    private fun observeMessages() {
+        viewModelScope.launch {
+            chatRepository.observeMessages()
+                .flowOn(Dispatchers.Main)
+                .collect {
+                    _messages.postValue(it)
+                }
         }
-        return colorKey
+    }
+
+    private fun loadChat() {
+
     }
 
     fun initMessagesListener(owner: String, opponentJid: String) {
@@ -115,17 +110,15 @@ class ChatViewModel : ViewModel() {
                                 MessageDisplayType.Text,
                                 canEditMessage = false,
                                 canDeleteMessage = false,
-                                null, // hasAttachment
-                                false, // isSystemMessage
-                                null, //isMentioned
+                                null,
+                                false,
+                                null,
                                 false,
                                 references= T.references.map { T -> T.toMessageReferenceDto() } as ArrayList<MessageReferenceDto>,
                                 isChecked = selectedItems.contains(T.primary),
-                                isUnread = !T.isRead// почему дабл
-
+                                isUnread = !T.isRead
                             )
                         })
-
                         count = 0
                         for (i in 0 until list.size) {
                             if (list[i].isUnread) count++
@@ -267,6 +260,8 @@ class ChatViewModel : ViewModel() {
                         latitude = messageDto.references[i].latitude
                         longitude = messageDto.references[i].longitude
                         isAudioMessage = messageDto.references[i].isAudioMessage
+                        fileName = messageDto.references[i].fileName
+                        fileSize = messageDto.references[i].size
                     })
                     rreferences.add(ref)
                 }

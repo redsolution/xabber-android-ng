@@ -69,6 +69,8 @@ import io.realm.kotlin.Realm
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import org.koin.androidx.viewmodel.ext.android.viewModel
+import org.koin.core.parameter.parametersOf
 import java.io.File
 import java.io.FileInputStream
 import java.io.IOException
@@ -78,19 +80,21 @@ import java.util.concurrent.TimeUnit
 import kotlin.experimental.and
 
 
-class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.MenuItemListener, MessageAdapter.OnViewClickListener,
+class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.MenuItemListener,
+    MessageAdapter.OnViewClickListener,
     IncomingMessageVH.BindListener,
     ReplySwipeCallback.SwipeAction {
     private val binding by viewBinding(FragmentChatBinding::bind)
     private val handler = Handler(Looper.getMainLooper())
     private var messageAdapter: MessageAdapter? = null
     private var layoutManager: LinearLayoutManager? = null
-    private val viewModel: ChatViewModel by viewModels()
-    private val chatListViewModel: ChatListViewModel by activityViewModels()
+    private val viewModel: ChatViewModel by viewModel { parametersOf(getParams().id) }
+    private var replySwipeCallback: ReplySwipeCallback? = null
+
     private var isNeedScrollDown = false
     private var editMessageId: String? = null
     private val enableNotificationsCode = 0L
-    private var replySwipeCallback: ReplySwipeCallback? = null
+
     private var isSelectedMode = false
     private var replyingMessage: MessageDto? = null
     private var currentVoiceRecordingState = VoiceRecordState.NotRecording
@@ -151,8 +155,9 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     }
 
     private val record = Runnable {
-       // VoiceManager.getInstance().startRecording()
-        val outputDir = context?.getExternalFilesDir(null) // Получаем директорию, где будет сохраняться файл
+        // VoiceManager.getInstance().startRecording()
+        val outputDir =
+            context?.getExternalFilesDir(null) // Получаем директорию, где будет сохраняться файл
         val fileName = "${System.currentTimeMillis()} audio_file.mp4" // Название файла
 
         val outputPath = File(outputDir, fileName).absolutePath
@@ -589,7 +594,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
                         VoiceRecordState.TouchRecording -> {
                             if (binding.record.chrRecordingTimer.text != "00:00")
                                 audioRecord.stopRecord()
-                                sendVoiceMessage(audioRecord.getRecordedFilePath()!!)
+                            sendVoiceMessage(audioRecord.getRecordedFilePath()!!)
                             hideRecordPanel()
                             navigator().lockScreen(false)
                         }
@@ -612,7 +617,9 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
                             handler.removeCallbacks(timer)
                             stopTypingTimer?.cancel()
                             navigator().lockScreen(false)
-                            if (saveAudioMessage && isPermissionGranted(Manifest.permission.RECORD_AUDIO)) sendVoiceMessage(audioRecord.getRecordedFilePath()!!)
+                            if (saveAudioMessage && isPermissionGranted(Manifest.permission.RECORD_AUDIO)) sendVoiceMessage(
+                                audioRecord.getRecordedFilePath()!!
+                            )
                             hideRecordPanel()
                             currentVoiceRecordingState = VoiceRecordState.NotRecording
                             //   binding.buttonAttach.isVisible = true
@@ -671,15 +678,15 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
 
 
         binding.frameStop.setOnClickListener {
-          binding.frameStop.isVisible = false
+            binding.frameStop.isVisible = false
 //            binding.linRecordLock.isVisible = false
 //            binding.record.slideLayout.isVisible = false
 //            binding.record.linChronometr.isVisible = false
-           binding.btnRecordExpanded.hide()
+            binding.btnRecordExpanded.hide()
             binding.record.recordLayout.isVisible = false
             binding.audioPresenter.recordingPresenterLayout.isVisible = true
-         //   VoiceManager.getInstance().stopRecording(false)
-         audioRecord.stopRecord()
+            //   VoiceManager.getInstance().stopRecording(false)
+            audioRecord.stopRecord()
             setUpVoiceMessagePresenter(audioRecord.getRecordedFilePath()!!)
         }
 
@@ -696,7 +703,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         }
 
         binding.audioPresenter.btnSendAudioMessage.setOnClickListener {
-           sendVoiceMessage(audioRecord.getRecordedFilePath()!!)
+            sendVoiceMessage(audioRecord.getRecordedFilePath()!!)
             clearVoiceMessage()
             enableStandardPanelButtons(true)
         }
@@ -933,7 +940,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
 ////        binding.tvNewReceivedCount.viewTreeObserver.addOnGlobalLayoutListener(object :
 ////            ViewTreeObserver.OnGlobalLayoutListener {
 ////            override fun onGlobalLay
-    // out() {
+        // out() {
 //                if (count > 0) {
 //                    BadgeUtils.attachBadgeDrawable(badgeDrawable, binding.btnDownward)
 //                    badgeDrawable.number = count
@@ -961,7 +968,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
 
     private fun enableStandardPanelButtons(enable: Boolean) {
         binding.buttonEmoticon.isEnabled = enable
-     //   binding.btnRecord.isEnabled = enable
+        //   binding.btnRecord.isEnabled = enable
         binding.buttonAttach.isEnabled = enable
         binding.buttonSendMessage.isEnabled = enable
     }
@@ -992,24 +999,31 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         beginTimer(false)
         VoiceManager.getInstance().stopRecording(false)
 
-        val reference = MessageReferenceDto("a ${System.currentTimeMillis()},", uri=path, size = "", isAudioMessage = true)
+        val reference = MessageReferenceDto(
+            "a ${System.currentTimeMillis()},",
+            uri = path,
+            size = 0L,
+            isAudioMessage = true
+        )
         val list = ArrayList<MessageReferenceDto>()
         list.add(reference)
-        viewModel.insertMessage(getParams().id, MessageDto(
-            "${System.currentTimeMillis()}",
-            true,
-            viewModel.getChat(getParams().id)!!.owner,
-            viewModel.getChat(getParams().id)!!.opponentJid,
-            "",
-            MessageSendingState.Deliver,
-            System.currentTimeMillis(),
-            0,
-            MessageDisplayType.Text,
-            false,
-            false,
-            null,
-            false, null, false, isUnread = true, references = list
-        ))
+        viewModel.insertMessage(
+            getParams().id, MessageDto(
+                "${System.currentTimeMillis()}",
+                true,
+                viewModel.getChat(getParams().id)!!.owner,
+                viewModel.getChat(getParams().id)!!.opponentJid,
+                "",
+                MessageSendingState.Deliver,
+                System.currentTimeMillis(),
+                0,
+                MessageDisplayType.Text,
+                false,
+                false,
+                null,
+                false, null, false, isUnread = true, references = list
+            )
+        )
 
         manageVoiceMessage(recordSaveAllowed)
         hideRecordPanel()
@@ -1089,7 +1103,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
 
     private fun stopRecordingAndSend(send: Boolean) {
         if (send) {
-           sendVoiceMessage(audioRecord.getRecordedFilePath()!!)
+            sendVoiceMessage(audioRecord.getRecordedFilePath()!!)
             currentVoiceRecordingState = VoiceRecordState.NotRecording
         } else {
             currentVoiceRecordingState = VoiceRecordState.NotRecording
@@ -1309,7 +1323,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         super.onDestroyView()
         saveLastPosition()
         saveDraft()
-        chatListViewModel.selectedChatId = ""
+//        chatListViewModel.selectedChatId = ""
         realm.close()
         onBackPressedCallback.remove()
     }
@@ -1385,7 +1399,6 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     }
 
 
-
     private fun createWaveformFromAudioData(audioData: ByteArray): ArrayList<Int> {
         // Здесь следует реализовать логику создания волны из аудио данных
         // Приведенный здесь код является примером и может потребоваться более сложная логика для создания волны
@@ -1394,7 +1407,8 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         // Цикл обработки аудио данных
         for (i in audioData.indices) {
             // Пример: преобразование байта в целое число и добавление в волну
-            val value: Byte = audioData[i] and 0xFF.toByte() // Преобразование байта в беззнаковое целое число
+            val value: Byte =
+                audioData[i] and 0xFF.toByte() // Преобразование байта в беззнаковое целое число
             waveform.add(value.toInt())
         }
         return waveform
@@ -1419,7 +1433,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
 
             // Создание волны из аудио данных
             val waveform = createWaveformFromAudioData(audioData)
-view.updateVisualizer(waveform)
+            view.updateVisualizer(waveform)
             // Обновление визуализатора с волной
         } catch (e: IOException) {
             e.printStackTrace()
@@ -1427,7 +1441,7 @@ view.updateVisualizer(waveform)
     }
 
 
-   fun setUpVoiceMessagePresenter(path: String) {
+    fun setUpVoiceMessagePresenter(path: String) {
         Log.d("iii", "presenter $path")
         val time = HttpFileUploadManager.getVoiceLength(path)
         binding.audioPresenter.tvDuration.text = String.format(
@@ -1436,16 +1450,18 @@ view.updateVisualizer(waveform)
             TimeUnit.SECONDS.toSeconds(time)
         )
         subscribeForRecordedAudioProgress()
-    //    binding.record.recordingPresenterLayout.visibility = View.VISIBLE
-      //  createWaveform(path,  binding.record.voicePresenterVisualizer)
-       VoiceMessagePresenterManager.getInstance().sendWaveDataIfSaved(path, binding.audioPresenter.playerVisualizer)
-      //  recordingPresenter.updateVisualizerFromFile();
+        //    binding.record.recordingPresenterLayout.visibility = View.VISIBLE
+        //  createWaveform(path,  binding.record.voicePresenterVisualizer)
+        VoiceMessagePresenterManager.getInstance()
+            .sendWaveDataIfSaved(path, binding.audioPresenter.playerVisualizer)
+        //  recordingPresenter.updateVisualizerFromFile();
 //        VoiceMessagePresenterManager.getInstance()
 //            .sendWaveDataIfSaved(path, binding.record.voicePresenterVisualizer)
-       // binding.record.voicePresenterVisualizer.refreshVisualizer()
-       binding.audioPresenter.playerVisualizer.updatePlayerPercent(0f, false)
+        // binding.record.voicePresenterVisualizer.refreshVisualizer()
+        binding.audioPresenter.playerVisualizer.updatePlayerPercent(0f, false)
 
-        binding.audioPresenter.playerVisualizer.setOnTouchListener(object : PlayerVisualizerView.onProgressTouch() {
+        binding.audioPresenter.playerVisualizer.setOnTouchListener(object :
+            PlayerVisualizerView.onProgressTouch() {
             override fun onTouch(view: View, motionEvent: MotionEvent): Boolean {
                 when (motionEvent.action) {
                     MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> return if (VoiceManager.getInstance()
@@ -1468,14 +1484,20 @@ view.updateVisualizer(waveform)
                 return super.onTouch(view, motionEvent)
             }
         })
-     if (isPlaying) binding.audioPresenter.btnPlay.setImageResource(R.drawable.ic_pause) else binding.audioPresenter.btnPlay.setImageResource(R.drawable.ic_play)
+        if (isPlaying) {
+            binding.audioPresenter.btnPlay.setImageResource(R.drawable.ic_pause)
+        } else {
+            binding.audioPresenter.btnPlay.setImageResource(
+                R.drawable.ic_play
+            )
+        }
 
         binding.audioPresenter.btnPlay.setOnClickListener {
-         if (isPlaying) {
+            if (isPlaying) {
 
-         } else {
+            } else {
 
-         }
+            }
         }
         binding.audioPresenter.btnDeleteAudioMessage.setOnClickListener {
             releaseRecordedVoicePlayback(path)
@@ -1485,25 +1507,25 @@ view.updateVisualizer(waveform)
             enableStandardPanelButtons(true)
         }
         binding.audioPresenter.btnSendAudioMessage.setOnClickListener {
-                sendStoppedVoiceMessage(path)
+            sendStoppedVoiceMessage(path)
             scrollDown()
-         //   setFirstUnreadMessageId(null)
+            //   setFirstUnreadMessageId(null)
             finishVoiceRecordLayout()
             recordingPath = null
             audioProgressSubscription?.dispose()
             binding.record.recordLayout.isVisible = false
 
-           binding.audioPresenter.recordingPresenterLayout.isVisible = false
+            binding.audioPresenter.recordingPresenterLayout.isVisible = false
             enableStandardPanelButtons(true)
         }
     }
 
-  private  fun sendStoppedVoiceMessage(filePath: String?) {
+    private fun sendStoppedVoiceMessage(filePath: String?) {
         sendStoppedVoiceMessage(filePath, null)
     }
 
-   private fun sendStoppedVoiceMessage(filePath: String?, forwardIDs: List<String?>?) {
-      sendVoiceMessage(filePath!!)
+    private fun sendStoppedVoiceMessage(filePath: String?, forwardIDs: List<String?>?) {
+        sendVoiceMessage(filePath!!)
     }
 
     private fun uploadVoiceFile(path: String) {
@@ -1524,7 +1546,11 @@ view.updateVisualizer(waveform)
     private fun subscribeForRecordedAudioProgress() {
         val audioProgress = VoiceManager.PublishAudioProgress.getInstance().subscribeForProgress()
         audioProgressSubscription =
-            audioProgress.doOnNext { info: VoiceManager.PublishAudioProgress.AudioInfo -> setUpAudioProgress(info) }
+            audioProgress.doOnNext { info: VoiceManager.PublishAudioProgress.AudioInfo ->
+                setUpAudioProgress(
+                    info
+                )
+            }
                 .subscribe()
     }
 

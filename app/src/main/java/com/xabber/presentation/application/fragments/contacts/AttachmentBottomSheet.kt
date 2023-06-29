@@ -4,12 +4,15 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.Dialog
+import android.content.ContentResolver
 import android.content.Intent
+import android.database.Cursor
 import android.graphics.Color
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
+import android.provider.OpenableColumns
 import android.util.DisplayMetrics
 import android.util.Log
 import android.view.Gravity
@@ -43,6 +46,8 @@ import com.xabber.presentation.application.fragments.chat.*
 import com.xabber.presentation.application.fragments.chat.geo.PickGeolocationActivity
 import com.xabber.utils.askUserForOpeningAppSettings
 import com.xabber.utils.showToast
+import org.koin.androidx.viewmodel.ext.android.viewModel
+import org.koin.core.parameter.parametersOf
 import java.io.File
 
 class AttachmentBottomSheet : BottomSheetDialogFragment(R.layout.layout_bottom_sheet_custom),
@@ -51,7 +56,7 @@ class AttachmentBottomSheet : BottomSheetDialogFragment(R.layout.layout_bottom_s
     private var bottomSheetWidth = 0
     private var behavior: BottomSheetBehavior<*>? = null
     private val viewModel: MediaViewModel by viewModels()
-    private val chatVM: ChatViewModel by viewModels()
+    private val chatVM: ChatViewModel by viewModel { parametersOf(getChatId()) }
     private var galleryAdapter: GalleryAdapter? = null
     private var currentPhotoUri: Uri? = null
     private var mediaList = ArrayList<MediaDto>()
@@ -91,7 +96,6 @@ class AttachmentBottomSheet : BottomSheetDialogFragment(R.layout.layout_bottom_s
         registerForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris: List<Uri>? ->
             if (uris != null && uris.isNotEmpty()) {
                 sendMessageWithAttachment(uris, chatInput.text.trimEnd().toString())
-
             } else {
                 dismiss()
             }
@@ -463,7 +467,7 @@ class AttachmentBottomSheet : BottomSheetDialogFragment(R.layout.layout_bottom_s
                 isGeo = true,
                 latitude = lat,
                 longitude = lon,
-               size= ""
+               size= 0L
             )
             val refer = java.util.ArrayList<MessageReferenceDto>()
             refer.add(geoMessage)
@@ -491,31 +495,32 @@ class AttachmentBottomSheet : BottomSheetDialogFragment(R.layout.layout_bottom_s
         val refer = java.util.ArrayList<MessageReferenceDto>()
         if (uries != null) {
             for (i in uries.indices) {
+                val pair = getFileNameAndSizeFromUri(uries[i])
                 val r = MessageReferenceDto(
                     width = 10,
                     height = 6,
                     id = uries[i].toString(),
                     uri = uries[i].toString(),
                     mimeType = getMimeType(uries[i])!!,
-                    size = ""
+                    fileName= pair.first?: "",
+                            size = pair . second
                 )
                 Log.d("uiui", "mime[i] = ${getMimeType(uries[i])!!}")
                 refer.add(r)
             }
         }
         if (uri != null) {
+            val pair = getFileNameAndSizeFromUri(uri)
             refer.add(
                 MessageReferenceDto(
                     id = uri.toString(),
                     uri = uri.toString(),
                     mimeType = getMimeType(uri)!!,
-                    size = ""
+                    fileName= pair.first?: "",
+                    size = pair . second
                 )
             )
-            Log.d(
-                "uiui",
-                "mime = ${getMimeType(uri!!)!!}, isImage = ${getMimeType(uri)!!.startsWith("image/")}"
-            )
+
         }
 
         val chat = chatVM.getChat(getChatId())
@@ -538,17 +543,38 @@ class AttachmentBottomSheet : BottomSheetDialogFragment(R.layout.layout_bottom_s
         dismiss()
     }
 
+   fun getFileNameAndSizeFromUri(uri: Uri): Pair<String?, Long> {
+        var fileName: String? = null
+        var fileSize: Long = -1
+val contentResolver = XabberApplication.applicationContext().contentResolver
+        val cursor: Cursor? = contentResolver.query(uri, null, null, null, null)
+
+        cursor?.use {
+            if (it.moveToFirst()) {
+                val displayNameIndex: Int = it.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                val sizeIndex: Int = it.getColumnIndex(OpenableColumns.SIZE)
+
+                fileName = it.getString(displayNameIndex)
+                fileSize = it.getLong(sizeIndex)
+            }
+        }
+        return Pair(fileName, fileSize)
+    }
+
     private fun sendMessageWithAttachment(uris: List<Uri>?, body: String) {
-        val refer = java.util.ArrayList<MessageReferenceDto>()
+
+        val refer = ArrayList<MessageReferenceDto>()
         if (uris != null) {
             for (i in uris.indices) {
+                val pair = getFileNameAndSizeFromUri(uris[i])
                 val r = MessageReferenceDto(
                     width = 10,
                     height = 6,
                     id = uris[i].toString(),
                     uri = uris[i].toString(),
                     mimeType = getMimeType(uris[i])!!,
-                    size = ""
+                    fileName= pair.first ?: "",
+                    size = pair.second
                 )
                 Log.d("uiui", "mime[i] = ${getMimeType(uris[i])!!}")
                 refer.add(r)

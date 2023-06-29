@@ -21,26 +21,14 @@ import java.util.ArrayList;
 
 @SuppressLint("AppCompatCustomView")
 public class PlayerVisualizerView extends View {
-    /**
-     * bytes array converted from file.
-     */
     private byte[] bytes;
     private ArrayList<Integer> wave = new ArrayList<>();
-
     private int amplitude;
-
-    /**
-     * Percentage of audio sample scale
-     * Should updated dynamically while audioPlayer is played
-     */
     private float denseness;
-
-    private Paint playedStatePainting = new Paint();
-    private Paint notPlayedStatePainting = new Paint();
-
+    private final Paint playedStatePainting = new Paint();
+    private final Paint notPlayedStatePainting = new Paint();
     private int width;
     private int height;
-
     private boolean manualInputMode;
 
     public PlayerVisualizerView(Context context) {
@@ -55,7 +43,6 @@ public class PlayerVisualizerView extends View {
 
     private void init() {
         bytes = null;
-
         notPlayedStatePainting.setStrokeWidth(1f);
         notPlayedStatePainting.setAntiAlias(true);
         notPlayedStatePainting.setColor(ContextCompat.getColor(getContext(), R.color.grey_500));
@@ -96,55 +83,10 @@ public class PlayerVisualizerView extends View {
         notPlayedStatePainting.setAlpha(127);
     }
 
-    /**
-     * update and redraw Visualizer view
-     */
-    /*public void updateVisualizer(byte[] bytes) {
-        this.bytes = bytes;
-        //decodeOpus(bytes);
-        invalidate();
-    }*/
-
     public void updateVisualizer(ArrayList<Integer> wave) {
         this.wave = wave;
         calculateAmplitude();
         invalidate();
-    }
-
-    private void createWaveform(String filePath) {
-        // Получение файла из пути
-        File file = new File(filePath);
-        // Проверка наличия файла
-        if (!file.exists()) {
-            // Обработка ошибки - файл не найден
-            return;
-        }
-        try {
-            // Чтение аудио данных из файла
-            InputStream inputStream = new FileInputStream(file);
-            byte[] audioData = new byte[(int) file.length()];
-            inputStream.read(audioData);
-            inputStream.close();
-            // Создание волны из аудио данных
-            ArrayList<Integer> waveform = createWaveformFromAudioData(audioData);
-            // Обновление визуализатора с волной
-            updateVisualizer(waveform);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    private ArrayList<Integer> createWaveformFromAudioData(byte[] audioData) {
-        // Здесь следует реализовать логику создания волны из аудио данных
-        // Приведенный здесь код является примером и может потребоваться более сложная логика для создания волны
-        ArrayList<Integer> waveform = new ArrayList<>();
-        // Цикл обработки аудио данных
-        for (int i = 0; i < audioData.length; i++) {
-            // Пример: преобразование байта в целое число и добавление в волну
-            int value = audioData[i] & 0xFF; // Преобразование байта в беззнаковое целое число
-            waveform.add(value);
-        }
-        return waveform;
     }
 
     public void refreshVisualizer() {
@@ -157,7 +99,6 @@ public class PlayerVisualizerView extends View {
     public void setAmplitude(int amp) {
         this.amplitude = amp;
     }
-
     /**
      * Update player percent. 0 - file not played, 1 - full played
      *
@@ -242,11 +183,9 @@ public class PlayerVisualizerView extends View {
         }
         if (wave != null && !wave.isEmpty()) {
             for (int a = 0; a < totalBarsCount; a++) {
-
                 int barHeight;
                 int sampleIndex;
                 int sampleSize;
-
                 sampleIndex = (a * wave.size())/ totalBarsCount;
                 sampleSize = wave.get(sampleIndex);
                 if (amplitude != 0 && sampleSize / amplitude <= 1) {
@@ -285,7 +224,6 @@ public class PlayerVisualizerView extends View {
         }
     }
 
-
     @Override
     public boolean performClick() {
         return super.performClick();
@@ -318,7 +256,6 @@ public class PlayerVisualizerView extends View {
             }
             return true;
         }
-
     }
 
     public int dp(float value) {

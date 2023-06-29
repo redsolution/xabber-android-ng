@@ -2,45 +2,32 @@ package com.xabber.presentation
 
 import android.app.Application
 import android.content.Context
-import java.util.concurrent.ExecutorService
-import java.util.concurrent.Executors
+import com.xabber.di.dataModule
+import org.koin.android.ext.koin.androidContext
+import org.koin.core.context.GlobalContext
 
 class XabberApplication : Application() {
-    private var backgroundExecutorForUserActions: ExecutorService? = null
 
     companion object {
-        private var instance: XabberApplication? = null
-
-        private var isActive: Boolean = false
-
+        private lateinit var instance: XabberApplication
         fun applicationContext(): Context {
-            return instance!!.applicationContext
+            return instance.applicationContext
         }
     }
-
 
     override fun onCreate() {
         super.onCreate()
         instance = this
-        val context: Context = XabberApplication.applicationContext()
-
-      //  a.startCounter()
-    }
-
-
-
-    fun runInBackgroundUserRequest(runnable: Runnable) {
-        backgroundExecutorForUserActions?.submit(Runnable {
-            try {
-                runnable.run()
-            } catch (e: Exception) {
-
-            }
-        })
+        GlobalContext.startKoin {
+            androidContext(applicationContext())
+            modules(dataModule)
+        }
     }
 
 }
-     //   FirebaseApp.initializeApp(applicationContext)
+
+
+//   FirebaseApp.initializeApp(applicationContext)
 ////
 ////        FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
 ////            if (!task.isSuccessful) {
@@ -52,4 +39,3 @@ class XabberApplication : Application() {
 ////        }
 //    }
 //}
-////

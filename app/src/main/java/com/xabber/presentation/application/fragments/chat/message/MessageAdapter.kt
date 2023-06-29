@@ -58,7 +58,7 @@ class MessageAdapter(
 
     override fun getItemCount(): Int = messages.size
 
-    fun updateAdapter(messageDtoList: ArrayList<MessageDto>) {
+    fun updateAdapter(messageDtoList: List<MessageDto>) {
         messages.clear()
         messages.addAll(messageDtoList)
     }
