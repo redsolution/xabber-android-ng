@@ -1,52 +1,45 @@
 package com.xabber.presentation.application.fragments.chat.audio
 
 import android.media.MediaRecorder
-import android.util.Log
-import io.realm.kotlin.internal.platform.appFilesDirectory
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import java.io.File
-
 class AudioRecorder {
-    companion object {
-        private val mediaRecorder = MediaRecorder()
-        lateinit var file: File
+    private val currentPlayingAttachmentId: String? = null
+    private var recorder: MediaRecorder? = null
+    private var outputFile: String? = null
 
-        fun startRecord() = CoroutineScope(Dispatchers.IO).launch {
+    fun startRecord(outputPath: String) {
+        stopRecord() // Остановить предыдущую запись, если она уже запущена
+
+        recorder = MediaRecorder().apply {
+            setAudioSource(MediaRecorder.AudioSource.MIC)
+            setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+            setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
+            setOutputFile(outputPath)
+
             try {
-                createAudioFile()
-                prepareAudioRecorder()
-                mediaRecorder.start()
+                prepare()
+                start()
+                outputFile = outputPath
             } catch (e: Exception) {
-                Log.d("erroraudio", e.message.toString())
+                e.printStackTrace()
             }
         }
+    }
 
-        fun stopRecord(onSuccess: (file: File) -> Unit) {
+    fun stopRecord() {
+        recorder?.apply {
             try {
-                mediaRecorder.stop()
-                onSuccess(file)
+                stop()
+                reset()
+                release()
             } catch (e: Exception) {
-                Log.d("erroraudio", e.message.toString())
+                e.printStackTrace()
             }
         }
+        recorder = null
+    }
 
-        fun releaseRecorder() {}
-
-        private fun createAudioFile() {
-            file = File(appFilesDirectory())
-            file.createNewFile()
-        }
-
-        private fun prepareAudioRecorder() {
-            mediaRecorder.reset()
-            mediaRecorder.setAudioSource(MediaRecorder.AudioSource.DEFAULT)
-            mediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.DEFAULT)
-            mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.DEFAULT)
-            mediaRecorder.setOutputFile(file.absolutePath)
-            mediaRecorder.prepare()
-        }
+    fun getRecordedFilePath(): String? {
+        return outputFile
     }
 
 }

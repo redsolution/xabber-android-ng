@@ -2,6 +2,8 @@ package com.xabber.presentation.application.fragments.chat.message
 
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.graphics.PorterDuff
 import android.graphics.PorterDuffColorFilter
 import android.graphics.drawable.ShapeDrawable
@@ -19,6 +21,7 @@ import androidx.core.net.toUri
 import androidx.core.view.isInvisible
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
 import com.xabber.R
 import com.xabber.data_base.models.messages.MessageDisplayType
 import com.xabber.data_base.models.messages.MessageSendingState
@@ -27,6 +30,7 @@ import com.xabber.dto.MessageReferenceDto
 import com.xabber.presentation.XabberApplication
 import com.xabber.presentation.application.fragments.chat.ChatSettingsManager
 import com.xabber.presentation.application.fragments.chat.Check
+import com.xabber.presentation.application.fragments.chat.HttpFileUploadManager
 import com.xabber.presentation.application.fragments.chat.MessageVhExtraData
 import com.xabber.presentation.application.fragments.chat.audio.VoiceMessagePresenterManager
 import com.xabber.utils.StringUtils
@@ -35,7 +39,11 @@ import com.xabber.utils.custom.CorrectlyTouchEventTextView
 import com.xabber.utils.custom.PlayerVisualizerView
 import com.xabber.utils.custom.ShapeOfView
 import com.xabber.utils.dp
+import org.osmdroid.tileprovider.tilesource.TileSourceFactory
+import org.osmdroid.util.GeoPoint
+import org.osmdroid.views.MapView
 import java.util.*
+import java.util.concurrent.TimeUnit
 
 abstract class MessageVH(
     itemView: View,
@@ -69,7 +77,6 @@ abstract class MessageVH(
         val intent = Intent(Intent.ACTION_VIEW)
         intent.setDataAndType(path.toUri(), contentResolver.getType(path.toUri()))
         intent.flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_CLEAR_TOP
-
         try {
             context.startActivity(intent)
         } catch (e: Exception) {
@@ -89,8 +96,12 @@ abstract class MessageVH(
                 else otherFiles.add(reference)
             }
         }
-        val needTail: Boolean =
-            if ((message.references.isNotEmpty() && message.messageBody.isEmpty() && otherFiles.isEmpty()) || message.references[0].isGeo) false else vhExtraData.isNeedTail
+        val needTail: Boolean = if (message.references.isNotEmpty()) {
+            if (message.references[0].isGeo) false
+            else if (message.references[0].isAudioMessage) vhExtraData.isNeedTail
+            else if (otherFiles.isEmpty() && message.messageBody.isEmpty()) false else vhExtraData.isNeedTail
+        } else vhExtraData.isNeedTail
+
 
         initViews()
 
@@ -99,13 +110,13 @@ abstract class MessageVH(
 
             if (message.references.size > 0) {
                 if (message.references[0].isGeo) addGeoLocationBox(
-                    inflater,
+                    inflater, message,
                     message.references[0].latitude,
                     message.references[0].longitude
                 )
                 else if (message.references[0].isAudioMessage) addVoiceMessageBox(
                     inflater,
-                    message.references[0].uri!!
+                    message.references[0].uri!!, message
                 )
                 else {
                     val images = ArrayList<MessageReferenceDto>()
@@ -190,7 +201,7 @@ abstract class MessageVH(
     }
 
     private fun addGeoLocationBox(
-        inflater: LayoutInflater,
+        inflater: LayoutInflater, message: MessageDto,
         latitude: Double,
         longitude: Double
     ) {
@@ -202,8 +213,16 @@ abstract class MessageVH(
         messageContainer?.addView(locationBox)
         val mapImage = locationBox.findViewById<ImageView>(R.id.map_image)
         val shape = locationBox.findViewById<ShapeOfView>(R.id.geo_shape)
+        val timeStamp = locationBox.findViewById<LinearLayoutCompat>(R.id.message_info)
+        val tvTime = locationBox.findViewById<TextView>(R.id.tv_image_sending_time)
+        val date = Date(if (message.editTimestamp > 0) message.editTimestamp else message.sentTimestamp)
+        val time = StringUtils.getTimeText(itemView.context, date)
+        tvTime?.text = if (message.editTimestamp > 0) "edit $time" else time
         val radius =
             if (ChatSettingsManager.cornerValue > 4) (ChatSettingsManager.cornerValue - 4) else 1
+        val timeStampRadius = if (radius > 3) radius - 3 else 1
+        val timeStampBackground = getTimeStampBackground(timeStampRadius)
+        timeStamp.setBackgroundResource(timeStampBackground)
         val cornerRadii = floatArrayOf(
             radius.dp.toFloat(),
             radius.dp.toFloat(),
@@ -217,22 +236,24 @@ abstract class MessageVH(
         val sh = ShapeDrawable(RoundRectShape(cornerRadii, null, null))
         shape.setDrawable(sh)
 
-//        mapView = MapView(context).apply {
-//            val location = GeoPoint(latitude, longitude)
-//            controller.setCenter(location)
-//            setTileSource(TileSourceFactory.MAPNIK)
-//            isTilesScaledToDpi = true
-//            //  controller.setZoom(5.0)
-//        }
-//        bitmap = Bitmap.createBitmap(200.dp, 200.dp, Bitmap.Config.ARGB_8888)
-//        canvas = Canvas(bitmap)
-//        mapView.draw(canvas)
-//        mapImage.setImageBitmap(bitmap)
+
+     val   mapView = MapView(context).apply {
+            val location = GeoPoint(latitude, longitude)
+            controller.setCenter(location)
+            setTileSource(TileSourceFactory.MAPNIK)
+            isTilesScaledToDpi = true
+            //  controller.setZoom(5.0)
+        }
+      // val bitmap = Bitmap.createBitmap(mapImage.width, mapImage.height, Bitmap.Config.ARGB_8888)
+    //   val canvas = Canvas(bitmap)
+  //      mapView.draw(canvas)
+   //     mapImage.setImageBitmap(bitmap)
 //        handler.postDelayed(im, 2000)
+      //  Glide.with(context).load(R.drawable.img_2).error(R.drawable.gradient_blue).into(mapImage)
         locationBox.setOnClickListener { onViewClickListener?.onLocationClick(latitude, longitude) }
     }
 
-    private fun addVoiceMessageBox(inflater: LayoutInflater, path: String) {
+    private fun addVoiceMessageBox(inflater: LayoutInflater, path: String, message: MessageDto) {
         val voiceMessageBox = inflater.inflate(
             R.layout.voice_message_box,
             messageContainer,
@@ -241,7 +262,14 @@ abstract class MessageVH(
         messageContainer?.addView(voiceMessageBox)
         val presenter = voiceMessageBox?.findViewById<PlayerVisualizerView>(R.id.player_visualizer)
         val button = voiceMessageBox?.findViewById<ImageButton>(R.id.btn_play)
-
+        val tvDuration = voiceMessageBox.findViewById<TextView>(R.id.tv_duration)
+       setMessageInfo(message)
+        val time = HttpFileUploadManager.getVoiceLength(path)
+        tvDuration.text = String.format(
+            Locale.getDefault(), "%02d:%02d",
+            TimeUnit.SECONDS.toMinutes(time),
+            TimeUnit.SECONDS.toSeconds(time)
+        )
         VoiceMessagePresenterManager.getInstance().sendWaveDataIfSaved(path, presenter)
         val mediaPlayer = MediaPlayer()
         var isPlaying = false
@@ -290,7 +318,7 @@ abstract class MessageVH(
             imageGridView.findViewById<LinearLayoutCompat>(R.id.message_info)
         val imageTime = imageGridView.findViewById<TextView>(R.id.tv_image_sending_time)
         val status = imageGridView.findViewById<ImageView>(R.id.im_image_message_status)
-        infoStamp.isVisible = message.messageBody.isEmpty()
+        infoStamp.isVisible = message.messageBody.isEmpty() && message.references.size == images.size
         if (infoStamp.isVisible) {
             val date = Date(message.sentTimestamp)
             val time = StringUtils.getTimeText(context, date)
@@ -339,6 +367,7 @@ abstract class MessageVH(
         val recyclerView = filesBox.findViewById<RecyclerView>(R.id.file_list_rv)
         recyclerView.adapter = adapter
         adapter.submitList(files)
+        setMessageInfo(message)
     }
 
     private fun addTextBox(inflater: LayoutInflater, message: MessageDto) {
@@ -442,6 +471,26 @@ abstract class MessageVH(
         tvMessageText = itemView.findViewById(R.id.message_text)
         statusIcon = itemView.findViewById(R.id.message_status_icon)
         tvTime = itemView.findViewById(R.id.message_time)
+    }
+
+    private fun getTimeStampBackground(timeStampRadius: Int): Int {
+        return when (timeStampRadius) {
+            1 -> R.drawable.time_stamp_1px
+            2 -> R.drawable.time_stamp_2px
+            3 -> R.drawable.time_stamp_3px
+            4 -> R.drawable.time_stamp_4px
+            5 -> R.drawable.time_stamp_5px
+            6 -> R.drawable.time_stamp_6px
+            7 -> R.drawable.time_stamp_7px
+            8 -> R.drawable.time_stamp_8px
+            9 -> R.drawable.time_stamp_9px
+            10 -> R.drawable.time_stamp_10px
+            11 -> R.drawable.time_stamp_11px
+            12 -> R.drawable.time_stamp_12px
+            13 -> R.drawable.time_stamp_13px
+
+            else -> R.drawable.time_stamp_1px
+        }
     }
 
 }

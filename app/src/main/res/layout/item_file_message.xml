@@ -3,9 +3,8 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/file_message"
     android:gravity="start"
-    android:layout_width="wrap_content"
-    android:layout_height="56dp"
-    android:maxWidth="280dp">
+    android:layout_width="match_parent"
+    android:layout_height="56dp">
 
         <ImageView
             android:id="@+id/ivFileIcon"

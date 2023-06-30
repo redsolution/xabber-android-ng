@@ -24,8 +24,6 @@ import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import androidx.core.view.marginBottom
-import androidx.fragment.app.activityViewModels
-import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -54,11 +52,10 @@ import com.xabber.presentation.AppConstants.DELETING_MESSAGE_FOR_ALL_BUNDLE_KEY
 import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.application.dialogs.*
 import com.xabber.presentation.application.fragments.DetailBaseFragment
-import com.xabber.presentation.application.fragments.chat.audio.AudioRecord
+import com.xabber.presentation.application.fragments.chat.audio.AudioRecorder
 import com.xabber.presentation.application.fragments.chat.audio.VoiceManager
 import com.xabber.presentation.application.fragments.chat.audio.VoiceMessagePresenterManager
 import com.xabber.presentation.application.fragments.chat.message.*
-import com.xabber.presentation.application.fragments.chatlist.ChatListViewModel
 import com.xabber.presentation.application.fragments.contacts.AttachmentBottomSheet
 import com.xabber.presentation.application.fragments.contacts.ContactAccountParams
 import com.xabber.presentation.application.manage.ColorManager
@@ -89,12 +86,11 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     private var messageAdapter: MessageAdapter? = null
     private var layoutManager: LinearLayoutManager? = null
     private val viewModel: ChatViewModel by viewModel { parametersOf(getParams().id) }
+    private val audioRecorder = AudioRecorder()
     private var replySwipeCallback: ReplySwipeCallback? = null
-
     private var isNeedScrollDown = false
     private var editMessageId: String? = null
     private val enableNotificationsCode = 0L
-
     private var isSelectedMode = false
     private var replyingMessage: MessageDto? = null
     private var currentVoiceRecordingState = VoiceRecordState.NotRecording
@@ -104,11 +100,13 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     private var saveAudioMessage = true
     private var audioProgressSubscription: Disposable? = null
     private var lockIsClosed = false
-    var isVibrate = false
-    val realm = Realm.open(defaultRealmConfig())
-    var ignoreReceiver = true
-    val audioRecord = AudioRecord()
+    private var isVibrate = false
+    private var ignoreReceiver = true
+
     var isPlaying = false
+
+    val realm = Realm.open(defaultRealmConfig())
+
 
     private val requestAudioPermissionResult = registerForActivityResult(
         ActivityResultContracts.RequestPermission(),
@@ -155,13 +153,11 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     }
 
     private val record = Runnable {
-        // VoiceManager.getInstance().startRecording()
         val outputDir =
             context?.getExternalFilesDir(null) // Получаем директорию, где будет сохраняться файл
         val fileName = "${System.currentTimeMillis()} audio_file.mp4" // Название файла
-
         val outputPath = File(outputDir, fileName).absolutePath
-        audioRecord.startRecord(outputPath)
+        audioRecorder.startRecord(outputPath)
     }
 
     private val shake = Runnable {
@@ -171,7 +167,6 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     }
 
     private val stop = Runnable {
-
         binding.imLockBar.clearAnimation()
         binding.imLock.clearAnimation()
         binding.linRecordLock.clearAnimation()
@@ -399,10 +394,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     }
 
     private fun addSwipeCallback() {
-        val drawable = ContextCompat.getDrawable(requireContext(), R.drawable.reply_circle)
-        replySwipeCallback = ReplySwipeCallback(
-            drawable!!
-        ) { position: Int ->
+        replySwipeCallback = ReplySwipeCallback(requireContext()) { position: Int ->
             val message = messageAdapter?.getMessageItem(position)
             if (message != null) {
                 replyingMessage = message
@@ -592,11 +584,28 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
                             currentVoiceRecordingState = VoiceRecordState.NotRecording
                         }
                         VoiceRecordState.TouchRecording -> {
-                            if (binding.record.chrRecordingTimer.text != "00:00")
-                                audioRecord.stopRecord()
-                            sendVoiceMessage(audioRecord.getRecordedFilePath()!!)
-                            hideRecordPanel()
-                            navigator().lockScreen(false)
+                          //  Log.d("iii", "chron ${binding.record.chrRecordingTimer.}")
+                            val baseTime: Long = binding.record.chrRecordingTimer.getBase()
+
+// Получаем текущее время (в миллисекундах) с учетом базового времени
+                            val elapsedTime = SystemClock.elapsedRealtime() - baseTime
+                            val seconds = (elapsedTime / 1000).toInt()
+// Получаем количество секунд
+
+// Получаем количество секунд
+
+                            Log.d("iii", "chron $seconds")
+                            if (seconds >= 1) {
+                                audioRecorder.stopRecord()
+                                sendVoiceMessage(audioRecorder.getRecordedFilePath()!!)
+                                hideRecordPanel()
+                                navigator().lockScreen(false)
+                            } else {
+                                audioRecorder.stopRecord()
+                                hideRecordPanel()
+                                currentVoiceRecordingState = VoiceRecordState.NotRecording
+                                navigator().lockScreen(false)
+                            }
                         }
 
                         //                    if (binding.imLock.animation != null) currentVoiceRecordingState =
@@ -618,7 +627,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
                             stopTypingTimer?.cancel()
                             navigator().lockScreen(false)
                             if (saveAudioMessage && isPermissionGranted(Manifest.permission.RECORD_AUDIO)) sendVoiceMessage(
-                                audioRecord.getRecordedFilePath()!!
+                                audioRecorder.getRecordedFilePath()!!
                             )
                             hideRecordPanel()
                             currentVoiceRecordingState = VoiceRecordState.NotRecording
@@ -686,8 +695,8 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
             binding.record.recordLayout.isVisible = false
             binding.audioPresenter.recordingPresenterLayout.isVisible = true
             //   VoiceManager.getInstance().stopRecording(false)
-            audioRecord.stopRecord()
-            setUpVoiceMessagePresenter(audioRecord.getRecordedFilePath()!!)
+            audioRecorder.stopRecord()
+            setUpVoiceMessagePresenter(audioRecorder.getRecordedFilePath()!!)
         }
 
         binding.record.tvCancelRecording.setOnClickListener {
@@ -703,14 +712,15 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         }
 
         binding.audioPresenter.btnSendAudioMessage.setOnClickListener {
-            sendVoiceMessage(audioRecord.getRecordedFilePath()!!)
+            sendVoiceMessage(audioRecorder.getRecordedFilePath()!!)
             clearVoiceMessage()
             enableStandardPanelButtons(true)
         }
 
         binding.btnRecordExpanded.setOnClickListener {
             if (isPermissionGranted(Manifest.permission.RECORD_AUDIO)) {
-                sendVoiceMessage(audioRecord.getRecordedFilePath()!!)
+                audioRecorder.stopRecord()
+                sendVoiceMessage(audioRecorder.getRecordedFilePath()!!)
                 clearVoiceMessage()
             }
         }
@@ -996,6 +1006,8 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     }
 
     private fun sendVoiceMessage(path: String) {
+        binding.linRecordLock.invalidate()
+        enableStandardPanelButtons(true)
         beginTimer(false)
         VoiceManager.getInstance().stopRecording(false)
 
@@ -1103,7 +1115,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
 
     private fun stopRecordingAndSend(send: Boolean) {
         if (send) {
-            sendVoiceMessage(audioRecord.getRecordedFilePath()!!)
+            sendVoiceMessage(audioRecorder.getRecordedFilePath()!!)
             currentVoiceRecordingState = VoiceRecordState.NotRecording
         } else {
             currentVoiceRecordingState = VoiceRecordState.NotRecording

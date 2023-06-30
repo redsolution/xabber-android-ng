@@ -8,8 +8,8 @@
     android:minHeight="20dp"
     android:paddingHorizontal="8dp"
     android:paddingVertical="2dp"
-    app:viewPartMain="@+id/message_text"
-    app:viewPartSlave="@+id/message_info">
+    app:viewPartMain="@id/message_text"
+    app:viewPartSlave="@id/message_info">
 
     <com.xabber.utils.custom.CorrectlyTouchEventTextView
         android:id="@+id/message_text"
