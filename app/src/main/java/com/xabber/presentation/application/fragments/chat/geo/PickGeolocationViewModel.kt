@@ -43,7 +43,7 @@ class PickGeolocationViewModel: ViewModel() {
                     isGeo = messageDto.references[i].isGeo
                     latitude = messageDto.references[i].latitude
                     longitude = messageDto.references[i].longitude
-                    isAudioMessage = messageDto.references[i].isAudioMessage
+                    isAudioMessage = messageDto.references[i].isVoiceMessage
                     fileName = messageDto.references[i].fileName
                     fileSize = messageDto.references[i].size
                 })

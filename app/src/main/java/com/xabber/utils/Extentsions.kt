@@ -195,7 +195,7 @@ fun LastChatsStorageItem.toChatListDto(): ChatListDto =
         opponentJid = jid,
         opponentNickname = "",
         customNickname = if (rosterItem != null) rosterItem!!.customNickname else "",
-        lastMessageBody = if (lastMessage == null) "" else lastMessage!!.body,
+        lastMessageBody = if (lastMessage == null) "" else if (lastMessage!!.body.isNotEmpty()) lastMessage!!.body else if (lastMessage!!.references.isNotEmpty()) { if (lastMessage!!.references[0].isAudioMessage) "Voice message" else if (lastMessage!!.references[0].isGeo) "Location" else "${lastMessage!!.references[0].fileName}" }else "",
         lastMessageDate = if (lastMessage == null || draftMessage != null) messageDate else lastMessage!!.date,
         lastMessageState = if (lastMessage?.state_ == 5 || lastMessage == null) MessageSendingState.None else MessageSendingState.Read,
         isArchived = isArchived,
@@ -252,5 +252,5 @@ fun MessageReferenceStorageItem.toMessageReferenceDto() =
         isGeo = isGeo,
         latitude = latitude,
         longitude = longitude,
-        isAudioMessage = isAudioMessage
+        isVoiceMessage = isAudioMessage
     )

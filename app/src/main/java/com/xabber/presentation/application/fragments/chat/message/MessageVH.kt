@@ -2,8 +2,6 @@ package com.xabber.presentation.application.fragments.chat.message
 
 import android.content.Context
 import android.content.Intent
-import android.graphics.Bitmap
-import android.graphics.Canvas
 import android.graphics.PorterDuff
 import android.graphics.PorterDuffColorFilter
 import android.graphics.drawable.ShapeDrawable
@@ -21,7 +19,6 @@ import androidx.core.net.toUri
 import androidx.core.view.isInvisible
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.RecyclerView
-import com.bumptech.glide.Glide
 import com.xabber.R
 import com.xabber.data_base.models.messages.MessageDisplayType
 import com.xabber.data_base.models.messages.MessageSendingState
@@ -98,7 +95,7 @@ abstract class MessageVH(
         }
         val needTail: Boolean = if (message.references.isNotEmpty()) {
             if (message.references[0].isGeo) false
-            else if (message.references[0].isAudioMessage) vhExtraData.isNeedTail
+            else if (message.references[0].isVoiceMessage) vhExtraData.isNeedTail
             else if (otherFiles.isEmpty() && message.messageBody.isEmpty()) false else vhExtraData.isNeedTail
         } else vhExtraData.isNeedTail
 
@@ -114,7 +111,7 @@ abstract class MessageVH(
                     message.references[0].latitude,
                     message.references[0].longitude
                 )
-                else if (message.references[0].isAudioMessage) addVoiceMessageBox(
+                else if (message.references[0].isVoiceMessage) addVoiceMessageBox(
                     inflater,
                     message.references[0].uri!!, message
                 )

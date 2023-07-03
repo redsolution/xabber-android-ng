@@ -12,7 +12,7 @@ import io.realm.kotlin.types.annotations.PrimaryKey
 class LastChatsStorageItem: RealmObject {
     @PrimaryKey
     var primary: String = ""  // автоматически jid + owner + conversation type
-    var owner: String = ""   // jid наш
+    var owner: String = ""   // jid юзера
     var jid: String = ""     // jid собеседника
     var messageDate: Long = 0    // дата последнего сообщения
     var lastReadMessageDate: Long = 0
@@ -37,6 +37,6 @@ class LastChatsStorageItem: RealmObject {
     var conversationType_: String = ConversationType.Regular.rawValue
     var composingType_: String = ComposingType.none.rawValue
     var chatMarkersSupport: Boolean = false
-    var lastPosition: String = ""
+    var lastPosition: String = ""     //
     var avatar: Int = R.drawable.dog
 }

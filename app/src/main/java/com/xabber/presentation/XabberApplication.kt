@@ -26,7 +26,6 @@ class XabberApplication : Application() {
 
 }
 
-
 //   FirebaseApp.initializeApp(applicationContext)
 ////
 ////        FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->

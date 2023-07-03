@@ -22,7 +22,6 @@ import io.realm.kotlin.ext.realmListOf
 import io.realm.kotlin.notifications.ResultsChange
 import io.realm.kotlin.notifications.UpdatedResults
 import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flowOn
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
@@ -259,7 +258,7 @@ class ChatViewModel(private val chatId: String, private val chatRepository: Chat
                         isGeo = messageDto.references[i].isGeo
                         latitude = messageDto.references[i].latitude
                         longitude = messageDto.references[i].longitude
-                        isAudioMessage = messageDto.references[i].isAudioMessage
+                        isAudioMessage = messageDto.references[i].isVoiceMessage
                         fileName = messageDto.references[i].fileName
                         fileSize = messageDto.references[i].size
                     })

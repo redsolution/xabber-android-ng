@@ -26,8 +26,8 @@ class IncomingMessageVH internal constructor(
 
     override fun bind(message: MessageDto, vhExtraData: MessageVhExtraData) {
         super.bind(message, vhExtraData)
-        val tvName = itemView.findViewById<TextView>(R.id.tv_message_username)
-        tvName.isVisible = vhExtraData.isNeedName
+//        val tvName = itemView.findViewById<TextView>(R.id.tv_message_username)
+//        tvName.isVisible = vhExtraData.isNeedName && message.isGroup
 
 //
 //        itemView.addOnAttachStateChangeListener(object : OnAttachStateChangeListener {

@@ -10,7 +10,7 @@ class RosterGroupStorageItem: RealmObject {
     var primary: String = ""
     var owner: String = ""
     var name: String = ""
-    var isSystemGroup: Boolean = false      // general
+    var isSystemGroup: Boolean = false
     var isCollapsed: Boolean = false
     var order: Int = 0
     var contacts: RealmList<RosterStorageItem> = realmListOf()

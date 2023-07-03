@@ -20,21 +20,15 @@ class MessageForwardsInlineStorageItem: RealmObject {
     var messageId: String = ""
     var owner: String = ""
     var jid: String = ""
-
     var kind_: String = MessageForwardsInlineStorageItemKind.text.rawValue
     var parentId: String = ""
     var body: String = ""
-
     var forwardJid: String = ""
     var forwardNickname: String = ""
-
     var isOutgoing: Boolean = false
     var originalDate: Long? = null
-
     var rosterItem: RosterStorageItem? = null
-
     var subforwards: RealmList<MessageForwardsInlineStorageItem> = realmListOf()
     var references: RealmList<MessageReferenceStorageItem> = realmListOf()
-
     var canCheckRealmAccessedLinks: Boolean = true
 }

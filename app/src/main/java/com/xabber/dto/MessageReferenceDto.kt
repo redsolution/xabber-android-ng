@@ -23,5 +23,5 @@ data class MessageReferenceDto(
     val isGeo: Boolean = false,
     val latitude: Double = 0.0,
     val longitude: Double = 0.0,
-    val isAudioMessage:Boolean = false
+    val isVoiceMessage:Boolean = false
 )

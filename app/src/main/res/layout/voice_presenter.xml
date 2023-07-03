@@ -33,6 +33,7 @@
         app:layout_constraintTop_toTopOf="parent">
 
         <ImageButton
+            android:clickable="true"
             android:id="@+id/btn_play"
             android:layout_width="32dp"
             android:layout_height="32dp"

@@ -9,6 +9,7 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Canvas
 import android.graphics.drawable.Drawable
+import android.media.MediaPlayer
 import android.net.Uri
 import android.os.*
 import android.text.Editable
@@ -63,15 +64,14 @@ import com.xabber.utils.*
 import com.xabber.utils.custom.PlayerVisualizerView
 import io.reactivex.rxjava3.disposables.Disposable
 import io.realm.kotlin.Realm
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 import org.koin.androidx.viewmodel.ext.android.viewModel
 import org.koin.core.parameter.parametersOf
 import java.io.File
 import java.io.FileInputStream
 import java.io.IOException
 import java.io.InputStream
+import java.lang.Runnable
 import java.util.*
 import java.util.concurrent.TimeUnit
 import kotlin.experimental.and
@@ -714,6 +714,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         binding.audioPresenter.btnSendAudioMessage.setOnClickListener {
             sendVoiceMessage(audioRecorder.getRecordedFilePath()!!)
             clearVoiceMessage()
+            isPlaying = false
             enableStandardPanelButtons(true)
         }
 
@@ -840,28 +841,148 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     }
 
     private fun sendIncomingMessages(owner: String, opponentJid: String) {
-        var a = 0
-        var textRandom = arrayListOf<String>(
-            "Привет",
-            "Компания «Ростелеком» открыла новый сезон строительства оптических линий связи на Южном Урале. Первым объектом для подключения стал жилой дом Челябинска в ЖК «Ньютон» на Комсомольском проспекте, 141. После его сдачи жители 132 квартир смогут пользоваться интернетом на скорости до 1 Гбит/с.",
-            "Да",
-            "В торжественной презентации старта нового сезона стройки приняли участие хоккеисты"
-        )
-        lifecycleScope.launch {
-            var c = false
-            for (i in 0..1000) {
-                delay(1000)
-                c = false
-                a++
 
+     lifecycleScope.launch(Dispatchers.IO) {
+            var a = 0
+
+            var textRandom = arrayListOf<String>(
+                "Привет",
+                "Компания «Ростелеком» открыла новый сезон строительства оптических линий связи на Южном Урале. Первым объектом для подключения стал жилой дом Челябинска в ЖК «Ньютон» на Комсомольском проспекте, 141. После его сдачи жители 132 квартир смогут пользоваться интернетом на скорости до 1 Гбит/с.",
+                "Да",
+                "В торжественной презентации старта нового сезона стройки приняли участие хоккеисты"
+            )
+
+            var texts = arrayListOf<String>(
+                "Как дела?",
+                "Благодарю за предоставленную информацию. Как можно купить билеты?",
+                "Спасибо. До свидания.",
+                "Да, наш лучший букет из орхидей — это композиция \"Все для тебя\". Хит продаж! Его создают квалифицированные флористы.", "Хорошо, за вами приедет большое авто. Ждите, за 5 минут машина будет на месте.", "Поздравляю тебя с Днем рождения! Желаю счастья, здоровья, успехов в учебе."
+            )
+
+            var tex = arrayListOf<String>("Назовите свой адрес, пожалуйста.", "", "", "Добрый день. Вы сдаете квартиру на длительный срок?", "", "Всего хорошего!", "", "Это спектакль экспериментального школьного театра под названием \"Руслан и Людмила\" по мотивам произведения А.С. Пушкина. Спектакль благотворительный. Собранные средства передадут детской больнице.")
+
+            var incomingMessageWithReference = MessageDto(
+                "$a ${opponentJid} ${System.currentTimeMillis()} bvkj,k",
+                false,
+                owner,
+                opponentJid,
+                tex.random(),
+                MessageSendingState.Deliver,
+                System.currentTimeMillis(),
+                0,
+                MessageDisplayType.System,
+                false,
+                false,
+                null,
+                isUnread = true,
+                isGroup = true
+            )
+
+
+
+       val d1 = async(Dispatchers.IO) {
+           repeat(10) {
+               var a = 789
+               a++
+//                viewModel.insertMessage(
+//                    getParams().id,MessageDto(
+//                        "$a ${opponentJid} ${System.currentTimeMillis()}gg",
+//                        false,
+//                        owner,
+//                        opponentJid,
+//                        "",
+//                        MessageSendingState.Deliver,
+//                        System.currentTimeMillis(),
+//                        0,
+//                        MessageDisplayType.System,
+//                        false,
+//                        false,
+//                        null,
+//                        isUnread = true,
+//                        isGroup = true,
+//                        references = arrayListOf(MessageReferenceDto("asd ${System.currentTimeMillis()}$a", isGeo = true, latitude = 45.678, longitude = 97.654, size = 0L))))
+               viewModel.insertMessage(
+                   getParams().id, MessageDto(
+                       "$a ${System.currentTimeMillis()} cvg hfxhf ",
+                       true,
+                       viewModel.getChat(getParams().id)!!.owner,
+                       viewModel.getChat(getParams().id)!!.opponentJid,
+                       texts.random(),
+                       MessageSendingState.Deliver,
+                       System.currentTimeMillis(),
+                       0,
+                       MessageDisplayType.Text,
+                       false,
+                       false,
+                       null,
+                       false, null, false, isUnread = false
+                   )
+               )
+               viewModel.insertMessage(
+                   getParams().id, MessageDto(
+                       "$a ${System.currentTimeMillis()} cvg hfxjjhf ",
+                       true,
+                       viewModel.getChat(getParams().id)!!.owner,
+                       viewModel.getChat(getParams().id)!!.opponentJid,
+                       texts.random(),
+                       MessageSendingState.Deliver,
+                       System.currentTimeMillis(),
+                       0,
+                       MessageDisplayType.Text,
+                       false,
+                       false,
+                       null,
+                       false, null, false, isUnread = false
+                   )
+               )
+               viewModel.insertMessage(
+                   getParams().id, MessageDto(
+                       "$a grtt${opponentJid} ${System.currentTimeMillis()}",
+                       false,
+                       owner,
+                       opponentJid,
+                       textRandom.random(),
+                       MessageSendingState.Deliver,
+                       System.currentTimeMillis(),
+                       0,
+                       MessageDisplayType.System,
+                       false,
+                       false,
+                       null,
+                       isUnread = true,
+                       isGroup = true
+                   )
+               )
+//                viewModel.insertMessage(
+//                    getParams().id,MessageDto(
+//                    "${System.currentTimeMillis()} cfd $a",
+//                    true,
+//                    viewModel.getChat(getParams().id)!!.owner,
+//                    viewModel.getChat(getParams().id)!!.opponentJid,
+//                    "",
+//                    MessageSendingState.Deliver,
+//                    System.currentTimeMillis(),
+//                    0,
+//                    MessageDisplayType.Text,
+//                    false,
+//                    false,
+//                    null,
+//                    false, null, false, isUnread = false, references = arrayListOf(MessageReferenceDto("atsd $a ${System.currentTimeMillis()}", isGeo = true, latitude = 67.678, longitude = 12.654, size = 0L))))
+           }
+       }
+
+           val d2 = async(Dispatchers.IO) {
+               var a = 8
+               repeat(10) {
+
+               a++
                 viewModel.insertMessage(
-                    getParams().id,
-                    MessageDto(
-                        "$a ${opponentJid} ${System.currentTimeMillis()}",
-                        c,
+                    getParams().id,MessageDto(
+                        "$a ${opponentJid} ${System.currentTimeMillis()}gg",
+                        false,
                         owner,
                         opponentJid,
-                        "$a " + textRandom.random(),
+                        "",
                         MessageSendingState.Deliver,
                         System.currentTimeMillis(),
                         0,
@@ -870,14 +991,79 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
                         false,
                         null,
                         isUnread = true,
-                        isGroup = true
-                    )
-                )
-                Log.d(
-                    "yyy",
-                    "lastPosition = ${layoutManager!!.findFirstVisibleItemPosition()}, first = ${layoutManager!!.findLastVisibleItemPosition()}"
-                )
-            }
+                        isGroup = true,
+                        references = arrayListOf(MessageReferenceDto("asd ${System.currentTimeMillis()}$a", isGeo = true, latitude = 45.678, longitude = 97.654, size = 0L))))
+               viewModel.insertMessage(
+                   getParams().id, MessageDto(
+                       "$a ${System.currentTimeMillis()} cvg hfxhf ",
+                       true,
+                       viewModel.getChat(getParams().id)!!.owner,
+                       viewModel.getChat(getParams().id)!!.opponentJid,
+                       texts.random(),
+                       MessageSendingState.Deliver,
+                       System.currentTimeMillis(),
+                       0,
+                       MessageDisplayType.Text,
+                       false,
+                       false,
+                       null,
+                       false, null, false, isUnread = false
+                   ))
+               viewModel.insertMessage(
+                   getParams().id, MessageDto(
+                       "$a ${System.currentTimeMillis()} cvg hfxjjhf ",
+                       true,
+                       viewModel.getChat(getParams().id)!!.owner,
+                       viewModel.getChat(getParams().id)!!.opponentJid,
+                       texts.random(),
+                       MessageSendingState.Deliver,
+                       System.currentTimeMillis(),
+                       0,
+                       MessageDisplayType.Text,
+                       false,
+                       false,
+                       null,
+                       false, null, false, isUnread = false
+                   ))
+               viewModel.insertMessage(
+                   getParams().id,MessageDto(
+                       "$a grtt${opponentJid} ${System.currentTimeMillis()}",
+                       false,
+                       owner,
+                       opponentJid,
+                       textRandom.random(),
+                       MessageSendingState.Deliver,
+                       System.currentTimeMillis(),
+                       0,
+                       MessageDisplayType.System,
+                       false,
+                       false,
+                       null,
+                       isUnread = true,
+                       isGroup = true
+                   ))
+//                viewModel.insertMessage(
+//                    getParams().id,MessageDto(
+//                    "${System.currentTimeMillis()} cfd $a",
+//                    true,
+//                    viewModel.getChat(getParams().id)!!.owner,
+//                    viewModel.getChat(getParams().id)!!.opponentJid,
+//                    "",
+//                    MessageSendingState.Deliver,
+//                    System.currentTimeMillis(),
+//                    0,
+//                    MessageDisplayType.Text,
+//                    false,
+//                    false,
+//                    null,
+//                    false, null, false, isUnread = false, references = arrayListOf(MessageReferenceDto("atsd $a ${System.currentTimeMillis()}", isGeo = true, latitude = 67.678, longitude = 12.654, size = 0L))))
+           }
+
+
+     }
+         d1.await()
+         d2.await()
+
         }
         isNeedScrollDown =
             layoutManager!!.findFirstVisibleItemPosition() + 2 >= (messageAdapter!!.itemCount - viewModel.unreadCount.value!!)
@@ -1006,6 +1192,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     }
 
     private fun sendVoiceMessage(path: String) {
+        isPlaying = false
         binding.linRecordLock.invalidate()
         enableStandardPanelButtons(true)
         beginTimer(false)
@@ -1015,7 +1202,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
             "a ${System.currentTimeMillis()},",
             uri = path,
             size = 0L,
-            isAudioMessage = true
+            isVoiceMessage = true
         )
         val list = ArrayList<MessageReferenceDto>()
         list.add(reference)
@@ -1076,6 +1263,8 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     }
 
     private fun clearVoiceMessage() {
+        binding.audioPresenter.btnPlay.setImageResource(R.drawable.ic_play)
+        isPlaying = false
         isVibrate = false
         binding.record.recordLayout.clearAnimation()
         binding.record.recordLayout.x = 0f
@@ -1496,27 +1685,22 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
                 return super.onTouch(view, motionEvent)
             }
         })
-        if (isPlaying) {
-            binding.audioPresenter.btnPlay.setImageResource(R.drawable.ic_pause)
-        } else {
-            binding.audioPresenter.btnPlay.setImageResource(
-                R.drawable.ic_play
-            )
-        }
 
-        binding.audioPresenter.btnPlay.setOnClickListener {
-            if (isPlaying) {
-
-            } else {
-
-            }
-        }
         binding.audioPresenter.btnDeleteAudioMessage.setOnClickListener {
+            isPlaying = false
             releaseRecordedVoicePlayback(path)
             finishVoiceRecordLayout()
             recordingPath = null
             audioProgressSubscription?.dispose()
             enableStandardPanelButtons(true)
+            binding.record.cancelRecordLayout.isVisible = false
+          binding.imLock.setImageResource(R.drawable.ic_lock_base)
+            binding.imLockBar.setImageResource(R.drawable.ic_lock_bar)
+          Log.d("yyy", "${binding.linRecordLock.y}")
+            binding.linRecordLock.animate().y(911f).translationY(0f).start()
+            binding.record.recordLayout.invalidate()
+          clearVoiceMessage()
+
         }
         binding.audioPresenter.btnSendAudioMessage.setOnClickListener {
             sendStoppedVoiceMessage(path)
@@ -1525,10 +1709,10 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
             finishVoiceRecordLayout()
             recordingPath = null
             audioProgressSubscription?.dispose()
-            binding.record.recordLayout.isVisible = false
 
             binding.audioPresenter.recordingPresenterLayout.isVisible = false
             enableStandardPanelButtons(true)
+            clearVoiceMessage()
         }
     }
 
@@ -1557,6 +1741,20 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
 
     private fun subscribeForRecordedAudioProgress() {
         val audioProgress = VoiceManager.PublishAudioProgress.getInstance().subscribeForProgress()
+        val mediaPlayer = MediaPlayer()
+        mediaPlayer.setDataSource(audioRecorder.getRecordedFilePath())
+        mediaPlayer.prepare()
+
+        binding.audioPresenter.btnPlay.setOnClickListener {
+            if (isPlaying) {
+                mediaPlayer.pause()
+                binding.audioPresenter.btnPlay.setImageResource(R.drawable.ic_play)
+                isPlaying = false
+            } else {
+                binding.audioPresenter.btnPlay.setImageResource(R.drawable.ic_pause)
+                mediaPlayer.start()
+                isPlaying = true
+            }}
         audioProgressSubscription =
             audioProgress.doOnNext { info: VoiceManager.PublishAudioProgress.AudioInfo ->
                 setUpAudioProgress(
@@ -1567,18 +1765,9 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     }
 
     private fun setUpAudioProgress(info: VoiceManager.PublishAudioProgress.AudioInfo) {
-        if (info.attachmentIdHash == 0) {
-            binding.audioPresenter.playerVisualizer.updatePlayerPercent(
-                info.currentPosition.toFloat() / info.duration,
-                false
-            )
-            if (info.resultCode == VoiceManager.COMPLETED_AUDIO_PROGRESS
-                || info.resultCode == VoiceManager.PAUSED_AUDIO_PROGRESS
-            ) {
-                binding.audioPresenter.btnPlay.setImageResource(R.drawable.ic_play)
-            } else binding.audioPresenter.btnPlay.setImageResource(R.drawable.ic_pause)
+
         }
-    }
+
 
     private fun finishVoiceRecordLayout() {
         binding.record.recordLayout.isVisible = false

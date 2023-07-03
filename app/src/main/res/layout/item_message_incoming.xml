@@ -1,14 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
+    android:layout_gravity="start"
     android:layout_height="wrap_content"
     android:paddingEnd="50dp">
-
-    <RelativeLayout
-        android:id="@+id/incoming_message"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_gravity="start">
 
     <FrameLayout
         android:id="@+id/tail"
@@ -38,21 +33,20 @@
         android:layout_marginStart="-6.5dp"
         android:layout_toEndOf="@id/tail"
         android:orientation="vertical"
-        android:paddingVertical="2dp">
+        android:paddingVertical="2dp"/>
 
-        <TextView
-            android:text="Анна Белова"
-            android:gravity="start"
-            android:lineHeight="20dp"
-            android:maxLines="1"
-            android:textColor="#673AB7"
-            android:textSize="14sp"
-            android:textStyle="bold"
-            android:paddingHorizontal="8dp"
-            android:layout_gravity="start"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:id="@+id/tv_message_username"/>
-    </LinearLayout>
-    </RelativeLayout>
-</FrameLayout>
+<!--        <TextView-->
+<!--            android:text="Анна Белова"-->
+<!--            android:gravity="start"-->
+<!--            android:lineHeight="20dp"-->
+<!--            android:maxLines="1"-->
+<!--            android:textColor="#673AB7"-->
+<!--            android:textSize="14sp"-->
+<!--            android:visibility="gone"-->
+<!--            android:textStyle="bold"-->
+<!--            android:paddingHorizontal="8dp"-->
+<!--            android:layout_gravity="start"-->
+<!--            android:layout_width="match_parent"-->
+<!--            android:layout_height="wrap_content"-->
+<!--            android:id="@+id/tv_message_username"/>-->
+</RelativeLayout>
