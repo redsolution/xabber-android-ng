@@ -87,8 +87,8 @@
 
         <ImageView
             android:id="@+id/im_message_status"
-            android:layout_width="@dimen/message_status_size"
-            android:layout_height="@dimen/message_status_size"
+            android:layout_width="@dimen/message_status_size_in_chat_list"
+            android:layout_height="@dimen/message_status_size_in_chat_list"
             android:contentDescription="@string/message_status_content_description"
             tools:srcCompat="@drawable/ic_check_green" />
 

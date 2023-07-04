@@ -34,6 +34,7 @@
     <dimen name="item_chat_height">72dp</dimen>
     <dimen name="item_chat_padding">8dp</dimen>
     <dimen name="logo_empty_size">90dp</dimen>
+    <dimen name="margin_between_balloon_and_tail">-6.5dp</dimen>
     <dimen name="main_container_width">500dp</dimen>
     <dimen name="margin_extra_small">4dp</dimen>
     <dimen name="margin_horizontal_onboarding">48dp</dimen>
@@ -50,7 +51,11 @@
     <dimen name="margin_onboarding_extra_large">64dp</dimen>
     <dimen name="margin_standard">12dp</dimen>
     <dimen name="margin_10">10dp</dimen>
-    <dimen name="message_status_size">16dp</dimen>
+    <dimen name="message_margin">2dp</dimen>
+    <dimen name="message_side_padding">50dp</dimen>
+    <dimen name="message_status_size">12dp</dimen>
+    <dimen name="message_status_size_in_chat_list">16dp</dimen>
+    <dimen name="message_vertical_padding">2dp</dimen>
     <dimen name="onboarding_button_font_size">17sp</dimen>
     <dimen name="onboarding_medium_font_size">15sp</dimen>
     <dimen name="onboarding_small_font_size">13sp</dimen>
@@ -65,6 +70,7 @@
     <dimen name="status_rim_width">1dp</dimen>
     <dimen name="status_size_toolbar">9dp</dimen>
     <dimen name="sync_image_size">4dp</dimen>
+    <dimen name="tail_margin">4dp</dimen>
     <dimen name="toolbar_avatar_margin_start">22dp</dimen>
     <dimen name="toolbar_title_font_size">20sp</dimen>
     <dimen name="text_size_button_toolbar">15sp</dimen>

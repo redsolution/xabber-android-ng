@@ -33,7 +33,10 @@
         android:layout_height="wrap_content">
 
         <ImageView
-            android:src="@drawable/circle_star_face"
+            android:src="@drawable/star_face"
+            android:background="@drawable/circle"
+            android:backgroundTint="@color/purple_500"
+            android:padding="12dp"
             android:id="@+id/image_avatar"
             style="@style/AccountSettingsIcon"
             app:layout_constraintBottom_toBottomOf="parent"
@@ -72,7 +75,10 @@
         <ImageView
             android:id="@+id/image_chat"
             style="@style/AccountSettingsIcon"
-            android:src="@drawable/circle_chat_settings"
+            android:src="@drawable/ic_chat_settings"
+            android:background="@drawable/circle"
+            android:padding="12dp"
+            android:backgroundTint="@color/cyan_500"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
@@ -107,7 +113,10 @@
         android:layout_height="wrap_content">
 
         <ImageView
-            android:src="@drawable/circle_light"
+            android:src="@drawable/ic_baseline_lightbulb_24"
+            android:padding="12dp"
+            android:backgroundTint="@color/green_500"
+            android:background="@drawable/circle"
             android:id="@+id/image_app_icon"
             style="@style/AccountSettingsIcon"
             app:layout_constraintBottom_toBottomOf="parent"

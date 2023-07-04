@@ -11,7 +11,7 @@
             android:layout_width="48dp"
             android:layout_height="48dp"
             android:layout_centerVertical="true"
-            android:background="@drawable/file_icon_background"
+            android:background="@drawable/circle"
             android:paddingLeft="11dp"
             android:paddingRight="11dp" />
 

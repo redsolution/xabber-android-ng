@@ -17,25 +17,25 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:background="@color/transparent"
+            android:contentDescription="@string/image"
             android:scaleType="centerCrop"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            android:contentDescription="@string/image" />
+            app:layout_constraintTop_toTopOf="parent" />
     </com.xabber.utils.custom.ShapeOfView>
 
     <ImageView
         android:id="@+id/im_video_label"
-        android:visibility="gone"
-        android:padding="8dp"
-        android:layout_gravity="center"
-        android:background="@drawable/circle_grey_transparent"
         android:layout_width="44dp"
         android:layout_height="44dp"
+        android:layout_gravity="center"
+        android:background="@drawable/circle"
+        android:backgroundTint="#CC757575"
+        android:padding="8dp"
         android:src="@drawable/ic_play"
+        android:visibility="gone"
         app:tint="@color/white" />
 
-    <include
-        layout="@layout/message_information_stamp"/>
+    <include layout="@layout/message_information_stamp" />
 </FrameLayout>

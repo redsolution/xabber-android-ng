@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
-     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
-  <androidx.core.widget.NestedScrollView
+
+    <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         app:layout_behavior="@string/appbar_scrolling_view_behavior">
@@ -14,15 +15,19 @@
             android:orientation="vertical">
 
             <LinearLayout
-                android:orientation="vertical"
                 style="@style/ClickableViewGroup"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp">
+                android:layout_marginTop="12dp"
+                android:orientation="vertical">
 
                 <ImageView
                     style="@style/AccountSettingsIcon"
-                    android:src="@drawable/ic_profile_circle"
+                    android:src="@drawable/ic_account"
+                    android:background="@drawable/circle"
+                    android:padding="12dp"
+                    app:tint="@color/white"
+                    android:backgroundTint="@color/blue_500"
                     app:layout_constraintBottom_toBottomOf="parent"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toTopOf="parent" />
@@ -31,8 +36,7 @@
                     style="@style/AccountSettingsTitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Profile"
-                    />
+                    android:text="Profile" />
 
                 <TextView
                     style="@style/AccountSettingsSubtitle"
@@ -47,14 +51,16 @@
 
             <LinearLayout
                 style="@style/ClickableViewGroup"
-                android:orientation="vertical"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content">
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
 
                 <ImageView
-
                     style="@style/AccountSettingsIcon"
-                    android:src="@drawable/cloud_storage_circle"
+                    android:background="@drawable/circle"
+                    android:backgroundTint="@color/purple_500"
+                    android:padding="12dp"
+                    android:src="@drawable/ic_cloud_white"
                     app:layout_constraintBottom_toBottomOf="parent"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toTopOf="parent" />
@@ -119,9 +125,11 @@
                 android:orientation="vertical">
 
                 <ImageView
-
                     style="@style/AccountSettingsIcon"
-                    android:src="@drawable/devices_circle"
+                    android:background="@drawable/circle"
+                    android:padding="12dp"
+                    android:backgroundTint="@color/green_500"
+                    android:src="@drawable/ic_devices_white"
                     app:layout_constraintBottom_toBottomOf="parent"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toTopOf="parent" />
@@ -145,11 +153,6 @@
                     app:layout_constraintStart_toEndOf="@id/im_devices" />
 
             </LinearLayout>
-
-
-
-
-
 
 
         </LinearLayout>

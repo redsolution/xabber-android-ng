@@ -29,8 +29,12 @@
                 <ImageView
                     android:layout_marginStart="24dp"
                     android:id="@+id/image_profile"
+                    android:padding="12dp"
                     style="@style/AccountSettingsIcon"
-                    android:src="@drawable/ic_profile_circle"
+                    app:tint="@color/white"
+                    android:background="@drawable/circle"
+                    android:backgroundTint="@color/blue_500"
+                    android:src="@drawable/ic_account"
                     app:layout_constraintBottom_toBottomOf="parent"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toTopOf="parent" />
@@ -65,7 +69,10 @@
                     android:layout_marginStart="24dp"
                     android:id="@+id/image_cloud_storage"
                     style="@style/AccountSettingsIcon"
-                    android:src="@drawable/cloud_storage_circle"
+                    android:src="@drawable/ic_cloud_white"
+                    android:padding="12dp"
+                    android:background="@drawable/circle"
+                    android:backgroundTint="@color/purple_500"
                     app:layout_constraintBottom_toBottomOf="parent"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toTopOf="parent" />
@@ -133,9 +140,12 @@
 
                 <ImageView
                     android:layout_marginStart="24dp"
+                    android:padding="12dp"
                     android:id="@+id/im_devices"
                     style="@style/AccountSettingsIcon"
-                    android:src="@drawable/devices_circle"
+                    android:background="@drawable/circle"
+                    android:backgroundTint="@color/green_500"
+                    android:src="@drawable/ic_devices_white"
                     app:layout_constraintBottom_toBottomOf="parent"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toTopOf="parent" />

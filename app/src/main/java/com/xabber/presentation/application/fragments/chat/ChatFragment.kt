@@ -74,6 +74,7 @@ import java.io.InputStream
 import java.lang.Runnable
 import java.util.*
 import java.util.concurrent.TimeUnit
+import kotlin.collections.ArrayList
 import kotlin.experimental.and
 
 
@@ -748,7 +749,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         viewModel.messages.observe(viewLifecycleOwner) {
             Log.d("iii", "observe")
             messageAdapter?.updateAdapter(it)
-            messageAdapter?.notifyDataSetChanged()
+           messageAdapter?.notifyDataSetChanged()
             if (layoutManager != null && messageAdapter != null) {
                 if (layoutManager!!.findLastVisibleItemPosition() >= messageAdapter!!.itemCount - 2 && !isSelectedMode) scrollDown()
                 if (it.isNotEmpty()) isNeedScrollDown = it[it.size - 1].isOutgoing
@@ -841,145 +842,24 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     }
 
     private fun sendIncomingMessages(owner: String, opponentJid: String) {
-
-     lifecycleScope.launch(Dispatchers.IO) {
-            var a = 0
-
-            var textRandom = arrayListOf<String>(
-                "Привет",
-                "Компания «Ростелеком» открыла новый сезон строительства оптических линий связи на Южном Урале. Первым объектом для подключения стал жилой дом Челябинска в ЖК «Ньютон» на Комсомольском проспекте, 141. После его сдачи жители 132 квартир смогут пользоваться интернетом на скорости до 1 Гбит/с.",
-                "Да",
-                "В торжественной презентации старта нового сезона стройки приняли участие хоккеисты"
-            )
-
-            var texts = arrayListOf<String>(
-                "Как дела?",
-                "Благодарю за предоставленную информацию. Как можно купить билеты?",
-                "Спасибо. До свидания.",
-                "Да, наш лучший букет из орхидей — это композиция \"Все для тебя\". Хит продаж! Его создают квалифицированные флористы.", "Хорошо, за вами приедет большое авто. Ждите, за 5 минут машина будет на месте.", "Поздравляю тебя с Днем рождения! Желаю счастья, здоровья, успехов в учебе."
-            )
-
-            var tex = arrayListOf<String>("Назовите свой адрес, пожалуйста.", "", "", "Добрый день. Вы сдаете квартиру на длительный срок?", "", "Всего хорошего!", "", "Это спектакль экспериментального школьного театра под названием \"Руслан и Людмила\" по мотивам произведения А.С. Пушкина. Спектакль благотворительный. Собранные средства передадут детской больнице.")
-
-            var incomingMessageWithReference = MessageDto(
-                "$a ${opponentJid} ${System.currentTimeMillis()} bvkj,k",
-                false,
-                owner,
-                opponentJid,
-                tex.random(),
-                MessageSendingState.Deliver,
-                System.currentTimeMillis(),
-                0,
-                MessageDisplayType.System,
-                false,
-                false,
-                null,
-                isUnread = true,
-                isGroup = true
-            )
-
-
-
-       val d1 = async(Dispatchers.IO) {
-           repeat(10) {
-               var a = 789
-               a++
-//                viewModel.insertMessage(
-//                    getParams().id,MessageDto(
-//                        "$a ${opponentJid} ${System.currentTimeMillis()}gg",
-//                        false,
-//                        owner,
-//                        opponentJid,
-//                        "",
-//                        MessageSendingState.Deliver,
-//                        System.currentTimeMillis(),
-//                        0,
-//                        MessageDisplayType.System,
-//                        false,
-//                        false,
-//                        null,
-//                        isUnread = true,
-//                        isGroup = true,
-//                        references = arrayListOf(MessageReferenceDto("asd ${System.currentTimeMillis()}$a", isGeo = true, latitude = 45.678, longitude = 97.654, size = 0L))))
-               viewModel.insertMessage(
-                   getParams().id, MessageDto(
-                       "$a ${System.currentTimeMillis()} cvg hfxhf ",
-                       true,
-                       viewModel.getChat(getParams().id)!!.owner,
-                       viewModel.getChat(getParams().id)!!.opponentJid,
-                       texts.random(),
-                       MessageSendingState.Deliver,
-                       System.currentTimeMillis(),
-                       0,
-                       MessageDisplayType.Text,
-                       false,
-                       false,
-                       null,
-                       false, null, false, isUnread = false
-                   )
-               )
-               viewModel.insertMessage(
-                   getParams().id, MessageDto(
-                       "$a ${System.currentTimeMillis()} cvg hfxjjhf ",
-                       true,
-                       viewModel.getChat(getParams().id)!!.owner,
-                       viewModel.getChat(getParams().id)!!.opponentJid,
-                       texts.random(),
-                       MessageSendingState.Deliver,
-                       System.currentTimeMillis(),
-                       0,
-                       MessageDisplayType.Text,
-                       false,
-                       false,
-                       null,
-                       false, null, false, isUnread = false
-                   )
-               )
-               viewModel.insertMessage(
-                   getParams().id, MessageDto(
-                       "$a grtt${opponentJid} ${System.currentTimeMillis()}",
-                       false,
-                       owner,
-                       opponentJid,
-                       textRandom.random(),
-                       MessageSendingState.Deliver,
-                       System.currentTimeMillis(),
-                       0,
-                       MessageDisplayType.System,
-                       false,
-                       false,
-                       null,
-                       isUnread = true,
-                       isGroup = true
-                   )
-               )
-//                viewModel.insertMessage(
-//                    getParams().id,MessageDto(
-//                    "${System.currentTimeMillis()} cfd $a",
-//                    true,
-//                    viewModel.getChat(getParams().id)!!.owner,
-//                    viewModel.getChat(getParams().id)!!.opponentJid,
-//                    "",
-//                    MessageSendingState.Deliver,
-//                    System.currentTimeMillis(),
-//                    0,
-//                    MessageDisplayType.Text,
-//                    false,
-//                    false,
-//                    null,
-//                    false, null, false, isUnread = false, references = arrayListOf(MessageReferenceDto("atsd $a ${System.currentTimeMillis()}", isGeo = true, latitude = 67.678, longitude = 12.654, size = 0L))))
-           }
-       }
-
-           val d2 = async(Dispatchers.IO) {
-               var a = 8
-               repeat(10) {
-
-               a++
+        var a = 0
+        var textRandom = arrayListOf<String>(
+            "Привет",
+            "Компания «Ростелеком» открыла новый сезон строительства оптических линий связи на Южном Урале. Первым объектом для подключения стал жилой дом Челябинска в ЖК «Ньютон» на Комсомольском проспекте, 141. После его сдачи жители 132 квартир смогут пользоваться интернетом на скорости до 1 Гбит/с.",
+            "Да",
+            "В торжественной презентации старта нового сезона стройки приняли участие хоккеисты"
+        )
+        lifecycleScope.launch {
+            var c = false
+            for (i in 0..1000) {
+              delay(100)
+                c = false
+                a++
                 viewModel.insertMessage(
-                    getParams().id,MessageDto(
-                        "$a ${opponentJid} ${System.currentTimeMillis()}gg",
-                        false,
+                    getParams().id,
+                    MessageDto(
+                        "$a k ${opponentJid} ${System.currentTimeMillis()}",
+                        c,
                         owner,
                         opponentJid,
                         "",
@@ -991,79 +871,33 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
                         false,
                         null,
                         isUnread = true,
-                        isGroup = true,
-                        references = arrayListOf(MessageReferenceDto("asd ${System.currentTimeMillis()}$a", isGeo = true, latitude = 45.678, longitude = 97.654, size = 0L))))
-               viewModel.insertMessage(
-                   getParams().id, MessageDto(
-                       "$a ${System.currentTimeMillis()} cvg hfxhf ",
-                       true,
-                       viewModel.getChat(getParams().id)!!.owner,
-                       viewModel.getChat(getParams().id)!!.opponentJid,
-                       texts.random(),
-                       MessageSendingState.Deliver,
-                       System.currentTimeMillis(),
-                       0,
-                       MessageDisplayType.Text,
-                       false,
-                       false,
-                       null,
-                       false, null, false, isUnread = false
-                   ))
-               viewModel.insertMessage(
-                   getParams().id, MessageDto(
-                       "$a ${System.currentTimeMillis()} cvg hfxjjhf ",
-                       true,
-                       viewModel.getChat(getParams().id)!!.owner,
-                       viewModel.getChat(getParams().id)!!.opponentJid,
-                       texts.random(),
-                       MessageSendingState.Deliver,
-                       System.currentTimeMillis(),
-                       0,
-                       MessageDisplayType.Text,
-                       false,
-                       false,
-                       null,
-                       false, null, false, isUnread = false
-                   ))
-               viewModel.insertMessage(
-                   getParams().id,MessageDto(
-                       "$a grtt${opponentJid} ${System.currentTimeMillis()}",
-                       false,
-                       owner,
-                       opponentJid,
-                       textRandom.random(),
-                       MessageSendingState.Deliver,
-                       System.currentTimeMillis(),
-                       0,
-                       MessageDisplayType.System,
-                       false,
-                       false,
-                       null,
-                       isUnread = true,
-                       isGroup = true
-                   ))
-//                viewModel.insertMessage(
-//                    getParams().id,MessageDto(
-//                    "${System.currentTimeMillis()} cfd $a",
-//                    true,
-//                    viewModel.getChat(getParams().id)!!.owner,
-//                    viewModel.getChat(getParams().id)!!.opponentJid,
-//                    "",
-//                    MessageSendingState.Deliver,
-//                    System.currentTimeMillis(),
-//                    0,
-//                    MessageDisplayType.Text,
-//                    false,
-//                    false,
-//                    null,
-//                    false, null, false, isUnread = false, references = arrayListOf(MessageReferenceDto("atsd $a ${System.currentTimeMillis()}", isGeo = true, latitude = 67.678, longitude = 12.654, size = 0L))))
-           }
-
-
-     }
-         d1.await()
-         d2.await()
-
+                        isGroup = false, references = arrayListOf(MessageReferenceDto("gjccgm $a", size = 0, isGeo = true, longitude = 5.678, latitude = 67.896))
+                    )
+                )
+                viewModel.insertMessage(
+                    getParams().id,
+                    MessageDto(
+                        "$a ${opponentJid} ${System.currentTimeMillis()}",
+                        c,
+                        owner,
+                        opponentJid,
+                        "$a " + textRandom.random(),
+                        MessageSendingState.Deliver,
+                        System.currentTimeMillis(),
+                        0,
+                        MessageDisplayType.System,
+                        false,
+                        false,
+                        null,
+                        isUnread = true,
+                        isGroup = false
+                    )
+                )
+                Log.d(
+                    "yyy",
+                    "lastPosition = ${layoutManager!!.findFirstVisibleItemPosition()}, first = ${layoutManager!!.findLastVisibleItemPosition()}"
+                )
+            }
         }
         isNeedScrollDown =
             layoutManager!!.findFirstVisibleItemPosition() + 2 >= (messageAdapter!!.itemCount - viewModel.unreadCount.value!!)

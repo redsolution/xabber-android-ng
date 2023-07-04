@@ -28,7 +28,7 @@
             android:layout_height="?attr/actionBarSize"
             android:background="@color/white"
             android:elevation="@dimen/bottom_panel_elevation"
-            app:itemIconTint="@drawable/bottom_icon_color"
+            app:itemIconTint="@drawable/navigation_bar_icon_color"
             app:labelVisibilityMode="unlabeled"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toStartOf="@id/delimiter"

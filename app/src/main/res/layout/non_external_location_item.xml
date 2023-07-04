@@ -15,7 +15,7 @@
         android:id="@+id/location_background"
         android:layout_width="48dp"
         android:layout_height="48dp"
-        android:src="@drawable/circle_grey_backround"
+        android:src="@drawable/circle"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 

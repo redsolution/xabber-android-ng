@@ -1,14 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_gravity="end"
-    android:paddingStart="50dp">
+    android:paddingStart="@dimen/message_side_padding"
+    tools:ignore="RtlSymmetry">
 
     <FrameLayout
         android:id="@+id/balloon"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
         android:layout_alignStart="@id/message_container"
         android:layout_alignTop="@id/message_container"
         android:layout_alignEnd="@id/message_container"
@@ -18,12 +20,12 @@
         android:id="@+id/message_container"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginVertical="2dp"
-        android:layout_marginEnd="-6.5dp"
+        android:layout_marginVertical="@dimen/message_margin"
+        android:layout_marginEnd="@dimen/margin_between_balloon_and_tail"
         android:layout_toStartOf="@id/tail"
         android:gravity="end"
         android:orientation="vertical"
-        android:paddingVertical="2dp" />
+        android:paddingVertical="@dimen/message_vertical_padding" />
 
     <FrameLayout
         android:id="@+id/tail"
@@ -31,5 +33,5 @@
         android:layout_height="wrap_content"
         android:layout_alignBottom="@id/message_container"
         android:layout_alignParentEnd="true"
-        android:layout_marginEnd="4dp" />
+        android:layout_marginEnd="@dimen/tail_margin" />
 </RelativeLayout>

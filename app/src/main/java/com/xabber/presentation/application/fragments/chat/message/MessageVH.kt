@@ -234,13 +234,13 @@ abstract class MessageVH(
         shape.setDrawable(sh)
 
 
-     val   mapView = MapView(context).apply {
-            val location = GeoPoint(latitude, longitude)
-            controller.setCenter(location)
-            setTileSource(TileSourceFactory.MAPNIK)
-            isTilesScaledToDpi = true
-            //  controller.setZoom(5.0)
-        }
+//     val   mapView = MapView(context).apply {
+//            val location = GeoPoint(latitude, longitude)
+//            controller.setCenter(location)
+//            setTileSource(TileSourceFactory.MAPNIK)
+//            isTilesScaledToDpi = true
+//            //  controller.setZoom(5.0)
+//        }
       // val bitmap = Bitmap.createBitmap(mapImage.width, mapImage.height, Bitmap.Config.ARGB_8888)
     //   val canvas = Canvas(bitmap)
   //      mapView.draw(canvas)

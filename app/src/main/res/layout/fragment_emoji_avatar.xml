@@ -13,7 +13,7 @@
         android:layout_height="wrap_content"
         android:layout_gravity="center_horizontal"
         android:layout_marginTop="@dimen/margin_onboarding_small"
-        android:src="@drawable/bottom_sheet_swipe_dark"
+        android:src="@drawable/bottom_sheet_swipe"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
@@ -225,7 +225,7 @@
                 android:id="@+id/avatarBackground"
                 android:layout_width="@dimen/avatar128"
                 android:layout_height="@dimen/avatar128"
-                android:background="@drawable/backround_blue"
+                android:background="@color/blue_100"
                 android:clickable="true"
                 android:focusable="true"
                 android:gravity="center"
@@ -233,7 +233,6 @@
                 android:textColor="@color/black"
                 android:textSize="48sp"
                 app:cardElevation="0dp" />
-
         </com.xabber.utils.custom.ShapeOfView>
 
         <ImageView
@@ -243,8 +242,11 @@
             android:layout_alignEnd="@id/shape_view"
             android:layout_alignBottom="@id/shape_view"
             android:layout_margin="4dp"
-            android:contentDescription="@string/edit_smile_avatar_image_description"
-            app:srcCompat="@drawable/edit_grey_in_white_circle" />
+            android:background="@drawable/circle"
+            android:backgroundTint="@color/white"
+            android:src="@drawable/ic_edit_grey"
+            android:padding="12dp"
+            android:contentDescription="@string/edit_smile_avatar_image_description" />
 
     </RelativeLayout>
 

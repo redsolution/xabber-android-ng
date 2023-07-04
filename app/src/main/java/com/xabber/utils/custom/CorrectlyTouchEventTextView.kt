@@ -43,11 +43,11 @@ open class CorrectlyTouchEventTextView @JvmOverloads constructor(
         ): Boolean {
             if (event.action == MotionEvent.ACTION_UP) {
                 AlertDialog.Builder(textView.context).create().apply {
-                    setTitle("open_this_link")
+                    setTitle(R.string.open_linc_title_dialog)
                     setMessage(url)
 
                     setButton(
-                        DialogInterface.BUTTON_POSITIVE, textView.context.getString(R.string.app_name)
+                        DialogInterface.BUTTON_POSITIVE, textView.context.getString(R.string.open)
                     ) { _: DialogInterface?, _: Int -> span.onClick(textView) }
 
                     setButton(
@@ -105,7 +105,7 @@ open class CorrectlyTouchEventTextView @JvmOverloads constructor(
             val highlightSpan = BackgroundColorSpan(textView.highlightColor)
 
             text.setSpan(highlightSpan, spanStart, spanEnd, Spannable.SPAN_INCLUSIVE_INCLUSIVE)
-            textView.setTag(1, highlightSpan)
+            textView.setTag(R.id.clickable_span_highlight_background, highlightSpan)
             Selection.setSelection(text, spanStart, spanEnd)
         }
 
@@ -116,7 +116,7 @@ open class CorrectlyTouchEventTextView @JvmOverloads constructor(
             isUrlHighlighted = false
             val text = textView.text as Spannable
             val highlightSpan =
-                textView.getTag(1) as? BackgroundColorSpan?
+                textView.getTag(R.id.clickable_span_highlight_background) as? BackgroundColorSpan?
                     ?: return
             text.removeSpan(highlightSpan)
             Selection.removeSelection(text)

@@ -248,6 +248,7 @@ class ChatViewModel(private val chatId: String, private val chatRepository: Chat
     }
 
     fun insertMessage(chatId: String, messageDto: MessageDto) {
+        viewModelScope.launch(Dispatchers.IO) {
             val rreferences = realmListOf<MessageReferenceStorageItem>()
             realm.writeBlocking {
                 for (i in 0 until messageDto.references.size) {
@@ -289,8 +290,7 @@ class ChatViewModel(private val chatId: String, private val chatRepository: Chat
                 if (item != null) {
                     if (!messageDto.isOutgoing && item.muteExpired <= 0) item.isArchived = false
                 }
-                Log.d("yyy", "item unread = ${item?.unread}")
-            }
+            } }
     }
 
     fun selectMessage(primary: String, checked: Boolean) {

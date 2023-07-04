@@ -39,8 +39,12 @@
                 android:layout_width="36dp"
                 android:layout_height="36dp"
                 android:layout_gravity="center"
-                android:src="@drawable/circle_grey_transparent"
-                android:visibility="gone" />
+                android:background="@drawable/circle"
+                android:backgroundTint="#CC757575"
+                android:padding="8dp"
+                android:src="@drawable/ic_play"
+                android:visibility="gone"
+                app:tint="@color/white"  />
         </FrameLayout>
 
         <FrameLayout
@@ -66,8 +70,12 @@
                 android:layout_width="36dp"
                 android:layout_height="36dp"
                 android:layout_gravity="center"
-                android:src="@drawable/circle_grey_transparent"
-                android:visibility="gone" />
+                android:background="@drawable/circle"
+                android:backgroundTint="#CC757575"
+                android:padding="8dp"
+                android:src="@drawable/ic_play"
+                android:visibility="gone"
+                app:tint="@color/white"  />
         </FrameLayout>
     </LinearLayout>
 

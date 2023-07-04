@@ -6,6 +6,6 @@
     android:width="1px"
     xmlns:android="http://schemas.android.com/apk/res/android">
     <path
-        android:fillColor="@color/white"
+        android:fillColor="@color/grey_300"
         android:pathData="M 0,0 L 1,0 1,1 0,1" />
 </vector>

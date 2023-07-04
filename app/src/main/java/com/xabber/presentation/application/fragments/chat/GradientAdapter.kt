@@ -4,8 +4,6 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
-import android.widget.LinearLayout
-import androidx.cardview.widget.CardView
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.recyclerview.widget.RecyclerView
 import com.xabber.R
@@ -36,7 +34,7 @@ RecyclerView.Adapter<GradientAdapter.GradientHolder>() {
         val primaryCardView = holder.itemView.findViewById<ConstraintLayout>(R.id.cardViewWall)
         holder.setData(list[position])
         if (!checked.contains(position)) primaryCardView.setBackgroundResource(0)
-        else primaryCardView.setBackgroundResource(R.drawable.card_view_frame)
+        else primaryCardView.setBackgroundResource(R.drawable.blue_frame)
         //  if (checked[position])  primaryCardView.setBackgroundResource(R.drawable.card_view_frame)
         //    else  primaryCardView.setBackgroundResource(0)
         //    for (i in checked.indices) {
@@ -48,7 +46,7 @@ RecyclerView.Adapter<GradientAdapter.GradientHolder>() {
 
             tryOn.onClickElement(list[position])
 
-            primaryCardView.setBackgroundResource(R.drawable.card_view_frame)
+            primaryCardView.setBackgroundResource(R.drawable.blue_frame)
             if (checked.isEmpty()) checked.add(position)
             else {
                 val a = checked.get(0)

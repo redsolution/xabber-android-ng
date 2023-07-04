@@ -1,6 +1,8 @@
 package com.xabber.presentation.application.fragments.chatlist
 
+import android.content.Context
 import android.graphics.PorterDuff
+import android.graphics.PorterDuffColorFilter
 import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.text.Spannable
@@ -16,7 +18,6 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.xabber.R
 import com.xabber.data_base.models.messages.MessageSendingState
-import com.xabber.data_base.models.messages.MessageStorageItem
 import com.xabber.data_base.models.presences.ResourceStatus
 import com.xabber.data_base.models.presences.RosterItemEntity
 import com.xabber.databinding.ItemChatListBinding
@@ -53,7 +54,7 @@ class ChatListViewHolder(
         setTime(chatListDto.lastMessageDate)
         setPin(chatListDto.pinnedDate)
         setMuted(chatListDto)
-        setUnreadMessages(chatListDto, chatListDto.unread, chatListDto.muteExpired)
+        setUnreadMessages(chatListDto, chatListDto.unread, chatListDto.muteExpired, binding.root.context)
         setMessageSendingState(chatListDto)
         setupChatStatus(chatListDto)
 
@@ -162,15 +163,22 @@ class ChatListViewHolder(
             pinnedDate > 0
     }
 
-    private fun setUnreadMessages(chatListDto: ChatListDto, unread: String, muteExpired: Long) {
+    private fun setUnreadMessages(chatListDto: ChatListDto, unread: String, muteExpired: Long, context: Context) {
         binding.unreadMessagesCount.isVisible = unread.isNotEmpty()
         binding.imMessageStatus.isVisible = unread.isEmpty() && chatListDto.lastMessageIsOutgoing
         if (unread.isNotEmpty()) binding.unreadMessagesCount.text =
             if (unread.toInt() < 1000) unread else "999+"
-        binding.unreadMessagesCount.background =
-            if ((muteExpired - System.currentTimeMillis()) > 0)
-                ContextCompat.getDrawable(binding.root.context, R.drawable.circle_grey)
-            else ContextCompat.getDrawable(binding.root.context, R.drawable.circle_green)
+  //      binding.unreadMessagesCount.background =
+         //   if ((muteExpired - System.currentTimeMillis()) > 0)
+        val colorBackground =
+            ContextCompat.getColor(context, if ((muteExpired - System.currentTimeMillis()) > 0) R.color.grey_300 else R.color.green_500)
+        val colorFilter = PorterDuffColorFilter(
+            colorBackground,
+            PorterDuff.Mode.SRC_IN
+        )
+        binding.unreadMessagesCount.background.colorFilter = colorFilter
+//                ContextCompat.getDrawable(binding.root.context, R.drawable.circle_grey)
+//            else ContextCompat.getDrawable(binding.root.context, R.drawable.unread_message_badge)
     }
 
     private fun setMuted(chatListDto: ChatListDto) {
@@ -294,7 +302,7 @@ class ChatListViewHolder(
             when (key) {
                 AppConstants.PAYLOAD_UNREAD_CHAT -> {
                     val unread = bundle.getString(AppConstants.PAYLOAD_UNREAD_CHAT)
-                  if (unread != null)  setUnreadMessages(chatListDto, unread, chatListDto.muteExpired)
+                  if (unread != null)  setUnreadMessages(chatListDto, unread, chatListDto.muteExpired, binding.root.context)
                 }
                 PAYLOAD_PINNED_POSITION_CHAT -> {
                     val pinnedDate = bundle.getLong(PAYLOAD_PINNED_POSITION_CHAT)
@@ -414,11 +422,7 @@ class ChatListViewHolder(
                         popup.show()
                         true
                     }
-                    binding.unreadMessagesCount.background =
-                        if ((chatListDto.muteExpired - System.currentTimeMillis()) > 0)
-                            ContextCompat.getDrawable(binding.root.context, R.drawable.circle_grey)
-                        else
-                            ContextCompat.getDrawable(binding.root.context, R.drawable.circle_green)
+                   setUnreadMessages(chatListDto, chatListDto.unread, muteExpired, binding.root.context)
                 }
                 PAYLOAD_CHAT_DATE -> {
                     binding.tvTimestamp.text =

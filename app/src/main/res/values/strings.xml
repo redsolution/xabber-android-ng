@@ -420,4 +420,6 @@
     <string name="image">image</string>
     <string name="menu_item_change_avatar">Change avatar</string>
     <string name="image_description">image</string>
+    <string name="open">Open</string>
+    <string name="open_linc_title_dialog">Open this link?</string>
 </resources>

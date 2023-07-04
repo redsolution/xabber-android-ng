@@ -12,7 +12,7 @@
         android:layout_width="17dp"
         android:layout_height="17dp"
         android:layout_marginEnd="8dp"
-        android:src="@drawable/circle_green"
+        android:src="@drawable/unread_message_badge"
         android:visibility="gone"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toStartOf="@id/im_chat_list_pinned"

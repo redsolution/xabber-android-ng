@@ -13,6 +13,7 @@
     android:layout_height="wrap_content"
     app:layout_constraintTop_toTopOf="parent"
     app:layout_constraintBottom_toTopOf="@id/frame_layout_action_container">
+
     <com.google.android.material.imageview.ShapeableImageView
         android:id="@+id/swipe"
         android:layout_width="wrap_content"

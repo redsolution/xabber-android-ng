@@ -25,7 +25,7 @@
         <item name="android:statusBarColor">@color/transparent</item>
         <item name="popupMenuStyle">@style/popupMenuStyle</item>
         <item name="bottomSheetDialogTheme">@style/Theme.MaterialComponents.BottomSheetDialog</item>
-        <item name="standard_divider_drawable">@drawable/chat_list_divider_light</item>
+        <item name="standard_divider_drawable">@drawable/chat_list_divider</item>
         <item name="android:windowDisablePreview">true</item>
         <item name="android:navigationBarColor">@color/white</item>
         <item name="android:windowLightNavigationBar">true</item>

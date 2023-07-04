@@ -62,9 +62,10 @@
 
         <ImageView
             android:id="@+id/im_chat_status"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:background="@drawable/circle_white"
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:background="@drawable/circle"
+            android:backgroundTint="@color/white"
             android:contentDescription="@string/chat_status_image_description"
             android:padding="@dimen/status_rim_width"
             app:layout_constraintBottom_toBottomOf="@id/shape_view"
@@ -152,8 +153,8 @@
 
             <ImageView
                 android:id="@+id/im_message_status"
-                android:layout_width="@dimen/message_status_size"
-                android:layout_height="@dimen/message_status_size"
+                android:layout_width="@dimen/message_status_size_in_chat_list"
+                android:layout_height="@dimen/message_status_size_in_chat_list"
                 android:layout_gravity="center_vertical"
                 android:contentDescription="@string/message_status_content_description"
                 tools:src="@drawable/ic_check_all_green" />
@@ -163,7 +164,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
-                android:background="@drawable/circle_green"
+                android:background="@drawable/unread_message_badge"
                 android:lines="1"
                 android:maxLength="4"
                 android:textColor="@color/white"

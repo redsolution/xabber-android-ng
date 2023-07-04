@@ -212,7 +212,7 @@ object ChatSettingsManager {
 
         hvost = when (type) {
             1 -> R.drawable.bubble
-            3 -> R.drawable.curvy_14__test
+            3 -> R.drawable.tail_curvy
             4 -> R.drawable.smooth_new
             5 -> R.drawable.stripes_new
             6 -> R.drawable.wedge_new
