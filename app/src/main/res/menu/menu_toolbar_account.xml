@@ -4,7 +4,7 @@
 
     <item
         android:id="@+id/colors"
-        android:icon="@drawable/ic_color_lens_white"
+        android:icon="@drawable/ic_color_lens"
         android:title="@string/menu_item_choose_account_color"
         app:showAsAction="always" />
 

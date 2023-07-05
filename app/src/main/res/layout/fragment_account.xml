@@ -73,13 +73,14 @@
                     android:layout_marginStart="24dp"
                     android:id="@+id/image_cloud_storage"
                     style="@style/AccountSettingsIcon"
-                    android:src="@drawable/ic_cloud_white"
+                    android:src="@drawable/ic_cloud"
                     android:background="@drawable/circle"
                     android:padding="12dp"
                     android:backgroundTint="@color/purple_500"
                     app:layout_constraintBottom_toBottomOf="parent"
                     app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toTopOf="parent" />
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:tint="@color/white" />
 
                 <TextView
                     style="@style/AccountSettingsTitle"
@@ -149,10 +150,11 @@
                     android:backgroundTint="@color/green_500"
                     android:background="@drawable/circle"
                     android:padding="12dp"
-                    android:src="@drawable/ic_devices_white"
+                    android:src="@drawable/ic_devices"
                     app:layout_constraintBottom_toBottomOf="parent"
                     app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toTopOf="parent" />
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:tint="@color/white" />
 
                 <TextView
                     style="@style/AccountSettingsTitle"

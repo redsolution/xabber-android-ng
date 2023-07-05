@@ -6,7 +6,7 @@
         <item name="android:windowLightStatusBar">true</item>
         <item name="android:statusBarColor">@color/white</item>
         <item name="colorPrimary">@color/white</item>
-        <item name="homeAsUpIndicator">@drawable/ic_chevron_left_grey</item>
+        <item name="homeAsUpIndicator">@drawable/ic_chevron_left</item>
         <item name="bottomSheetDialogTheme">@style/BaseBottomSheetDialogTheme</item>
     </style>
 

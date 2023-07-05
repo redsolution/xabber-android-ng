@@ -44,7 +44,7 @@ class SwipeToArchiveCallback(private val adapter: ChatListAdapter) :
             isCurrentlyActive
         )
         val context = recyclerView.context
-        val icon = ContextCompat.getDrawable(context, R.drawable.ic_arcived_white)!!
+        val icon = ContextCompat.getDrawable(context, R.drawable.ic_arcived)!!
         val itemView = viewHolder.itemView
         val typedValue = TypedValue()
         context.theme.resolveAttribute(R.attr.action_with_chat_background, typedValue, true)

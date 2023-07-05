@@ -4,13 +4,13 @@
 
     <item
         android:id="@+id/edit_message"
-        android:icon="@drawable/ic_edit_grey"
+        android:icon="@drawable/ic_edit"
         android:title="@string/menu_item_edit_message"
         app:showAsAction="always" />
 
     <item
         android:id="@+id/copy_message"
-        android:icon="@drawable/ic_content_copy_grey"
+        android:icon="@drawable/ic_content_copy"
         android:title="@string/menu_item_copy_message"
         app:showAsAction="always" />
 

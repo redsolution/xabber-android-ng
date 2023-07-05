@@ -27,7 +27,8 @@
             android:layout_height="24dp"
             android:layout_gravity="center_vertical"
             android:visibility="visible"
-            app:srcCompat="@drawable/ic_chevron_left_grey" />
+            android:src="@drawable/ic_chevron_left"
+            app:tint="@color/grey_700" />
 
         <TextView
             android:layout_width="wrap_content"

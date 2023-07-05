@@ -32,8 +32,9 @@
             android:layout_marginVertical="@dimen/margin_onboarding_small"
             android:layout_marginStart="20dp"
             android:layout_marginEnd="@dimen/margin_onboarding_medium"
+            app:tint="#2979FF"
             android:contentDescription="@string/avatar_bottom_sheet_emoji_label"
-            app:srcCompat="@drawable/ic_emoticon_blue" />
+            android:src="@drawable/ic_emoticon" />
 
         <TextView
             android:id="@+id/tvEmoji"
@@ -68,8 +69,9 @@
             android:layout_marginVertical="@dimen/margin_onboarding_small"
             android:layout_marginStart="20dp"
             android:layout_marginEnd="@dimen/margin_onboarding_medium"
+            app:tint="@color/yellow_700"
             android:contentDescription="@string/avatar_bottom_sheet_selfie_label"
-            app:srcCompat="@drawable/ic_camera_yellow" />
+            android:src="@drawable/ic_photo_camera" />
 
         <TextView
             android:id="@+id/tvSelfie"

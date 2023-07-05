@@ -35,7 +35,11 @@
             android:id="@+id/image_interface"
             style="@style/AccountSettingsIcon"
             android:contentDescription="@string/image_interfase_settings_description"
-            android:src="@drawable/interface_circle"
+            android:src="@drawable/ic_chat_outline"
+            app:tint="@color/white"
+            android:padding="12dp"
+            android:background="@drawable/circle"
+            android:backgroundTint="@color/cyan_500"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
@@ -73,10 +77,14 @@
             android:id="@+id/image_notifications"
             style="@style/AccountSettingsIcon"
             android:contentDescription="@string/image_notifications_settings_description"
-            android:src="@drawable/ic_notifications_circle"
+            android:src="@drawable/ic_client_outline"
+            android:padding="12dp"
+            android:background="@drawable/circle"
+            android:backgroundTint="@color/green_500"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
+            app:layout_constraintTop_toTopOf="parent"
+            app:tint="@color/white" />
 
         <TextView
             style="@style/AccountSettingsTitle"

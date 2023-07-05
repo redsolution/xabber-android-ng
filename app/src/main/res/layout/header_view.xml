@@ -38,7 +38,8 @@
         android:layout_marginStart="@dimen/margin_large"
         android:layout_width="32dp"
         android:layout_height="32dp"
-        android:src="@drawable/ic_baseline_arrow_downward_24"
+        app:tint="@color/white"
+        android:src="@drawable/ic_arrow_down"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintBottom_toTopOf="@id/bottom_border"
         android:contentDescription="@string/slider_description" />

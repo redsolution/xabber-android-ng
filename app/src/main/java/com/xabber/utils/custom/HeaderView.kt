@@ -52,8 +52,8 @@ class HeaderView : FrameLayout {
         val tip = findViewById<ImageView>(R.id.tip)
         val slider = findViewById<ImageView>(R.id.slider)
 
-        if (isUp) slider.setImageResource(R.drawable.ic_baseline_arrow_upward_24) else slider.setImageResource(
-            R.drawable.ic_baseline_arrow_downward_24
+        if (isUp) slider.setImageResource(R.drawable.ic_arrow_upward) else slider.setImageResource(
+            R.drawable.ic_arrow_down
         )
         line.setColorFilter(ContextCompat.getColor(context, colorLight))
         tip.setColorFilter(ContextCompat.getColor(context, colorLight))

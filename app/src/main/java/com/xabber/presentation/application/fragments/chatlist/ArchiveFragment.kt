@@ -6,7 +6,6 @@ import android.os.Bundle
 import android.view.View
 import androidx.core.view.isVisible
 import androidx.fragment.app.activityViewModels
-import androidx.fragment.app.viewModels
 import androidx.recyclerview.widget.DefaultItemAnimator
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -173,20 +172,20 @@ class ArchiveFragment : BaseFragment(R.layout.fragment_archive),
         }
     }
 
-    override fun pinChat(id: String) {
-        viewModel.pinChat(id)
+    override fun pinChat(chatId: String) {
+        viewModel.pinChat(chatId)
         isPin = true
     }
 
-    override fun unPinChat(id: String, position: Int) {
-        viewModel.unPinChat(id)
+    override fun unPinChat(chatId: String, position: Int) {
+        viewModel.unPinChat(chatId)
         isUnpin = true
         unpinnedChatPosition = position
     }
 
-    override fun swipeItem(id: String) {
-        viewModel.setArchived(id)
-        showSnackbar(id)
+    override fun swipeItem(chatId: String) {
+        viewModel.setArchived(chatId)
+        showSnackbar(chatId)
     }
 
     private fun showSnackbar(id: String) {
@@ -205,24 +204,23 @@ class ArchiveFragment : BaseFragment(R.layout.fragment_archive),
         snackbar?.show()
     }
 
-    override fun deleteChat(name: String, id: String) {
-        val dialog = DeletingChatDialog.newInstance(name, id)
+    override fun deleteChat(chatName: String, chatId: String) {
+        val dialog = DeletingChatDialog.newInstance(chatName, chatId)
         navigator().showDialogFragment(dialog, AppConstants.DELETING_CHAT_DIALOG_TAG)
     }
 
-    override fun clearHistory(chatListDto: ChatListDto) {
-        val name = chatListDto.getChatName()
-        val dialog = ChatHistoryClearDialog.newInstance(name, chatListDto.id)
+    override fun clearHistory(chatName: String, chatId: String) {
+        val dialog = ChatHistoryClearDialog.newInstance(chatName, chatId)
         navigator().showDialogFragment(dialog, AppConstants.CLEAR_HISTORY_DIALOG_TAG)
     }
 
-    override fun turnOfNotifications(id: String) {
-        val dialog = NotificationBottomSheet.newInstance(id)
+    override fun turnOfNotifications(chatId: String) {
+        val dialog = NotificationBottomSheet.newInstance(chatId)
         navigator().showBottomSheetDialog(dialog)
     }
 
-    override fun enableNotifications(id: String) {
-        viewModel.setMute(id, enableNotificationsCode)
+    override fun enableNotifications(chatId: String) {
+        viewModel.setMute(chatId, enableNotificationsCode)
     }
 
     override fun openSpecialNotificationsFragment() {

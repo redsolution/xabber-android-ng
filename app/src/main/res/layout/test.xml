@@ -198,9 +198,10 @@
                         android:orientation="horizontal">
 
                         <ImageButton
+                            app:tint="@color/white"
                             android:layout_width="?attr/actionBarSize"
                             android:layout_height="?attr/actionBarSize"
-                            android:src="@drawable/ic_email_white" />
+                            android:src="@drawable/ic_email" />
 
 
                         <LinearLayout

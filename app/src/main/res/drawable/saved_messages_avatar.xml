@@ -8,7 +8,7 @@
     </item>
     <item
         android:bottom="12dp"
-        android:drawable="@drawable/ic_baseline_local_police_24"
+        android:drawable="@drawable/ic_saved_chat"
         android:end="12dp"
         android:start="12dp"
         android:top="12dp" />

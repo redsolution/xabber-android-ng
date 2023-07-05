@@ -75,6 +75,6 @@
             android:clickable="true"
             android:focusable="true"
             android:padding="12dp"
-            app:srcCompat="@drawable/ic_forward_grey" />
+            app:srcCompat="@drawable/ic_forward" />
     </LinearLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>

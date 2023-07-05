@@ -4,7 +4,6 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.Dialog
-import android.content.ContentResolver
 import android.content.Intent
 import android.database.Cursor
 import android.graphics.Color
@@ -471,7 +470,7 @@ class AttachmentBottomSheet : BottomSheetDialogFragment(R.layout.layout_bottom_s
             )
             val refer = java.util.ArrayList<MessageReferenceDto>()
             refer.add(geoMessage)
-            val chat = chatVM.getChat(getChatId())
+            val chat = chatVM.loadChat(getChatId())
             val message = MessageDto(
                 primary = getChatId() + System.currentTimeMillis(),
                 references = refer,
@@ -523,7 +522,7 @@ class AttachmentBottomSheet : BottomSheetDialogFragment(R.layout.layout_bottom_s
 
         }
 
-        val chat = chatVM.getChat(getChatId())
+        val chat = chatVM.loadChat(getChatId())
         chatVM.insertMessage(
             getChatId(),
             MessageDto(
@@ -581,7 +580,7 @@ val contentResolver = XabberApplication.applicationContext().contentResolver
             }
         }
 
-        val chat = chatVM.getChat(getChatId())
+        val chat = chatVM.loadChat(getChatId())
         chatVM.insertMessage(
             getChatId(),
             MessageDto(

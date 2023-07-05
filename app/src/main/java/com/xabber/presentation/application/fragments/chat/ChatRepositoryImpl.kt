@@ -1,26 +1,23 @@
 package com.xabber.presentation.application.fragments.chat
 
-import androidx.lifecycle.viewModelScope
+import com.xabber.data_base.dao.LastChatStorageItemDao
 import com.xabber.data_base.defaultRealmConfig
-import com.xabber.data_base.models.messages.MessageDisplayType
-import com.xabber.data_base.models.messages.MessageSendingState
-import com.xabber.data_base.models.messages.MessageStorageItem
+import com.xabber.dto.ChatListDto
 import com.xabber.dto.MessageDto
-import com.xabber.dto.MessageReferenceDto
-import com.xabber.utils.toMessageReferenceDto
+import com.xabber.utils.toChatListDto
 import io.realm.kotlin.Realm
-import io.realm.kotlin.notifications.ResultsChange
-import io.realm.kotlin.notifications.UpdatedResults
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.flowOf
 
-class ChatRepositoryImpl(): ChatRepository {
-//    private val realm = Realm.open(defaultRealmConfig())
-//
-   override fun loadChat() {
-       TODO("Not yet implemented")
+class ChatRepositoryImpl() : ChatRepository {
+    private val realm = Realm.open(defaultRealmConfig())
+
+    val lastChatDao = LastChatStorageItemDao(realm)
+
+    override fun loadChat(primary: String): Flow<ChatListDto?> {
+        val lastChatsStorageItem = lastChatDao.getItemByPrimary(primary)
+        val chatListDto = lastChatsStorageItem?.toChatListDto()
+        return flowOf(chatListDto)
     }
 
     override fun observeMessages(): Flow<List<MessageDto>> {

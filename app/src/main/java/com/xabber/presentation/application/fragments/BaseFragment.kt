@@ -31,7 +31,6 @@ abstract class BaseFragment(@LayoutRes contentLayoutId: Int) : Fragment(contentL
     SharedPreferences.OnSharedPreferenceChangeListener {
     val baseViewModel: BaseViewModel by viewModels()
     private var appbar: AppBarLayout? = null
-    private var chatAppbar: AppBarLayout? = null
     private var accountToolbar: MaterialToolbar? = null
     private var imAvatar: ImageView? = null
     private var tvInitials: TextView? = null
@@ -80,7 +79,6 @@ abstract class BaseFragment(@LayoutRes contentLayoutId: Int) : Fragment(contentL
 
     private fun initViews() {
         appbar = view?.findViewById(R.id.appbar)
-        chatAppbar = view?.findViewById(R.id.chat_appbar)
         accountToolbar = view?.findViewById(R.id.account_toolbar)
         imAvatar = view?.findViewById(R.id.im_avatar)
         tvInitials = view?.findViewById(R.id.tv_initials)
@@ -90,7 +88,6 @@ abstract class BaseFragment(@LayoutRes contentLayoutId: Int) : Fragment(contentL
 
     private fun setupAppbarPadding() {
         appbar?.setPadding(0, DisplayManager.getHeightStatusBar(), 0, 0)
-        chatAppbar?.setPadding(0, DisplayManager.getHeightStatusBar(), 0, 0)
         if (accountToolbar != null) {
             var actionBarHeight = 0
             val typedValue = TypedValue()

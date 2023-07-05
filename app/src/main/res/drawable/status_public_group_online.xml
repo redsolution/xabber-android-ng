@@ -11,7 +11,7 @@
         android:right="1dp"
         android:top="1dp">
         <shape android:shape="oval">
-            <solid android:color="@color/green_700" />
+            <solid android:color="@color/grey_500" />
         </shape>
     </item>
     <item android:drawable="@drawable/ic_group_public_white" />

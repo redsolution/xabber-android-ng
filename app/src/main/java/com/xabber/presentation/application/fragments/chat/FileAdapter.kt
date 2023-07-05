@@ -95,7 +95,7 @@ class FileAdapter(private val listener: FilesListener) :
             FileCategory.TABLE -> R.drawable.ic_table
             FileCategory.PRESENTATION -> R.drawable.ic_presentation
             FileCategory.ARCHIVE -> R.drawable.ic_archive
-            else -> R.drawable.ic_file_grey
+            else -> R.drawable.ic_file
         }
     }
 

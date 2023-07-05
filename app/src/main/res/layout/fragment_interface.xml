@@ -81,7 +81,8 @@
             android:backgroundTint="@color/cyan_500"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
+            app:layout_constraintTop_toTopOf="parent"
+            app:tint="@color/white" />
 
         <TextView
             style="@style/AccountSettingsTitle"
@@ -113,7 +114,8 @@
         android:layout_height="wrap_content">
 
         <ImageView
-            android:src="@drawable/ic_baseline_lightbulb_24"
+            app:tint="@color/white"
+            android:src="@drawable/ic_lightbulb"
             android:padding="12dp"
             android:backgroundTint="@color/green_500"
             android:background="@drawable/circle"

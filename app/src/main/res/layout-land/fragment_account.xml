@@ -69,7 +69,7 @@
                     android:layout_marginStart="24dp"
                     android:id="@+id/image_cloud_storage"
                     style="@style/AccountSettingsIcon"
-                    android:src="@drawable/ic_cloud_white"
+                    android:src="@drawable/ic_cloud"
                     android:padding="12dp"
                     android:background="@drawable/circle"
                     android:backgroundTint="@color/purple_500"
@@ -145,7 +145,8 @@
                     style="@style/AccountSettingsIcon"
                     android:background="@drawable/circle"
                     android:backgroundTint="@color/green_500"
-                    android:src="@drawable/ic_devices_white"
+                    android:src="@drawable/ic_devices"
+                    app:tint="@color/white"
                     app:layout_constraintBottom_toBottomOf="parent"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toTopOf="parent" />

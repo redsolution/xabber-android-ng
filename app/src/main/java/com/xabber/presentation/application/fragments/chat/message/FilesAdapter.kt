@@ -1,8 +1,5 @@
 package com.xabber.presentation.application.fragments.chat.message
 
-import android.annotation.SuppressLint
-import android.content.Context
-import android.net.Uri
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import android.widget.ImageView
@@ -59,8 +56,8 @@ class FilesAdapter(private val files: ArrayList<MessageReferenceDto>, private va
             FileCategory.TABLE -> R.drawable.ic_table
             FileCategory.PRESENTATION -> R.drawable.ic_presentation
             FileCategory.ARCHIVE -> R.drawable.ic_archive
-            FileCategory.APK -> R.drawable.ic_baseline_get_app_24
-            else -> R.drawable.ic_file_grey
+            FileCategory.APK -> R.drawable.ic_get_app
+            else -> R.drawable.ic_file
         }
     }
 

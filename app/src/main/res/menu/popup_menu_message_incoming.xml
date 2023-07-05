@@ -2,7 +2,7 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
     <item
         android:id="@+id/copy"
-        android:icon="@drawable/ic_content_copy_grey"
+        android:icon="@drawable/ic_content_copy"
         android:title="@string/menu_item_copy_message" />
 
     <item
@@ -12,7 +12,7 @@
 
     <item
         android:id="@+id/forward"
-        android:icon="@drawable/ic_forward_grey"
+        android:icon="@drawable/ic_forward"
         android:title="@string/menu_item_forward_message" />
 
     <item

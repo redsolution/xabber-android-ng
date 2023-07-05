@@ -7,7 +7,7 @@
     tools:context=".presentation.application.fragments.chat.ChatFragment">
 
     <com.google.android.material.appbar.AppBarLayout
-        android:id="@+id/chat_appbar"
+        android:id="@+id/appbar"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         app:layout_constraintEnd_toEndOf="parent"
@@ -118,7 +118,7 @@
         android:visibility="gone"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/chat_appbar">
+        app:layout_constraintTop_toBottomOf="@id/appbar">
 
         <ImageView
             android:id="@+id/im_pin"
@@ -419,10 +419,7 @@
                 app:layout_constraintStart_toStartOf="parent" />
 
         </androidx.constraintlayout.widget.ConstraintLayout>
-
-
     </FrameLayout>
-
     <FrameLayout
         android:id="@+id/frame_stop"
         android:layout_width="40dp"

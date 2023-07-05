@@ -1,10 +1,8 @@
 package com.xabber.presentation.application.fragments.chatlist
 
 import android.annotation.SuppressLint
-import android.content.Intent
 import android.content.SharedPreferences
 import android.graphics.Color
-import android.net.Uri
 import android.os.Bundle
 import android.view.*
 import androidx.core.view.isVisible
@@ -15,7 +13,6 @@ import com.google.android.material.snackbar.Snackbar
 import com.xabber.R
 import com.xabber.databinding.FragmentChatListBinding
 import com.xabber.dto.ChatListDto
-import com.xabber.presentation.AppConstants
 import com.xabber.presentation.AppConstants.CHAT_LIST_UNREAD_KEY
 import com.xabber.presentation.AppConstants.CLEAR_HISTORY_DIALOG_TAG
 import com.xabber.presentation.AppConstants.DELETING_CHAT_DIALOG_TAG
@@ -237,40 +234,39 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
         }
     }
 
-    override fun pinChat(id: String) {
-        chatListViewModel.pinChat(id)
+    override fun pinChat(chatId: String) {
+        chatListViewModel.pinChat(chatId)
         isPin = true
     }
 
-    override fun unPinChat(id: String, position: Int) {
-        chatListViewModel.unPinChat(id)
+    override fun unPinChat(chatId: String, position: Int) {
+        chatListViewModel.unPinChat(chatId)
         isUnpin = true
         unpinnedChatPosition = position
     }
 
-    override fun swipeItem(id: String) {
-        chatListViewModel.setArchived(id)
-        showSnackbar(id)
+    override fun swipeItem(chatId: String) {
+        chatListViewModel.setArchived(chatId)
+        showSnackbar(chatId)
     }
 
-    override fun deleteChat(name: String, id: String) {
-        val dialog = DeletingChatDialog.newInstance(name, id)
+    override fun deleteChat(chatName: String, chatId: String) {
+        val dialog = DeletingChatDialog.newInstance(chatName, chatId)
         dialog.show(childFragmentManager, DELETING_CHAT_DIALOG_TAG)
     }
 
-    override fun clearHistory(chatListDto: ChatListDto) {
-        val name = chatListDto.getChatName()
-        val dialog = ChatHistoryClearDialog.newInstance(name, chatListDto.id)
+    override fun clearHistory(chatName: String, chatId: String) {
+        val dialog = ChatHistoryClearDialog.newInstance(chatName, chatId)
         dialog.show(childFragmentManager, CLEAR_HISTORY_DIALOG_TAG)
     }
 
-    override fun turnOfNotifications(id: String) {
-        NotificationBottomSheet.newInstance(id)
+    override fun turnOfNotifications(chatId: String) {
+        NotificationBottomSheet.newInstance(chatId)
             .show(childFragmentManager, NOTIFICATION_BOTTOM_SHEET_TAG)
     }
 
-    override fun enableNotifications(id: String) {
-        chatListViewModel.setMute(id, enableNotificationsCode)
+    override fun enableNotifications(chatId: String) {
+        chatListViewModel.setMute(chatId, enableNotificationsCode)
     }
 
     override fun openSpecialNotificationsFragment() {

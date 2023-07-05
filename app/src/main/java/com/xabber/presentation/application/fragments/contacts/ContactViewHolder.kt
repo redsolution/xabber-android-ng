@@ -1,7 +1,9 @@
 package com.xabber.presentation.application.fragments.contacts
 
+import android.graphics.PorterDuff
 import android.view.Gravity
 import androidx.appcompat.widget.PopupMenu
+import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
@@ -18,86 +20,40 @@ class ContactViewHolder(
 ) : RecyclerView.ViewHolder(binding.root) {
 
     fun bind(contact: ContactDto, listener: ContactAdapter.Listener) {
-        with(binding) {
-            contactName.text =
+
+            binding.contactName.text =
                 if (contact.customNickName != null && contact.customNickName.isNotEmpty()) contact.customNickName else contact.nickName
             //  contactSubtitle.text = contact.subtitle
 
-            if (contact.entity == RosterItemEntity.Contact) {
-                val icon = when (contact.status) {
-                    ResourceStatus.Offline -> R.drawable.status_offline
-                    ResourceStatus.Away -> R.drawable.status_away
-                    ResourceStatus.Online -> R.drawable.status_online
-                    ResourceStatus.Xa -> R.drawable.ic_status_xa
-                    ResourceStatus.Dnd -> R.drawable.status_dnd
-                    ResourceStatus.Chat -> R.drawable.status_chat
+            val icon = when (contact.entity) {
+                RosterItemEntity.Contact -> R.drawable.status_contact
+                RosterItemEntity.Server -> R.drawable.status_server
+                RosterItemEntity.Bot -> R.drawable.status_bot_chat
+                RosterItemEntity.PrivateChat -> R.drawable.status_private_chat
+                RosterItemEntity.Groupchat -> R.drawable.status_public_group_online
+                RosterItemEntity.IncognitoChat -> R.drawable.status_incognito_group_chat
+                else -> {
+                    null
                 }
-
-                contactStatus14.isVisible = true
-                contactStatus14.setImageResource(icon)
-
-            } else {
-                val icon =
-                    when (contact.entity) {
-                        RosterItemEntity.Server -> {
-                            when (contact.status) {
-                                ResourceStatus.Offline -> R.drawable.status_server_unavailable
-                                else -> R.drawable.status_server
-                            }
-                        }
-                        RosterItemEntity.Bot -> {
-                            when (contact.status) {
-                                ResourceStatus.Offline -> R.drawable.status_bot_unavailable
-                                ResourceStatus.Away -> R.drawable.status_bot_away
-                                ResourceStatus.Online -> R.drawable.status_bot_online
-                                ResourceStatus.Xa -> R.drawable.status_bot_xa
-                                ResourceStatus.Dnd -> R.drawable.status_bot_dnd
-                                ResourceStatus.Chat -> R.drawable.status_bot_chat
-                            }
-                        }
-                        RosterItemEntity.IncognitoChat -> {
-                            when (contact.status) {
-                                ResourceStatus.Offline -> R.drawable.status_incognito_group_unavailable
-                                ResourceStatus.Away -> R.drawable.status_incognito_group_away
-                                ResourceStatus.Online -> R.drawable.status_incognito_group_online
-                                ResourceStatus.Xa -> R.drawable.status_incognito_group_xa
-                                ResourceStatus.Dnd -> R.drawable.status_incognito_group_dnd
-                                ResourceStatus.Chat -> R.drawable.status_incognito_group_chat
-                            }
-                        }
-
-
-                        RosterItemEntity.Groupchat -> {
-                            when (contact.status) {
-                                ResourceStatus.Offline -> R.drawable.status_public_group_unavailable
-                                ResourceStatus.Away -> R.drawable.status_public_group_away
-                                ResourceStatus.Online -> R.drawable.status_public_group_online
-                                ResourceStatus.Xa -> R.drawable.status_public_group_xa
-                                ResourceStatus.Dnd -> R.drawable.status_public_group_dnd
-                                ResourceStatus.Chat -> R.drawable.status_public_group_chat
-                            }
-                        }
-
-                        RosterItemEntity.PrivateChat -> {
-                            when (contact.status) {
-                                ResourceStatus.Offline -> R.drawable.status_private_chat_unavailable
-                                ResourceStatus.Away -> R.drawable.status_private_chat_away
-                                ResourceStatus.Online -> R.drawable.status_private_chat_online
-                                ResourceStatus.Xa -> R.drawable.status_private_chat_xa
-                                ResourceStatus.Dnd -> R.drawable.status_private_chat_dnd
-                                ResourceStatus.Chat -> R.drawable.status_private_chat
-                            }
-                        }
-
-                        else -> {
-                            0
-                        }
-                    }
-
-                contactStatus14.isVisible = true
-                contactStatus14.setImageResource(icon)
             }
 
+            val tint = when (contact.status) {
+                ResourceStatus.Online -> R.color.green_700
+                ResourceStatus.Chat -> R.color.light_green_500
+                ResourceStatus.Away -> R.color.amber_700
+                ResourceStatus.Dnd -> R.color.red_700
+                ResourceStatus.Xa -> R.color.blue_500
+                ResourceStatus.Offline -> R.color.grey_500
+            }
+
+            if (icon != null) {
+                binding.contactStatus14.isVisible = true
+                binding.contactStatus14.setImageResource(icon)
+                binding.contactStatus14.setColorFilter(
+                    ContextCompat.getColor(itemView.context, tint),
+                   PorterDuff.Mode.SRC_IN
+                )
+            }
 
             // avatar
             binding.shapeView.setDrawable(MaskManager.mask)
@@ -105,7 +61,7 @@ class ContactViewHolder(
                 .into(binding.contactImage)
 
 
-            contactImage.setOnClickListener {
+            binding.contactImage.setOnClickListener {
                 listener.onAvatarClick(contact)
             }
 
@@ -136,6 +92,5 @@ class ContactViewHolder(
                 true
             }
         }
-    }
 
 }

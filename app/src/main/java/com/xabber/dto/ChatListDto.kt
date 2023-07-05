@@ -35,7 +35,7 @@ data class ChatListDto(
     var colorKey: String = "blue",
     val isGroup: Boolean = false
 ) : Comparable<ChatListDto>, Parcelable {
-    override fun compareTo(other: ChatListDto): Int {
+    override fun compareTo(other: ChatListDto): Int {           // сортировка от новых к старым
         return if (other.pinnedDate > 0 || this.pinnedDate > 0) {
             other.pinnedDate.compareTo(this.pinnedDate)
         } else {
@@ -45,5 +45,5 @@ data class ChatListDto(
 
     fun getChatName(): String =
         if (customNickname.isNotEmpty()) customNickname else if (opponentNickname.isNotEmpty()) opponentNickname else opponentJid
-
+            // получение имени чата: если есть заданный юзером никнейм берем его, если нет - никнейм собеседника, если нет и его - берем jid собеседника
 }

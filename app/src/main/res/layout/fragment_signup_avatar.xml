@@ -12,7 +12,7 @@
         android:layout_height="wrap_content"
         android:layout_margin="@dimen/margin_onboarding_standard"
         android:background="@drawable/button_background"
-        android:drawableEnd="@drawable/ic_chevron_right_grey"
+        android:drawableEnd="@drawable/ic_chevron_right"
         android:stateListAnimator="@animator/shadow"
         android:text="@string/skip_button_label"
         android:textAllCaps="false"

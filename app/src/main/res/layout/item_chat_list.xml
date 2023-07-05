@@ -70,7 +70,7 @@
             android:padding="@dimen/status_rim_width"
             app:layout_constraintBottom_toBottomOf="@id/shape_view"
             app:layout_constraintEnd_toEndOf="@id/shape_view"
-            tools:src="@drawable/status_bot_online" />
+            tools:src="@drawable/status_bot_chat" />
 
         <FrameLayout
             android:layout_width="0dp"

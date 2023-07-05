@@ -214,8 +214,8 @@ object ChatSettingsManager {
             1 -> R.drawable.bubble
             3 -> R.drawable.tail_curvy
             4 -> R.drawable.smooth_new
-            5 -> R.drawable.stripes_new
-            6 -> R.drawable.wedge_new
+            5 -> R.drawable.tail_stripes
+            6 -> R.drawable.tail_wedge
             else -> R.drawable.smooth_new
         }
     }

@@ -1,7 +1,10 @@
 package com.xabber.presentation.application.fragments.chat
 
 import android.util.Log
-import androidx.lifecycle.*
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.xabber.data_base.defaultRealmConfig
 import com.xabber.data_base.models.account.AccountStorageItem
 import com.xabber.data_base.models.last_chats.LastChatsStorageItem
@@ -22,7 +25,6 @@ import io.realm.kotlin.ext.realmListOf
 import io.realm.kotlin.notifications.ResultsChange
 import io.realm.kotlin.notifications.UpdatedResults
 import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.flowOn
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody.Companion.asRequestBody
@@ -36,7 +38,8 @@ import retrofit2.converter.gson.GsonConverterFactory
 import java.io.File
 
 
-class ChatViewModel(private val chatId: String, private val chatRepository: ChatRepository) : ViewModel() {
+class ChatViewModel(private val chatId: String, private val chatRepository: ChatRepository) :
+    ViewModel() {
     val realm = Realm.open(defaultRealmConfig())
 
     private val _chat = MutableLiveData<ChatListDto?>()
@@ -68,23 +71,9 @@ class ChatViewModel(private val chatId: String, private val chatRepository: Chat
     private var count = 0
 
     init {
-         loadChat()
-      //   observeMessages()
+        initChatDataListener(chatId)
     }
 
-    private fun observeMessages() {
-        viewModelScope.launch {
-            chatRepository.observeMessages()
-                .flowOn(Dispatchers.Main)
-                .collect {
-                    _messages.postValue(it)
-                }
-        }
-    }
-
-    private fun loadChat() {
-
-    }
 
     fun initMessagesListener(owner: String, opponentJid: String) {
         val request =
@@ -113,7 +102,7 @@ class ChatViewModel(private val chatId: String, private val chatRepository: Chat
                                 false,
                                 null,
                                 false,
-                                references= T.references.map { T -> T.toMessageReferenceDto() } as ArrayList<MessageReferenceDto>,
+                                references = T.references.map { T -> T.toMessageReferenceDto() } as ArrayList<MessageReferenceDto>,
                                 isChecked = selectedItems.contains(T.primary),
                                 isUnread = !T.isRead
                             )
@@ -179,7 +168,7 @@ class ChatViewModel(private val chatId: String, private val chatRepository: Chat
         return contactPrimary
     }
 
-    fun getChat(chatId: String): ChatListDto? {
+    fun loadChat(chatId: String): ChatListDto? {
         var chatListDto: ChatListDto? = null
         realm.writeBlocking {
             val chat =
@@ -218,7 +207,7 @@ class ChatViewModel(private val chatId: String, private val chatRepository: Chat
                     false, // isSystemMessage
                     null, //isMentioned
                     false,
-                    references= T.references.map { T -> T.toMessageReferenceDto() } as ArrayList<MessageReferenceDto>,
+                    references = T.references.map { T -> T.toMessageReferenceDto() } as ArrayList<MessageReferenceDto>,
                     isChecked = selectedItems.contains(T.primary),
                     isUnread = !T.isRead
                 )
@@ -290,7 +279,8 @@ class ChatViewModel(private val chatId: String, private val chatRepository: Chat
                 if (item != null) {
                     if (!messageDto.isOutgoing && item.muteExpired <= 0) item.isArchived = false
                 }
-            } }
+            }
+        }
     }
 
     fun selectMessage(primary: String, checked: Boolean) {

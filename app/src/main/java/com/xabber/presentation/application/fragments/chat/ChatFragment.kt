@@ -74,7 +74,6 @@ import java.io.InputStream
 import java.lang.Runnable
 import java.util.*
 import java.util.concurrent.TimeUnit
-import kotlin.collections.ArrayList
 import kotlin.experimental.and
 
 
@@ -156,7 +155,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     private val record = Runnable {
         val outputDir =
             context?.getExternalFilesDir(null) // Получаем директорию, где будет сохраняться файл
-        val fileName = "${System.currentTimeMillis()} audio_file.mp4" // Название файла
+        val fileName = "${System.currentTimeMillis()} audio_file.mp4"
         val outputPath = File(outputDir, fileName).absolutePath
         audioRecorder.startRecord(outputPath)
     }
@@ -210,20 +209,19 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        val chat = viewModel.getChat(getParams().id)
+        val chat = viewModel.loadChat(getParams().id)
         if (chat == null) navigator().closeDetail()
         else {
             prepareUi(chat)
             initializeToolbarActions(chat)
             initializeRecyclerView()
-            //    chatAdapter?.setUnreadFirstId()
             initializeStandardInputLayoutActions()
             subscribeToChatData(chat)
             initializeSelectMessageToolbarActions()
             initializeSelectedMessagePanel()
             viewModel.initChatDataListener(getParams().id)
             viewModel.initMessagesListener(chat.owner, chat.opponentJid)
-            viewModel.getChat(getParams().id)
+            viewModel.loadChat(getParams().id)
             activity?.onBackPressedDispatcher?.addCallback(onBackPressedCallback)
         }
         if (savedInstanceState != null) restoreState(savedInstanceState)
@@ -234,16 +232,10 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     }
 
     private fun prepareUi(chat: ChatListDto) {
-        setupColor(chat.colorKey)
         loadContactAvatar()
         setTitle(chat.getChatName())
         setStatus(chat.status)
         setupMuteIcon(chat.muteExpired)
-    }
-
-    private fun setupColor(colorKey: String) {
-        val colorRes = ColorManager.convertColorNameToId(colorKey)
-        binding.chatAppbar.setBackgroundResource(colorRes)
     }
 
     private fun loadContactAvatar() {
@@ -255,7 +247,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     }
 
     private fun setStatus(status: ResourceStatus) {
-        // отобразить статус
+      //  binding.avatarStatus.setImageResource()
     }
 
     private fun setupMuteIcon(muteExpired: Long) {
@@ -272,10 +264,6 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     }
 
     private fun initializeToolbarActions(chat: ChatListDto) {
-//        binding.imBack.isVisible = !DisplayManager.isDualScreenMode()
-//        binding.imBack.setOnClickListener {
-//            navigator().closeDetail()
-//        }
         binding.avatar.setOnClickListener {
             val contactId = viewModel.getContactId(getParams().id)
             if (contactId != null) navigator().showContactAccount(
@@ -297,7 +285,6 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
                 R.id.enable_notifications -> enableNotifications()
                 R.id.clear_message_history -> clearHistory(chat)
                 R.id.delete_chat -> deleteChat(chat)
-                //   R.id.message_view_settings -> navigator().showMessageSettings()
             }; true
         }
     }
@@ -316,7 +303,6 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         isSelectedMode = savedInstanceState.getBoolean(AppConstants.CHAT_SELECTION_MODE_KEY)
         enableSelectionMode(isSelectedMode)
 
-
         if (savedInstanceState != null) {
             val voiceRecordPath = savedInstanceState.getString("VOICE_MESSAGE")
             ignoreReceiver = savedInstanceState.getBoolean("VOICE_MESSAGE_RECEIVER_IGNORE")
@@ -331,13 +317,13 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     }
 
     private fun restoreDraft() {
-        val draft = viewModel.getChat(getParams().id)?.draftMessage
+        val draft = viewModel.loadChat(getParams().id)?.draftMessage
         if (draft != null) binding.chatInput.setText(draft)
         setupInputButtons()
     }
 
     private fun scrollToLastPosition() {
-        val lastPosition = viewModel.getChat(getParams().id)?.lastPosition
+        val lastPosition = viewModel.loadChat(getParams().id)?.lastPosition
 
         if (!lastPosition.isNullOrEmpty()) {
             val messagePosition =
@@ -376,7 +362,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     }
 
     private fun initializeRecyclerView() {
-        val isGroup = viewModel.getChat(getParams().id)!!.isGroup
+        val isGroup = viewModel.loadChat(getParams().id)!!.isGroup
         messageAdapter = MessageAdapter(
             this,
             bindListener = this,
@@ -527,15 +513,15 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
 
                 val text = binding.chatInput.text.toString().trim()
                 binding.chatInput.text?.clear()
-                val chat = viewModel.getChat(getParams().id)
+                val chat = viewModel.loadChat(getParams().id)
                 val timeStamp = System.currentTimeMillis()
                 viewModel.insertMessage(
                     getParams().id,
                     MessageDto(
                         "$timeStamp",
                         true,
-                        viewModel.getChat(getParams().id)!!.owner,
-                        viewModel.getChat(getParams().id)!!.opponentJid,
+                        viewModel.loadChat(getParams().id)!!.owner,
+                        viewModel.loadChat(getParams().id)!!.opponentJid,
                         text,
                         MessageSendingState.Deliver,
                         timeStamp,
@@ -585,17 +571,9 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
                             currentVoiceRecordingState = VoiceRecordState.NotRecording
                         }
                         VoiceRecordState.TouchRecording -> {
-                          //  Log.d("iii", "chron ${binding.record.chrRecordingTimer.}")
                             val baseTime: Long = binding.record.chrRecordingTimer.getBase()
-
-// Получаем текущее время (в миллисекундах) с учетом базового времени
                             val elapsedTime = SystemClock.elapsedRealtime() - baseTime
                             val seconds = (elapsedTime / 1000).toInt()
-// Получаем количество секунд
-
-// Получаем количество секунд
-
-                            Log.d("iii", "chron $seconds")
                             if (seconds >= 1) {
                                 audioRecorder.stopRecord()
                                 sendVoiceMessage(audioRecorder.getRecordedFilePath()!!)
@@ -608,9 +586,6 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
                                 navigator().lockScreen(false)
                             }
                         }
-
-                        //                    if (binding.imLock.animation != null) currentVoiceRecordingState =
-                        //                        VoiceRecordState.StoppedRecording
                         VoiceRecordState.NoTouchRecording -> {
                             handler.post(stop)
                         }
@@ -632,7 +607,6 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
                             )
                             hideRecordPanel()
                             currentVoiceRecordingState = VoiceRecordState.NotRecording
-                            //   binding.buttonAttach.isVisible = true
                         }
                     }
                 }
@@ -689,13 +663,9 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
 
         binding.frameStop.setOnClickListener {
             binding.frameStop.isVisible = false
-//            binding.linRecordLock.isVisible = false
-//            binding.record.slideLayout.isVisible = false
-//            binding.record.linChronometr.isVisible = false
             binding.btnRecordExpanded.hide()
             binding.record.recordLayout.isVisible = false
             binding.audioPresenter.recordingPresenterLayout.isVisible = true
-            //   VoiceManager.getInstance().stopRecording(false)
             audioRecorder.stopRecord()
             setUpVoiceMessagePresenter(audioRecorder.getRecordedFilePath()!!)
         }
@@ -749,7 +719,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         viewModel.messages.observe(viewLifecycleOwner) {
             Log.d("iii", "observe")
             messageAdapter?.updateAdapter(it)
-           messageAdapter?.notifyDataSetChanged()
+            messageAdapter?.notifyDataSetChanged()
             if (layoutManager != null && messageAdapter != null) {
                 if (layoutManager!!.findLastVisibleItemPosition() >= messageAdapter!!.itemCount - 2 && !isSelectedMode) scrollDown()
                 if (it.isNotEmpty()) isNeedScrollDown = it[it.size - 1].isOutgoing
@@ -758,17 +728,6 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
                     isNeedScrollDown = false
                 }
             }
-
-
-            //   messageAdapter?.updateAdapter(it)
-            //  messageAdapter?.notifyDataSetChanged()
-//            if (layoutManager != null && messageAdapter != null) {
-//                if (layoutManager!!.findLastVisibleItemPosition() >= messageAdapter!!.itemCount - 2 && !isSelectedMode) scrollDown()
-//                if (isNeedScrollDown) {
-//                    scrollDown()
-//                    isNeedScrollDown = false
-//                }
-//            }
         }
 
 
@@ -824,7 +783,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     }
 
     private fun initializeSelectedMessagePanel() {
-        val chat = viewModel.getChat(getParams().id)
+        val chat = viewModel.loadChat(getParams().id)
         binding.interaction.linReply.setOnClickListener {
             val message = viewModel.getMessage()
             enableSelectionMode(false)
@@ -852,7 +811,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         lifecycleScope.launch {
             var c = false
             for (i in 0..1000) {
-              delay(100)
+                delay(100)
                 c = false
                 a++
                 viewModel.insertMessage(
@@ -871,7 +830,16 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
                         false,
                         null,
                         isUnread = true,
-                        isGroup = false, references = arrayListOf(MessageReferenceDto("gjccgm $a", size = 0, isGeo = true, longitude = 5.678, latitude = 67.896))
+                        isGroup = false,
+                        references = arrayListOf(
+                            MessageReferenceDto(
+                                "gjccgm $a",
+                                size = 0,
+                                isGeo = true,
+                                longitude = 5.678,
+                                latitude = 67.896
+                            )
+                        )
                     )
                 )
                 viewModel.insertMessage(
@@ -1044,8 +1012,8 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
             getParams().id, MessageDto(
                 "${System.currentTimeMillis()}",
                 true,
-                viewModel.getChat(getParams().id)!!.owner,
-                viewModel.getChat(getParams().id)!!.opponentJid,
+                viewModel.loadChat(getParams().id)!!.owner,
+                viewModel.loadChat(getParams().id)!!.opponentJid,
                 "",
                 MessageSendingState.Deliver,
                 System.currentTimeMillis(),
@@ -1196,7 +1164,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     override fun forwardMessage(messageDto: MessageDto) {
         val text = "${messageDto.owner} \n ${messageDto.messageBody}"
         Log.d("yyy", "1 message text = $text")
-        val chat = viewModel.getChat(getParams().id)
+        val chat = viewModel.loadChat(getParams().id)
         navigator().showForwardFragment(text, viewModel.getAccount(chat!!.owner)?.jid ?: "")
     }
 
@@ -1252,7 +1220,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
 
     private fun enableSelectionMode(enable: Boolean) {
         if (enable) {
-            binding.chatAppbar.setBackgroundResource(R.color.white)
+            binding.appbar.setBackgroundResource(R.color.white)
             binding.toolbar.isVisible = false
             binding.selectMessagesToolbar.toolbarSelectedMessages.isVisible = true
             saveDraft()
@@ -1271,7 +1239,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         } else {
             val color = baseViewModel.getPrimaryAccount()?.colorKey
             val c = ColorManager.convertColorNameToId(color ?: "blue")
-            binding.chatAppbar.setBackgroundResource(c)
+            binding.appbar.setBackgroundResource(c)
             //   chatAdapter?.setSelectedMode(false)
             //  binding.chatPanelGroup.isVisible = true
             binding.selectMessagesToolbar.toolbarSelectedMessages.isVisible = false
@@ -1315,14 +1283,14 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         }
         val timeStamp = System.currentTimeMillis()
         var c = System.currentTimeMillis()
-        val chat = viewModel.getChat(getParams().id)
+        val chat = viewModel.loadChat(getParams().id)
         viewModel.insertMessage(
             getParams().id,
             MessageDto(
                 "$c",
                 true,
-                viewModel.getChat(getParams().id)!!.owner,
-                viewModel.getChat(getParams().id)!!.opponentJid,
+                viewModel.loadChat(getParams().id)!!.owner,
+                viewModel.loadChat(getParams().id)!!.opponentJid,
                 textMessage,
                 MessageSendingState.Deliver,
                 timeStamp,
@@ -1528,12 +1496,12 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
             audioProgressSubscription?.dispose()
             enableStandardPanelButtons(true)
             binding.record.cancelRecordLayout.isVisible = false
-          binding.imLock.setImageResource(R.drawable.ic_lock_base)
+            binding.imLock.setImageResource(R.drawable.ic_lock_base)
             binding.imLockBar.setImageResource(R.drawable.ic_lock_bar)
-          Log.d("yyy", "${binding.linRecordLock.y}")
+            Log.d("yyy", "${binding.linRecordLock.y}")
             binding.linRecordLock.animate().y(911f).translationY(0f).start()
             binding.record.recordLayout.invalidate()
-          clearVoiceMessage()
+            clearVoiceMessage()
 
         }
         binding.audioPresenter.btnSendAudioMessage.setOnClickListener {
@@ -1588,7 +1556,8 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
                 binding.audioPresenter.btnPlay.setImageResource(R.drawable.ic_pause)
                 mediaPlayer.start()
                 isPlaying = true
-            }}
+            }
+        }
         audioProgressSubscription =
             audioProgress.doOnNext { info: VoiceManager.PublishAudioProgress.AudioInfo ->
                 setUpAudioProgress(
@@ -1600,7 +1569,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
 
     private fun setUpAudioProgress(info: VoiceManager.PublishAudioProgress.AudioInfo) {
 
-        }
+    }
 
 
     private fun finishVoiceRecordLayout() {

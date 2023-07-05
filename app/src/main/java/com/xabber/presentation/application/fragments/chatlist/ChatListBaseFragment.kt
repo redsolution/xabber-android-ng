@@ -125,41 +125,39 @@ abstract class ChatListBaseFragment(@LayoutRes contentLayoutId: Int) :
         chatListAdapter?.notifyDataSetChanged()
     }
 
-    override fun pinChat(id: String) {
-        chatListViewModel.pinChat(id)
+    override fun pinChat(chatId: String) {
+        chatListViewModel.pinChat(chatId)
         toPin = true
     }
 
-    override fun unPinChat(id: String, position: Int) {
-        chatListViewModel.unPinChat(id)
+    override fun unPinChat(chatId: String, position: Int) {
+        chatListViewModel.unPinChat(chatId)
     }
 
-    override fun swipeItem(id: String) {
-        chatListViewModel.setArchived(id)
-        showSnackbar(id)
+    override fun swipeItem(chatId: String) {
+        chatListViewModel.setArchived(chatId)
+        showSnackbar(chatId)
     }
 
-    override fun deleteChat(name: String, id: String) {
-        currentId = id
-        val dialog = DeletingChatDialog.newInstance(name, id)
+    override fun deleteChat(chatName: String, chatId: String) {
+        currentId = chatId
+        val dialog = DeletingChatDialog.newInstance(chatName, chatId)
         navigator().showDialogFragment(dialog, AppConstants.DELETING_CHAT_DIALOG_TAG)
     }
 
-    override fun clearHistory(chatListDto: ChatListDto) {
-        currentId = chatListDto.id
-        val name = chatListDto.getChatName()
-        val dialog = ChatHistoryClearDialog.newInstance(name, chatListDto.id)
+    override fun clearHistory(chatName: String, chatId: String) {
+        val dialog = ChatHistoryClearDialog.newInstance(chatName, chatId)
         navigator().showDialogFragment(dialog, AppConstants.CLEAR_HISTORY_DIALOG_TAG)
     }
 
-    override fun turnOfNotifications(id: String) {
-        currentId = id
+    override fun turnOfNotifications(chatId: String) {
+        currentId = chatId
         val dialog = NotificationBottomSheet()
         navigator().showBottomSheetDialog(dialog)
     }
 
-    override fun enableNotifications(id: String) {
-        chatListViewModel.setMute(id, enableNotificationsCode)
+    override fun enableNotifications(chatId: String) {
+        chatListViewModel.setMute(chatId, enableNotificationsCode)
     }
 
     override fun openSpecialNotificationsFragment() {

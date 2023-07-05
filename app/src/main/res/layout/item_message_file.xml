@@ -23,7 +23,7 @@
             android:layout_centerVertical="true"
             android:background="@drawable/unread_message_badge"
             android:paddingHorizontal="11dp"
-            app:srcCompat="@drawable/ic_file_grey"
+            app:srcCompat="@drawable/ic_file"
             app:tint="@color/grey_700" />
 
         <ProgressBar

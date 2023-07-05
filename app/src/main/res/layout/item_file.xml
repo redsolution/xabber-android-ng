@@ -13,7 +13,7 @@
         android:layout_marginHorizontal="16dp"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:src="@drawable/ic_file_grey"/>
+        android:src="@drawable/ic_file"/>
 
     <TextView
         android:text="text.jar 54 KiB"

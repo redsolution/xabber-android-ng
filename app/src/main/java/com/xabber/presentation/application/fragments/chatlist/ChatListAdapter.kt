@@ -33,19 +33,19 @@ class ChatListAdapter(
 
         fun onClickItem(chatListDto: ChatListDto)
 
-        fun pinChat(id: String)
+        fun pinChat(chatId: String)
 
-        fun unPinChat(id: String, position: Int)
+        fun unPinChat(chatId: String, position: Int)
 
-        fun swipeItem(id: String)
+        fun swipeItem(chatId: String)
 
-        fun deleteChat(name: String, id: String)
+        fun deleteChat(chatName: String, chatId: String)
 
-        fun clearHistory(chatListDto: ChatListDto)
+        fun clearHistory(chatName: String, chatId: String)
 
-        fun turnOfNotifications(id: String)
+        fun turnOfNotifications(chatId: String)
 
-        fun enableNotifications(id: String)
+        fun enableNotifications(chatId: String)
 
         fun openSpecialNotificationsFragment()
     }
