@@ -96,12 +96,6 @@
         <item name="android:paddingBottom">@dimen/padding_middle</item>
     </style>
 
-    <style name="AccountSettingsIcon" parent="Theme.MaterialComponents.Light.NoActionBar">
-        <item name="android:layout_height">40dp</item>
-        <item name="android:layout_width">40dp</item>
-        <item name="android:layout_marginStart">16dp</item>
-    </style>
-
     <style name="AccountSettingsTitle" parent="Theme.MaterialComponents.Light.NoActionBar">
         <item name="android:layout_marginStart">12dp</item>
         <item name="android:layout_marginBottom">2dp</item>
@@ -164,6 +158,15 @@
         <item name="android:gravity">center</item>
         <item name="android:layout_weight">1</item>
         <item name="android:layout_margin">8dp</item>
+    </style>
+
+    <style name="SettingsIcon">
+        <item name="android:layout_width">40dp</item>
+        <item name="android:layout_height">40dp</item>
+        <item name="android:layout_marginStart">16dp</item>
+        <item name="android:background">@drawable/circle</item>
+        <item name="android:padding">12dp</item>
+        <item name="tint">@color/white</item>
     </style>
 
 </resources>

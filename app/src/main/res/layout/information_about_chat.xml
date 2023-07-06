@@ -2,7 +2,6 @@
 
 <androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     app:contentPadding="12dp"
@@ -27,10 +26,11 @@
         android:layout_width="100dp"
         android:layout_height="100dp"
         android:layout_gravity="center"
-        android:src="@drawable/ic_message_white"
+        android:src="@drawable/ic_chat"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toTopOf="parent"
+        app:tint="@color/white" />
 
     <TextView
         android:id="@+id/tv_about_chat_title"
@@ -38,7 +38,7 @@
         android:layout_height="wrap_content"
         android:layout_gravity="center"
         android:gravity="center"
-        android:text="Typical chat"
+        android:text="@string/typical_chat"
         android:textColor="@color/white"
         android:textSize="14sp"
         app:layout_constraintBottom_toTopOf="@+id/tv_about_chat_description"
@@ -54,7 +54,7 @@
         android:layout_gravity="center"
         android:layout_marginBottom="12dp"
         android:gravity="center"
-        android:text="Messages in this chat are not encrypted. Servers often keep a history of forwarded messages. This makes it easy to synchronize devices and search the history on the server side, but creates threats to the confidentiality of correspondence."
+        android:text="@string/information_about_chat"
         android:textColor="@color/white"
         android:textSize="13sp"
         app:layout_constraintBottom_toTopOf="@+id/white_line"
@@ -76,13 +76,12 @@
         android:id="@+id/link_more"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="more about messaging"
+        android:text="@string/more_about_messaging"
         android:textColor="@color/white"
         android:textSize="12sp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/white_line"
         app:layout_constraintBottom_toBottomOf="parent"/>
-
 </androidx.constraintlayout.widget.ConstraintLayout>
 </androidx.cardview.widget.CardView>

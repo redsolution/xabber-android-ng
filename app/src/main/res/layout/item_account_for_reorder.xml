@@ -14,25 +14,27 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginStart="12dp"
-       app:shape_clip_drawable="@drawable/ic_mask_circle"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
-    <ImageView
-        android:scaleType="centerCrop"
-        android:id="@+id/im_avatar_item_account"
-        android:layout_width="@dimen/avatar48"
-        android:layout_height="@dimen/avatar48"
-        android:contentDescription="@string/im_account_avatar_content_description" />
-</com.xabber.utils.custom.ShapeOfView>
+        app:layout_constraintTop_toTopOf="parent"
+        app:shape_clip_drawable="@drawable/ic_mask_circle">
+
+        <ImageView
+            android:id="@+id/im_avatar_item_account"
+            android:layout_width="@dimen/avatar48"
+            android:layout_height="@dimen/avatar48"
+            android:contentDescription="@string/im_account_avatar_content_description"
+            android:scaleType="centerCrop" />
+    </com.xabber.utils.custom.ShapeOfView>
+
     <TextView
         android:id="@+id/tv_initials"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:textColor="@color/grey_900"
-        android:visibility="gone"
-        android:textSize="16dp"
         android:textAllCaps="true"
+        android:textColor="@color/grey_900"
+        android:textSize="16dp"
+        android:visibility="gone"
         app:layout_constraintBottom_toBottomOf="@id/shape_view"
         app:layout_constraintEnd_toEndOf="@id/shape_view"
         app:layout_constraintStart_toStartOf="@id/shape_view"
@@ -43,10 +45,10 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="12dp"
+        android:layout_marginTop="16dp"
         android:ellipsize="marquee"
         android:gravity="start"
         android:singleLine="true"
-        android:layout_marginTop="16dp"
         android:textColor="?android:attr/textColorPrimary"
         android:textSize="20sp"
         app:layout_constraintBottom_toTopOf="@id/tv_item_account_jid"
@@ -80,5 +82,4 @@
         app:layout_constraintStart_toEndOf="@id/tv_item_account_name"
         app:layout_constraintTop_toTopOf="parent"
         app:tint="@color/grey_600" />
-
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -34,11 +34,9 @@
 
         <ImageView
             android:src="@drawable/star_face"
-            android:background="@drawable/circle"
             android:backgroundTint="@color/purple_500"
-            android:padding="12dp"
             android:id="@+id/image_avatar"
-            style="@style/AccountSettingsIcon"
+            style="@style/SettingsIcon"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
@@ -74,15 +72,12 @@
 
         <ImageView
             android:id="@+id/image_chat"
-            style="@style/AccountSettingsIcon"
+            style="@style/SettingsIcon"
             android:src="@drawable/ic_chat_settings"
-            android:background="@drawable/circle"
-            android:padding="12dp"
             android:backgroundTint="@color/cyan_500"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            app:tint="@color/white" />
+            app:layout_constraintTop_toTopOf="parent" />
 
         <TextView
             style="@style/AccountSettingsTitle"
@@ -114,13 +109,10 @@
         android:layout_height="wrap_content">
 
         <ImageView
-            app:tint="@color/white"
             android:src="@drawable/ic_lightbulb"
-            android:padding="12dp"
             android:backgroundTint="@color/green_500"
-            android:background="@drawable/circle"
             android:id="@+id/image_app_icon"
-            style="@style/AccountSettingsIcon"
+            style="@style/SettingsIcon"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
@@ -145,6 +137,5 @@
             android:layout_height="wrap_content"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toEndOf="@id/image_app_icon" />
-
     </androidx.constraintlayout.widget.ConstraintLayout>
 </LinearLayout>

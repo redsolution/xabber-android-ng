@@ -9,11 +9,11 @@
 
     <View
         android:id="@+id/bottom_sheet_swipe"
-        android:background="@drawable/sheet_indicator"
+        android:layout_width="@dimen/drag_handle_width"
+        android:layout_height="@dimen/drag_handle_height"
         android:layout_gravity="center_horizontal"
         android:layout_marginVertical="@dimen/margin_onboarding_small"
-        android:layout_width="@dimen/drag_handle_width"
-        android:layout_height="@dimen/drag_handle_height" />
+        android:background="@drawable/sheet_indicator" />
 
     <RelativeLayout
         android:id="@+id/emoji_view_group"
@@ -32,9 +32,9 @@
             android:layout_marginVertical="@dimen/margin_onboarding_small"
             android:layout_marginStart="20dp"
             android:layout_marginEnd="@dimen/margin_onboarding_medium"
-            app:tint="#2979FF"
             android:contentDescription="@string/avatar_bottom_sheet_emoji_label"
-            android:src="@drawable/ic_emoticon" />
+            android:src="@drawable/ic_emoticon"
+            app:tint="#2979FF" />
 
         <TextView
             android:id="@+id/tvEmoji"
@@ -69,9 +69,9 @@
             android:layout_marginVertical="@dimen/margin_onboarding_small"
             android:layout_marginStart="20dp"
             android:layout_marginEnd="@dimen/margin_onboarding_medium"
-            app:tint="@color/yellow_700"
             android:contentDescription="@string/avatar_bottom_sheet_selfie_label"
-            android:src="@drawable/ic_photo_camera" />
+            android:src="@drawable/ic_photo_camera"
+            app:tint="@color/yellow_700" />
 
         <TextView
             android:id="@+id/tvSelfie"
@@ -108,7 +108,8 @@
             android:layout_marginStart="20dp"
             android:layout_marginEnd="@dimen/margin_onboarding_medium"
             android:contentDescription="@string/avatar_bottom_sheet_choose_image_label"
-            app:srcCompat="@drawable/ic_image_red" />
+            android:src="@drawable/ic_image_grey"
+            app:tint="@color/red_500" />
 
         <TextView
             android:id="@+id/tvChoseImage"

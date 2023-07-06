@@ -3,21 +3,34 @@ package com.xabber.presentation.application.fragments.chat
 import android.content.ContentUris
 import android.provider.MediaStore
 import androidx.core.net.toUri
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.xabber.data_base.defaultRealmConfig
+import com.xabber.data_base.models.last_chats.LastChatsStorageItem
 import com.xabber.data_base.models.messages.MessageReferenceStorageItem
+import com.xabber.data_base.models.messages.MessageStorageItem
+import com.xabber.data_base.models.sync.ConversationType
 import com.xabber.dto.MediaDto
+import com.xabber.dto.MessageDto
 import com.xabber.dto.MessageReferenceDto
 import com.xabber.presentation.XabberApplication
 import com.xabber.utils.toMessageReferenceDto
 import io.realm.kotlin.Realm
 import io.realm.kotlin.ext.query
+import io.realm.kotlin.ext.realmListOf
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.util.*
 import java.util.concurrent.TimeUnit
 import kotlin.collections.ArrayList
 
 class MediaViewModel : ViewModel() {
     val realm = Realm.open(defaultRealmConfig())
+
+    private val _complited = MutableLiveData<Boolean>()
+    val complited: LiveData<Boolean> = _complited
 
     fun getMediaList(): ArrayList<MediaDto> {
         val images = getImages()
@@ -113,5 +126,58 @@ class MediaViewModel : ViewModel() {
         super.onCleared()
         realm.close()
     }
+
+
+    fun insertMessageList(messages: ArrayList<MessageDto>, chatId: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+
+            realm.writeBlocking {
+                for (i in 0 until messages.size) {
+                    val rreferences = realmListOf<MessageReferenceStorageItem>()
+                    for (j in 0 until messages[i].references.size) {
+                        val ref = this.copyToRealm(MessageReferenceStorageItem().apply {
+                            primary = messages[i].references[j].id + "${System.currentTimeMillis()}"
+                            uri = messages[i].references[j].uri
+                            mimeType = messages[i].references[j].mimeType
+                            isGeo = messages[i].references[j].isGeo
+                            latitude = messages[i].references[j].latitude
+                            longitude = messages[i].references[j].longitude
+                            isAudioMessage = messages[i].references[j].isVoiceMessage
+                            fileName = messages[i].references[j].fileName
+                            fileSize = messages[i].references[j].size
+                        })
+                        rreferences.add(ref)
+                    }
+                    val message = this.copyToRealm(MessageStorageItem().apply {
+                        primary = messages[i].primary
+                        owner = messages[i].owner
+                        opponent = messages[i].opponentJid
+                        body = messages[i].messageBody
+                        date = messages[i].sentTimestamp
+                        sentDate = messages[i].sentTimestamp
+                        editDate = messages[i].editTimestamp
+                        outgoing = messages[i].isOutgoing
+                        isRead = !messages[i].isUnread
+                        references = rreferences
+                        conversationType_ = ConversationType.Channel.toString()
+                    })
+                    val item: LastChatsStorageItem? =
+                        this.query(LastChatsStorageItem::class, "primary = '$chatId'").first()
+                            .find()
+                    item?.lastMessage = message
+                    item?.messageDate = message.date
+//                var oldValue = item?.unread ?: 0
+//                oldValue++
+//                item?.unread = if (messageDto.isOutgoing || isReaded) 0 else oldValue
+                    item?.lastMessage?.outgoing = messages[i].isOutgoing
+                    if (item != null) {
+                        if (!messages[i].isOutgoing && item.muteExpired <= 0) item.isArchived = false
+                    }
+                }
+            }
+            _complited.postValue(true)
+        }
+    }
+
 
 }

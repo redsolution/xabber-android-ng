@@ -15,7 +15,7 @@ data class ContactDto(
     val color: String,
     val avatar: Int,
     val group: String?,
-    val subtitle: String? = null,   //сообщение или jid
+    val subtitle: String? = null,
     val status: ResourceStatus,
     val entity: RosterItemEntity,
     var isDeleted: Boolean = false,

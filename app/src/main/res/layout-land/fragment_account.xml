@@ -27,23 +27,23 @@
                 android:layout_marginTop="12dp">
 
                 <ImageView
-                    android:layout_marginStart="24dp"
                     android:id="@+id/image_profile"
-                    android:padding="12dp"
-                    style="@style/AccountSettingsIcon"
-                    app:tint="@color/white"
+                    style="@style/SettingsIcon"
+                    android:layout_marginStart="24dp"
                     android:background="@drawable/circle"
                     android:backgroundTint="@color/blue_500"
+                    android:padding="12dp"
                     android:src="@drawable/ic_account"
                     app:layout_constraintBottom_toBottomOf="parent"
                     app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toTopOf="parent" />
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:tint="@color/white" />
 
                 <TextView
                     style="@style/AccountSettingsTitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Profile"
+                    android:text="@string/profile"
                     app:layout_constraintBottom_toTopOf="@id/tv_subtitle"
                     app:layout_constraintStart_toEndOf="@id/image_profile"
                     app:layout_constraintTop_toTopOf="parent" />
@@ -53,10 +53,9 @@
                     style="@style/AccountSettingsSubtitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Status, avatar, password, etc"
+                    android:text="@string/status_avatar_password_etc"
                     app:layout_constraintBottom_toBottomOf="parent"
                     app:layout_constraintStart_toEndOf="@id/image_profile" />
-
             </androidx.constraintlayout.widget.ConstraintLayout>
 
             <androidx.constraintlayout.widget.ConstraintLayout
@@ -66,13 +65,11 @@
                 android:layout_height="wrap_content">
 
                 <ImageView
-                    android:layout_marginStart="24dp"
                     android:id="@+id/image_cloud_storage"
-                    style="@style/AccountSettingsIcon"
-                    android:src="@drawable/ic_cloud"
-                    android:padding="12dp"
-                    android:background="@drawable/circle"
+                    style="@style/SettingsIcon"
+                    android:layout_marginStart="24dp"
                     android:backgroundTint="@color/purple_500"
+                    android:src="@drawable/ic_cloud"
                     app:layout_constraintBottom_toBottomOf="parent"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toTopOf="parent" />
@@ -81,7 +78,7 @@
                     style="@style/AccountSettingsTitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Cloud storage"
+                    android:text="@string/cloud_storage"
                     app:layout_constraintBottom_toTopOf="@id/tv_subtitle_cloud"
                     app:layout_constraintStart_toEndOf="@id/image_cloud_storage"
                     app:layout_constraintTop_toTopOf="parent" />
@@ -91,10 +88,9 @@
                     style="@style/AccountSettingsSubtitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Used 112 MB out of 2 GB"
+                    android:text="@string/used_112_mb_out_of_2_gb"
                     app:layout_constraintBottom_toBottomOf="parent"
                     app:layout_constraintStart_toEndOf="@id/image_cloud_storage" />
-
             </androidx.constraintlayout.widget.ConstraintLayout>
 
             <androidx.constraintlayout.widget.ConstraintLayout
@@ -104,10 +100,11 @@
                 android:layout_height="wrap_content">
 
                 <ImageView
-                    android:layout_marginStart="24dp"
                     android:id="@+id/image_keys"
-                    style="@style/AccountSettingsIcon"
-                    android:src="@drawable/key_circle"
+                    style="@style/SettingsIcon"
+                    android:layout_marginStart="24dp"
+                    android:src="@drawable/ic_key"
+                    android:backgroundTint="@color/yellow_700"
                     app:layout_constraintBottom_toBottomOf="parent"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toTopOf="parent" />
@@ -116,7 +113,7 @@
                     style="@style/AccountSettingsTitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Encryption and keys"
+                    android:text="@string/encryption_and_keys"
                     app:layout_constraintBottom_toTopOf="@id/tv_subtitle_key"
                     app:layout_constraintStart_toEndOf="@id/image_keys"
                     app:layout_constraintTop_toTopOf="parent" />
@@ -126,7 +123,7 @@
                     style="@style/AccountSettingsSubtitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Encryption enabled"
+                    android:text="@string/encryption_enabled"
                     app:layout_constraintBottom_toBottomOf="parent"
                     app:layout_constraintStart_toEndOf="@id/image_keys" />
 
@@ -139,17 +136,17 @@
                 android:layout_height="wrap_content">
 
                 <ImageView
-                    android:layout_marginStart="24dp"
-                    android:padding="12dp"
                     android:id="@+id/im_devices"
-                    style="@style/AccountSettingsIcon"
+                    style="@style/SettingsIcon"
+                    android:layout_marginStart="24dp"
                     android:background="@drawable/circle"
                     android:backgroundTint="@color/green_500"
+                    android:padding="12dp"
                     android:src="@drawable/ic_devices"
-                    app:tint="@color/white"
                     app:layout_constraintBottom_toBottomOf="parent"
                     app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toTopOf="parent" />
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:tint="@color/white" />
 
                 <TextView
                     style="@style/AccountSettingsTitle"
@@ -176,7 +173,7 @@
                 layout="@layout/include_settings"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="44dp"/>
+                android:layout_marginBottom="44dp" />
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

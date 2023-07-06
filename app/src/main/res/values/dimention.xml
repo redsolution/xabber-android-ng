@@ -33,6 +33,7 @@
     <dimen name="item_avatar_background_size">48dp</dimen>
     <dimen name="item_chat_height">72dp</dimen>
     <dimen name="item_chat_padding">8dp</dimen>
+    <dimen name="item_color_size">16dp</dimen>
     <dimen name="logo_empty_size">90dp</dimen>
     <dimen name="margin_between_balloon_and_tail">-6.5dp</dimen>
     <dimen name="main_container_width">500dp</dimen>

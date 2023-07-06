@@ -38,7 +38,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 import java.io.File
 
 
-class ChatViewModel(private val chatId: String, private val chatRepository: ChatRepository) :
+class ChatViewModel(private val chatId: String) :
     ViewModel() {
     val realm = Realm.open(defaultRealmConfig())
 
@@ -237,7 +237,7 @@ class ChatViewModel(private val chatId: String, private val chatRepository: Chat
     }
 
     fun insertMessage(chatId: String, messageDto: MessageDto) {
-        viewModelScope.launch(Dispatchers.IO) {
+      viewModelScope.launch(Dispatchers.IO) {
             val rreferences = realmListOf<MessageReferenceStorageItem>()
             realm.writeBlocking {
                 for (i in 0 until messageDto.references.size) {
@@ -254,7 +254,6 @@ class ChatViewModel(private val chatId: String, private val chatRepository: Chat
                     })
                     rreferences.add(ref)
                 }
-
                 val message = this.copyToRealm(MessageStorageItem().apply {
                     primary = messageDto.primary
                     owner = messageDto.owner
@@ -278,6 +277,55 @@ class ChatViewModel(private val chatId: String, private val chatRepository: Chat
                 item?.lastMessage?.outgoing = messageDto.isOutgoing
                 if (item != null) {
                     if (!messageDto.isOutgoing && item.muteExpired <= 0) item.isArchived = false
+                }
+            }
+        }
+    }
+
+    fun insertMessageList(messages: ArrayList<MessageDto>) {
+        viewModelScope.launch(Dispatchers.IO) {
+                val rreferences = realmListOf<MessageReferenceStorageItem>()
+                realm.writeBlocking {
+                    for (i in 0 until messages.size) {
+                    for (i in 0 until messages[i].references.size) {
+                        val ref = this.copyToRealm(MessageReferenceStorageItem().apply {
+                            primary = messages[i].references[i].id + "${System.currentTimeMillis()}"
+                            uri = messages[i].references[i].uri
+                            mimeType = messages[i].references[i].mimeType
+                            isGeo = messages[i].references[i].isGeo
+                            latitude = messages[i].references[i].latitude
+                            longitude = messages[i].references[i].longitude
+                            isAudioMessage = messages[i].references[i].isVoiceMessage
+                            fileName = messages[i].references[i].fileName
+                            fileSize = messages[i].references[i].size
+                        })
+                        rreferences.add(ref)
+                    }
+                    val message = this.copyToRealm(MessageStorageItem().apply {
+                        primary = messages[i].primary
+                        owner = messages[i].owner
+                        opponent = messages[i].opponentJid
+                        body = messages[i].messageBody
+                        date = messages[i].sentTimestamp
+                        sentDate = messages[i].sentTimestamp
+                        editDate = messages[i].editTimestamp
+                        outgoing = messages[i].isOutgoing
+                        isRead = !messages[i].isUnread
+                        references = rreferences
+                        conversationType_ = ConversationType.Channel.toString()
+                    })
+                    val item: LastChatsStorageItem? =
+                        this.query(LastChatsStorageItem::class, "primary = '$chatId'").first()
+                            .find()
+                    item?.lastMessage = message
+                    item?.messageDate = message.date
+//                var oldValue = item?.unread ?: 0
+//                oldValue++
+//                item?.unread = if (messageDto.isOutgoing || isReaded) 0 else oldValue
+                    item?.lastMessage?.outgoing = messages[i].isOutgoing
+                    if (item != null) {
+                        if (!messages[i].isOutgoing && item.muteExpired <= 0) item.isArchived = false
+                    }
                 }
             }
         }

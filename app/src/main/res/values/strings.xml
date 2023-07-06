@@ -109,8 +109,8 @@
     <string name="pinned_chat_description">Pinned chat</string>
     <string name="pull_to_show_archive">Pull to show archive</string>
     <string name="release_to_show_archive">Release to show archive</string>
-    <string name="open_archive">Open the archive</string>
     <string name="drafted">Drafted: </string>
+    <string name="over_unread_messages">999+</string>
 
     <!-- Chat Context Menu -->
     <string name="menu_item_enable_notifications">Enable notifications</string>
@@ -204,7 +204,8 @@
     <string name="image_view_description_profile_image">Profile image</string>
     <string name="image_view_content_description_photo">Photo</string>
 
-
+    <!-- ACCOUNT -->
+    <string name="share_qr">Share QR-code</string>
     <string name="account_color">Account color</string>
     <string name="account_color_name_green">green</string>
     <string name="account_color_name_orange">orange</string>
@@ -407,7 +408,7 @@
     <string name="music_label">Music</string>
     <string name="contact_label">Contact</string>
     <string name="feature_not_implemented">This feature is not implemented</string>
-    <plurals name="images_amount" >
+    <plurals name="images_amount">
         <item quantity="one">%1$d image</item>
         <item quantity="other">%1d$ images</item>
     </plurals>
@@ -422,4 +423,13 @@
     <string name="image_description">image</string>
     <string name="open">Open</string>
     <string name="open_linc_title_dialog">Open this link?</string>
+    <string name="pick_location">Pick location</string>
+    <string name="off_15_min">Turn off for 15 minutes</string>
+    <string name="off_1_hour">Turn off for 1 hour</string>
+    <string name="off_2_hour">Turn off for 2 hour</string>
+    <string name="off_1_day">Turn off for 1 day</string>
+    <string name="off_forever">Turn off forever</string>
+    <string name="typical_chat">Typical chat</string>
+    <string name="information_about_chat">Messages in this chat are not encrypted. Servers often keep a history of forwarded messages. This makes it easy to synchronize devices and search the history on the server side, but creates threats to the confidentiality of correspondence.</string>
+    <string name="more_about_messaging">more about messaging</string>
 </resources>

@@ -22,9 +22,7 @@
             android:textColorSecondary="@color/white"
             app:menu="@menu/menu_toolbar_chat">
 
-            <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
-                xmlns:app="http://schemas.android.com/apk/res-auto"
-                xmlns:tools="http://schemas.android.com/tools"
+            <FrameLayout
                 android:layout_marginStart="@dimen/toolbar_avatar_margin_start"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content">

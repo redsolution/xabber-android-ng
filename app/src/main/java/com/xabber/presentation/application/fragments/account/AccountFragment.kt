@@ -1,46 +1,34 @@
 package com.xabber.presentation.application.fragments.account
 
-import android.Manifest
 import android.content.res.ColorStateList
 import android.graphics.Bitmap
-import android.graphics.Color
 import android.os.Bundle
-import android.util.Log
 import android.view.*
 import android.view.animation.AnimationUtils
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.widget.PopupMenu
 import androidx.coordinatorlayout.widget.CoordinatorLayout
 import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.MenuProvider
 import androidx.core.view.isVisible
-import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import by.kirich1409.viewbindingdelegate.viewBinding
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions
-import com.canhub.cropper.CropImage
-import com.canhub.cropper.CropImageContract
-import com.canhub.cropper.CropImageView
-import com.canhub.cropper.options
 import com.google.android.material.appbar.CollapsingToolbarLayout
 import com.xabber.R
 import com.xabber.databinding.FragmentAccountBinding
 import com.xabber.dto.AccountDto
 import com.xabber.presentation.AppConstants
-import com.xabber.presentation.application.manage.AccountManager
-import com.xabber.presentation.application.manage.ColorManager
-import com.xabber.presentation.application.manage.DisplayManager
 import com.xabber.presentation.application.contract.navigator
-import com.xabber.presentation.application.dialogs.NotificationBottomSheet
 import com.xabber.presentation.application.fragments.DetailBaseFragment
 import com.xabber.presentation.application.fragments.account.color.AccountColorDialog
 import com.xabber.presentation.application.fragments.account.qrcode.QRCodeParams
 import com.xabber.presentation.application.fragments.chat.AvatarChangerBottomSheet
-import com.xabber.presentation.onboarding.fragments.signup.AvatarBottomSheet
-import com.xabber.utils.askUserForOpeningAppSettings
+import com.xabber.presentation.application.manage.AccountManager
+import com.xabber.presentation.application.manage.ColorManager
+import com.xabber.presentation.application.manage.DisplayManager
 import com.xabber.utils.blur.BlurTransformation
 import com.xabber.utils.dp
 import com.xabber.utils.setFragmentResultListener
@@ -75,27 +63,6 @@ class AccountFragment : DetailBaseFragment(R.layout.fragment_account) {
         createAvatarPopupMenu()
         initAccountSettingsActions()
         subscribeToViewModelData()
-
-//        setFragmentResultListener("AA") { _, bundle ->
-//            val uri =
-//                bundle.getString("AA")
-//            binding.accountAppbar.avatarGr.imAccountAvatar.setImageURI(uri?.toUri())
-//
-//            val bitmap =
-//                (binding.accountAppbar.avatarGr.imAccountAvatar.drawable as BitmapDrawable).bitmap
-//            val stream = ByteArrayOutputStream()
-//            bitmap.compress(Bitmap.CompressFormat.PNG, 90, stream)
-//
-//            val bytesArray = stream.toByteArray()
-//            val fileName = "avatar + ${System.currentTimeMillis()}"
-//            val file = File(RealmInitializer.filesDir, fileName)
-//            FileOutputStream(file).use {
-//                it.write(bytesArray)
-//            }
-//
-//            val avatarUri = Uri.fromFile(file)
-//            viewModel.saveAvatar(getJid(), avatarUri.toString())
-//        }
 
         viewModel.avatarBitmap.observe(viewLifecycleOwner) {
             setAvatar(it)
@@ -203,12 +170,12 @@ class AccountFragment : DetailBaseFragment(R.layout.fragment_account) {
 
     private fun loadAccountAvatar() {
         binding.accountAppbar.avatarGr.tvAccountInitials.isVisible = false
-       lifecycleScope.launch() {
-           val avatar = baseViewModel.getAvatar(getJid())
-           val uri = avatar?.fileUri
-           Glide.with(binding.root.context).load(uri)
-               .into(binding.accountAppbar.avatarGr.imAccountAvatar)
-       }
+        lifecycleScope.launch {
+            val avatar = baseViewModel.getAvatar(getJid())
+            val uri = avatar?.fileUri
+            Glide.with(binding.root.context).load(uri)
+                .into(binding.accountAppbar.avatarGr.imAccountAvatar)
+        }
     }
 
     private fun loadAvatarWithInitials(name: String, colorKey: String) {
@@ -225,7 +192,7 @@ class AccountFragment : DetailBaseFragment(R.layout.fragment_account) {
         popupMenu =
             PopupMenu(requireContext(), binding.accountAppbar.avatarGr.imAvatarGroup, Gravity.TOP)
         popupMenu?.inflate(R.menu.popup_menu_account_avatar)
-      if (popupMenu != null)  popupMenu?.menu?.findItem(R.id.delete_avatar)?.isVisible =
+        if (popupMenu != null) popupMenu?.menu?.findItem(R.id.delete_avatar)?.isVisible =
             viewModel.getAccount(getJid())!!.hasAvatar
         popupMenu?.setOnMenuItemClickListener {
             when (it.itemId) {
@@ -255,7 +222,9 @@ class AccountFragment : DetailBaseFragment(R.layout.fragment_account) {
             override fun onMenuItemSelected(menuItem: MenuItem): Boolean {
                 when (menuItem.itemId) {
                     R.id.colors -> {
-                   val dialog =  AccountColorDialog.newInstance(viewModel.getAccount(getJid())?.colorKey ?: "blue")
+                        val dialog = AccountColorDialog.newInstance(
+                            viewModel.getAccount(getJid())?.colorKey ?: "blue"
+                        )
                         navigator().showDialogFragment(dialog, "")
                     }
                     R.id.generate_qr_code -> {
@@ -265,7 +234,7 @@ class AccountFragment : DetailBaseFragment(R.layout.fragment_account) {
                             QRCodeParams(
                                 name,
                                 getJid(),
-                               color
+                                color
                             )
                         )
                     }
@@ -319,7 +288,7 @@ class AccountFragment : DetailBaseFragment(R.layout.fragment_account) {
         }
     }
 
-    private fun subscribeToViewModelData(){
+    private fun subscribeToViewModelData() {
         viewModel.initDataListener(getJid())
         viewModel.accounts.observe(viewLifecycleOwner) {
             loadAvatar(it[0])

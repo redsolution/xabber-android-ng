@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout android:orientation="vertical"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    tools:parentTag="androidx.appcompat.widget.LinearLayoutCompat"
     android:layout_height="wrap_content"
-    xmlns:android="http://schemas.android.com/apk/res/android"
-    android:padding="8dp">
+    android:orientation="vertical"
+    android:padding="8dp"
+    tools:parentTag="androidx.appcompat.widget.LinearLayoutCompat">
 
     <View
         android:layout_width="match_parent"
@@ -21,8 +21,8 @@
         android:layout_marginTop="16dp"
         android:layout_marginBottom="12dp"
         android:text="@string/settings"
-        android:textSize="14sp"
         android:textColor="@color/blue_500"
+        android:textSize="14sp"
         android:textStyle="bold" />
 
     <androidx.constraintlayout.widget.ConstraintLayout
@@ -33,13 +33,10 @@
 
         <ImageView
             android:id="@+id/image_interface"
-            style="@style/AccountSettingsIcon"
+            style="@style/SettingsIcon"
+            android:backgroundTint="@color/cyan_500"
             android:contentDescription="@string/image_interfase_settings_description"
             android:src="@drawable/ic_chat_outline"
-            app:tint="@color/white"
-            android:padding="12dp"
-            android:background="@drawable/circle"
-            android:backgroundTint="@color/cyan_500"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
@@ -57,10 +54,10 @@
             android:id="@+id/tv_subtitle_interface"
             style="@style/AccountSettingsSubtitle"
             android:layout_width="wrap_content"
-            android:ellipsize="end"
-            android:singleLine="true"
-            android:maxLines="1"
             android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:singleLine="true"
             android:text="@string/appearance_settings"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toEndOf="@id/image_interface" />
@@ -68,23 +65,20 @@
     </androidx.constraintlayout.widget.ConstraintLayout>
 
     <androidx.constraintlayout.widget.ConstraintLayout
-        style="@style/ClickableViewGroup"
         android:id="@+id/notifications"
+        style="@style/ClickableViewGroup"
         android:layout_width="match_parent"
         android:layout_height="wrap_content">
 
         <ImageView
             android:id="@+id/image_notifications"
-            style="@style/AccountSettingsIcon"
+            style="@style/SettingsIcon"
+            android:backgroundTint="@color/green_500"
             android:contentDescription="@string/image_notifications_settings_description"
             android:src="@drawable/ic_client_outline"
-            android:padding="12dp"
-            android:background="@drawable/circle"
-            android:backgroundTint="@color/green_500"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            app:tint="@color/white" />
+            app:layout_constraintTop_toTopOf="parent" />
 
         <TextView
             style="@style/AccountSettingsTitle"
@@ -98,15 +92,14 @@
         <TextView
             android:id="@+id/tv_subtitle_notifications"
             style="@style/AccountSettingsSubtitle"
-            android:ellipsize="end"
-            android:singleLine="true"
-            android:maxLines="1"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:singleLine="true"
             android:text="@string/private_chats_groups_channels"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toEndOf="@id/image_notifications" />
-
     </androidx.constraintlayout.widget.ConstraintLayout>
 
     <androidx.constraintlayout.widget.ConstraintLayout
@@ -117,12 +110,10 @@
 
         <ImageView
             android:id="@+id/image_data"
-            style="@style/AccountSettingsIcon"
+            style="@style/SettingsIcon"
+            android:backgroundTint="@color/red_500"
             android:contentDescription="@string/image_data_and_storage_settings_description"
             android:src="@drawable/ic_file_white"
-            android:padding="12dp"
-            android:background="@drawable/circle"
-            android:backgroundTint="@color/red_500"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
@@ -142,25 +133,25 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:ellipsize="end"
-            android:singleLine="true"
             android:maxLines="1"
+            android:singleLine="true"
             android:text="@string/storage_settings"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toEndOf="@id/image_data" />
-
     </androidx.constraintlayout.widget.ConstraintLayout>
 
     <androidx.constraintlayout.widget.ConstraintLayout
-        style="@style/ClickableViewGroup"
         android:id="@+id/privacy"
+        style="@style/ClickableViewGroup"
         android:layout_width="match_parent"
         android:layout_height="wrap_content">
 
         <ImageView
             android:id="@+id/image_privacy"
-            style="@style/AccountSettingsIcon"
+            style="@style/SettingsIcon"
+            android:backgroundTint="@color/dark_purple_500"
             android:contentDescription="@string/image_privacy_settings_description"
-            android:src="@drawable/ic_privacy_circle"
+            android:src="@drawable/ic_group_private_white"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
@@ -179,30 +170,27 @@
             style="@style/AccountSettingsSubtitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:ellipsize="end"
-            android:singleLine="true"
-            android:maxLines="1"
             android:layout_marginEnd="4dp"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:singleLine="true"
             android:text="@string/media_loading_typing_notifications_etc"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toEndOf="@id/image_privacy" />
-
     </androidx.constraintlayout.widget.ConstraintLayout>
 
     <androidx.constraintlayout.widget.ConstraintLayout
-        style="@style/ClickableViewGroup"
         android:id="@+id/connection"
+        style="@style/ClickableViewGroup"
         android:layout_width="match_parent"
         android:layout_height="wrap_content">
 
         <ImageView
             android:id="@+id/image_connection"
-            style="@style/AccountSettingsIcon"
+            style="@style/SettingsIcon"
+            android:backgroundTint="@color/orange_500"
             android:contentDescription="@string/image_connection_settings_description"
             android:src="@drawable/ic_index_white"
-            android:background="@drawable/circle"
-            android:backgroundTint="@color/orange_500"
-            android:padding="12dp"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
@@ -222,28 +210,25 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:ellipsize="end"
-            android:singleLine="true"
             android:maxLines="1"
+            android:singleLine="true"
             android:text="@string/battery_mode_wifi_sleep"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toEndOf="@id/image_connection" />
-
     </androidx.constraintlayout.widget.ConstraintLayout>
 
     <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/debug"
         style="@style/ClickableViewGroup"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:id="@+id/debug">
+        android:layout_height="wrap_content">
 
         <ImageView
             android:id="@+id/image_debug"
-            style="@style/AccountSettingsIcon"
+            style="@style/SettingsIcon"
+            android:backgroundTint="@color/teal_500"
             android:contentDescription="@string/image_debug_settings_description"
             android:src="@drawable/ic_bug_white"
-            android:padding="12dp"
-            android:background="@drawable/circle"
-            android:backgroundTint="@color/teal_500"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
@@ -263,8 +248,8 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:ellipsize="end"
-            android:singleLine="true"
             android:maxLines="1"
+            android:singleLine="true"
             android:text="@string/debugging_options_logs"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toEndOf="@id/image_debug" />
@@ -278,9 +263,10 @@
 
         <ImageView
             android:id="@+id/image_language"
-            style="@style/AccountSettingsIcon"
+            style="@style/SettingsIcon"
+            android:backgroundTint="@color/brown_500"
             android:contentDescription="@string/image_language_settings_description"
-            android:src="@drawable/language_circle"
+            android:src="@drawable/ic_translate"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
@@ -302,6 +288,5 @@
             android:text="@string/english_default"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toEndOf="@id/image_language" />
-
     </androidx.constraintlayout.widget.ConstraintLayout>
 </LinearLayout>

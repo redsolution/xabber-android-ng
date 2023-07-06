@@ -457,7 +457,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator {
 //        if (isTablet()) showDialogFragment(
 //            ChatListToForwardFragment.newInstance(forwardMessage), CHAT_LIST_TO_FORWARD_DIALOG_TAG
 //        )
-//        else
+    //    else
         launchDetailInStack(ChatListToForwardFragment.newInstance(forwardMessage, jid))
     }
 

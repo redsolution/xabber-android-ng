@@ -4,7 +4,7 @@ import com.xabber.R
 import io.realm.kotlin.types.RealmObject
 import io.realm.kotlin.types.annotations.PrimaryKey
 
-// информация о пользователе
+// информация о контакте
 class RosterStorageItem: RealmObject {
     @PrimaryKey
     var primary: String = ""
@@ -46,16 +46,6 @@ class RosterStorageItem: RealmObject {
 //            .query<ResourceStorageItem>("owner == $owner AND jid == $jid AND SORT(timestamp DESC) AND SORT(priority DESC)")
 //            .find()
 //        return resources.firstOrNull()
-//    }
-//
-//    fun displayName(): String {
-//        if (customNickname.trim().length > 0) {
-//            return customNickname.trim()
-//        }
-//        if (nickname.length > 0) {
-//            return nickname
-//        }
-//        return jid
 //    }
 
 //    companion object {

@@ -245,7 +245,7 @@
             android:background="@drawable/circle"
             android:backgroundTint="@color/white"
             android:src="@drawable/ic_edit"
-            android:padding="12dp"
+            android:padding="6dp"
             android:contentDescription="@string/edit_smile_avatar_image_description" />
 
     </RelativeLayout>

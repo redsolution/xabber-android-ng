@@ -8,6 +8,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.graphics.Canvas
+import android.graphics.PorterDuff
 import android.graphics.drawable.Drawable
 import android.media.MediaPlayer
 import android.net.Uri
@@ -40,6 +41,7 @@ import com.xabber.data_base.models.messages.MessageDisplayType
 import com.xabber.data_base.models.messages.MessageSendingState
 import com.xabber.data_base.models.messages.MessageStorageItem
 import com.xabber.data_base.models.presences.ResourceStatus
+import com.xabber.data_base.models.presences.RosterItemEntity
 import com.xabber.databinding.FragmentChatBinding
 import com.xabber.dto.ChatListDto
 import com.xabber.dto.MessageDto
@@ -74,6 +76,7 @@ import java.io.InputStream
 import java.lang.Runnable
 import java.util.*
 import java.util.concurrent.TimeUnit
+import kotlin.collections.ArrayList
 import kotlin.experimental.and
 
 
@@ -234,7 +237,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     private fun prepareUi(chat: ChatListDto) {
         loadContactAvatar()
         setTitle(chat.getChatName())
-        setStatus(chat.status)
+        setStatus(chat.status, chat.entity)
         setupMuteIcon(chat.muteExpired)
     }
 
@@ -246,8 +249,17 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         binding.tvChatTitle.text = opponentName
     }
 
-    private fun setStatus(status: ResourceStatus) {
-      //  binding.avatarStatus.setImageResource()
+    private fun setStatus(resourceStatus: ResourceStatus, rosterItemEntity: RosterItemEntity) {
+        val statusIcon = StatusMaker.statusIcon(RosterItemEntity.Bot)
+        val statusTint = StatusMaker.statusTint(ResourceStatus.Dnd)
+        if (statusIcon != null) {
+            binding.avatarStatus.isVisible = true
+//            binding.avatarStatus.setImageResource(statusIcon)
+//            binding.avatarStatus.setColorFilter(
+//                ContextCompat.getColor(requireContext(), statusTint),
+//                PorterDuff.Mode.SRC_IN
+//            )
+        } else binding.avatarStatus.isVisible = false
     }
 
     private fun setupMuteIcon(muteExpired: Long) {
@@ -808,45 +820,21 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
             "Да",
             "В торжественной презентации старта нового сезона стройки приняли участие хоккеисты"
         )
-        lifecycleScope.launch {
-            var c = false
-            for (i in 0..1000) {
-                delay(100)
-                c = false
+        val references1 = ArrayList<MessageReferenceDto>()
+        references1.add(MessageReferenceDto("$a 1 ${System.currentTimeMillis()}", isGeo = true, latitude = 56.98, longitude = 67.09, size = 0L))
+
+
+
+
+        val mes = ArrayList<MessageDto>()
+      lifecycleScope.launch() {
+            for (i in 0 until 1000) {
+                delay(1000)
                 a++
-                viewModel.insertMessage(
-                    getParams().id,
-                    MessageDto(
-                        "$a k ${opponentJid} ${System.currentTimeMillis()}",
-                        c,
-                        owner,
-                        opponentJid,
-                        "",
-                        MessageSendingState.Deliver,
-                        System.currentTimeMillis(),
-                        0,
-                        MessageDisplayType.System,
-                        false,
-                        false,
-                        null,
-                        isUnread = true,
-                        isGroup = false,
-                        references = arrayListOf(
-                            MessageReferenceDto(
-                                "gjccgm $a",
-                                size = 0,
-                                isGeo = true,
-                                longitude = 5.678,
-                                latitude = 67.896
-                            )
-                        )
-                    )
-                )
-                viewModel.insertMessage(
-                    getParams().id,
+               val m =
                     MessageDto(
                         "$a ${opponentJid} ${System.currentTimeMillis()}",
-                        c,
+                        false,
                         owner,
                         opponentJid,
                         "$a " + textRandom.random(),
@@ -860,13 +848,11 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
                         isUnread = true,
                         isGroup = false
                     )
-                )
-                Log.d(
-                    "yyy",
-                    "lastPosition = ${layoutManager!!.findFirstVisibleItemPosition()}, first = ${layoutManager!!.findLastVisibleItemPosition()}"
-                )
+                viewModel.insertMessage(getParams().id, m)
+//mes.add(m)
             }
-        }
+
+      }
         isNeedScrollDown =
             layoutManager!!.findFirstVisibleItemPosition() + 2 >= (messageAdapter!!.itemCount - viewModel.unreadCount.value!!)
     }

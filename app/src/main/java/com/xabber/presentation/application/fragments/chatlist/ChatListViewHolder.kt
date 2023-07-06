@@ -49,7 +49,7 @@ class ChatListViewHolder(
         setAvatar(chatListDto.drawableId)      // здесь нужно будет скачивать аватарку с сервера, пока что просто картинка-заглушка
         setName(chatListDto.getChatName())    // имя собеседника. Групповые чаты пока не реализованы. В дальнейшем добавить если групповой чат - название группы
         setTextMessage(chatListDto.draftMessage, chatListDto.lastMessageBody)  // контент последнего сообщения или черновик
-        setTime(chatListDto.lastMessageDate)     // время отправки последнего сообщения
+        setTime(chatListDto.lastMessageDate)     // время отправки последнего сообщения (если сообщений еще нет - время создания чата)
         setPin(chatListDto.pinnedDate)           // добавление фона и иконки для запиненных чатов
         setMuted(chatListDto.muteExpired)        // иконка замьюченных чатов
         setUnreadMessages(chatListDto.unread, chatListDto.muteExpired, chatListDto.lastMessageIsOutgoing)  // показ бейджа непрочитанных сообщений и установление его цвета: зеленый - уведомления включены, серый - выключены
@@ -146,7 +146,7 @@ class ChatListViewHolder(
         binding.unreadMessagesCount.isVisible = unread.isNotEmpty()
         binding.imMessageStatus.isVisible = unread.isEmpty() && lastMessageIsOutgoing
         if (unread.isNotEmpty()) binding.unreadMessagesCount.text =
-            if (unread.toInt() < 1000) unread else "999+"
+            if (unread.toInt() < 1000) unread else binding.root.context.resources.getString(R.string.over_unread_messages)
         val colorBackground =
             ContextCompat.getColor(
                 binding.root.context,
@@ -323,7 +323,7 @@ class ChatListViewHolder(
                 PAYLOAD_CHAT_DRAFT_MESSAGE -> {
                     val draftMessage = bundle.getString(PAYLOAD_CHAT_DRAFT_MESSAGE)
                     if (draftMessage != null) {
-                        val spannable = SpannableString("Drafted: $draftMessage")
+                        val spannable = SpannableString(binding.root.context.resources.getString(R.string.drafted) + " $draftMessage")
                         spannable.setSpan(
                             ForegroundColorSpan(
                                 itemView.resources.getColor(

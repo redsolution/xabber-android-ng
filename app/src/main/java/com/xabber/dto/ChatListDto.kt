@@ -35,7 +35,7 @@ data class ChatListDto(
     var colorKey: String = "blue",
     val isGroup: Boolean = false
 ) : Comparable<ChatListDto>, Parcelable {
-    override fun compareTo(other: ChatListDto): Int {           // сортировка от новых к старым
+    override fun compareTo(other: ChatListDto): Int {           // сортировка: сначала запиненные, затем от новых к старым
         return if (other.pinnedDate > 0 || this.pinnedDate > 0) {
             other.pinnedDate.compareTo(this.pinnedDate)
         } else {

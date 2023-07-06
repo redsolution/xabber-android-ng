@@ -83,7 +83,7 @@ class QRCodeDialogFragment : DialogFragment() {
             file
         )
         shareIntent.putExtra(Intent.EXTRA_STREAM, uri)
-        startActivity(Intent.createChooser(shareIntent, "Поделиться QR-кодом"))
+        startActivity(Intent.createChooser(shareIntent, requireContext().resources.getString(R.string.share_qr)))
     }
 
     private fun makeFileWithQrCode(): File {

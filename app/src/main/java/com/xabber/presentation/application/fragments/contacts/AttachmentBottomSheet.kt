@@ -8,9 +8,7 @@ import android.content.Intent
 import android.database.Cursor
 import android.graphics.Color
 import android.net.Uri
-import android.os.Build
-import android.os.Bundle
-import android.os.Environment
+import android.os.*
 import android.provider.OpenableColumns
 import android.util.DisplayMetrics
 import android.util.Log
@@ -28,12 +26,14 @@ import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.coordinatorlayout.widget.CoordinatorLayout
 import androidx.core.view.isVisible
 import androidx.fragment.app.viewModels
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.SimpleItemAnimator
 import by.kirich1409.viewbindingdelegate.viewBinding
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.xabber.R
+import com.xabber.data_base.models.messages.MessageDisplayType
 import com.xabber.data_base.models.messages.MessageSendingState
 import com.xabber.databinding.LayoutBottomSheetCustomBinding
 import com.xabber.dto.MediaDto
@@ -43,11 +43,16 @@ import com.xabber.presentation.AppConstants
 import com.xabber.presentation.XabberApplication
 import com.xabber.presentation.application.fragments.chat.*
 import com.xabber.presentation.application.fragments.chat.geo.PickGeolocationActivity
+import com.xabber.utils.MaskManager
 import com.xabber.utils.askUserForOpeningAppSettings
 import com.xabber.utils.showToast
+import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import org.koin.androidx.viewmodel.ext.android.viewModel
 import org.koin.core.parameter.parametersOf
 import java.io.File
+import kotlin.random.Random
 
 class AttachmentBottomSheet : BottomSheetDialogFragment(R.layout.layout_bottom_sheet_custom),
     GalleryAdapter.Listener {
@@ -71,7 +76,7 @@ class AttachmentBottomSheet : BottomSheetDialogFragment(R.layout.layout_bottom_s
     private lateinit var chatInput: EditText
     private lateinit var sendGroup: ConstraintLayout
     private lateinit var tvCount: TextView
-
+private var nomber = MaskManager.primary
 
     private val requestCameraPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(), ::onGotCameraPermissionResult
@@ -335,9 +340,80 @@ class AttachmentBottomSheet : BottomSheetDialogFragment(R.layout.layout_bottom_s
             openMap()
         }
         contact.setOnClickListener {
-            showToast(resources.getString(R.string.feature_not_implemented))
+            send1000Messages()
+          //  showToast(resources.getString(R.string.feature_not_implemented))
         }
         music.setOnClickListener { showToast(resources.getString(R.string.feature_not_implemented)) }
+    }
+
+    private fun send1000Messages() {
+        var textRandom = arrayListOf(
+            "Здравствуйте, простите, мы немного задержались в пути.",
+            "Спасибо",
+            "Я уже бегу", "Здравствуйте,с Днем рождения.Желаем вам счастия ,здоровья , исполнения всех желаний", "", "", "", "", "", "", "Вам необходимо оформить решение в письменном виде.",
+            "Добрый день! Меня зовут Антонина Петровна, я учитель русского языка и литературы. Могу Вас научить читать и писать, познакомлю с великими писателями и их произведениями.",
+            "Это просто супер! Ну, а как тебе новый дом?", "Мне нравится! Она значительно просторнее, чем предыдущая, у меня большая собственная комната, где можно смотреть фильмы, слушать музыку, и никто не будет мешать. К тому же, мне ужасно нравится вид с девятого этажа – вся окрестность как на ладони!"
+        )
+        val medias = viewModel.getMediaList()
+
+        val referencesList = ArrayList<ArrayList<MessageReferenceDto>>()
+        referencesList.add(ArrayList<MessageReferenceDto>())
+        referencesList.add(ArrayList<MessageReferenceDto>())
+        referencesList.add(ArrayList<MessageReferenceDto>())
+        referencesList.add(ArrayList<MessageReferenceDto>())
+        referencesList.add(ArrayList<MessageReferenceDto>())
+        val list = ArrayList<MessageReferenceDto>()
+        val list2 = ArrayList<MessageReferenceDto>()
+        list.add((MessageReferenceDto("${System.currentTimeMillis()} $nomber${Random.nextInt(100)}n ${textRandom.random()}", uri = medias.random().uri.toString(), size = 0, mimeType = getMimeType(medias.random().uri)!!)))
+       list2.add(MessageReferenceDto("${System.currentTimeMillis()} ${nomber}f${Random.nextInt(100)} ${textRandom.random()}", uri = medias.random().uri.toString(), size = 0, mimeType = getMimeType(medias.random().uri)!!))
+        referencesList.add(list)
+        referencesList.add(list2)
+
+Random.nextInt(100)
+        val referencesList2 = ArrayList<ArrayList<MessageReferenceDto>>()
+        referencesList2.add(arrayListOf(MessageReferenceDto("${System.currentTimeMillis()} zn ${nomber}", isGeo = true, longitude = 61.370, latitude = 55.159, size = 0L)))
+        referencesList2.add(arrayListOf(MessageReferenceDto("${System.currentTimeMillis()} u ${nomber}", uri = medias.random().uri.toString(), size = 0, mimeType = getMimeType(medias.random().uri)!!)))
+        referencesList2.add(arrayListOf(MessageReferenceDto("${System.currentTimeMillis()} i$nomber ${textRandom.random()}", uri = medias.random().uri.toString(), size = 0, mimeType = getMimeType(medias.random().uri)!!)))
+        referencesList2.add(arrayListOf(MessageReferenceDto("${System.currentTimeMillis()} ii$nomber ${textRandom.random()}", uri = medias.random().uri.toString(), size = 0, mimeType = getMimeType(medias.random().uri)!!), MessageReferenceDto("${System.currentTimeMillis()} - ${textRandom.random()}", uri = medias.random().uri.toString(), size = 0, mimeType = getMimeType(medias.random().uri)!!)))
+        referencesList2.add(arrayListOf(MessageReferenceDto("${System.currentTimeMillis()} op$nomber ${textRandom.random()}", uri = medias.random().uri.toString(), size = 0, mimeType = getMimeType(medias.random().uri)!!), MessageReferenceDto("${System.currentTimeMillis()} i2 ${textRandom.random()}", uri = medias.random().uri.toString(), size = 0, mimeType = getMimeType(medias.random().uri)!!), MessageReferenceDto("${System.currentTimeMillis()} 60 ${textRandom.random()}", uri = medias.random().uri.toString(), size = 0, mimeType = getMimeType(medias.random().uri)!!)))
+        referencesList2.add(arrayListOf(MessageReferenceDto("${System.currentTimeMillis()} ;l$nomber ${textRandom.random()}", uri = medias.random().uri.toString(), size = 0, mimeType = getMimeType(medias.random().uri)!!), MessageReferenceDto("${System.currentTimeMillis()} 32 ${textRandom.random()}", uri = medias.random().uri.toString(), size = 0, mimeType = getMimeType(medias.random().uri)!!), MessageReferenceDto("${System.currentTimeMillis()} ii ${textRandom.random()}", uri = medias.random().uri.toString(), size = 0, mimeType = getMimeType(medias.random().uri)!!), MessageReferenceDto("${System.currentTimeMillis()} po ${textRandom.random()}", uri = medias.random().uri.toString(), size = 0, mimeType = getMimeType(medias.random().uri)!!)))
+        referencesList2.add(arrayListOf(MessageReferenceDto("${System.currentTimeMillis()} 02$nomber ${textRandom.random()}", uri = medias.random().uri.toString(), size = 0, mimeType = getMimeType(medias.random().uri)!!), MessageReferenceDto("${System.currentTimeMillis()} 02 ${textRandom.random()}", uri = medias.random().uri.toString(), size = 0, mimeType = getMimeType(medias.random().uri)!!), MessageReferenceDto("${System.currentTimeMillis()} 32 ${textRandom.random()}", uri = medias.random().uri.toString(), size = 0, mimeType = getMimeType(medias.random().uri)!!), MessageReferenceDto("${System.currentTimeMillis()} ii ${textRandom.random()}", uri = medias.random().uri.toString(), size = 0, mimeType = getMimeType(medias.random().uri)!!), MessageReferenceDto("${System.currentTimeMillis()} po ${textRandom.random()}", uri = medias.random().uri.toString(), size = 0, mimeType = getMimeType(medias.random().uri)!!)))
+        referencesList2.add(arrayListOf(MessageReferenceDto("${System.currentTimeMillis()} 0l2$nomber ${textRandom.random()}", uri = medias.random().uri.toString(), size = 0, mimeType = getMimeType(medias.random().uri)!!), MessageReferenceDto("${System.currentTimeMillis()} 02 ${textRandom.random()}", uri = medias.random().uri.toString(), size = 0, mimeType = getMimeType(medias.random().uri)!!), MessageReferenceDto("${System.currentTimeMillis()} 02 ${textRandom.random()}", uri = medias.random().uri.toString(), size = 0, mimeType = getMimeType(medias.random().uri)!!), MessageReferenceDto("${System.currentTimeMillis()} 32 ${textRandom.random()}", uri = medias.random().uri.toString(), size = 0, mimeType = getMimeType(medias.random().uri)!!), MessageReferenceDto("${System.currentTimeMillis()} ii ${textRandom.random()}", uri = medias.random().uri.toString(), size = 0, mimeType = getMimeType(medias.random().uri)!!), MessageReferenceDto("${System.currentTimeMillis()} po ${textRandom.random()}", uri = medias.random().uri.toString(), size = 0, mimeType = getMimeType(medias.random().uri)!!)))
+        referencesList2.add(arrayListOf(MessageReferenceDto("${System.currentTimeMillis()} 02oo $nomber${textRandom.random()}", uri = medias.random().uri.toString(), size = 0, mimeType = getMimeType(medias.random().uri)!!), MessageReferenceDto("${System.currentTimeMillis()} 02 ${textRandom.random()}", uri = medias.random().uri.toString(), size = 0, mimeType = getMimeType(medias.random().uri)!!), MessageReferenceDto("${System.currentTimeMillis()} 02 ${textRandom.random()}", uri = medias.random().uri.toString(), size = 0, mimeType = getMimeType(medias.random().uri)!!), MessageReferenceDto("${System.currentTimeMillis()} 02 ${textRandom.random()}", uri = medias.random().uri.toString(), size = 0, mimeType = getMimeType(medias.random().uri)!!), MessageReferenceDto("${System.currentTimeMillis()} 32 ${textRandom.random()}", uri = medias.random().uri.toString(), size = 0, mimeType = getMimeType(medias.random().uri)!!), MessageReferenceDto("${System.currentTimeMillis()} ii ${textRandom.random()}", uri = medias.random().uri.toString(), size = 0, mimeType = getMimeType(medias.random().uri)!!), MessageReferenceDto("${System.currentTimeMillis()} po ${textRandom.random()}", uri = medias.random().uri.toString(), size = 0, mimeType = getMimeType(medias.random().uri)!!)))
+val isOut = arrayListOf(true, false)
+        MaskManager.primary += 3
+        val chat = chatVM.loadChat(getChatId())
+        val mes = ArrayList<MessageDto>()
+        var a = 0
+    for (i in 0 until 1000) {
+            a++
+            val c = textRandom.random()
+            val m =
+                MessageDto(
+                    "$a ${nomber}hg ${System.currentTimeMillis()}",
+                    isOut.random(),
+                    chat!!.owner,
+                    chat!!.opponentJid,
+                    "$c",
+                    MessageSendingState.Deliver,
+                    System.currentTimeMillis(),
+                    0,
+                    MessageDisplayType.System,
+                    false,
+                    false,
+                    null,
+                    isUnread = false,
+                    isGroup = false,
+                    references = if (c == "") referencesList2.random() else referencesList.random()
+                )
+            Log.d("uuu", "${referencesList2.random()}")
+mes.add(m)
+        }
+        viewModel.complited.observe(viewLifecycleOwner) {
+            if (it) dismiss()
+        }
+        viewModel.insertMessageList(mes, chat!!.id)
+
     }
 
     private fun initInputPanel() {

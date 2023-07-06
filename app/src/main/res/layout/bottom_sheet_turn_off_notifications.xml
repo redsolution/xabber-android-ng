@@ -28,7 +28,8 @@
             android:layout_marginTop="12dp"
             android:layout_marginEnd="32dp"
             android:layout_marginBottom="12dp"
-            app:srcCompat="@drawable/ic_bell_15m_grey" />
+            app:srcCompat="@drawable/ic_bell_15m_grey"
+            android:contentDescription="@string/off_15_min" />
 
         <TextView
             android:id="@+id/tv_15min"
@@ -40,7 +41,7 @@
             android:layout_toEndOf="@+id/im_15min"
             android:background="@color/transparent"
             android:gravity="center_vertical"
-            android:text="Turn off for 15 minutes"
+            android:text="@string/off_15_min"
             android:textColor="@color/black"
             android:textSize="17sp" />
     </RelativeLayout>
@@ -64,7 +65,8 @@
             android:layout_marginTop="12dp"
             android:layout_marginEnd="32dp"
             android:layout_marginBottom="12dp"
-            app:srcCompat="@drawable/ic_bell_1h_grey" />
+            app:srcCompat="@drawable/ic_bell_1h_grey"
+            android:contentDescription="@string/off_1_hour" />
 
         <TextView
             android:id="@+id/tv_1hour"
@@ -76,7 +78,7 @@
             android:layout_toEndOf="@+id/im_1hour"
             android:background="@color/transparent"
             android:gravity="center_vertical"
-            android:text="Turn off for 1 hour"
+            android:text="@string/off_1_hour"
             android:textColor="@color/black"
             android:textSize="17sp" />
     </RelativeLayout>
@@ -85,9 +87,9 @@
         android:id="@+id/rl_2hour"
         android:layout_width="match_parent"
         android:layout_height="48dp"
+        android:background="@drawable/item_bottom_sheet_background"
         android:clickable="true"
-        android:focusable="true"
-        android:background="@drawable/item_bottom_sheet_background">
+        android:focusable="true">
 
         <ImageView
             android:id="@+id/im_2hour"
@@ -100,7 +102,8 @@
             android:layout_marginTop="12dp"
             android:layout_marginEnd="32dp"
             android:layout_marginBottom="12dp"
-            app:srcCompat="@drawable/ic_bell_2h_grey" />
+            app:srcCompat="@drawable/ic_bell_2h_grey"
+            android:contentDescription="@string/off_2_hour" />
 
         <TextView
             android:id="@+id/tv_2hour"
@@ -112,7 +115,7 @@
             android:layout_toEndOf="@id/im_2hour"
             android:background="@color/transparent"
             android:gravity="center_vertical"
-            android:text="Turn off for 2 hour"
+            android:text="@string/off_2_hour"
             android:textColor="@color/black"
             android:textSize="17sp" />
     </RelativeLayout>
@@ -123,8 +126,7 @@
         android:layout_height="48dp"
         android:background="@drawable/item_bottom_sheet_background"
         android:clickable="true"
-        android:focusable="true"
-        >
+        android:focusable="true">
 
         <ImageView
             android:id="@+id/im_1day"
@@ -137,7 +139,8 @@
             android:layout_marginTop="12dp"
             android:layout_marginEnd="32dp"
             android:layout_marginBottom="12dp"
-            app:srcCompat="@drawable/ic_bell_1d_grey" />
+            app:srcCompat="@drawable/ic_bell_1d_grey"
+            android:contentDescription="@string/off_1_day" />
 
         <TextView
             android:id="@+id/tv_1day"
@@ -149,7 +152,7 @@
             android:layout_toEndOf="@id/im_1day"
             android:background="@color/transparent"
             android:gravity="center_vertical"
-            android:text="Turn off for 1 day"
+            android:text="@string/off_1_day"
             android:textColor="@color/black"
             android:textSize="17sp" />
     </RelativeLayout>
@@ -160,9 +163,9 @@
         android:layout_width="match_parent"
         android:layout_height="48dp"
         android:layout_marginBottom="8dp"
+        android:background="@drawable/item_bottom_sheet_background"
         android:clickable="true"
-        android:focusable="true"
-           android:background="@drawable/item_bottom_sheet_background">
+        android:focusable="true">
 
         <ImageView
             android:id="@+id/im_forever"
@@ -175,7 +178,8 @@
             android:layout_marginTop="12dp"
             android:layout_marginEnd="32dp"
             android:layout_marginBottom="12dp"
-            app:srcCompat="@drawable/ic_bell_off_forever" />
+            app:srcCompat="@drawable/ic_bell_off_forever"
+            android:contentDescription="@string/off_forever" />
 
         <TextView
             android:id="@+id/tv_forever"
@@ -187,9 +191,8 @@
             android:layout_toEndOf="@id/im_forever"
             android:background="@color/transparent"
             android:gravity="center_vertical"
-            android:text="Turn off forever"
+            android:text="@string/off_forever"
             android:textColor="@color/black"
             android:textSize="17sp" />
     </RelativeLayout>
-
 </LinearLayout>

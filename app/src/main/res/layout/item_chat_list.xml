@@ -126,7 +126,6 @@
                 android:textColor="@color/grey_text_2"
                 android:textSize="@dimen/text_size_item_chat_message"
                 tools:text="@tools:sample/lorem/random" />
-
         </FrameLayout>
 
         <TextView
@@ -178,7 +177,6 @@
                 android:layout_marginStart="@dimen/margin_extra_small"
                 android:contentDescription="@string/pinned_chat_description"
                 android:src="@drawable/ic_pinned" />
-
         </LinearLayout>
 
         <com.google.android.material.card.MaterialCardView

@@ -41,37 +41,35 @@ public final class VoiceMessagePresenterManager {
     }
 
     public VoiceMessagePresenterManager() {
-        handler.postDelayed(refreshAvailableViews, 1000);
-    }
-
-
-    private final Runnable refreshAvailableViews = new Runnable() {
-        @Override
-        public void run() {
-            int size = voiceWaveInProgress.size();
-            if (size != 0) {
-                for (int i=0;i<size;i++) {
-                    String voicePath = voiceWaveInProgress.get(i);
-                    if (voiceWaveData.get(voicePath)!=null) {
-                        PlayerVisualizerView view = voiceWaveFreshViews.get(voicePath);
-                        if (view != null) {
-                            view.updateVisualizer(voiceWaveData.get(voicePath));
-                            voiceWaveFreshViews.remove(voicePath);
-                            voiceWaveForRemoval.add(voicePath);
+        Runnable refreshAvailableViews = new Runnable() {
+            @Override
+            public void run() {
+                int size = voiceWaveInProgress.size();
+                if (size != 0) {
+                    for (int i = 0; i < size; i++) {
+                        String voicePath = voiceWaveInProgress.get(i);
+                        if (voiceWaveData.get(voicePath) != null) {
+                            PlayerVisualizerView view = voiceWaveFreshViews.get(voicePath);
+                            if (view != null) {
+                                view.updateVisualizer(voiceWaveData.get(voicePath));
+                                voiceWaveFreshViews.remove(voicePath);
+                                voiceWaveForRemoval.add(voicePath);
+                            }
                         }
                     }
                 }
-            }
-            int removeSize = voiceWaveForRemoval.size();
-            if (removeSize != 0) {
-                for (int i = 0; i < removeSize; i++) {
-                    voiceWaveInProgress.remove(voiceWaveForRemoval.get(i));
+                int removeSize = voiceWaveForRemoval.size();
+                if (removeSize != 0) {
+                    for (int i = 0; i < removeSize; i++) {
+                        voiceWaveInProgress.remove(voiceWaveForRemoval.get(i));
+                    }
+                    voiceWaveForRemoval.clear();
                 }
-                voiceWaveForRemoval.clear();
+                handler.postDelayed(this, 1000);
             }
-            handler.postDelayed(this, 1000);
-        }
-    };
+        };
+        handler.postDelayed(refreshAvailableViews, 1000);
+    }
 
 
     public void addAndOptimizeWave(ArrayList<Float> wave, String filePath) {

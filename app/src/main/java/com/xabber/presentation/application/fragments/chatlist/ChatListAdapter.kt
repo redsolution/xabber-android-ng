@@ -27,7 +27,7 @@ class ChatListAdapter(
     private val listener: ChatListener
 ) : ListAdapter<ChatListDto, ViewHolder>(DiffUtilCallback) {
     lateinit var recyclerView: RecyclerView
-    var isManyOwners = false
+    var isManyOwners = false  // если включено несколько аккаунтов, показываем индикатор цвета аккаунта, если нет - не показываем
 
     interface ChatListener {
 
@@ -51,7 +51,7 @@ class ChatListAdapter(
     }
 
     companion object {
-        const val HIDE_CHAT = 0
+        const val HIDE_CHAT = 0   // этот item будет вверху списка и не видим (нужен для правильной работы списка)
         const val NORMAL_CHAT = 1
     }
 

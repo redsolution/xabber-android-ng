@@ -101,9 +101,9 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
         chatListAdapter = ChatListAdapter(this)
         binding.chatList.adapter = chatListAdapter
         layoutManager = binding.chatList.layoutManager as LinearLayoutManager
-        setRemoveDurationAnimation()    // длительность анимации удаления уменьшаем до 0, чтобы быстрее происходило перемещение элементов при свайпе
-        addItemDecoration()            // добавляем разделители для элементов
-        addSwipeOption()
+        setRemoveDurationAnimation()    // длительность анимации удаления уменьшаем до 0, чтобы быстрее происходило перемещение элементов при смахивании в архив
+        addItemDecoration()            // добавляем декоратор, разделяющий чаты
+        addSwipeOption()               // свайп чата в архив
         addScrollListener()
     }
 
