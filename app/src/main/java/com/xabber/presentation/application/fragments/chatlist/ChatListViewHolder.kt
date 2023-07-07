@@ -175,48 +175,17 @@ class ChatListViewHolder(
     private fun setMessageSendingState(
         chatListDto: ChatListDto
     ) {
-        var image: Int? = null
-        var tint: Int? = null
         binding.imMessageStatus.isVisible =
             chatListDto.lastMessageBody.isNotEmpty() && chatListDto.lastMessageIsOutgoing && chatListDto.draftMessage == null && chatListDto.unread.isEmpty()
 
         if (binding.imMessageStatus.isVisible) {
-            when (chatListDto.lastMessageState) {
-                MessageSendingState.Sending -> {
-                    tint = R.color.grey_500
-                    image = R.drawable.ic_clock_outline
-                }
-                MessageSendingState.Sent -> {
-                    tint = R.color.grey_500
-                    image = R.drawable.ic_check_green
-                }
-                MessageSendingState.Deliver -> {
-                    tint = R.color.green_500
-                    image = R.drawable.ic_check_green
-                }
-                MessageSendingState.Read -> {
-                    tint = R.color.green_500
-                    image = R.drawable.ic_check_all_green
-                }
-                MessageSendingState.Error -> {
-                    tint = R.color.red_500
-                    image = R.drawable.ic_exclamation_mark_outline
-                }
-                MessageSendingState.NotSent -> {
-                    tint = R.color.grey_500
-                    image = R.drawable.ic_clock_outline
-                }
-                MessageSendingState.Uploading -> {
-                    tint = R.color.blue_500
-                    image = R.drawable.ic_clock_outline
-                }
-                MessageSendingState.None -> {
-                }
-            }
-            if (tint != null && image != null) {
-                binding.imMessageStatus.setImageResource(image)
+            val iconAndTint = StatusMaker.deliverMessageStatusIcon(chatListDto.lastMessageState)
+            val icon = iconAndTint.first
+            val tint = iconAndTint.second
+            if (icon != null && tint != null) {
+                binding.imMessageStatus.setImageResource(icon)
                 binding.imMessageStatus.setColorFilter(
-                    ContextCompat.getColor(itemView.context, tint),
+                    ContextCompat.getColor(binding.root.context, tint),
                     PorterDuff.Mode.SRC_IN
                 )
             }
@@ -322,28 +291,7 @@ class ChatListViewHolder(
                 }
                 PAYLOAD_CHAT_DRAFT_MESSAGE -> {
                     val draftMessage = bundle.getString(PAYLOAD_CHAT_DRAFT_MESSAGE)
-                    if (draftMessage != null) {
-                        val spannable = SpannableString(binding.root.context.resources.getString(R.string.drafted) + " $draftMessage")
-                        spannable.setSpan(
-                            ForegroundColorSpan(
-                                itemView.resources.getColor(
-                                    R.color.red_500,
-                                    itemView.context.theme
-                                )
-                            ),
-                            0,
-                            8,
-                            Spannable.SPAN_EXCLUSIVE_INCLUSIVE
-                        )
-                        binding.tvChatListLastMessage.text = spannable
-                        binding.imMessageStatus.isVisible = false
-                    } else {
-                        binding.tvChatListLastMessage.text = chatListDto.lastMessageBody
-                        binding.tvTimestamp.text =
-                            Date().dateFormat(chatListDto.lastMessageDate)
-                        binding.imMessageStatus.isVisible =
-                            (chatListDto.lastMessageBody.isNotEmpty() && chatListDto.lastMessageIsOutgoing)
-                    }
+                    setTextMessage(draftMessage, chatListDto.lastMessageBody)
                 }
                 PAYLOAD_CHAT_MESSAGE_STATE -> {
                     val messageState =

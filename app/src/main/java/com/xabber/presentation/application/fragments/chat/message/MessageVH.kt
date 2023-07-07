@@ -36,9 +36,6 @@ import com.xabber.utils.custom.CorrectlyTouchEventTextView
 import com.xabber.utils.custom.PlayerVisualizerView
 import com.xabber.utils.custom.ShapeOfView
 import com.xabber.utils.dp
-import org.osmdroid.tileprovider.tilesource.TileSourceFactory
-import org.osmdroid.util.GeoPoint
-import org.osmdroid.views.MapView
 import java.util.*
 import java.util.concurrent.TimeUnit
 
@@ -314,7 +311,7 @@ abstract class MessageVH(
         val infoStamp =
             imageGridView.findViewById<LinearLayoutCompat>(R.id.message_info)
         val imageTime = imageGridView.findViewById<TextView>(R.id.tv_image_sending_time)
-        val status = imageGridView.findViewById<ImageView>(R.id.im_image_message_status)
+        val status = imageGridView.findViewById<ImageView>(R.id.iv_image_message_status)
         infoStamp.isVisible = message.messageBody.isEmpty() && message.references.size == images.size
         if (infoStamp.isVisible) {
             val date = Date(message.sentTimestamp)

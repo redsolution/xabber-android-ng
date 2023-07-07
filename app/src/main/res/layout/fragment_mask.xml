@@ -37,21 +37,21 @@
             android:id="@+id/circle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Circle"
+            android:text="@string/circle"
             style="@style/RadioButton"/>
 
         <RadioButton
             android:id="@+id/hexagon"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Hexagon"
+            android:text="@string/hexagon"
             style="@style/RadioButton"/>
 
         <RadioButton
             android:id="@+id/octagon"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Octagon"
+            android:text="@string/octagon"
             style="@style/RadioButton"/>
 
         <RadioButton
@@ -59,28 +59,28 @@
             style="@style/RadioButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Pentagon" />
+            android:text="@string/pentagon" />
 
         <RadioButton
             style="@style/RadioButton"
             android:id="@+id/rounded"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Rounded" />
+            android:text="@string/rounded" />
 
         <RadioButton
             style="@style/RadioButton"
             android:id="@+id/squirсle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Squircle" />
+            android:text="@string/squircle" />
 
         <RadioButton
             style="@style/RadioButton"
             android:id="@+id/star"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Star" />
+            android:text="@string/star" />
     </RadioGroup>
 
     <ImageView
@@ -94,5 +94,4 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintBottom_toBottomOf="@id/radio_group"
         app:layout_constraintTop_toTopOf="@id/radio_group" />
-
 </androidx.constraintlayout.widget.ConstraintLayout>

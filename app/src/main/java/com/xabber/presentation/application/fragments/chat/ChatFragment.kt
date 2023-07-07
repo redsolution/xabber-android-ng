@@ -729,9 +729,8 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         }
 
         viewModel.messages.observe(viewLifecycleOwner) {
-            Log.d("iii", "observe")
             messageAdapter?.updateAdapter(it)
-            messageAdapter?.notifyDataSetChanged()
+          messageAdapter?.notifyDataSetChanged()
             if (layoutManager != null && messageAdapter != null) {
                 if (layoutManager!!.findLastVisibleItemPosition() >= messageAdapter!!.itemCount - 2 && !isSelectedMode) scrollDown()
                 if (it.isNotEmpty()) isNeedScrollDown = it[it.size - 1].isOutgoing

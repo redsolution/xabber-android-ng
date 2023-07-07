@@ -107,7 +107,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator {
             setFullScreenMode()
             setHeightStatusBar()     // Вычисляем и устанавливаем высоту статус бара, чтобы устанавливать отступ
             setMask()   // Задаем маску из Preferences, по дефолту - круглая маска
-            setChatSettings()
+            setChatSettings()    // Применяем сохраненные настройки чата
             handler.postDelayed(showBadge, 0)
             binding.slidingPaneLayout.lockMode = SlidingPaneLayout.LOCK_MODE_LOCKED_CLOSED
             assist =

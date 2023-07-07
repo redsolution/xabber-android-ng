@@ -279,5 +279,4 @@
         android:scaleType="centerCrop"
         android:contentDescription="@string/image_view_description_profile_image"
         android:src="@drawable/avatar_place_holder" />
-
 </androidx.constraintlayout.widget.ConstraintLayout>

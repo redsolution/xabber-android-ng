@@ -432,4 +432,12 @@
     <string name="typical_chat">Typical chat</string>
     <string name="information_about_chat">Messages in this chat are not encrypted. Servers often keep a history of forwarded messages. This makes it easy to synchronize devices and search the history on the server side, but creates threats to the confidentiality of correspondence.</string>
     <string name="more_about_messaging">more about messaging</string>
+    <string name="circle">Circle</string>
+    <string name="hexagon">Hexagon</string>
+    <string name="octagon">Octagon</string>
+    <string name="pentagon">Pentagon</string>
+    <string name="rounded">Rounded</string>
+    <string name="squircle">Squircle</string>
+    <string name="star">Star</string>
+    <string name="qr_code_fragment_title">QR-code</string>
 </resources>

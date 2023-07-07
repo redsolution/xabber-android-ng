@@ -20,7 +20,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             app:menu="@menu/menu_toolbar_qr_code"
-            app:title="QR-code"
+            app:title="@string/qr_code_fragment_title"
             app:titleTextColor="@color/white" />
     </com.google.android.material.appbar.AppBarLayout>
 

@@ -23,7 +23,7 @@
         android:textSize="@dimen/text_size_timestamp" />
 
     <ImageView
-        android:id="@+id/im_image_message_status"
+        android:id="@+id/iv_image_message_status"
         android:layout_width="@dimen/status_size_from_timestamp"
         android:layout_height="@dimen/status_size_from_timestamp"
         android:layout_marginStart="@dimen/margin_extra_small"

@@ -21,7 +21,6 @@
             app:titleTextColor="@color/white"
             app:title="@string/reorder_accounts"
             style="@style/ApplicationToolbar">
-
         </com.google.android.material.appbar.MaterialToolbar>
     </com.google.android.material.appbar.AppBarLayout>
 

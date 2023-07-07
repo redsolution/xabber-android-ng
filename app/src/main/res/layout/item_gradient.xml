@@ -9,7 +9,7 @@
     android:layout_height="wrap_content">
 
     <androidx.cardview.widget.CardView
-        android:id="@+id/card"
+        android:id="@+id/shape0"
         android:layout_margin="2dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintBottom_toBottomOf="parent"
@@ -33,10 +33,10 @@
 </androidx.cardview.widget.CardView>
 
     <FrameLayout
-        app:layout_constraintTop_toTopOf="@id/card"
-        app:layout_constraintBottom_toBottomOf="@id/card"
-        app:layout_constraintEnd_toEndOf="@id/card"
-        app:layout_constraintStart_toStartOf="@id/card"
+        app:layout_constraintTop_toTopOf="@id/shape0"
+        app:layout_constraintBottom_toBottomOf="@id/shape0"
+        app:layout_constraintEnd_toEndOf="@id/shape0"
+        app:layout_constraintStart_toStartOf="@id/shape0"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:background="@drawable/cats_repeat"/>

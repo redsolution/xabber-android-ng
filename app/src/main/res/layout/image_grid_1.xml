@@ -8,7 +8,7 @@
     android:paddingVertical="2dp">
 
     <com.xabber.utils.custom.ShapeOfView
-        android:id="@+id/card"
+        android:id="@+id/shape0"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content">
 
@@ -26,7 +26,7 @@
     </com.xabber.utils.custom.ShapeOfView>
 
     <ImageView
-        android:id="@+id/im_video_label"
+        android:id="@+id/iv_video_label_0"
         android:layout_width="44dp"
         android:layout_height="44dp"
         android:layout_gravity="center"
@@ -38,4 +38,5 @@
         app:tint="@color/white" />
 
     <include layout="@layout/message_information_stamp" />
+
 </FrameLayout>

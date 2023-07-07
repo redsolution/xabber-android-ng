@@ -1,11 +1,9 @@
 package com.xabber.presentation.application.fragments.chat.message
 
 import android.content.res.Resources
-import android.graphics.Bitmap
-import android.graphics.drawable.Drawable
+import android.graphics.PorterDuff
 import android.graphics.drawable.ShapeDrawable
 import android.graphics.drawable.shapes.RoundRectShape
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -13,36 +11,20 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.appcompat.widget.LinearLayoutCompat
+import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import com.bumptech.glide.Glide
-import com.bumptech.glide.load.MultiTransformation
-import com.bumptech.glide.load.resource.bitmap.BitmapTransformation
-import com.bumptech.glide.load.resource.bitmap.RoundedCorners
-import com.bumptech.glide.request.target.CustomTarget
-import com.bumptech.glide.request.transition.Transition
 import com.xabber.R
 import com.xabber.dto.MessageDto
 import com.xabber.dto.MessageReferenceDto
 import com.xabber.presentation.application.fragments.chat.ChatSettingsManager
+import com.xabber.presentation.application.fragments.chat.StatusMaker
 import com.xabber.utils.StringUtils
 import com.xabber.utils.custom.ShapeOfView
 import com.xabber.utils.dp
 import java.util.*
-import kotlin.collections.ArrayList
 
- class ImageGridBuilder {
-
-    private fun createStandardTransformation(
-        radius: Int,
-        vararg extraTransformation: BitmapTransformation
-    ) =
-        MultiTransformation(
-            listOf(
-                RoundedCorners(radius),
-                RoundedBorders(radius, ImageGrid.IMAGE_ROUNDED_BORDER_WIDTH),
-                *extraTransformation
-            )
-        )
+class ImageGridBuilder {
 
     fun inflateView(parent: ViewGroup, imageCount: Int): View {
         return LayoutInflater.from(parent.context)
@@ -51,209 +33,194 @@ import kotlin.collections.ArrayList
 
     fun bindView(
         view: View, message: MessageDto,
-        attachments: ArrayList<MessageReferenceDto>
+        images: ArrayList<MessageReferenceDto>
     ) {
-        val videoImage = view.findViewById<ImageView>(R.id.im_video_label)
-        val videoImage1 = view.findViewById<ImageView>(R.id.im_video_label_1)
-        val videoImage2 = view.findViewById<ImageView>(R.id.im_video_label_2)
-        val videoImage3 = view.findViewById<ImageView>(R.id.im_video_label_3)
-        val videoImage4 = view.findViewById<ImageView>(R.id.im_video_label_4)
-        val videoImage5 = view.findViewById<ImageView>(R.id.im_video_label_5)
+        val cornerRadius =
+            if (ChatSettingsManager.cornerValue > 5) (ChatSettingsManager.cornerValue - 4) else 1  // радиус закругления уголка картинки
 
-        videoImage.isVisible = FileCategory.determineFileCategory(attachments[0].mimeType) == FileCategory.VIDEO
-        if (attachments.size > 1)  videoImage1.isVisible = FileCategory.determineFileCategory(attachments[1].mimeType) == FileCategory.VIDEO
-        if (attachments.size > 2)  videoImage2.isVisible = FileCategory.determineFileCategory(attachments[2].mimeType) == FileCategory.VIDEO
-        if (attachments.size > 3)  videoImage3.isVisible = FileCategory.determineFileCategory(attachments[3].mimeType) == FileCategory.VIDEO
-        if (attachments.size > 4)  videoImage4.isVisible = FileCategory.determineFileCategory(attachments[4].mimeType) == FileCategory.VIDEO
-        if (attachments.size > 5)  videoImage5.isVisible = FileCategory.determineFileCategory(attachments[5].mimeType) == FileCategory.VIDEO
-        val tvTime = view.findViewById<TextView>(R.id.tv_image_sending_time)
-        val dates = Date(message.sentTimestamp)
-        val time = StringUtils.getTimeText(view.context, dates)
-        tvTime.text = time
-        if (attachments.size == 1) {
-            val imageView = getImageView(view, 0)
+        val isNeedRoundBottomCorners =
+            message.messageBody.isEmpty() && message.references.size == images.size
 
-            bindOneImage(message, attachments[0], view, imageView, view)
-           // imageView.setOnClickListener(clickListener)
-        } else {
+        var index = 0
+        loop@ for (image in images) {
+            if (index > 5) break@loop
+
+            bindImage(view, index, image, cornerRadius, isNeedRoundBottomCorners, images.size)
+            index++
+        }
+        if (images.size > 6) {
             val tvCounter = view.findViewById<TextView>(R.id.tvCounter)
-            var index = 0
-            loop@ for (attachment in attachments) {
-                if (index > 5) break@loop
-                val imageView = getImageView(view, index)
-                val noBottomCorners = message.messageBody.isNotEmpty() || message.references.size > attachments.size
-                bindImage(message, attachment, imageView, view, noBottomCorners)
-           //     imageView.setOnClickListener(clickListener)
-                index++
-            }
-            if (tvCounter != null) {
-                if (attachments.size > 6) {
-                    tvCounter.setBackgroundResource(R.color.grey_transparent)
-                    tvCounter.text = StringBuilder("+").append(attachments.size - MAX_IMAGE_IN_GRID)
-                    tvCounter.visibility = View.VISIBLE
-                } else tvCounter.visibility = View.GONE
-            }
+            tvCounter.text = StringBuilder("+").append(images.size - MAX_IMAGE_IN_GRID)
+            tvCounter.isVisible = true
         }
 
+        val timeStampRadius =
+            if (cornerRadius > 4) cornerRadius - 3 else 1  // радиус закругление штампа с датой/статусом
+
+        val messageInfo = view.findViewById<LinearLayoutCompat>(R.id.message_info)
+        messageInfo.isVisible = isNeedRoundBottomCorners
+
+        if (messageInfo.isVisible) {
+            val params = messageInfo.layoutParams as FrameLayout.LayoutParams
+            val margin = ChatSettingsManager.timeStampMargin.dp  // отступ штампа от края картинки
+
+            params.setMargins(margin, margin, margin, margin)
+            messageInfo.layoutParams = params
+            val timeStampBackground = getTimeStampBackground(timeStampRadius)
+            messageInfo.setBackgroundResource(timeStampBackground)
+
+            val tvTime = view.findViewById<TextView>(R.id.tv_image_sending_time)
+            val dates = Date(message.sentTimestamp)
+            val time = StringUtils.getTimeText(view.context, dates)
+            tvTime.text = time
+
+            val statusIcon = view.findViewById<ImageView>(R.id.iv_image_message_status)    // статус сообщения
+            val iconAndTint = StatusMaker.deliverMessageStatusIcon(message.messageSendingState)
+            val icon = iconAndTint.first
+            val tint = iconAndTint.second
+            if (icon != null && tint != null) {
+                statusIcon.setImageResource(icon)
+                statusIcon.setColorFilter(
+                    ContextCompat.getColor(view.context, tint),
+                    PorterDuff.Mode.SRC_IN
+                )
+            }
+        }
     }
 
-
-    fun bindView(
+    private fun bindImage(
         view: View,
-        messageRealmObject: MessageDto,
-        clickListener: View.OnClickListener?
+        index: Int,
+        image: MessageReferenceDto,
+        cornerRadius: Int,
+        isNeedRoundBottomCorners: Boolean,
+        imagesSize: Int
     ) {
-        val attachmentRealmObjects = messageRealmObject.references
 
-        if (attachmentRealmObjects.size == 1) {
-            getImageView(view, 0)
-                .apply {
-                 //   setOnLongClickListener(wholeGridLongTapListener)
-                    setOnClickListener(clickListener)
-                }
-                .also { setupImageViewIntoFlexibleSingleImageCell(attachmentRealmObjects[0], it) }
-        } else {
-            attachmentRealmObjects.take(5).forEachIndexed { index, attachmentRealmObject ->
-                getImageView(view, index)
-                    .apply {
-                      //  setOnLongClickListener(wholeGridLongTapListener)
-                        setOnClickListener(clickListener)
-                    }
-                    .also {
-                        //setupImageViewIntoRigidGridCell(attachmentRealmObject, it) }
-                    }
+        val innerRadius =
+            if (cornerRadius <= 2) cornerRadius else 2 // радиус скругления внутреннего уголка между imageView
+
+        val isOneImage = imagesSize == 1
+
+        val shape = getShapeView(view, index)
+        val radii = when (index) {
+            0 -> {
+                if (imagesSize < 5) floatArrayOf(
+                    cornerRadius.dp.toFloat(),
+                    cornerRadius.dp.toFloat(),
+                    if (isOneImage) cornerRadius.dp.toFloat() else innerRadius.dp.toFloat(),
+                    if (isOneImage) cornerRadius.dp.toFloat() else innerRadius.dp.toFloat(),
+                    if (isNeedRoundBottomCorners && isOneImage) cornerRadius.dp.toFloat() else innerRadius.dp.toFloat(),
+                    if (isNeedRoundBottomCorners && isOneImage) cornerRadius.dp.toFloat() else innerRadius.dp.toFloat(),
+                    if (isNeedRoundBottomCorners) cornerRadius.dp.toFloat() else innerRadius.dp.toFloat(),
+                    if (isNeedRoundBottomCorners) cornerRadius.dp.toFloat() else innerRadius.dp.toFloat()
+                ) else
+                    floatArrayOf(
+                        cornerRadius.dp.toFloat(),
+                        cornerRadius.dp.toFloat(),
+                        innerRadius.dp.toFloat(),
+                        innerRadius.dp.toFloat(),
+                        innerRadius.dp.toFloat(),
+                        innerRadius.dp.toFloat(),
+                        innerRadius.dp.toFloat(),
+                        innerRadius.dp.toFloat()
+                    )
             }
+            1 -> {
+                if (imagesSize < 3) floatArrayOf(
+                    innerRadius.dp.toFloat(),
+                    innerRadius.dp.toFloat(),
+                    cornerRadius.dp.toFloat(),
+                    cornerRadius.dp.toFloat(),
+                    if (isNeedRoundBottomCorners) cornerRadius.dp.toFloat() else innerRadius.dp.toFloat(),
+                    if (isNeedRoundBottomCorners) cornerRadius.dp.toFloat() else innerRadius.dp.toFloat(),
+                    innerRadius.dp.toFloat(),
+                    innerRadius.dp.toFloat()
+                ) else
+                    floatArrayOf(
+                        innerRadius.dp.toFloat(),
+                        innerRadius.dp.toFloat(),
+                        cornerRadius.dp.toFloat(),
+                        cornerRadius.dp.toFloat(),
+                        innerRadius.dp.toFloat(),
+                        innerRadius.dp.toFloat(),
+                        innerRadius.dp.toFloat(),
+                        innerRadius.dp.toFloat()
+                    )
+            }
+            2 -> floatArrayOf(
+                innerRadius.dp.toFloat(),
+                innerRadius.dp.toFloat(),
+                innerRadius.dp.toFloat(),
+                innerRadius.dp.toFloat(),
+                if (isNeedRoundBottomCorners) cornerRadius.dp.toFloat() else innerRadius.dp.toFloat(),
+                if (isNeedRoundBottomCorners) cornerRadius.dp.toFloat() else innerRadius.dp.toFloat(),
+                innerRadius.dp.toFloat(),
+                innerRadius.dp.toFloat()
+            )
+            3 or 5 -> floatArrayOf(
+                innerRadius.dp.toFloat(),
+                innerRadius.dp.toFloat(),
+                innerRadius.dp.toFloat(),
+                innerRadius.dp.toFloat(),
+                innerRadius.dp.toFloat(),
+                innerRadius.dp.toFloat(),
+                innerRadius.dp.toFloat(),
+                innerRadius.dp.toFloat()
+            )
+            4 -> floatArrayOf(
+                innerRadius.dp.toFloat(),
+                innerRadius.dp.toFloat(),
+                innerRadius.dp.toFloat(),
+                innerRadius.dp.toFloat(),
+                innerRadius.dp.toFloat(),
+                innerRadius.dp.toFloat(),
+                if (isNeedRoundBottomCorners) cornerRadius.dp.toFloat() else innerRadius.dp.toFloat(),
+                if (isNeedRoundBottomCorners) cornerRadius.dp.toFloat() else innerRadius.dp.toFloat()
+            )
+            else -> null
+        }
+        val shapeDrawable = ShapeDrawable(
+            RoundRectShape(
+                radii,
+                null,
+                null
+            )
+        )
+        shape?.setDrawable(shapeDrawable)
+        val videoLabel = getVideoLabel(view, index)
+        videoLabel?.isVisible =
+            FileCategory.determineFileCategory(image.mimeType) == FileCategory.VIDEO  // показываем значок "видео" если это видео
+        val imageView = getImageView(view, index)
 
-            view.findViewById<TextView>(R.id.tvCounter)?.apply {
-                if (attachmentRealmObjects.size > MAX_IMAGE_IN_GRID) {
-                    text =
-                        StringBuilder("+").append(attachmentRealmObjects.size - MAX_IMAGE_IN_GRID)
-                    visibility = View.VISIBLE
-                } else {
-                    visibility = View.GONE
-                }
+        if (imageView != null) {
+           if (imagesSize > 6 && index == 5) imageView.setColorFilter(ContextCompat.getColor(imageView.context, R.color.grey_transparent))
+            if (isOneImage) {   // если картинка одна, загружаем ее учитывая соотношение сторон, но не превышая максимально допустимый размер
+                val displayMetrics = Resources.getSystem().displayMetrics
+                val screenWidth = displayMetrics.widthPixels
+                val screenHeight = displayMetrics.heightPixels
+
+                val maxWidth = (screenWidth * 0.8).toInt()
+                val maxHeight = (screenHeight * 0.5).toInt()
+                Glide.with(imageView.context)
+                    .load(image.uri)
+                    .override(maxWidth, maxHeight)
+                    .fitCenter()
+                    .placeholder(R.drawable.ic_recent_image_placeholder)
+                    .error(R.drawable.ic_recent_image_placeholder)
+                    .into(imageView)
+            } else {   // если картинок несколько, загружаем их в готовую сетку
+                Glide.with(imageView.context)
+                    .load(image.uri)
+                    .placeholder(R.drawable.ic_recent_image_placeholder)
+                    .error(R.drawable.ic_recent_image_placeholder)
+                    .into(imageView)
             }
         }
-    }
-
-    private fun bindImage(message: MessageDto,
-        attachment: MessageReferenceDto,
-        imageView: ImageView,
-        view: View, noBottomCorners:Boolean
-    ) {
-        val radius =
-            if (ChatSettingsManager.cornerValue > 4) (ChatSettingsManager.cornerValue - 4) else 1
-        val innerRadius = if (radius <= 2) radius else 2
-        val sh = view.findViewById<ShapeOfView>(R.id.cardview_1)
-       val card2 = view.findViewById<ShapeOfView>(R.id.cardview_2)
-       val card3 = view.findViewById<ShapeOfView>(R.id.cardview_3)
-        val card4 = view.findViewById<ShapeOfView>(R.id.cardview_4)
-       val card5 = view.findViewById<ShapeOfView>(R.id.cardview_5)
-       val card6 = view.findViewById<ShapeOfView>(R.id.cardview_6)
-
-        if (sh != null) {
-            val radii = if (message.references.size < 5) floatArrayOf(radius.dp.toFloat(), radius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), if (noBottomCorners) innerRadius.dp.toFloat() else radius.dp.toFloat(), if (noBottomCorners) innerRadius.dp.toFloat() else radius.dp.toFloat()) else
-                floatArrayOf(radius.dp.toFloat(), radius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat())    // массив радиусов углов в dp, по часовой стрелке
-            val shape = ShapeDrawable(RoundRectShape(radii, null, null)) // создаем объект ShapeDrawable с заданными радиусами
-
-            sh.setDrawable(shape)// устанавливаем объект ShapeDrawable в качестве фона ImageView
-        }
-        if (card2 != null) {
-            val radii = if (message.references.size < 3) floatArrayOf(innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), radius.dp.toFloat(), radius.dp.toFloat(), if (noBottomCorners) innerRadius.dp.toFloat() else radius.dp.toFloat(), if (noBottomCorners) innerRadius.dp.toFloat() else radius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat()) else
-                floatArrayOf(innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), radius.dp.toFloat(), radius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat())    // массив радиусов углов в dp, по часовой стрелке
-            val shape = ShapeDrawable(RoundRectShape(radii, null, null)) // создаем объект ShapeDrawable с заданными радиусами
-            card2.setDrawable(shape)
-        }
-        if (card3 != null) {
-            val radii = floatArrayOf(innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), if (noBottomCorners) innerRadius.dp.toFloat() else radius.dp.toFloat(), if (noBottomCorners) innerRadius.dp.toFloat() else radius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat())
-            val shape = ShapeDrawable(RoundRectShape(radii, null, null)) // создаем объект ShapeDrawable с заданными радиусами
-            card3.setDrawable(shape)
-        }
-        if (card4 != null) {
-            val radii =  floatArrayOf(innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat())
-            val shape = ShapeDrawable(RoundRectShape(radii, null, null)) // создаем объект ShapeDrawable с заданными радиусами
-            card4.setDrawable(shape)
-        }
-        if (card5 != null) {
-            val radii =  floatArrayOf(innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), if (noBottomCorners) innerRadius.dp.toFloat() else radius.dp.toFloat(), if (noBottomCorners) innerRadius.dp.toFloat() else radius.dp.toFloat())
-            val shape = ShapeDrawable(RoundRectShape(radii, null, null)) // создаем объект ShapeDrawable с заданными радиусами
-            card5.setDrawable(shape)
-        }
-        if (card6 != null) {
-            val radii =  floatArrayOf(innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat(), innerRadius.dp.toFloat())
-            val shape = ShapeDrawable(RoundRectShape(radii, null, null)) // создаем объект ShapeDrawable с заданными радиусами
-            card6.setDrawable(shape)
-        }
-
-
-        val timeStampRadius = if (radius > 3) radius - 3 else 1
-
-        val lin = view.findViewById<LinearLayoutCompat>(R.id.message_info)
-
-        val params = lin.layoutParams as FrameLayout.LayoutParams
-        val margin = ChatSettingsManager.timeStampMargin.dp
-        params.setMargins(margin, margin, margin, margin)
-        lin.layoutParams = params
-        val timeStampBackground = getTimeStampBackground(timeStampRadius)
-        lin.setBackgroundResource(timeStampBackground)
-
-        Glide.with(imageView.context)
-            .load(attachment.uri)
-            .placeholder(R.drawable.ic_recent_image_placeholder)
-            .error(R.drawable.ic_recent_image_placeholder)
-            .into(imageView)
-    }
-
-    private fun bindOneImage(message: MessageDto,
-        attachment: MessageReferenceDto,
-        parent: View,
-        imageView: ImageView,
-        view: View
-    ) {
-        val videoImage = view.findViewById<ImageView>(R.id.im_video_label)
-       videoImage.isVisible = FileCategory.determineFileCategory(attachment.mimeType) == FileCategory.VIDEO
-        val radius =
-            if (ChatSettingsManager.cornerValue > 4) (ChatSettingsManager.cornerValue - 4) else 1
-        val card = view.findViewById<ShapeOfView>(R.id.card)
-        val innerRadius = if (radius <= 2) radius else 2
-        val hasText = message.messageBody.isNotEmpty()
-        if (card != null) {
-            val radii = floatArrayOf(radius.dp.toFloat(), radius.dp.toFloat(), radius.dp.toFloat(), radius.dp.toFloat(), if (hasText) innerRadius.dp.toFloat() else radius.dp.toFloat(), if (hasText) innerRadius.dp.toFloat() else radius.dp.toFloat(), if (hasText) innerRadius.dp.toFloat() else radius.dp.toFloat(), if (hasText) innerRadius.dp.toFloat() else radius.dp.toFloat())
-            val shape = ShapeDrawable(RoundRectShape(radii, null, null)) // создаем объект ShapeDrawable с заданными радиусами
-
-            card.setDrawable(shape)// устанавливаем объект ShapeDrawable в качестве фона ImageView
-        }
-        val timeStampRadius = if (radius > 3) radius - 3 else 1
-
-        val lin = view.findViewById<LinearLayoutCompat>(R.id.message_info)
-
-       val params = lin.layoutParams as FrameLayout.LayoutParams
-        val margin = ChatSettingsManager.timeStampMargin.dp
-        params.setMargins(margin, margin, margin, margin)
-        lin.layoutParams = params
-        val timeStampBackground = getTimeStampBackground(timeStampRadius)
-        lin.setBackgroundResource(timeStampBackground)
-
-        val displayMetrics = Resources.getSystem().displayMetrics
-        val screenWidth = displayMetrics.widthPixels
-        val screenHeight = displayMetrics.heightPixels
-
-// Вычислим максимально допустимые значения ширины и высоты
-        val maxWidth = (screenWidth * 0.8).toInt()
-        val maxHeight = (screenHeight * 0.5).toInt()
-        Glide.with(imageView.context)
-        //    .asBitmap()
-            .load(attachment.uri)
-            .override(maxWidth, maxHeight)
-            .fitCenter()
-          //  .placeholder(R.drawable.ic_recent_image_placeholder)
-            .error(R.drawable.ic_recent_image_placeholder)
-            .into(imageView)
-
     }
 
     private fun getTimeStampBackground(timeStampRadius: Int): Int {
-       return when (timeStampRadius) {
+        return when (timeStampRadius) {
             1 -> R.drawable.time_stamp_1px
             2 -> R.drawable.time_stamp_2px
             3 -> R.drawable.time_stamp_3px
@@ -267,125 +234,12 @@ import kotlin.collections.ArrayList
             11 -> R.drawable.time_stamp_11px
             12 -> R.drawable.time_stamp_12px
             13 -> R.drawable.time_stamp_13px
-
             else -> R.drawable.time_stamp_1px
         }
     }
 
-    private fun setupImageViewIntoFlexibleSingleImageCell(
-        referenceRealmObject: MessageReferenceDto, imageView: ImageView
-    ) {
-        val imageWidth = referenceRealmObject.width
-        val imageHeight = referenceRealmObject.height
-
-        if (imageWidth != null && imageHeight != null) {
-            setupImageViewWithDimensions(
-                imageView, referenceRealmObject, imageWidth, imageHeight
-            )
-        } else {
-            setupImageViewWithoutDimensions(
-                imageView, referenceRealmObject.uri!!, referenceRealmObject.id
-            )
-        }
-    }
-
-    private fun setupImageViewWithoutDimensions(
-        imageView: ImageView, url: String, attachmentId: String
-    ) {
-        Glide.with(imageView.context)
-            .asBitmap()
-            .load(url)
-            .placeholder(R.drawable.ic_recent_image_placeholder)
-            .error(R.drawable.ic_recent_image_placeholder)
-            .into(object : CustomTarget<Bitmap?>() {
-                override fun onLoadStarted(placeholder: Drawable?) {
-                    super.onLoadStarted(placeholder)
-                    imageView.setImageDrawable(placeholder)
-                    imageView.visibility = View.VISIBLE
-                }
-
-                override fun onLoadFailed(errorDrawable: Drawable?) {
-                    super.onLoadFailed(errorDrawable)
-                    imageView.setImageDrawable(errorDrawable)
-                    imageView.visibility = View.VISIBLE
-                }
-
-                override fun onResourceReady(
-                    resource: Bitmap, transition: Transition<in Bitmap?>?
-                ) {
-                    val width = resource.width
-                    val height = resource.height
-                    if (width <= 0 || height <= 0) {
-                        return
-                    }
-                }
-
-                override fun onLoadCleared(placeholder: Drawable?) {}
-            })
-    }
-
-    private fun setupImageViewWithDimensions(
-        imageView: ImageView, referenceRealmObject: MessageReferenceDto, width: Int, height: Int
-    ) {
-        val uri = referenceRealmObject.uri?.takeIf { it.isNotEmpty() }
-            ?: referenceRealmObject.uri
-
-        Glide.with(imageView.context)
-            .load(uri)
-            .placeholder(R.drawable.ic_recent_image_placeholder)
-            .error(R.drawable.ic_recent_image_placeholder)
-            .into(imageView)
-
-        scaleImage(imageView.layoutParams, height, width)
-    }
-
-    private fun scaleImage(layoutParams: ViewGroup.LayoutParams, height: Int, width: Int) {
-        val scaledWidth: Int
-        val scaledHeight: Int
-        if (width <= height) {
-            when {
-                height > MAX_IMAGE_HEIGHT_SIZE -> {
-                    scaledWidth = (width / (height.toDouble() / MAX_IMAGE_HEIGHT_SIZE)).toInt()
-                    scaledHeight = MAX_IMAGE_HEIGHT_SIZE
-                }
-                width < MIN_IMAGE_SIZE -> {
-                    scaledWidth = MIN_IMAGE_SIZE
-                    scaledHeight =
-                        (height / (width.toDouble() / MIN_IMAGE_SIZE)).toInt().coerceAtMost(
-                            MAX_IMAGE_HEIGHT_SIZE
-                        )
-                }
-                else -> {
-                    scaledWidth = width
-                    scaledHeight = height
-                }
-            }
-        } else {
-            when {
-                width > MAX_IMAGE_SIZE -> {
-                    scaledWidth = MAX_IMAGE_SIZE
-                    scaledHeight = (height / (width.toDouble() / MAX_IMAGE_SIZE)).toInt()
-                }
-                height < MIN_IMAGE_SIZE -> {
-                    scaledWidth =
-                        (width / (height.toDouble() / MIN_IMAGE_SIZE)).toInt().coerceAtMost(
-                            MAX_IMAGE_SIZE
-                        )
-                    scaledHeight = MIN_IMAGE_SIZE
-                }
-                else -> {
-                    scaledWidth = width
-                    scaledHeight = height
-                }
-            }
-        }
-
-        layoutParams.width = scaledWidth
-        layoutParams.height = scaledHeight
-    }
-
-    private fun getLayoutResource(imageCount: Int): Int {
-        return when (imageCount) {
+    private fun getLayoutResource(imageCount: Int): Int =
+        when (imageCount) {
             1 -> R.layout.image_grid_1
             2 -> R.layout.image_grid_2
             3 -> R.layout.image_grid_3
@@ -393,25 +247,42 @@ import kotlin.collections.ArrayList
             5 -> R.layout.image_grid_5
             else -> R.layout.image_grid_6
         }
-    }
 
-    private fun getImageView(view: View, index: Int): ImageView {
-        return when (index) {
+    private fun getImageView(view: View, index: Int): ImageView? =
+        when (index) {
+            0 -> view.findViewById(R.id.ivImage0)
             1 -> view.findViewById(R.id.ivImage1)
             2 -> view.findViewById(R.id.ivImage2)
             3 -> view.findViewById(R.id.ivImage3)
             4 -> view.findViewById(R.id.ivImage4)
             5 -> view.findViewById(R.id.ivImage5)
-            else -> view.findViewById(R.id.ivImage0)
+            else -> null
         }
-    }
+
+    private fun getShapeView(view: View, index: Int): ShapeOfView? =
+        when (index) {
+            0 -> view.findViewById(R.id.shape0)
+            1 -> view.findViewById(R.id.shape1)
+            2 -> view.findViewById(R.id.shape2)
+            3 -> view.findViewById(R.id.shape3)
+            4 -> view.findViewById(R.id.shape4)
+            5 -> view.findViewById(R.id.shape5)
+            else -> null
+        }
+
+    private fun getVideoLabel(view: View, index: Int): ImageView? =
+        when (index) {
+            0 -> view.findViewById(R.id.iv_video_label_0)
+            1 -> view.findViewById(R.id.iv_video_label_1)
+            2 -> view.findViewById(R.id.iv_video_label_2)
+            3 -> view.findViewById(R.id.iv_video_label_3)
+            4 -> view.findViewById(R.id.iv_video_label_4)
+            5 -> view.findViewById(R.id.iv_video_label_5)
+            else -> null
+        }
 
     companion object {
         private const val MAX_IMAGE_IN_GRID = 6
-
-        private val MAX_IMAGE_SIZE = 288
-        private val MIN_IMAGE_SIZE = 100
-
-        private val MAX_IMAGE_HEIGHT_SIZE = 400.dp
     }
+
 }
