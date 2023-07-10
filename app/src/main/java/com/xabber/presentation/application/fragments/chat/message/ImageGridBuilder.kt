@@ -1,6 +1,5 @@
 package com.xabber.presentation.application.fragments.chat.message
 
-import android.content.res.Resources
 import android.graphics.PorterDuff
 import android.graphics.drawable.ShapeDrawable
 import android.graphics.drawable.shapes.RoundRectShape
@@ -19,6 +18,7 @@ import com.xabber.dto.MessageDto
 import com.xabber.dto.MessageReferenceDto
 import com.xabber.presentation.application.fragments.chat.ChatSettingsManager
 import com.xabber.presentation.application.fragments.chat.StatusMaker
+import com.xabber.presentation.application.manage.DisplayManager
 import com.xabber.utils.StringUtils
 import com.xabber.utils.custom.ShapeOfView
 import com.xabber.utils.dp
@@ -70,11 +70,13 @@ class ImageGridBuilder {
             messageInfo.setBackgroundResource(timeStampBackground)
 
             val tvTime = view.findViewById<TextView>(R.id.tv_image_sending_time)
-            val dates = Date(message.sentTimestamp)
-            val time = StringUtils.getTimeText(view.context, dates)
-            tvTime.text = time
+            val date =
+                Date(if (message.editTimestamp > 0) message.editTimestamp else message.sentTimestamp)
+            val time = StringUtils.getTimeText(view.context, date)
+            tvTime.text = if (message.editTimestamp > 0) view.context.resources.getString(R.string.edit) + " $time" else time
 
-            val statusIcon = view.findViewById<ImageView>(R.id.iv_image_message_status)    // статус сообщения
+            val statusIcon =
+                view.findViewById<ImageView>(R.id.iv_image_message_status)    // статус сообщения
             val iconAndTint = StatusMaker.deliverMessageStatusIcon(message.messageSendingState)
             val icon = iconAndTint.first
             val tint = iconAndTint.second
@@ -103,7 +105,7 @@ class ImageGridBuilder {
         val isOneImage = imagesSize == 1
 
         val shape = getShapeView(view, index)
-        val radii = when (index) {
+        val radii = when (index) {    // скругление углов для каждого imageView
             0 -> {
                 if (imagesSize < 5) floatArrayOf(
                     cornerRadius.dp.toFloat(),
@@ -194,14 +196,15 @@ class ImageGridBuilder {
         val imageView = getImageView(view, index)
 
         if (imageView != null) {
-           if (imagesSize > 6 && index == 5) imageView.setColorFilter(ContextCompat.getColor(imageView.context, R.color.grey_transparent))
+            if (imagesSize > 6 && index == 5) imageView.setColorFilter(
+                ContextCompat.getColor(
+                    imageView.context,
+                    R.color.grey_transparent
+                )
+            )
             if (isOneImage) {   // если картинка одна, загружаем ее учитывая соотношение сторон, но не превышая максимально допустимый размер
-                val displayMetrics = Resources.getSystem().displayMetrics
-                val screenWidth = displayMetrics.widthPixels
-                val screenHeight = displayMetrics.heightPixels
-
-                val maxWidth = (screenWidth * 0.8).toInt()
-                val maxHeight = (screenHeight * 0.5).toInt()
+                val maxWidth = (DisplayManager.screenWidth() * 0.8).toInt()
+                val maxHeight = (DisplayManager.screenHeight() * 0.5).toInt()
                 Glide.with(imageView.context)
                     .load(image.uri)
                     .override(maxWidth, maxHeight)

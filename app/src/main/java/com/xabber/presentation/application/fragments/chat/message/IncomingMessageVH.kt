@@ -11,18 +11,10 @@ import com.xabber.presentation.application.fragments.chat.MessageVhExtraData
 
 class IncomingMessageVH internal constructor(
     itemView: View,
-    private val listener: MessageAdapter.MenuItemListener?,
-    onViewClickListener: MessageAdapter.OnViewClickListener?,
-    val listen: BindListener?, avatarClickListener: OnMessageAvatarClickListener
-) : MessageVH(itemView, listener, onViewClickListener) {
+    menuItemListener: MessageAdapter.MenuItemListener?,
+    onViewClickListener: MessageAdapter.OnViewClickListener?
+) : MessageVH(itemView, menuItemListener, onViewClickListener) {
 
-    interface BindListener {
-        fun onBind(message: MessageDto?)
-    }
-
-    interface OnMessageAvatarClickListener {
-        fun onMessageAvatarClick(position: Int)
-    }
 
     override fun bind(message: MessageDto, vhExtraData: MessageVhExtraData) {
         super.bind(message, vhExtraData)

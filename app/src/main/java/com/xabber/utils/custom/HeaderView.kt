@@ -34,17 +34,16 @@ class HeaderView : FrameLayout {
     }
 
     fun setText(@StringRes textRes: Int) {
-        if (tvDescription != null)
-            tvDescription!!.setText(textRes)
+            tvDescription?.setText(textRes)
     }
 
     fun setTextColor(colorRes: Int) {
         tvDescription?.setTextColor(colorRes)
     }
 
-    fun setProgressRotation(isv: Boolean) {
+    fun setProgressRotation(visibility: Boolean) {
         pullImage = findViewById(R.id.tip)
-        pullImage!!.isVisible = isv
+        pullImage?.isVisible = visibility
     }
 
     fun setColor(color: Int, colorLight: Int, isUp: Boolean) {
@@ -57,7 +56,6 @@ class HeaderView : FrameLayout {
         )
         line.setColorFilter(ContextCompat.getColor(context, colorLight))
         tip.setColorFilter(ContextCompat.getColor(context, colorLight))
-
 
         val states = arrayOf(
             intArrayOf(android.R.attr.state_enabled),

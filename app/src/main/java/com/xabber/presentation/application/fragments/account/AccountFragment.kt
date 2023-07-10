@@ -119,7 +119,7 @@ class AccountFragment : DetailBaseFragment(R.layout.fragment_account) {
     private fun changeUiWithAccountData() {
         val account = viewModel.getAccount(getJid())
         hasAvatar = account?.hasAvatar ?: false
-        val colorKey = account?.colorKey ?: "blue"
+        val colorKey = account?.colorKey ?: resources.getString(R.string.blue)
         val colorRes = ColorManager.convertColorNameToId(colorKey)
         loadBackground(colorRes)
         defineColor(colorRes)
@@ -223,12 +223,12 @@ class AccountFragment : DetailBaseFragment(R.layout.fragment_account) {
                 when (menuItem.itemId) {
                     R.id.colors -> {
                         val dialog = AccountColorDialog.newInstance(
-                            viewModel.getAccount(getJid())?.colorKey ?: "blue"
+                            viewModel.getAccount(getJid())?.colorKey ?: resources.getString(R.string.blue)
                         )
                         navigator().showDialogFragment(dialog, "")
                     }
                     R.id.generate_qr_code -> {
-                        val color = viewModel.getAccount(getJid())?.colorKey ?: "blue"
+                        val color = viewModel.getAccount(getJid())?.colorKey ?: resources.getString(R.string.blue)
                         val name = viewModel.getAccount(getJid())?.getAccountName() ?: ""
                         navigator().showQRCode(
                             QRCodeParams(

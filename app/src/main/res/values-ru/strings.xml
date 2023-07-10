@@ -95,10 +95,9 @@
     <string name="menu_item_settings">Настройки</string>
 
     <!-- CHAT LIST -->
+    <string name="over_unread_messages">999+</string>
     <string name="xabber_logo_image_description">Xabber</string>
     <string name="application_title">Xabber</string>
-    <string name="no_internet_title">Соединение…</string>
-    <string name="image_plus_content_description">Добавить чат</string>
     <string name="unread_chats">Непрочитанные</string>
     <string name="archived_chat">Архив</string>
     <string name="snackbar_title_to_archive">Перенесено в архив</string>
@@ -108,18 +107,14 @@
     <string name="chat_list_is_empty_button">Вперёд!</string>
     <string name="unread_list_is_empty_text">Нет непрочитанных чатов</string>
     <string name="archived_list_is_empty_text">Нет архивных чатов</string>
-    <string name="avatar_account_content_description">Аватар аккаунта</string>
-    <string name="status_content_description">Статус</string>
     <string name="message_status_content_description">Статус сообщения</string>
     <string name="pinned_chat_description">чат закреплен</string>
-    <string name ="pull_to_show_archive">Тяните для показа архива</string>
+    <string name="pull_to_show_archive">Тяните для показа архива</string>
     <string name="release_to_show_archive">Отпустите для показа архива</string>
     <string name="drafted">Черновик: </string>
     <string name="mark_all_messages_as_read">Пометить все сообщения как прочитанные</string>
-    <string name="no_archived_chats">В архиве нет чатов</string>
     <string name="chat_status_image_description">Chat status 16</string>
     <string name="chat_image_description">Аватар чата</string>
-
 
     <!-- ChatList Context Menu -->
     <string name="menu_item_pin_chat">Закрепить</string>
@@ -138,21 +133,6 @@
     <string name="hint_alias_not_necessary">Псевдоним (не обязательно)</string>
     <string name="create_group_button_label">Создать</string>
 
-    <!-- Special Notifications -->
-    <string name="special_notifications_title">Специальные уведомления</string>
-    <string name="use_special_settings_title">Использовать специальные настройки</string>
-    <string name="special_settings_description">Специальные настройки уведомлений имеют более высокий приоритет по сравнению с другими настройками уведомлений.</string>
-    <string name="messages_preview_title">Предварительный просмотр сообщений</string>
-    <string name="messages_preview_description">Отображение текстовых сообщений</string>
-    <string name="notification_sound_title">Звук уведомлений</string>
-    <string name="notification_sound_state">По умолчанию ($s)</string>
-    <string name="vibration_title">Вибрация</string>
-    <string name="vibration_state_default">По умолчанию</string>
-    <string name="vibration_state_disabled">Отключено</string>
-    <string name="vibration_state_short">Короткая вибрация</string>
-    <string name="vibration_state_long">Долгая вибрация</string>
-    <string name="vibration_state_mute_mode">Только в бесшумном режиме</string>
-
     <!-- CALLS -->
     <string name="calls_toolbar_title">Звонки</string>
     <string name="adt">\tЗвонки приходят в Xabber для Android! Не в этом выпуске, но это есть в наших планах.\n
@@ -163,6 +143,9 @@
     <string name="menu_item_reset_status">Изменить статус</string>
     <string name="menu_item_add_contact">Добавить контакт</string>
     <string name="menu_item_display_contacts_offline">Показать контакты не в сети</string>
+    <string name="menu_item_edit_contact">Edit</string>
+    <string name="menu_item_delete_contact">Delete contact</string>
+    <string name="menu_item_block_contact">Block contact</string>
 
     <!-- Edit Contact -->
     <string name="edit_contact_toolbar_title">Редактировать</string>
@@ -187,22 +170,35 @@
     <string name="menu_item_disable_notifications">Отключить уведомления</string>
     <string name="menu_item_clear_message_history">Очистить историю сообщений</string>
     <string name="toolbar_menu_item_delete_chat">Удалить чат</string>
-    <string name="dialog_clear_history_chat_title">Очистить историю</string>
-    <string name="dialog_message_clear_history">Вы уверены, что хотите очистить историю чата с </string>
-    <string name="chat_dialog_sub_message">\n\nЭто действие не может быть отменено.</string>
-    <string name="dialog_chat_positive_button">Очистить</string>
-    <string name="dialog_chat_negative_button">Отменить</string>
-    <string name="clear_group_chat_history_dialog_message">Вся история сообщений в этом чате будет очищена. Это действие не может быть отменено.</string>
     <string name="snack_bar_title_copy_text">"Скопировано в буфер обмена"</string>
-    <string name="deleting_message_dialog_title">"Удалить сообщение</string>
-    <string name="deleting_message_dialog_subtitle">Вы уверены, что хотите удалить это сообщение?</string>
-    <string name="deleting_message_dialog_checkbox_text">Также удалить для </string>
     <string name="image_description_unpin_message">Открепить сообщение</string>
     <string name="im_description_pin_message">Закрепить сообщение</string>
     <string name="im_description_downward">Вниз</string>
     <string name="unread_messages">Непрочитанные сообщения</string>
     <string name="undefined_file">Неопределенный файл</string>
-    <string name="back">back</string>
+    <string name="edit">изменено</string>
+    <string name="content_description_close">Закрыть</string>
+    <string name="content_description_send">Отправить</string>
+    <string name="content_description_emoji">Эмоджи</string>
+    <string name="content_description_attach">Прикрепить</string>
+    <string name="content_description_audio_record">Аудио запись</string>
+    <string name="content_description_lock">Заблокировать</string>
+    <string name="content_description_stop">Стоп</string>
+    <string name="status">Статус</string>
+    <string name="selected_message_toolbar_close">close</string>
+    <string name="avatar_content_description">Аватар</string>
+    <string name="attach_files_warning">Слишком много файлов одновременно!</string>
+    <string name="slider_description">слайдер</string>
+    <string name="media">Медиа</string>
+    <string name="contact_label">Контакты</string>
+    <string name="message_status">статус сообщения</string>
+    <string name="sending_status">sстатус отправки</string>
+    <string name="image">изображение</string>
+    <string name="typical_chat">Обычный чат</string>
+    <string name="information_about_chat">Сообщения в этом чате не шифруются. Серверы часто хранят историю переадресованных сообщений. Это упрощает синхронизацию устройств и поиск по истории на стороне сервера, но создает угрозы конфиденциальности переписки.</string>
+    <string name="more_about_messaging">больше об обмене сообщениями</string>
+    <string name="open">Открыть</string>
+    <string name="unable_to_open_file">Невозможно открыть файл</string>
 
     <!-- Attach BottomSheet -->
     <string name="camera_label">Камера</string>
@@ -214,7 +210,12 @@
     <string name="of">из</string>
 
     <!-- Geolocation -->
-
+    <string name="pick_location">Выбор местоположения</string>
+    <string name="enable_geolocation_dialog_body">Отслеживание местоположения отключено</string>
+    <string name="use_external_dialog_enable_button">Включить</string>
+    <string name="im_my_geolocation_content_description">Моя геолокация</string>
+    <string name="im_button_plus_content_description">Приблизить</string>
+    <string name="im_button_minus_content_description">Отдалить</string>
 
     <!-- DISCOVER -->
     <string name="discover_toolbar_title">Полезное</string>
@@ -225,7 +226,7 @@
     <string name="menu_item_title_add_account">Добавить аккаунт</string>
     <string name="menu_item_title_reorder">Изменить порядок</string>
     <string name="settings">Настройки</string>
-    <string name="image_interfase_settings_description">Настройки интерфейса</string>
+    <string name="image_interface_settings_description">Настройки интерфейса</string>
     <string name="title_interface_settings">Интерфейс</string>
     <string name="image_notifications_settings_description">Настройки уведомлений</string>
     <string name="title_notifications_settings">Уведомления</string>
@@ -242,157 +243,14 @@
     <string name="tv_swap_account">Чтобы синхронизировать порядок учетных записей между устройствами, вам необходимо включить опцию Синхронизировать все в настройках учетной записи Xabber.</string>
     <string name="menu_item_approve">Утвердить</string>
     <string name="im_anchor_description">Нажмите и перетащите, чтобы переместить</string>
-
-
-    <!-- ACCOUNT -->
-    <string name="given_name">Имя</string>
-    <string name="family_name">Фамилия</string>
-    <string name="im_account_avatar_content_description">Аватар аккаунта</string>
-
-<!--    <string name="account_color_name_green">Зеленый</string>-->
-<!--    <string name="account_color_name_orange">Оранжевый</string>-->
-<!--    <string name="account_color_name_red">Красный</string>-->
-<!--    <string name="account_color_name_blue">Голубой</string>-->
-<!--    <string name="account_color_name_indigo">Индиго</string>-->
-<!--    <string name="account_color_name_teal">Темно-зеленый</string>-->
-<!--    <string name="account_color_name_blue_grey">Серо-голубой</string>-->
-<!--    <string name="account_color_name_cyan">Бирюзовый</string>-->
-<!--    <string name="account_color_name_deep_purple">Темно-фиолетовый</string>-->
-<!--    <string name="account_color_name_lime">Лайм</string>-->
-<!--    <string name="account_color_name_pink">Розовый</string>-->
-<!--    <string name="account_color_name_purple">Фиолетовый</string>-->
-<!--    <string name="account_color_name_light_blue">Светло-голубой</string>-->
-<!--    <string name="account_color_name_light_green">Светло-зеленый</string>-->
-<!--    <string name="account_color_name_amber">Желтый</string>-->
-<!--    <string name="account_color_name_deep_orange">Темно-оранжевый</string>-->
-<!--    <string name="account_color_name_brown">Коричневый</string>-->
-
-
-
-
-
-
-
-    <string name="avatar_toolbar_im_description">Avatar</string>
-    <string name="muted_chat_image_description">Muted</string>
-    <string name="menu_item_share_qr_code">Share QR code</string>
-    <string name="menu_item_edit_contact">Edit</string>
-    <string name="menu_item_delete_contact">Delete contact</string>
-    <string name="menu_item_block_contact">Block contact</string>
-    <string name="menu_item_choose_account_color">Choose account color</string>
-    <string name="menu_item_generate_qr_code">Generate QR code</string>
-    <string name="menu_item_add_account">Add account</string>
-    <string name="menu_item_circle">Circle</string>
-    <string name="menu_item_hexagon">Hexagon</string>
-    <string name="menu_item_octagon">Octagon</string>
-    <string name="menu_item_pentagon">Pentagon</string>
-    <string name="menu_item_rounded">Rounded</string>
-    <string name="menu_item_squircle">Squircl
-        e</string>
-    <string name="menu_item_star">Star</string>
-
-
-    <string name="qr_code_image_description">QR код</string>
-    <string name="menu_item_contact_qr_code">Contact qr code</string>
-    <string name="menu_item_edit_contact_account">Edit</string>
-    <string name="menu_item_send_contact">Send</string>
-    <string name="menu_item_delete_contact_account">Delete contact</string>
-    <string name="avatar_background_image_description">avatar background</string>
-    <string name="account_photo_image_description">Account photo</string>
-    <string name="contact_chat_image_description">Chat</string>
-    <string name="contact_account_chat">Chat</string>
-    <string name="contact_avatar_call_image_description">Call</string>
-    <string name="contact_avatar_call">Call</string>
-    <string name="contact_avatar_notifications_image_description">Notifications</string>
-    <string name="contact_avatar_notifications">Notifications</string>
-    <string name="block_contact_image_description">Block contact</string>
-    <string name="contact_avatar_block">Block contact</string>
-    <string name="menu_item_chat_list_add">Add</string>
-    <string name="menu_item_choose_from_gallery">Выбрать картинку</string>
-    <string name="menu_item_take_a_photo">Take a photo</string>
-    <string name="menu_item_delete_avatar">Удалить аватар</string>
-    <string name="encryption_settings_toolbar_title">Encryption and keys</string>
-
-    <plurals name="estimated_in_seconds" tools:ignore="MissingQuantity">
-        <item quantity="one">in %1$d second</item>
-        <item quantity="other">in %1d$ seconds</item>
-    </plurals>
-    <plurals name="estimated_in_minutes" tools:ignore="MissingQuantity">
-        <item quantity="one">in %1$d minute</item>
-        <item quantity="other">in %1$d minutes</item>
-    </plurals>
-    <plurals name="estimated_in_hours" tools:ignore="MissingQuantity">
-        <item quantity="one">in %1$d hour</item>
-        <item quantity="other">in %1$d hours</item>
-    </plurals>
-    <plurals name="estimated_in_days" tools:ignore="MissingQuantity">
-        <item quantity="one">in %1$d day</item>
-        <item quantity="other">in %1$d days</item>
-    </plurals>
-    <string name="chat_screen__dialog_title__pick_location">Pick location</string>
-    <string name="use_external_dialog_title">Mapping service disabled</string>
-    <string name="use_external_dialog_body">Location picker requires external mapping services, which are currently disabled.</string>
-    <string name="enable_geolocation_dialog_body">Location tracking disabled</string>
-    <string name="use_external_dialog_enable_button">Enable</string>
-    <string name="im_my_geolocation_content_description">My geolocation</string>
-    <string name="im_button_plus_content_description">Zoom in</string>
-    <string name="im_button_minus_content_description">Zoom out</string>
-
-
-    <string name="selected_message_toolbar_close">close</string>
-
-    <string name="avatar_content_description">Avatar</string>
-    <string name="content_description_notifications_is_disabled">Notifications is disabled</string>
-    <string name="content_description_close">Close</string>
-    <string name="content_description_send">Send</string>
-    <string name="content_description_emoji">Emoji</string>
-    <string name="content_description_attach">Attach</string>
-    <string name="content_description_audio_record">Audio record</string>
-    <string name="content_description_lock">Lock</string>
-    <string name="content_description_stop">Stop</string>
-    <string name="user_domain_name">user@domain.name</string>
-    <string name="status">status</string>
-
-
-    <!-- DIALOGS -->
-    <string name="dialog_button_cancel">Отмена</string>
-    <string name="dialog_button_delete">Удалить</string>
-
-    <!-- Deleting chat -->
-    <string name="dialog_delete_chat_title">Удалить чат</string>
-    <string name="dialog_delete_chat_description">Вы уверены что хотите удалить чат с </string>
-    <string name="dialog_delete_chat_sub_message">\n\nОтменить это действие будет невозможно.</string>
-
-    <!-- Deleting message -->
-    <plurals name="delete_message_title" tools:ignore="ImpliedQuantity">
-        <item quantity="one">Удалить сообщение</item>
-        <item quantity="few">Удалить %s сообщения</item>
-        <item quantity="many">Удалить %s сообщений</item>
-        <item quantity="other">Удалить %s сообщений</item>
-    </plurals>
-    <plurals name="delete_message_question">
-        <item quantity="one" tools:ignore="ImpliedQuantity">Вы уверены, что хотите удалить это сообщение?</item>
-        <item quantity="few">Вы уверены, что хотите удалить эти сообщения?</item>
-        <item quantity="many">Вы уверены, что хотите удалить эти сообщения?</item>
-        <item quantity="other">Вы уверены, что хотите удалить эти сообщения?</item>
-    </plurals>
-
-    <!-- Block contact -->
-    <string name="dialog_block_title">Заблокировать контакт</string>
-    <string name="dialog_block_message_part_1">Вы действительно хотите заблокировать</string>
-    <string name="dialog_block_message_part_2">\nВы не сможете обмениваться сообщениями и информацией о присутствии с этим контактом.</string>
-    <string name="dialog_block_positive_button">Заблокировать</string>
-    <string name="contact_name_default">этот контакт</string>
-
-    <!-- Deleting contact -->
-    <string name="dialog_deleting_contact_title">Удалить контакт</string>
-    <string name="dialog_deleting_contact_message_part_1">Вы уверены что хотите удалить </string>
-    <string name="dialog_deleting_contact_message_part_2">\n\nВы сможете обмениваться сообщениями и запросами на подписку.</string>
-
-    <!-- Color picker -->
-    <string name="primary_account_color_image_description">Цвет аккаунта</string>
-    <string name="account_color">Цвет аккаунта</string>
-
+    <string name="circle">Круг</string>
+    <string name="hexagon">Шестиугольник</string>
+    <string name="octagon">Восьмиугольник</string>
+    <string name="pentagon">Пятиугольник</string>
+    <string name="rounded">Закругленный</string>
+    <string name="squircle">Квадро-круг</string>
+    <string name="star">Звезда</string>
+    <string name="encryption_settings_toolbar_title">Шифрование и ключи</string>
     <string name="appearance_settings">Настройки внешнего вида</string>
     <string name="private_chats_groups_channels">Приватные чаты, группы, каналы</string>
     <string name="media_loading_typing_notifications_etc">Загрузка мультимедиа, ввод уведомлений</string>
@@ -400,11 +258,8 @@
     <string name="debugging_options_logs">Параметры отладки, логи</string>
     <string name="english_default">Русский (По умолчанию)</string>
     <string name="profile">Профиль</string>
-
     <string name="status_settings">Статус</string>
     <string name="reorder_accounts">Порядок аккаунтов</string>
-    
-    <string name="attach_files_warning">Слишком много файлов одновременно!</string>
     <string name="available">Доступен</string>
     <string name="storage_settings">Настройки хранения данных</string>
     <string name="status_avatar_password_etc">Cтатус, аватар, пароль и т.д.</string>
@@ -426,12 +281,101 @@
     <string name="xmpp_server">Xmpp сервер</string>
     <string name="delete_account">Удалить аккаунт</string>
     <string name="music_label">Музыка</string>
-    <string name="feature_not_implemented">Эта функция не реализована</string>
 
-    <plurals name="images_amount" tools:ignore="MissingQuantity">
-        <item quantity="one">%1$d изображение</item>
-        <item quantity="two">%1$d изображения</item>
-        <item quantity="other">%1d$ изображений</item>
+    <!-- ACCOUNT -->
+    <string name="given_name">Имя</string>
+    <string name="family_name">Фамилия</string>
+    <string name="im_account_avatar_content_description">Аватар аккаунта</string>
+    <string name="share_qr">Поделиться QR-кодом</string>
+    <string name="green">зелёный</string>
+    <string name="orange">оранжевый</string>
+    <string name="red">красный</string>
+    <string name="blue">синий</string>
+    <string name="indigo">индиго</string>
+    <string name="teal">морская волна</string>
+    <string name="blue_grey">серо-голубой</string>
+    <string name="cyan">голубой</string>
+    <string name="deep_purple">тёмно-фиолетовый</string>
+    <string name="lime">лайм</string>
+    <string name="pink">розовый</string>
+    <string name="purple">фиолетовый</string>
+    <string name="light_blue">светло-синий</string>
+    <string name="light_green">светло-зеленый</string>
+    <string name="amber">янтарный</string>
+    <string name="deep_orange">тёмно-оранжевый</string>
+    <string name="brown">коричневый</string>
+    <string name="offline">оффлайн</string>
+    <string name="primary_account_color_image_description">Цвет аккаунта</string>
+    <string name="account_color">Цвет аккаунта</string>
+    <string name="avatar_toolbar_im_description">Аватар</string>
+    <string name="menu_item_share_qr_code">Поделиться QR-кодом</string>
+    <string name="menu_item_choose_account_color">Выбрать цвет аккаунта</string>
+    <string name="menu_item_generate_qr_code">Сгенерировать QR-код</string>
+    <string name="qr_code_image_description">QR код</string>
+    <string name="menu_item_contact_qr_code">QR-код контакта</string>
+    <string name="menu_item_edit_contact_account">Редактировать</string>
+    <string name="menu_item_send_contact">Отправить</string>
+    <string name="menu_item_delete_contact_account">Удалить контакт</string>
+    <string name="avatar_background_image_description">фон аватара</string>
+    <string name="account_photo_image_description">Фото аккаунта</string>
+    <string name="contact_chat_image_description">Чат</string>
+    <string name="contact_account_chat">Чат</string>
+    <string name="contact_avatar_call_image_description">Звонок</string>
+    <string name="contact_avatar_call">Звонок</string>
+    <string name="contact_avatar_notifications">Уведомления</string>
+    <string name="contact_avatar_block">Заблокировать</string>
+    <string name="menu_item_chat_list_add">Добавить</string>
+    <string name="menu_item_delete_avatar">Удалить аватар</string>
+    <string name="qr_code_fragment_title">QR-код</string>
+    <string name="menu_item_change_avatar">Изменить аватар</string>
+
+    <plurals name="estimated_in_seconds" tools:ignore="MissingQuantity">
+        <item quantity="one">in %1$d second</item>
+        <item quantity="other">in %1d$ seconds</item>
     </plurals>
+    <plurals name="estimated_in_minutes" tools:ignore="MissingQuantity">
+        <item quantity="one">in %1$d minute</item>
+        <item quantity="other">in %1$d minutes</item>
+    </plurals>
+    <plurals name="estimated_in_hours" tools:ignore="MissingQuantity">
+        <item quantity="one">in %1$d hour</item>
+        <item quantity="other">in %1$d hours</item>
+    </plurals>
+    <plurals name="estimated_in_days" tools:ignore="MissingQuantity">
+        <item quantity="one">in %1$d day</item>
+        <item quantity="other">in %1$d days</item>
+    </plurals>
+
+    <!-- DIALOGS -->
+    <string name="dialog_button_cancel">Отмена</string>
+    <string name="dialog_button_delete">Удалить</string>
+    <string name="dialog_delete_chat_title">Удалить чат</string>
+    <string name="dialog_delete_chat_description">Вы уверены что хотите удалить чат с </string>
+    <string name="dialog_delete_chat_sub_message">\n\nОтменить это действие будет невозможно.</string>
+    <string name="dialog_block_title">Заблокировать контакт</string>
+    <string name="dialog_block_message_part_1">Вы действительно хотите заблокировать</string>
+    <string name="dialog_block_message_part_2">\nВы не сможете обмениваться сообщениями и информацией о присутствии с этим контактом.</string>
+    <string name="dialog_block_positive_button">Заблокировать</string>
+    <string name="contact_name_default">этот контакт</string>
+    <string name="dialog_deleting_contact_title">Удалить контакт</string>
+    <string name="dialog_deleting_contact_message_part_1">Вы уверены что хотите удалить </string>
+    <string name="dialog_deleting_contact_message_part_2">\n\nВы сможете обмениваться сообщениями и запросами на подписку.</string>
+    <string name="dialog_clear_history_chat_title">Очистить историю</string>
+    <string name="dialog_message_clear_history">Вы уверены, что хотите очистить историю чата с </string>
+    <string name="chat_dialog_sub_message">\n\nЭто действие не может быть отменено.</string>
+    <string name="dialog_chat_positive_button">Очистить</string>
+    <string name="dialog_chat_negative_button">Отменить</string>
+    <string name="clear_group_chat_history_dialog_message">Вся история сообщений в этом чате будет очищена. Это действие не может быть отменено.</string>
+    <string name="deleting_message_dialog_title">"Удалить сообщение</string>
+    <string name="deleting_message_dialog_subtitle">Вы уверены, что хотите удалить это сообщение?</string>
+    <string name="deleting_message_dialog_checkbox_text">Также удалить для </string>
+    <string name="open_linc_title_dialog">Откройте эту ссылку?</string>
+    <string name="off_15_min">Выключить на 15 минут</string>
+    <string name="off_1_hour">Выключить на 1 час</string>
+    <string name="off_2_hour">Выключить на 2 часа</string>
+    <string name="off_1_day">Выключить на 1 день</string>
+    <string name="off_forever">Выключить навсегда</string>
+
+    <string name="feature_not_implemented">Эта функция не реализована</string>
 
 </resources>

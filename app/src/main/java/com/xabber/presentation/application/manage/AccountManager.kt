@@ -8,16 +8,6 @@ import io.realm.kotlin.Realm
 
 object AccountManager {
     private val realm = Realm.open(defaultRealmConfig())
-    private const val DEFAULT_COLOR = "blue"
-
-    fun getColorKey(): String {
-        var colorKey = DEFAULT_COLOR
-        realm.writeBlocking {
-            val primaryAccount = this.query(com.xabber.data_base.models.account.AccountStorageItem::class, "order = 0").first().find()
-            colorKey = primaryAccount?.colorKey ?: DEFAULT_COLOR
-        }
-        return colorKey
-    }
 
     fun getAvatar(): AvatarDto? {
         var avatarDto: AvatarDto? = null
@@ -61,7 +51,6 @@ object AccountManager {
                name?.split(' ')?.mapNotNull { it.firstOrNull()?.toString() }?.reduce { acc, s -> acc + s }
                     ?: ""
           if (initials.length > 2)  initials = initials.substring(0, 2)
-            Log.d("eee", "initials = $initials")
         }
         return initials
     }

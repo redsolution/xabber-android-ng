@@ -43,7 +43,7 @@ class AccountViewModel : ViewModel() {
     fun addAccount(
         accountJid: String,
         userName: String,
-        accountColor: String? = null,
+        accountColor: String,
         accountHasAvatar: Boolean = false, password: String
     ) {
         accountStorageItemDao.createAccount(

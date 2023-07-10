@@ -59,11 +59,14 @@ abstract class MessageVH(
 
     interface MessageClickListener {
         fun onMessageClick(caller: View, position: Int)
-    //   fun onFileClick(path: String)
     }
 
     interface MessageLongClickListener {
         fun onLongMessageClick(position: Int)
+    }
+
+    interface BindListener {
+        fun onBind(messageId: String)
     }
 
     override fun onFileClick(path: String) {
@@ -74,11 +77,13 @@ abstract class MessageVH(
         try {
             context.startActivity(intent)
         } catch (e: Exception) {
-            Toast.makeText(context, "Невозможно открыть файл", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.resources.getString(R.string.unable_to_open_file), Toast.LENGTH_SHORT).show()
         }
     }
 
     open fun bind(message: MessageDto, vhExtraData: MessageVhExtraData) {
+        initViews()
+        balloon?.removeAllViews()
         val inflater = LayoutInflater.from(context)
         val images = ArrayList<MessageReferenceDto>()
         val otherFiles = ArrayList<MessageReferenceDto>()
@@ -97,10 +102,10 @@ abstract class MessageVH(
         } else vhExtraData.isNeedTail
 
 
-        initViews()
+
 
         if (message.displayType != MessageDisplayType.System) {
-            balloon?.removeAllViews()
+
 
             if (message.references.size > 0) {
                 if (message.references[0].isGeo) addGeoLocationBox(
@@ -268,26 +273,11 @@ abstract class MessageVH(
         val mediaPlayer = MediaPlayer()
         var isPlaying = false
 
-// Устанавливаем источник аудиофайла
         mediaPlayer.setDataSource(path)
-
-// Подготавливаем MediaPlayer перед воспроизведением
         mediaPlayer.prepare()
 
-// Воспроизводим аудиофайл
-//        mediaPlayer.start()
-//
-//// Ставим воспроизведение на паузу
-//        mediaPlayer.pause()
-//
-//// Возобновляем воспроизведение с паузы
-//        mediaPlayer.start()
-
-// Освобождаем ресурсы MediaPlayer после окончания воспроизведения
-        //   mediaPlayer.release()
         button?.setOnClickListener {
             if (isPlaying) {
-
                 mediaPlayer.pause()
                 button.setImageResource(R.drawable.ic_play)
                 isPlaying = false
@@ -334,7 +324,6 @@ abstract class MessageVH(
                 R.id.ivImage3 -> onViewClickListener?.onImageOrVideoClick(3, messageId!!)
                 R.id.ivImage4 -> onViewClickListener?.onImageOrVideoClick(4, messageId!!)
                 R.id.ivImage5 -> onViewClickListener?.onImageOrVideoClick(5, messageId!!)
-                else -> null
             }
         }
         image0?.setOnClickListener(onClickListener)
@@ -350,7 +339,6 @@ abstract class MessageVH(
         message: MessageDto,
         files: ArrayList<MessageReferenceDto>
     ) {
-        Log.d("iii", "files[0].fileName ${files[0].fileName}")
         val filesBox = inflater.inflate(
             R.layout.files_box,
             messageContainer,
@@ -389,9 +377,9 @@ abstract class MessageVH(
     }
 
     private fun setTime(sentTime: Long, editTime: Long) {
-        val date = Date(sentTime)
+        val date = Date(if (editTime > 0) editTime else sentTime)
         val time = StringUtils.getTimeText(itemView.context, date)
-        tvTime?.text = if (editTime > 0) "edit $time" else time
+        tvTime?.text = if (editTime > 0) context.resources.getString(R.string.edit) + " $time" else time
     }
 
     private fun setStatusIcon(statusIcon: ImageView, messageDto: MessageDto) {

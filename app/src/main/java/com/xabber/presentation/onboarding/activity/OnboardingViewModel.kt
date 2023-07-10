@@ -5,6 +5,7 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.xabber.R
 import com.xabber.data_base.defaultRealmConfig
 import com.xabber.dto.HostListDto
 import com.xabber.data_base.models.presences.ResourceStorageItem
@@ -20,7 +21,7 @@ class OnboardingViewModel : ViewModel() {
     private val realm = Realm.open(defaultRealmConfig())
     private val passwordStorage = PasswordStorageHelper(XabberApplication.applicationContext())
     private val accountRepository = AccountRepository()
-    private val defaultColor = "blue"
+    private val defaultColor = XabberApplication.applicationContext().resources.getString(R.string.blue)
     private val primaryAccountOrder = 0
 
     private var accountNickName: String? = null

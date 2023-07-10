@@ -269,10 +269,6 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
         chatListViewModel.setMute(chatId, enableNotificationsCode)
     }
 
-    override fun openSpecialNotificationsFragment() {
-        navigator().showSpecialNotificationSettings()
-    }
-
     private fun showSnackbar(id: String) {
         snackbar?.dismiss()
         snackbar = Snackbar.make(

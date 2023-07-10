@@ -4,13 +4,13 @@ import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Rect
 import android.graphics.drawable.Drawable
-import android.util.Log
 import android.view.View
 import android.widget.LinearLayout
 import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.RecyclerView.ItemDecoration
 import com.xabber.R
 import com.xabber.presentation.application.fragments.chatlist.ChatListBaseFragment.ChatListAvatarState
+import com.xabber.presentation.application.manage.LogManager
 import kotlin.math.roundToInt
 
 class DividerItemDecoration(context: Context, orientation: Int) : ItemDecoration() {
@@ -20,15 +20,12 @@ class DividerItemDecoration(context: Context, orientation: Int) : ItemDecoration
     private var mOrientation = 0
     private val mBounds = Rect()
 
-
     init {
         val a = context.obtainStyledAttributes(ATTRS)
         mDivider = a.getDrawable(0)
         if (mDivider == null) {
-            Log.w(
-                TAG, "@android:attr/listDivider was not set in the theme used for this "
-                        + "DividerItemDecoration. Please set that attribute all call setDrawable()"
-            )
+            LogManager.d("@android:attr/listDivider was not set in the theme used for this "
+                        + "DividerItemDecoration. Please set that attribute all call setDrawable()")
         }
         a.recycle()
         setOrientation(orientation)
@@ -166,7 +163,6 @@ class DividerItemDecoration(context: Context, orientation: Int) : ItemDecoration
     companion object {
         const val HORIZONTAL = LinearLayout.HORIZONTAL
         const val VERTICAL = LinearLayout.VERTICAL
-        private const val TAG = "DividerItem"
         private val ATTRS = intArrayOf(R.attr.standard_divider_drawable)
     }
 }

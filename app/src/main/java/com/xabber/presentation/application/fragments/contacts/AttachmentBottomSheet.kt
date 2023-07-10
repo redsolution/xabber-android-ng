@@ -26,7 +26,6 @@ import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.coordinatorlayout.widget.CoordinatorLayout
 import androidx.core.view.isVisible
 import androidx.fragment.app.viewModels
-import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.SimpleItemAnimator
 import by.kirich1409.viewbindingdelegate.viewBinding
 import com.google.android.material.bottomsheet.BottomSheetBehavior
@@ -43,12 +42,8 @@ import com.xabber.presentation.AppConstants
 import com.xabber.presentation.XabberApplication
 import com.xabber.presentation.application.fragments.chat.*
 import com.xabber.presentation.application.fragments.chat.geo.PickGeolocationActivity
-import com.xabber.utils.MaskManager
 import com.xabber.utils.askUserForOpeningAppSettings
 import com.xabber.utils.showToast
-import kotlinx.coroutines.async
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import org.koin.androidx.viewmodel.ext.android.viewModel
 import org.koin.core.parameter.parametersOf
 import java.io.File

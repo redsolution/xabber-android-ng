@@ -44,7 +44,6 @@ import com.xabber.presentation.application.fragments.chatlist.add.NewChatFragmen
 import com.xabber.presentation.application.fragments.chatlist.add.NewContactFragment
 import com.xabber.presentation.application.fragments.chatlist.add.NewGroupFragment
 import com.xabber.presentation.application.fragments.chatlist.forward.ChatListToForwardFragment
-import com.xabber.presentation.application.fragments.chatlist.spec_notifications.SpecialNotificationsFragment
 import com.xabber.presentation.application.fragments.contacts.*
 import com.xabber.presentation.application.fragments.contacts.edit.EditContactFragment
 import com.xabber.presentation.application.fragments.discover.DiscoverFragment
@@ -53,7 +52,7 @@ import com.xabber.presentation.application.manage.DisplayManager
 import com.xabber.presentation.application.manage.DisplayManager.getMainContainerWidth
 import com.xabber.presentation.application.manage.DisplayManager.isDualScreenMode
 import com.xabber.presentation.onboarding.activity.OnBoardingActivity
-import com.xabber.utils.MaskManager
+import com.xabber.presentation.application.manage.MaskManager
 import com.xabber.utils.lockScreenRotation
 
 /**
@@ -395,10 +394,6 @@ class ApplicationActivity : AppCompatActivity(), Navigator {
 
     override fun showChatFragment() {
         launchDetailInStack(ChatListFragment())
-    }
-
-    override fun showSpecialNotificationSettings() {
-        launchDetail(SpecialNotificationsFragment())
     }
 
     override fun showAccount(jid: String) {

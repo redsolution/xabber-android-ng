@@ -160,10 +160,6 @@ abstract class ChatListBaseFragment(@LayoutRes contentLayoutId: Int) :
         chatListViewModel.setMute(chatId, enableNotificationsCode)
     }
 
-    override fun openSpecialNotificationsFragment() {
-        navigator().showSpecialNotificationSettings()
-    }
-
     override fun onClickItem(chatListDto: ChatListDto) {
         navigator().showChat(
             ChatParams(

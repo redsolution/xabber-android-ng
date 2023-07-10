@@ -17,17 +17,10 @@ class MessageAdapter(
     private val listener: MenuItemListener? = null,
     private val onViewClickListener: OnViewClickListener? = null,
     private val messages: ArrayList<MessageDto>,
-    private val bindListener: IncomingMessageVH.BindListener? = null,
-    private val avatarClickListener: IncomingMessageVH.OnMessageAvatarClickListener? = null,
     private val isGroup: Boolean
-) : ListAdapter<MessageDto, MessageVH>(DiffUtilCallback),
-    MessageVH.MessageClickListener,
-    MessageVH.MessageLongClickListener,
-    IncomingMessageVH.OnMessageAvatarClickListener {
+) : ListAdapter<MessageDto, MessageVH>(DiffUtilCallback) {
 
     private var firstUnreadMessageID: String? = null
-    private var isCheckMode = false
-    private var recyclerView: RecyclerView? = null
     private val checkedItemIds: MutableList<String> = ArrayList()
 
     interface MenuItemListener {
@@ -64,14 +57,13 @@ class MessageAdapter(
     }
 
     override fun getItemViewType(position: Int): Int {
-        return if (messages[position].displayType == MessageDisplayType.System) SYSTEM_MESSAGE else if (!messages[position].isOutgoing) INCOMING_MESSAGE else OUTGOING_MESSAGE
+        return if (messages[position].displayType == MessageDisplayType.System) SYSTEM_MESSAGE else if (messages[position].isOutgoing) OUTGOING_MESSAGE else INCOMING_MESSAGE
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): MessageVH {
         return when (viewType) {
 
             OUTGOING_MESSAGE -> OutgoingMessageVH(
-
                 LayoutInflater.from(parent.context).inflate(
                     R.layout.item_message_outgoing, parent, false
                 ),
@@ -80,22 +72,19 @@ class MessageAdapter(
             )
 
             INCOMING_MESSAGE -> IncomingMessageVH(
-
                 LayoutInflater.from(parent.context).inflate(
                     R.layout.item_message_incoming, parent, false
                 ),
                 listener,
-                onViewClickListener, bindListener, this
+                onViewClickListener
             )
 
             SYSTEM_MESSAGE -> SystemMessageVH(
-
                 LayoutInflater.from(parent.context).inflate(
                     R.layout.item_message_system, parent, false
                 ),
                 listener, onViewClickListener
             )
-
             else -> throw IllegalStateException("Unsupported view type!")
         }
     }
@@ -127,9 +116,8 @@ class MessageAdapter(
 
     override fun onBindViewHolder(holder: MessageVH, position: Int) {
         val viewType = getItemViewType(position)
-        val message = getMessageItem(position)
+        val message = getMessageItem(position) ?: return
         holder.setIsRecyclable(false)
-        if (message == null) return
         (holder as? MessageVH)?.messageId = message.primary
         val isNeedDate = isMessageNeedDate(position)
 
@@ -163,45 +151,9 @@ class MessageAdapter(
             else -> null
         }
 
-    override fun onMessageClick(caller: View, position: Int) {
-        if (isCheckMode && recyclerView?.isComputingLayout != true) {
-          //  addOrRemoveCheckedItem(position)
-        } else {
-         //   messageListener?.onMessageClick(caller, position)
-        }
-    }
-
-    override fun onLongMessageClick(position: Int) {
-     //   addOrRemoveCheckedItem(position)
-    }
-
-    override fun onMessageAvatarClick(position: Int) {
-        if (isCheckMode && recyclerView?.isComputingLayout != true) {
-        //    addOrRemoveCheckedItem(position)
-        } else {
-            avatarClickListener?.onMessageAvatarClick(position)
-        }
-    }
-
     fun setFirstUnreadMessageId(id: String?) {
         firstUnreadMessageID = id
     }
-
-//    override fun onVoiceClick(
-//        messagePosition: Int,
-//        attachmentPosition: Int,
-//        attachmentId: String?,
-//        messageUID: String?,
-//        timestamp: Long?
-//    ) {
-//        if (isCheckMode) {
-//           // addOrRemoveCheckedItem(messagePosition)
-//        } else {
-//            fileListener?.onVoiceClick(
-//                messagePosition, attachmentPosition, attachmentId, messageUID, timestamp
-//            )
-//        }
-//    }
 
     private object DiffUtilCallback : DiffUtil.ItemCallback<MessageDto>() {
 

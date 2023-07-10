@@ -81,7 +81,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="@dimen/margin_medium"
-                android:contentDescription="@string/contact_avatar_notifications_image_description"
+                android:contentDescription="@string/contact_avatar_notifications"
                 android:src="@drawable/ic_bell_blue" />
 
             <TextView
@@ -104,7 +104,7 @@
                 style="@style/ContactAccountPanelImage"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:contentDescription="@string/block_contact_image_description"
+                android:contentDescription="@string/contact_avatar_block"
                 android:src="@drawable/ic_cancel"
                 app:tint="@color/red_500" />
 

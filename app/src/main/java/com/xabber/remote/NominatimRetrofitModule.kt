@@ -1,7 +1,7 @@
 package com.xabber.remote
 
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
+import android.os.Parcelable
+import kotlinx.parcelize.Parcelize
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import org.osmdroid.util.GeoPoint
@@ -17,10 +17,6 @@ object NominatimRetrofitModule {
     private val client = OkHttpClient().newBuilder()
         .addInterceptor(HttpLoggingInterceptor().setLevel(HttpLoggingInterceptor.Level.BODY))
         .build()
-
-    private val json = Json {
-        ignoreUnknownKeys = true
-    }
 
     private val retrofit: Retrofit = Retrofit.Builder()
         .client(client)
@@ -43,20 +39,20 @@ object NominatimRetrofitModule {
     }
 }
 
-@Serializable
+@Parcelize
 data class Place(
     val display_name: String,
     val lon: Double,
     val lat: Double,
     val address: Address? = null,
-)
+) : Parcelable
 
 fun Place.toGeoPoint() = GeoPoint(lat, lon)
 
 val Place.prettyName: String
     get() = address?.prettyAddress?.takeIf { it.isNotEmpty() } ?: display_name
 
-@Serializable
+@Parcelize
 data class Address(
     val house_number: String? = null,
     val road: String? = null,
@@ -66,7 +62,7 @@ data class Address(
     val village: String? = null,
     val city: String? = null,
     val country: String? = null,
-)
+) : Parcelable
 
 private val Address.prettyAddress: String
     get() = listOfNotNull(

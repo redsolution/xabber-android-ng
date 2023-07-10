@@ -31,8 +31,6 @@ interface Navigator {
 
     fun showNewGroup(incognito: Boolean)
 
-    fun showSpecialNotificationSettings()
-
     fun showContacts()
 
     fun showEditContact(params: ContactAccountParams)

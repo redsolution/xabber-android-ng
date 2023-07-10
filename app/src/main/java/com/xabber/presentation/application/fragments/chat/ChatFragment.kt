@@ -82,7 +82,6 @@ import kotlin.experimental.and
 
 class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.MenuItemListener,
     MessageAdapter.OnViewClickListener,
-    IncomingMessageVH.BindListener,
     ReplySwipeCallback.SwipeAction {
     private val binding by viewBinding(FragmentChatBinding::bind)
     private val handler = Handler(Looper.getMainLooper())
@@ -377,7 +376,6 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         val isGroup = viewModel.loadChat(getParams().id)!!.isGroup
         messageAdapter = MessageAdapter(
             this,
-            bindListener = this,
             onViewClickListener = this,
             messages = ArrayList<MessageDto>(), isGroup = isGroup
         )
@@ -1223,7 +1221,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
             binding.chatInput.isEnabled = false
         } else {
             val color = baseViewModel.getPrimaryAccount()?.colorKey
-            val c = ColorManager.convertColorNameToId(color ?: "blue")
+            val c = ColorManager.convertColorNameToId(color ?: resources.getString(R.string.blue))
             binding.appbar.setBackgroundResource(c)
             //   chatAdapter?.setSelectedMode(false)
             //  binding.chatPanelGroup.isVisible = true
@@ -1340,23 +1338,23 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         NotRecording, InitiatedRecording, TouchRecording, NoTouchRecording, StoppedRecording
     }
 
-    override fun onBind(message: MessageDto?) {
-        if (message != null) {
-            val id = message.primary
-            if (message.isUnread) {
-                realm.writeBlocking {
-                    val m = this.query(MessageStorageItem::class, "primary = '$id'").first().find()
-                    if (m != null) {
-                        findLatest(m).also {
-                            if (!it!!.isRead) {
-                                it.isRead = true
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
+//    override fun onBind(message: MessageDto?) {
+//        if (message != null) {
+//            val id = message.primary
+//            if (message.isUnread) {
+//                realm.writeBlocking {
+//                    val m = this.query(MessageStorageItem::class, "primary = '$id'").first().find()
+//                    if (m != null) {
+//                        findLatest(m).also {
+//                            if (!it!!.isRead) {
+//                                it.isRead = true
+//                            }
+//                        }
+//                    }
+//                }
+//            }
+//        }
+//    }
 
     override fun onImageOrVideoClick(startPosition: Int, messageId: String) {
         val intent = Intent(requireContext(), MediaDetailsActivity::class.java)

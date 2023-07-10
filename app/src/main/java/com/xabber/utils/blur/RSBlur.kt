@@ -7,13 +7,12 @@ import android.renderscript.Element
 import android.renderscript.RenderScript
 import android.renderscript.ScriptIntrinsicBlur
 import androidx.fragment.app.Fragment
+import com.xabber.presentation.XabberApplication
 
-object RSBlur : Fragment() {
+object RSBlur {
 
     fun blur(bitmap: Bitmap, radius: Int): Bitmap {
-
-        val rs = RenderScript.create(context)
-        rs.messageHandler = RenderScript.RSMessageHandler()
+        val rs = RenderScript.create(XabberApplication.applicationContext())
         val input = Allocation.createFromBitmap(
             rs, bitmap, Allocation.MipmapControl.MIPMAP_NONE,
             Allocation.USAGE_SCRIPT
@@ -26,16 +25,10 @@ object RSBlur : Fragment() {
         blur.forEach(output)
         output.copyTo(bitmap)
 
-        if (rs != null) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                RenderScript.releaseAllContexts();
-            } else {
-                rs.destroy()
-            }
-        }
-        input?.destroy()
-        output?.destroy()
-        blur?.destroy()
+        rs.destroy()
+        input.destroy()
+        output.destroy()
+        blur.destroy()
 
         return bitmap
     }

@@ -223,10 +223,6 @@ class ArchiveFragment : BaseFragment(R.layout.fragment_archive),
         viewModel.setMute(chatId, enableNotificationsCode)
     }
 
-    override fun openSpecialNotificationsFragment() {
-        navigator().showSpecialNotificationSettings()
-    }
-
     override fun onStop() {
         super.onStop()
         snackbar?.dismiss()

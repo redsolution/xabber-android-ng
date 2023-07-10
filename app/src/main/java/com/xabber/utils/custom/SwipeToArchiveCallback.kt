@@ -55,9 +55,7 @@ class SwipeToArchiveCallback(private val adapter: ChatListAdapter) :
         val iconBottom = iconTop + icon.intrinsicHeight
 
         val cornerRadius = if (dX < 0) 4.dp.toFloat() else 0f
-
-        // Устанавливаем значение cardCornerRadius для CardView
-        (viewHolder.itemView as CardView).radius = cornerRadius
+        (viewHolder.itemView as CardView).radius = cornerRadius // Устанавливаем значение cardCornerRadius для CardView
 
         if (dX < 0) {
             val iconLeft = itemView.right - iconMargin - icon.intrinsicWidth

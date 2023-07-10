@@ -23,8 +23,4 @@
     <item
         android:id="@+id/enable_notifications"
         android:title="@string/menu_item_enable_notifications" />
-
-    <item
-        android:id="@+id/customise_notifications"
-        android:title="@string/menu_item_customise_notifications" />
 </menu>

@@ -46,8 +46,6 @@ class ChatListAdapter(
         fun turnOfNotifications(chatId: String)
 
         fun enableNotifications(chatId: String)
-
-        fun openSpecialNotificationsFragment()
     }
 
     companion object {

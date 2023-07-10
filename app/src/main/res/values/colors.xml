@@ -28,23 +28,23 @@
     </array>
 
     <array name="account_color_names">
-        <item>@string/account_color_name_red</item>
-        <item>@string/account_color_name_deep_orange</item>
-        <item>@string/account_color_name_orange</item>
-        <item>@string/account_color_name_amber</item>
-        <item>@string/account_color_name_lime</item>
-        <item>@string/account_color_name_light_green</item>
-        <item>@string/account_color_name_green</item>
-        <item>@string/account_color_name_teal</item>
-        <item>@string/account_color_name_cyan</item>
-        <item>@string/account_color_name_light_blue</item>
-        <item>@string/account_color_name_blue</item>
-        <item>@string/account_color_name_indigo</item>
-        <item>@string/account_color_name_deep_purple</item>
-        <item>@string/account_color_name_purple</item>
-        <item>@string/account_color_name_pink</item>
-        <item>@string/account_color_name_blue_grey</item>
-        <item>@string/account_color_name_brown</item>
+        <item>@string/red</item>
+        <item>@string/deep_orange</item>
+        <item>@string/orange</item>
+        <item>@string/amber</item>
+        <item>@string/lime</item>
+        <item>@string/light_green</item>
+        <item>@string/green</item>
+        <item>@string/teal</item>
+        <item>@string/cyan</item>
+        <item>@string/light_blue</item>
+        <item>@string/blue</item>
+        <item>@string/indigo</item>
+        <item>@string/deep_purple</item>
+        <item>@string/purple</item>
+        <item>@string/pink</item>
+        <item>@string/blue_grey</item>
+        <item>@string/brown</item>
     </array>
 
 </resources>

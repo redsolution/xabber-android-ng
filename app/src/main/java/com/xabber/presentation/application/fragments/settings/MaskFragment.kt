@@ -8,7 +8,7 @@ import com.xabber.R
 import com.xabber.databinding.FragmentMaskBinding
 import com.xabber.presentation.AppConstants
 import com.xabber.presentation.application.fragments.DetailBaseFragment
-import com.xabber.utils.MaskManager
+import com.xabber.presentation.application.manage.MaskManager
 
 class MaskFragment : DetailBaseFragment(R.layout.fragment_mask) {
     private val binding by viewBinding(FragmentMaskBinding::bind)

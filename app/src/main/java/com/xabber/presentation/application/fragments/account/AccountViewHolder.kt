@@ -9,7 +9,7 @@ import com.xabber.databinding.ItemAccountForPreferenceBinding
 import com.xabber.dto.AccountDto
 import com.xabber.presentation.AppConstants
 import com.xabber.presentation.application.manage.ColorManager
-import com.xabber.utils.MaskManager
+import com.xabber.presentation.application.manage.MaskManager
 import io.realm.kotlin.Realm
 
 class AccountViewHolder(

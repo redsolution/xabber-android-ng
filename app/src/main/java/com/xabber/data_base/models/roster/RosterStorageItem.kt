@@ -1,6 +1,7 @@
 package com.xabber.data_base.models.roster
 
 import com.xabber.R
+import com.xabber.presentation.XabberApplication
 import io.realm.kotlin.types.RealmObject
 import io.realm.kotlin.types.annotations.PrimaryKey
 
@@ -22,7 +23,7 @@ class RosterStorageItem: RealmObject {
     var isHidden: Boolean = false
     var notes: String? = null
     var isSupportOmemo: Boolean = false
-    var colorKey: String = "blue"
+    var colorKey: String = XabberApplication.applicationContext().resources.getString(R.string.blue)
     var avatarR: Int = R.drawable.dog
 
 

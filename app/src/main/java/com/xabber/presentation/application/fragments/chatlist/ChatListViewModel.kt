@@ -18,6 +18,7 @@ import com.xabber.data_base.models.roster.RosterStorageItem
 import com.xabber.data_base.models.sync.ConversationType
 import com.xabber.dto.AccountDto
 import com.xabber.dto.ChatListDto
+import com.xabber.presentation.XabberApplication
 import com.xabber.utils.toAccountDto
 import com.xabber.utils.toChatListDto
 import io.realm.kotlin.Realm
@@ -295,23 +296,22 @@ class ChatListViewModel : ViewModel() {
     }
 
     fun addSomeChats() {
-        val colors = listOf<String>(
-            "red", "deep-orange",
-            "orange",
-            "amber",
-            "lime",
-            "light-green",
-            "green",
-            "teal",
-            "cyan",
-            "light-blue",
-            "blue",
-            "indigo",
-            "deep-purple",
-            "purple",
-            "pink",
-            "blue-grey",
-            "brown"
+        val colors = listOf(
+            XabberApplication.applicationContext().resources.getString(R.string.red), XabberApplication.applicationContext().resources.getString(R.string.orange),
+            XabberApplication.applicationContext().resources.getString(R.string.amber),
+            XabberApplication.applicationContext().resources.getString(R.string.lime),
+            XabberApplication.applicationContext().resources.getString(R.string.light_green),
+            XabberApplication.applicationContext().resources.getString(R.string.green),
+            XabberApplication.applicationContext().resources.getString(R.string.teal),
+            XabberApplication.applicationContext().resources.getString(R.string.cyan),
+            XabberApplication.applicationContext().resources.getString(R.string.light_blue),
+            XabberApplication.applicationContext().resources.getString(R.string.blue),
+            XabberApplication.applicationContext().resources.getString(R.string.indigo),
+            XabberApplication.applicationContext().resources.getString(R.string.deep_purple),
+            XabberApplication.applicationContext().resources.getString(R.string.purple),
+            XabberApplication.applicationContext().resources.getString(R.string.pink),
+            XabberApplication.applicationContext().resources.getString(R.string.blue_grey),
+            XabberApplication.applicationContext().resources.getString(R.string.brown),
         )
         val avatars = listOf(
             R.drawable.flower,
@@ -444,11 +444,11 @@ class ChatListViewModel : ViewModel() {
     }
 
     fun getPrimaryAccountColorKey(): String {
-        var color = "blue"
+        var color = XabberApplication.applicationContext().resources.getString(R.string.blue)
         realm.writeBlocking {
             val account = this.query(com.xabber.data_base.models.account.AccountStorageItem::class, "enabled = true")
                 .sort("order", Sort.ASCENDING).first().find()
-            color = account?.colorKey ?: "offline"
+            color = account?.colorKey ?: XabberApplication.applicationContext().resources.getString(R.string.offline)
         }
         return color
     }

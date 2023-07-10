@@ -3,7 +3,6 @@ package com.xabber.presentation.application.fragments.contacts
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.os.Bundle
-import android.util.Log
 import android.util.TypedValue
 import android.view.*
 import android.view.animation.AnimationUtils
@@ -18,14 +17,11 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import by.kirich1409.viewbindingdelegate.viewBinding
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions
-import com.google.android.material.appbar.AppBarLayout
 import com.google.android.material.appbar.CollapsingToolbarLayout
 import com.google.android.material.tabs.TabLayout
 import com.xabber.R
 import com.xabber.databinding.FragmentContactAccountBinding
 import com.xabber.presentation.AppConstants
-import com.xabber.presentation.application.manage.ColorManager
-import com.xabber.presentation.application.manage.DisplayManager
 import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.application.dialogs.BlockContactDialog
 import com.xabber.presentation.application.dialogs.DeletingContactDialog
@@ -35,6 +31,8 @@ import com.xabber.presentation.application.fragments.DetailBaseFragment
 import com.xabber.presentation.application.fragments.account.qrcode.QRCodeParams
 import com.xabber.presentation.application.fragments.chat.ChatParams
 import com.xabber.presentation.application.fragments.contacts.*
+import com.xabber.presentation.application.manage.ColorManager
+import com.xabber.presentation.application.manage.DisplayManager
 import com.xabber.utils.dp
 import com.xabber.utils.parcelable
 import com.xabber.utils.setFragmentResultListener
@@ -69,7 +67,6 @@ class ContactAccountFragment : DetailBaseFragment(R.layout.fragment_contact_acco
                 bundle.getBoolean(AppConstants.DELETING_CONTACT_AND_CLEAR_HISTORY)
             if (result) {
                 viewModel.deleteContact(getParams().id, clearHistory)
-
             }
         }
         if (savedInstanceState != null) {
@@ -78,59 +75,8 @@ class ContactAccountFragment : DetailBaseFragment(R.layout.fragment_contact_acco
             val t = binding.tabsAttachment.getTabAt(tab)
             t?.select()
             val list = ArrayList<String>()
-            list.add("k")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
+            repeat(30) { list.add("") }
+
             when (tab) {
                 0 -> {
                     binding.rvAttachments.layoutManager = GridLayoutManager(context, 3)
@@ -167,59 +113,7 @@ class ContactAccountFragment : DetailBaseFragment(R.layout.fragment_contact_acco
             mediaAdapter = MediaAdapter()
             binding.rvAttachments.adapter = mediaAdapter
             val list = ArrayList<String>()
-            list.add("k")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
-            list.add("")
+            repeat(30) { list.add("") }
             mediaAdapter?.updateAdapter(list)
         }
         val jid = viewModel.getJid(getParams().id)
@@ -366,7 +260,10 @@ class ContactAccountFragment : DetailBaseFragment(R.layout.fragment_contact_acco
                     }
                     R.id.delete_contact -> {
                         val dialog =
-                            DeletingContactDialog.newInstance(binding.accountAppbar.tvTitle.text.toString(), getParams().id)
+                            DeletingContactDialog.newInstance(
+                                binding.accountAppbar.tvTitle.text.toString(),
+                                getParams().id
+                            )
                         navigator().showDialogFragment(dialog, "")
 
 
@@ -383,7 +280,7 @@ class ContactAccountFragment : DetailBaseFragment(R.layout.fragment_contact_acco
         var scrollRange = -1
         with(binding.accountAppbar) {
 
-            appbar.addOnOffsetChangedListener(AppBarLayout.OnOffsetChangedListener { bar, verticalOffset ->
+            appbar.addOnOffsetChangedListener { bar, verticalOffset ->
 
                 if (scrollRange == -1) {
                     scrollRange = bar.totalScrollRange
@@ -396,9 +293,9 @@ class ContactAccountFragment : DetailBaseFragment(R.layout.fragment_contact_acco
                             anim
                         )
                         tvSubtitle.startAnimation(anim)
-                            avatarGr.imAvatarGroup.startAnimation(anim)
+                        avatarGr.imAvatarGroup.startAnimation(anim)
 
-                            avatarGr.imAvatarGroup.isVisible = false
+                        avatarGr.imAvatarGroup.isVisible = false
                         tvSubtitle.isVisible = false
                         tvTitle.isVisible = false
                     }
@@ -423,28 +320,19 @@ class ContactAccountFragment : DetailBaseFragment(R.layout.fragment_contact_acco
                         " "
                     isShow = false
                 }
-            })
+            }
         }
-    }
-
-    private fun shareContact() {
-        // открыть чаты
-    }
-
-    private fun deleteContact() {
-
     }
 
     private fun blockContact() {
         val name = binding.accountAppbar.tvTitle.text.toString()
-        val dialog = BlockContactDialog.newInstance(getParams().id, name)
+        val dialog = BlockContactDialog.newInstance(name, getParams().id)
         navigator().showDialogFragment(dialog, AppConstants.DIALOG_BLOCK_CONTACT_TAG)
         setFragmentResultListener(AppConstants.BLOCK_CONTACT) { _, bundle ->
             val blocked =
                 bundle.getBoolean(AppConstants.BLOCK_CONTACT_BUNDLE_KEY)
             if (blocked) viewModel.blockContact(chatId)
         }
-
     }
 
     private fun initPanelActions() {
@@ -457,11 +345,12 @@ class ContactAccountFragment : DetailBaseFragment(R.layout.fragment_contact_acco
             )
         }
 
-        binding.rlCall.setOnClickListener { showToast("This feature is not implemented") }
+        binding.rlCall.setOnClickListener { showToast(R.string.feature_not_implemented) }
 
         binding.rlNotifications.setOnClickListener {
             if (viewModel.getChat(viewModel.getJid(getParams().id))!!.muteExpired <= 0) {
-              NotificationBottomSheet.newInstance(getParams().id).show(childFragmentManager, AppConstants.NOTIFICATION_BOTTOM_SHEET_TAG)
+                NotificationBottomSheet.newInstance(getParams().id)
+                    .show(childFragmentManager, AppConstants.NOTIFICATION_BOTTOM_SHEET_TAG)
             } else {
                 viewModel.setMute(chatId, 0)
             }
@@ -481,66 +370,7 @@ class ContactAccountFragment : DetailBaseFragment(R.layout.fragment_contact_acco
 
     private fun initTabLayout() {
         val list = ArrayList<String>()
-        list.add("k")
-        list.add("")
-        list.add("")
-        list.add("")
-        list.add("")
-        list.add("")
-        list.add("")
-        list.add("")
-        list.add("")
-        list.add("")
-        list.add("")
-        list.add("")
-        list.add("")
-        list.add("")
-        list.add("")
-        list.add("")
-        list.add("")
-        list.add("")
-        list.add("")
-        list.add("")
-        list.add("")
-        list.add("")
-        list.add("")
-        list.add("")
-        list.add("")
-        list.add("")
-        list.add("")
-        list.add("")
-        list.add("")
-        list.add("")
-        list.add("")
-        list.add("")
-        list.add("")
-        list.add("")
-        list.add("")
-        list.add("")
-        list.add("")
-        list.add("")
-        list.add("")
-        list.add("")
-        list.add("")
-        list.add("")
-        list.add("")
-        list.add("")
-        list.add("")
-        list.add("")
-        list.add("")
-        list.add("")
-        list.add("")
-        list.add("")
-        list.add("")
-        list.add("")
-        list.add("")
-
-        val videos = ArrayList<String>()
-
-
-
-
-
+        repeat(30) { list.add("") }
 
         binding.tabsAttachment.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
             override fun onTabSelected(tab: TabLayout.Tab?) {
@@ -557,7 +387,6 @@ class ContactAccountFragment : DetailBaseFragment(R.layout.fragment_contact_acco
                         val adapter = VideoAdapter()
                         binding.rvAttachments.adapter = adapter
                         adapter.updateAdapter(list)
-                        Log.d("iii", " list size ${list.size}")
                         viewModel.tab = 1
                     }
                     2 -> {
@@ -565,11 +394,9 @@ class ContactAccountFragment : DetailBaseFragment(R.layout.fragment_contact_acco
                         val adapter = FAdapter()
                         binding.rvAttachments.adapter = adapter
                         adapter.updateAdapter(list)
-
                         viewModel.tab = 2
                     }
                     3 -> {
-
                         binding.rvAttachments.layoutManager = LinearLayoutManager(requireContext())
                         val adapter = VoiceAdapter()
                         binding.rvAttachments.adapter = adapter
@@ -601,7 +428,8 @@ class ContactAccountFragment : DetailBaseFragment(R.layout.fragment_contact_acco
 //        binding.accountAppbar.toolbar.menu.findItem(R.id.edit_contact).isVisible = !isDeleted
 //        binding.accountAppbar.toolbar.menu.findItem(R.id.send_contact).isVisible = !isDeleted
 //        binding.accountAppbar.toolbar.menu.findItem(R.id.delete_contact).isVisible = !isDeleted
-        binding.accountAppbar.accountToolbar.menu.findItem(R.id.delete_contact).isVisible = !isDeleted
+        binding.accountAppbar.accountToolbar.menu.findItem(R.id.delete_contact).isVisible =
+            !isDeleted
         binding.accountAppbar.btnAddContact.isVisible = isDeleted
         binding.accountAppbar.btnAddContact.setOnClickListener {
             viewModel.addContact(getParams().id)

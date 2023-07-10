@@ -1,9 +1,11 @@
 package com.xabber.dto
 
 import android.os.Parcelable
+import com.xabber.R
 import com.xabber.data_base.models.messages.MessageSendingState
 import com.xabber.data_base.models.presences.ResourceStatus
 import com.xabber.data_base.models.presences.RosterItemEntity
+import com.xabber.presentation.XabberApplication
 import kotlinx.parcelize.Parcelize
 
 
@@ -32,7 +34,7 @@ data class ChatListDto(
     val drawableId: Int,
     val isHide: Boolean = false,
     val lastMessageIsOutgoing: Boolean = false,
-    var colorKey: String = "blue",
+    var colorKey: String = XabberApplication.applicationContext().resources.getString(R.string.blue),
     val isGroup: Boolean = false
 ) : Comparable<ChatListDto>, Parcelable {
     override fun compareTo(other: ChatListDto): Int {           // сортировка: сначала запиненные, затем от новых к старым

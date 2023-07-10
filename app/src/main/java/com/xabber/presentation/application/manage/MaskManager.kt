@@ -1,4 +1,4 @@
-package com.xabber.utils
+package com.xabber.presentation.application.manage
 import com.xabber.R
 
 object MaskManager {

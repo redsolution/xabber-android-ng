@@ -122,4 +122,5 @@ open class CorrectlyTouchEventTextView @JvmOverloads constructor(
             Selection.removeSelection(text)
         }
     }
+
 }

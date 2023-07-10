@@ -32,7 +32,7 @@ import com.xabber.presentation.application.dialogs.TimeMute
 import com.xabber.presentation.application.fragments.chat.StatusMaker
 import com.xabber.presentation.application.manage.ColorManager
 import com.xabber.presentation.application.util.dateFormat
-import com.xabber.utils.MaskManager
+import com.xabber.presentation.application.manage.MaskManager
 import com.xabber.utils.parcelable
 import java.util.*
 
@@ -220,9 +220,6 @@ class ChatListViewHolder(
                 }
                 R.id.enable_notifications -> {
                     listener.enableNotifications(chatId)
-                }
-                R.id.customise_notifications -> {
-                    listener.openSpecialNotificationsFragment()
                 }
                 R.id.delete -> {
                     listener.deleteChat(chatName, chatId)

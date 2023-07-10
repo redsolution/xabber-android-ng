@@ -21,7 +21,7 @@ import com.xabber.presentation.application.BaseViewModel
 import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.application.manage.ColorManager
 import com.xabber.presentation.application.manage.DisplayManager
-import com.xabber.utils.MaskManager
+import com.xabber.presentation.application.manage.MaskManager
 import com.xabber.utils.custom.ShapeOfView
 
 /**
@@ -37,9 +37,8 @@ abstract class BaseFragment(@LayoutRes contentLayoutId: Int) : Fragment(contentL
     private var status: ImageView? = null
     private var currentJid: String? = null
     private var shapeView: ShapeOfView? = null
-    private val defaultColorKey = "blue"
     private lateinit var sh: SharedPreferences
-    private var currentColorKey = "blue"
+    private var currentColorKey = ""
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -50,7 +49,7 @@ abstract class BaseFragment(@LayoutRes contentLayoutId: Int) : Fragment(contentL
         sh.registerOnSharedPreferenceChangeListener(this)
         val primaryAccount = baseViewModel.getPrimaryAccount()
         currentJid = primaryAccount?.jid
-        currentColorKey = primaryAccount?.colorKey ?: "offline"
+        currentColorKey = primaryAccount?.colorKey ?: resources.getString(R.string.offline)
         setupColor(currentColorKey)
 
         shapeView?.setDrawable(MaskManager.mask)

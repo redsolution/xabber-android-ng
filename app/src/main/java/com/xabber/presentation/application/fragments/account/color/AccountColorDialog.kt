@@ -35,7 +35,7 @@ class AccountColorDialog : DialogFragment(), AccountColorPickerAdapter.Listener 
     private fun initColorList() {
         val colors =
             resources.obtainTypedArray(R.array.account_500)
-        val colorKey = arguments?.getString(AppConstants.ACCOUNT_COLOR_KEY) ?: "blue"
+        val colorKey = arguments?.getString(AppConstants.ACCOUNT_COLOR_KEY) ?: resources.getString(R.string.blue)
         val number = ColorManager.convertColorNameToIndex(colorKey)
         val adapter = AccountColorPickerAdapter(
             this,

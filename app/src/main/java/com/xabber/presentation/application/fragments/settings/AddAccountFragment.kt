@@ -56,7 +56,7 @@ class AddAccountFragment : DetailBaseFragment(R.layout.fragment_add_account) {
             val jid = binding.inputJid.editText?.text?.trim().toString()
             val password = binding.inputPassword.editText?.text?.trim().toString()
             if (viewModel.checkIsNameAvailable(jid, host)) {
-                viewModel.addAccount(jid, jid, password = password)
+                viewModel.addAccount(jid, jid, password = password, accountColor = requireContext().resources.getString(R.string.blue))
                 navigator().showAccount(jid)
             } else {
                 binding.inputJid.error = resources.getString(R.string.signup_username_error_subtitle)

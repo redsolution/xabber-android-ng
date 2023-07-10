@@ -12,7 +12,7 @@ import com.xabber.databinding.ItemContactBinding
 import com.xabber.dto.ContactDto
 import com.xabber.data_base.models.presences.ResourceStatus
 import com.xabber.data_base.models.presences.RosterItemEntity
-import com.xabber.utils.MaskManager
+import com.xabber.presentation.application.manage.MaskManager
 
 
 class ContactViewHolder(

@@ -13,10 +13,11 @@ import com.xabber.utils.dp
 object DisplayManager : Fragment() {
     private const val MAX_WIDTH = 800
     private const val MAX_HEIGHT = 900
+    private val displayMetrics = Resources.getSystem().displayMetrics
     private var heightStatusBar = 0
 
     fun getWidthDp(): Int =
-        (Resources.getSystem().displayMetrics.widthPixels / Resources.getSystem().displayMetrics.density).toInt()
+        (displayMetrics.widthPixels / displayMetrics.density).toInt()
 
     fun isDualScreenMode(): Boolean {
         val widthDp = getWidthDp()
@@ -34,5 +35,9 @@ object DisplayManager : Fragment() {
     fun setHeightStatusBar(height: Int) {
         heightStatusBar = height
     }
+
+    fun screenWidth() = displayMetrics.widthPixels
+
+    fun screenHeight() = displayMetrics.heightPixels
 
 }

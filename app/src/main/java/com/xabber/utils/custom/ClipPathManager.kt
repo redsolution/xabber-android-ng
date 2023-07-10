@@ -1,6 +1,5 @@
 package com.xabber.utils.custom
 
-import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Path
 
@@ -10,7 +9,6 @@ class ClipPathManager : ClipManager {
     private var createClipPath: ClipPathCreator? = null
 
     init {
-        paint.color = Color.BLACK
         paint.style = Paint.Style.FILL
         paint.isAntiAlias = true
         paint.strokeWidth = 1f
@@ -24,10 +22,6 @@ class ClipPathManager : ClipManager {
         return if (createClipPath != null) {
             createClipPath!!.createClipPath(width, height)
         } else null
-    }
-
-    fun setClipPathCreator(createClipPath: ClipPathCreator?) {
-        this.createClipPath = createClipPath
     }
 
     override fun createMask(width: Int, height: Int): Path {
@@ -49,4 +43,5 @@ class ClipPathManager : ClipManager {
         fun createClipPath(width: Int, height: Int): Path?
         fun requiresBitmap(): Boolean
     }
+
 }

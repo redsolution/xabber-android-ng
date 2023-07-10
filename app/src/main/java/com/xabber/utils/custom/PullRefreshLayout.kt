@@ -176,43 +176,46 @@ class PullRefreshLayout : FrameLayout, NestedScrollingParent {
         if (isRefreshing) {
             return false
         }
+
         if (!canChildScrollUp() && isRefreshEnable && mCurrentAction == ACTION_PULL_REFRESH) {
             val lp = headerView.layoutParams as LayoutParams
             val sign = if (distanceY < 0) 0.5 else {
-                if (lp.height >= 260) 0.1 else if (lp.height in 259 downTo 230) 0.2 else if (lp.height in 229 downTo 190) 0.3 else 0.5
-            }
-            val translationYDelta = (distanceY * sign).toInt()
-            lp.height += translationYDelta
-            if (lp.height > 50.dp) headerView.setProgressRotation(true) else headerView.setProgressRotation(
-                false
-            )
-            if (lp.height < 0) {
-                lp.height = 0
-            }
-            if (lp.height > guidanceViewFlowHeight) {
-                lp.height = guidanceViewFlowHeight.toInt()
-            }
-            if (onRefreshListener != null) {
-                if (lp.height >= guidanceViewHeight) {
-                    onRefreshListener?.onRefreshPulStateChange(
-                        lp.height / guidanceViewHeight,
-                        OVER_TRIGGER_POINT
-                    )
-                } else {
-                    onRefreshListener?.onRefreshPulStateChange(
-                        lp.height / guidanceViewHeight,
-                        NOT_OVER_TRIGGER_POINT
-                    )
+                when {
+                    lp.height >= 260 -> 0.1
+                    lp.height in 259 downTo 230 -> 0.2
+                    lp.height in 229 downTo 190 -> 0.3
+                    else -> 0.5
                 }
             }
+
+            val translationYDelta = (distanceY * sign).toInt()
+            lp.height += translationYDelta
+
+            if (lp.height > 50.dp) {
+                headerView.setProgressRotation(true)
+            } else {
+                headerView.setProgressRotation(false)
+            }
+
+            lp.height = lp.height.coerceIn(0, guidanceViewFlowHeight.toInt())
+
+            onRefreshListener?.let { listener ->
+                val progress = lp.height / guidanceViewHeight
+                val state = if (lp.height >= guidanceViewHeight) OVER_TRIGGER_POINT else NOT_OVER_TRIGGER_POINT
+                listener.onRefreshPulStateChange(progress, state)
+            }
+
             if (lp.height == 0) {
                 isConfirm = false
                 mCurrentAction = -1
             }
+
             headerView.layoutParams = lp
             moveTargetView(lp.height.toFloat())
+
             return true
         }
+
         return false
     }
 

@@ -1,6 +1,8 @@
 package com.xabber.data_base.dao
 
+import com.xabber.R
 import com.xabber.data_base.models.account.AccountStorageItem
+import com.xabber.presentation.XabberApplication
 import io.realm.kotlin.Realm
 
 class AccountStorageItemDao(private val realm: Realm) {
@@ -25,7 +27,7 @@ class AccountStorageItemDao(private val realm: Realm) {
     fun createAccount(
         accountJid: String,
         accountName: String,
-        accountColor: String?,
+        accountColor: String,
         accountHasAvatar: Boolean = false
     ) {
         val accountOrder = defineAccountOrder()
@@ -34,7 +36,7 @@ class AccountStorageItemDao(private val realm: Realm) {
                 primary = accountJid
                 jid = accountJid
                 order = accountOrder
-                colorKey = accountColor ?: "blue"
+                colorKey = accountColor
                 enabled = true
                 hasAvatar = accountHasAvatar
                 username = accountName
