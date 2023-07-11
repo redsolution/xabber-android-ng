@@ -8,7 +8,6 @@ import android.content.pm.PackageManager
 import android.location.LocationManager
 import android.os.Bundle
 import android.provider.Settings
-import android.util.Log
 import android.view.View
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
@@ -26,7 +25,6 @@ import com.xabber.data_base.models.messages.MessageSendingState
 import com.xabber.databinding.ActivityPickGeolocationBinding
 import com.xabber.dto.MessageDto
 import com.xabber.dto.MessageReferenceDto
-import com.xabber.presentation.application.fragments.chat.ChatViewModel
 import com.xabber.presentation.application.fragments.chat.CustomMyLocationOsmOverlay
 import com.xabber.remote.NominatimRetrofitModule
 import com.xabber.remote.Place
@@ -416,7 +414,7 @@ class PickGeolocationActivity : AppCompatActivity() {
             binding.progressbarSearchLocations.visibility = View.VISIBLE
             lifecycleScope.launch(CoroutineExceptionHandler { _, _ ->
                 binding.progressbarSearchLocations.visibility = View.INVISIBLE
-                binding.tvLocationTitle.visibility = View.GONE
+                binding.tvLocationTitle.isVisible = false
             }) {
                 val lang = Locale.getDefault().language
                 val place = NominatimRetrofitModule.api.fromLonLat(
@@ -425,7 +423,7 @@ class PickGeolocationActivity : AppCompatActivity() {
                 binding.tvLocationTitle.text =
                     if (place.prettyName != null) place.prettyName else "Location not defined"
                 binding.progressbarSearchLocations.isVisible = false
-                val coordFormatString = "%.4f"
+                val coordinateFormatString = "%.4f"
                 binding.tvLocationCoordinates.setTextColor(
                     ContextCompat.getColor(
                         this@PickGeolocationActivity,
@@ -433,8 +431,8 @@ class PickGeolocationActivity : AppCompatActivity() {
                     )
                 )
                 binding.tvLocationCoordinates.text =
-                    "${coordFormatString.format(newLocation.longitude)}, ${
-                        coordFormatString.format(
+                    "${coordinateFormatString.format(newLocation.longitude)}, ${
+                        coordinateFormatString.format(
                             newLocation.latitude
                         )
                     }"

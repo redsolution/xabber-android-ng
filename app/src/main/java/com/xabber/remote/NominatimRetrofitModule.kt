@@ -3,6 +3,7 @@ package com.xabber.remote
 import android.os.Parcelable
 import kotlinx.parcelize.Parcelize
 import okhttp3.OkHttpClient
+import okhttp3.ResponseBody
 import okhttp3.logging.HttpLoggingInterceptor
 import org.osmdroid.util.GeoPoint
 import retrofit2.Retrofit

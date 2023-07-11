@@ -1,7 +1,6 @@
 package com.xabber.presentation.application.fragments.chat.message
 
 import android.view.LayoutInflater
-import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
@@ -13,12 +12,12 @@ import com.xabber.presentation.application.fragments.chat.ChatSettingsManager
 import com.xabber.presentation.application.fragments.chat.MessageVhExtraData
 import com.xabber.presentation.application.util.isSameDayWith
 
-class MessageAdapter(
+class MessageAdapter(private val layoutInflater: LayoutInflater,
     private val listener: MenuItemListener? = null,
     private val onViewClickListener: OnViewClickListener? = null,
     private val messages: ArrayList<MessageDto>,
     private val isGroup: Boolean
-) : ListAdapter<MessageDto, MessageVH>(DiffUtilCallback) {
+) : ListAdapter<MessageDto, MessageViewHolder>(DiffUtilCallback) {
 
     private var firstUnreadMessageID: String? = null
     private val checkedItemIds: MutableList<String> = ArrayList()
@@ -60,13 +59,13 @@ class MessageAdapter(
         return if (messages[position].displayType == MessageDisplayType.System) SYSTEM_MESSAGE else if (messages[position].isOutgoing) OUTGOING_MESSAGE else INCOMING_MESSAGE
     }
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): MessageVH {
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): MessageViewHolder {
         return when (viewType) {
 
             OUTGOING_MESSAGE -> OutgoingMessageVH(
                 LayoutInflater.from(parent.context).inflate(
                     R.layout.item_message_outgoing, parent, false
-                ),
+                ), layoutInflater,
                 listener,
                 onViewClickListener,
             )
@@ -74,7 +73,7 @@ class MessageAdapter(
             INCOMING_MESSAGE -> IncomingMessageVH(
                 LayoutInflater.from(parent.context).inflate(
                     R.layout.item_message_incoming, parent, false
-                ),
+                ), layoutInflater,
                 listener,
                 onViewClickListener
             )
@@ -82,7 +81,7 @@ class MessageAdapter(
             SYSTEM_MESSAGE -> SystemMessageVH(
                 LayoutInflater.from(parent.context).inflate(
                     R.layout.item_message_system, parent, false
-                ),
+                ), layoutInflater,
                 listener, onViewClickListener
             )
             else -> throw IllegalStateException("Unsupported view type!")
@@ -114,11 +113,11 @@ class MessageAdapter(
         return if (message?.isOutgoing == false && preMessage?.isOutgoing == true) true else message?.opponentJid != preMessage?.opponentJid
     }
 
-    override fun onBindViewHolder(holder: MessageVH, position: Int) {
+    override fun onBindViewHolder(holder: MessageViewHolder, position: Int) {
         val viewType = getItemViewType(position)
         val message = getMessageItem(position) ?: return
         holder.setIsRecyclable(false)
-        (holder as? MessageVH)?.messageId = message.primary
+        (holder as? MessageViewHolder)?.messageId = message.primary
         val isNeedDate = isMessageNeedDate(position)
 
         val extraData = MessageVhExtraData(

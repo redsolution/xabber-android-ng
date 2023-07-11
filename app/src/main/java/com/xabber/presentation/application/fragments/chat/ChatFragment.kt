@@ -374,7 +374,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
 
     private fun initializeRecyclerView() {
         val isGroup = viewModel.loadChat(getParams().id)!!.isGroup
-        messageAdapter = MessageAdapter(
+        messageAdapter = MessageAdapter(layoutInflater,
             this,
             onViewClickListener = this,
             messages = ArrayList<MessageDto>(), isGroup = isGroup

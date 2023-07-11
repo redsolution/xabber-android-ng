@@ -69,7 +69,7 @@ class ChatSettingsFragment : DetailBaseFragment(R.layout.fragment_chat_settings)
             )
         )
 
-        adapter = MessageAdapter(messages = list, isGroup = false)
+        adapter = MessageAdapter(layoutInflater, messages = list, isGroup = false)
         binding.rvChatDemonstration.adapter = adapter
         binding.seekBar.progress = ChatSettingsManager.cornerValue
         binding.tvProgressValue.text = ChatSettingsManager.cornerValue.toString()
