@@ -19,7 +19,6 @@ class VideoAdapter: RecyclerView.Adapter<VideoVH>() {
     }
 
     override fun onBindViewHolder(holder: VideoVH, position: Int) {
-        holder.bind()
     }
 
     override fun getItemCount(): Int = medias.size

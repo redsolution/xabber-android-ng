@@ -74,7 +74,6 @@ class PickGeolocationViewModel: ViewModel() {
             if (item != null) {
                 if (!messageDto.isOutgoing && item.muteExpired <= 0) item.isArchived = false
             }
-            Log.d("yyy", "item unread = ${item?.unread}")
         }
     }
 

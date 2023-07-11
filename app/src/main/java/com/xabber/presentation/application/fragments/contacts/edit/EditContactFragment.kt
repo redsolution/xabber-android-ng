@@ -19,8 +19,6 @@ import com.xabber.utils.showToast
 
 class EditContactFragment : DetailBaseFragment(R.layout.fragment_edit_contact) {
     private val binding by viewBinding(FragmentEditContactBinding::bind)
-    private var av = 0
-    private var colorContact = 0
     private val viewModel: ContactAccountViewModel by viewModels()
 
     companion object {

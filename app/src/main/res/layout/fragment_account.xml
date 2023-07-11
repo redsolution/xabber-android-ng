@@ -91,7 +91,7 @@
                         style="@style/AccountSettingsSubtitle"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="@string/used_112_mb_out_of_2_gb"
+                        android:text="Used 112 MB out of 2 GB"
                         app:layout_constraintBottom_toBottomOf="parent"
                         app:layout_constraintStart_toEndOf="@id/image_cloud_storage" />
 
@@ -162,7 +162,7 @@
                         style="@style/AccountSettingsSubtitle"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="@string/_1_connected_device"
+                        android:text="1 connected device"
                         app:layout_constraintBottom_toBottomOf="parent"
                         app:layout_constraintStart_toEndOf="@id/im_devices" />
                 </androidx.constraintlayout.widget.ConstraintLayout>

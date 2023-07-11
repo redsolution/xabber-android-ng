@@ -64,7 +64,6 @@ class AvatarChangerBottomSheet : BottomSheetDialogFragment() {
                 "cropping image was cancelled by the user"
             )
             else -> {
-                Log.d("Avatar", "${it.error}")
             }
         }
         dismiss()

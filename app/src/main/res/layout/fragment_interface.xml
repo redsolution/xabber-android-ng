@@ -45,7 +45,7 @@
             style="@style/AccountSettingsTitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Avatar"
+            android:text="@string/avatar_settings"
             app:layout_constraintBottom_toTopOf="@id/tv_subtitle_avatar"
             app:layout_constraintStart_toEndOf="@id/image_avatar"
             app:layout_constraintTop_toTopOf="parent" />
@@ -58,7 +58,6 @@
             android:singleLine="true"
             android:maxLines="1"
             android:layout_height="wrap_content"
-            android:text="Circle"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toEndOf="@id/image_avatar" />
 
@@ -83,7 +82,7 @@
             style="@style/AccountSettingsTitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Chat settings"
+            android:text="@string/chat_settings"
             app:layout_constraintBottom_toTopOf="@id/tv_subtitle_chat"
             app:layout_constraintStart_toEndOf="@id/image_chat"
             app:layout_constraintTop_toTopOf="parent" />
@@ -121,7 +120,7 @@
             style="@style/AccountSettingsTitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="App icon"
+            android:text="@string/app_icon"
             app:layout_constraintBottom_toTopOf="@id/tv_subtitle_app_icon"
             app:layout_constraintStart_toEndOf="@id/image_app_icon"
             app:layout_constraintTop_toTopOf="parent" />

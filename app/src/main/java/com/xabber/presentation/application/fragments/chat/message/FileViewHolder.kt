@@ -10,6 +10,8 @@ import com.xabber.databinding.ItemFileBinding
 import com.xabber.databinding.ItemFileMessageBinding
 import com.xabber.dto.MessageReferenceDto
 import java.lang.String
+import kotlin.math.log10
+import kotlin.math.pow
 
 class FileViewHolder(private val binding: ItemFileMessageBinding) :
     RecyclerView.ViewHolder(binding.root) {
@@ -17,7 +19,6 @@ class FileViewHolder(private val binding: ItemFileMessageBinding) :
         get() = itemView
 
     fun bind(reference: MessageReferenceDto) {
-        Log.d("iii", "${reference.fileName}")
         binding.tvFileName.text = reference.fileName
         binding.tvFileSize.text = formatFileSize(reference.size)
     }
@@ -25,15 +26,15 @@ class FileViewHolder(private val binding: ItemFileMessageBinding) :
     @SuppressLint("DefaultLocale")
     fun formatFileSize(fileSize: Long): kotlin.String {
         if (fileSize <= 0) {
-            return "0 B".toString()
+            return "0 B"
         }
 
         val units = arrayOf("B", "KB", "MB", "GB", "TB")
-        val digitGroups = (Math.log10(fileSize.toDouble()) / Math.log10(1024.0)).toInt()
+        val digitGroups = (log10(fileSize.toDouble()) / log10(1024.0)).toInt()
 
         return String.format(
             "%.1f %s",
-            fileSize / Math.pow(1024.0, digitGroups.toDouble()),
+            fileSize / 1024.0.pow(digitGroups.toDouble()),
             units[digitGroups]
         )
     }

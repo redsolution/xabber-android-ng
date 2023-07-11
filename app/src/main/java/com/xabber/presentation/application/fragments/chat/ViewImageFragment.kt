@@ -17,7 +17,6 @@ import com.xabber.utils.parcelable
 class ViewImageFragment : Fragment(R.layout.fragment_image_viewer) {
     private val binding by viewBinding(FragmentImageViewerBinding::bind)
     private var mediaController: MediaController? = null
-    private var progress = 0
 
     companion object {
         fun newInstance(mediaUri: Uri) = ViewImageFragment().apply {
@@ -25,11 +24,6 @@ class ViewImageFragment : Fragment(R.layout.fragment_image_viewer) {
                 putParcelable(AppConstants.MEDIA_URI, mediaUri)
             }
         }
-    }
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {

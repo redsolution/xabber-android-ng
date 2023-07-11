@@ -103,7 +103,6 @@ public final class VoiceMessagePresenterManager {
                 buf.read(bytes, 0, bytes.length);
                 buf.close();
             } catch (Exception e) {
-                Log.d("iii", "file" + e);
             }
             voiceWaveFreshViews.put(filePath, view);
             if (!voiceWaveInProgress.contains(filePath)) {

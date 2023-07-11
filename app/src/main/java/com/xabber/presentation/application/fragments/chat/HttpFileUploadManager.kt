@@ -1,33 +1,8 @@
 package com.xabber.presentation.application.fragments.chat
 
-import android.content.Context
 import android.media.MediaMetadataRetriever
-import android.net.Uri
-import io.reactivex.rxjava3.subjects.PublishSubject
 
 object HttpFileUploadManager {
-    private val progressSubscribe: PublishSubject<ProgressData> =
-        PublishSubject.create()
-    private var isUploading = false
-
-
-   fun uploadFile(
-        fileUris: List<Uri>,
-        context: Context
-    ) {
-        if (isUploading) {
-            progressSubscribe.onNext(
-                ProgressData(
-                    0,
-                    0,
-                    "Uploading already started",
-                    false,
-                    null
-                )
-            )
-            return
-        }
-    }
 
     fun getVoiceLength(filePath: String): Long {
         val mmr = MediaMetadataRetriever()
@@ -39,8 +14,6 @@ object HttpFileUploadManager {
         }
         return duration
     }
-
-
 }
 
 class ProgressData(

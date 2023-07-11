@@ -19,7 +19,6 @@ class FAdapter : RecyclerView.Adapter<FileVH>() {
     }
 
     override fun onBindViewHolder(holder: FileVH, position: Int) {
-        holder.bind()
     }
 
     override fun getItemCount(): Int = medias.size

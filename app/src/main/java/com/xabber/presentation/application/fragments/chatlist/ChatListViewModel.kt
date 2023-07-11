@@ -86,7 +86,6 @@ class ChatListViewModel : ViewModel() {
             request.asFlow().collect { changes: ResultsChange<LastChatsStorageItem> ->
                 when (changes) {
                     is UpdatedResults -> {
-                        Log.d("ppp", "Chat ch")
                         changes.list
                         val dataSource = ArrayList<ChatListDto>()
                         dataSource.addAll(changes.list.map { T ->

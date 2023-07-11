@@ -6,7 +6,6 @@ import android.content.pm.PackageManager;
 
 import androidx.core.content.ContextCompat;
 
-//import com.xabber.presentation.XabberApplication;
 
 public class PermissionsRequester {
 

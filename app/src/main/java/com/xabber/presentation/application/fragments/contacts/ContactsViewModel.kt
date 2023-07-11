@@ -63,7 +63,6 @@ class ContactsViewModel : ViewModel() {
         }
     }
 
-
     fun getChatList() {
         viewModelScope.launch(Dispatchers.IO) {
             val realmList =

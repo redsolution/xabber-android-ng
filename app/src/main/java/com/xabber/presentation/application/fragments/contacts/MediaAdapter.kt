@@ -18,7 +18,6 @@ class MediaAdapter : RecyclerView.Adapter<MediaViewHolder>() {
     }
 
     override fun onBindViewHolder(holder: MediaViewHolder, position: Int) {
-        holder.bind()
     }
 
     override fun getItemCount(): Int = medias.size

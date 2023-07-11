@@ -18,7 +18,7 @@ object ChatSettingsManager {
 
     var tail: Int = 0
 
-    var hvost: Int = 0
+    var tailDrawable: Int = 0
 
     fun defineMessageDrawable(corner: Int, type: Int, bot: Boolean) {
         cornerValue = corner
@@ -210,7 +210,7 @@ object ChatSettingsManager {
             }
         }
 
-        hvost = when (type) {
+        tailDrawable = when (type) {
             1 -> R.drawable.bubble
             3 -> R.drawable.tail_curvy
             4 -> R.drawable.smooth_new

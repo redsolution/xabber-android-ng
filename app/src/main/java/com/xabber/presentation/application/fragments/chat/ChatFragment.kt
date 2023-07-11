@@ -56,7 +56,7 @@ import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.application.dialogs.*
 import com.xabber.presentation.application.fragments.DetailBaseFragment
 import com.xabber.presentation.application.fragments.chat.audio.AudioRecorder
-import com.xabber.presentation.application.fragments.chat.audio.VoiceManager
+import com.xabber.presentation.application.fragments.chat.audio.PublishAudioProgress
 import com.xabber.presentation.application.fragments.chat.audio.VoiceMessagePresenterManager
 import com.xabber.presentation.application.fragments.chat.message.*
 import com.xabber.presentation.application.fragments.contacts.AttachmentBottomSheet
@@ -981,7 +981,6 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         binding.linRecordLock.invalidate()
         enableStandardPanelButtons(true)
         beginTimer(false)
-        VoiceManager.getInstance().stopRecording(false)
 
         val reference = MessageReferenceDto(
             "a ${System.currentTimeMillis()},",
@@ -1012,8 +1011,6 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         manageVoiceMessage(recordSaveAllowed)
         hideRecordPanel()
         scrollDown()
-        //     clearVoiceMessage()
-        // setFirstUnreadMessageId(null)
     }
 
     private fun hideRecordPanel() {
@@ -1060,22 +1057,17 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         binding.audioPresenter.recordingPresenterLayout.isVisible = false
         binding.frameStop.clearAnimation()
         binding.frameStop.isVisible = false
-
         binding.record.recordLayout.isVisible = false
-        //   binding.buttonAttach.isVisible = true
-
         binding.btnRecordExpanded.hide()
         binding.btnRecordExpanded.isVisible = false
         binding.spaceLock.clearAnimation()
         binding.spaceLock.y = 0f
-        Log.d("iii", "${binding.imLockBar.y}, ${binding.imLockBar.marginBottom}")
         val old = binding.imLockBar.y
         binding.imLockBar.y = old - 26f
         binding.linRecordLock.isVisible = false
         manageVoiceMessage(false)
         val params = binding.imLockBar.layoutParams as ConstraintLayout.LayoutParams
         params.bottomToBottom = binding.imLock.id
-        // params.bottomMargin = 2
         binding.imLockBar.layoutParams = params
         currentVoiceRecordingState = VoiceRecordState.NotRecording
         lockIsClosed = false
@@ -1097,19 +1089,9 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     }
 
 
-    private fun updateTopDateIfNeed() {
-        //    val layoutManager = binding.messageList.layoutManager as LinearLayoutManager
-        //   val position = layoutManager.findFirstVisibleItemPosition()
-// val message : MessageDto = messageAdapter!!.getItem(position)
-// if (message != null)
-// binding.tvTopDate.setText(StringUtils.getDateStringForMessage(message.t)
-    }
-
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putBoolean(AppConstants.CHAT_SELECTION_MODE_KEY, isSelectedMode)
-        //   val messageText = binding.chatInput.text.toString().trim()
-        //     outState.putString(CHAT_MESSAGE_TEXT_KEY, messageText)
     }
 
 
@@ -1132,21 +1114,17 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
             viewModel.selectMessage(messageDto.primary, true)
             viewModel.getMessageList(getParams().id)
             handler.postDelayed(cancelSelected, 1000)
-//           viewModel.selectMessage(messageDto.primary, false)
-//            viewModel.getMessageList(getParams().opponent)
         }
 
         binding.imPinClose.setOnClickListener {
             binding.pinPanel.isVisible = false
         }
 
-
     }
 
 
     override fun forwardMessage(messageDto: MessageDto) {
         val text = "${messageDto.owner} \n ${messageDto.messageBody}"
-        Log.d("yyy", "1 message text = $text")
         val chat = viewModel.loadChat(getParams().id)
         navigator().showForwardFragment(text, viewModel.getAccount(chat!!.owner)?.jid ?: "")
     }
@@ -1358,7 +1336,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
 
     override fun onImageOrVideoClick(startPosition: Int, messageId: String) {
         val intent = Intent(requireContext(), MediaDetailsActivity::class.java)
-        intent.putExtra("uu", startPosition)
+        intent.putExtra(AppConstants.START_POSITION, startPosition)
         intent.putExtra(AppConstants.MESSAGE_UID, messageId)
         startActivity(intent)
     }
@@ -1450,19 +1428,9 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
             PlayerVisualizerView.onProgressTouch() {
             override fun onTouch(view: View, motionEvent: MotionEvent): Boolean {
                 when (motionEvent.action) {
-                    MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> return if (VoiceManager.getInstance()
-                            .playbackInProgress("", null)
-                    ) super.onTouch(view, motionEvent) else {
+                    MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE ->
                         (view as PlayerVisualizerView).updatePlayerPercent(0f, true)
-                        true
-                    }
                     MotionEvent.ACTION_UP -> {
-                        if (VoiceManager.getInstance()
-                                .playbackInProgress("", null)
-                        ) VoiceManager.getInstance().seekAudioPlaybackTo(
-                            "", null, motionEvent.x
-                                .toInt(), view.width
-                        )
                         view.performClick()
                         return super.onTouch(view, motionEvent)
                     }
@@ -1481,7 +1449,6 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
             binding.record.cancelRecordLayout.isVisible = false
             binding.imLock.setImageResource(R.drawable.ic_lock_base)
             binding.imLockBar.setImageResource(R.drawable.ic_lock_bar)
-            Log.d("yyy", "${binding.linRecordLock.y}")
             binding.linRecordLock.animate().y(911f).translationY(0f).start()
             binding.record.recordLayout.invalidate()
             clearVoiceMessage()
@@ -1514,8 +1481,6 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     }
 
     private fun releaseRecordedVoicePlayback(filePath: String?): Boolean {
-        VoiceManager.getInstance().releaseMediaPlayer()
-        VoiceMessagePresenterManager.getInstance().deleteOldPath(filePath)
         val file = File(filePath)
         if (file.exists()) {
             FileManager.deleteTempFile(file)
@@ -1525,7 +1490,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     }
 
     private fun subscribeForRecordedAudioProgress() {
-        val audioProgress = VoiceManager.PublishAudioProgress.getInstance().subscribeForProgress()
+        val audioProgress = PublishAudioProgress.subscribeForProgress()
         val mediaPlayer = MediaPlayer()
         mediaPlayer.setDataSource(audioRecorder.getRecordedFilePath())
         mediaPlayer.prepare()
@@ -1541,19 +1506,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
                 isPlaying = true
             }
         }
-        audioProgressSubscription =
-            audioProgress.doOnNext { info: VoiceManager.PublishAudioProgress.AudioInfo ->
-                setUpAudioProgress(
-                    info
-                )
-            }
-                .subscribe()
     }
-
-    private fun setUpAudioProgress(info: VoiceManager.PublishAudioProgress.AudioInfo) {
-
-    }
-
 
     private fun finishVoiceRecordLayout() {
         binding.record.recordLayout.isVisible = false

@@ -11,7 +11,6 @@ import com.xabber.presentation.application.fragments.DetailBaseFragment
 class DevicesSettingsFragment : DetailBaseFragment(R.layout.fragment_devices_settings) {
     private val binding by viewBinding(FragmentDevicesSettingsBinding::bind)
 
-
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
     }

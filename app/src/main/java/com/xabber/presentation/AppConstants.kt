@@ -70,6 +70,7 @@ object AppConstants {
     const val PAYLOAD_UNREAD_CHAT = "Unread"
     const val PICK_LOCATION_REQUEST_CODE = 10
     const val REORDER_ACCOUNTS = "reorder"
+    const val START_POSITION = "start position"
     const val QR_CODE_DIALOG_TAG = "Qr code dialog tag"
     const val QR_CODE_PARAMS = "qr code params"
     const val REQUEST_EMOJI_KEY = "request emoji key"

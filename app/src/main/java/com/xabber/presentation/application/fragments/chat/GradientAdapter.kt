@@ -20,7 +20,6 @@ RecyclerView.Adapter<GradientAdapter.GradientHolder>() {
 
         fun setData(w: Gradient) {
             image.setImageResource(w.background)
-            //   primaryCardView.setBackgroundResource(0)
         }
     }
 
@@ -35,12 +34,6 @@ RecyclerView.Adapter<GradientAdapter.GradientHolder>() {
         holder.setData(list[position])
         if (!checked.contains(position)) primaryCardView.setBackgroundResource(0)
         else primaryCardView.setBackgroundResource(R.drawable.blue_frame)
-        //  if (checked[position])  primaryCardView.setBackgroundResource(R.drawable.card_view_frame)
-        //    else  primaryCardView.setBackgroundResource(0)
-        //    for (i in checked.indices) {
-        //         checked[i] = false
-        //   }
-
 
         holder.itemView.setOnClickListener {
 

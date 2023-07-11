@@ -251,17 +251,14 @@
     <string name="storage_settings">Storage settings</string>
     <string name="status_avatar_password_etc">Status, avatar, password, etc</string>
     <string name="cloud_storage">Cloud storage</string>
-    <string name="used_112_mb_out_of_2_gb">Used 112 MB out of 2 GB</string>
     <string name="encryption_and_keys">Encryption and keys</string>
     <string name="encryption_enabled">Encryption enabled</string>
     <string name="devices">Devices</string>
-    <string name="_1_connected_device">1 connected device</string>
     <string name="edit_profile">Edit profile</string>
     <string name="password">Password</string>
     <string name="change_password">Change password</string>
     <string name="account_color_profile">Account color</string>
     <string name="blocked_contacts">Blocked contacts</string>
-    <string name="_4_blocked_contacts">4 blocked contacts</string>
     <string name="circles">Circles</string>
     <string name="_2_circles">2 circles</string>
     <string name="server_information">Server information</string>
@@ -274,6 +271,9 @@
     <string name="rounded">Rounded</string>
     <string name="squircle">Squircle</string>
     <string name="star">Star</string>
+    <string name="avatar_settings">Avatar</string>
+    <string name="chat_settings">Chat settings</string>
+    <string name="app_icon">App icon</string>
 
     <!-- ACCOUNT -->
     <string name="share_qr">Share QR-code</string>
@@ -376,4 +376,5 @@
     <string name="dialog_chat_negative_button">Cancel</string>
 
     <string name="feature_not_implemented">This feature is not implemented</string>
+
 </resources>

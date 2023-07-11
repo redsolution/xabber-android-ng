@@ -449,7 +449,6 @@ class PickGeolocationActivity : AppCompatActivity() {
 
     private fun initSendButton() {
         binding.imSendLocation.setOnClickListener {
-            Log.d("faf", "isMyLocation = $isMyLocation, ${myLocationOverlay?.myLocation}")
             val sendingLocation = if (isMyLocation) myLocationOverlay?.myLocation else location
             if (sendingLocation == null) showToast("Пожалуйста, подождите пока карта загрузится")
             else {

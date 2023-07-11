@@ -20,7 +20,7 @@ class ChatSettingsFragment : DetailBaseFragment(R.layout.fragment_chat_settings)
     private val binding by viewBinding(FragmentChatSettingsBinding::bind)
     private var adapter: MessageAdapter? = null
     val list = ArrayList<MessageDto>()
-    private var gAdapter: GradientAdapter? = null
+    private var gradientAdapter: GradientAdapter? = null
 
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -200,8 +200,7 @@ class ChatSettingsFragment : DetailBaseFragment(R.layout.fragment_chat_settings)
             )
             adapter?.notifyDataSetChanged()
         }
-        val grad = ChatSettingsManager.gradient
-        val drawable = when(grad) {
+        val drawable = when(ChatSettingsManager.gradient) {
             1 -> R.drawable.gradient_bordo
             2 -> R.drawable.gradient_red
             3 -> R.drawable.gradient_orange
@@ -225,10 +224,9 @@ class ChatSettingsFragment : DetailBaseFragment(R.layout.fragment_chat_settings)
         list.add(Gradient(R.drawable.gradient_light_yellish_blue, 6))
         list.add(Gradient(R.drawable.gradient_blue, 7))
         list.add(Gradient(R.drawable.gradient_purple, 8))
-        val pos = ChatSettingsManager.gradient
 
-        gAdapter = GradientAdapter(this, list, arrayListOf(ChatSettingsManager.gradient-1))
-        binding.rvGradients.adapter = gAdapter
+        gradientAdapter = GradientAdapter(this, list, arrayListOf(ChatSettingsManager.gradient-1))
+        binding.rvGradients.adapter = gradientAdapter
 
         binding.radioGroupDesign.check(getCheckedDesign())
         binding.rvChatDemonstration.setBackgroundResource(getDrawableDesign(ChatSettingsManager.designType))

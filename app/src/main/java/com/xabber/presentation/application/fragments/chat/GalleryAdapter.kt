@@ -57,8 +57,6 @@ class GalleryAdapter(private val listener: Listener) :
         val checkBox = holder.getCheckBox()
 
         holder.itemView.setOnClickListener {
-            Log.d("uyuy", "nagato")
-            Log.d("uyuy", "id = ${mediaDto.id}")
             listener.showMediaViewer(mediaDto.id)
         }
 

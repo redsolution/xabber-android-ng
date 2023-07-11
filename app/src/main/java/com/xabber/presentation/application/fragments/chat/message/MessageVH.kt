@@ -7,7 +7,6 @@ import android.graphics.PorterDuffColorFilter
 import android.graphics.drawable.ShapeDrawable
 import android.graphics.drawable.shapes.RoundRectShape
 import android.media.MediaPlayer
-import android.util.Log
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
@@ -156,7 +155,7 @@ abstract class MessageVH(
         )
 
         val tailBackground = ContextCompat.getDrawable(
-            context, ChatSettingsManager.hvost
+            context, ChatSettingsManager.tailDrawable
         )
 
         val colorBackground =

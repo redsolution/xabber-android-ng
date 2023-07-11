@@ -37,7 +37,7 @@ import com.xabber.presentation.application.fragments.chat.ChatFragment
 import com.xabber.presentation.application.fragments.chat.ChatParams
 import com.xabber.presentation.application.fragments.chat.ChatSettingsManager
 import com.xabber.presentation.application.fragments.chat.ChatSettingsFragment
-import com.xabber.presentation.application.fragments.chatlist.ArchiveFragment
+import com.xabber.presentation.application.fragments.chatlist.archive.ArchiveFragment
 import com.xabber.presentation.application.fragments.chatlist.ChatListFragment
 import com.xabber.presentation.application.fragments.chatlist.ChatListViewModel
 import com.xabber.presentation.application.fragments.chatlist.add.NewChatFragment

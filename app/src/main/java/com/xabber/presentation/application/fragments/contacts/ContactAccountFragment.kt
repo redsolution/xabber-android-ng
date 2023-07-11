@@ -127,7 +127,6 @@ class ContactAccountFragment : DetailBaseFragment(R.layout.fragment_contact_acco
         initToolbarActions()
         setToolbarPadding()
         changeUiWidthData()
-
         initPanelActions()
         initTabLayout()
         if (!DisplayManager.isDualScreenMode() && DisplayManager.getWidthDp() > 600) {
@@ -208,7 +207,7 @@ class ContactAccountFragment : DetailBaseFragment(R.layout.fragment_contact_acco
     }
 
     private fun loadAvatar() {
-
+// здесь нужно будет скчать автар с сервера
     }
 
     private fun defineColor() {
@@ -279,9 +278,7 @@ class ContactAccountFragment : DetailBaseFragment(R.layout.fragment_contact_acco
         var isShow = true
         var scrollRange = -1
         with(binding.accountAppbar) {
-
             appbar.addOnOffsetChangedListener { bar, verticalOffset ->
-
                 if (scrollRange == -1) {
                     scrollRange = bar.totalScrollRange
                 }
@@ -422,12 +419,6 @@ class ContactAccountFragment : DetailBaseFragment(R.layout.fragment_contact_acco
     }
 
     private fun setupMenu(isDeleted: Boolean) {
-        //  binding.accountAppbar.toolbar.removeAllViews()
-        //  binding.accountAppbar.toolbar.me
-//        binding.accountAppbar.toolbar.menu.findItem(R.id.contact_qr_code).isVisible = !isDeleted
-//        binding.accountAppbar.toolbar.menu.findItem(R.id.edit_contact).isVisible = !isDeleted
-//        binding.accountAppbar.toolbar.menu.findItem(R.id.send_contact).isVisible = !isDeleted
-//        binding.accountAppbar.toolbar.menu.findItem(R.id.delete_contact).isVisible = !isDeleted
         binding.accountAppbar.accountToolbar.menu.findItem(R.id.delete_contact).isVisible =
             !isDeleted
         binding.accountAppbar.btnAddContact.isVisible = isDeleted

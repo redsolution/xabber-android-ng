@@ -19,7 +19,7 @@ class VoiceAdapter: RecyclerView.Adapter<VoiceVH>() {
     }
 
     override fun onBindViewHolder(holder: VoiceVH, position: Int) {
-        holder.bind()
+
     }
 
     override fun getItemCount(): Int = medias.size

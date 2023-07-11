@@ -1,4 +1,4 @@
-package com.xabber.presentation.application.fragments.chatlist
+package com.xabber.presentation.application.fragments.chatlist.archive
 
 import android.annotation.SuppressLint
 import android.graphics.Color
@@ -21,7 +21,8 @@ import com.xabber.presentation.application.dialogs.DeletingChatDialog
 import com.xabber.presentation.application.dialogs.NotificationBottomSheet
 import com.xabber.presentation.application.fragments.BaseFragment
 import com.xabber.presentation.application.fragments.chat.ChatParams
-import com.xabber.presentation.application.fragments.chatlist.archive.ArchiveViewModel
+import com.xabber.presentation.application.fragments.chatlist.ChatListAdapter
+import com.xabber.presentation.application.fragments.chatlist.ChatListBaseFragment
 import com.xabber.presentation.application.manage.DisplayManager
 import com.xabber.utils.custom.DividerItemDecoration
 import com.xabber.utils.custom.SwipeToArchiveCallback

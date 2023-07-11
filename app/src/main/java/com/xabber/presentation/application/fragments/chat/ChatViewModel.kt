@@ -620,7 +620,6 @@ class ChatViewModel(private val chatId: String) :
     val baseUrl = "https://gallery.xmpp.redsolution.com/api/v1/files/"
     var call: Call<ResponseBody>? = null
     fun sendFile(file: File) {
-        Log.d("ffff", "${file.length()}")
         viewModelScope.launch(Dispatchers.IO + coroutineExceptionHandler) {
 
             val interceptor = HttpLoggingInterceptor()

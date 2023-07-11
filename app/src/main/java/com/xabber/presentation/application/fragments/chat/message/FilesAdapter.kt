@@ -61,6 +61,4 @@ class FilesAdapter(private val files: ArrayList<MessageReferenceDto>, private va
         }
     }
 
-
-
 }

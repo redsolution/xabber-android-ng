@@ -264,23 +264,23 @@
     <string name="storage_settings">Настройки хранения данных</string>
     <string name="status_avatar_password_etc">Cтатус, аватар, пароль и т.д.</string>
     <string name="cloud_storage">Облачное хранилище</string>
-    <string name="used_112_mb_out_of_2_gb">Используется 112 MB из 2 GB</string>
     <string name="encryption_and_keys">Шифрование и ключи</string>
     <string name="encryption_enabled">Шифрование включено</string>
     <string name="devices">Устройства</string>
-    <string name="_1_connected_device">1 подключенное устройство</string>
     <string name="edit_profile">Редактировать профиль</string>
     <string name="password">Пароль</string>
     <string name="change_password">Изменить пароль</string>
     <string name="account_color_profile">Цвет аккаунта</string>
     <string name="blocked_contacts">Заблокированные контакты</string>
-    <string name="_4_blocked_contacts">Нет заблокированных контактов</string>
     <string name="circles">Круги</string>
     <string name="_2_circles">Нет кругов</string>
     <string name="server_information">Информация сервера</string>
     <string name="xmpp_server">Xmpp сервер</string>
     <string name="delete_account">Удалить аккаунт</string>
     <string name="music_label">Музыка</string>
+    <string name="avatar_settings">Аватар</string>
+    <string name="chat_settings">Настройки чата</string>
+    <string name="app_icon">Иконка приложения</string>
 
     <!-- ACCOUNT -->
     <string name="given_name">Имя</string>
