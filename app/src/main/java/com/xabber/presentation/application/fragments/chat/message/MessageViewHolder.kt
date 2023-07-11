@@ -367,30 +367,6 @@ abstract class MessageViewHolder(
         }
     }
 
-    private fun initViews() {
-
-    }
-
-    private fun getTimeStampBackground(timeStampRadius: Int): Int {
-        return when (timeStampRadius) {
-            1 -> R.drawable.time_stamp_1px
-            2 -> R.drawable.time_stamp_2px
-            3 -> R.drawable.time_stamp_3px
-            4 -> R.drawable.time_stamp_4px
-            5 -> R.drawable.time_stamp_5px
-            6 -> R.drawable.time_stamp_6px
-            7 -> R.drawable.time_stamp_7px
-            8 -> R.drawable.time_stamp_8px
-            9 -> R.drawable.time_stamp_9px
-            10 -> R.drawable.time_stamp_10px
-            11 -> R.drawable.time_stamp_11px
-            12 -> R.drawable.time_stamp_12px
-            13 -> R.drawable.time_stamp_13px
-
-            else -> R.drawable.time_stamp_1px
-        }
-    }
-
     override fun onFileClick(path: String) {
         val contentResolver = XabberApplication.applicationContext().contentResolver
         val intent = Intent(Intent.ACTION_VIEW)
