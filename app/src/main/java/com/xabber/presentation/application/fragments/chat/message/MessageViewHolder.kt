@@ -169,9 +169,8 @@ abstract class MessageViewHolder(
         val geoLocationBox = GeoLocationBuilder()
         val geoLocationView: View =
            geoLocationBox.inflateView(messageContainer!!)
-        geoLocationBox.addGeoLocationBox(geoLocationView, message, latitude, longitude)
+        geoLocationBox.addGeoLocationBox(geoLocationView, message, latitude, longitude, onViewClickListener)
         messageContainer?.addView(geoLocationView)
-        geoLocationView.setOnClickListener { onViewClickListener?.onLocationClick(latitude, longitude) }
     }
 
     private fun addVoiceMessageBox(path: String, message: MessageDto) {

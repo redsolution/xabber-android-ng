@@ -192,7 +192,6 @@ class PickGeolocationActivity : AppCompatActivity() {
 
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
-
         if (binding.bottomBubble.isVisible) {
             binding.tvLocationTitle.text = ""
             binding.tvLocationCoordinates.text = ""

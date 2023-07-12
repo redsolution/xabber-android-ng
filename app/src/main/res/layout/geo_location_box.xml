@@ -5,6 +5,10 @@
     android:layout_height="174dp"
     android:paddingVertical="2dp"
     android:paddingHorizontal="4dp">
+    <org.osmdroid.views.MapView
+        android:id="@+id/map"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"/>
 
     <com.xabber.utils.custom.ShapeOfView
         android:id="@+id/geo_shape"
@@ -14,7 +18,7 @@
         <ImageView
             android:background="@color/green_500"
             android:outlineProvider="background"
-            android:src="@drawable/img_2"
+        
             android:id="@+id/map_image"
             android:scaleType="centerCrop"
             android:layout_width="match_parent"

@@ -68,6 +68,7 @@ class AttachmentBottomSheet : BottomSheetDialogFragment(R.layout.layout_bottom_s
     private lateinit var location: AppCompatTextView
     private lateinit var contact: AppCompatTextView
     private lateinit var music: AppCompatTextView
+    private lateinit var addMessages: AppCompatTextView
     private lateinit var chatInput: EditText
     private lateinit var sendGroup: ConstraintLayout
     private lateinit var tvCount: TextView
@@ -221,6 +222,7 @@ class AttachmentBottomSheet : BottomSheetDialogFragment(R.layout.layout_bottom_s
         location = actionPanel.findViewById(R.id.location)
         contact = actionPanel.findViewById(R.id.contact)
         music = actionPanel.findViewById(R.id.music)
+        addMessages = actionPanel.findViewById(R.id.add_messages)
         chatInput = inputPanel.findViewById(R.id.chat_input)
         sendGroup = inputPanel.findViewById(R.id.send)
         tvCount = inputPanel.findViewById(R.id.tv_count_files)
@@ -334,9 +336,9 @@ class AttachmentBottomSheet : BottomSheetDialogFragment(R.layout.layout_bottom_s
             openMap()
         }
         contact.setOnClickListener {
-            send1000Messages()
-          //  showToast(resources.getString(R.string.feature_not_implemented))
+            showToast(resources.getString(R.string.feature_not_implemented))
         }
+        addMessages.setOnClickListener { send1000Messages() }
         music.setOnClickListener { showToast(resources.getString(R.string.feature_not_implemented)) }
     }
 
@@ -344,349 +346,460 @@ class AttachmentBottomSheet : BottomSheetDialogFragment(R.layout.layout_bottom_s
         var textRandom = arrayListOf(
             "Здравствуйте, простите, мы немного задержались в пути.",
             "Спасибо",
-            "Я уже бегу", "Здравствуйте,с Днем рождения.Желаем вам счастия ,здоровья , исполнения всех желаний", "", "", "", "", "", "", "Вам необходимо оформить решение в письменном виде.",
+            "Я уже бегу",
+            "Здравствуйте,с Днем рождения.Желаем вам счастия, здоровья!",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "Вам необходимо оформить решение в письменном виде.",
             "Добрый день! Меня зовут Антонина Петровна, я учитель русского языка и литературы. Могу Вас научить читать и писать, познакомлю с великими писателями и их произведениями.",
-            "Это просто супер! Ну, а как тебе новый дом?", "Мне нравится! Она значительно просторнее, чем предыдущая, у меня большая собственная комната, где можно смотреть фильмы, слушать музыку, и никто не будет мешать. К тому же, мне ужасно нравится вид с девятого этажа – вся окрестность как на ладони!"
+            "Это просто супер! Ну, а как тебе новый дом?",
+            "Мне нравится! Она значительно просторнее, чем предыдущая, у меня большая собственная комната, где можно смотреть фильмы, слушать музыку, и никто не будет мешать. К тому же, мне ужасно нравится вид с девятого этажа – вся окрестность как на ладони!"
         )
         val medias = viewModel.getMediaList()
-
         val referencesList = ArrayList<ArrayList<MessageReferenceDto>>()
         referencesList.add(ArrayList<MessageReferenceDto>())
+        referencesList.add (ArrayList<MessageReferenceDto>())
         referencesList.add(ArrayList<MessageReferenceDto>())
-        referencesList.add(ArrayList<MessageReferenceDto>())
-        referencesList.add(ArrayList<MessageReferenceDto>())
+        referencesList.add (ArrayList<MessageReferenceDto>())
         referencesList.add(ArrayList<MessageReferenceDto>())
         val list = ArrayList<MessageReferenceDto>()
         val list2 = ArrayList<MessageReferenceDto>()
-        list.add((MessageReferenceDto("${System.currentTimeMillis()} ${Random.nextInt(100)}n ${textRandom.random()}", uri = medias.random().uri.toString(), size = 0, mimeType = getMimeType(medias.random().uri)!!)))
-       list2.add(MessageReferenceDto("${System.currentTimeMillis()} f${Random.nextInt(100)} ${textRandom.random()}", uri = medias.random().uri.toString(), size = 0, mimeType = getMimeType(medias.random().uri)!!))
-        referencesList.add(list)
-        referencesList.add(list2)
-
-Random.nextInt(100)
+        Random.nextInt(100)
         val referencesList2 = ArrayList<ArrayList<MessageReferenceDto>>()
-        referencesList2.add(arrayListOf(MessageReferenceDto("${System.currentTimeMillis()} zn ", isGeo = true, longitude = 61.370, latitude = 55.159, size = 0L)))
-        referencesList2.add(arrayListOf(MessageReferenceDto("${System.currentTimeMillis()} u ", uri = medias.random().uri.toString(), size = 0, mimeType = getMimeType(medias.random().uri)!!)))
-        referencesList2.add(arrayListOf(MessageReferenceDto("${System.currentTimeMillis()} i${textRandom.random()}", uri = medias.random().uri.toString(), size = 0, mimeType = getMimeType(medias.random().uri)!!)))
-        referencesList2.add(arrayListOf(MessageReferenceDto("${System.currentTimeMillis()} i ${textRandom.random()}", uri = medias.random().uri.toString(), size = 0, mimeType = getMimeType(medias.random().uri)!!), MessageReferenceDto("${System.currentTimeMillis()} - ${textRandom.random()}", uri = medias.random().uri.toString(), size = 0, mimeType = getMimeType(medias.random().uri)!!)))
-        referencesList2.add(arrayListOf(MessageReferenceDto("${System.currentTimeMillis()} op ${textRandom.random()}", uri = medias.random().uri.toString(), size = 0, mimeType = getMimeType(medias.random().uri)!!), MessageReferenceDto("${System.currentTimeMillis()} i2 ${textRandom.random()}", uri = medias.random().uri.toString(), size = 0, mimeType = getMimeType(medias.random().uri)!!), MessageReferenceDto("${System.currentTimeMillis()} 60 ${textRandom.random()}", uri = medias.random().uri.toString(), size = 0, mimeType = getMimeType(medias.random().uri)!!)))
-        referencesList2.add(arrayListOf(MessageReferenceDto("${System.currentTimeMillis()} ;l ${textRandom.random()}", uri = medias.random().uri.toString(), size = 0, mimeType = getMimeType(medias.random().uri)!!), MessageReferenceDto("${System.currentTimeMillis()} 32 ${textRandom.random()}", uri = medias.random().uri.toString(), size = 0, mimeType = getMimeType(medias.random().uri)!!), MessageReferenceDto("${System.currentTimeMillis()} ii ${textRandom.random()}", uri = medias.random().uri.toString(), size = 0, mimeType = getMimeType(medias.random().uri)!!), MessageReferenceDto("${System.currentTimeMillis()} po ${textRandom.random()}", uri = medias.random().uri.toString(), size = 0, mimeType = getMimeType(medias.random().uri)!!)))
-        referencesList2.add(arrayListOf(MessageReferenceDto("${System.currentTimeMillis()} 02 ${textRandom.random()}", uri = medias.random().uri.toString(), size = 0, mimeType = getMimeType(medias.random().uri)!!), MessageReferenceDto("${System.currentTimeMillis()} 02 ${textRandom.random()}", uri = medias.random().uri.toString(), size = 0, mimeType = getMimeType(medias.random().uri)!!), MessageReferenceDto("${System.currentTimeMillis()} 32 ${textRandom.random()}", uri = medias.random().uri.toString(), size = 0, mimeType = getMimeType(medias.random().uri)!!), MessageReferenceDto("${System.currentTimeMillis()} ii ${textRandom.random()}", uri = medias.random().uri.toString(), size = 0, mimeType = getMimeType(medias.random().uri)!!), MessageReferenceDto("${System.currentTimeMillis()} po ${textRandom.random()}", uri = medias.random().uri.toString(), size = 0, mimeType = getMimeType(medias.random().uri)!!)))
-        referencesList2.add(arrayListOf(MessageReferenceDto("${System.currentTimeMillis()} 0l2 ${textRandom.random()}", uri = medias.random().uri.toString(), size = 0, mimeType = getMimeType(medias.random().uri)!!), MessageReferenceDto("${System.currentTimeMillis()} 02 ${textRandom.random()}", uri = medias.random().uri.toString(), size = 0, mimeType = getMimeType(medias.random().uri)!!), MessageReferenceDto("${System.currentTimeMillis()} 02 ${textRandom.random()}", uri = medias.random().uri.toString(), size = 0, mimeType = getMimeType(medias.random().uri)!!), MessageReferenceDto("${System.currentTimeMillis()} 32 ${textRandom.random()}", uri = medias.random().uri.toString(), size = 0, mimeType = getMimeType(medias.random().uri)!!), MessageReferenceDto("${System.currentTimeMillis()} ii ${textRandom.random()}", uri = medias.random().uri.toString(), size = 0, mimeType = getMimeType(medias.random().uri)!!), MessageReferenceDto("${System.currentTimeMillis()} po ${textRandom.random()}", uri = medias.random().uri.toString(), size = 0, mimeType = getMimeType(medias.random().uri)!!)))
-        referencesList2.add(arrayListOf(MessageReferenceDto("${System.currentTimeMillis()} 02oo ${textRandom.random()}", uri = medias.random().uri.toString(), size = 0, mimeType = getMimeType(medias.random().uri)!!), MessageReferenceDto("${System.currentTimeMillis()} 02 ${textRandom.random()}", uri = medias.random().uri.toString(), size = 0, mimeType = getMimeType(medias.random().uri)!!), MessageReferenceDto("${System.currentTimeMillis()} 02 ${textRandom.random()}", uri = medias.random().uri.toString(), size = 0, mimeType = getMimeType(medias.random().uri)!!), MessageReferenceDto("${System.currentTimeMillis()} 02 ${textRandom.random()}", uri = medias.random().uri.toString(), size = 0, mimeType = getMimeType(medias.random().uri)!!), MessageReferenceDto("${System.currentTimeMillis()} 32 ${textRandom.random()}", uri = medias.random().uri.toString(), size = 0, mimeType = getMimeType(medias.random().uri)!!), MessageReferenceDto("${System.currentTimeMillis()} ii ${textRandom.random()}", uri = medias.random().uri.toString(), size = 0, mimeType = getMimeType(medias.random().uri)!!), MessageReferenceDto("${System.currentTimeMillis()} po ${textRandom.random()}", uri = medias.random().uri.toString(), size = 0, mimeType = getMimeType(medias.random().uri)!!)))
-val isOut = arrayListOf(true, false)
-        val chat = chatVM.loadChat(getChatId())
-        val mes = ArrayList<MessageDto>()
-        var a = 0
-    for (i in 0 until 1000) {
-            a++
-            val c = textRandom.random()
-            val m =
-                MessageDto(
-                    "$a  ${System.currentTimeMillis()}",
-                    isOut.random(),
-                    chat!!.owner,
-                    chat!!.opponentJid,
-                    "$c",
-                    MessageSendingState.Deliver,
-                    System.currentTimeMillis(),
-                    0,
-                    MessageDisplayType.System,
-                    false,
-                    false,
-                    null,
-                    isUnread = false,
-                    isGroup = false,
-                    references = if (c == "") referencesList2.random() else referencesList.random()
-                )
-            Log.d("uuu", "${referencesList2.random()}")
-mes.add(m)
-        }
-        viewModel.complited.observe(viewLifecycleOwner) {
-            if (it) dismiss()
-        }
-        viewModel.insertMessageList(mes, chat!!.id)
-
-    }
-
-    private fun initInputPanel() {
-        sendGroup.setOnClickListener {
-            sendMessageWithAttachment(uri = null, this.chatInput.text?.trimEnd().toString())
-        }
-    }
-
-    private fun initGalleryRecyclerView(set: HashSet<Long>) {
-        galleryAdapter = GalleryAdapter(this)
-        binding.recyclerGallery.adapter = galleryAdapter
-        loadGalleryPhotosAlbums()
-        galleryAdapter?.setMediaSelected(set)
-    }
-
-    private fun loadGalleryPhotosAlbums() {
-        mediaList = viewModel.getMediaList()
-        galleryAdapter?.updateAdapter(mediaList)
-        (binding.recyclerGallery.itemAnimator as SimpleItemAnimator).supportsChangeAnimations =
-            false
-    }
-
-    private fun onGotCameraPermissionResult(grantResults: Map<String, Boolean>) {
-        if (grantResults.entries.all { it.value }) {
-            takePhotoFromCamera()
-        } else askUserForOpeningAppSettings()
-    }
-
-    private fun takePhotoFromCamera() {
-        val imagesDir =
-            requireContext().getExternalFilesDir(Environment.DIRECTORY_DCIM).toString()
-        val image = File(imagesDir, "IMG_" + System.currentTimeMillis() + ".png")
-        currentPhotoUri = FileManager.getFileUri(image)
-        cameraResultLauncher.launch(currentPhotoUri)
-    }
-
-    private fun onGotFilePermissionResult(granted: Boolean) {
-        if (granted) fileResultLauncher.launch("*/*")
-    }
-
-    private fun openMap() {
-        val intent = Intent(requireContext(), PickGeolocationActivity::class.java)
-        intent.putExtra("id", getChatId())
-        pickGeolocationActivityLauncher.launch(intent)
-    }
-
-    override fun onRecentImagesSelected() {
-        val selectedImagesCount = if (galleryAdapter?.getSelectedMedia() != null) {
-            galleryAdapter?.getSelectedMedia()!!.size
-        } else 0
-        val minTop = AnimationUtils.loadAnimation(context, R.anim.slide_top)
-        val minBottom = AnimationUtils.loadAnimation(context, R.anim.bottom)
-        val animRight = AnimationUtils.loadAnimation(context, R.anim.to_right)
-        val dis = AnimationUtils.loadAnimation(context, R.anim.disappearance)
-        val animLeft = AnimationUtils.loadAnimation(context, R.anim.to_left)
-        if (selectedImagesCount > 0) {
-            if (!inputPanel.isVisible) {
-                if (actionPanel.isVisible) {
-                    setVisibleActions(false)
-                    actionPanel.startAnimation(minBottom)
-                }
-                actionPanel.isVisible = false
-                inputPanel.isVisible = true
-                sendGroup.startAnimation(animLeft)
-            }
-            tvCount.text = galleryAdapter?.getSelectedMedia()!!.size.toString()
-        } else {
-            if (inputPanel.isVisible) {
-                setVisibleActions(true)
-                inputPanel.startAnimation(dis)
-                sendGroup.startAnimation(animRight)
-                inputPanel.isVisible = false
-                if (behavior?.state != BottomSheetBehavior.STATE_EXPANDED) {
-                    actionPanel.isVisible = true
-                    actionPanel.startAnimation(minTop)
-                } else {
-                    actionPanel.isVisible = false
-                    inputPanel.isVisible = false
-                }
-            }
-        }
-    }
-
-    private fun setVisibleActions(show: Boolean) {
-        camera.isVisible = show
-        file.isVisible = show
-        location.isVisible = show
-        contact.isVisible = show
-        music.isVisible = show
-    }
-
-    override fun tooManyFilesSelected() {
-        showToast(resources.getString(R.string.attach_files_warning))
-    }
-
-    override fun showMediaViewer(id: Long) {
-        val intent = Intent(requireContext(), MediaDetailsActivity::class.java)
-        val longArray = galleryAdapter?.getSelectedMedia()?.toLongArray()
-        intent.putExtra(AppConstants.SELECTED_IDES, longArray)
-        intent.putExtra(AppConstants.IMAGE_POSITION_KEY, id)
-        viewImageActivityLauncher.launch(intent)
-    }
-
-    override fun onSaveInstanceState(outState: Bundle) {
-        super.onSaveInstanceState(outState)
-        if (behavior != null) outState.putInt(AppConstants.BOTTOM_SHEET_STATE, behavior!!.state)
-        val savedText = chatInput.text.toString()
-        outState.putString(AppConstants.SAVED_INPUT_TEXT, savedText)
-        val selectedArray = galleryAdapter?.getSelectedMedia()?.toLongArray()
-        outState.putLongArray(AppConstants.SELECTED_SET, selectedArray)
-    }
-
-    override fun onStop() {
-        super.onStop()
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) dialog?.window?.setWindowAnimations(-1)
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        galleryAdapter = null
-    }
-
-    private fun sendGeolocation(lon: Double?, lat: Double?) {
-        if (lon != null && lat != null) {
-            val geoMessage = MessageReferenceDto(
-                isGeo = true,
-                latitude = lat,
-                longitude = lon,
-               size= 0L
-            )
-            val refer = java.util.ArrayList<MessageReferenceDto>()
-            refer.add(geoMessage)
-            val chat = chatVM.loadChat(getChatId())
-            val message = MessageDto(
-                primary = getChatId() + System.currentTimeMillis(),
-                references = refer,
-                isOutgoing = true,
-                owner = chat!!.owner,
-                opponentJid = chat.opponentJid,
-                canDeleteMessage = false,
-                canEditMessage = false,
-                messageBody = "",
-                messageSendingState = MessageSendingState.Sending,
-                sentTimestamp = System.currentTimeMillis(),
-                isGroup = false
-            )
-            chatVM.insertMessage(getChatId(), message)
-        }
-    }
-
-    private fun sendMessageWithAttachment(uri: Uri?, body: String) {
-        val uries = galleryAdapter?.getUriesSelected()?.toList()
-
-        val refer = java.util.ArrayList<MessageReferenceDto>()
-        if (uries != null) {
-            for (i in uries.indices) {
-                val pair = getFileNameAndSizeFromUri(uries[i])
-                val r = MessageReferenceDto(
-                    width = 10,
-                    height = 6,
-                    id = uries[i].toString(),
-                    uri = uries[i].toString(),
-                    mimeType = getMimeType(uries[i])!!,
-                    fileName= pair.first?: "",
-                            size = pair . second
-                )
-                Log.d("uiui", "mime[i] = ${getMimeType(uries[i])!!}")
-                refer.add(r)
-            }
-        }
-        if (uri != null) {
-            val pair = getFileNameAndSizeFromUri(uri)
-            refer.add(
+        referencesList2.add(
+            arrayListOf(
                 MessageReferenceDto(
-                    id = uri.toString(),
-                    uri = uri.toString(),
-                    mimeType = getMimeType(uri)!!,
-                    fileName= pair.first?: "",
-                    size = pair . second
+                    getPrimary(),
+                    isGeo = true,
+                    longitude = 61.370,
+                    latitude = 55.159,
+                    size = 0L
                 )
             )
-
-        }
-
-        val chat = chatVM.loadChat(getChatId())
-        chatVM.insertMessage(
-            getChatId(),
-            MessageDto(
-                primary = getChatId() + System.currentTimeMillis(),
-                references = refer,
-                isOutgoing = true,
-                owner = chat!!.owner,
-                opponentJid = chat.opponentJid,
-                canDeleteMessage = false,
-                canEditMessage = false,
-                messageBody = "" + body,
-                messageSendingState = MessageSendingState.Sending,
-                sentTimestamp = System.currentTimeMillis(),
-                isGroup = false
-            )
         )
-        dismiss()
-    }
-
-   fun getFileNameAndSizeFromUri(uri: Uri): Pair<String?, Long> {
-        var fileName: String? = null
-        var fileSize: Long = -1
-val contentResolver = XabberApplication.applicationContext().contentResolver
-        val cursor: Cursor? = contentResolver.query(uri, null, null, null, null)
-
-        cursor?.use {
-            if (it.moveToFirst()) {
-                val displayNameIndex: Int = it.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-                val sizeIndex: Int = it.getColumnIndex(OpenableColumns.SIZE)
-
-                fileName = it.getString(displayNameIndex)
-                fileSize = it.getLong(sizeIndex)
-            }
-        }
-        return Pair(fileName, fileSize)
-    }
-
-    private fun sendMessageWithAttachment(uris: List<Uri>?, body: String) {
-
-        val refer = ArrayList<MessageReferenceDto>()
-        if (uris != null) {
-            for (i in uris.indices) {
-                val pair = getFileNameAndSizeFromUri(uris[i])
-                val r = MessageReferenceDto(
-                    width = 10,
-                    height = 6,
-                    id = uris[i].toString(),
-                    uri = uris[i].toString(),
-                    mimeType = getMimeType(uris[i])!!,
-                    fileName= pair.first ?: "",
-                    size = pair.second
+        val d = medias.random().uri
+        val c = medias.random().uri
+        val v = medias.random().uri
+        val m = medias.random().uri
+        val n = medias.random().uri
+        val t = medias.random().uri
+        val y = medias.random().uri
+        val u = medias.random().uri
+        val p = medias.random().uri
+        val s = medias.random().uri
+        val j = medias.random().uri
+        val k = medias.random().uri
+        val x = medias.random().uri
+        val e = medias.random().uri
+        val o = medias.random().uri
+        val w1 = medias.random().uri
+        val w2 = medias.random().uri
+        val w3 = medias.random().uri
+        val w4 = medias.random().uri
+        val w5 = medias.random().uri
+        val w6 = medias.random().uri
+        val w7 = medias.random().uri
+        val w = medias.random().uri
+        val w8 = medias.random().uri
+        val w9 = medias.random().uri
+        val w10 = medias.random().uri
+        val w11 = medias.random().uri
+        val w12 = medias.random().uri
+        val w13 = medias.random().uri
+        list.add ((MessageReferenceDto(
+            getPrimary(),
+            uri = n.toString(),
+            size = getFileSize(n),
+            mimeType = getMimeType(n)!!,
+            fileName = getFileName(n) ?: ""
+        )))
+        list2.add(MessageReferenceDto(
+                getPrimary(),
+                uri = d.toString(),
+                size = getFileSize(d),
+                mimeType = getMimeType(d)!!,
+                fileName = getFileName(d) ?: ""))
+        referencesList.add (list)
+        referencesList.add(list2)
+        referencesList2.add(
+            arrayListOf(
+                MessageReferenceDto(
+                    getPrimary(),
+                    uri = d.toString(),
+                    size = getFileSize(d),
+                    mimeType = getMimeType(d)!!,
+                    fileName = getFileName(d) ?: ""
                 )
-                Log.d("uiui", "mime[i] = ${getMimeType(uris[i])!!}")
-                refer.add(r)
-            }
-        }
-
-        val chat = chatVM.loadChat(getChatId())
-        chatVM.insertMessage(
-            getChatId(),
-            MessageDto(
-                primary = getChatId() + System.currentTimeMillis(),
-                references = refer,
-                isOutgoing = true,
-                owner = chat!!.owner,
-                opponentJid = chat.opponentJid,
-                canDeleteMessage = false,
-                canEditMessage = false,
-                messageBody = "" + body,
-                messageSendingState = MessageSendingState.Sending,
-                sentTimestamp = System.currentTimeMillis(),
-                isGroup = false
             )
         )
-        dismiss()
+        referencesList2.add (arrayListOf(
+            MessageReferenceDto(
+                getPrimary(),
+                uri = c.toString(),
+                size = getFileSize(c),
+                mimeType = getMimeType(c)!!,
+                fileName = getFileName(c) ?: "",
+            )
+        ))
+        referencesList2.add(
+            arrayListOf(
+                MessageReferenceDto(
+                    getPrimary(),
+                    uri = v.toString(),
+                    size = getFileSize(v),
+                    mimeType = getMimeType(v)!!,
+                    fileName = getFileName(v) ?: ""
+                ),
+                MessageReferenceDto(
+                    getPrimary(),
+                    uri = w.toString(),
+                    size = getFileSize(w),
+                    mimeType = getMimeType(w)!!,
+                    fileName = getFileName(w) ?: ""
+                )
+            )
+        )
+        referencesList2.add(arrayListOf(
+            MessageReferenceDto(
+                getPrimary(),
+                uri = m.toString(),
+                size = getFileSize(m),
+                mimeType = getMimeType(m)!!,
+                fileName = getFileName(m) ?: ""),
+            MessageReferenceDto(
+                getPrimary(),
+                uri = k.toString(),
+                size = getFileSize(k),
+                mimeType = getMimeType(k)!!,
+                fileName = getFileName(k) ?: "")))
     }
 
-    fun getMimeType(uri: Uri): String? {
-        val resolver = XabberApplication.applicationContext().contentResolver
-        return resolver.getType(uri)
-    }
 
-
-    companion object {
-        fun newInstance(chatId: String): AttachmentBottomSheet {
-            val arguments = Bundle().apply {
-                putString(AppConstants.CHAT_ID, chatId)
+            fun getFileName(uri: Uri): String? {
+                var fileName: String? = null
+                val contentResolver = XabberApplication.applicationContext().contentResolver
+                val cursor: Cursor? = contentResolver.query(uri, null, null, null, null)
+                cursor?.use {
+                    if (it.moveToFirst()) {
+                        val displayNameIndex: Int = it.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                        val sizeIndex: Int =
+                            it.getColumnIndex(OpenableColumns.SIZE)
+                        fileName = it.getString(displayNameIndex)
+                    }
+                }
+                return fileName
             }
-            val fragment = AttachmentBottomSheet()
-            fragment.arguments = arguments
-            return fragment
-        }
+
+                fun getFileSize(uri: Uri): Long {
+                    var fileSize: Long = -1
+                    val contentResolver = XabberApplication.applicationContext().contentResolver
+                    val cursor: Cursor? = contentResolver.query(uri, null, null, null, null)
+                    cursor?.use {
+                        if (it.moveToFirst()) {
+                            val displayNameIndex: Int =
+                                it.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                            val sizeIndex: Int = it.getColumnIndex(OpenableColumns.SIZE)
+                            fileSize = it.getLong(sizeIndex)
+                        }
+                    }
+                    return fileSize
+                }
+
+                        private fun getPrimary(): String {
+                    return UniqueKeyGenerator.generatePrimaryKey()
+                }
+
+                        private fun initInputPanel() {
+                    sendGroup.setOnClickListener {
+                        sendMessageWithAttachment(
+                            uri = null,
+                            this.chatInput.text?.trimEnd().toString()
+                        )
+                    }
+                }
+
+                        private fun initGalleryRecyclerView(set: HashSet<Long>) {
+                    galleryAdapter = GalleryAdapter(this)
+                    binding.recyclerGallery.adapter = galleryAdapter
+                    loadGalleryPhotosAlbums()
+                    galleryAdapter?.setMediaSelected(set)
+                }
+
+                        private fun loadGalleryPhotosAlbums() {
+                    mediaList = viewModel.getMediaList()
+                    galleryAdapter?.updateAdapter(mediaList)
+                    (binding.recyclerGallery.itemAnimator as SimpleItemAnimator).supportsChangeAnimations =
+                        false
+                }
+
+                        private fun onGotCameraPermissionResult(grantResults: Map<String, Boolean>) {
+                    if (grantResults.entries.all { it.value }) {
+                        takePhotoFromCamera()
+                    } else askUserForOpeningAppSettings()
+                }
+
+                        private fun takePhotoFromCamera() {
+                    val imagesDir =
+                        requireContext().getExternalFilesDir(Environment.DIRECTORY_DCIM).toString()
+                    val image = File(imagesDir, "IMG_" + System.currentTimeMillis() + ".png")
+                    currentPhotoUri = FileManager.getFileUri(image)
+                    cameraResultLauncher.launch(currentPhotoUri)
+                }
+
+                        private fun onGotFilePermissionResult(granted: Boolean) {
+                    if (granted) fileResultLauncher.launch("*/*")
+                }
+
+                        private fun openMap() {
+                    val intent = Intent(requireContext(), PickGeolocationActivity::class.java)
+                    intent.putExtra("id", getChatId())
+                    pickGeolocationActivityLauncher.launch(intent)
+                }
+
+                        override fun onRecentImagesSelected() {
+                    val selectedImagesCount = if (galleryAdapter?.getSelectedMedia() != null) {
+                        galleryAdapter?.getSelectedMedia()!!.size
+                    } else 0
+                    val minTop = AnimationUtils.loadAnimation(context, R.anim.slide_top)
+                    val minBottom = AnimationUtils.loadAnimation(context, R.anim.bottom)
+                    val animRight = AnimationUtils.loadAnimation(context, R.anim.to_right)
+                    val dis = AnimationUtils.loadAnimation(context, R.anim.disappearance)
+                    val animLeft = AnimationUtils.loadAnimation(context, R.anim.to_left)
+                    if (selectedImagesCount > 0) {
+                        if (!inputPanel.isVisible) {
+                            if (actionPanel.isVisible) {
+                                setVisibleActions(false)
+                                actionPanel.startAnimation(minBottom)
+                            }
+                            actionPanel.isVisible = false
+                            inputPanel.isVisible = true
+                            sendGroup.startAnimation(animLeft)
+                        }
+                        tvCount.text = galleryAdapter?.getSelectedMedia()!!.size.toString()
+                    } else {
+                        if (inputPanel.isVisible) {
+                            setVisibleActions(true)
+                            inputPanel.startAnimation(dis)
+                            sendGroup.startAnimation(animRight)
+                            inputPanel.isVisible = false
+                            if (behavior?.state != BottomSheetBehavior.STATE_EXPANDED) {
+                                actionPanel.isVisible = true
+                                actionPanel.startAnimation(minTop)
+                            } else {
+                                actionPanel.isVisible = false
+                                inputPanel.isVisible = false
+                            }
+                        }
+                    }
+                }
+
+                        private fun setVisibleActions(show: Boolean) {
+                    camera.isVisible = show
+                    file.isVisible = show
+                    location.isVisible = show
+                    contact.isVisible = show
+                    music.isVisible = show
+                }
+
+                        override fun tooManyFilesSelected() {
+                    showToast(resources.getString(R.string.attach_files_warning))
+                }
+
+                        override fun showMediaViewer(id: Long) {
+                    val intent = Intent(requireContext(), MediaDetailsActivity::class.java)
+                    val longArray = galleryAdapter?.getSelectedMedia()?.toLongArray()
+                    intent.putExtra(AppConstants.SELECTED_IDES, longArray)
+                    intent.putExtra(AppConstants.IMAGE_POSITION_KEY, id)
+                    viewImageActivityLauncher.launch(intent)
+                }
+
+                        override fun onSaveInstanceState(outState: Bundle) {
+                    super.onSaveInstanceState(outState)
+                    if (behavior != null) outState.putInt(
+                        AppConstants.BOTTOM_SHEET_STATE,
+                        behavior!!.state
+                    )
+                    val savedText = chatInput.text.toString()
+                    outState.putString(AppConstants.SAVED_INPUT_TEXT, savedText)
+                    val selectedArray = galleryAdapter?.getSelectedMedia()?.toLongArray()
+                    outState.putLongArray(AppConstants.SELECTED_SET, selectedArray)
+                }
+
+                        override fun onStop() {
+                    super.onStop()
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) dialog?.window?.setWindowAnimations(
+                        -1
+                    )
+                }
+
+                        override fun onDestroy() {
+                    super.onDestroy()
+                    galleryAdapter = null
+                }
+
+                        private fun sendGeolocation(lon: Double?, lat: Double?) {
+                    if (lon != null && lat != null) {
+                        val geoMessage = MessageReferenceDto(
+                            isGeo = true,
+                            latitude = lat,
+                            longitude = lon,
+                            size = 0L
+                        )
+                        val refer = java.util.ArrayList<MessageReferenceDto>()
+                        refer.add(geoMessage)
+                        val chat = chatVM.loadChat(getChatId())
+                        val message = MessageDto(
+                            primary = getChatId() + System.currentTimeMillis(),
+                            references = refer,
+                            isOutgoing = true,
+                            owner = chat!!.owner,
+                            opponentJid = chat.opponentJid,
+                            canDeleteMessage = false,
+                            canEditMessage = false,
+                            messageBody = "",
+                            messageSendingState = MessageSendingState.Sending,
+                            sentTimestamp = System.currentTimeMillis(),
+                            isGroup = false
+                        )
+                        chatVM.insertMessage(getChatId(), message)
+                    }
+                }
+
+                        private fun sendMessageWithAttachment(uri: Uri?, body: String) {
+                    val uries = galleryAdapter?.getUriesSelected()?.toList()
+
+                    val refer = java.util.ArrayList<MessageReferenceDto>()
+                    if (uries != null) {
+                        for (i in uries.indices) {
+                            val pair = getFileNameAndSizeFromUri(uries[i])
+                            val r = MessageReferenceDto(
+                                width = 10,
+                                height = 6,
+                                id = uries[i].toString(),
+                                uri = uries[i].toString(),
+                                mimeType = getMimeType(uries[i])!!,
+                                fileName = pair.first ?: "",
+                                size = pair.second
+                            )
+                            Log.d("uiui", "mime[i] = ${getMimeType(uries[i])!!}")
+                            refer.add(r)
+                        }
+                    }
+                    if (uri != null) {
+                        val pair = getFileNameAndSizeFromUri(uri)
+                        refer.add(
+                            MessageReferenceDto(
+                                id = uri.toString(),
+                                uri = uri.toString(),
+                                mimeType = getMimeType(uri)!!,
+                                fileName = pair.first ?: "",
+                                size = pair.second
+                            )
+                        )
+
+                    }
+
+                    val chat = chatVM.loadChat(getChatId())
+                    chatVM.insertMessage(
+                        getChatId(),
+                        MessageDto(
+                            primary = getChatId() + System.currentTimeMillis(),
+                            references = refer,
+                            isOutgoing = true,
+                            owner = chat!!.owner,
+                            opponentJid = chat.opponentJid,
+                            canDeleteMessage = false,
+                            canEditMessage = false,
+                            messageBody = "" + body,
+                            messageSendingState = MessageSendingState.Sending,
+                            sentTimestamp = System.currentTimeMillis(),
+                            isGroup = false
+                        )
+                    )
+                    dismiss()
+                }
+
+                fun getFileNameAndSizeFromUri(uri: Uri): Pair<String?, Long> {
+                    var fileName: String? = null
+                    var fileSize: Long = -1
+                    val contentResolver = XabberApplication.applicationContext().contentResolver
+                    val cursor: Cursor? = contentResolver.query(uri, null, null, null, null)
+
+                    cursor?.use {
+                        if (it.moveToFirst()) {
+                            val displayNameIndex: Int =
+                                it.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                            val sizeIndex: Int = it.getColumnIndex(OpenableColumns.SIZE)
+
+                            fileName = it.getString(displayNameIndex)
+                            fileSize = it.getLong(sizeIndex)
+                        }
+                    }
+                    return Pair(fileName, fileSize)
+                }
+
+                        private fun sendMessageWithAttachment(uris: List<Uri>?, body: String) {
+
+                    val refer = ArrayList<MessageReferenceDto>()
+                    if (uris != null) {
+                        for (i in uris.indices) {
+                            val pair = getFileNameAndSizeFromUri(uris[i])
+                            val r = MessageReferenceDto(
+                                width = 10,
+                                height = 6,
+                                id = uris[i].toString(),
+                                uri = uris[i].toString(),
+                                mimeType = getMimeType(uris[i])!!,
+                                fileName = pair.first ?: "",
+                                size = pair.second
+                            )
+                            Log.d("uiui", "mime[i] = ${getMimeType(uris[i])!!}")
+                            refer.add(r)
+                        }
+                    }
+
+                    val chat = chatVM.loadChat(getChatId())
+                    chatVM.insertMessage(
+                        getChatId(),
+                        MessageDto(
+                            primary = getChatId() + System.currentTimeMillis(),
+                            references = refer,
+                            isOutgoing = true,
+                            owner = chat!!.owner,
+                            opponentJid = chat.opponentJid,
+                            canDeleteMessage = false,
+                            canEditMessage = false,
+                            messageBody = "" + body,
+                            messageSendingState = MessageSendingState.Sending,
+                            sentTimestamp = System.currentTimeMillis(),
+                            isGroup = false
+                        )
+                    )
+                    dismiss()
+                }
+
+                fun getMimeType(uri: Uri): String? {
+                    val resolver = XabberApplication.applicationContext().contentResolver
+                    return resolver.getType(uri)
+                }
+
+
+                        companion object {
+                    fun newInstance(chatId: String): AttachmentBottomSheet {
+                        val arguments = Bundle().apply {
+                            putString(AppConstants.CHAT_ID, chatId)
+                        }
+                        val fragment = AttachmentBottomSheet()
+                        fragment.arguments = arguments
+                        return fragment
+                    }
+                }
+
+                        private fun getChatId(): String =
+                    requireArguments().getString(AppConstants.CHAT_ID)!!
+
     }
-
-    private fun getChatId(): String =
-        requireArguments().getString(AppConstants.CHAT_ID)!!
-
-}

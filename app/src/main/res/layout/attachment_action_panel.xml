@@ -53,5 +53,13 @@
             android:layout_height="wrap_content"
             android:drawableTop="@drawable/music_circle"
             android:text="@string/music_label" />
+
+        <androidx.appcompat.widget.AppCompatTextView
+            android:id="@+id/add_messages"
+            style="@style/AttachmentBottomSheetAction"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:drawableTop="@drawable/ic_add_circle"
+            android:text="@string/music_label" />
     </LinearLayout>
 </HorizontalScrollView>

@@ -1,8 +1,15 @@
 package com.xabber.presentation.application.fragments.chat.message
 
+import android.annotation.SuppressLint
+import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.graphics.drawable.ShapeDrawable
 import android.graphics.drawable.shapes.RoundRectShape
+import android.os.Handler
+import android.os.Looper
+import android.util.Log
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
@@ -14,6 +21,10 @@ import com.xabber.presentation.application.fragments.chat.ChatSettingsManager
 import com.xabber.utils.StringUtils
 import com.xabber.utils.custom.ShapeOfView
 import com.xabber.utils.dp
+import okhttp3.*
+import org.osmdroid.tileprovider.tilesource.TileSourceFactory
+import org.osmdroid.util.GeoPoint
+import org.osmdroid.views.MapView
 import java.util.*
 
 class GeoLocationBuilder {
@@ -23,10 +34,11 @@ class GeoLocationBuilder {
             .inflate(R.layout.geo_location_box, parent, false)
     }
 
+    @SuppressLint("ClickableViewAccessibility")
     fun addGeoLocationBox(
         view: View, message: MessageDto,
         latitude: Double,
-        longitude: Double
+        longitude: Double, onViewClickListener: MessageAdapter.OnViewClickListener?
     ) {
         val mapImage = view.findViewById<ImageView>(R.id.map_image)
         val shape = view.findViewById<ShapeOfView>(R.id.geo_shape)
@@ -54,7 +66,21 @@ class GeoLocationBuilder {
         )
         val shapeDrawable = ShapeDrawable(RoundRectShape(cornerRadii, null, null))
         shape.setDrawable(shapeDrawable)
-        // получить картинку по координатам и загрузить в mapImage
+       val map = view.findViewById<MapView>(R.id.map)
+        map.apply {
+            val location = GeoPoint(latitude, longitude)
+            map.controller.setCenter(location)
+            map.setTileSource(TileSourceFactory.MAPNIK)
+            map.isTilesScaledToDpi = true
+            map.controller?.setZoom(15.5)
+        }
+        map?.zoomController?.onDetach()
+        map?.setOnTouchListener { _, motionEvent ->
+            when (motionEvent.action) {
+                MotionEvent.ACTION_UP -> onViewClickListener?.onLocationClick(latitude, longitude)
+            }; true
+
+        }
     }
 
 
