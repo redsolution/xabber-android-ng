@@ -7,8 +7,8 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration
 import android.graphics.Canvas
-import android.graphics.PorterDuff
 import android.graphics.drawable.Drawable
 import android.media.MediaPlayer
 import android.net.Uri
@@ -20,12 +20,15 @@ import android.view.*
 import android.view.animation.Animation
 import android.view.animation.AnimationUtils
 import android.view.animation.TranslateAnimation
+import android.widget.PopupWindow
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
-import androidx.core.view.marginBottom
+import androidx.fragment.app.FragmentManager
+import androidx.fragment.app.FragmentTransaction
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -39,7 +42,6 @@ import com.xabber.data_base.defaultRealmConfig
 import com.xabber.data_base.models.last_chats.LastChatsStorageItem
 import com.xabber.data_base.models.messages.MessageDisplayType
 import com.xabber.data_base.models.messages.MessageSendingState
-import com.xabber.data_base.models.messages.MessageStorageItem
 import com.xabber.data_base.models.presences.ResourceStatus
 import com.xabber.data_base.models.presences.RosterItemEntity
 import com.xabber.databinding.FragmentChatBinding
@@ -55,13 +57,16 @@ import com.xabber.presentation.AppConstants.DELETING_MESSAGE_FOR_ALL_BUNDLE_KEY
 import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.application.dialogs.*
 import com.xabber.presentation.application.fragments.DetailBaseFragment
+
 import com.xabber.presentation.application.fragments.chat.audio.AudioRecorder
 import com.xabber.presentation.application.fragments.chat.audio.PublishAudioProgress
 import com.xabber.presentation.application.fragments.chat.audio.VoiceMessagePresenterManager
 import com.xabber.presentation.application.fragments.chat.message.*
 import com.xabber.presentation.application.fragments.contacts.AttachmentBottomSheet
+import com.xabber.presentation.application.fragments.contacts.ContactAccountFragment
 import com.xabber.presentation.application.fragments.contacts.ContactAccountParams
 import com.xabber.presentation.application.manage.ColorManager
+import com.xabber.presentation.application.manage.DisplayManager
 import com.xabber.utils.*
 import com.xabber.utils.custom.PlayerVisualizerView
 import io.reactivex.rxjava3.disposables.Disposable
@@ -274,19 +279,44 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         )
     }
 
+//upper border
+
     private fun initializeToolbarActions(chat: ChatListDto) {
-        binding.avatar.setOnClickListener {
+        binding.avatar.setOnClickListener { anchor ->
             val contactId = viewModel.getContactId(getParams().id)
-            if (contactId != null) navigator().showContactAccount(
-                ContactAccountParams(
+
+            if (contactId != null) {
+                val params = ContactAccountParams(
                     contactId,
                     getParams().avatar
                 )
-            )
+
+
+                if (DisplayManager.getWidthDp() > 600 && resources.configuration.orientation
+                    == Configuration.ORIENTATION_PORTRAIT || DisplayManager.getWidthDp() > 800
+                    && resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) {
+
+                    val accDialog = ContactAccountFragment.newInstance(params)
+                    accDialog.show(childFragmentManager, AppConstants.CHAT_ACCOUNT_INFO)
+
+                } else {
+                    navigator().showContactAccount(
+                        ContactAccountParams(
+                            contactId,
+                            getParams().avatar
+                        )
+                    )
+
+                }
+
+            }
+
         }
         initToolbarMenu(chat)
         setupToolbarMenu(chat.muteExpired)
     }
+
+    ///lower border
 
     private fun initToolbarMenu(chat: ChatListDto) {
         binding.toolbar.setOnMenuItemClickListener {

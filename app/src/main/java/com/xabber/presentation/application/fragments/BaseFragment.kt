@@ -10,6 +10,7 @@ import android.widget.TextView
 import androidx.annotation.LayoutRes
 import androidx.core.net.toUri
 import androidx.core.view.isVisible
+import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import com.google.android.material.appbar.AppBarLayout
@@ -27,7 +28,7 @@ import com.xabber.utils.custom.ShapeOfView
 /**
  * The base fragment takes over the functionality of setting the padding, changing color, mask and avatar
  */
-abstract class BaseFragment(@LayoutRes contentLayoutId: Int) : Fragment(contentLayoutId),
+abstract class BaseFragment(@LayoutRes contentLayoutId: Int) : DialogFragment(contentLayoutId),
     SharedPreferences.OnSharedPreferenceChangeListener {
     val baseViewModel: BaseViewModel by viewModels()
     private var appbar: AppBarLayout? = null

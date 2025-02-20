@@ -11,7 +11,7 @@ import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.application.fragments.DetailBaseFragment
 import com.xabber.utils.parcelable
 
-class ContactProfileFragment : DetailBaseFragment(R.layout.questionary_contact_fragment) {
+class  ContactProfileFragment : DetailBaseFragment(R.layout.questionary_contact_fragment) {
     private val binding by viewBinding(QuestionaryContactFragmentBinding::bind)
     private val viewModel: ContactAccountViewModel by viewModels()
 

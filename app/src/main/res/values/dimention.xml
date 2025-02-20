@@ -72,7 +72,7 @@
     <dimen name="status_size_toolbar">9dp</dimen>
     <dimen name="sync_image_size">4dp</dimen>
     <dimen name="tail_margin">4dp</dimen>
-    <dimen name="toolbar_avatar_margin_start">22dp</dimen>
+    <dimen name="toolbar_avatar_margin_start">40dp</dimen>
     <dimen name="toolbar_title_font_size">20sp</dimen>
     <dimen name="text_size_button_toolbar">15sp</dimen>
     <dimen name="text_size_item_chat_title">14sp</dimen>

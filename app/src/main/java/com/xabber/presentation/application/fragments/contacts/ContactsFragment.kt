@@ -2,6 +2,7 @@ package com.xabber.presentation.application.fragments.contacts
 
 import android.annotation.SuppressLint
 import android.content.SharedPreferences
+import android.content.res.Configuration
 import android.os.Bundle
 import android.view.View
 import by.kirich1409.viewbindingdelegate.viewBinding
@@ -64,12 +65,28 @@ class ContactsFragment : BaseFragment(R.layout.fragment_contact), ContactAdapter
 
     override fun onAvatarClick(contactDto: ContactDto) {
 
-        navigator().showContactAccount(
-            ContactAccountParams(
+
+        val params = ContactAccountParams(
                 contactDto.primary,
-                contactDto.avatar
+                contactDto.avatar)
+
+        if (DisplayManager.getWidthDp() > 600 && resources.configuration.orientation
+            == Configuration.ORIENTATION_PORTRAIT || DisplayManager.getWidthDp() > 800
+            && resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) {
+
+            val accDialog = ContactAccountFragment.newInstance(params)
+            accDialog.show(childFragmentManager, AppConstants.CHAT_ACCOUNT_INFO)
+
+        } else {
+            navigator().showContactAccount(
+                ContactAccountParams(
+                    contactDto.primary,
+                    contactDto.avatar
+                )
             )
-        )
+
+        }
+
     }
 
     override fun onContactClick(owner: String, opponentJid: String, avatar: Int) {

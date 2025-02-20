@@ -10,7 +10,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content">
 
-        <com.google.android.material.appbar.MaterialToolbar
+        <androidx.appcompat.widget.Toolbar
             android:id="@+id/toolbar_settings"
             style="@style/ApplicationToolbar"
             android:layout_width="match_parent"
@@ -22,9 +22,10 @@
                 style="@style/ApplicationToolbarTitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_marginStart="40dp"
                 android:text="@string/settings_toolbar_title" />
 
-        </com.google.android.material.appbar.MaterialToolbar>
+        </androidx.appcompat.widget.Toolbar>
     </com.google.android.material.appbar.AppBarLayout>
 
     <ScrollView

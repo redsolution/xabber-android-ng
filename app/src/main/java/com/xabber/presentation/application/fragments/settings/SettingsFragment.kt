@@ -2,17 +2,25 @@ package com.xabber.presentation.application.fragments.settings
 
 import android.annotation.SuppressLint
 import android.content.SharedPreferences
+import android.content.res.Configuration
 import android.os.Bundle
 import android.view.View
+import androidx.fragment.app.FragmentTransaction
 import androidx.fragment.app.activityViewModels
 import androidx.recyclerview.widget.LinearLayoutManager
 import by.kirich1409.viewbindingdelegate.viewBinding
 import com.xabber.R
 import com.xabber.databinding.FragmentSettingsBinding
 import com.xabber.dto.AccountDto
+import com.xabber.presentation.AppConstants
+import com.xabber.presentation.application.contract.dialogNavigator
 import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.application.fragments.BaseFragment
 import com.xabber.presentation.application.fragments.account.AccountAdapter
+import com.xabber.presentation.application.fragments.account.AccountFragment
+import com.xabber.presentation.application.fragments.contacts.ContactAccountFragment
+import com.xabber.presentation.application.fragments.contacts.ContactAccountParams
+import com.xabber.presentation.application.manage.DisplayManager
 
 class SettingsFragment : BaseFragment(R.layout.fragment_settings), AccountAdapter.Listener {
     private val binding by viewBinding(FragmentSettingsBinding::bind)
@@ -65,9 +73,7 @@ class SettingsFragment : BaseFragment(R.layout.fragment_settings), AccountAdapte
     private fun initializeSettingsActions() {
         binding.settings.interfaceSettings
         with(binding.settings) {
-            interfaceSettings.setOnClickListener {
-                navigator().showInterfaceSettings(false)
-            }
+            interfaceSettings.setOnClickListener { navigator().showInterfaceSettings(false) }
             notifications.setOnClickListener { navigator().showNotificationsSettings() }
             dataAndStorage.setOnClickListener { navigator().showDataAndStorageSettings() }
             privacy.setOnClickListener { navigator().showPrivacySettings() }
@@ -81,18 +87,41 @@ class SettingsFragment : BaseFragment(R.layout.fragment_settings), AccountAdapte
     }
 
     override fun onClick(id: String) {
-        navigator().showAccount(id)
+        if (DisplayManager.getWidthDp() > 600 && resources.configuration.orientation
+            == Configuration.ORIENTATION_PORTRAIT || DisplayManager.getWidthDp() > 800
+            && resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+        ) {
+
+            parentFragmentManager.beginTransaction()
+                .setReorderingAllowed(true)
+                .replace(R.id.application_container, AccountFragment.newInstance(id))
+                .addToBackStack(null) // Add to back stack for back navigation
+                .commit()
+
+//            val accDialog = AccountFragment.newInstance(id)
+//            accDialog.show(childFragmentManager, "")
+
+        } else {
+            navigator().showAccount(id)
+
+
+        }
     }
 
-    @SuppressLint("NotifyDataSetChanged")
-    override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences?, key: String?) {
-        super.onSharedPreferenceChanged(sharedPreferences, key)
-        accountAdapter?.notifyDataSetChanged()
+
+        @SuppressLint("NotifyDataSetChanged")
+        override fun onSharedPreferenceChanged(
+            sharedPreferences: SharedPreferences?,
+            key: String?
+        ) {
+            super.onSharedPreferenceChanged(sharedPreferences, key)
+            accountAdapter?.notifyDataSetChanged()
+        }
+
+        override fun onDestroy() {
+            super.onDestroy()
+            accountAdapter = null
+        }
+
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        accountAdapter = null
-    }
-
-}

@@ -97,5 +97,6 @@ object AppConstants {
     const val MESSAGE_UID = "message uid"
     const val UNREAD_MESSAGES_COUNT = "unread messages count"
     val PUBLIC_DOWNLOADS = Uri.parse("content://downloads/public_downloads")
+    const val CHAT_ACCOUNT_INFO = "view"
 
 }

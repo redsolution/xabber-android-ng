@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:showIn = "navigation_view"
+    >
+    <group
+        android:checkableBehavior="none">
+    <item
+        android:id="@+id/chats"
+        android:enabled="true"
+        android:icon="@drawable/ic_chat"
+        android:title="@string/menu_item_chats" />
+
+    <item
+        android:id="@+id/calls"
+        android:icon="@drawable/ic_call"
+        android:title="@string/menu_item_call" />
+    <item
+        android:id="@+id/notifications"
+        android:icon="@drawable/ic_discover"
+        android:title="@string/menu_item_notifications" />
+
+    <item
+        android:id="@+id/contacts"
+        android:icon="@drawable/ic_group"
+        android:title="@string/menu_item_contacts" />
+    <item
+        android:id="@+id/archive"
+        android:icon="@drawable/ic_group"
+        android:title="@string/archived_chat" />
+    <item
+        android:id="@+id/saved_messages"
+        android:icon="@drawable/ic_saved_messages"
+        android:title="@string/menu_item_saved_messages"/>
+    </group>
+
+
+    <group>
+
+    <item
+        android:id="@+id/settings"
+        android:icon="@drawable/ic_settings_grey"
+        android:title="@string/menu_item_settings" />
+    </group>
+</menu>

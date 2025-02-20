@@ -6,11 +6,16 @@ import android.os.Bundle
 import android.util.TypedValue
 import android.view.*
 import android.view.animation.AnimationUtils
+import android.content.res.Configuration
+import android.util.DisplayMetrics
 import androidx.coordinatorlayout.widget.CoordinatorLayout
 import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.MenuProvider
 import androidx.core.view.isVisible
+import androidx.core.view.marginStart
+import androidx.core.view.setPadding
+import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.viewModels
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -37,12 +42,40 @@ import com.xabber.utils.dp
 import com.xabber.utils.parcelable
 import com.xabber.utils.setFragmentResultListener
 import com.xabber.utils.showToast
+import org.intellij.lang.annotations.JdkConstants.BoxLayoutAxis
 
-class ContactAccountFragment : DetailBaseFragment(R.layout.fragment_contact_account) {
+
+class ContactAccountFragment : DialogFragment(R.layout.fragment_contact_account) {
     private val binding by viewBinding(FragmentContactAccountBinding::bind)
     private var mediaAdapter: MediaAdapter? = null
     private val viewModel: ContactAccountViewModel by viewModels()
     private var chatId = ""
+
+    override fun onStart() {
+        super.onStart()
+        val screenWidth = resources.displayMetrics.widthPixels
+        val screenHeight = resources.displayMetrics.heightPixels
+        val landscapeWidthFactor = 0.7
+
+        val minPercentage = 0.6
+        val maxPercentage = 0.9
+        var calculatedWidth = (screenWidth * maxPercentage).toInt().coerceIn(
+            (screenWidth * minPercentage).toInt(),
+            (screenWidth * maxPercentage).toInt()
+        )
+
+        val calculatedHeight = (screenHeight * maxPercentage).toInt().coerceIn(
+            (screenHeight * minPercentage).toInt(),
+            (screenHeight * maxPercentage).toInt()
+        )
+
+        if (resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) {
+            calculatedWidth = (calculatedWidth * landscapeWidthFactor).toInt()
+        }
+
+        dialog?.window?.setLayout(calculatedWidth, calculatedHeight)
+
+    }
 
     companion object {
         fun newInstance(params: ContactAccountParams): ContactAccountFragment {
@@ -59,8 +92,11 @@ class ContactAccountFragment : DetailBaseFragment(R.layout.fragment_contact_acco
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+
         binding.accountAppbar.avatarGr.imAccountAvatar.setImageResource(getParams().avatar!!)
         binding.accountAppbar.tvTitle.isSelected = true
+
+
         setFragmentResultListener(AppConstants.DELETING_CONTACT_DIALOG_KEY) { _, bundle ->
             val result = bundle.getBoolean(AppConstants.DELETING_CONTACT_BUNDLE_KEY)
             val clearHistory =
@@ -134,8 +170,8 @@ class ContactAccountFragment : DetailBaseFragment(R.layout.fragment_contact_acco
                 CoordinatorLayout.LayoutParams.WRAP_CONTENT,
                 CollapsingToolbarLayout.LayoutParams.WRAP_CONTENT
             )
-            params.gravity = Gravity.CENTER_VERTICAL or Gravity.START
-            params.marginStart = 300.dp
+            params.gravity = Gravity.CENTER_VERTICAL or Gravity.CENTER_HORIZONTAL
+
             binding.accountAppbar.linText.layoutParams = params
         }
         subscribeToViewModelData()
@@ -157,9 +193,25 @@ class ContactAccountFragment : DetailBaseFragment(R.layout.fragment_contact_acco
             CollapsingToolbarLayout.LayoutParams.MATCH_PARENT,
             actionBarHeight
         )
-        params.topMargin = DisplayManager.getHeightStatusBar()
+        val closeButton = CollapsingToolbarLayout.LayoutParams(
+            CollapsingToolbarLayout.LayoutParams.WRAP_CONTENT,
+            actionBarHeight
+        )
+
+        if (DisplayManager.getWidthDp() < 600 && resources.configuration.orientation
+            == Configuration.ORIENTATION_PORTRAIT || DisplayManager.getWidthDp() < 700
+            && resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) {
+            params.topMargin = DisplayManager.getHeightStatusBar()
+            closeButton.topMargin = DisplayManager.getHeightStatusBar()
+        }
         params.collapseMode = CollapsingToolbarLayout.LayoutParams.COLLAPSE_MODE_PIN
         binding.accountAppbar.accountToolbar.layoutParams = params
+        binding.accountAppbar.xCloseButton.layoutParams = closeButton
+        closeButton.gravity =Gravity.START
+        closeButton.collapseMode = CollapsingToolbarLayout.LayoutParams.COLLAPSE_MODE_PIN
+        binding.accountAppbar.xCloseButton.setPadding(12)
+        closeButton.marginStart = 24
+        params.marginStart = 48
     }
 
     @SuppressLint("ResourceAsColor")
@@ -185,25 +237,25 @@ class ContactAccountFragment : DetailBaseFragment(R.layout.fragment_contact_acco
     }
 
     private fun loadBackground() {
-        val colorKey = viewModel.getContact(getParams().id).color
-        val color = ColorManager.convertColorNameToId(colorKey)
-        val avatar: Int =
-            if (getParams().avatar != null) getParams().avatar!! else R.drawable.ic_photo_white
-        Glide.with(requireContext())
-            .load(avatar)
-            .transform(
-                com.xabber.utils.blur.BlurTransformation(
-                    25,
-                    6,
-                    ContextCompat.getColor(
-                        requireContext(),
-                        color
-                    )
-                )
-            ).placeholder(color).transition(
-                DrawableTransitionOptions.withCrossFade()
-            )
-            .into(binding.accountAppbar.imBackdrop)
+//        val colorKey = viewModel.getContact(getParams().id).color
+//        val color = ColorManager.convertColorNameToId(colorKey)
+//        val avatar: Int =
+//            if (getParams().avatar != null) getParams().avatar!! else R.drawable.ic_photo_white
+//        Glide.with(requireContext())
+//            .load(avatar)
+//            .transform(
+//                com.xabber.utils.blur.BlurTransformation(
+//                    25,
+//                    6,
+//                    ContextCompat.getColor(
+//                        requireContext(),
+//                        color
+//                    )
+//                )
+//            ).placeholder(color).transition(
+//                DrawableTransitionOptions.withCrossFade()
+//            )
+//            .into(binding.accountAppbar.imBackdrop)
     }
 
     private fun loadAvatar() {
@@ -211,15 +263,15 @@ class ContactAccountFragment : DetailBaseFragment(R.layout.fragment_contact_acco
     }
 
     private fun defineColor() {
-        val colorKey = viewModel.getContact(getParams().id).color
-        val color = ColorManager.convertColorNameToId(colorKey)
-        binding.accountAppbar.collapsingToolbar.setContentScrimColor(
-            ResourcesCompat.getColor(
-                resources,
-                color,
-                requireContext().theme
-            )
-        )
+//        val colorKey = viewModel.getContact(getParams().id).color
+//        val color = ColorManager.convertColorNameToId(colorKey)
+//        binding.accountAppbar.collapsingToolbar.setContentScrimColor(
+//            ResourcesCompat.getColor(
+//                resources,
+//                color,
+//                requireContext().theme
+//            )
+//        )
     }
 
     private fun shareContact(name: String) {
@@ -231,6 +283,7 @@ class ContactAccountFragment : DetailBaseFragment(R.layout.fragment_contact_acco
     }
 
     private fun initToolbarActions() {
+
 
         binding.accountAppbar.accountToolbar.addMenuProvider(object : MenuProvider {
             override fun onCreateMenu(menu: Menu, menuInflater: MenuInflater) {
@@ -249,6 +302,7 @@ class ContactAccountFragment : DetailBaseFragment(R.layout.fragment_contact_acco
                             )
                         )
                     }
+
                     R.id.edit_contact -> {
                         navigator().showEditContact(
                             ContactAccountParams(
@@ -257,6 +311,7 @@ class ContactAccountFragment : DetailBaseFragment(R.layout.fragment_contact_acco
                             )
                         )
                     }
+
                     R.id.delete_contact -> {
                         val dialog =
                             DeletingContactDialog.newInstance(
@@ -267,6 +322,7 @@ class ContactAccountFragment : DetailBaseFragment(R.layout.fragment_contact_acco
 
 
                     }
+
                     R.id.send_contact -> {
                         shareContact("${binding.accountAppbar.tvTitle.text} \n ${binding.accountAppbar.tvSubtitle.text}")
                     }
@@ -274,23 +330,83 @@ class ContactAccountFragment : DetailBaseFragment(R.layout.fragment_contact_acco
                 return true
             }
         })
-
         var isShow = true
         var scrollRange = -1
+        binding.accountAppbar.xCloseButton.setOnClickListener {
+            if (DisplayManager.getWidthDp() > 600 && resources.configuration.orientation
+                == Configuration.ORIENTATION_PORTRAIT || DisplayManager.getWidthDp() > 800
+                && resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+            ) {
+                dialog!!.dismiss()
+            } else {
+                navigator().goBack()
+            }
+        }
         with(binding.accountAppbar) {
+            val animDis = AnimationUtils.loadAnimation(context, R.anim.disappearance_300)
+            val animAp = AnimationUtils.loadAnimation(context, R.anim.appearance)
+        if (resources.configuration.orientation
+            == Configuration.ORIENTATION_PORTRAIT) {
+
+                appbar.addOnOffsetChangedListener { bar, verticalOffset ->
+
+                    if (scrollRange == -1) {
+                        scrollRange = bar.totalScrollRange
+                    }
+                    if (scrollRange + verticalOffset < 170) {
+
+                        if (tvTitle.isVisible) {
+                            tvTitle.startAnimation(
+                                animDis
+                            )
+                            tvSubtitle.startAnimation(animDis)
+                            avatarGr.imAvatarGroup.startAnimation(animDis)
+
+                            avatarGr.imAvatarGroup.isVisible = false
+                            tvSubtitle.isVisible = false
+                            tvTitle.isVisible = false
+                        }
+                    }
+
+                    if (scrollRange + verticalOffset > 170) {
+
+                        if (!tvTitle.isVisible) {
+                            tvTitle.startAnimation(animAp)
+                            tvSubtitle.startAnimation(animAp)
+                            avatarGr.imAvatarGroup.startAnimation(animAp)
+                            avatarGr.imAvatarGroup.isVisible = true
+                            tvSubtitle.isVisible = true
+                            tvTitle.isVisible = true
+                        }
+                    }
+
+                    if (scrollRange + verticalOffset < 150) {
+
+                        collapsingToolbar.title = binding.accountAppbar.tvTitle.text
+
+                        isShow = true
+                    } else if (isShow) {
+                        collapsingToolbar.title =
+                            " "
+                        isShow = false
+                    }
+                }
+            }
+                else
+            {
             appbar.addOnOffsetChangedListener { bar, verticalOffset ->
+
                 if (scrollRange == -1) {
                     scrollRange = bar.totalScrollRange
                 }
                 if (scrollRange + verticalOffset < 170) {
-                    val anim =
-                        AnimationUtils.loadAnimation(context, R.anim.disappearance_300)
+
                     if (tvTitle.isVisible) {
                         tvTitle.startAnimation(
-                            anim
+                            animDis
                         )
-                        tvSubtitle.startAnimation(anim)
-                        avatarGr.imAvatarGroup.startAnimation(anim)
+                        tvSubtitle.startAnimation(animDis)
+                        avatarGr.imAvatarGroup.startAnimation(animDis)
 
                         avatarGr.imAvatarGroup.isVisible = false
                         tvSubtitle.isVisible = false
@@ -298,19 +414,22 @@ class ContactAccountFragment : DetailBaseFragment(R.layout.fragment_contact_acco
                     }
                 }
 
-                if (scrollRange + verticalOffset > 170) {
-                    val anim = AnimationUtils.loadAnimation(context, R.anim.appearance)
+                if (scrollRange + verticalOffset > 190) {
+
                     if (!tvTitle.isVisible) {
-                        tvTitle.startAnimation(anim)
-                        tvSubtitle.startAnimation(anim)
-                        avatarGr.imAvatarGroup.startAnimation(anim)
+                        tvTitle.startAnimation(animAp)
+                        tvSubtitle.startAnimation(animAp)
+                        avatarGr.imAvatarGroup.startAnimation(animAp)
                         avatarGr.imAvatarGroup.isVisible = true
                         tvSubtitle.isVisible = true
                         tvTitle.isVisible = true
                     }
                 }
-                if (scrollRange + verticalOffset == 0) {
+
+                if (scrollRange + verticalOffset < 170) {
+
                     collapsingToolbar.title = binding.accountAppbar.tvTitle.text
+
                     isShow = true
                 } else if (isShow) {
                     collapsingToolbar.title =
@@ -318,6 +437,9 @@ class ContactAccountFragment : DetailBaseFragment(R.layout.fragment_contact_acco
                     isShow = false
                 }
             }
+
+            }
+
         }
     }
 

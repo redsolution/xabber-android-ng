@@ -56,7 +56,7 @@
     </style>
 
     <style name="ToolbarAccountColorTheme" parent="Theme.MaterialComponents.Light.NoActionBar">
-        <item name="android:textColorSecondary">@color/white</item>
+        <item name="android:textColorSecondary">@color/black</item>
     </style>
 
     <style name="ButtonToolbar" parent="ThemeApplication">

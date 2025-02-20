@@ -4,6 +4,8 @@ import android.annotation.SuppressLint
 import android.graphics.Color
 import android.os.Bundle
 import android.view.View
+import androidx.appcompat.widget.ActionBarOverlayLayout.ActionBarVisibilityCallback
+import androidx.appcompat.widget.Toolbar
 import androidx.core.view.isVisible
 import androidx.fragment.app.activityViewModels
 import androidx.recyclerview.widget.DefaultItemAnimator
@@ -44,13 +46,17 @@ class ArchiveFragment : BaseFragment(R.layout.fragment_archive),
         this.removeDuration = 0
     }
 
+
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         setupArchiveUi()
         initToolbarActions()
         initRecyclerView()
         subscribeOnViewModelData()
+
     }
+
 
     private fun setupArchiveUi() {
         binding.emptyText.text = resources.getString(R.string.archived_list_is_empty_text)

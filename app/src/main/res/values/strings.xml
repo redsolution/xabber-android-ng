@@ -84,11 +84,12 @@
     <!-- Application -->
 
     <!-- BottomNavigationView -->
-    <string name="menu_item_chats">Xabber</string>
+    <string name="menu_item_chats">Chat</string>
     <string name="menu_item_call">Calls</string>
     <string name="menu_item_contacts">Contacts</string>
-    <string name="menu_item_discover">Discover</string>
+    <string name="menu_item_notifications">Notifications</string> // remove
     <string name="menu_item_settings">Settings</string>
+    <string name="menu_item_saved_messages">Saved messages</string>
 
     <!-- CHAT LIST -->
     <string name="application_title">Xabber</string>
@@ -193,6 +194,7 @@
     <string name="information_about_chat">Messages in this chat are not encrypted. Servers often keep a history of forwarded messages. This makes it easy to synchronize devices and search the history on the server side, but creates threats to the confidentiality of correspondence.</string>
     <string name="more_about_messaging">more about messaging</string>
     <string name="open">Open</string>
+    <string name="close">close</string>
     <string name="unable_to_open_file">Unable to open file</string>
 
     <!-- Attach BottomSheet -->

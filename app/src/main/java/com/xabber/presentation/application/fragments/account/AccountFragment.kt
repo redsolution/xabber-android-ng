@@ -1,6 +1,8 @@
 package com.xabber.presentation.application.fragments.account
 
+import android.content.Context
 import android.content.res.ColorStateList
+import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.os.Bundle
 import android.view.*
@@ -11,6 +13,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.MenuProvider
 import androidx.core.view.isVisible
+import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import by.kirich1409.viewbindingdelegate.viewBinding
@@ -21,11 +24,18 @@ import com.xabber.R
 import com.xabber.databinding.FragmentAccountBinding
 import com.xabber.dto.AccountDto
 import com.xabber.presentation.AppConstants
+import com.xabber.presentation.application.contract.DialogNavigator
+import com.xabber.presentation.application.contract.dialogNavigator
 import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.application.fragments.DetailBaseFragment
 import com.xabber.presentation.application.fragments.account.color.AccountColorDialog
 import com.xabber.presentation.application.fragments.account.qrcode.QRCodeParams
 import com.xabber.presentation.application.fragments.chat.AvatarChangerBottomSheet
+import com.xabber.presentation.application.fragments.settings.CloudStorageSettingsFragment
+import com.xabber.presentation.application.fragments.settings.DevicesSettingsFragment
+import com.xabber.presentation.application.fragments.settings.EncryptionSettingsFragment
+import com.xabber.presentation.application.fragments.settings.InterfaceFragment
+import com.xabber.presentation.application.fragments.settings.ProfileSettingsFragment
 import com.xabber.presentation.application.manage.AccountManager
 import com.xabber.presentation.application.manage.ColorManager
 import com.xabber.presentation.application.manage.DisplayManager
@@ -40,6 +50,8 @@ class AccountFragment : DetailBaseFragment(R.layout.fragment_account) {
     private var hasAvatar = false
     private var popupMenu: PopupMenu? = null
 
+
+
     companion object {
         fun newInstance(jid: String): AccountFragment {
             val args =
@@ -52,6 +64,7 @@ class AccountFragment : DetailBaseFragment(R.layout.fragment_account) {
 
     private fun getJid(): String =
         requireArguments().getString(AppConstants.PARAMS_ACCOUNT_FRAGMENT)!!
+
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -72,6 +85,8 @@ class AccountFragment : DetailBaseFragment(R.layout.fragment_account) {
                 .into(binding.accountAppbar.avatarGr.imAccountAvatar)
             viewModel.saveAvatar(getJid(), it.toString())
         }
+
+
     }
 
     private fun setAvatar(bitmap: Bitmap) {
@@ -88,8 +103,8 @@ class AccountFragment : DetailBaseFragment(R.layout.fragment_account) {
                 CoordinatorLayout.LayoutParams.WRAP_CONTENT,
                 CollapsingToolbarLayout.LayoutParams.WRAP_CONTENT
             )
-            params.gravity = Gravity.CENTER_VERTICAL or Gravity.START
-            params.marginStart = 300.dp
+            params.gravity = Gravity.CENTER
+
             binding.accountAppbar.linText.layoutParams = params
         }
     }
@@ -134,21 +149,21 @@ class AccountFragment : DetailBaseFragment(R.layout.fragment_account) {
 
     private fun loadBackground(colorRes: Int) {
         binding.accountAppbar.appbar.setBackgroundResource(colorRes)
-        Glide.with(requireContext())
-            .load(AccountManager.getAvatar())
-            .transform(
-                BlurTransformation(
-                    25,
-                    6,
-                    ContextCompat.getColor(
-                        requireContext(),
-                        colorRes
-                    )
-                )
-            ).placeholder(colorRes).transition(
-                DrawableTransitionOptions.withCrossFade()
-            )
-            .into(binding.accountAppbar.imBackdrop)
+//        Glide.with(requireContext())
+//            .load(AccountManager.getAvatar())
+//            .transform(
+//                BlurTransformation(
+//                    25,
+//                    6,
+//                    ContextCompat.getColor(
+//                        requireContext(),
+//                        colorRes
+//                    )
+//                )
+//            ).placeholder(colorRes).transition(
+//                DrawableTransitionOptions.withCrossFade()
+//            )
+//            .into(binding.accountAppbar.imBackdrop)
     }
 
     private fun defineColor(colorRes: Int) {
@@ -223,12 +238,16 @@ class AccountFragment : DetailBaseFragment(R.layout.fragment_account) {
                 when (menuItem.itemId) {
                     R.id.colors -> {
                         val dialog = AccountColorDialog.newInstance(
-                            viewModel.getAccount(getJid())?.colorKey ?: resources.getString(R.string.blue)
+                            viewModel.getAccount(getJid())?.colorKey
+                                ?: resources.getString(R.string.blue)
                         )
                         navigator().showDialogFragment(dialog, "")
                     }
+
                     R.id.generate_qr_code -> {
-                        val color = viewModel.getAccount(getJid())?.colorKey ?: resources.getString(R.string.blue)
+                        val color = viewModel.getAccount(getJid())?.colorKey ?: resources.getString(
+                            R.string.blue
+                        )
                         val name = viewModel.getAccount(getJid())?.getAccountName() ?: ""
                         navigator().showQRCode(
                             QRCodeParams(
@@ -318,14 +337,61 @@ class AccountFragment : DetailBaseFragment(R.layout.fragment_account) {
         }
     }
 
+
     private fun initAccountSettingsActions() {
         with(binding) {
-            profile.setOnClickListener { navigator().showProfileSettings() }
-            cloudStorage.setOnClickListener { navigator().showCloudStorageSettings() }
-            encryptionAndKeys.setOnClickListener { navigator().showEncryptionAndKeysSettings() }
-            devices.setOnClickListener { navigator().showDevicesSettings() }
-            settings.interfaceSettings.setOnClickListener { navigator().showInterfaceSettings(true) }
+
+                profile.setOnClickListener {
+                   parentFragmentManager.beginTransaction()
+                        .setReorderingAllowed(true)
+                        .replace(R.id.application_container, ProfileSettingsFragment())
+                        .addToBackStack(null) // Add to back stack for back navigation
+                        .commit()
+
+                }
+             //   profile.setOnClickListener { navigator().showProfileSettings() }
+                cloudStorage.setOnClickListener {
+                    parentFragmentManager.beginTransaction()
+                    .setReorderingAllowed(true)
+                    .replace(R.id.application_container, CloudStorageSettingsFragment())
+                    .addToBackStack(null) // Add to back stack for back navigation
+                    .commit()
+                }
+                encryptionAndKeys.setOnClickListener {
+                    parentFragmentManager.beginTransaction()
+                        .setReorderingAllowed(true)
+                        .replace(R.id.application_container, EncryptionSettingsFragment())
+                        .addToBackStack(null) // Add to back stack for back navigation
+                        .commit()
+
+                }
+                devices.setOnClickListener {
+                    parentFragmentManager.beginTransaction()
+                        .setReorderingAllowed(true)
+                        .replace(R.id.application_container, DevicesSettingsFragment())
+                        .addToBackStack(null) // Add to back stack for back navigation
+                        .commit()
+
+                }
+                settings.interfaceSettings.setOnClickListener {
+                    parentFragmentManager.beginTransaction()
+                        .setReorderingAllowed(true)
+                        .replace(R.id.application_container, InterfaceFragment())
+                        .addToBackStack(null) // Add to back stack for back navigation
+                        .commit()
+
+                }
+
+//                cloudStorage.setOnClickListener { navigator().showCloudStorageSettings() }
+//                encryptionAndKeys.setOnClickListener { navigator().showEncryptionAndKeysSettings() }
+//                devices.setOnClickListener { navigator().showDevicesSettings() }
+//                settings.interfaceSettings.setOnClickListener { navigator().showInterfaceSettings(true) }
+
+
+
+            }
+
         }
     }
 
-}
+//}

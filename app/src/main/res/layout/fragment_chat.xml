@@ -14,7 +14,7 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
 
-        <com.google.android.material.appbar.MaterialToolbar
+        <androidx.appcompat.widget.Toolbar
             android:id="@+id/toolbar"
             style="@style/ApplicationToolbar"
             android:layout_width="match_parent"
@@ -23,7 +23,7 @@
             app:menu="@menu/menu_toolbar_chat">
 
             <FrameLayout
-                android:layout_marginStart="@dimen/toolbar_avatar_margin_start"
+
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content">
 
@@ -99,7 +99,7 @@
                         android:textSize="13sp" />
 
                 </LinearLayout>
-        </com.google.android.material.appbar.MaterialToolbar>
+        </androidx.appcompat.widget.Toolbar>
 
         <include
             android:id="@+id/select_messages_toolbar"

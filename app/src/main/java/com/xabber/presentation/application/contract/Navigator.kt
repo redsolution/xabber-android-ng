@@ -1,5 +1,7 @@
 package com.xabber.presentation.application.contract
 
+import android.content.Context
+import android.view.MenuItem
 import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.Fragment
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
@@ -10,6 +12,8 @@ import com.xabber.presentation.application.fragments.contacts.ContactAccountPara
 fun Fragment.navigator(): Navigator = requireActivity() as Navigator
 
 interface Navigator {
+
+
 
     fun goBack()
 
@@ -85,4 +89,6 @@ interface Navigator {
 
     fun setDesignBackground()
 
+
+    fun onNavigationItemSelected(item: MenuItem): Boolean
 }

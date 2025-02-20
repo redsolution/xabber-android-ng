@@ -88,9 +88,12 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
                    if (chatListViewModel.chatIsEmpty()) chatListViewModel.addSomeChats()
                     else navigator().showNewChat()
                 }
+
                 else -> {}
             }; true
+
         }
+
 
         binding.chatToolbar.setOnClickListener {
             binding.chatList.partSmoothScrollToPosition(0) // Перемещение вверх с эффектом видимого скроллирования

@@ -4,14 +4,14 @@ import android.os.Bundle
 import android.view.View
 import androidx.activity.OnBackPressedCallback
 import androidx.annotation.LayoutRes
-import com.google.android.material.appbar.MaterialToolbar
+import androidx.appcompat.widget.Toolbar
 import com.xabber.R
 import com.xabber.presentation.application.manage.DisplayManager
 import com.xabber.presentation.application.contract.navigator
 
-abstract class DetailBaseFragment(@LayoutRes contentLayoutId: Int) : BaseFragment(contentLayoutId) {
+abstract class DetailBaseFragment(@LayoutRes contentLayoutId: Int) : BaseFragment(contentLayoutId)  {
 
-    private var toolbar: MaterialToolbar? = null
+    private var toolbar: Toolbar? = null
 
     private val onBackPressedCallback = object : OnBackPressedCallback(true) {
         override fun handleOnBackPressed() {

@@ -88,11 +88,12 @@
     <!-- Application -->
 
     <!-- BottomNavigationView -->
-    <string name="menu_item_chats">Xabber</string>
+    <string name="menu_item_chats">Чаты</string>
     <string name="menu_item_call">Звонки</string>
     <string name="menu_item_contacts">Контакты</string>
-    <string name="menu_item_discover">Полезное</string>
+    <string name="menu_item_notifications">Уведомления</string> // remove
     <string name="menu_item_settings">Настройки</string>
+    <string name="menu_item_saved_messages">Сохраненные сообщения</string>
 
     <!-- CHAT LIST -->
     <string name="over_unread_messages">999+</string>
@@ -198,6 +199,7 @@
     <string name="information_about_chat">Сообщения в этом чате не шифруются. Серверы часто хранят историю переадресованных сообщений. Это упрощает синхронизацию устройств и поиск по истории на стороне сервера, но создает угрозы конфиденциальности переписки.</string>
     <string name="more_about_messaging">больше об обмене сообщениями</string>
     <string name="open">Открыть</string>
+    <string name="close">Закрыть</string>
     <string name="unable_to_open_file">Невозможно открыть файл</string>
 
     <!-- Attach BottomSheet -->

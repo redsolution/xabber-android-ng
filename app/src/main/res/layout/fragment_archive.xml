@@ -15,14 +15,15 @@
         android:backgroundTint="#809E9E9E"
         android:backgroundTintMode="src_atop">
 
-        <com.google.android.material.appbar.MaterialToolbar
+        <androidx.appcompat.widget.Toolbar
             android:id="@+id/chat_toolbar"
             android:background="@color/transparent"
             style="@style/ApplicationToolbar"
             app:title="@string/archived_chat"
             android:layout_width="match_parent"
-            android:layout_height="?attr/actionBarSize">
-        </com.google.android.material.appbar.MaterialToolbar>
+            android:layout_height="?attr/actionBarSize"
+            android:layout_marginStart="32dp">
+        </androidx.appcompat.widget.Toolbar>
     </com.google.android.material.appbar.AppBarLayout>
 
         <androidx.recyclerview.widget.RecyclerView
