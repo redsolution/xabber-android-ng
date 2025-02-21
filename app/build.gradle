@@ -69,6 +69,7 @@ dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlinVersion"
     implementation 'androidx.navigation:navigation-runtime-ktx:2.8.6'
     implementation 'androidx.legacy:legacy-support-v4:1.0.0'
+    implementation 'androidx.room:room-ktx:2.6.1'
 
     // Test
     testImplementation 'junit:junit:4.13.2'
@@ -101,6 +102,7 @@ dependencies {
 
     // Glide
     implementation 'com.github.bumptech.glide:glide:4.14.2'
+    annotationProcessor 'com.github.bumptech.glide:compiler:4.11.0'
     implementation 'jp.wasabeef:glide-transformations:4.3.0'
 
     //Di

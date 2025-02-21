@@ -7,6 +7,8 @@ import androidx.lifecycle.viewModelScope
 import com.xabber.data_base.defaultRealmConfig
 import com.xabber.data_base.models.account.AccountStorageItem
 import com.xabber.data_base.models.last_chats.LastChatsStorageItem
+import com.xabber.dto.AccountDto
+import com.xabber.utils.toAccountDto
 import io.realm.kotlin.Realm
 import io.realm.kotlin.ext.realmSetOf
 import io.realm.kotlin.notifications.ResultsChange
@@ -23,7 +25,7 @@ class ApplicationViewModel : ViewModel() {
     private val enabledAccounts = HashSet<String>()
     private val _unreadMessages = MutableLiveData<Int>()
     val unreadMessage: LiveData<Int> = _unreadMessages
-
+    private val _accounts = MutableLiveData<List<AccountDto>>()
     init {
         getUnreadMessages()
     }
@@ -36,6 +38,8 @@ class ApplicationViewModel : ViewModel() {
         }
         return isEntry
     }
+
+
 
     fun initAccountListListener() {
         viewModelScope.launch(Dispatchers.IO) {

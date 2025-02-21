@@ -47,7 +47,8 @@
                 android:orientation="vertical">
 
                 <!-- Toolbar -->
-               <include layout="@layout/toolbar_drawer"/>
+               <include
+                   layout="@layout/toolbar_drawer"/>
 
                 <FrameLayout
                     android:layout_width="match_parent"

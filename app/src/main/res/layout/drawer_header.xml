@@ -2,29 +2,47 @@
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="70dp"
+    android:layout_height="170dp"
+    android:background="@color/light_blue_600"
     xmlns:app="http://schemas.android.com/apk/res-auto">
-
 
 
         <LinearLayout
             android:id="@+id/header"
             android:layout_width="match_parent"
-            android:layout_height="60dp"
+            android:layout_height="match_parent"
             android:gravity="bottom"
-            android:layout_marginTop="15dp"
+            android:layout_marginTop="12dp"
+            android:layout_marginStart="16dp"
             android:orientation="vertical"
+
             tools:ignore="MissingConstraints,UseCompoundDrawables">
 
-
+            <ImageView
+                android:id="@+id/avatar_image_view"
+                android:layout_width="@dimen/avatar56"
+                android:layout_height="@dimen/avatar56"
+                android:layout_gravity="start"
+                android:layout_marginBottom="@dimen/margin_small"
+                android:contentDescription="@string/account_photo_image_description"
+                />
             <TextView
+                android:id="@+id/title_text_view"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_gravity="bottom"
-                android:layout_marginStart="@dimen/margin_small"
-                android:fontFamily="@font/roboto_bold"
-                android:text="Xabber"
-                android:textSize="36dp" />
+                android:text="Title"
+                android:textColor="@color/white"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/subtitle_text_view"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Subtitle"
+                android:textColor="@color/white"
+                android:layout_marginBottom="@dimen/margin_small"
+                android:textSize="14sp" />
 
 
         </LinearLayout>

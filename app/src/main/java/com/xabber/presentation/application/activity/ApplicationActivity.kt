@@ -10,9 +10,12 @@ import android.graphics.Color
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.PersistableBundle
 import android.util.TypedValue
 import android.view.MenuItem
 import android.view.animation.AnimationUtils
+import android.widget.ImageView
+import android.widget.TextView
 import androidx.activity.viewModels
 import androidx.appcompat.app.ActionBarDrawerToggle
 import androidx.appcompat.app.AppCompatActivity
@@ -32,6 +35,7 @@ import androidx.fragment.app.commit
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewModelScope
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.room.util.query
 import androidx.slidingpanelayout.widget.SlidingPaneLayout
 import by.kirich1409.viewbindingdelegate.viewBinding
 import com.bumptech.glide.Glide
@@ -40,10 +44,12 @@ import com.google.android.material.bottomnavigation.BottomNavigationItemView
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.google.android.material.navigation.NavigationView
 import com.xabber.R
+import com.xabber.data_base.defaultRealmConfig
 import com.xabber.databinding.ActivityApplicationBinding
 import com.xabber.databinding.FragmentChatBinding
 import com.xabber.databinding.FragmentSettingsBinding
 import com.xabber.dto.AccountDto
+import com.xabber.dto.AvatarDto
 import com.xabber.presentation.AppConstants
 import com.xabber.presentation.AppConstants.CHAT_LIST_UNREAD_KEY
 import com.xabber.presentation.application.BaseViewModel
@@ -72,6 +78,8 @@ import com.xabber.presentation.application.fragments.contacts.*
 import com.xabber.presentation.application.fragments.contacts.edit.EditContactFragment
 import com.xabber.presentation.application.fragments.discover.DiscoverFragment
 import com.xabber.presentation.application.fragments.settings.*
+import com.xabber.presentation.application.manage.AccountManager.getAvatar
+import com.xabber.presentation.application.manage.ColorManager
 import com.xabber.presentation.application.manage.DisplayManager
 import com.xabber.presentation.application.manage.DisplayManager.getId
 import com.xabber.presentation.application.manage.DisplayManager.getMainContainerWidth
@@ -81,7 +89,12 @@ import com.xabber.presentation.application.manage.MaskManager
 import com.xabber.presentation.onboarding.activity.OnBoardingActivity
 import com.xabber.utils.lockScreenRotation
 import com.xabber.utils.parcelable
+import com.xabber.utils.toAccountDto
+import com.xabber.utils.toAvatarDto
+import io.realm.kotlin.Realm
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 
 /**
@@ -102,7 +115,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         )
     }
 
-
+    private val realm = Realm.open(defaultRealmConfig())
     private lateinit var drawerLayout: DrawerLayout
     private lateinit var actionBarToggle: ActionBarDrawerToggle
     private val accViewModel: BaseViewModel by viewModels()
@@ -144,7 +157,6 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
 //        }else binding.bottomNavBar!!.removeBadge(R.id.chats)
 //    }
 
-
     override fun onCreate(savedInstanceState: Bundle?) {
         setTheme(R.style.ThemeApplication)
         super.onCreate(savedInstanceState)
@@ -183,7 +195,24 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
 
         setSupportActionBar(toolbar)
         supportActionBar?.setDisplayShowTitleEnabled(false)
+
         val navigationView = findViewById<NavigationView>(R.id.nav_view)
+        val headerView = navigationView.getHeaderView(0)
+        val avatarImageView = headerView.findViewById<ImageView>(R.id.avatar_image_view)
+        val titleTextView = headerView.findViewById<TextView>(R.id.title_text_view)
+        val subtitleTextView = headerView.findViewById<TextView>(R.id.subtitle_text_view)
+        val account = getPrimaryAccount()
+        val avatar = account?.let { getAvatar(it.id) }
+        account?.let {
+            titleTextView.text = account.getAccountName()
+            subtitleTextView.text = account.jid
+        }
+        avatar?.let {  AvatarDto->
+            Glide.with(this).load(avatar.fileUri).into(avatarImageView)
+            avatarImageView.requestLayout()
+
+        }
+
         navigationView.setNavigationItemSelectedListener(this)
         actionBarToggle = ActionBarDrawerToggle(this, drawerLayout, 0, 0)
         drawerLayout.addDrawerListener(actionBarToggle)
@@ -195,9 +224,51 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
     }
 
 
+    private fun getPrimaryAccount(): AccountDto? {
+        var accountDto: AccountDto? = null
+        val realmAccounts = realm.query(com.xabber.data_base.models.account.AccountStorageItem::class, "enabled = true").find()
+        val primaryAccount = realmAccounts.minByOrNull { T -> T.order }
+        if (primaryAccount != null) {
+            accountDto = primaryAccount.toAccountDto()
+        }
+        return accountDto
+    }
 
-    private fun getJid(): String =
-        requireArguments().getString(AppConstants.PARAMS_ACCOUNT_FRAGMENT)!!
+    private fun getAvatar(id: String): AvatarDto? {
+        var avatarDto: AvatarDto? = null
+        realm.writeBlocking {
+            val realmAvatar =
+                this.query(com.xabber.data_base.models.avatar.AvatarStorageItem::class, "primary = '$id'").first().find()
+            if (realmAvatar != null)
+                avatarDto = realmAvatar.toAvatarDto()
+        }
+        return avatarDto
+    }
+
+
+//    private fun loadAccountAvatar() {
+//
+//        lifecycleScope.launch {
+//            val avatar = getAvatar(getJid())
+//            val uri = avatar?.fileUri
+//            Glide.with(binding.root.context).load(uri)
+//                .into(findViewById<NavigationView>(R.id.nav_view).getHeaderView(0)
+//                    .findViewById<ImageView>(R.id.avatar_image_view))
+//        }
+//    }
+
+//    private fun loadAvatarWithInitials(name: String, colorKey: String) {
+//        val color = ColorManager.convertColorLightNameToId(colorKey)
+//        val avatar = findViewById<NavigationView>(R.id.nav_view).getHeaderView(0)
+//            .findViewById<ImageView>(R.id.avatar_image_view)
+//        avatar.setImageResource(color)
+//        var initials =
+//            name.split(' ').mapNotNull { it.firstOrNull()?.toString() }.reduce { acc, s -> acc + s }
+//        if (initials.length > 2) initials = initials.substring(0, 2)
+//
+//    }
+
+
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
@@ -216,7 +287,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
                         closeDetail()
                         supportFragmentManager.beginTransaction()
                             .setReorderingAllowed(true)
-                            .setCustomAnimations(R.anim.appearance_fragments, R.anim.disappearance_fragments)
+                         //   .setCustomAnimations(R.anim.appearance_fragments, R.anim.disappearance_fragments)
                             .replace(R.id.application_container, ChatListFragment()).commit()
                     } else {
                         showUnreadChats(!chatListViewModel.showUnreadOnly.value!!)
@@ -227,7 +298,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
                     closeDetail()
                     if (activeFragment !is CallsFragment) supportFragmentManager.beginTransaction()
                         .setReorderingAllowed(true)
-                        .setCustomAnimations(R.anim.appearance_fragments, R.anim.disappearance_fragments)
+                     //   .setCustomAnimations(R.anim.appearance_fragments, R.anim.disappearance_fragments)
                         .replace(R.id.application_container, CallsFragment()).commit()
                     setupIconChat(false)
                 }
@@ -236,7 +307,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
                     closeDetail()
                     supportFragmentManager.beginTransaction()
                         .setReorderingAllowed(true)
-                        .setCustomAnimations(R.anim.appearance_fragments, R.anim.disappearance_fragments)
+                       // .setCustomAnimations(R.anim.appearance_fragments, R.anim.disappearance_fragments)
                         .replace(R.id.application_container, ContactsFragment()).commit()
                     setupIconChat(false)
                 }
@@ -245,7 +316,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
                     closeDetail()
                     supportFragmentManager.beginTransaction()
                         .setReorderingAllowed(true)
-                        .setCustomAnimations(R.anim.appearance_fragments, R.anim.disappearance_fragments)
+                       // .setCustomAnimations(R.anim.appearance_fragments, R.anim.disappearance_fragments)
                         .replace(R.id.application_container, DiscoverFragment()).commit()
 
                     setupIconChat(false)
@@ -255,7 +326,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
                     chatListViewModel.setShowUnreadOnly(false)
                     closeDetail()
                     supportFragmentManager.beginTransaction()
-                        .setCustomAnimations(R.anim.appearance_fragments, R.anim.disappearance_fragments)
+                      //  .setCustomAnimations(R.anim.appearance_fragments, R.anim.disappearance_fragments)
                         .replace(R.id.application_container, SettingsFragment()).commit()
                     setupIconChat(false)
                 }
@@ -267,14 +338,14 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
 
     }
     private fun closeDrawerSlowly() {
-        val drawerView = drawerLayout.getChildAt(1) // The second child is the drawer view
-        val animation = AnimationUtils.loadAnimation(this, R.anim.drawer_hide)
-        drawerView.startAnimation(animation)
+      //  val drawerView = drawerLayout.getChildAt(1) // The second child is the drawer view
+       // val animation = AnimationUtils.loadAnimation(this, R.anim.drawer_hide)
+       // drawerView.startAnimation(animation)
 
         // Close the drawer after the animation starts
-        Handler(Looper.getMainLooper()).postDelayed({
+
             drawerLayout.closeDrawer(GravityCompat.START)
-        }, 300) // Small delay to ensure the animation starts
+         // Small delay to ensure the animation starts
     }
 
     override fun onBackPressed() {
