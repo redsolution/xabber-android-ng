@@ -7,18 +7,24 @@ import android.content.ContextParams
 import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.Color
+import android.media.Image
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.PersistableBundle
 import android.util.TypedValue
+import android.view.Gravity
 import android.view.MenuItem
 import android.view.animation.AnimationUtils
+import android.widget.Button
+import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.TextView
+import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.ActionBarDrawerToggle
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.appcompat.widget.Toolbar
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.res.ResourcesCompat
@@ -84,18 +90,12 @@ import com.xabber.presentation.application.manage.DisplayManager
 import com.xabber.presentation.application.manage.DisplayManager.getId
 import com.xabber.presentation.application.manage.DisplayManager.getMainContainerWidth
 import com.xabber.presentation.application.manage.DisplayManager.isDualScreenMode
-import com.xabber.presentation.application.manage.DisplayManager.requireArguments
 import com.xabber.presentation.application.manage.MaskManager
 import com.xabber.presentation.onboarding.activity.OnBoardingActivity
 import com.xabber.utils.lockScreenRotation
-import com.xabber.utils.parcelable
 import com.xabber.utils.toAccountDto
 import com.xabber.utils.toAvatarDto
 import io.realm.kotlin.Realm
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-
 
 /**
  * ApplicationActivity implements the interface Navigator. Its methods are responsible for navigation.
@@ -107,8 +107,6 @@ import kotlinx.coroutines.withContext
 
 class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNavigationItemSelectedListener, AccountAdapter.Listener {
 
-
-
     private val binding: ActivityApplicationBinding by lazy {
         ActivityApplicationBinding.inflate(
             layoutInflater
@@ -119,7 +117,6 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
     private lateinit var drawerLayout: DrawerLayout
     private lateinit var actionBarToggle: ActionBarDrawerToggle
     private val accViewModel: BaseViewModel by viewModels()
-
     private var assist: SoftInputAssist? = null
     private val activeFragment: Fragment?
         get() = supportFragmentManager.findFragmentById(R.id.application_container)
@@ -157,41 +154,34 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
 //        }else binding.bottomNavBar!!.removeBadge(R.id.chats)
 //    }
 
+    @SuppressLint("WrongViewCast")
     override fun onCreate(savedInstanceState: Bundle?) {
         setTheme(R.style.ThemeApplication)
         super.onCreate(savedInstanceState)
         setContentView(binding.root)
 
-        window?.statusBarColor =
-            Color.TRANSPARENT  // На некоторых устройствах не срабатывает аттрибут цвета статус бара из темы приложения, поэтому дополнительно программно задаем прозрачный цвет статус-бару
-        if (viewModel.checkIsEntry()) {  // Проверяем авторизован ли пользователь
-            updateUiDependingOnMode(isDualScreenMode()) // Определяем нужно ли нам разделение экрана
-            setFullScreenMode()
-            setHeightStatusBar()     // Вычисляем и устанавливаем высоту статус бара, чтобы устанавливать отступ
-            setMask()   // Задаем маску из Preferences, по дефолту - круглая маска
-            setChatSettings()    // Применяем сохраненные настройки чата
+        setupStatusBar()
+        setupNavigationDrawer()
 
+        if (viewModel.checkIsEntry()) {
+            initializeAppForLoggedInUser(savedInstanceState)
+        } else {
+            goToOnboarding()
+        }
+    }
 
-           // handler.postDelayed(showBadge, 0)
-            binding.slidingPaneLayout.lockMode = SlidingPaneLayout.LOCK_MODE_LOCKED_CLOSED
-            assist =
-                SoftInputAssist(window)  // Инициализируем класс, отвечающий за высоту soft keyboard в режиме full screen
-           // initBottomNavigation()
-            subscribeToViewModelData()
+    private fun setupStatusBar() {
+        window?.statusBarColor = Color.TRANSPARENT
+    }
 
-            if (savedInstanceState != null) {
-                setupIconChat(chatListViewModel.showUnreadOnly.value ?: false)
-            } else launchFragment(ChatListFragment())
-        } else goToOnboarding()
-
-        binding.slidingPaneLayout.lockMode = SlidingPaneLayout.LOCK_MODE_LOCKED
-///////
+    private fun setupNavigationDrawer() {
         drawerLayout = findViewById(R.id.drawer_layout)
         val toolbar = findViewById<Toolbar>(R.id.toolbar_nav)
 
+        // Set padding for toolbar
         val scale = resources.displayMetrics.density
-        val dpAsPixels = (25* scale + 0.5f)
-        toolbar.setPadding(0, dpAsPixels.toInt(),0,0)
+        val dpAsPixels = (25 * scale + 0.5f).toInt()
+        toolbar.setPadding(0, dpAsPixels, 0, 0)
 
         setSupportActionBar(toolbar)
         supportActionBar?.setDisplayShowTitleEnabled(false)
@@ -200,27 +190,67 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         val headerView = navigationView.getHeaderView(0)
         val avatarImageView = headerView.findViewById<ImageView>(R.id.avatar_image_view)
         val titleTextView = headerView.findViewById<TextView>(R.id.title_text_view)
+        val nightDayToggleButton = headerView.findViewById<ImageButton>(R.id.nightDayToggleButton)
         val subtitleTextView = headerView.findViewById<TextView>(R.id.subtitle_text_view)
+
         val account = getPrimaryAccount()
         val avatar = account?.let { getAvatar(it.id) }
-        account?.let {
-            titleTextView.text = account.getAccountName()
-            subtitleTextView.text = account.jid
-        }
-        avatar?.let {  AvatarDto->
-            Glide.with(this).load(avatar.fileUri).into(avatarImageView)
-            avatarImageView.requestLayout()
 
+        account?.let {
+            titleTextView.text = it.getAccountName()
+            subtitleTextView.text = it.jid
+        }
+
+        avatar?.let {
+            Glide.with(this).load(it.fileUri).into(avatarImageView)
+            avatarImageView.requestLayout()
         }
 
         navigationView.setNavigationItemSelectedListener(this)
-        actionBarToggle = ActionBarDrawerToggle(this, drawerLayout, 0, 0)
-        drawerLayout.addDrawerListener(actionBarToggle)
+        actionBarToggle = ActionBarDrawerToggle(this, drawerLayout, 0, 0).apply {
+            drawerLayout.addDrawerListener(this)
+            syncState()
+        }
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
-        actionBarToggle.syncState()
 
+        nightDayToggleButton.setOnClickListener {
+            toggleNightDayMode()
+        }
+    }
 
-////////
+    private fun initializeAppForLoggedInUser(savedInstanceState: Bundle?) {
+        updateUiDependingOnMode(isDualScreenMode())
+        setFullScreenMode()
+        setHeightStatusBar()
+        setMask()
+        setChatSettings()
+
+        binding.slidingPaneLayout.lockMode = SlidingPaneLayout.LOCK_MODE_LOCKED_CLOSED
+        assist = SoftInputAssist(window)
+        subscribeToViewModelData()
+
+        if (savedInstanceState != null) {
+            setupIconChat(chatListViewModel.showUnreadOnly.value ?: false)
+        } else {
+            launchFragment(ChatListFragment())
+        }
+    }
+    private fun toggleNightDayMode() {
+
+        when (AppCompatDelegate.getDefaultNightMode()) {
+            AppCompatDelegate.MODE_NIGHT_YES -> {
+                AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
+            }
+            AppCompatDelegate.MODE_NIGHT_NO -> {
+                AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
+            }
+            else -> {
+                AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
+            }
+        }
+
+        Toast.makeText(this, "Mode switched!", Toast.LENGTH_SHORT).show()
+
     }
 
 
@@ -289,17 +319,19 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
                             .setReorderingAllowed(true)
                          //   .setCustomAnimations(R.anim.appearance_fragments, R.anim.disappearance_fragments)
                             .replace(R.id.application_container, ChatListFragment()).commit()
+
                     } else {
                         showUnreadChats(!chatListViewModel.showUnreadOnly.value!!)
                     }
                 }
                     R.id.calls -> {
                     chatListViewModel.setShowUnreadOnly(false)
-                    closeDetail()
+                        closeDetail()
                     if (activeFragment !is CallsFragment) supportFragmentManager.beginTransaction()
                         .setReorderingAllowed(true)
                      //   .setCustomAnimations(R.anim.appearance_fragments, R.anim.disappearance_fragments)
                         .replace(R.id.application_container, CallsFragment()).commit()
+
                     setupIconChat(false)
                 }
                     R.id.contacts -> if (activeFragment !is ContactsFragment) {
@@ -338,11 +370,11 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
 
     }
     private fun closeDrawerSlowly() {
-      //  val drawerView = drawerLayout.getChildAt(1) // The second child is the drawer view
-       // val animation = AnimationUtils.loadAnimation(this, R.anim.drawer_hide)
-       // drawerView.startAnimation(animation)
+//        val drawerView = drawerLayout.getChildAt(1) // The second child is the drawer view
+//        val animation = AnimationUtils.loadAnimation(applicationContext, R.anim.drawer_hide)
+//        drawerView.startAnimation(animation)
 
-        // Close the drawer after the animation starts
+//         Close the drawer after the animation starts
 
             drawerLayout.closeDrawer(GravityCompat.START)
          // Small delay to ensure the animation starts

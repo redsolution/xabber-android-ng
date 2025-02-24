@@ -51,7 +51,7 @@
 
                 android:layout_gravity="start"
                 android:clipToPadding="false"
-                app:labelVisibilityMode="auto"
+                app:labelVisibilityMode="unlabeled"
                 app:headerLayout="@layout/drawer_header"
                 app:menu="@menu/side_menu"
 
@@ -86,7 +86,8 @@
             android:background="@color/grey_600"
             app:layout_constraintBottom_toTopOf="@id/delimiter"
             app:layout_constraintStart_toEndOf="@id/rail_nav_bar"
-            app:layout_constraintTop_toTopOf="parent" />
+            app:layout_constraintTop_toTopOf="parent"
+            android:visibility="gone"/>
 
         <View
             android:id="@+id/delimiter"
@@ -97,7 +98,8 @@
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toEndOf="@id/rail_nav_bar"
-            app:layout_constraintTop_toTopOf="parent" />
+            app:layout_constraintTop_toTopOf="parent"
+            android:visibility="gone"/>
 
         <View
             android:id="@+id/delimiter_navbar"
@@ -107,7 +109,8 @@
             android:background="@color/grey_100"
             app:layout_constraintBottom_toTopOf="@id/delimiter"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
+            app:layout_constraintTop_toTopOf="parent"
+            android:visibility="gone"/>
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
