@@ -19,10 +19,17 @@
             <com.google.android.material.appbar.MaterialToolbar
                 android:id="@+id/account_toolbar"
                 android:layout_width="wrap_content"
-                android:layout_height="14dp"
+                android:layout_height="64dp"
                 android:theme="@style/ToolbarAccountColorTheme"
                 app:layout_collapseMode="pin">
-
+                <ImageView
+                    android:id="@+id/left"
+                    android:layout_width="wrap_content"
+                    android:src="@drawable/ic_arrow_left_white"
+                    android:layout_gravity="start"
+                    android:layout_height="wrap_content"
+                    android:padding="12dp"
+                    android:layout_marginStart="16dp"/>
                 <Button
                     android:id="@+id/btn_add_contact"
                     android:layout_width="wrap_content"
@@ -51,16 +58,7 @@
                 android:layout_height="match_parent"
                 android:contentDescription="@string/avatar_background_image_description"
                 android:scaleType="centerCrop" />
-            <ImageView
-                android:id="@+id/x_close_button"
-                android:layout_width="36dp"
-                android:layout_height="36dp"
-                android:layout_marginTop="8dp"
-                android:layout_marginStart="8dp"
-                android:layout_gravity="top"
-                android:src="@drawable/ic_close"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_collapseMode="pin"/>
+
 
             <LinearLayout
                 android:id="@+id/lin_text"

@@ -2,8 +2,7 @@
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="170dp"
-    android:background="@color/light_blue_600"
+    android:layout_height="120dp"
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
 
@@ -16,71 +15,16 @@
             android:layout_marginStart="16dp"
             android:orientation="vertical"
             tools:ignore="MissingConstraints,UseCompoundDrawables">
+       <TextView
+           android:layout_width="wrap_content"
+           android:layout_height="wrap_content"
+               android:layout_gravity="start|bottom"
+               android:text="Xabber"
+               android:fontFamily="@font/roboto_bold"
+               android:textColor="@color/black"
+           android:textSize="32sp">
 
-            <LinearLayout
-                android:id="@+id/inner"
-                android:layout_width="match_parent"
-                android:layout_gravity="bottom"
-                android:layout_height="0dp"
-                android:layout_weight="1"
-                android:orientation="horizontal">
-                <com.xabber.utils.custom.ShapeOfView
-                    android:id="@+id/shape_view"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="start|bottom"
-                    android:layout_marginBottom="@dimen/margin_small"
-                    app:shape_clip_drawable="@drawable/ic_mask_circle">
-                <ImageView
-                    android:id="@+id/avatar_image_view"
-                    android:layout_width="@dimen/avatar56"
-                    android:layout_height="@dimen/avatar56"
-
-
-                    android:contentDescription="@string/account_photo_image_description"
-                    />
-                </com.xabber.utils.custom.ShapeOfView>
-                <View
-                    android:layout_width="0dp"
-                    android:layout_height="0dp"
-                    android:layout_weight="1"
-                    tools:ignore="NestedWeights" />
-
-                <ImageButton
-                    android:id="@+id/nightDayToggleButton"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="end|bottom"
-                    android:layout_marginBottom="12dp"
-                    android:background="@color/transparent"
-                    android:baselineAlignBottom="false"
-                    android:contentDescription="button"
-                    android:padding="12dp"
-                    android:src="@drawable/ic_dark_mode"
-                    android:text="Switch mode"
-                    tools:ignore="SpeakableTextPresentCheck" />
-
-            </LinearLayout>
-
-            <TextView
-                android:id="@+id/title_text_view"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Title"
-                android:textColor="@color/white"
-                android:textSize="18sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/subtitle_text_view"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="@dimen/margin_small"
-                android:text="Subtitle"
-                android:textColor="@color/white"
-                android:textSize="14sp" />
-
-
+       </TextView>
         </LinearLayout>
 
 

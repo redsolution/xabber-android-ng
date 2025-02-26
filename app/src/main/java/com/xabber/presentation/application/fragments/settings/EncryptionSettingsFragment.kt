@@ -13,6 +13,8 @@ class EncryptionSettingsFragment : DetailBaseFragment(R.layout.fragment_encrypti
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        binding.toolbar.navigationIcon = null
+        binding.left.setOnClickListener { navigator().goBack() }
     }
 
 }

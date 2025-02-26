@@ -206,10 +206,10 @@ class ContactAccountFragment : DialogFragment(R.layout.fragment_contact_account)
         }
         params.collapseMode = CollapsingToolbarLayout.LayoutParams.COLLAPSE_MODE_PIN
         binding.accountAppbar.accountToolbar.layoutParams = params
-        binding.accountAppbar.xCloseButton.layoutParams = closeButton
+        binding.accountAppbar.left.layoutParams = closeButton
         closeButton.gravity =Gravity.START
         closeButton.collapseMode = CollapsingToolbarLayout.LayoutParams.COLLAPSE_MODE_PIN
-        binding.accountAppbar.xCloseButton.setPadding(12)
+        binding.accountAppbar.left.setPadding(12)
         closeButton.marginStart = 24
         params.marginStart = 48
     }
@@ -332,7 +332,7 @@ class ContactAccountFragment : DialogFragment(R.layout.fragment_contact_account)
         })
         var isShow = true
         var scrollRange = -1
-        binding.accountAppbar.xCloseButton.setOnClickListener {
+        binding.accountAppbar.left.setOnClickListener {
             if (DisplayManager.getWidthDp() > 600 && resources.configuration.orientation
                 == Configuration.ORIENTATION_PORTRAIT || DisplayManager.getWidthDp() > 800
                 && resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE

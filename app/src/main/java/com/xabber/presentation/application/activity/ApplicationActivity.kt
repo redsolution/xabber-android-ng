@@ -7,6 +7,7 @@ import android.content.ContextParams
 import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.Color
+import android.graphics.Outline
 import android.media.Image
 import android.os.Bundle
 import android.os.Handler
@@ -15,10 +16,14 @@ import android.os.PersistableBundle
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.MenuItem
+import android.view.View
+import android.view.View.OnClickListener
+import android.view.ViewOutlineProvider
 import android.view.animation.AnimationUtils
 import android.widget.Button
 import android.widget.ImageButton
 import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.viewModels
@@ -36,6 +41,7 @@ import androidx.core.view.updateLayoutParams
 import androidx.drawerlayout.widget.DrawerLayout
 import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.commit
 import androidx.lifecycle.lifecycleScope
@@ -60,6 +66,9 @@ import com.xabber.presentation.AppConstants
 import com.xabber.presentation.AppConstants.CHAT_LIST_UNREAD_KEY
 import com.xabber.presentation.application.BaseViewModel
 import com.xabber.presentation.application.contract.Navigator
+import com.xabber.presentation.application.dialogs.AccountDialog
+import com.xabber.presentation.application.dialogs.EncryptionSettingsDialog
+import com.xabber.presentation.application.dialogs.SettingsDialog
 import com.xabber.presentation.application.fragments.account.AccountAdapter
 import com.xabber.presentation.application.fragments.account.AccountFragment
 import com.xabber.presentation.application.fragments.account.AccountViewHolder
@@ -90,6 +99,7 @@ import com.xabber.presentation.application.manage.DisplayManager
 import com.xabber.presentation.application.manage.DisplayManager.getId
 import com.xabber.presentation.application.manage.DisplayManager.getMainContainerWidth
 import com.xabber.presentation.application.manage.DisplayManager.isDualScreenMode
+import com.xabber.presentation.application.manage.DisplayManager.requireArguments
 import com.xabber.presentation.application.manage.MaskManager
 import com.xabber.presentation.onboarding.activity.OnBoardingActivity
 import com.xabber.utils.lockScreenRotation
@@ -168,6 +178,21 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         } else {
             goToOnboarding()
         }
+        val profileButton: LinearLayout = findViewById(R.id.profile_button)
+        profileButton.clipToOutline = true
+
+        // Set a ViewOutlineProvider to apply rounded corners
+        profileButton.outlineProvider = object : ViewOutlineProvider() {
+            override fun getOutline(view: View, outline: Outline) {
+                // Define the rounded corners (radius in pixels)
+                val cornerRadius = 100f // Adjust this value as needed
+                outline.setRoundRect(0, 0, view.width, view.height, cornerRadius)
+            }
+        }
+        // Set the click listener
+        profileButton.setOnClickListener {
+            handleProfileNavigation()
+        }
     }
 
     private fun setupStatusBar() {
@@ -187,11 +212,11 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         supportActionBar?.setDisplayShowTitleEnabled(false)
 
         val navigationView = findViewById<NavigationView>(R.id.nav_view)
-        val headerView = navigationView.getHeaderView(0)
-        val avatarImageView = headerView.findViewById<ImageView>(R.id.avatar_image_view)
-        val titleTextView = headerView.findViewById<TextView>(R.id.title_text_view)
-        val nightDayToggleButton = headerView.findViewById<ImageButton>(R.id.nightDayToggleButton)
-        val subtitleTextView = headerView.findViewById<TextView>(R.id.subtitle_text_view)
+       // val headerView = navigationView.getHeaderView(0)
+        val avatarImageView = findViewById<ImageView>(R.id.avatar_image_view)
+        val titleTextView = findViewById<TextView>(R.id.title_text_view)
+        val nightDayToggleButton = findViewById<ImageButton>(R.id.nightDayToggleButton)
+        val subtitleTextView = findViewById<TextView>(R.id.subtitle_text_view)
 
         val account = getPrimaryAccount()
         val avatar = account?.let { getAvatar(it.id) }
@@ -312,63 +337,154 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
     override fun onNavigationItemSelected(item: MenuItem): Boolean {
         when (item.itemId) {
 
-                    R.id.chats -> {
-                    if (activeFragment !is ChatListFragment) {
-                        closeDetail()
-                        supportFragmentManager.beginTransaction()
-                            .setReorderingAllowed(true)
-                         //   .setCustomAnimations(R.anim.appearance_fragments, R.anim.disappearance_fragments)
-                            .replace(R.id.application_container, ChatListFragment()).commit()
+            R.id.chats -> handleChatsNavigation()
+            R.id.calls -> handleCallsNavigation()
+            R.id.contacts -> handleContactsNavigation()
+            R.id.discover -> handleDiscoverNavigation()
+            R.id.settings -> handleSettingsNavigation()
+        }
 
-                    } else {
-                        showUnreadChats(!chatListViewModel.showUnreadOnly.value!!)
-                    }
-                }
-                    R.id.calls -> {
-                    chatListViewModel.setShowUnreadOnly(false)
-                        closeDetail()
-                    if (activeFragment !is CallsFragment) supportFragmentManager.beginTransaction()
-                        .setReorderingAllowed(true)
-                     //   .setCustomAnimations(R.anim.appearance_fragments, R.anim.disappearance_fragments)
-                        .replace(R.id.application_container, CallsFragment()).commit()
+        closeDrawerSlowly()
+        return true
+    }
 
-                    setupIconChat(false)
-                }
-                    R.id.contacts -> if (activeFragment !is ContactsFragment) {
-                    chatListViewModel.setShowUnreadOnly(false)
-                    closeDetail()
-                    supportFragmentManager.beginTransaction()
-                        .setReorderingAllowed(true)
-                       // .setCustomAnimations(R.anim.appearance_fragments, R.anim.disappearance_fragments)
-                        .replace(R.id.application_container, ContactsFragment()).commit()
-                    setupIconChat(false)
-                }
-                    R.id.discover -> if (activeFragment !is DiscoverFragment) {
-                    chatListViewModel.setShowUnreadOnly(false)
-                    closeDetail()
-                    supportFragmentManager.beginTransaction()
-                        .setReorderingAllowed(true)
-                       // .setCustomAnimations(R.anim.appearance_fragments, R.anim.disappearance_fragments)
-                        .replace(R.id.application_container, DiscoverFragment()).commit()
+    private fun handleProfileNavigation() {
 
-                    setupIconChat(false)
-                }
+        if (DisplayManager.getWidthDp() > 400) {
 
-                    R.id.settings -> if (activeFragment !is SettingsFragment) {
-                    chatListViewModel.setShowUnreadOnly(false)
-                    closeDetail()
-                    supportFragmentManager.beginTransaction()
-                      //  .setCustomAnimations(R.anim.appearance_fragments, R.anim.disappearance_fragments)
-                        .replace(R.id.application_container, SettingsFragment()).commit()
-                    setupIconChat(false)
-                }
+            val settings = SettingsDialog()
+            settings.show(supportFragmentManager, "Settings")
+//            val account = AccountDialog.newInstance(params) // Replace with the actual JID
+//            account.show(supportFragmentManager, "AccountFragmentDialog")
+        } else {
+            handleSettingsNavigation()
+            Toast.makeText(this, "Mode switched!", Toast.LENGTH_SHORT).show()
 
         }
         closeDrawerSlowly()
-        //drawerLayout.closeDrawer(GravityCompat.START)
-        return true
-
     }
+
+    private fun getJid(): String =
+        requireArguments().getString(AppConstants.PARAMS_ACCOUNT_DIALOG)!!
+
+    private fun handleChatsNavigation() {
+        if (activeFragment !is ChatListFragment) {
+            closeDetail()
+            replaceFragment(ChatListFragment())
+        } else {
+            showUnreadChats(!chatListViewModel.showUnreadOnly.value!!)
+        }
+    }
+
+
+    private fun handleCallsNavigation() {
+        chatListViewModel.setShowUnreadOnly(false)
+        closeDetail()
+        if (activeFragment !is CallsFragment) {
+            replaceFragment(CallsFragment())
+        }
+        setupIconChat(false)
+    }
+
+    private fun handleContactsNavigation() {
+        chatListViewModel.setShowUnreadOnly(false)
+        closeDetail()
+        if (activeFragment !is ContactsFragment) {
+            replaceFragment(ContactsFragment())
+        }
+        setupIconChat(false)
+    }
+
+    private fun handleDiscoverNavigation() {
+        chatListViewModel.setShowUnreadOnly(false)
+        closeDetail()
+        if (activeFragment !is DiscoverFragment) {
+            replaceFragment(DiscoverFragment())
+        }
+        setupIconChat(false)
+    }
+
+    private fun handleSettingsNavigation() {
+        chatListViewModel.setShowUnreadOnly(false)
+        closeDetail()
+        if (activeFragment !is SettingsFragment) {
+            replaceFragment(SettingsFragment())
+        }
+        setupIconChat(false)
+    }
+
+    private fun replaceFragment(fragment: Fragment) {
+        supportFragmentManager.beginTransaction()
+            .setReorderingAllowed(true)
+            // Uncomment if you want custom animations
+            // .setCustomAnimations(R.anim.appearance_fragments, R.anim.disappearance_fragments)
+            .replace(R.id.application_container, fragment)
+            .commit()
+    }
+
+//    override fun onNavigationItemSelected(item: MenuItem): Boolean {
+//        when (item.itemId) {
+//
+//                    R.id.chats -> {
+//                    if (activeFragment !is ChatListFragment) {
+//                        closeDetail()
+//                        supportFragmentManager.beginTransaction()
+//                            .setReorderingAllowed(true)
+//                         //   .setCustomAnimations(R.anim.appearance_fragments, R.anim.disappearance_fragments)
+//                            .replace(R.id.application_container, ChatListFragment()).commit()
+//
+//                    } else {
+//                        showUnreadChats(!chatListViewModel.showUnreadOnly.value!!)
+//                    }
+//                }
+//                    R.id.calls -> {
+//                    chatListViewModel.setShowUnreadOnly(false)
+//                        closeDetail()
+//                    if (activeFragment !is CallsFragment) supportFragmentManager.beginTransaction()
+//                        .setReorderingAllowed(true)
+//                     //   .setCustomAnimations(R.anim.appearance_fragments, R.anim.disappearance_fragments)
+//                        .replace(R.id.application_container, CallsFragment()).commit()
+//
+//                    setupIconChat(false)
+//                }
+//                    R.id.contacts -> if (activeFragment !is ContactsFragment) {
+//                    chatListViewModel.setShowUnreadOnly(false)
+//                    closeDetail()
+//                    supportFragmentManager.beginTransaction()
+//                        .setReorderingAllowed(true)
+//                       // .setCustomAnimations(R.anim.appearance_fragments, R.anim.disappearance_fragments)
+//                        .replace(R.id.application_container, ContactsFragment()).commit()
+//                    setupIconChat(false)
+//                }
+//                    R.id.discover -> if (activeFragment !is DiscoverFragment) {
+//                    chatListViewModel.setShowUnreadOnly(false)
+//                    closeDetail()
+//                    supportFragmentManager.beginTransaction()
+//                        .setReorderingAllowed(true)
+//                       // .setCustomAnimations(R.anim.appearance_fragments, R.anim.disappearance_fragments)
+//                        .replace(R.id.application_container, DiscoverFragment()).commit()
+//
+//                    setupIconChat(false)
+//                }
+//
+//                    R.id.settings -> if (activeFragment !is SettingsFragment) {
+//                    chatListViewModel.setShowUnreadOnly(false)
+//                    closeDetail()
+//                    supportFragmentManager.beginTransaction()
+//                      //  .setCustomAnimations(R.anim.appearance_fragments, R.anim.disappearance_fragments)
+//                        .replace(R.id.application_container, SettingsFragment()).commit()
+//                    setupIconChat(false)
+//                }
+//
+//        }
+//        closeDrawerSlowly()
+//        //drawerLayout.closeDrawer(GravityCompat.START)
+//        return true
+//
+//    }
+
+
+
     private fun closeDrawerSlowly() {
 //        val drawerView = drawerLayout.getChildAt(1) // The second child is the drawer view
 //        val animation = AnimationUtils.loadAnimation(applicationContext, R.anim.drawer_hide)
@@ -775,6 +891,8 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
     override fun showProfileSettings() {
         launchDetailInStack(ProfileSettingsFragment())
     }
+
+
 
     override fun showCloudStorageSettings() {
         launchDetailInStack(CloudStorageSettingsFragment())

@@ -54,6 +54,7 @@ object AppConstants {
     const val NO_CAPTCHA_KEY = "a75be9d697c34892b59ebe726dc1b377"
     const val NOTIFICATION_BOTTOM_SHEET_TAG = "notification bottom sheet tag"
     const val PARAMS_ACCOUNT_FRAGMENT = "params account fragment"
+    const val PARAMS_ACCOUNT_DIALOG = "params account dialog"
     const val PARAMS_CONTACT_ACCOUNT = "params contact account"
     const val PAYLOAD_ACCOUNT_COLOR = "color"
     const val PAYLOAD_ACCOUNT_ENABLED = "enabled"

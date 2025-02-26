@@ -4,6 +4,8 @@ import android.os.Bundle
 import android.os.Parcelable
 import android.view.View
 import by.kirich1409.viewbindingdelegate.viewBinding
+import com.google.android.material.navigation.NavigationBarItemView
+import com.google.android.material.navigation.NavigationView
 import com.xabber.R
 import com.xabber.databinding.FragmentProfileSettingsBinding
 import com.xabber.presentation.AppConstants
@@ -20,8 +22,9 @@ class ProfileSettingsFragment : DetailBaseFragment(R.layout.fragment_profile_set
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        binding.toolbar.navigationIcon = null
+        binding.toolbar.setNavigationIcon(null)
         binding.left.setOnClickListener { navigator().goBack() }
+
     }
 
 }

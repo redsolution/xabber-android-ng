@@ -1,34 +1,38 @@
-package com.xabber.presentation.application.fragments.account
+package com.xabber.presentation.application.dialogs
 
-import android.content.Context
 import android.content.res.ColorStateList
-import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.os.Bundle
-import android.view.*
+import android.view.Gravity
+import android.view.LayoutInflater
+import android.view.Menu
+import android.view.MenuInflater
+import android.view.MenuItem
+import android.view.View
+import android.view.ViewGroup
 import android.view.animation.AnimationUtils
+import android.widget.ImageView
 import androidx.appcompat.widget.PopupMenu
 import androidx.coordinatorlayout.widget.CoordinatorLayout
 import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.MenuProvider
 import androidx.core.view.isVisible
-import androidx.fragment.app.FragmentManager
+import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import by.kirich1409.viewbindingdelegate.viewBinding
 import com.bumptech.glide.Glide
-import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions
 import com.google.android.material.appbar.CollapsingToolbarLayout
 import com.xabber.R
+import com.xabber.data_base.defaultRealmConfig
 import com.xabber.databinding.FragmentAccountBinding
 import com.xabber.dto.AccountDto
+import com.xabber.dto.AvatarDto
 import com.xabber.presentation.AppConstants
-import com.xabber.presentation.application.contract.DialogNavigator
-import com.xabber.presentation.application.contract.dialogNavigator
 import com.xabber.presentation.application.contract.navigator
-import com.xabber.presentation.application.dialogs.ProfileSettingsDialog
-import com.xabber.presentation.application.fragments.DetailBaseFragment
+import com.xabber.presentation.application.fragments.account.AccountFragment
+import com.xabber.presentation.application.fragments.account.AccountViewModel
 import com.xabber.presentation.application.fragments.account.color.AccountColorDialog
 import com.xabber.presentation.application.fragments.account.qrcode.QRCodeParams
 import com.xabber.presentation.application.fragments.chat.AvatarChangerBottomSheet
@@ -37,35 +41,52 @@ import com.xabber.presentation.application.fragments.settings.DevicesSettingsFra
 import com.xabber.presentation.application.fragments.settings.EncryptionSettingsFragment
 import com.xabber.presentation.application.fragments.settings.InterfaceFragment
 import com.xabber.presentation.application.fragments.settings.ProfileSettingsFragment
-import com.xabber.presentation.application.manage.AccountManager
 import com.xabber.presentation.application.manage.ColorManager
 import com.xabber.presentation.application.manage.DisplayManager
-import com.xabber.utils.blur.BlurTransformation
-import com.xabber.utils.dp
 import com.xabber.utils.setFragmentResultListener
+import com.xabber.utils.toAccountDto
+import com.xabber.utils.toAvatarDto
+import io.realm.kotlin.Realm
 import kotlinx.coroutines.launch
 
-class AccountFragment : DetailBaseFragment(R.layout.fragment_account) {
+class AccountDialog : DialogFragment(R.layout.fragment_account) {
     private val binding by viewBinding(FragmentAccountBinding::bind)
     private val viewModel: AccountViewModel by viewModels()
     private var hasAvatar = false
     private var popupMenu: PopupMenu? = null
+    private val realm = Realm.open(defaultRealmConfig())
 
-
-
+    override fun onStart() {
+        super.onStart()
+        val dialog = dialog
+        if (dialog != null) {
+            val width = (resources.displayMetrics.widthPixels * 0.8).toInt() // 90% of screen width
+            val height = (resources.displayMetrics.heightPixels * 0.95).toInt()
+            dialog.window?.setLayout(width, height)
+            dialog.window?.setGravity(Gravity.CENTER) // Center the dialog
+        }
+    }
     companion object {
-        fun newInstance(jid: String): AccountFragment {
-            val args =
-                Bundle().apply { putString(AppConstants.PARAMS_ACCOUNT_FRAGMENT, jid) }
-            val fragment = AccountFragment()
-            fragment.arguments = args
-            return fragment
+        fun newInstance(jid: String?): AccountDialog {
+            val args = Bundle().apply {
+                putString(AppConstants.PARAMS_ACCOUNT_DIALOG, jid) // Ensure the key matches
+            }
+            val dialog = AccountDialog()
+            dialog.arguments = args
+            return dialog
         }
     }
 
     private fun getJid(): String =
-        requireArguments().getString(AppConstants.PARAMS_ACCOUNT_FRAGMENT)!!
+        requireArguments().getString(AppConstants.PARAMS_ACCOUNT_DIALOG)!!
 
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View? {
+        return inflater.inflate(R.layout.fragment_account, container, false)
+    }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -187,13 +208,33 @@ class AccountFragment : DetailBaseFragment(R.layout.fragment_account) {
     private fun loadAccountAvatar() {
         binding.accountAppbar.avatarGr.tvAccountInitials.isVisible = false
         lifecycleScope.launch {
-            val avatar = baseViewModel.getAvatar(getJid())
+            val account = getPrimaryAccount()
+            val avatar = account?.let { getAvatar(it.id) }
             val uri = avatar?.fileUri
             Glide.with(binding.root.context).load(uri)
                 .into(binding.accountAppbar.avatarGr.imAccountAvatar)
         }
     }
+    private fun getPrimaryAccount(): AccountDto? {
+        var accountDto: AccountDto? = null
+        val realmAccounts = realm.query(com.xabber.data_base.models.account.AccountStorageItem::class, "enabled = true").find()
+        val primaryAccount = realmAccounts.minByOrNull { T -> T.order }
+        if (primaryAccount != null) {
+            accountDto = primaryAccount.toAccountDto()
+        }
+        return accountDto
+    }
 
+    private fun getAvatar(id: String): AvatarDto? {
+        var avatarDto: AvatarDto? = null
+        realm.writeBlocking {
+            val realmAvatar =
+                this.query(com.xabber.data_base.models.avatar.AvatarStorageItem::class, "primary = '$id'").first().find()
+            if (realmAvatar != null)
+                avatarDto = realmAvatar.toAvatarDto()
+        }
+        return avatarDto
+    }
     private fun loadAvatarWithInitials(name: String, colorKey: String) {
         val color = ColorManager.convertColorLightNameToId(colorKey)
         binding.accountAppbar.avatarGr.imAccountAvatar.setImageResource(color)
@@ -272,7 +313,7 @@ class AccountFragment : DetailBaseFragment(R.layout.fragment_account) {
                 }
                 if (scrollRange + verticalOffset < 170) {
                     val anim =
-                        AnimationUtils.loadAnimation(context, R.anim.disappearance_300)
+                        android.view.animation.AnimationUtils.loadAnimation(context, com.xabber.R.anim.disappearance_300)
                     if (tvTitle.isVisible) {
                         tvTitle.startAnimation(
                             anim
@@ -286,7 +327,7 @@ class AccountFragment : DetailBaseFragment(R.layout.fragment_account) {
                 }
 
                 if (scrollRange + verticalOffset > 170) {
-                    val anim = AnimationUtils.loadAnimation(context, R.anim.appearance)
+                    val anim = android.view.animation.AnimationUtils.loadAnimation(context, com.xabber.R.anim.appearance)
                     if (!tvTitle.isVisible) {
                         tvTitle.startAnimation(anim)
                         tvSubtitle.startAnimation(anim)
@@ -342,45 +383,56 @@ class AccountFragment : DetailBaseFragment(R.layout.fragment_account) {
     private fun initAccountSettingsActions() {
         with(binding) {
 
-                profile.setOnClickListener {
-                    parentFragmentManager.beginTransaction()
-                        .setReorderingAllowed(true)
-                        .replace(R.id.application_container, ProfileSettingsFragment())
-                        .addToBackStack(null) // Add to back stack for back navigation
-                        .commit()
-                }
-             //   profile.setOnClickListener { navigator().showProfileSettings() }
-                cloudStorage.setOnClickListener {
-                    parentFragmentManager.beginTransaction()
-                    .setReorderingAllowed(true)
-                    .replace(R.id.application_container, CloudStorageSettingsFragment())
-                    .addToBackStack(null) // Add to back stack for back navigation
-                    .commit()
-                }
-                encryptionAndKeys.setOnClickListener {
-                    parentFragmentManager.beginTransaction()
-                        .setReorderingAllowed(true)
-                        .replace(R.id.application_container, EncryptionSettingsFragment())
-                        .addToBackStack(null) // Add to back stack for back navigation
-                        .commit()
+            profile.setOnClickListener {
+                val profileSettings = ProfileSettingsDialog()
+                profileSettings.show(childFragmentManager, "settings")
+//                childFragmentManager.beginTransaction()
+//                    .setReorderingAllowed(true)
+//                    .replace(com.xabber.R.id.application_container, ProfileSettingsDialog())
+//                    .addToBackStack(null) // Add to back stack for back navigation
+//                    .commit()
 
-                }
-                devices.setOnClickListener {
-                    parentFragmentManager.beginTransaction()
-                        .setReorderingAllowed(true)
-                        .replace(R.id.application_container, DevicesSettingsFragment())
-                        .addToBackStack(null) // Add to back stack for back navigation
-                        .commit()
+            }
+            //   profile.setOnClickListener { navigator().showProfileSettings() }
+            cloudStorage.setOnClickListener {
+                val cloudStorage = CloudStorageSettingsDialog()
+                cloudStorage.show(childFragmentManager, "Cloud Storage")
+//                childFragmentManager.beginTransaction()
+//                    .setReorderingAllowed(true)
+//                    .replace(com.xabber.R.id.application_container, CloudStorageSettingsFragment())
+//                    .addToBackStack(null) // Add to back stack for back navigation
+//                    .commit()
+            }
+            encryptionAndKeys.setOnClickListener {
+                val encryptionSettings = EncryptionSettingsDialog()
+                encryptionSettings.show(childFragmentManager, "Encryption and Keys")
+//                childFragmentManager.beginTransaction()
+//                    .setReorderingAllowed(true)
+//                    .replace(com.xabber.R.id.application_container, EncryptionSettingsFragment())
+//                    .addToBackStack(null) // Add to back stack for back navigation
+//                    .commit()
 
-                }
-                settings.interfaceSettings.setOnClickListener {
-                    parentFragmentManager.beginTransaction()
-                        .setReorderingAllowed(true)
-                        .replace(R.id.application_container, InterfaceFragment())
-                        .addToBackStack(null) // Add to back stack for back navigation
-                        .commit()
+            }
+            devices.setOnClickListener {
+                val devicesSettings = DevicesSettingsDialog()
+                devicesSettings.show(childFragmentManager, "Devices")
+//                childFragmentManager.beginTransaction()
+//                    .setReorderingAllowed(true)
+//                    .replace(com.xabber.R.id.application_container, DevicesSettingsFragment())
+//                    .addToBackStack(null) // Add to back stack for back navigation
+//                    .commit()
 
-                }
+            }
+            settings.interfaceSettings.setOnClickListener {
+                val interfaceD = InterfaceDialog()
+                interfaceD.show(childFragmentManager, "Devices")
+//                childFragmentManager.beginTransaction()
+//                    .setReorderingAllowed(true)
+//                    .replace(com.xabber.R.id.application_container, InterfaceFragment())
+//                    .addToBackStack(null) // Add to back stack for back navigation
+//                    .commit()
+
+            }
 
 //                cloudStorage.setOnClickListener { navigator().showCloudStorageSettings() }
 //                encryptionAndKeys.setOnClickListener { navigator().showEncryptionAndKeysSettings() }
@@ -389,9 +441,7 @@ class AccountFragment : DetailBaseFragment(R.layout.fragment_account) {
 
 
 
-            }
-
         }
-    }
 
-//}
+    }
+}

@@ -22,9 +22,6 @@
 
 
         <androidx.drawerlayout.widget.DrawerLayout
-            xmlns:android="http://schemas.android.com/apk/res/android"
-            xmlns:app="http://schemas.android.com/apk/res-auto"
-            xmlns:tools="http://schemas.android.com/tools"
             android:id="@+id/drawer_layout"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
@@ -65,6 +62,94 @@
                 app:labelVisibilityMode="unlabeled"
                 app:headerLayout="@layout/drawer_header"
                 app:menu="@menu/side_menu">
+
+                <LinearLayout
+                    android:id="@+id/header"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="bottom"
+                    android:gravity="bottom"
+                    android:layout_marginTop="12dp"
+                    android:layout_marginStart="16dp"
+                    android:layout_marginEnd="16dp"
+
+                    android:orientation="vertical"
+                    tools:ignore="MissingConstraints,UseCompoundDrawables">
+
+                    <LinearLayout
+                        android:id="@+id/profile_button"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="bottom"
+                        android:layout_weight="1"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:foreground="?android:attr/selectableItemBackground"
+                        android:layoutMode="clipBounds"
+                        android:orientation="horizontal"
+                        android:padding="10dp">
+
+                        <com.xabber.utils.custom.ShapeOfView
+                            android:id="@+id/shape_view"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="center"
+                            app:shape_clip_drawable="@drawable/ic_mask_circle">
+
+                            <ImageView
+                                android:id="@+id/avatar_image_view"
+                                android:layout_width="68dp"
+                                android:layout_height="68dp"
+
+
+                                android:contentDescription="@string/account_photo_image_description" />
+                        </com.xabber.utils.custom.ShapeOfView>
+
+                        <LinearLayout
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="center"
+                            android:layout_marginStart="16dp"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:id="@+id/title_text_view"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:fontFamily="@font/roboto_bold"
+                                android:text="Title"
+                                android:textColor="@color/black"
+                                android:textSize="16sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/subtitle_text_view"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginBottom="@dimen/margin_small"
+                                android:fontFamily="@font/roboto"
+                                android:text="Subtitle"
+                                android:textColor="@color/black"
+                                android:textSize="14sp" />
+                        </LinearLayout>
+
+                        <ImageButton
+                            android:id="@+id/nightDayToggleButton"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="end|center"
+
+                            android:background="@color/transparent"
+                            android:contentDescription="button"
+                            android:padding="12dp"
+                            android:src="@drawable/ic_dark_mode"
+                            android:text="Switch mode"
+                            android:visibility="gone" />
+
+                    </LinearLayout>
+
+
+                </LinearLayout>
 
             </com.google.android.material.navigation.NavigationView>
 

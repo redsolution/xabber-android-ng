@@ -94,7 +94,8 @@
     <string name="menu_item_notifications">Уведомления</string> // remove
     <string name="menu_item_settings">Настройки</string>
     <string name="menu_item_saved_messages">Сохраненные сообщения</string>
-
+    <string name="menu_item_my_profile">Мой профиль</string>
+    <string name="menu_item_title_communicate">Общение</string>
     <!-- CHAT LIST -->
     <string name="over_unread_messages">999+</string>
     <string name="xabber_logo_image_description">Xabber</string>

@@ -2,6 +2,7 @@ package com.xabber.presentation.application.fragments.settings
 
 import android.os.Bundle
 import android.view.View
+import android.widget.Toast
 import by.kirich1409.viewbindingdelegate.viewBinding
 import com.xabber.R
 import com.xabber.databinding.FragmentDevicesSettingsBinding
@@ -13,5 +14,10 @@ class DevicesSettingsFragment : DetailBaseFragment(R.layout.fragment_devices_set
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+
+        binding.toolbar.navigationIcon = null
+
+        binding.left.setOnClickListener { Toast.makeText(context, "Mode switched!", Toast.LENGTH_SHORT).show() }
     }
+
 }
