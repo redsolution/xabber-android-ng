@@ -41,6 +41,8 @@ class SettingsDialog : DialogFragment(), AccountAdapter.Listener {
             val height = (resources.displayMetrics.heightPixels * 0.95).toInt()
             dialog.window?.setLayout(width, height)
             dialog.window?.setGravity(Gravity.CENTER) // Center the dialog
+
+
         }
     }
     override fun onCreateView(
@@ -49,6 +51,7 @@ class SettingsDialog : DialogFragment(), AccountAdapter.Listener {
         savedInstanceState: Bundle?
     ): View? {
         return inflater.inflate(R.layout.fragment_settings, container, false)
+
     }
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -57,6 +60,8 @@ class SettingsDialog : DialogFragment(), AccountAdapter.Listener {
         subscribeToDataUpdates()
         initializeSettingsActions()
         viewModel.loadAccounts()
+        binding.toolbarSettings.navigationIcon = null
+        binding.left.setOnClickListener{dismiss()}
     }
 
     private fun initToolbarActions() {
@@ -135,13 +140,10 @@ private fun handleAddAccount() {
 
 //            val accDialog = AccountFragment.newInstance(id)
 //            accDialog.show(childFragmentManager, "")
-            if (id.isNotEmpty()) {
+
                 val account = AccountDialog.newInstance(id)
                 account.show(parentFragmentManager, "Account")
-            } else {
-                // Handle the case where the ID is empty or null
-                Log.e("AccountDialog", "ID is empty or null")
-            }
+
         } else {
             navigator().showAccount(id)
 

@@ -95,7 +95,9 @@ class ContactAccountFragment : DialogFragment(R.layout.fragment_contact_account)
 
         binding.accountAppbar.avatarGr.imAccountAvatar.setImageResource(getParams().avatar!!)
         binding.accountAppbar.tvTitle.isSelected = true
-
+        val closeButton = binding.accountAppbar.left
+        closeButton.setColorFilter(ContextCompat.getColor(requireContext(), R.color.black))
+        binding.accountAppbar.left.setOnClickListener { dismiss() }
 
         setFragmentResultListener(AppConstants.DELETING_CONTACT_DIALOG_KEY) { _, bundle ->
             val result = bundle.getBoolean(AppConstants.DELETING_CONTACT_BUNDLE_KEY)
@@ -193,25 +195,25 @@ class ContactAccountFragment : DialogFragment(R.layout.fragment_contact_account)
             CollapsingToolbarLayout.LayoutParams.MATCH_PARENT,
             actionBarHeight
         )
-        val closeButton = CollapsingToolbarLayout.LayoutParams(
-            CollapsingToolbarLayout.LayoutParams.WRAP_CONTENT,
-            actionBarHeight
-        )
-
+//        val closeButton = CollapsingToolbarLayout.LayoutParams(
+//            CollapsingToolbarLayout.LayoutParams.WRAP_CONTENT,
+//            actionBarHeight
+//        )
+    //    binding.accountAppbar.left.layoutParams = closeButton
         if (DisplayManager.getWidthDp() < 600 && resources.configuration.orientation
             == Configuration.ORIENTATION_PORTRAIT || DisplayManager.getWidthDp() < 700
             && resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) {
             params.topMargin = DisplayManager.getHeightStatusBar()
-            closeButton.topMargin = DisplayManager.getHeightStatusBar()
+        //    closeButton.topMargin = DisplayManager.getHeightStatusBar()
         }
         params.collapseMode = CollapsingToolbarLayout.LayoutParams.COLLAPSE_MODE_PIN
         binding.accountAppbar.accountToolbar.layoutParams = params
-        binding.accountAppbar.left.layoutParams = closeButton
-        closeButton.gravity =Gravity.START
-        closeButton.collapseMode = CollapsingToolbarLayout.LayoutParams.COLLAPSE_MODE_PIN
-        binding.accountAppbar.left.setPadding(12)
-        closeButton.marginStart = 24
-        params.marginStart = 48
+
+//        closeButton.gravity =Gravity.START
+//        closeButton.collapseMode = CollapsingToolbarLayout.LayoutParams.COLLAPSE_MODE_PIN
+//        binding.accountAppbar.left.setPadding(12)
+//        closeButton.marginStart = 24
+      //  params.marginStart = 48
     }
 
     @SuppressLint("ResourceAsColor")

@@ -52,7 +52,11 @@ class InterfaceDialog : DialogFragment(R.layout.fragment_interface) {
 //            navigator().showMaskSettings()
 //            Toast.makeText(context, "Mode switched!", Toast.LENGTH_SHORT).show()
         }
-        binding.chatSettings.setOnClickListener { navigator().showChatSettings() }
+        binding.chatSettings.setOnClickListener {
+            val chatSettings = ChatSettingsDialog()
+            chatSettings.show(childFragmentManager, "mask fragment")
+       //     navigator().showChatSettings()
+        }
         binding.toolbar.navigationIcon = null
         binding.left.setOnClickListener { dismiss() }
     }

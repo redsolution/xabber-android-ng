@@ -6,26 +6,32 @@
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
 
-        <LinearLayout
-            android:id="@+id/header"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:gravity="bottom"
-            android:layout_marginTop="12dp"
-            android:layout_marginStart="16dp"
-            android:orientation="vertical"
-            tools:ignore="MissingConstraints,UseCompoundDrawables">
-       <TextView
-           android:layout_width="wrap_content"
-           android:layout_height="wrap_content"
-               android:layout_gravity="start|bottom"
-               android:text="Xabber"
-               android:fontFamily="@font/roboto_bold"
-               android:textColor="@color/black"
-           android:textSize="32sp">
+    <LinearLayout
+        android:id="@+id/header"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="bottom"
 
-       </TextView>
-        </LinearLayout>
+        android:orientation="horizontal"
+        tools:ignore="MissingConstraints,UseCompoundDrawables"
+       >
+        <ImageView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:src="@drawable/xabber_logo_80dp">
+
+        </ImageView>
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="start|bottom"
+            android:fontFamily="@font/roboto_bold"
+            android:text="Xabber"
+            android:textColor="@color/black"
+            android:textSize="32sp">
+
+        </TextView>
+    </LinearLayout>
 
 
 

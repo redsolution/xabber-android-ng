@@ -16,8 +16,7 @@ class DevicesSettingsFragment : DetailBaseFragment(R.layout.fragment_devices_set
         super.onViewCreated(view, savedInstanceState)
 
         binding.toolbar.navigationIcon = null
-
-        binding.left.setOnClickListener { Toast.makeText(context, "Mode switched!", Toast.LENGTH_SHORT).show() }
+        binding.left.setOnClickListener { navigator().goBack() }
     }
 
 }

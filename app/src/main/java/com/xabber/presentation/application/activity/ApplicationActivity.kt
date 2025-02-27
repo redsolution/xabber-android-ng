@@ -18,6 +18,7 @@ import android.view.Gravity
 import android.view.MenuItem
 import android.view.View
 import android.view.View.OnClickListener
+import android.view.ViewGroup
 import android.view.ViewOutlineProvider
 import android.view.animation.AnimationUtils
 import android.widget.Button
@@ -201,8 +202,15 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
 
     private fun setupNavigationDrawer() {
         drawerLayout = findViewById(R.id.drawer_layout)
-        val toolbar = findViewById<Toolbar>(R.id.toolbar_nav)
+        val navigationView = findViewById<NavigationView>(R.id.nav_view)
 
+        if (DisplayManager.getWidthDp() < 600) {
+            val layoutParams = navigationView.layoutParams
+            layoutParams.width = ViewGroup.LayoutParams.MATCH_PARENT
+            navigationView.layoutParams = layoutParams
+        }
+
+        val toolbar = findViewById<Toolbar>(R.id.toolbar_nav)
         // Set padding for toolbar
         val scale = resources.displayMetrics.density
         val dpAsPixels = (25 * scale + 0.5f).toInt()
@@ -211,7 +219,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         setSupportActionBar(toolbar)
         supportActionBar?.setDisplayShowTitleEnabled(false)
 
-        val navigationView = findViewById<NavigationView>(R.id.nav_view)
+
        // val headerView = navigationView.getHeaderView(0)
         val avatarImageView = findViewById<ImageView>(R.id.avatar_image_view)
         val titleTextView = findViewById<TextView>(R.id.title_text_view)
@@ -341,7 +349,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
             R.id.calls -> handleCallsNavigation()
             R.id.contacts -> handleContactsNavigation()
             R.id.discover -> handleDiscoverNavigation()
-            R.id.settings -> handleSettingsNavigation()
+          //  R.id.settings -> handleSettingsNavigation()
         }
 
         closeDrawerSlowly()
@@ -350,12 +358,10 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
 
     private fun handleProfileNavigation() {
 
-        if (DisplayManager.getWidthDp() > 400) {
+        if (DisplayManager.getWidthDp() > 600) {
 
             val settings = SettingsDialog()
             settings.show(supportFragmentManager, "Settings")
-//            val account = AccountDialog.newInstance(params) // Replace with the actual JID
-//            account.show(supportFragmentManager, "AccountFragmentDialog")
         } else {
             handleSettingsNavigation()
             Toast.makeText(this, "Mode switched!", Toast.LENGTH_SHORT).show()

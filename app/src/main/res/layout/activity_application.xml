@@ -70,7 +70,7 @@
                     android:layout_gravity="bottom"
                     android:gravity="bottom"
                     android:layout_marginTop="12dp"
-                    android:layout_marginStart="16dp"
+                    android:layout_marginStart="8dp"
                     android:layout_marginEnd="16dp"
 
                     android:orientation="vertical"
@@ -79,7 +79,7 @@
                     <LinearLayout
                         android:id="@+id/profile_button"
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
+                        android:layout_height="0dp"
                         android:layout_gravity="bottom"
                         android:layout_weight="1"
                         android:clickable="true"
@@ -97,11 +97,10 @@
                             app:shape_clip_drawable="@drawable/ic_mask_circle">
 
                             <ImageView
+                                android:scaleType="centerCrop"
                                 android:id="@+id/avatar_image_view"
-                                android:layout_width="68dp"
-                                android:layout_height="68dp"
-
-
+                                android:layout_width="48dp"
+                                android:layout_height="48dp"
                                 android:contentDescription="@string/account_photo_image_description" />
                         </com.xabber.utils.custom.ShapeOfView>
 

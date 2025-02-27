@@ -13,5 +13,7 @@ class CloudStorageSettingsFragment : DetailBaseFragment(R.layout.fragment_cloud_
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        binding.toolbar.navigationIcon = null
+        binding.left.setOnClickListener { navigator().goBack() }
     }
 }

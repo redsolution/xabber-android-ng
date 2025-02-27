@@ -34,6 +34,8 @@ class SettingsFragment : BaseFragment(R.layout.fragment_settings), AccountAdapte
         subscribeToDataUpdates()
         initializeSettingsActions()
         viewModel.loadAccounts()
+        binding.toolbarSettings.navigationIcon = null
+        binding.left.setOnClickListener{dismiss()}
     }
 
     private fun initToolbarActions() {
@@ -92,7 +94,7 @@ class SettingsFragment : BaseFragment(R.layout.fragment_settings), AccountAdapte
             && resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
         ) {
 
-            parentFragmentManager.beginTransaction()
+            childFragmentManager.beginTransaction()
                 .setReorderingAllowed(true)
                 .replace(R.id.application_container, AccountFragment.newInstance(id))
                 .addToBackStack(null) // Add to back stack for back navigation
