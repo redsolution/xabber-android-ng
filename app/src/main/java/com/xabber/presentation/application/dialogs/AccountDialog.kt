@@ -20,6 +20,7 @@ import androidx.core.view.MenuProvider
 import androidx.core.view.isVisible
 import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.viewModels
+import androidx.lifecycle.findViewTreeViewModelStoreOwner
 import androidx.lifecycle.lifecycleScope
 import by.kirich1409.viewbindingdelegate.viewBinding
 import com.bumptech.glide.Glide
@@ -90,7 +91,7 @@ class AccountDialog : DialogFragment(R.layout.fragment_account) {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        setupTitle()
+        //setupTitle()
         setupSwitch()
         setColorDialogResultListener()
         changeUiWithAccountData()
@@ -107,8 +108,7 @@ class AccountDialog : DialogFragment(R.layout.fragment_account) {
                 .into(binding.accountAppbar.avatarGr.imAccountAvatar)
             viewModel.saveAvatar(getJid(), it.toString())
         }
-
-
+    binding.accountAppbar.left.setOnClickListener {dismiss()}
     }
 
     private fun setAvatar(bitmap: Bitmap) {
@@ -119,31 +119,31 @@ class AccountDialog : DialogFragment(R.layout.fragment_account) {
     }
 
     private fun setupTitle() {
-        binding.accountAppbar.tvTitle.isSelected = true
-        if (!DisplayManager.isDualScreenMode() && DisplayManager.getWidthDp() > 600) {
-            val params = CollapsingToolbarLayout.LayoutParams(
-                CoordinatorLayout.LayoutParams.WRAP_CONTENT,
-                CollapsingToolbarLayout.LayoutParams.WRAP_CONTENT
-            )
-            params.gravity = Gravity.CENTER
-
-            binding.accountAppbar.linText.layoutParams = params
-        }
+//        binding.accountAppbar.tvTitle.isSelected = true
+//        if (!DisplayManager.isDualScreenMode() && DisplayManager.getWidthDp() > 600) {
+//            val params = CollapsingToolbarLayout.LayoutParams(
+//                CoordinatorLayout.LayoutParams.WRAP_CONTENT,
+//                CollapsingToolbarLayout.LayoutParams.WRAP_CONTENT
+//            )
+//            params.gravity = Gravity.CENTER
+//
+//            binding.accountAppbar.linText.layoutParams = params
+//        }
     }
 
     private fun setupSwitch() {
-        binding.accountAppbar.switchAccountEnable.isVisible = true
-        val colorStateList =
-            ColorStateList.valueOf(ContextCompat.getColor(requireContext(), R.color.white))
-        binding.accountAppbar.switchAccountEnable.thumbTintList = colorStateList
-        binding.accountAppbar.switchAccountEnable.isChecked =
-            viewModel.getAccount(getJid())!!.enabled
-        binding.accountAppbar.switchAccountEnable.setOnCheckedChangeListener { _, isChecked ->
-            viewModel.setEnabled(
-                getJid(),
-                isChecked
-            )
-        }
+//        binding.accountAppbar.switchAccountEnable.isVisible = true
+//        val colorStateList =
+//            ColorStateList.valueOf(ContextCompat.getColor(requireContext(), R.color.white))
+//        binding.accountAppbar.switchAccountEnable.thumbTintList = colorStateList
+//        binding.accountAppbar.switchAccountEnable.isChecked =
+//            viewModel.getAccount(getJid())!!.enabled
+//        binding.accountAppbar.switchAccountEnable.setOnCheckedChangeListener { _, isChecked ->
+//            viewModel.setEnabled(
+//                getJid(),
+//                isChecked
+//            )
+//        }
     }
 
     private fun setColorDialogResultListener() {
@@ -382,55 +382,65 @@ class AccountDialog : DialogFragment(R.layout.fragment_account) {
 
     private fun initAccountSettingsActions() {
         with(binding) {
+            if (DisplayManager.getWidthDp() > 600) {
+                profile.setOnClickListener {
+                    val profileSettings = ProfileSettingsDialog()
+                    profileSettings.show(childFragmentManager, "settings")
+                }
+                cloudStorage.setOnClickListener {
+                    val cloudStorage = CloudStorageSettingsDialog()
+                    cloudStorage.show(childFragmentManager, "Cloud Storage")
+                }
+                encryptionAndKeys.setOnClickListener {
+                    val encryptionSettings = EncryptionSettingsDialog()
+                    encryptionSettings.show(childFragmentManager, "Encryption and Keys")
+                }
+                devices.setOnClickListener {
+                    val devicesSettings = DevicesSettingsDialog()
+                    devicesSettings.show(childFragmentManager, "Devices")
+                }
+                settings.interfaceSettings.setOnClickListener {
+                    val interfaceD = InterfaceDialog()
+                    interfaceD.show(childFragmentManager, "Devices")
+                    }
 
-            profile.setOnClickListener {
-                val profileSettings = ProfileSettingsDialog()
-                profileSettings.show(childFragmentManager, "settings")
-//                childFragmentManager.beginTransaction()
-//                    .setReorderingAllowed(true)
-//                    .replace(com.xabber.R.id.application_container, ProfileSettingsDialog())
-//                    .addToBackStack(null) // Add to back stack for back navigation
-//                    .commit()
-
+            } else {
+                profile.setOnClickListener {
+                childFragmentManager.beginTransaction()
+                    .setReorderingAllowed(true)
+                    .replace(com.xabber.R.id.application_container, ProfileSettingsFragment())
+                    .addToBackStack(null) // Add to back stack for back navigation
+                    .commit()
+                }
+                cloudStorage.setOnClickListener {
+                    childFragmentManager.beginTransaction()
+                    .setReorderingAllowed(true)
+                    .replace(com.xabber.R.id.application_container, CloudStorageSettingsFragment())
+                    .addToBackStack(null) // Add to back stack for back navigation
+                    .commit()
+                }
+                encryptionAndKeys.setOnClickListener {
+                    childFragmentManager.beginTransaction()
+                    .setReorderingAllowed(true)
+                    .replace(com.xabber.R.id.application_container, EncryptionSettingsFragment())
+                    .addToBackStack(null) // Add to back stack for back navigation
+                    .commit()
+                }
+                devices.setOnClickListener {
+                    childFragmentManager.beginTransaction()
+                    .setReorderingAllowed(true)
+                    .replace(com.xabber.R.id.application_container, DevicesSettingsFragment())
+                    .addToBackStack(null) // Add to back stack for back navigation
+                    .commit()
+                }
+                settings.interfaceSettings.setOnClickListener {
+                    childFragmentManager.beginTransaction()
+                    .setReorderingAllowed(true)
+                    .replace(com.xabber.R.id.application_container, InterfaceFragment())
+                    .addToBackStack(null) // Add to back stack for back navigation
+                    .commit()
+                }
             }
-            //   profile.setOnClickListener { navigator().showProfileSettings() }
-            cloudStorage.setOnClickListener {
-                val cloudStorage = CloudStorageSettingsDialog()
-                cloudStorage.show(childFragmentManager, "Cloud Storage")
-//                childFragmentManager.beginTransaction()
-//                    .setReorderingAllowed(true)
-//                    .replace(com.xabber.R.id.application_container, CloudStorageSettingsFragment())
-//                    .addToBackStack(null) // Add to back stack for back navigation
-//                    .commit()
-            }
-            encryptionAndKeys.setOnClickListener {
-                val encryptionSettings = EncryptionSettingsDialog()
-                encryptionSettings.show(childFragmentManager, "Encryption and Keys")
-//                childFragmentManager.beginTransaction()
-//                    .setReorderingAllowed(true)
-//                    .replace(com.xabber.R.id.application_container, EncryptionSettingsFragment())
-//                    .addToBackStack(null) // Add to back stack for back navigation
-//                    .commit()
-
-            }
-            devices.setOnClickListener {
-                val devicesSettings = DevicesSettingsDialog()
-                devicesSettings.show(childFragmentManager, "Devices")
-//                childFragmentManager.beginTransaction()
-//                    .setReorderingAllowed(true)
-//                    .replace(com.xabber.R.id.application_container, DevicesSettingsFragment())
-//                    .addToBackStack(null) // Add to back stack for back navigation
-//                    .commit()
-
-            }
-            settings.interfaceSettings.setOnClickListener {
-                val interfaceD = InterfaceDialog()
-                interfaceD.show(childFragmentManager, "Devices")
-//                childFragmentManager.beginTransaction()
-//                    .setReorderingAllowed(true)
-//                    .replace(com.xabber.R.id.application_container, InterfaceFragment())
-//                    .addToBackStack(null) // Add to back stack for back navigation
-//                    .commit()
 
             }
 
@@ -444,4 +454,4 @@ class AccountDialog : DialogFragment(R.layout.fragment_account) {
         }
 
     }
-}
+

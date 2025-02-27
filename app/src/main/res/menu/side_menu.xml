@@ -29,10 +29,7 @@
                     android:id="@+id/archive"
                     android:icon="@drawable/ic_group"
                     android:title="@string/archived_chat" />
-                <item
-                    android:id="@+id/settings"
-                    android:icon="@drawable/ic_settings_grey"
-                    android:title="@string/menu_item_settings" />
+
 
 
 

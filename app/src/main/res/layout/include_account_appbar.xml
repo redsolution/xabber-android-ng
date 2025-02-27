@@ -29,7 +29,7 @@
                     android:layout_gravity="start"
                     android:layout_height="wrap_content"
                     android:padding="12dp"
-                    android:layout_marginStart="16dp"/>
+                    android:layout_marginStart="8dp"/>
                 <Button
                     android:id="@+id/btn_add_contact"
                     android:layout_width="wrap_content"
@@ -68,16 +68,22 @@
                 android:layout_marginTop="16dp"
                 android:gravity="center"
                 android:orientation="vertical">
-
-                <include
-                    android:id="@+id/avatar_gr"
-                    layout="@layout/include_avatar_group"
-                    android:layout_width="@dimen/avatar176"
-                    android:layout_height="@dimen/avatar176"
+                <com.xabber.utils.custom.ShapeOfView
+                    android:id="@+id/shape_view"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
                     android:layout_gravity="center"
-                    android:layout_marginBottom="@dimen/margin_less_than_medium"
-                    app:layout_collapseMode="none" />
+                    app:shape_clip_drawable="@drawable/ic_mask_circle">
 
+                    <include
+                        android:id="@+id/avatar_gr"
+                        layout="@layout/include_avatar_group"
+                        android:layout_width="@dimen/avatar176"
+                        android:layout_height="@dimen/avatar176"
+                        android:layout_gravity="center"
+                        android:layout_marginBottom="@dimen/margin_less_than_medium"
+                        app:layout_collapseMode="none" />
+                </com.xabber.utils.custom.ShapeOfView>
                 <TextView
                     android:id="@+id/tv_title"
                     android:layout_width="wrap_content"

@@ -16,7 +16,13 @@
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
             app:menu="@menu/menu_toolbar_settings">
-
+            <ImageView
+                android:id="@+id/left"
+                android:layout_width="wrap_content"
+                android:src="@drawable/ic_arrow_left_white"
+                android:layout_height="wrap_content"
+                android:padding="12dp"
+                />
             <TextView
                 android:id="@+id/tv_settings_toolbar_title"
                 style="@style/ApplicationToolbarTitle"

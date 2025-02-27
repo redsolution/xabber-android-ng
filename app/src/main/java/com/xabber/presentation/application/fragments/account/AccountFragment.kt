@@ -111,18 +111,18 @@ class AccountFragment : DetailBaseFragment(R.layout.fragment_account) {
     }
 
     private fun setupSwitch() {
-        binding.accountAppbar.switchAccountEnable.isVisible = true
-        val colorStateList =
-            ColorStateList.valueOf(ContextCompat.getColor(requireContext(), R.color.white))
-        binding.accountAppbar.switchAccountEnable.thumbTintList = colorStateList
-        binding.accountAppbar.switchAccountEnable.isChecked =
-            viewModel.getAccount(getJid())!!.enabled
-        binding.accountAppbar.switchAccountEnable.setOnCheckedChangeListener { _, isChecked ->
-            viewModel.setEnabled(
-                getJid(),
-                isChecked
-            )
-        }
+//        binding.accountAppbar.switchAccountEnable.isVisible = true
+//        val colorStateList =
+//            ColorStateList.valueOf(ContextCompat.getColor(requireContext(), R.color.white))
+//        binding.accountAppbar.switchAccountEnable.thumbTintList = colorStateList
+//        binding.accountAppbar.switchAccountEnable.isChecked =
+//            viewModel.getAccount(getJid())!!.enabled
+//        binding.accountAppbar.switchAccountEnable.setOnCheckedChangeListener { _, isChecked ->
+//            viewModel.setEnabled(
+//                getJid(),
+//                isChecked
+//            )
+//        }
     }
 
     private fun setColorDialogResultListener() {
@@ -342,50 +342,11 @@ class AccountFragment : DetailBaseFragment(R.layout.fragment_account) {
     private fun initAccountSettingsActions() {
         with(binding) {
 
-                profile.setOnClickListener {
-                    parentFragmentManager.beginTransaction()
-                        .setReorderingAllowed(true)
-                        .replace(R.id.application_container, ProfileSettingsFragment())
-                        .addToBackStack(null) // Add to back stack for back navigation
-                        .commit()
-                }
-             //   profile.setOnClickListener { navigator().showProfileSettings() }
-                cloudStorage.setOnClickListener {
-                    parentFragmentManager.beginTransaction()
-                    .setReorderingAllowed(true)
-                    .replace(R.id.application_container, CloudStorageSettingsFragment())
-                    .addToBackStack(null) // Add to back stack for back navigation
-                    .commit()
-                }
-                encryptionAndKeys.setOnClickListener {
-                    parentFragmentManager.beginTransaction()
-                        .setReorderingAllowed(true)
-                        .replace(R.id.application_container, EncryptionSettingsFragment())
-                        .addToBackStack(null) // Add to back stack for back navigation
-                        .commit()
-
-                }
-                devices.setOnClickListener {
-                    parentFragmentManager.beginTransaction()
-                        .setReorderingAllowed(true)
-                        .replace(R.id.application_container, DevicesSettingsFragment())
-                        .addToBackStack(null) // Add to back stack for back navigation
-                        .commit()
-
-                }
-                settings.interfaceSettings.setOnClickListener {
-                    parentFragmentManager.beginTransaction()
-                        .setReorderingAllowed(true)
-                        .replace(R.id.application_container, InterfaceFragment())
-                        .addToBackStack(null) // Add to back stack for back navigation
-                        .commit()
-
-                }
-
-//                cloudStorage.setOnClickListener { navigator().showCloudStorageSettings() }
-//                encryptionAndKeys.setOnClickListener { navigator().showEncryptionAndKeysSettings() }
-//                devices.setOnClickListener { navigator().showDevicesSettings() }
-//                settings.interfaceSettings.setOnClickListener { navigator().showInterfaceSettings(true) }
+                profile.setOnClickListener { navigator().showProfileSettings() }
+                cloudStorage.setOnClickListener { navigator().showCloudStorageSettings() }
+                encryptionAndKeys.setOnClickListener { navigator().showEncryptionAndKeysSettings() }
+                devices.setOnClickListener { navigator().showDevicesSettings() }
+                settings.interfaceSettings.setOnClickListener { navigator().showInterfaceSettings(true) }
 
 
 

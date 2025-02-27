@@ -46,6 +46,8 @@ class MaskDialog : DialogFragment(R.layout.fragment_mask) {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         setupRadioGroup()
+        binding.toolbar.navigationIcon = null
+        binding.left.setOnClickListener { dismiss() }
     }
 
     private fun setupRadioGroup() {
@@ -78,5 +80,6 @@ class MaskDialog : DialogFragment(R.layout.fragment_mask) {
                 ?: return
         pref.edit()?.putInt(AppConstants.MASK_KEY, mask)?.apply()
     }
+
 
 }

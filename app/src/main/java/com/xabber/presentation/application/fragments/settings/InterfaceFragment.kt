@@ -30,6 +30,8 @@ class InterfaceFragment : DetailBaseFragment(R.layout.fragment_interface) {
             Toast.makeText(context, "Mode switched!", Toast.LENGTH_SHORT).show()
         }
         binding.chatSettings.setOnClickListener { navigator().showChatSettings() }
+        binding.toolbar.navigationIcon = null
+        binding.left.setOnClickListener { navigator().goBack() }
     }
 
 }
