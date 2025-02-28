@@ -5,23 +5,16 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.ContextParams
 import android.content.Intent
+import android.content.SharedPreferences
 import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.Outline
-import android.media.Image
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
-import android.os.PersistableBundle
 import android.util.TypedValue
-import android.view.Gravity
 import android.view.MenuItem
 import android.view.View
-import android.view.View.OnClickListener
 import android.view.ViewGroup
 import android.view.ViewOutlineProvider
-import android.view.animation.AnimationUtils
-import android.widget.Button
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -33,47 +26,32 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.appcompat.widget.Toolbar
 import androidx.constraintlayout.widget.ConstraintLayout
-import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.GravityCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
-import androidx.core.view.isVisible
+import androidx.core.view.marginTop
 import androidx.core.view.updateLayoutParams
 import androidx.drawerlayout.widget.DrawerLayout
 import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.Fragment
-import androidx.fragment.app.FragmentManager
-import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.commit
-import androidx.lifecycle.lifecycleScope
-import androidx.lifecycle.viewModelScope
-import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.room.util.query
 import androidx.slidingpanelayout.widget.SlidingPaneLayout
-import by.kirich1409.viewbindingdelegate.viewBinding
 import com.bumptech.glide.Glide
-import com.google.android.material.badge.BadgeDrawable
 import com.google.android.material.bottomnavigation.BottomNavigationItemView
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.google.android.material.navigation.NavigationView
 import com.xabber.R
 import com.xabber.data_base.defaultRealmConfig
 import com.xabber.databinding.ActivityApplicationBinding
-import com.xabber.databinding.FragmentChatBinding
-import com.xabber.databinding.FragmentSettingsBinding
 import com.xabber.dto.AccountDto
 import com.xabber.dto.AvatarDto
 import com.xabber.presentation.AppConstants
 import com.xabber.presentation.AppConstants.CHAT_LIST_UNREAD_KEY
 import com.xabber.presentation.application.BaseViewModel
 import com.xabber.presentation.application.contract.Navigator
-import com.xabber.presentation.application.dialogs.AccountDialog
-import com.xabber.presentation.application.dialogs.EncryptionSettingsDialog
 import com.xabber.presentation.application.dialogs.SettingsDialog
 import com.xabber.presentation.application.fragments.account.AccountAdapter
 import com.xabber.presentation.application.fragments.account.AccountFragment
-import com.xabber.presentation.application.fragments.account.AccountViewHolder
-import com.xabber.presentation.application.fragments.account.AccountViewModel
 import com.xabber.presentation.application.fragments.account.qrcode.QRCodeDialogFragment
 import com.xabber.presentation.application.fragments.account.qrcode.QRCodeFragment
 import com.xabber.presentation.application.fragments.account.qrcode.QRCodeParams
@@ -94,15 +72,14 @@ import com.xabber.presentation.application.fragments.contacts.*
 import com.xabber.presentation.application.fragments.contacts.edit.EditContactFragment
 import com.xabber.presentation.application.fragments.discover.DiscoverFragment
 import com.xabber.presentation.application.fragments.settings.*
-import com.xabber.presentation.application.manage.AccountManager.getAvatar
-import com.xabber.presentation.application.manage.ColorManager
 import com.xabber.presentation.application.manage.DisplayManager
-import com.xabber.presentation.application.manage.DisplayManager.getId
+import com.xabber.presentation.application.manage.DisplayManager.getHeightStatusBar
 import com.xabber.presentation.application.manage.DisplayManager.getMainContainerWidth
 import com.xabber.presentation.application.manage.DisplayManager.isDualScreenMode
 import com.xabber.presentation.application.manage.DisplayManager.requireArguments
 import com.xabber.presentation.application.manage.MaskManager
 import com.xabber.presentation.onboarding.activity.OnBoardingActivity
+import com.xabber.utils.custom.ShapeOfView
 import com.xabber.utils.lockScreenRotation
 import com.xabber.utils.toAccountDto
 import com.xabber.utils.toAvatarDto
@@ -116,7 +93,8 @@ import io.realm.kotlin.Realm
  * In onCreate check condition: user is authorized (stay this activity) or not (go to Onboarding activity)
  */
 
-class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNavigationItemSelectedListener, AccountAdapter.Listener {
+class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNavigationItemSelectedListener, AccountAdapter.Listener,
+    SharedPreferences.OnSharedPreferenceChangeListener {
 
     private val binding: ActivityApplicationBinding by lazy {
         ActivityApplicationBinding.inflate(
@@ -133,7 +111,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         get() = supportFragmentManager.findFragmentById(R.id.application_container)
     private val viewModel = ApplicationViewModel()
     private val chatListViewModel: ChatListViewModel by viewModels()
-
+    private var shapeView: ShapeOfView? = null
 //    private val showBadge = {
 //        val count = viewModel.unreadMessage.value
 //        if (count != null) {
@@ -170,7 +148,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         setTheme(R.style.ThemeApplication)
         super.onCreate(savedInstanceState)
         setContentView(binding.root)
-
+        initViews()
         setupStatusBar()
         setupNavigationDrawer()
 
@@ -194,6 +172,9 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         profileButton.setOnClickListener {
             handleProfileNavigation()
         }
+        shapeView?.setDrawable(MaskManager.mask)
+        val sharedPreferences = getSharedPreferences(AppConstants.SHARED_PREF_MASK, Context.MODE_PRIVATE)
+        sharedPreferences.registerOnSharedPreferenceChangeListener(this)
     }
 
     private fun setupStatusBar() {
@@ -212,6 +193,13 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
 
         val toolbar = findViewById<Toolbar>(R.id.toolbar_nav)
         // Set padding for toolbar
+        val scaleToolbar = resources.displayMetrics.density
+//        val dpToolbar = (10 * scaleToolbar + 0.5f).toInt()
+//        if (DisplayManager.getWidthDp() < 600) {
+//            toolbar.updateLayoutParams<ConstraintLayout.LayoutParams> {
+//                topMargin = dpToolbar
+//            }
+//        }
         val scale = resources.displayMetrics.density
         val dpAsPixels = (25 * scale + 0.5f).toInt()
         toolbar.setPadding(0, dpAsPixels, 0, 0)
@@ -220,7 +208,6 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         supportActionBar?.setDisplayShowTitleEnabled(false)
 
 
-       // val headerView = navigationView.getHeaderView(0)
         val avatarImageView = findViewById<ImageView>(R.id.avatar_image_view)
         val titleTextView = findViewById<TextView>(R.id.title_text_view)
         val nightDayToggleButton = findViewById<ImageButton>(R.id.nightDayToggleButton)
@@ -250,7 +237,12 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
             toggleNightDayMode()
         }
     }
-
+    private fun initViews() {
+        shapeView = findViewById(R.id.shape_view)
+    }
+    override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences?, key: String?) {
+        shapeView?.setDrawable(MaskManager.mask)
+    }
     private fun initializeAppForLoggedInUser(savedInstanceState: Bundle?) {
         updateUiDependingOnMode(isDualScreenMode())
         setFullScreenMode()
@@ -307,31 +299,6 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         }
         return avatarDto
     }
-
-
-//    private fun loadAccountAvatar() {
-//
-//        lifecycleScope.launch {
-//            val avatar = getAvatar(getJid())
-//            val uri = avatar?.fileUri
-//            Glide.with(binding.root.context).load(uri)
-//                .into(findViewById<NavigationView>(R.id.nav_view).getHeaderView(0)
-//                    .findViewById<ImageView>(R.id.avatar_image_view))
-//        }
-//    }
-
-//    private fun loadAvatarWithInitials(name: String, colorKey: String) {
-//        val color = ColorManager.convertColorLightNameToId(colorKey)
-//        val avatar = findViewById<NavigationView>(R.id.nav_view).getHeaderView(0)
-//            .findViewById<ImageView>(R.id.avatar_image_view)
-//        avatar.setImageResource(color)
-//        var initials =
-//            name.split(' ').mapNotNull { it.firstOrNull()?.toString() }.reduce { acc, s -> acc + s }
-//        if (initials.length > 2) initials = initials.substring(0, 2)
-//
-//    }
-
-
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
@@ -1010,6 +977,8 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
     override fun onDestroy() {
         super.onDestroy()
         assist?.onDestroy()
+        val sharedPreferences = getSharedPreferences(AppConstants.SHARED_PREF_MASK, Context.MODE_PRIVATE)
+        sharedPreferences.unregisterOnSharedPreferenceChangeListener(this)
     }
 
     override fun onClick(id: String) {

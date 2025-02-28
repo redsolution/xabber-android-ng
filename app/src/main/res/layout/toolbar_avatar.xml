@@ -41,5 +41,6 @@
         android:layout_height="@dimen/status_size_toolbar"
         android:contentDescription="@string/status"
         android:src="@drawable/status_chat"
+        android:visibility="gone"
         android:layout_gravity="end|bottom" />
 </FrameLayout>

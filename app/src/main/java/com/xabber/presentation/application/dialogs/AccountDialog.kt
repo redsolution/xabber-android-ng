@@ -1,5 +1,7 @@
 package com.xabber.presentation.application.dialogs
 
+import android.content.Context
+import android.content.SharedPreferences
 import android.content.res.ColorStateList
 import android.graphics.Bitmap
 import android.os.Bundle
@@ -44,19 +46,22 @@ import com.xabber.presentation.application.fragments.settings.InterfaceFragment
 import com.xabber.presentation.application.fragments.settings.ProfileSettingsFragment
 import com.xabber.presentation.application.manage.ColorManager
 import com.xabber.presentation.application.manage.DisplayManager
+import com.xabber.presentation.application.manage.MaskManager
+import com.xabber.utils.custom.ShapeOfView
 import com.xabber.utils.setFragmentResultListener
 import com.xabber.utils.toAccountDto
 import com.xabber.utils.toAvatarDto
 import io.realm.kotlin.Realm
 import kotlinx.coroutines.launch
 
-class AccountDialog : DialogFragment(R.layout.fragment_account) {
+class AccountDialog : DialogFragment(R.layout.fragment_account), SharedPreferences.OnSharedPreferenceChangeListener {
     private val binding by viewBinding(FragmentAccountBinding::bind)
     private val viewModel: AccountViewModel by viewModels()
     private var hasAvatar = false
     private var popupMenu: PopupMenu? = null
     private val realm = Realm.open(defaultRealmConfig())
-
+    private var shapeView: ShapeOfView? = null
+    private lateinit var sh: SharedPreferences
     override fun onStart() {
         super.onStart()
         val dialog = dialog
@@ -81,6 +86,7 @@ class AccountDialog : DialogFragment(R.layout.fragment_account) {
     private fun getJid(): String =
         requireArguments().getString(AppConstants.PARAMS_ACCOUNT_DIALOG)!!
 
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -99,7 +105,7 @@ class AccountDialog : DialogFragment(R.layout.fragment_account) {
         createAvatarPopupMenu()
         initAccountSettingsActions()
         subscribeToViewModelData()
-
+        binding.accountAppbar.shapeView?.setDrawable(MaskManager.mask)
         viewModel.avatarBitmap.observe(viewLifecycleOwner) {
             setAvatar(it)
         }
@@ -109,6 +115,8 @@ class AccountDialog : DialogFragment(R.layout.fragment_account) {
             viewModel.saveAvatar(getJid(), it.toString())
         }
     binding.accountAppbar.left.setOnClickListener {dismiss()}
+        sh = activity?.getSharedPreferences(AppConstants.SHARED_PREF_MASK, Context.MODE_PRIVATE)!!
+        sh.registerOnSharedPreferenceChangeListener(this)
     }
 
     private fun setAvatar(bitmap: Bitmap) {
@@ -118,6 +126,10 @@ class AccountDialog : DialogFragment(R.layout.fragment_account) {
             .into(binding.accountAppbar.avatarGr.imAccountAvatar)
     }
 
+
+    override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences?, key: String?) {
+        binding.accountAppbar.shapeView?.setDrawable(MaskManager.mask)
+    }
     private fun setupTitle() {
 //        binding.accountAppbar.tvTitle.isSelected = true
 //        if (!DisplayManager.isDualScreenMode() && DisplayManager.getWidthDp() > 600) {
@@ -452,6 +464,12 @@ class AccountDialog : DialogFragment(R.layout.fragment_account) {
 
 
         }
+    override fun onDestroy() {
+        super.onDestroy()
+        if (::sh.isInitialized) {
+            sh.unregisterOnSharedPreferenceChangeListener(this)
+        }
+    }
 
     }
 
