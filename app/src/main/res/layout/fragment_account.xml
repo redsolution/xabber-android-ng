@@ -37,7 +37,7 @@
                         style="@style/SettingsIcon"
                         android:layout_marginStart="24dp"
                         android:backgroundTint="@color/blue_500"
-                        android:src="@drawable/ic_account"
+                        android:src="@drawable/account_box"
                         app:layout_constraintBottom_toBottomOf="parent"
                         app:layout_constraintStart_toStartOf="parent"
                         app:layout_constraintTop_toTopOf="parent" />
@@ -73,7 +73,7 @@
                         style="@style/SettingsIcon"
                         android:layout_marginStart="24dp"
                         android:backgroundTint="@color/purple_500"
-                        android:src="@drawable/ic_cloud"
+                        android:src="@drawable/cloud_24px"
                         app:layout_constraintBottom_toBottomOf="parent"
                         app:layout_constraintStart_toStartOf="parent"
                         app:layout_constraintTop_toTopOf="parent" />

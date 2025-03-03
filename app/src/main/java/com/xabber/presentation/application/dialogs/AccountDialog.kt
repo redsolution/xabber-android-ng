@@ -413,8 +413,32 @@ class AccountDialog : DialogFragment(R.layout.fragment_account), SharedPreferenc
                 }
                 settings.interfaceSettings.setOnClickListener {
                     val interfaceD = InterfaceDialog()
-                    interfaceD.show(childFragmentManager, "Devices")
+                    interfaceD.show(childFragmentManager, "Interface")
                     }
+                settings.notifications.setOnClickListener {
+                    val notifyButton = NotificationsFragment()
+                    notifyButton.show(childFragmentManager, "Notifications")
+                }
+//                settings.interfaceSettings.setOnClickListener {
+//                    val interfaceD = InterfaceDialog()
+//                    interfaceD.show(childFragmentManager, "data and storage")
+//                }
+//                settings.interfaceSettings.setOnClickListener {
+//                    val interfaceD = InterfaceDialog()
+//                    interfaceD.show(childFragmentManager, "confidential")
+//                }
+//                settings.interfaceSettings.setOnClickListener {
+//                    val interfaceD = InterfaceDialog()
+//                    interfaceD.show(childFragmentManager, "connection")
+//                }
+//                settings.interfaceSettings.setOnClickListener {
+//                    val interfaceD = InterfaceDialog()
+//                    interfaceD.show(childFragmentManager, "debug")
+//                }
+//                settings.interfaceSettings.setOnClickListener {
+//                    val interfaceD = InterfaceDialog()
+//                    interfaceD.show(childFragmentManager, "language")
+//                }
 
             } else {
                 profile.setOnClickListener {

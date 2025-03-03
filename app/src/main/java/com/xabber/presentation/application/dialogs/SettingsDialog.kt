@@ -10,11 +10,13 @@ import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.core.view.marginStart
 import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.FragmentTransaction
 import androidx.fragment.app.activityViewModels
 import androidx.recyclerview.widget.LinearLayoutManager
 import by.kirich1409.viewbindingdelegate.viewBinding
+import com.google.android.material.navigation.NavigationView
 import com.xabber.R
 import com.xabber.databinding.FragmentSettingsBinding
 import com.xabber.dto.AccountDto
@@ -60,7 +62,7 @@ class SettingsDialog : DialogFragment(), AccountAdapter.Listener {
         subscribeToDataUpdates()
         initializeSettingsActions()
         viewModel.loadAccounts()
-        binding.toolbarSettings.navigationIcon = null
+
         binding.left.setOnClickListener{dismiss()}
     }
 
@@ -86,6 +88,7 @@ private fun handleAddAccount() {
 
     private fun setupMenu(isManyAccounts: Boolean) {
         binding.toolbarSettings.menu.findItem(R.id.reorder).isVisible = isManyAccounts
+
     }
 
     private fun initAccountList() {

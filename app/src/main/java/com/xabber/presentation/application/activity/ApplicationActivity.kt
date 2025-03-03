@@ -76,6 +76,7 @@ import com.xabber.presentation.application.manage.DisplayManager
 import com.xabber.presentation.application.manage.DisplayManager.getHeightStatusBar
 import com.xabber.presentation.application.manage.DisplayManager.getMainContainerWidth
 import com.xabber.presentation.application.manage.DisplayManager.isDualScreenMode
+import com.xabber.presentation.application.manage.DisplayManager.isHidden
 import com.xabber.presentation.application.manage.DisplayManager.requireArguments
 import com.xabber.presentation.application.manage.MaskManager
 import com.xabber.presentation.onboarding.activity.OnBoardingActivity
@@ -158,16 +159,16 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
             goToOnboarding()
         }
         val profileButton: LinearLayout = findViewById(R.id.profile_button)
-        profileButton.clipToOutline = true
+//        profileButton.clipToOutline = true
 
         // Set a ViewOutlineProvider to apply rounded corners
-        profileButton.outlineProvider = object : ViewOutlineProvider() {
-            override fun getOutline(view: View, outline: Outline) {
-                // Define the rounded corners (radius in pixels)
-                val cornerRadius = 100f // Adjust this value as needed
-                outline.setRoundRect(0, 0, view.width, view.height, cornerRadius)
-            }
-        }
+//        profileButton.outlineProvider = object : ViewOutlineProvider() {
+//            override fun getOutline(view: View, outline: Outline) {
+//                // Define the rounded corners (radius in pixels)
+//                val cornerRadius = 100f // Adjust this value as needed
+//                outline.setRoundRect(0, 0, view.width, view.height, cornerRadius)
+//            }
+//        }
         // Set the click listener
         profileButton.setOnClickListener {
             handleProfileNavigation()
@@ -185,15 +186,15 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         drawerLayout = findViewById(R.id.drawer_layout)
         val navigationView = findViewById<NavigationView>(R.id.nav_view)
 
-        if (DisplayManager.getWidthDp() < 600) {
-            val layoutParams = navigationView.layoutParams
-            layoutParams.width = ViewGroup.LayoutParams.MATCH_PARENT
-            navigationView.layoutParams = layoutParams
-        }
+//        if (DisplayManager.getWidthDp() < 600) {
+//            val layoutParams = navigationView.layoutParams
+//            layoutParams.width = ViewGroup.LayoutParams.MATCH_PARENT
+//            navigationView.layoutParams = layoutParams
+//        }
 
         val toolbar = findViewById<Toolbar>(R.id.toolbar_nav)
         // Set padding for toolbar
-        val scaleToolbar = resources.displayMetrics.density
+  //      val scaleToolbar = resources.displayMetrics.density
 //        val dpToolbar = (10 * scaleToolbar + 0.5f).toInt()
 //        if (DisplayManager.getWidthDp() < 600) {
 //            toolbar.updateLayoutParams<ConstraintLayout.LayoutParams> {
@@ -383,6 +384,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         if (activeFragment !is SettingsFragment) {
             replaceFragment(SettingsFragment())
         }
+
         setupIconChat(false)
     }
 
@@ -702,7 +704,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
 
     private fun setupIconChat(unreadChats: Boolean) {
      // if (resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) {
-            val menuItem = binding.navView!!.menu.findItem(R.id.chats)
+            val menuItem = binding.navView.menu.findItem(R.id.chats)
             if (unreadChats) {
                 menuItem.setIcon(R.drawable.ic_chat_alert)
             } else {

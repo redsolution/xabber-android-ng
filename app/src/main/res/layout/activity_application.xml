@@ -39,12 +39,14 @@
 
             <!-- Main Content -->
             <LinearLayout
+                android:id="@+id/drawer"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:orientation="vertical">
 
                 <!-- Toolbar -->
                 <include layout="@layout/toolbar_drawer"
+                    android:id="@+id/toolbar"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_gravity="bottom">
@@ -69,30 +71,31 @@
                 app:menu="@menu/side_menu">
 
                 <LinearLayout
-                    android:id="@+id/header"
+                    android:id="@+id/profile_button"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_gravity="bottom"
-                    android:gravity="bottom"
+                   android:padding="12dp"
                     android:layout_marginTop="12dp"
-                    android:layout_marginStart="8dp"
-                    android:layout_marginEnd="16dp"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:foreground="?android:attr/selectableItemBackground"
+                    android:gravity="bottom"
 
                     android:orientation="vertical"
                     tools:ignore="MissingConstraints,UseCompoundDrawables">
 
                     <LinearLayout
-                        android:id="@+id/profile_button"
+                        android:id="@+id/header"
                         android:layout_width="match_parent"
                         android:layout_height="0dp"
                         android:layout_gravity="bottom"
                         android:layout_weight="1"
-                        android:clickable="true"
-                        android:focusable="true"
-                        android:foreground="?android:attr/selectableItemBackground"
-                        android:layoutMode="clipBounds"
+
+                        android:layout_marginStart="8dp"
+                        android:layout_marginEnd="16dp"
                         android:orientation="horizontal"
-                        android:padding="10dp">
+                  >
 
                         <com.xabber.utils.custom.ShapeOfView
                             android:id="@+id/shape_view"
@@ -102,11 +105,11 @@
                             app:shape_clip_drawable="@drawable/ic_mask_circle">
 
                             <ImageView
-                                android:scaleType="centerCrop"
                                 android:id="@+id/avatar_image_view"
                                 android:layout_width="48dp"
                                 android:layout_height="48dp"
-                                android:contentDescription="@string/account_photo_image_description" />
+                                android:contentDescription="@string/account_photo_image_description"
+                                android:scaleType="centerCrop" />
                         </com.xabber.utils.custom.ShapeOfView>
 
                         <LinearLayout

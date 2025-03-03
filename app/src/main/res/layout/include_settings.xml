@@ -112,7 +112,7 @@
             style="@style/SettingsIcon"
             android:backgroundTint="@color/red_500"
             android:contentDescription="@string/image_data_and_storage_settings_description"
-            android:src="@drawable/ic_file_white"
+            android:src="@drawable/draft_24px"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
@@ -265,7 +265,7 @@
             style="@style/SettingsIcon"
             android:backgroundTint="@color/brown_500"
             android:contentDescription="@string/image_language_settings_description"
-            android:src="@drawable/ic_translate"
+            android:src="@drawable/language_24px"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
