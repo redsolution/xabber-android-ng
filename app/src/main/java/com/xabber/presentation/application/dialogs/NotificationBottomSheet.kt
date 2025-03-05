@@ -41,17 +41,17 @@ class NotificationBottomSheet :
     }
 
     private fun setupBottomSheet(dialogInterface: DialogInterface) {
-        val bottomSheetDialog = dialogInterface as BottomSheetDialog
-        val bottomSheet = bottomSheetDialog.findViewById<View>(
-            com.google.android.material.R.id.design_bottom_sheet
-        )
-            ?: return
-
-        bottomSheet.setBackgroundColor(Color.TRANSPARENT)
-        behavior = BottomSheetBehavior.from(bottomSheet)
-        behavior?.skipCollapsed = true
-        behavior?.state = BottomSheetBehavior.STATE_EXPANDED
-        initActions()
+//        val bottomSheetDialog = dialogInterface as BottomSheetDialog
+////        val bottomSheet = bottomSheetDialog.findViewById<View>(
+////        //    com.google.android.material.R.id.design_bottom_sheet
+////        )
+//            ?: return
+//
+//        bottomSheet.setBackgroundColor(Color.TRANSPARENT)
+//        behavior = BottomSheetBehavior.from(bottomSheet)
+//        behavior?.skipCollapsed = true
+//        behavior?.state = BottomSheetBehavior.STATE_EXPANDED
+//        initActions()
     }
 
     private fun initActions() {

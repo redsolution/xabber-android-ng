@@ -323,7 +323,7 @@ class AccountDialog : DialogFragment(R.layout.fragment_account), SharedPreferenc
                 if (scrollRange == -1) {
                     scrollRange = bar.totalScrollRange
                 }
-                if (scrollRange + verticalOffset < 170) {
+                if (scrollRange + verticalOffset < 200) {
                     val anim =
                         android.view.animation.AnimationUtils.loadAnimation(context, com.xabber.R.anim.disappearance_300)
                     if (tvTitle.isVisible) {
@@ -338,7 +338,7 @@ class AccountDialog : DialogFragment(R.layout.fragment_account), SharedPreferenc
                     }
                 }
 
-                if (scrollRange + verticalOffset > 170) {
+                if (scrollRange + verticalOffset > 200) {
                     val anim = android.view.animation.AnimationUtils.loadAnimation(context, com.xabber.R.anim.appearance)
                     if (!tvTitle.isVisible) {
                         tvTitle.startAnimation(anim)

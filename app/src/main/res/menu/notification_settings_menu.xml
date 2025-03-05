@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/action_sound"
+        android:title="Sound" />
+    <item
+        android:id="@+id/action_vibrate"
+        android:title="Vibrate" />
+    <item
+        android:id="@+id/action_priority"
+        android:title="Priority" />
+</menu>

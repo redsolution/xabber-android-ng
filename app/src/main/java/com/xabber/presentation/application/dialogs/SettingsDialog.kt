@@ -120,7 +120,10 @@ private fun handleAddAccount() {
                 interfaceD.show(childFragmentManager, "Devices")
             //    navigator().showInterfaceSettings(false)
             }
-            notifications.setOnClickListener { navigator().showNotificationsSettings() }
+            notifications.setOnClickListener {
+                val notifyButton = NotificationsFragment()
+                notifyButton.show(childFragmentManager, "Notifications")
+            }
             dataAndStorage.setOnClickListener { navigator().showDataAndStorageSettings() }
             privacy.setOnClickListener { navigator().showPrivacySettings() }
             connection.setOnClickListener { navigator().showConnectionSettings() }
