@@ -60,7 +60,7 @@ class SettingsDialog : DialogFragment(), AccountAdapter.Listener {
         initToolbarActions()
         initAccountList()
         subscribeToDataUpdates()
-        initializeSettingsActions()
+
         viewModel.loadAccounts()
 
         binding.left.setOnClickListener{dismiss()}
@@ -111,25 +111,6 @@ private fun handleAddAccount() {
         }
     }
 
-    private fun initializeSettingsActions() {
-        binding.settings.interfaceSettings
-        with(binding.settings) {
-
-            interfaceSettings.setOnClickListener {
-                val interfaceD = InterfaceDialog()
-                interfaceD.show(childFragmentManager, "Devices")
-            //    navigator().showInterfaceSettings(false)
-            }
-            notifications.setOnClickListener {
-                val notifyButton = NotificationsFragment()
-                notifyButton.show(childFragmentManager, "Notifications")
-            }
-            dataAndStorage.setOnClickListener { navigator().showDataAndStorageSettings() }
-            privacy.setOnClickListener { navigator().showPrivacySettings() }
-            connection.setOnClickListener { navigator().showConnectionSettings() }
-            debug.setOnClickListener { navigator().showDebugSettings() }
-        }
-    }
 
     override fun setEnabled(id: String, isChecked: Boolean) {
         viewModel.setEnabled(id, isChecked)
@@ -141,19 +122,11 @@ private fun handleAddAccount() {
             && resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
         ) {
 
-//            val account = AccountDialog.newInstance(id)
-//            account.show(parentFragmentManager, "Account")
-
-//            val accDialog = AccountFragment.newInstance(id)
-//            accDialog.show(childFragmentManager, "")
-
                 val account = AccountDialog.newInstance(id)
                 account.show(parentFragmentManager, "Account")
 
         } else {
             navigator().showAccount(id)
-
-
         }
     }
 

@@ -116,15 +116,15 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
     }
 
     private fun addItemDecoration() {
-//        val dividerItemDecoration = DividerItemDecoration(
-//            binding.root.context,
-//            LinearLayoutManager.VERTICAL
-//        )
-//        binding.chatList.addItemDecoration(
-//            dividerItemDecoration.apply {
-//                setChatListOffsetMode(ChatListBaseFragment.ChatListAvatarState.SHOW_AVATARS)
-//                skipDividerOnLastItem(true)
-//            })
+        val dividerItemDecoration = DividerItemDecoration(
+            binding.root.context,
+            LinearLayoutManager.VERTICAL
+        )
+        binding.chatList.addItemDecoration(
+            dividerItemDecoration.apply {
+                setChatListOffsetMode(ChatListBaseFragment.ChatListAvatarState.SHOW_AVATARS)
+                skipDividerOnLastItem(true)
+            })
     }
 
     private fun addSwipeOption() {

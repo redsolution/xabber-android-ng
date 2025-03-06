@@ -14,7 +14,7 @@
             android:layout_height="match_parent"
             app:collapsedTitleTextAppearance="@style/CollapsingToolbarTitle"
             app:collapsedTitleTextColor="@color/white"
-            app:layout_scrollFlags="scroll|snap|exitUntilCollapsed">
+            app:layout_scrollFlags="scroll|exitUntilCollapsed">
 
             <com.google.android.material.appbar.MaterialToolbar
                 android:id="@+id/account_toolbar"
@@ -81,7 +81,7 @@
                         android:layout_width="@dimen/avatar176"
                         android:layout_height="@dimen/avatar176"
                         android:layout_gravity="center"
-                        android:layout_marginBottom="@dimen/margin_less_than_medium"
+
                         app:layout_collapseMode="none" />
                 </com.xabber.utils.custom.ShapeOfView>
                 <TextView

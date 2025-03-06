@@ -86,7 +86,7 @@ class AccountFragment : DetailBaseFragment(R.layout.fragment_account) {
                 .into(binding.accountAppbar.avatarGr.imAccountAvatar)
             viewModel.saveAvatar(getJid(), it.toString())
         }
-
+        binding.accountAppbar.left.setOnClickListener{navigator().goBack()}
 
     }
 
@@ -270,7 +270,7 @@ class AccountFragment : DetailBaseFragment(R.layout.fragment_account) {
                 if (scrollRange == -1) {
                     scrollRange = bar.totalScrollRange
                 }
-                if (scrollRange + verticalOffset < 170) {
+                if (scrollRange + verticalOffset < 30) {
                     val anim =
                         AnimationUtils.loadAnimation(context, R.anim.disappearance_300)
                     if (tvTitle.isVisible) {
@@ -285,7 +285,7 @@ class AccountFragment : DetailBaseFragment(R.layout.fragment_account) {
                     }
                 }
 
-                if (scrollRange + verticalOffset > 170) {
+                if (scrollRange + verticalOffset > 30) {
                     val anim = AnimationUtils.loadAnimation(context, R.anim.appearance)
                     if (!tvTitle.isVisible) {
                         tvTitle.startAnimation(anim)

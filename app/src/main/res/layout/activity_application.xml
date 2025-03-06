@@ -47,9 +47,10 @@
                 <!-- Toolbar -->
                 <include layout="@layout/toolbar_drawer"
                     android:id="@+id/toolbar"
-                    android:layout_width="match_parent"
+                    android:layout_width="50dp"
                     android:layout_height="wrap_content"
-                    android:layout_gravity="bottom">
+                    android:layout_gravity="bottom"
+                    >
 
                 </include>
 

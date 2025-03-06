@@ -281,6 +281,9 @@
     <string name="app_icon">App icon</string>
 
     <!-- ACCOUNT -->
+    <string name="account">Account</string>
+    <string name="title">Title</string>
+    <string name="email">Email</string>
     <string name="share_qr">Share QR-code</string>
     <string name="account_color">Account color</string>
     <string name="green">green</string>

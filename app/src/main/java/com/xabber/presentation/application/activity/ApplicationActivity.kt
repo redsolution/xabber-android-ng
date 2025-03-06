@@ -49,6 +49,7 @@ import com.xabber.presentation.AppConstants
 import com.xabber.presentation.AppConstants.CHAT_LIST_UNREAD_KEY
 import com.xabber.presentation.application.BaseViewModel
 import com.xabber.presentation.application.contract.Navigator
+import com.xabber.presentation.application.dialogs.AccountDialog
 import com.xabber.presentation.application.dialogs.SettingsDialog
 import com.xabber.presentation.application.fragments.account.AccountAdapter
 import com.xabber.presentation.application.fragments.account.AccountFragment
@@ -325,15 +326,20 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
     }
 
     private fun handleProfileNavigation() {
+        val widthDp = DisplayManager.getWidthDp()
+        val orientation = resources.configuration.orientation
+        val jid = getPrimaryAccount()?.jid ?: run {
+            Toast.makeText(this, "No account found", Toast.LENGTH_SHORT).show()
+            closeDrawerSlowly()
+            return
+        }
 
-        if (DisplayManager.getWidthDp() > 600) {
-
-            val settings = SettingsDialog()
-            settings.show(supportFragmentManager, "Settings")
+        if ((widthDp > 600 && orientation == Configuration.ORIENTATION_PORTRAIT) ||
+            (widthDp > 800 && orientation == Configuration.ORIENTATION_LANDSCAPE)) {
+            val accountDialog = AccountDialog.newInstance(jid)
+            accountDialog.show(supportFragmentManager, "Account")
         } else {
-            handleSettingsNavigation()
-
-
+            showAccount(jid)
         }
         closeDrawerSlowly()
     }
@@ -378,15 +384,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         setupIconChat(false)
     }
 
-    private fun handleSettingsNavigation() {
-        chatListViewModel.setShowUnreadOnly(false)
-        closeDetail()
-        if (activeFragment !is SettingsFragment) {
-            replaceFragment(SettingsFragment())
-        }
 
-        setupIconChat(false)
-    }
 
     private fun replaceFragment(fragment: Fragment) {
         supportFragmentManager.beginTransaction()

@@ -32,7 +32,6 @@ class SettingsFragment : BaseFragment(R.layout.fragment_settings), AccountAdapte
         initToolbarActions()
         initAccountList()
         subscribeToDataUpdates()
-        initializeSettingsActions()
         viewModel.loadAccounts()
         binding.toolbarSettings.navigationIcon = null
         binding.left.setOnClickListener{dismiss()}
@@ -72,17 +71,6 @@ class SettingsFragment : BaseFragment(R.layout.fragment_settings), AccountAdapte
         }
     }
 
-    private fun initializeSettingsActions() {
-        binding.settings.interfaceSettings
-        with(binding.settings) {
-            interfaceSettings.setOnClickListener { navigator().showInterfaceSettings(false) }
-            notifications.setOnClickListener { navigator().showNotificationsSettings() }
-            dataAndStorage.setOnClickListener { navigator().showDataAndStorageSettings() }
-            privacy.setOnClickListener { navigator().showPrivacySettings() }
-            connection.setOnClickListener { navigator().showConnectionSettings() }
-            debug.setOnClickListener { navigator().showDebugSettings() }
-        }
-    }
 
     override fun setEnabled(id: String, isChecked: Boolean) {
         viewModel.setEnabled(id, isChecked)

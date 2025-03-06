@@ -287,6 +287,9 @@
     <string name="app_icon">Иконка приложения</string>
 
     <!-- ACCOUNT -->
+    <string name="account">Аккаунт</string>
+    <string name="title">Имя</string>
+    <string name="email">Email</string>
     <string name="given_name">Имя</string>
     <string name="family_name">Фамилия</string>
     <string name="im_account_avatar_content_description">Аватар аккаунта</string>
