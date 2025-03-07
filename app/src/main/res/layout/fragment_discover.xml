@@ -23,7 +23,7 @@
                 style="@style/ApplicationToolbarTitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="40dp"
+                android:layout_marginStart="36dp"
                 android:text="@string/discover_toolbar_title" />
         </androidx.appcompat.widget.Toolbar>
     </com.google.android.material.appbar.AppBarLayout>

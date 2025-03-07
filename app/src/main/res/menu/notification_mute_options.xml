@@ -2,17 +2,17 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
     <item
         android:id="@+id/action_mute_1_hour"
-        android:title="Mute for 1 hour" />
+        android:title="@string/mute_for_1_hour" />
     <item
         android:id="@+id/action_mute_1_day"
-        android:title="Mute for 1 day" />
+        android:title="@string/mute_for_1_day" />
     <item
         android:id="@+id/action_mute_1_week"
-        android:title="Mute for 1 week" />
+        android:title="@string/mute_for_1_week" />
     <item
         android:id="@+id/action_mute_forever"
-        android:title="Mute forever" />
+        android:title="@string/mute_forever" />
     <item
         android:id="@+id/action_unmute"
-        android:title="Unmute" />
+        android:title="@string/unmute" />
 </menu>

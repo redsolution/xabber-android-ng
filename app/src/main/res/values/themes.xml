@@ -27,7 +27,12 @@
         <item name="bottomSheetDialogTheme">@style/Theme.MaterialComponents.BottomSheetDialog</item>
         <item name="avatar_initials_color">@color/grey_900</item>
         <item name="chat_input_background">@color/white</item>
+
     </style>
+    <style name="WhiteToolbarTheme" parent="ThemeOverlay.AppCompat.ActionBar">
+        <item name="colorControlNormal">@android:color/white</item>
+    </style>
+
 
     <style name="ThemeImageViewer" parent="Theme.AppCompat.Light.DarkActionBar">
         <item name="windowActionBar">false</item>

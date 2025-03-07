@@ -193,7 +193,9 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
 //            navigationView.layoutParams = layoutParams
 //        }
 
-        val toolbar = findViewById<Toolbar>(R.id.toolbar_nav)
+        val toolbarNav = findViewById<Toolbar>(R.id.toolbar_nav)
+        val toolbarApp = findViewById<Toolbar>(R.id.appbar)
+
         // Set padding for toolbar
   //      val scaleToolbar = resources.displayMetrics.density
 //        val dpToolbar = (10 * scaleToolbar + 0.5f).toInt()
@@ -202,11 +204,13 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
 //                topMargin = dpToolbar
 //            }
 //        }
-        val scale = resources.displayMetrics.density
-        val dpAsPixels = (25 * scale + 0.5f).toInt()
-        toolbar.setPadding(0, dpAsPixels, 0, 0)
+//        val scale = resources.displayMetrics.density
+        val dpAsPixels = getStatusBarHeight()
+//            (25 * scale + 0.5f).toInt()
+        toolbarNav.setPadding(0, dpAsPixels, 0, 0)
 
-        setSupportActionBar(toolbar)
+        setSupportActionBar(toolbarNav)
+
         supportActionBar?.setDisplayShowTitleEnabled(false)
 
 
@@ -229,10 +233,12 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         }
 
         navigationView.setNavigationItemSelectedListener(this)
-        actionBarToggle = ActionBarDrawerToggle(this, drawerLayout, 0, 0).apply {
+        actionBarToggle = ActionBarDrawerToggle(this, drawerLayout,  0, 0).apply {
             drawerLayout.addDrawerListener(this)
             syncState()
+
         }
+
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
 
         nightDayToggleButton.setOnClickListener {
@@ -343,9 +349,6 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         }
         closeDrawerSlowly()
     }
-
-    private fun getJid(): String =
-        requireArguments().getString(AppConstants.PARAMS_ACCOUNT_DIALOG)!!
 
     private fun handleChatsNavigation() {
         if (activeFragment !is ChatListFragment) {
@@ -509,7 +512,11 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
             insets.consumeSystemWindowInsets()
         }
     }
-
+    @SuppressLint("DiscouragedApi")
+    fun getStatusBarHeight(): Int {
+        val resourceId = resources.getIdentifier("status_bar_height", "dimen", "android")
+        return if (resourceId > 0) resources.getDimensionPixelSize(resourceId) else 0
+    }
     private fun setDelimiters(prolongation: Int) {
         var actionBarHeight = 0
         val typedValue = TypedValue()

@@ -20,11 +20,17 @@ import androidx.preference.PreferenceManager
 import com.google.android.material.appbar.AppBarLayout
 import com.google.android.material.appbar.MaterialToolbar
 import com.xabber.R
+import com.xabber.data_base.defaultRealmConfig
+import com.xabber.dto.AccountDto
 import com.xabber.presentation.XabberApplication
+import com.xabber.presentation.application.manage.ColorManager
+import com.xabber.utils.toAccountDto
+import io.realm.kotlin.Realm
 
 class NotificationsFragment : DialogFragment() {
 
     private lateinit var sharedPreferences: SharedPreferences
+    private val realm = Realm.open(defaultRealmConfig())
 
     companion object {
         private const val KEY_INCOMING_MESSAGES = "incoming_messages_option"
@@ -50,26 +56,25 @@ class NotificationsFragment : DialogFragment() {
         val appBarLayout = createAppBarLayout()
         rootLayout.addView(appBarLayout)
 
-        val notificationsSoundLayout = createSectionLayout("NOTIFICATIONS SOUND")
+        val notificationsSoundLayout = createSectionLayout(XabberApplication.applicationContext().resources.getString(R.string.notifications_sound))
         rootLayout.addView(notificationsSoundLayout)
 
-        // Load saved values or default to "None"
         val incomingMessagesDefault = sharedPreferences.getString(KEY_INCOMING_MESSAGES, "None") ?: "None"
-        val incomingMessagesLayout = createOptionWithMenuLayout("Incoming messages", incomingMessagesDefault, KEY_INCOMING_MESSAGES)
+        val incomingMessagesLayout = createOptionWithMenuLayout(XabberApplication.applicationContext().resources.getString(R.string.incoming_messages), incomingMessagesDefault, KEY_INCOMING_MESSAGES)
         rootLayout.addView(incomingMessagesLayout)
 
         val subscriptionRequestsDefault = sharedPreferences.getString(KEY_SUBSCRIPTION_REQUESTS, "None") ?: "None"
-        val subscriptionRequestsLayout = createOptionWithMenuLayout("Subscription requests", subscriptionRequestsDefault, KEY_SUBSCRIPTION_REQUESTS)
+        val subscriptionRequestsLayout = createOptionWithMenuLayout(XabberApplication.applicationContext().resources.getString(R.string.subscription_requests), subscriptionRequestsDefault, KEY_SUBSCRIPTION_REQUESTS)
         rootLayout.addView(subscriptionRequestsLayout)
 
-        val inAppNotificationsLayout = createSectionLayout("IN-APP NOTIFICATIONS")
+        val inAppNotificationsLayout = createSectionLayout(XabberApplication.applicationContext().resources.getString(R.string.in_app_notifications))
         rootLayout.addView(inAppNotificationsLayout)
 
-        val inAppSoundsLayout = createOptionWithSwitchLayout("In-app sounds", "in_app_sounds", true)
+        val inAppSoundsLayout = createOptionWithSwitchLayout(XabberApplication.applicationContext().resources.getString(R.string.in_app_sounds), "in_app_sounds", true)
         rootLayout.addView(inAppSoundsLayout)
 
         val messagePreviewLayout = createOptionWithSwitchLayout(
-            "On chat screen message preview", "message_preview", true
+            XabberApplication.applicationContext().resources.getString(R.string.on_chat_screen_message_preview), "message_preview", true
         )
         rootLayout.addView(messagePreviewLayout)
 
@@ -122,7 +127,7 @@ class NotificationsFragment : DialogFragment() {
                     LinearLayout.LayoutParams.WRAP_CONTENT,
                     LinearLayout.LayoutParams.WRAP_CONTENT
                 )
-                text = defaultValue // Use the saved or default value
+                text = defaultValue
                 setTextColor(Color.GRAY)
                 textSize = 18f
                 typeface = ResourcesCompat.getFont(context, R.font.roboto)
@@ -171,15 +176,15 @@ class NotificationsFragment : DialogFragment() {
         popupMenu.menuInflater.inflate(R.menu.notification_mute_options, popupMenu.menu)
         popupMenu.setOnMenuItemClickListener { menuItem ->
             val selectedText = when (menuItem.itemId) {
-                R.id.action_mute_1_hour -> "Mute for 1 hour"
-                R.id.action_mute_1_day -> "Mute for 1 day"
-                R.id.action_mute_1_week -> "Mute for 1 week"
-                R.id.action_mute_forever -> "Mute forever"
-                R.id.action_unmute -> "Unmute"
-                else -> "None" // Fallback, though this shouldn't happen
+                R.id.action_mute_1_hour -> XabberApplication.applicationContext().resources.getString(R.string.mute_for_1_hour)
+                R.id.action_mute_1_day -> XabberApplication.applicationContext().resources.getString(R.string.mute_for_1_day)
+                R.id.action_mute_1_week -> XabberApplication.applicationContext().resources.getString(R.string.mute_for_1_week)
+                R.id.action_mute_forever -> XabberApplication.applicationContext().resources.getString(R.string.mute_forever)
+                R.id.action_unmute -> XabberApplication.applicationContext().resources.getString(R.string.unmute)
+                else -> XabberApplication.applicationContext().resources.getString(R.string.unmute)
             }
             selectedOptionTextView.text = selectedText
-            sharedPreferences.edit().putString(preferenceKey, selectedText).apply() // Save the selection
+            sharedPreferences.edit().putString(preferenceKey, selectedText).apply()
             true
         }
         popupMenu.show()
@@ -220,13 +225,15 @@ class NotificationsFragment : DialogFragment() {
                     resources.getDimensionPixelSize(R.dimen.margin_onboarding_extra_large)
                 )
                 setTitleTextColor(Color.WHITE)
+                // Apply the theme-based color
+                setupToolbarColor(this)
             }
 
             val backButton = ImageView(requireContext()).apply {
                 layoutParams = Toolbar.LayoutParams(
                     Toolbar.LayoutParams.WRAP_CONTENT,
                     Toolbar.LayoutParams.WRAP_CONTENT
-                ).apply { setPadding(18, 18, 18, 18) }
+                ).apply { setPadding(22, 22, 22, 22) }
                 setImageResource(R.drawable.ic_arrow_left_white)
                 setOnClickListener { dismiss() }
             }
@@ -236,14 +243,41 @@ class NotificationsFragment : DialogFragment() {
                 layoutParams = Toolbar.LayoutParams(
                     Toolbar.LayoutParams.WRAP_CONTENT,
                     Toolbar.LayoutParams.WRAP_CONTENT
-                ).apply { gravity = Gravity.CENTER }
+                ).apply {
+                    gravity = Gravity.CENTER
+                    marginStart= 20
+                }
                 text = XabberApplication.applicationContext().getString(R.string.notification_settings)
-                setTextAppearance(R.style.ApplicationToolbarTitle)
+                setTextAppearance(R.style.DialogsToolbarTitle)
+                typeface = ResourcesCompat.getFont(context, R.font.roboto_medium)
             }
             toolbar.addView(title)
 
             addView(toolbar)
         }
+    }
+
+    private fun setupToolbarColor(toolbar: MaterialToolbar) {
+        val account = getPrimaryAccount()
+        val colorKey = account?.colorKey ?: resources.getString(R.string.blue) // Default to blue if no account
+        val colorRes = ColorManager.convertColorNameToId(colorKey)
+        toolbar.setBackgroundColor(
+            ResourcesCompat.getColor(
+                resources,
+                colorRes,
+                requireContext().theme
+            )
+        )
+    }
+
+    private fun getPrimaryAccount(): AccountDto? {
+        var accountDto: AccountDto? = null
+        val realmAccounts = realm.query(com.xabber.data_base.models.account.AccountStorageItem::class, "enabled = true").find()
+        val primaryAccount = realmAccounts.minByOrNull { it.order }
+        if (primaryAccount != null) {
+            accountDto = primaryAccount.toAccountDto()
+        }
+        return accountDto
     }
 
     override fun onStart() {
@@ -254,5 +288,10 @@ class NotificationsFragment : DialogFragment() {
             it.window?.setLayout(width, height)
             it.window?.setGravity(Gravity.CENTER)
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        realm.close() // Clean up Realm instance
     }
 }

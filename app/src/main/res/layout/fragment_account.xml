@@ -42,7 +42,7 @@
                         <ImageView
                             android:id="@+id/image_profile"
                             style="@style/SettingsIcon"
-                            android:layout_marginStart="24dp"
+
                             android:backgroundTint="@color/blue_500"
                             android:src="@drawable/account_box"
                             app:layout_constraintBottom_toBottomOf="parent"
@@ -76,7 +76,7 @@
                         <ImageView
                             android:id="@+id/image_cloud_storage"
                             style="@style/SettingsIcon"
-                            android:layout_marginStart="24dp"
+
                             android:backgroundTint="@color/purple_500"
                             android:src="@drawable/cloud_24px"
                             app:layout_constraintBottom_toBottomOf="parent"
@@ -110,7 +110,7 @@
                         <ImageView
                             android:id="@+id/image_keys"
                             style="@style/SettingsIcon"
-                            android:layout_marginStart="24dp"
+
                             android:backgroundTint="@color/yellow_700"
                             android:src="@drawable/ic_key"
                             app:layout_constraintBottom_toBottomOf="parent"
@@ -143,7 +143,7 @@
                         <ImageView
                             android:id="@+id/im_devices"
                             style="@style/SettingsIcon"
-                            android:layout_marginStart="24dp"
+
                             android:backgroundTint="@color/green_500"
                             android:src="@drawable/ic_devices"
                             app:layout_constraintBottom_toBottomOf="parent"
@@ -171,7 +171,8 @@
                 layout="@layout/include_settings"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="44dp" />
+                android:layout_marginTop="8dp"
+               />
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

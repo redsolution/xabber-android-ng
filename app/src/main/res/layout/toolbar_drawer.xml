@@ -5,20 +5,19 @@
     android:id="@+id/frameLayout"
     android:layout_width="match_parent"
     android:layout_height="?attr/actionBarSize"
-    android:layout_gravity="top"
-    app:layout_constraintBaseline_toBaselineOf="@+id/add"
-    app:layout_constraintBottom_toBottomOf="@+id/chat_toolbar"
+    app:layout_constraintEnd_toEndOf="parent"
+    app:layout_constraintStart_toStartOf="parent"
+    app:layout_constraintTop_toTopOf="parent"
     tools:ignore="RedundantNamespace">
 
     <androidx.appcompat.widget.Toolbar
         android:id="@+id/toolbar_nav"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:gravity="start|bottom"
+        android:theme="@style/WhiteToolbarTheme"
+        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-
-        tools:ignore="NotSibling,UnknownIdInLayout">
+        app:layout_constraintTop_toTopOf="parent">
 
     </androidx.appcompat.widget.Toolbar>
 </androidx.constraintlayout.widget.ConstraintLayout>

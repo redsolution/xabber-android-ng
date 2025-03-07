@@ -64,6 +64,19 @@
     <string name="signup__avatar_title_label">Nice! Now set up a profile image best representing your identity.</string>
     <string name="skip_button_label">Skip</string>
 
+    <!-- Notifications -->
+    <string name="notifications_sound">Notifications sound</string>
+    <string name="incoming_messages">Incoming messages</string>
+    <string name="subscription_requests">Subscription requests</string>
+    <string name="in_app_notifications">In-app notifications</string>
+    <string name="in_app_sounds">In-app sounds</string>
+    <string name="on_chat_screen_message_preview">On chat screen message preview</string>
+    <string name="mute_for_1_hour">Mute for 1 hour</string>
+    <string name="mute_for_1_day">Mute for 1 day</string>
+    <string name="mute_for_1_week">Mute for 1 week</string>
+    <string name="mute_forever">Mute forever</string>
+    <string name="unmute">Unmute</string>
+
     <!-- AvatarBottomSheet -->
     <string name="avatar_bottom_sheet_emoji_label">Use Emoji</string>
     <string name="avatar_bottom_sheet_selfie_label">Take Selfie</string>

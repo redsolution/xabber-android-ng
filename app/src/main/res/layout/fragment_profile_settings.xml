@@ -26,16 +26,16 @@
                 android:src="@drawable/ic_arrow_left_white"
                 android:layout_height="wrap_content"
                 android:padding="12dp"
-                android:layout_marginStart="16dp"/>
+                />
 
             <TextView
+                style="@style/DialogsToolbarTitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                style="@style/ApplicationToolbarTitle"
-                android:text="@string/profile"
-                android:gravity="center_vertical"
-                android:layout_marginStart="32dp"
-                android:layout_gravity="center_vertical"/>
+                android:layout_gravity="center_vertical"
+
+                android:gravity="start"
+                android:text="@string/profile" />
         </com.google.android.material.appbar.MaterialToolbar>
     </com.google.android.material.appbar.AppBarLayout>
 

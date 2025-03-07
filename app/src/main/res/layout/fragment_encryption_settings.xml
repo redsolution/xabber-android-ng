@@ -26,15 +26,15 @@
                 android:src="@drawable/ic_arrow_left_white"
                 android:layout_height="wrap_content"
                 android:padding="12dp"
-                android:layout_marginStart="16dp"/>
+               />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                style="@style/ApplicationToolbarTitle"
+                style="@style/DialogsToolbarTitle"
                 android:text="@string/encryption_and_keys"
                 android:gravity="center_vertical"
-                android:layout_marginStart="32dp"
+
                 android:layout_gravity="center_vertical"/>
 
 

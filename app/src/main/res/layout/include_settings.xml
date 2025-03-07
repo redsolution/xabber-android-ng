@@ -8,16 +8,7 @@
 
     tools:parentTag="androidx.appcompat.widget.LinearLayoutCompat">
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="16dp"
-        android:layout_marginTop="8dp"
-        android:layout_marginBottom="12dp"
-        android:text="@string/settings"
-        android:textColor="@color/blue_500"
-        android:textSize="14sp"
-        android:textStyle="bold" />
+
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -25,7 +16,15 @@
         android:orientation="vertical"
         android:background="@color/white">
 
-
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="24dp"
+            android:layout_marginTop="16dp"
+            android:text="@string/settings"
+            android:textColor="@color/blue_500"
+            android:textSize="16sp"
+            android:textStyle="bold" />
         <androidx.constraintlayout.widget.ConstraintLayout
             android:id="@+id/interface_settings"
             style="@style/ClickableViewGroup"

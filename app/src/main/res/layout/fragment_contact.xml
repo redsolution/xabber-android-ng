@@ -21,16 +21,16 @@
             android:layout_height="?attr/actionBarSize"
             app:menu="@menu/menu_toolbar_contact_list">
 
-            <include layout="@layout/toolbar_avatar" />
 
             <TextView
                 android:id="@+id/tv_contact_title"
                 style="@style/ApplicationToolbarTitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+
                 android:text="@string/contacts_toolbar_title"
                 app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintStart_toEndOf="@id/shape_view"
+
                 app:layout_constraintTop_toTopOf="parent" />
         </androidx.appcompat.widget.Toolbar>
     </com.google.android.material.appbar.AppBarLayout>

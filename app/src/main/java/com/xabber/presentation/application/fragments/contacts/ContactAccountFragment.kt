@@ -1,7 +1,9 @@
 package com.xabber.presentation.application.fragments.contacts
 
 import android.annotation.SuppressLint
+import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import android.os.Bundle
 import android.util.TypedValue
 import android.view.*
@@ -38,6 +40,7 @@ import com.xabber.presentation.application.fragments.chat.ChatParams
 import com.xabber.presentation.application.fragments.contacts.*
 import com.xabber.presentation.application.manage.ColorManager
 import com.xabber.presentation.application.manage.DisplayManager
+import com.xabber.presentation.application.manage.MaskManager
 import com.xabber.utils.dp
 import com.xabber.utils.parcelable
 import com.xabber.utils.setFragmentResultListener
@@ -45,8 +48,9 @@ import com.xabber.utils.showToast
 import org.intellij.lang.annotations.JdkConstants.BoxLayoutAxis
 
 
-class ContactAccountFragment : DialogFragment(R.layout.fragment_contact_account) {
+class ContactAccountFragment : DialogFragment(R.layout.fragment_contact_account), SharedPreferences.OnSharedPreferenceChangeListener {
     private val binding by viewBinding(FragmentContactAccountBinding::bind)
+    private lateinit var sh: SharedPreferences
     private var mediaAdapter: MediaAdapter? = null
     private val viewModel: ContactAccountViewModel by viewModels()
     private var chatId = ""
@@ -98,6 +102,11 @@ class ContactAccountFragment : DialogFragment(R.layout.fragment_contact_account)
         val closeButton = binding.accountAppbar.left
         closeButton.setColorFilter(ContextCompat.getColor(requireContext(), R.color.black))
         binding.accountAppbar.left.setOnClickListener { dismiss() }
+
+        sh = requireActivity().getSharedPreferences(AppConstants.SHARED_PREF_MASK, Context.MODE_PRIVATE)
+        sh.registerOnSharedPreferenceChangeListener(this)
+        binding.accountAppbar.shapeView?.setDrawable(MaskManager.mask)
+
 
         setFragmentResultListener(AppConstants.DELETING_CONTACT_DIALOG_KEY) { _, bundle ->
             val result = bundle.getBoolean(AppConstants.DELETING_CONTACT_BUNDLE_KEY)
@@ -178,7 +187,12 @@ class ContactAccountFragment : DialogFragment(R.layout.fragment_contact_account)
         }
         subscribeToViewModelData()
         binding.tvJid.isSelected = true
+        binding.accountAppbar.tvTitle.setTextColor(ContextCompat.getColor(requireContext(), R.color.black))
+        binding.accountAppbar.tvSubtitle.setTextColor(ContextCompat.getColor(requireContext(), R.color.black))
+    }
 
+    override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences?, key: String?) {
+        binding.accountAppbar.shapeView?.setDrawable(MaskManager.mask)
     }
 
     private fun setToolbarPadding() {
@@ -358,12 +372,9 @@ class ContactAccountFragment : DialogFragment(R.layout.fragment_contact_account)
                     if (scrollRange + verticalOffset < 170) {
 
                         if (tvTitle.isVisible) {
-                            tvTitle.startAnimation(
-                                animDis
-                            )
+                            tvTitle.startAnimation(animDis)
                             tvSubtitle.startAnimation(animDis)
                             avatarGr.imAvatarGroup.startAnimation(animDis)
-
                             avatarGr.imAvatarGroup.isVisible = false
                             tvSubtitle.isVisible = false
                             tvTitle.isVisible = false
@@ -382,10 +393,8 @@ class ContactAccountFragment : DialogFragment(R.layout.fragment_contact_account)
                         }
                     }
 
-                    if (scrollRange + verticalOffset < 150) {
-
+                    if (scrollRange + verticalOffset < 170) {
                         collapsingToolbar.title = binding.accountAppbar.tvTitle.text
-
                         isShow = true
                     } else if (isShow) {
                         collapsingToolbar.title =
@@ -561,5 +570,10 @@ class ContactAccountFragment : DialogFragment(R.layout.fragment_contact_account)
         }
     }
 
-
+    override fun onDestroy() {
+        super.onDestroy()
+        if (::sh.isInitialized) {
+            sh.unregisterOnSharedPreferenceChangeListener(this)
+        }
+    }
 }

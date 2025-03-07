@@ -67,6 +67,20 @@
     <string name="im_avatar_content_description">Выбрать изображение</string>
     <string name="skip_button_label">Пропустить</string>
 
+    <!-- Notifications -->
+    <string name="notifications_sound">Звук уведовления</string>
+    <string name="incoming_messages">Входящие сообщения</string>
+    <string name="subscription_requests">Запросы подписки </string>
+    <string name="in_app_notifications">В приложении</string>
+    <string name="in_app_sounds">Звук</string>
+    <string name="on_chat_screen_message_preview">Всплывающие окна</string>
+    <string name="mute_for_1_hour">Выключить на 1 час</string>
+    <string name="mute_for_1_day">Выключить на 1 день</string>
+    <string name="mute_for_1_week">Выключить на 1 неделю</string>
+    <string name="mute_forever">Выключить навсегда</string>
+    <string name="unmute">Включить</string>
+
+
     <!-- AvatarBottomSheet -->
     <string name="avatar_bottom_sheet_emoji_label">Использовать эмодзи</string>
     <string name="avatar_bottom_sheet_selfie_label">Сделать селфи</string>
