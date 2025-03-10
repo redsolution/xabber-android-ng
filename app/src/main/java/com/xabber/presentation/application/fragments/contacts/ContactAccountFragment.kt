@@ -369,7 +369,7 @@ class ContactAccountFragment : DialogFragment(R.layout.fragment_contact_account)
                     if (scrollRange == -1) {
                         scrollRange = bar.totalScrollRange
                     }
-                    if (scrollRange + verticalOffset < 170) {
+                    if (scrollRange + verticalOffset < 20) {
 
                         if (tvTitle.isVisible) {
                             tvTitle.startAnimation(animDis)
@@ -381,7 +381,7 @@ class ContactAccountFragment : DialogFragment(R.layout.fragment_contact_account)
                         }
                     }
 
-                    if (scrollRange + verticalOffset > 170) {
+                    if (scrollRange + verticalOffset > 20) {
 
                         if (!tvTitle.isVisible) {
                             tvTitle.startAnimation(animAp)
@@ -393,7 +393,9 @@ class ContactAccountFragment : DialogFragment(R.layout.fragment_contact_account)
                         }
                     }
 
-                    if (scrollRange + verticalOffset < 170) {
+                    if (scrollRange + verticalOffset < 10
+
+                        ) {
                         collapsingToolbar.title = binding.accountAppbar.tvTitle.text
                         isShow = true
                     } else if (isShow) {
@@ -410,7 +412,7 @@ class ContactAccountFragment : DialogFragment(R.layout.fragment_contact_account)
                 if (scrollRange == -1) {
                     scrollRange = bar.totalScrollRange
                 }
-                if (scrollRange + verticalOffset < 170) {
+                if (scrollRange + verticalOffset < 30) {
 
                     if (tvTitle.isVisible) {
                         tvTitle.startAnimation(
@@ -425,7 +427,7 @@ class ContactAccountFragment : DialogFragment(R.layout.fragment_contact_account)
                     }
                 }
 
-                if (scrollRange + verticalOffset > 190) {
+                if (scrollRange + verticalOffset > 30) {
 
                     if (!tvTitle.isVisible) {
                         tvTitle.startAnimation(animAp)
@@ -437,7 +439,7 @@ class ContactAccountFragment : DialogFragment(R.layout.fragment_contact_account)
                     }
                 }
 
-                if (scrollRange + verticalOffset < 170) {
+                if (scrollRange + verticalOffset < 30) {
 
                     collapsingToolbar.title = binding.accountAppbar.tvTitle.text
 

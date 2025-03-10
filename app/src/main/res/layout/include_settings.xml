@@ -63,7 +63,6 @@
         <androidx.constraintlayout.widget.ConstraintLayout
             android:id="@+id/notifications"
             style="@style/ClickableViewGroup"
-
             android:layout_width="match_parent"
             android:layout_height="wrap_content">
 
@@ -99,7 +98,6 @@
             android:id="@+id/data_and_storage"
             style="@style/ClickableViewGroup"
             android:layout_width="match_parent"
-
             android:layout_height="wrap_content">
 
             <ImageView
@@ -165,40 +163,6 @@
             android:layout_marginStart="50dp"
             android:background="@color/grey_300" />
 
-        <androidx.constraintlayout.widget.ConstraintLayout
-            android:id="@+id/connection"
-            style="@style/ClickableViewGroup"
-            android:layout_width="match_parent"
-
-            android:layout_height="wrap_content">
-
-            <ImageView
-                android:id="@+id/image_connection"
-                style="@style/SettingsIcon"
-                android:backgroundTint="@color/orange_500"
-                android:contentDescription="@string/image_connection_settings_description"
-                android:src="@drawable/ic_index_white"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent" />
-
-            <TextView
-                style="@style/AccountSettingsTitle"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/title_connection_settings"
-
-                app:layout_constraintStart_toEndOf="@id/image_connection"
-                app:layout_constraintTop_toTopOf="parent" />
-
-
-        </androidx.constraintlayout.widget.ConstraintLayout>
-
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:layout_marginStart="50dp"
-            android:background="@color/grey_300" />
 
         <androidx.constraintlayout.widget.ConstraintLayout
             android:id="@+id/debug"

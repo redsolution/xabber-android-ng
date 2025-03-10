@@ -1,4 +1,4 @@
-package com.xabber.presentation.application.dialogs
+package com.xabber.presentation.application.CloudStorage
 
 import android.os.Bundle
 import android.view.Gravity
@@ -7,11 +7,10 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.core.content.res.ResourcesCompat
 import androidx.fragment.app.DialogFragment
+import androidx.recyclerview.widget.LinearLayoutManager
 import by.kirich1409.viewbindingdelegate.viewBinding
 import com.xabber.R
 import com.xabber.databinding.FragmentCloudStorageSettingsBinding
-import com.xabber.presentation.application.contract.navigator
-import com.xabber.presentation.application.fragments.DetailBaseFragment
 import com.xabber.presentation.application.manage.ColorManager
 import com.xabber.data_base.defaultRealmConfig
 import com.xabber.dto.AccountDto
@@ -37,6 +36,12 @@ class CloudStorageSettingsDialog : DialogFragment() {
 
         // Set the toolbar color based on the current account's theme
         setupToolbarColor()
+
+        // Setup RecyclerView for storage usage statistics
+        setupStorageUsageList()
+
+        // Setup progress bar and storage info
+        setupStorageInfo()
     }
 
     private fun setupToolbarColor() {
@@ -65,6 +70,28 @@ class CloudStorageSettingsDialog : DialogFragment() {
         }
         return accountDto
     }
+
+    private fun setupStorageUsageList() {
+        val storageUsageList = listOf(
+            StorageUsageItem("Media", "300 MB", R.color.blue_500),
+            StorageUsageItem("Documents", "500 MB", R.color.green_500),
+            StorageUsageItem("Other", "300 MB", R.color.red_500)
+        )
+
+        val adapter = StorageUsageAdapter(storageUsageList)
+        binding.storageUsageRecyclerView.layoutManager = LinearLayoutManager(requireContext())
+        binding.storageUsageRecyclerView.adapter = adapter
+    }
+
+    private fun setupStorageInfo() {
+        val totalStorage = 5.0 // Total storage in GB
+        val usedStorage = 1.1 // Used storage in GB
+        val progress = (usedStorage / totalStorage * 100).toInt()
+
+        binding.storageProgressBar.progress = progress
+        binding.storageInfoText.text = "%.1f GB of %.1f GB used".format(usedStorage, totalStorage)
+    }
+
 
     override fun onStart() {
         super.onStart()

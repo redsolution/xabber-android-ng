@@ -233,7 +233,7 @@ class NotificationsFragment : DialogFragment() {
                 layoutParams = Toolbar.LayoutParams(
                     Toolbar.LayoutParams.WRAP_CONTENT,
                     Toolbar.LayoutParams.WRAP_CONTENT
-                ).apply { setPadding(22, 22, 22, 22) }
+                ).apply { setPadding(6, 22, 8, 22) }
                 setImageResource(R.drawable.ic_arrow_left_white)
                 setOnClickListener { dismiss() }
             }

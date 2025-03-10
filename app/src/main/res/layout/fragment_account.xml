@@ -56,7 +56,8 @@
                             android:text="@string/profile"
 
                             app:layout_constraintStart_toEndOf="@id/image_profile"
-                            app:layout_constraintTop_toTopOf="parent" />
+                            app:layout_constraintTop_toTopOf="parent"
+                            app:layout_constraintBottom_toBottomOf="parent"/>
 
 
 
@@ -88,9 +89,10 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="@string/cloud_storage"
-
+                            android:gravity="center_vertical"
                             app:layout_constraintStart_toEndOf="@id/image_cloud_storage"
-                            app:layout_constraintTop_toTopOf="parent" />
+                            app:layout_constraintTop_toTopOf="parent"
+                            app:layout_constraintBottom_toBottomOf="parent"/>
 
 
 
@@ -122,9 +124,10 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="@string/encryption_and_keys"
-
+                            android:gravity="center_vertical"
                             app:layout_constraintStart_toEndOf="@id/image_keys"
-                            app:layout_constraintTop_toTopOf="parent" />
+                            app:layout_constraintTop_toTopOf="parent"
+                            app:layout_constraintBottom_toBottomOf="parent"/>
 
 
                     </androidx.constraintlayout.widget.ConstraintLayout>
@@ -155,9 +158,10 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="@string/devices"
-
+                            android:gravity="center_vertical"
                             app:layout_constraintStart_toEndOf="@id/im_devices"
-                            app:layout_constraintTop_toTopOf="parent" />
+                            app:layout_constraintTop_toTopOf="parent"
+                            app:layout_constraintBottom_toBottomOf="parent"/>
 
 
                     </androidx.constraintlayout.widget.ConstraintLayout>

@@ -2,7 +2,6 @@ package com.xabber.presentation.application.dialogs
 
 import android.content.Context
 import android.content.SharedPreferences
-import android.content.res.ColorStateList
 import android.graphics.Bitmap
 import android.os.Bundle
 import android.view.Gravity
@@ -12,29 +11,24 @@ import android.view.MenuInflater
 import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
-import android.view.animation.AnimationUtils
-import android.widget.ImageView
 import androidx.appcompat.widget.PopupMenu
-import androidx.coordinatorlayout.widget.CoordinatorLayout
-import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.MenuProvider
 import androidx.core.view.isVisible
 import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.viewModels
-import androidx.lifecycle.findViewTreeViewModelStoreOwner
 import androidx.lifecycle.lifecycleScope
 import by.kirich1409.viewbindingdelegate.viewBinding
 import com.bumptech.glide.Glide
-import com.google.android.material.appbar.CollapsingToolbarLayout
 import com.xabber.R
 import com.xabber.data_base.defaultRealmConfig
 import com.xabber.databinding.FragmentAccountBinding
 import com.xabber.dto.AccountDto
 import com.xabber.dto.AvatarDto
 import com.xabber.presentation.AppConstants
+
+import com.xabber.presentation.application.CloudStorage.CloudStorageSettingsDialog
 import com.xabber.presentation.application.contract.navigator
-import com.xabber.presentation.application.fragments.account.AccountFragment
 import com.xabber.presentation.application.fragments.account.AccountViewModel
 import com.xabber.presentation.application.fragments.account.color.AccountColorDialog
 import com.xabber.presentation.application.fragments.account.qrcode.QRCodeParams
@@ -420,10 +414,10 @@ class AccountDialog : DialogFragment(R.layout.fragment_account), SharedPreferenc
                     val notifyButton = NotificationsFragment()
                     notifyButton.show(childFragmentManager, "Notifications")
                 }
-//                settings.interfaceSettings.setOnClickListener {
-//                    val interfaceD = InterfaceDialog()
-//                    interfaceD.show(childFragmentManager, "data and storage")
-//                }
+                settings.dataAndStorage.setOnClickListener {
+                    val storage = CloudStorageSettingsDialog()
+                    storage.show(childFragmentManager, "data and storage")
+                }
 //                settings.interfaceSettings.setOnClickListener {
 //                    val interfaceD = InterfaceDialog()
 //                    interfaceD.show(childFragmentManager, "confidential")
@@ -476,6 +470,13 @@ class AccountDialog : DialogFragment(R.layout.fragment_account), SharedPreferenc
                     .replace(com.xabber.R.id.application_container, InterfaceFragment())
                     .addToBackStack(null) // Add to back stack for back navigation
                     .commit()
+                }
+                settings.dataAndStorage.setOnClickListener {
+                    childFragmentManager.beginTransaction()
+                        .setReorderingAllowed(true)
+                        .replace(com.xabber.R.id.application_container, CloudStorageSettingsDialog())
+                        .addToBackStack(null) // Add to back stack for back navigation
+                        .commit()
                 }
             }
 

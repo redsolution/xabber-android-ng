@@ -8,7 +8,7 @@
 
     <include
         android:id="@+id/account_appbar"
-        layout="@layout/include_account_appbar" />
+        layout="@layout/include_contact_appbar" />
 
     <LinearLayout
         android:id="@+id/lin_panel"

@@ -42,6 +42,7 @@ class ProfileSettingsDialog : DialogFragment() {
     private fun setupToolbarColor() {
         val account = getPrimaryAccount()
         val colorKey = account?.colorKey ?: resources.getString(R.string.blue) // Default to blue if no account
+
         val colorRes = ColorManager.convertColorNameToId(colorKey)
         defineColor(colorRes)
     }

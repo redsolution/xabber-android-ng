@@ -47,6 +47,7 @@
                 <!-- Toolbar -->
                 <include layout="@layout/toolbar_drawer"
                     android:id="@+id/toolbar"
+                    android:layout_marginStart="8dp"
                     android:layout_width="50dp"
                     android:layout_height="wrap_content"
 

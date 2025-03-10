@@ -25,7 +25,8 @@
                 android:layout_width="wrap_content"
                 android:src="@drawable/ic_arrow_left_white"
                 android:layout_height="wrap_content"
-                android:padding="12dp"
+                android:paddingVertical="16dp"
+                android:paddingHorizontal="4dp"
                 />
 
             <TextView
@@ -56,7 +57,7 @@
 
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:id="@+id/cl_status"
-                android:paddingStart="68dp"
+
                 style="@style/ClickableViewGroup"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -85,7 +86,7 @@
 
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:id="@+id/cl_profile"
-                android:paddingStart="68dp"
+
                 style="@style/ClickableViewGroup"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -114,7 +115,7 @@
 
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:id="@+id/cl_password"
-                android:paddingStart="68dp"
+
                 style="@style/ClickableViewGroup"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -144,7 +145,7 @@
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:id="@+id/cl_account_color"
                 style="@style/ClickableViewGroup"
-                android:paddingStart="68dp"
+
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 app:layout_constraintEnd_toEndOf="parent"
@@ -173,7 +174,7 @@
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:id="@+id/cl_blocked_contacts"
                 style="@style/ClickableViewGroup"
-                android:paddingStart="68dp"
+
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 app:layout_constraintEnd_toEndOf="parent"
@@ -201,7 +202,7 @@
 
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:id="@+id/cl_circles"
-                android:paddingStart="68dp"
+
                 style="@style/ClickableViewGroup"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -231,7 +232,7 @@
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:id="@+id/cl_server_information"
                 style="@style/ClickableViewGroup"
-                android:paddingStart="68dp"
+
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 app:layout_constraintEnd_toEndOf="parent"
@@ -260,7 +261,7 @@
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:id="@+id/cl_delete_account"
                 style="@style/ClickableViewGroup"
-                android:paddingStart="68dp"
+
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 app:layout_constraintEnd_toEndOf="parent"
