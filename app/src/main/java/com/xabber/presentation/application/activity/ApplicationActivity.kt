@@ -105,8 +105,8 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
     }
 
     private val realm = Realm.open(defaultRealmConfig())
-    private lateinit var drawerLayout: DrawerLayout
-    private lateinit var actionBarToggle: ActionBarDrawerToggle
+//    private lateinit var drawerLayout: DrawerLayout
+//    private lateinit var actionBarToggle: ActionBarDrawerToggle
     private val accViewModel: BaseViewModel by viewModels()
     private var assist: SoftInputAssist? = null
     private val activeFragment: Fragment?
@@ -144,33 +144,33 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
     }
 
     private fun setupNavigationDrawer() {
-        drawerLayout = findViewById(R.id.drawer_layout)
-        val navigationView = findViewById<NavigationView>(R.id.nav_view)
-        val toolbarNav = findViewById<Toolbar>(R.id.toolbar_nav)
-        val dpAsPixels = getStatusBarHeight()
-        toolbarNav.setPadding(0, dpAsPixels, 0, 0)
-        setSupportActionBar(toolbarNav)
-        supportActionBar?.setDisplayShowTitleEnabled(false)
-        val avatarImageView = findViewById<ImageView>(R.id.avatar_image_view)
-        val titleTextView = findViewById<TextView>(R.id.title_text_view)
-        val nightDayToggleButton = findViewById<ImageButton>(R.id.nightDayToggleButton)
-        val subtitleTextView = findViewById<TextView>(R.id.subtitle_text_view)
-        val account = getPrimaryAccount()
-        val avatar = account?.let { getAvatar(it.id) }
-        account?.let {
-            titleTextView.text = it.getAccountName()
-            subtitleTextView.text = it.jid
-        }
-        avatar?.let {
-            Glide.with(this).load(it.fileUri).into(avatarImageView)
-            avatarImageView.requestLayout()
-        }
-        navigationView.setNavigationItemSelectedListener(this)
-
-        supportActionBar?.setDisplayHomeAsUpEnabled(true)
-        nightDayToggleButton.setOnClickListener {
-            toggleNightDayMode()
-        }
+//        drawerLayout = findViewById(R.id.drawer_layout)
+//        val navigationView = findViewById<NavigationView>(R.id.nav_view)
+//        val toolbarNav = findViewById<Toolbar>(R.id.toolbar_nav)
+//        val dpAsPixels = getStatusBarHeight()
+//        toolbarNav.setPadding(0, dpAsPixels, 0, 0)
+//        setSupportActionBar(toolbarNav)
+//        supportActionBar?.setDisplayShowTitleEnabled(false)
+//        val avatarImageView = findViewById<ImageView>(R.id.avatar_image_view)
+//        val titleTextView = findViewById<TextView>(R.id.title_text_view)
+//        val nightDayToggleButton = findViewById<ImageButton>(R.id.nightDayToggleButton)
+//        val subtitleTextView = findViewById<TextView>(R.id.subtitle_text_view)
+//        val account = getPrimaryAccount()
+//        val avatar = account?.let { getAvatar(it.id) }
+//        account?.let {
+//            titleTextView.text = it.getAccountName()
+//            subtitleTextView.text = it.jid
+//        }
+//        avatar?.let {
+//            Glide.with(this).load(it.fileUri).into(avatarImageView)
+//            avatarImageView.requestLayout()
+//        }
+//        navigationView.setNavigationItemSelectedListener(this)
+//
+//        supportActionBar?.setDisplayHomeAsUpEnabled(true)
+//        nightDayToggleButton.setOnClickListener {
+//            toggleNightDayMode()
+//        }
     }
     private fun initViews() {
         shapeView = findViewById(R.id.shape_view)
@@ -235,15 +235,15 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         return avatarDto
     }
 
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        return when (item.itemId) {
-            android.R.id.home -> {
-                drawerLayout.openDrawer(GravityCompat.START)
-                true
-            }
-            else -> super.onOptionsItemSelected(item)
-        }
-    }
+//    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+//        return when (item.itemId) {
+//            android.R.id.home -> {
+//                drawerLayout.openDrawer(GravityCompat.START)
+//                true
+//            }
+//            else -> super.onOptionsItemSelected(item)
+//        }
+//    }
     override fun onNavigationItemSelected(item: MenuItem): Boolean {
         when (item.itemId) {
 
@@ -259,7 +259,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         return true
     }
 
-    private fun handleArchiveNavigation() {
+    override fun handleArchiveNavigation() {
         chatListViewModel.setShowUnreadOnly(false)
         closeDetail()
         if (activeFragment !is ArchiveFragment) {
@@ -337,15 +337,15 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
     }
 
     private fun closeDrawerSlowly() {
-            drawerLayout.closeDrawer(GravityCompat.START)
+//            drawerLayout.closeDrawer(GravityCompat.START)
     }
 
     override fun onBackPressed() {
-        if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
-            drawerLayout.closeDrawer(GravityCompat.START)
-        } else {
-            onBackPressedDispatcher.onBackPressed()
-        }
+//        if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
+//            drawerLayout.closeDrawer(GravityCompat.START)
+//        } else {
+//            onBackPressedDispatcher.onBackPressed()
+//        }
     }
 
     override fun onResume() {

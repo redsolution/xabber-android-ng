@@ -6,6 +6,9 @@ import android.content.res.Configuration
 import android.graphics.Color
 import android.os.Bundle
 import android.view.*
+import android.widget.ImageButton
+import android.widget.ImageView
+import android.widget.TextView
 import android.widget.Toast
 import android.widget.Toolbar
 import androidx.appcompat.app.ActionBarDrawerToggle
@@ -13,15 +16,19 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.GravityCompat
 import androidx.core.view.isVisible
 import androidx.drawerlayout.widget.DrawerLayout
+import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.recyclerview.widget.*
 import by.kirich1409.viewbindingdelegate.viewBinding
+import com.bumptech.glide.Glide
 import com.google.android.material.navigation.NavigationView
 import com.google.android.material.snackbar.Snackbar
 import com.xabber.R
 import com.xabber.data_base.defaultRealmConfig
+import com.xabber.data_base.models.account.AccountStorageItem
 import com.xabber.databinding.FragmentChatListBinding
 import com.xabber.dto.AccountDto
+import com.xabber.dto.AvatarDto
 import com.xabber.dto.ChatListDto
 import com.xabber.presentation.AppConstants.CHAT_LIST_UNREAD_KEY
 import com.xabber.presentation.AppConstants.CLEAR_HISTORY_DIALOG_TAG
@@ -34,6 +41,7 @@ import com.xabber.presentation.application.dialogs.DeletingChatDialog
 import com.xabber.presentation.application.dialogs.NotificationBottomSheet
 import com.xabber.presentation.application.fragments.BaseFragment
 import com.xabber.presentation.application.fragments.chat.ChatParams
+import com.xabber.presentation.application.fragments.contacts.ContactsFragment
 import com.xabber.presentation.application.manage.ColorManager
 import com.xabber.presentation.application.manage.DisplayManager
 import com.xabber.utils.custom.DividerItemDecoration
@@ -41,6 +49,7 @@ import com.xabber.utils.custom.PullRefreshLayout
 import com.xabber.utils.custom.SwipeToArchiveCallback
 import com.xabber.utils.partSmoothScrollToPosition
 import com.xabber.utils.toAccountDto
+import com.xabber.utils.toAvatarDto
 import io.realm.kotlin.Realm
 
 /**
@@ -60,6 +69,8 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
     private var isPin = false
     private var isUnpin = false
     private var unpinnedChatPosition = -1
+    private val activeFragment: Fragment?
+        get() = requireActivity().supportFragmentManager.findFragmentById(R.id.application_container)
     private var snackbar: Snackbar? = null
     private var isOverTriggerCrossed = false
     private var selectedChatId = ""
@@ -104,6 +115,68 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
         navigationView.setNavigationItemSelectedListener(this)
 
     }
+
+    private fun setupNavigationDrawer() {
+        drawerLayout = binding.drawerLayout
+
+        // Initialize actionBarToggle
+        actionBarToggle = ActionBarDrawerToggle(
+            requireActivity(), // Use requireActivity() to get the parent activity
+            drawerLayout,
+            R.string.open,
+            R.string.close
+        ).apply {
+            drawerLayout.addDrawerListener(this)
+            syncState()
+        }
+
+        // Set the Toolbar as the ActionBar
+        (requireActivity() as AppCompatActivity).setSupportActionBar(binding.chatToolbar)
+        val navigationView = view?.findViewById<NavigationView>(R.id.nav_view)
+
+        // Enable the home button (hamburger icon) in the Toolbar
+        (requireActivity() as AppCompatActivity).supportActionBar?.setDisplayHomeAsUpEnabled(true)
+        (requireActivity() as AppCompatActivity).supportActionBar?.setHomeButtonEnabled(true)
+        val avatarImageView = requireActivity().findViewById<ImageView>(R.id.avatar_image_view)
+        val titleTextView = requireActivity().findViewById<TextView>(R.id.title_text_view)
+        val subtitleTextView = requireActivity().findViewById<TextView>(R.id.subtitle_text_view)
+        val account = getPrimaryAccount()
+        val avatar = account?.let { getAvatar(it.id) }
+        account?.let {
+            titleTextView.text = it.getAccountName()
+            subtitleTextView.text = it.jid
+        }
+        avatar?.let {
+            Glide.with(this).load(it.fileUri).into(avatarImageView)
+            avatarImageView.requestLayout()
+        }
+        navigationView?.setNavigationItemSelectedListener(this)
+
+        (activity as AppCompatActivity).supportActionBar?.setDisplayHomeAsUpEnabled(true)
+
+    }
+
+    private fun getPrimaryAccount(): AccountDto? {
+        var accountDto: AccountDto? = null
+        val realmAccounts = realm.query(com.xabber.data_base.models.account.AccountStorageItem::class, "enabled = true").find()
+        val primaryAccount = realmAccounts.minByOrNull { T -> T.order }
+        if (primaryAccount != null) {
+            accountDto = primaryAccount.toAccountDto()
+        }
+        return accountDto
+    }
+
+    private fun getAvatar(id: String): AvatarDto? {
+        var avatarDto: AvatarDto? = null
+        realm.writeBlocking {
+            val realmAvatar =
+                this.query(com.xabber.data_base.models.avatar.AvatarStorageItem::class, "primary = '$id'").first().find()
+            if (realmAvatar != null)
+                avatarDto = realmAvatar.toAvatarDto()
+        }
+        return avatarDto
+    }
+
     override fun onNavigationItemSelected(item: MenuItem): Boolean {
         when (item.itemId) {
             R.id.chats -> handleChatsNavigation()
@@ -114,15 +187,6 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
         }
         drawerLayout.closeDrawer(GravityCompat.START)
         return true
-    }
-    private fun getPrimaryAccount(): AccountDto? {
-        var accountDto: AccountDto? = null
-        val realmAccounts = realm.query(com.xabber.data_base.models.account.AccountStorageItem::class, "enabled = true").find()
-        val primaryAccount = realmAccounts.minByOrNull { T -> T.order }
-        if (primaryAccount != null) {
-            accountDto = primaryAccount.toAccountDto()
-        }
-        return accountDto
     }
 
     private fun handleProfileNavigation() {
@@ -142,6 +206,23 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
         }
         drawerLayout.closeDrawer(GravityCompat.START)
     }
+    private fun replaceFragment(fragment: Fragment) {
+        childFragmentManager.beginTransaction()
+            .setReorderingAllowed(true)
+            // Uncomment if you want custom animations
+            // .setCustomAnimations(R.anim.appearance_fragments, R.anim.disappearance_fragments)
+            .replace(R.id.application_container, fragment)
+            .commit()
+    }
+    private fun setupIconChat(unreadChats: Boolean) {
+        // if (resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) {
+        val menuItem = binding.navView.menu.findItem(R.id.chats)
+        if (unreadChats) {
+            menuItem.setIcon(R.drawable.ic_chat_alert)
+        } else {
+            menuItem.setIcon(R.drawable.ic_chat)
+        }
+    }
 
     private fun handleChatsNavigation() {
         // Handle chats navigation
@@ -152,7 +233,12 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
     }
 
     private fun handleContactsNavigation() {
-        // Handle contacts navigation
+        chatListViewModel.setShowUnreadOnly(false)
+        navigator().closeDetail()
+        if (activeFragment !is ContactsFragment) {
+            replaceFragment(ContactsFragment())
+        }
+        setupIconChat(false)
     }
 
     private fun handleDiscoverNavigation() {
@@ -213,32 +299,7 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
         addSwipeOption()               // свайп чата в архив
         addScrollListener()
     }
-    private fun setupNavigationDrawer() {
-        drawerLayout = binding.drawerLayout // Ensure your XML has a DrawerLayout with this ID
-        val navigationView = binding.navView // Ensure your XML has a NavigationView with this ID
 
-        // Set up ActionBarDrawerToggle
-        actionBarToggle = ActionBarDrawerToggle(
-            requireActivity(),
-            drawerLayout,
-            0,
-            0
-        ).apply {
-            drawerLayout.addDrawerListener(this)
-            syncState()
-        }
-
-        // Set up NavigationView listener
-        navigationView.setNavigationItemSelectedListener(this)
-        (requireActivity() as AppCompatActivity).setSupportActionBar(binding.chatToolbar)
-
-        // Enable the home button (hamburger icon) in the Toolbar
-
-        // Set up toolbar for navigation
-        binding.chatToolbar.setNavigationOnClickListener {
-            drawerLayout.openDrawer(GravityCompat.START)
-        }
-    }
     private fun setRemoveDurationAnimation() {
         binding.chatList.itemAnimator = itemAnimator
     }
@@ -497,19 +558,22 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
         snackbar?.dismiss()
     }
 
-    override fun onResume() {
-        super.onResume()
-        actionBarToggle.syncState()
-    }
-
-    override fun onPause() {
-        super.onPause()
-        actionBarToggle.syncState()
-    }
-
     override fun onDestroyView() {
         super.onDestroyView()
         drawerLayout.removeDrawerListener(actionBarToggle)
+    }
+
+    companion object {
+         fun getPrimaryAccount(chatListFragment: ChatListFragment): AccountDto? {
+            var accountDto: AccountDto? = null
+            val realmAccounts = chatListFragment.realm.query(AccountStorageItem::class, "enabled = true").find()
+            val primaryAccount = realmAccounts.minByOrNull { T -> T.order }
+            if (primaryAccount != null) {
+                accountDto = primaryAccount.toAccountDto()
+            }
+            return accountDto
+        }
+
     }
 
 }
