@@ -114,36 +114,6 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
     private val viewModel = ApplicationViewModel()
     private val chatListViewModel: ChatListViewModel by viewModels()
     private var shapeView: ShapeOfView? = null
-//    private val showBadge = {
-//        val count = viewModel.unreadMessage.value
-//        if (count != null) {
-//            if (resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) {
-//                if (count > 0) {
-//                    val creator = binding.railNavBar!!.getOrCreateBadge(R.id.chats)
-//                    creator.backgroundColor =
-//                        ResourcesCompat.getColor(
-//                            binding.railNavBar!!.resources,
-//                            R.color.green_500,
-//                            null
-//                        )
-//                    creator.badgeGravity = BadgeDrawable.BOTTOM_END
-//                    creator.number = count
-//                } else binding.railNavBar!!.removeBadge(R.id.chats)
-//            } else {
-//                if (count > 0) {
-//                    val creator = binding.bottomNavBar!!.getOrCreateBadge(R.id.chats)
-//                    creator.backgroundColor =
-//                        ResourcesCompat.getColor(
-//                            binding.bottomNavBar!!.resources,
-//                            R.color.green_500,
-//                            null
-//                        )
-//                    creator.badgeGravity = BadgeDrawable.BOTTOM_END
-//                    creator.number = count
-//                } else binding.bottomNavBar!!.removeBadge(R.id.chats)
-//            }
-//        }else binding.bottomNavBar!!.removeBadge(R.id.chats)
-//    }
 
     @SuppressLint("WrongViewCast")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -160,16 +130,6 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
             goToOnboarding()
         }
         val profileButton: LinearLayout = findViewById(R.id.profile_button)
-//        profileButton.clipToOutline = true
-
-        // Set a ViewOutlineProvider to apply rounded corners
-//        profileButton.outlineProvider = object : ViewOutlineProvider() {
-//            override fun getOutline(view: View, outline: Outline) {
-//                // Define the rounded corners (radius in pixels)
-//                val cornerRadius = 100f // Adjust this value as needed
-//                outline.setRoundRect(0, 0, view.width, view.height, cornerRadius)
-//            }
-//        }
         // Set the click listener
         profileButton.setOnClickListener {
             handleProfileNavigation()
@@ -186,61 +146,28 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
     private fun setupNavigationDrawer() {
         drawerLayout = findViewById(R.id.drawer_layout)
         val navigationView = findViewById<NavigationView>(R.id.nav_view)
-
-//        if (DisplayManager.getWidthDp() < 600) {
-//            val layoutParams = navigationView.layoutParams
-//            layoutParams.width = ViewGroup.LayoutParams.MATCH_PARENT
-//            navigationView.layoutParams = layoutParams
-//        }
-
         val toolbarNav = findViewById<Toolbar>(R.id.toolbar_nav)
-        val toolbarApp = findViewById<Toolbar>(R.id.appbar)
-
-        // Set padding for toolbar
-  //      val scaleToolbar = resources.displayMetrics.density
-//        val dpToolbar = (10 * scaleToolbar + 0.5f).toInt()
-//        if (DisplayManager.getWidthDp() < 600) {
-//            toolbar.updateLayoutParams<ConstraintLayout.LayoutParams> {
-//                topMargin = dpToolbar
-//            }
-//        }
-//        val scale = resources.displayMetrics.density
         val dpAsPixels = getStatusBarHeight()
-//            (25 * scale + 0.5f).toInt()
         toolbarNav.setPadding(0, dpAsPixels, 0, 0)
-
         setSupportActionBar(toolbarNav)
-
         supportActionBar?.setDisplayShowTitleEnabled(false)
-
-
         val avatarImageView = findViewById<ImageView>(R.id.avatar_image_view)
         val titleTextView = findViewById<TextView>(R.id.title_text_view)
         val nightDayToggleButton = findViewById<ImageButton>(R.id.nightDayToggleButton)
         val subtitleTextView = findViewById<TextView>(R.id.subtitle_text_view)
-
         val account = getPrimaryAccount()
         val avatar = account?.let { getAvatar(it.id) }
-
         account?.let {
             titleTextView.text = it.getAccountName()
             subtitleTextView.text = it.jid
         }
-
         avatar?.let {
             Glide.with(this).load(it.fileUri).into(avatarImageView)
             avatarImageView.requestLayout()
         }
-
         navigationView.setNavigationItemSelectedListener(this)
-        actionBarToggle = ActionBarDrawerToggle(this, drawerLayout,  0, 0).apply {
-            drawerLayout.addDrawerListener(this)
-            syncState()
-
-        }
 
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
-
         nightDayToggleButton.setOnClickListener {
             toggleNightDayMode()
         }
@@ -324,11 +251,22 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
             R.id.calls -> handleCallsNavigation()
             R.id.contacts -> handleContactsNavigation()
             R.id.discover -> handleDiscoverNavigation()
-          //  R.id.settings -> handleSettingsNavigation()
+            R.id.archive -> handleArchiveNavigation()
+
         }
 
         closeDrawerSlowly()
         return true
+    }
+
+    private fun handleArchiveNavigation() {
+        chatListViewModel.setShowUnreadOnly(false)
+        closeDetail()
+        if (activeFragment !is ArchiveFragment) {
+            replaceFragment(ArchiveFragment())
+        }
+        setupIconChat(false)
+
     }
 
     private fun handleProfileNavigation() {
@@ -398,82 +336,11 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
             .commit()
     }
 
-//    override fun onNavigationItemSelected(item: MenuItem): Boolean {
-//        when (item.itemId) {
-//
-//                    R.id.chats -> {
-//                    if (activeFragment !is ChatListFragment) {
-//                        closeDetail()
-//                        supportFragmentManager.beginTransaction()
-//                            .setReorderingAllowed(true)
-//                         //   .setCustomAnimations(R.anim.appearance_fragments, R.anim.disappearance_fragments)
-//                            .replace(R.id.application_container, ChatListFragment()).commit()
-//
-//                    } else {
-//                        showUnreadChats(!chatListViewModel.showUnreadOnly.value!!)
-//                    }
-//                }
-//                    R.id.calls -> {
-//                    chatListViewModel.setShowUnreadOnly(false)
-//                        closeDetail()
-//                    if (activeFragment !is CallsFragment) supportFragmentManager.beginTransaction()
-//                        .setReorderingAllowed(true)
-//                     //   .setCustomAnimations(R.anim.appearance_fragments, R.anim.disappearance_fragments)
-//                        .replace(R.id.application_container, CallsFragment()).commit()
-//
-//                    setupIconChat(false)
-//                }
-//                    R.id.contacts -> if (activeFragment !is ContactsFragment) {
-//                    chatListViewModel.setShowUnreadOnly(false)
-//                    closeDetail()
-//                    supportFragmentManager.beginTransaction()
-//                        .setReorderingAllowed(true)
-//                       // .setCustomAnimations(R.anim.appearance_fragments, R.anim.disappearance_fragments)
-//                        .replace(R.id.application_container, ContactsFragment()).commit()
-//                    setupIconChat(false)
-//                }
-//                    R.id.discover -> if (activeFragment !is DiscoverFragment) {
-//                    chatListViewModel.setShowUnreadOnly(false)
-//                    closeDetail()
-//                    supportFragmentManager.beginTransaction()
-//                        .setReorderingAllowed(true)
-//                       // .setCustomAnimations(R.anim.appearance_fragments, R.anim.disappearance_fragments)
-//                        .replace(R.id.application_container, DiscoverFragment()).commit()
-//
-//                    setupIconChat(false)
-//                }
-//
-//                    R.id.settings -> if (activeFragment !is SettingsFragment) {
-//                    chatListViewModel.setShowUnreadOnly(false)
-//                    closeDetail()
-//                    supportFragmentManager.beginTransaction()
-//                      //  .setCustomAnimations(R.anim.appearance_fragments, R.anim.disappearance_fragments)
-//                        .replace(R.id.application_container, SettingsFragment()).commit()
-//                    setupIconChat(false)
-//                }
-//
-//        }
-//        closeDrawerSlowly()
-//        //drawerLayout.closeDrawer(GravityCompat.START)
-//        return true
-//
-//    }
-
-
-
     private fun closeDrawerSlowly() {
-//        val drawerView = drawerLayout.getChildAt(1) // The second child is the drawer view
-//        val animation = AnimationUtils.loadAnimation(applicationContext, R.anim.drawer_hide)
-//        drawerView.startAnimation(animation)
-
-//         Close the drawer after the animation starts
-
             drawerLayout.closeDrawer(GravityCompat.START)
-         // Small delay to ensure the animation starts
     }
 
     override fun onBackPressed() {
-
         if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
             drawerLayout.closeDrawer(GravityCompat.START)
         } else {
@@ -512,7 +379,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
             insets.consumeSystemWindowInsets()
         }
     }
-    @SuppressLint("DiscouragedApi")
+    @SuppressLint("DiscouragedApi", "InternalInsetResource")
     fun getStatusBarHeight(): Int {
         val resourceId = resources.getIdentifier("status_bar_height", "dimen", "android")
         return if (resourceId > 0) resources.getDimensionPixelSize(resourceId) else 0
@@ -598,106 +465,6 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         binding.fr?.setBackgroundResource(designDrawable)
     }
 
-
-
-/////////
-//    private fun initBottomNavigation() {
-//    if (resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) {
-//        binding.railNavBar!!.setOnItemSelectedListener { menuItem ->
-//            when (menuItem.itemId) {
-//                R.id.chats -> {
-//                    if (activeFragment !is ChatListFragment) {
-//                        closeDetail()
-//                        launchFragment(ChatListFragment())
-//                    } else {
-//                        showUnreadChats(!chatListViewModel.showUnreadOnly.value!!)
-//                    }
-//                }
-//
-//                R.id.calls -> {
-//                    chatListViewModel.setShowUnreadOnly(false)
-//                    closeDetail()
-//                    if (activeFragment !is CallsFragment) launchFragment(CallsFragment())
-//                    setupIconChat(false)
-//                }
-//
-//                R.id.contacts -> if (activeFragment !is ContactsFragment) {
-//                    chatListViewModel.setShowUnreadOnly(false)
-//                    closeDetail()
-//                    launchFragment(ContactsFragment())
-//                    setupIconChat(false)
-//                }
-//
-//                R.id.discover -> if (activeFragment !is DiscoverFragment) {
-//                    chatListViewModel.setShowUnreadOnly(false)
-//                    closeDetail()
-//                    launchFragment(DiscoverFragment())
-//                    setupIconChat(false)
-//                }
-//
-//                R.id.settings -> if (activeFragment !is SettingsFragment) {
-//                    chatListViewModel.setShowUnreadOnly(false)
-//                    closeDetail()
-//                    launchFragment(
-//                        SettingsFragment(
-//                        )
-//                    )
-//                    setupIconChat(false)
-//                }
-//            }
-//            true
-//        }
-//    } else {
-//        binding.bottomNavBar!!.setOnItemSelectedListener { menuItem ->
-//            when (menuItem.itemId) {
-//                R.id.chats -> {
-//                    if (activeFragment !is ChatListFragment) {
-//                        closeDetail()
-//                        launchFragment(ChatListFragment())
-//                    } else {
-//                        showUnreadChats(!chatListViewModel.showUnreadOnly.value!!)
-//                    }
-//                }
-//
-//                R.id.calls -> {
-//                    chatListViewModel.setShowUnreadOnly(false)
-//                    closeDetail()
-//                    if (activeFragment !is CallsFragment) launchFragment(CallsFragment())
-//                    setupIconChat(false)
-//                }
-//
-//                R.id.contacts -> if (activeFragment !is ContactsFragment) {
-//                    chatListViewModel.setShowUnreadOnly(false)
-//                    closeDetail()
-//                    launchFragment(ContactsFragment())
-//                    setupIconChat(false)
-//                }
-//
-//                R.id.discover -> if (activeFragment !is DiscoverFragment) {
-//                    chatListViewModel.setShowUnreadOnly(false)
-//                    closeDetail()
-//                    launchFragment(DiscoverFragment())
-//                    setupIconChat(false)
-//                }
-//
-//                R.id.settings -> if (activeFragment !is SettingsFragment) {
-//                    chatListViewModel.setShowUnreadOnly(false)
-//                    closeDetail()
-//                    launchFragment(
-//                        SettingsFragment(
-//                        )
-//                    )
-//                    setupIconChat(false)
-//                }
-//            }
-//            true
-//        }
-//    }
-//    }
-/////
-
-
-
     private fun subscribeToViewModelData() {
         viewModel.initAccountListListener()
         viewModel.initUnreadMessagesCountListener()
@@ -715,14 +482,6 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
             } else {
                 menuItem.setIcon(R.drawable.ic_chat)
             }
-//        } else  {
-//            val menuItem = binding.bottomNavBar!!.menu.findItem(R.id.chats)
-//            if (unreadChats) {
-//                menuItem.setIcon(R.drawable.ic_chat_alert)
-//            } else {
-//                menuItem.setIcon(R.drawable.ic_chat)
-//            }
-//        }
     }
 
     private fun goToOnboarding() {
@@ -732,12 +491,12 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
     }
 
 
-    private fun showUnreadChats(showUnread: Boolean) {
+    override fun showUnreadChats(showUnread: Boolean) {
         if (activeFragment is ChatListFragment) chatListViewModel.setShowUnreadOnly(showUnread)
         setupIconChat(showUnread)
     }
 
-    private fun launchFragment(fragment: Fragment) {
+    override fun launchFragment(fragment: Fragment) {
         supportFragmentManager.commit {
             replace(R.id.application_container, fragment)
         }
@@ -887,10 +646,6 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
     }
 
     override fun showForwardFragment(forwardMessage: String, jid: String) {
-//        if (isTablet()) showDialogFragment(
-//            ChatListToForwardFragment.newInstance(forwardMessage), CHAT_LIST_TO_FORWARD_DIALOG_TAG
-//        )
-    //    else
         launchDetailInStack(ChatListToForwardFragment.newInstance(forwardMessage, jid))
     }
 

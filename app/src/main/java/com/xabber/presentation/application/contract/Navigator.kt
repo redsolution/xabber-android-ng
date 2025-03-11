@@ -89,7 +89,8 @@ interface Navigator {
 
     fun setDesignBackground()
 
-
+    fun launchFragment(fragment: Fragment)
+    fun showUnreadChats(showUnread: Boolean)
 
     fun onNavigationItemSelected(item: MenuItem): Boolean
 }
