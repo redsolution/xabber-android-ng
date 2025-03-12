@@ -26,7 +26,8 @@
                 android:src="@drawable/ic_arrow_left_white"
                 android:layout_height="wrap_content"
                 android:paddingVertical="16dp"
-                android:paddingHorizontal="4dp"
+
+                android:paddingEnd="16dp"
                />
 
             <TextView
