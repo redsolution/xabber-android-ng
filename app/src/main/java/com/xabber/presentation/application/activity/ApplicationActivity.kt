@@ -29,6 +29,7 @@ import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.view.GravityCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
+import androidx.core.view.isVisible
 import androidx.core.view.marginTop
 import androidx.core.view.updateLayoutParams
 import androidx.drawerlayout.widget.DrawerLayout
@@ -187,26 +188,11 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         drawerLayout = findViewById(R.id.drawer_layout)
         val navigationView = findViewById<NavigationView>(R.id.nav_view)
 
-//        if (DisplayManager.getWidthDp() < 600) {
-//            val layoutParams = navigationView.layoutParams
-//            layoutParams.width = ViewGroup.LayoutParams.MATCH_PARENT
-//            navigationView.layoutParams = layoutParams
-//        }
 
         val toolbarNav = findViewById<Toolbar>(R.id.toolbar_nav)
-        val toolbarApp = findViewById<Toolbar>(R.id.appbar)
 
-        // Set padding for toolbar
-  //      val scaleToolbar = resources.displayMetrics.density
-//        val dpToolbar = (10 * scaleToolbar + 0.5f).toInt()
-//        if (DisplayManager.getWidthDp() < 600) {
-//            toolbar.updateLayoutParams<ConstraintLayout.LayoutParams> {
-//                topMargin = dpToolbar
-//            }
-//        }
-//        val scale = resources.displayMetrics.density
+
         val dpAsPixels = getStatusBarHeight()
-//            (25 * scale + 0.5f).toInt()
         toolbarNav.setPadding(0, dpAsPixels, 0, 0)
 
         setSupportActionBar(toolbarNav)
@@ -241,9 +227,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
 
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
 
-        nightDayToggleButton.setOnClickListener {
-            toggleNightDayMode()
-        }
+
     }
     private fun initViews() {
         shapeView = findViewById(R.id.shape_view)
@@ -324,7 +308,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
             R.id.calls -> handleCallsNavigation()
             R.id.contacts -> handleContactsNavigation()
             R.id.discover -> handleDiscoverNavigation()
-          //  R.id.settings -> handleSettingsNavigation()
+            R.id.archive -> handleArchiveNavigation()
         }
 
         closeDrawerSlowly()
@@ -354,17 +338,34 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         if (activeFragment !is ChatListFragment) {
             closeDetail()
             replaceFragment(ChatListFragment())
+
         } else {
             showUnreadChats(!chatListViewModel.showUnreadOnly.value!!)
         }
     }
 
+    private fun handleArchiveNavigation() {
+        chatListViewModel.setShowUnreadOnly(false)
+        closeDetail()
+        if (activeFragment !is ArchiveFragment) {
+            replaceFragment(ArchiveFragment())
+            binding.toolbar!!.toolbarNav.isVisible = false
+            drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED)
+            drawerLayout.closeDrawer(GravityCompat.START)
+        }
+        setupIconChat(false)
+    }
 
     private fun handleCallsNavigation() {
+
         chatListViewModel.setShowUnreadOnly(false)
         closeDetail()
         if (activeFragment !is CallsFragment) {
             replaceFragment(CallsFragment())
+
+            binding.toolbar!!.toolbarNav.isVisible = false
+            drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED)
+            drawerLayout.closeDrawer(GravityCompat.START)
         }
         setupIconChat(false)
     }
@@ -374,6 +375,10 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         closeDetail()
         if (activeFragment !is ContactsFragment) {
             replaceFragment(ContactsFragment())
+
+            binding.toolbar!!.toolbarNav.isVisible = false
+            drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED)
+            drawerLayout.closeDrawer(GravityCompat.START)
         }
         setupIconChat(false)
     }
@@ -383,6 +388,10 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         closeDetail()
         if (activeFragment !is DiscoverFragment) {
             replaceFragment(DiscoverFragment())
+
+            binding.toolbar!!.toolbarNav.isVisible = false
+            drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED)
+            drawerLayout.closeDrawer(GravityCompat.START)
         }
         setupIconChat(false)
     }
@@ -392,11 +401,11 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
     private fun replaceFragment(fragment: Fragment) {
         supportFragmentManager.beginTransaction()
             .setReorderingAllowed(true)
-            // Uncomment if you want custom animations
-            // .setCustomAnimations(R.anim.appearance_fragments, R.anim.disappearance_fragments)
+            .addToBackStack(null)
             .replace(R.id.application_container, fragment)
             .commit()
     }
+
 
 //    override fun onNavigationItemSelected(item: MenuItem): Boolean {
 //        when (item.itemId) {
@@ -462,14 +471,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
 
 
     private fun closeDrawerSlowly() {
-//        val drawerView = drawerLayout.getChildAt(1) // The second child is the drawer view
-//        val animation = AnimationUtils.loadAnimation(applicationContext, R.anim.drawer_hide)
-//        drawerView.startAnimation(animation)
-
-//         Close the drawer after the animation starts
-
             drawerLayout.closeDrawer(GravityCompat.START)
-         // Small delay to ensure the animation starts
     }
 
     override fun onBackPressed() {
@@ -764,8 +766,13 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
     }
 
     override fun goBack() {
-        if (supportFragmentManager.backStackEntryCount > 0)
+        if (supportFragmentManager.backStackEntryCount > 0) {
             supportFragmentManager.popBackStack()
+            drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_UNLOCKED)
+            drawerLayout.closeDrawer(GravityCompat.START)
+            binding.toolbar!!.toolbarNav.isVisible = true
+            setupNavigationDrawer()
+        }
         else {
             closeDetail()
         }

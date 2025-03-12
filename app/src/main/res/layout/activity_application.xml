@@ -8,18 +8,10 @@
     android:theme="@style/Theme.MaterialComponents.Light.Bridge"
     tools:context=".presentation.application.activity.ApplicationActivity">
 
-
-
-
-
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/main_container"
         android:layout_width="@dimen/main_container_width"
         android:layout_height="match_parent">
-
-
-
-
 
         <androidx.drawerlayout.widget.DrawerLayout
             android:id="@+id/drawer_layout"
@@ -47,12 +39,9 @@
                 <!-- Toolbar -->
                 <include layout="@layout/toolbar_drawer"
                     android:id="@+id/toolbar"
-                    android:layout_marginStart="8dp"
+                    android:layout_marginStart="16dp"
                     android:layout_width="50dp"
-                    android:layout_height="wrap_content"
-
-                    >
-
+                    android:layout_height="wrap_content">
                 </include>
 
 

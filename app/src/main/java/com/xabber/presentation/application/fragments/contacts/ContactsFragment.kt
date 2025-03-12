@@ -36,6 +36,10 @@ class ContactsFragment : BaseFragment(R.layout.fragment_contact), ContactAdapter
         subscribeViewModel()
         viewModel.initDataListener()
         viewModel.getChatList()
+        binding.toolbarContacts.navigationIcon = null
+        binding.left.setOnClickListener {
+            navigator().goBack()
+        }
 //        val account = baseViewModel.getPrimaryAccount()
 //        if (account != null) binding.tvContactTitle.text = account.nickname else binding.tvContactTitle.text = resources.getString(R.string.contacts_toolbar_title)
 

@@ -16,13 +16,35 @@
         android:backgroundTintMode="src_atop">
 
         <androidx.appcompat.widget.Toolbar
+
             android:id="@+id/chat_toolbar"
             android:background="@color/transparent"
             style="@style/ApplicationToolbar"
-            app:title="@string/archived_chat"
+
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            android:layout_marginStart="32dp">
+            >
+            <ImageView
+                android:id="@+id/left"
+                android:layout_width="wrap_content"
+                android:src="@drawable/ic_arrow_left_white"
+                android:layout_height="wrap_content"
+                android:padding="12dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:foreground="?android:attr/selectableItemBackground">
+
+            </ImageView>
+            <TextView
+                android:id="@+id/tv_contact_title"
+                style="@style/FragmentsToolbarTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+
+                android:text="@string/archived_chat"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+
         </androidx.appcompat.widget.Toolbar>
     </com.google.android.material.appbar.AppBarLayout>
 

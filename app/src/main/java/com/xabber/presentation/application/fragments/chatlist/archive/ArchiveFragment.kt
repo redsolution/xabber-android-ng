@@ -63,8 +63,8 @@ class ArchiveFragment : BaseFragment(R.layout.fragment_archive),
     }
 
     private fun initToolbarActions() {
-        binding.chatToolbar.setNavigationIcon(R.drawable.ic_arrow_left_white)
-        binding.chatToolbar.setNavigationOnClickListener {
+        binding.chatToolbar.navigationIcon = null
+        binding.left.setOnClickListener {
             navigator().closeDetail()
             navigator().goBack()
         }
