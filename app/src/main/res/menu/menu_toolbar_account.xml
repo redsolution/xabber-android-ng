@@ -3,13 +3,13 @@
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
     <item
-        android:id="@+id/colors"
+        android:id="@+id/colors2"
         android:icon="@drawable/ic_color_lens"
         android:title="@string/menu_item_choose_account_color"
         app:showAsAction="always" />
 
     <item
-        android:id="@+id/generate_qr_code"
+        android:id="@+id/generate_qr_code2"
         android:icon="@drawable/ic_qr_code_generate_white"
         android:title="@string/menu_item_generate_qr_code"
         app:showAsAction="always" />

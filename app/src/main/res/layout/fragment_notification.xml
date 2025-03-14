@@ -1,10 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/white">
 
+    <!-- AppBarLayout with Toolbar -->
     <com.google.android.material.appbar.AppBarLayout
         android:id="@+id/appbar"
         android:layout_width="0dp"
@@ -18,6 +20,7 @@
             style="@style/ApplicationToolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
+            app:navigationIcon="@drawable/ic_arrow_left_white"
             app:titleTextColor="@color/white">
 
             <TextView
@@ -25,12 +28,12 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center_vertical"
-
                 android:gravity="start"
-                android:text="@string/profile" />
+                android:text="@string/notification_settings" />
         </com.google.android.material.appbar.MaterialToolbar>
     </com.google.android.material.appbar.AppBarLayout>
 
+    <!-- ScrollView for the content -->
     <ScrollView
         android:layout_width="0dp"
         android:layout_height="0dp"
@@ -46,9 +49,9 @@
             android:orientation="vertical"
             android:layout_marginBottom="24dp">
 
+            <!-- Notifications Sound Section -->
             <androidx.constraintlayout.widget.ConstraintLayout
-                android:id="@+id/cl_status"
-
+                android:id="@+id/cl_notifications_sound"
                 style="@style/ClickableViewGroup"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -57,218 +60,155 @@
                 app:layout_constraintTop_toBottomOf="@id/appbar">
 
                 <TextView
-                    android:id="@+id/tv_status"
-                    style="@style/AccountSettingsTitle"
+                    android:id="@+id/tv_notifications_sound"
+                    style="@style/AccountNotificationsTitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="@string/status_settings"
+                    android:text="@string/notifications_sound"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toTopOf="parent" />
-
-                <TextView
-                    android:id="@+id/tv_status_value"
-                    style="@style/AccountSettingsSubtitle"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Online"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toBottomOf="@id/tv_status" />
             </androidx.constraintlayout.widget.ConstraintLayout>
 
+            <!-- Incoming Messages Section -->
             <androidx.constraintlayout.widget.ConstraintLayout
-                android:id="@+id/cl_profile"
-
+                android:id="@+id/cl_incoming_messages"
                 style="@style/ClickableViewGroup"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/cl_status">
+                app:layout_constraintTop_toBottomOf="@id/cl_notifications_sound">
 
                 <TextView
-                    android:id="@+id/tv_profile"
-                    style="@style/AccountSettingsTitle"
+                    android:id="@+id/tv_incoming_messages"
+                    style="@style/AccountNotificationsSubTitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="@string/profile"
+                    android:text="@string/incoming_messages"
+
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toTopOf="parent" />
 
                 <TextView
+                    android:id="@+id/tv_incoming_messages_value"
                     style="@style/AccountSettingsSubtitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="@string/edit_profile"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toBottomOf="@id/tv_profile" />
-
+                    android:paddingVertical="6dp"
+                    android:text="@string/unmute"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    />
             </androidx.constraintlayout.widget.ConstraintLayout>
 
+            <!-- Subscription Requests Section -->
             <androidx.constraintlayout.widget.ConstraintLayout
-                android:id="@+id/cl_password"
-
+                android:id="@+id/cl_subscription_requests"
                 style="@style/ClickableViewGroup"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/cl_profile">
+                app:layout_constraintTop_toBottomOf="@id/cl_incoming_messages">
 
                 <TextView
-                    android:id="@+id/tv_password"
-                    style="@style/AccountSettingsTitle"
+                    android:id="@+id/tv_subscription_requests"
+                    style="@style/AccountNotificationsSubTitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="@string/password"
+                    android:text="@string/subscription_requests"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toTopOf="parent" />
 
                 <TextView
+                    android:id="@+id/tv_subscription_requests_value"
                     style="@style/AccountSettingsSubtitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="@string/change_password"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toBottomOf="@id/tv_password" />
+                    android:paddingVertical="6dp"
+                    android:text="@string/unmute"
+                    app:layout_constraintEnd_toEndOf="parent"
 
+                    app:layout_constraintTop_toTopOf="parent"
+                    />
             </androidx.constraintlayout.widget.ConstraintLayout>
 
+            <!-- In-App Notifications Section -->
             <androidx.constraintlayout.widget.ConstraintLayout
-                android:id="@+id/cl_account_color"
-                style="@style/ClickableViewGroup"
-
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/cl_password">
-
-                <TextView
-                    android:id="@+id/tv_account_color"
-                    style="@style/AccountSettingsTitle"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/account_color_profile"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toTopOf="parent" />
-
-                <TextView
-                    android:id="@+id/tv_color_value"
-                    style="@style/AccountSettingsSubtitle"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Blue"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toBottomOf="@id/tv_account_color" />
-            </androidx.constraintlayout.widget.ConstraintLayout>
-
-            <androidx.constraintlayout.widget.ConstraintLayout
-                android:id="@+id/cl_blocked_contacts"
-                style="@style/ClickableViewGroup"
-
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/cl_account_color">
-
-                <TextView
-                    android:id="@+id/tv_blocked_contacts"
-                    style="@style/AccountSettingsTitle"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/blocked_contacts"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toTopOf="parent" />
-
-                <TextView
-                    android:id="@+id/tv_blocked_contacts_value"
-                    style="@style/AccountSettingsSubtitle"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="4 blocked contacts"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toBottomOf="@id/tv_blocked_contacts" />
-            </androidx.constraintlayout.widget.ConstraintLayout>
-
-            <androidx.constraintlayout.widget.ConstraintLayout
-                android:id="@+id/cl_circles"
-
+                android:id="@+id/cl_in_app_notifications"
                 style="@style/ClickableViewGroup"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/cl_blocked_contacts">
+                app:layout_constraintTop_toBottomOf="@id/cl_subscription_requests">
 
                 <TextView
-                    android:id="@+id/tv_circles"
-                    style="@style/AccountSettingsTitle"
+                    android:id="@+id/tv_in_app_notifications"
+                    style="@style/AccountNotificationsTitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="@string/circles"
+                    android:text="@string/in_app_notifications"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toTopOf="parent" />
-
-                <TextView
-                    android:id="@+id/tv_circles_value"
-                    style="@style/AccountSettingsSubtitle"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/_2_circles"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toBottomOf="@id/tv_circles" />
             </androidx.constraintlayout.widget.ConstraintLayout>
 
+            <!-- In-App Sounds Section -->
             <androidx.constraintlayout.widget.ConstraintLayout
-                android:id="@+id/cl_server_information"
+                android:id="@+id/cl_in_app_sounds"
                 style="@style/ClickableViewGroup"
-
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/cl_circles">
+                app:layout_constraintTop_toBottomOf="@id/cl_in_app_notifications">
 
                 <TextView
-                    android:id="@+id/tv_server_information"
-                    style="@style/AccountSettingsTitle"
+                    android:id="@+id/tv_in_app_sounds"
+                    style="@style/AccountNotificationsSubTitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="@string/server_information"
+                    android:text="@string/in_app_sounds"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toTopOf="parent" />
 
-                <TextView
-                    android:id="@+id/tv_server_information_value"
-                    style="@style/AccountSettingsSubtitle"
+                <Switch
+                    android:id="@+id/switch_in_app_sounds"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="@string/xmpp_server"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toBottomOf="@id/tv_server_information" />
+                    android:layout_marginEnd="16dp"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintBottom_toBottomOf="parent" />
             </androidx.constraintlayout.widget.ConstraintLayout>
 
+            <!-- Message Preview Section -->
             <androidx.constraintlayout.widget.ConstraintLayout
-                android:id="@+id/cl_delete_account"
+                android:id="@+id/cl_message_preview"
                 style="@style/ClickableViewGroup"
-
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/cl_server_information">
+                app:layout_constraintTop_toBottomOf="@id/cl_in_app_sounds">
 
                 <TextView
-                    android:id="@+id/tv_delete_account"
-                    style="@style/AccountSettingsTitle"
+                    android:id="@+id/tv_message_preview"
+                    style="@style/AccountNotificationsSubTitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="12dp"
-                    android:text="@string/delete_account"
-                    android:textColor="@color/red_500"
+                    android:text="@string/on_chat_screen_message_preview"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toTopOf="parent" />
+
+                <Switch
+                    android:id="@+id/switch_message_preview"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="16dp"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintBottom_toBottomOf="parent" />
             </androidx.constraintlayout.widget.ConstraintLayout>
         </LinearLayout>
     </ScrollView>

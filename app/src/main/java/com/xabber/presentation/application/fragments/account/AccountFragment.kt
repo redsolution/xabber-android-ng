@@ -7,6 +7,7 @@ import android.graphics.Bitmap
 import android.os.Bundle
 import android.view.*
 import android.view.animation.AnimationUtils
+import android.widget.ImageView
 import androidx.appcompat.widget.PopupMenu
 import androidx.coordinatorlayout.widget.CoordinatorLayout
 import androidx.core.content.ContextCompat
@@ -86,8 +87,9 @@ class AccountFragment : DetailBaseFragment(R.layout.fragment_account) {
                 .into(binding.accountAppbar.avatarGr.imAccountAvatar)
             viewModel.saveAvatar(getJid(), it.toString())
         }
-        binding.accountAppbar.left.setOnClickListener{navigator().goBack()}
 
+        binding.accountAppbar.accountToolbar.setNavigationIcon(R.drawable.ic_arrow_left_white)
+        binding.accountAppbar.accountToolbar.setNavigationOnClickListener{navigator().goBack()}
     }
 
     private fun setAvatar(bitmap: Bitmap) {
@@ -230,38 +232,49 @@ class AccountFragment : DetailBaseFragment(R.layout.fragment_account) {
     }
 
     private fun initToolbarActions() {
-        binding.accountAppbar.accountToolbar.addMenuProvider(object : MenuProvider {
-            override fun onCreateMenu(menu: Menu, menuInflater: MenuInflater) {
-                menuInflater.inflate(R.menu.menu_toolbar_account, menu)
-            }
+        val toolbar = binding.accountAppbar.accountToolbar
 
-            override fun onMenuItemSelected(menuItem: MenuItem): Boolean {
-                when (menuItem.itemId) {
-                    R.id.colors -> {
-                        val dialog = AccountColorDialog.newInstance(
-                            viewModel.getAccount(getJid())?.colorKey
-                                ?: resources.getString(R.string.blue)
-                        )
-                        navigator().showDialogFragment(dialog, "")
-                    }
+        // Get the navigation icon's start padding
+        val navigationIconPaddingStart = toolbar.contentInsetStart
 
-                    R.id.generate_qr_code -> {
-                        val color = viewModel.getAccount(getJid())?.colorKey ?: resources.getString(
-                            R.string.blue
-                        )
-                        val name = viewModel.getAccount(getJid())?.getAccountName() ?: ""
-                        navigator().showQRCode(
-                            QRCodeParams(
-                                name,
-                                getJid(),
-                                color
-                            )
-                        )
-                    }
-                }
-                return true
+        // Calculate vertical padding to match the Toolbar's height
+        toolbar.viewTreeObserver.addOnGlobalLayoutListener(object : ViewTreeObserver.OnGlobalLayoutListener {
+            override fun onGlobalLayout() {
+                // Remove the listener to avoid multiple calls
+                toolbar.viewTreeObserver.removeOnGlobalLayoutListener(this)
+
+                val toolbarHeight = toolbar.height
+                val colorsIcon = toolbar.findViewById<ImageView>(R.id.colors)
+                val qrCodeIcon = toolbar.findViewById<ImageView>(R.id.generate_qr_code)
+
+                val iconHeight = colorsIcon.height
+                val verticalPadding = (toolbarHeight - iconHeight) / 2
+
+                // Apply the padding
+                colorsIcon.setPadding(navigationIconPaddingStart, verticalPadding, navigationIconPaddingStart, verticalPadding)
+                qrCodeIcon.setPadding(navigationIconPaddingStart, verticalPadding, navigationIconPaddingStart, verticalPadding)
             }
         })
+
+        binding.accountAppbar.accountToolbar.findViewById<ImageView>(R.id.colors).setOnClickListener {
+            val dialog = AccountColorDialog.newInstance(
+                viewModel.getAccount(getJid())?.colorKey
+                    ?: resources.getString(R.string.blue))
+            navigator().showDialogFragment(dialog, "")
+
+        }
+
+        binding.accountAppbar.accountToolbar.findViewById<ImageView>(R.id.generate_qr_code).setOnClickListener {
+            val color = viewModel.getAccount(getJid())?.colorKey ?: resources.getString(R.string.blue)
+            val name = viewModel.getAccount(getJid())?.getAccountName() ?: ""
+            navigator().showQRCode(
+                QRCodeParams(
+                    name,
+                    getJid(),
+                    color
+                )
+            )
+        }
 
         var isShow = true
         var scrollRange = -1
@@ -347,6 +360,7 @@ class AccountFragment : DetailBaseFragment(R.layout.fragment_account) {
                 encryptionAndKeys.setOnClickListener { navigator().showEncryptionAndKeysSettings() }
                 devices.setOnClickListener { navigator().showDevicesSettings() }
                 settings.interfaceSettings.setOnClickListener { navigator().showInterfaceSettings(true) }
+                settings.notifications.setOnClickListener{navigator().showNotificationsSettings(inStack = true)}
 
 
 

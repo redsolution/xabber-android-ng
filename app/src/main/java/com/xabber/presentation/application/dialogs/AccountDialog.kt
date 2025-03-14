@@ -11,6 +11,8 @@ import android.view.MenuInflater
 import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
+import android.view.ViewTreeObserver
+import android.widget.ImageView
 import androidx.appcompat.widget.PopupMenu
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.MenuProvider
@@ -47,6 +49,7 @@ import com.xabber.utils.toAccountDto
 import com.xabber.utils.toAvatarDto
 import io.realm.kotlin.Realm
 import kotlinx.coroutines.launch
+import java.util.zip.Inflater
 
 class AccountDialog : DialogFragment(R.layout.fragment_account), SharedPreferences.OnSharedPreferenceChangeListener {
     private val binding by viewBinding(FragmentAccountBinding::bind)
@@ -108,7 +111,9 @@ class AccountDialog : DialogFragment(R.layout.fragment_account), SharedPreferenc
                 .into(binding.accountAppbar.avatarGr.imAccountAvatar)
             viewModel.saveAvatar(getJid(), it.toString())
         }
-    binding.accountAppbar.left.setOnClickListener {dismiss()}
+
+        binding.accountAppbar.accountToolbar.setNavigationOnClickListener{dismiss()}
+//    binding.accountAppbar.left.setOnClickListener {dismiss()}
         sh = activity?.getSharedPreferences(AppConstants.SHARED_PREF_MASK, Context.MODE_PRIVATE)!!
         sh.registerOnSharedPreferenceChangeListener(this)
     }
@@ -278,38 +283,48 @@ class AccountDialog : DialogFragment(R.layout.fragment_account), SharedPreferenc
     }
 
     private fun initToolbarActions() {
-        binding.accountAppbar.accountToolbar.addMenuProvider(object : MenuProvider {
-            override fun onCreateMenu(menu: Menu, menuInflater: MenuInflater) {
-                menuInflater.inflate(R.menu.menu_toolbar_account, menu)
-            }
+        val toolbar = binding.accountAppbar.accountToolbar
 
-            override fun onMenuItemSelected(menuItem: MenuItem): Boolean {
-                when (menuItem.itemId) {
-                    R.id.colors -> {
-                        val dialog = AccountColorDialog.newInstance(
-                            viewModel.getAccount(getJid())?.colorKey
-                                ?: resources.getString(R.string.blue)
-                        )
-                        navigator().showDialogFragment(dialog, "")
-                    }
+        // Get the navigation icon's start padding
+        val navigationIconPaddingStart = toolbar.contentInsetStart
 
-                    R.id.generate_qr_code -> {
-                        val color = viewModel.getAccount(getJid())?.colorKey ?: resources.getString(
-                            R.string.blue
-                        )
-                        val name = viewModel.getAccount(getJid())?.getAccountName() ?: ""
-                        navigator().showQRCode(
-                            QRCodeParams(
-                                name,
-                                getJid(),
-                                color
-                            )
-                        )
-                    }
-                }
-                return true
+        // Calculate vertical padding to match the Toolbar's height
+        toolbar.viewTreeObserver.addOnGlobalLayoutListener(object : ViewTreeObserver.OnGlobalLayoutListener {
+            override fun onGlobalLayout() {
+                // Remove the listener to avoid multiple calls
+                toolbar.viewTreeObserver.removeOnGlobalLayoutListener(this)
+
+                val toolbarHeight = toolbar.height
+                val colorsIcon = toolbar.findViewById<ImageView>(R.id.colors)
+                val qrCodeIcon = toolbar.findViewById<ImageView>(R.id.generate_qr_code)
+
+                val iconHeight = colorsIcon.height
+                val verticalPadding = (toolbarHeight - iconHeight) / 2
+
+                // Apply the padding
+                colorsIcon.setPadding(navigationIconPaddingStart, verticalPadding, navigationIconPaddingStart, verticalPadding)
+                qrCodeIcon.setPadding(navigationIconPaddingStart, verticalPadding, navigationIconPaddingStart, verticalPadding)
             }
         })
+        binding.accountAppbar.accountToolbar.findViewById<ImageView>(R.id.colors).setOnClickListener {
+            val dialog = AccountColorDialog.newInstance(
+                viewModel.getAccount(getJid())?.colorKey
+                    ?: resources.getString(R.string.blue))
+            navigator().showDialogFragment(dialog, "")
+
+        }
+
+        binding.accountAppbar.accountToolbar.findViewById<ImageView>(R.id.generate_qr_code).setOnClickListener {
+            val color = viewModel.getAccount(getJid())?.colorKey ?: resources.getString(R.string.blue)
+            val name = viewModel.getAccount(getJid())?.getAccountName() ?: ""
+            navigator().showQRCode(
+                QRCodeParams(
+                    name,
+                    getJid(),
+                    color
+                )
+            )
+        }
 
         var isShow = true
         var scrollRange = -1

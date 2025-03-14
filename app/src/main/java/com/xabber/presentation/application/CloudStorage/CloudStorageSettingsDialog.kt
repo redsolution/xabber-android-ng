@@ -31,8 +31,8 @@ class CloudStorageSettingsDialog : DialogFragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        binding.toolbar.navigationIcon = null
-        binding.left.setOnClickListener { dismiss() }
+        binding.toolbar.setNavigationIcon(R.drawable.ic_arrow_left_white)
+        binding.toolbar.setNavigationOnClickListener{dismiss()}
 
         // Set the toolbar color based on the current account's theme
         setupToolbarColor()

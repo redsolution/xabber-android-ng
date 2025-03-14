@@ -69,7 +69,7 @@ interface Navigator {
 
     fun showInterfaceSettings(inStack: Boolean)
 
-    fun showNotificationsSettings()
+    fun showNotificationsSettings(inStack: Boolean)
 
     fun showDataAndStorageSettings()
 

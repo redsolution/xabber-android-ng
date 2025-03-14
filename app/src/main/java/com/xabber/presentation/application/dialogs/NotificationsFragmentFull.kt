@@ -19,11 +19,13 @@ import com.xabber.data_base.defaultRealmConfig
 import com.xabber.databinding.FragmentNotificationBinding
 import com.xabber.dto.AccountDto
 import com.xabber.presentation.XabberApplication
+import com.xabber.presentation.application.contract.navigator
+import com.xabber.presentation.application.fragments.BaseFragment
 import com.xabber.presentation.application.manage.ColorManager
 import com.xabber.utils.toAccountDto
 import io.realm.kotlin.Realm
 
-class NotificationsFragment : DialogFragment(R.layout.fragment_notification) {
+class NotificationsFragmentFull : BaseFragment(R.layout.fragment_notification) {
 
     private lateinit var binding: FragmentNotificationBinding
     private lateinit var sharedPreferences: SharedPreferences
@@ -50,33 +52,23 @@ class NotificationsFragment : DialogFragment(R.layout.fragment_notification) {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         binding.toolbar.setNavigationIcon(R.drawable.ic_arrow_left_white)
-        binding.toolbar.setNavigationOnClickListener{dismiss()}
+        binding.toolbar.setNavigationOnClickListener{navigator().goBack()}
 
         // Set the toolbar color based on the current account's theme
         setupToolbarColor()
     }
 
-    override fun onStart() {
-        super.onStart()
-        val dialog = dialog
-        if (dialog != null) {
-            val width = (resources.displayMetrics.widthPixels * 0.8).toInt() // 90% of screen width
-            val height = (resources.displayMetrics.heightPixels * 0.95).toInt()
-            dialog.window?.setLayout(width, height)
-            dialog.window?.setGravity(Gravity.CENTER) // Center the dialog
-        }
-    }
     private fun setupToolbar() {
-        binding.toolbar.setNavigationOnClickListener { dismiss() }
+        binding.toolbar.setNavigationOnClickListener { navigator().goBack() }
         setupToolbarColor()
     }
 
     private fun setupViews() {
         // Set initial values for incoming messages and subscription requests
-        val incomingMessagesDefault = sharedPreferences.getString(KEY_INCOMING_MESSAGES, "None") ?: resources.getString(R.string.unmute)
+        val incomingMessagesDefault = sharedPreferences.getString(KEY_INCOMING_MESSAGES, resources.getString(R.string.unmute)) ?: resources.getString(R.string.unmute)
         binding.tvIncomingMessagesValue.text = incomingMessagesDefault
 
-        val subscriptionRequestsDefault = sharedPreferences.getString(KEY_SUBSCRIPTION_REQUESTS, "None") ?: resources.getString(R.string.unmute)
+        val subscriptionRequestsDefault = sharedPreferences.getString(KEY_SUBSCRIPTION_REQUESTS, resources.getString(R.string.unmute)) ?: resources.getString(R.string.unmute)
         binding.tvSubscriptionRequestsValue.text = subscriptionRequestsDefault
 
         // Set click listeners for options

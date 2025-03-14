@@ -39,8 +39,8 @@
 
             <ImageView
                 android:id="@+id/im_chat_list_item_avatar"
-                android:layout_width="@dimen/avatar56"
-                android:layout_height="@dimen/avatar56"
+                android:layout_width="@dimen/avatar48"
+                android:layout_height="@dimen/avatar48"
                 android:contentDescription="@string/chat_image_description"
                 android:scaleType="centerCrop"
                 app:layout_constraintBottom_toBottomOf="parent"
@@ -75,7 +75,7 @@
         <FrameLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="@dimen/margin_10"
+            android:layout_marginStart="16dp"
             android:layout_marginEnd="@dimen/margin_small"
             app:layout_constraintBottom_toTopOf="@id/space_center_vertical"
             app:layout_constraintEnd_toStartOf="@id/tv_timestamp"
@@ -110,7 +110,7 @@
         <FrameLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="@dimen/margin_10"
+            android:layout_marginStart="16dp"
             android:layout_marginEnd="@dimen/margin_small"
             app:layout_constraintEnd_toStartOf="@id/lin_chat_data"
             app:layout_constraintStart_toEndOf="@id/shape_view"

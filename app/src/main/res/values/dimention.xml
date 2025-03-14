@@ -81,5 +81,8 @@
     <dimen name="text_size_timestamp">10sp</dimen>
     <dimen name="text_size_video_duration">11dp</dimen>
     <dimen name="text_size_16">16sp</dimen>
+
     <dimen name="unread_count_text_size">13sp</dimen>
+
+
 </resources>

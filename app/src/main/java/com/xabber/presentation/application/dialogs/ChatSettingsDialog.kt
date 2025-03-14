@@ -283,8 +283,8 @@ class ChatSettingsDialog : DialogFragment(R.layout.fragment_chat_settings),
             ChatSettingsManager.designType = 6
             binding.rvChatDemonstration.setBackgroundResource(R.drawable.summer_repeat)
         }
-        binding.toolbar.navigationIcon = null
-        binding.left.setOnClickListener { dismiss() }
+        binding.toolbar.setNavigationIcon(R.drawable.ic_arrow_left_white)
+        binding.toolbar.setNavigationOnClickListener{dismiss()}
     }
 
     private fun getCheckedDesign(): Int {

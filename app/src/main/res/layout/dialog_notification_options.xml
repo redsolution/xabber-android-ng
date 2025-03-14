@@ -1,0 +1,71 @@
+<!-- res/layout/dialog_notification_options.xml -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="16dp">
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:id="@+id/title"
+        android:text="Repeat notifications"
+        android:textSize="22sp"
+        android:padding="12dp"
+        android:fontFamily="@font/roboto_bold">
+
+    </TextView>
+    <!-- Mute for 1 Hour -->
+    <TextView
+        android:id="@+id/option_mute_1_hour"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/mute_for_1_hour"
+        android:textSize="16sp"
+        android:padding="12dp"
+        android:background="?attr/selectableItemBackground"
+        android:gravity="start"/>
+
+    <!-- Mute for 1 Day -->
+    <TextView
+        android:id="@+id/option_mute_1_day"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/mute_for_1_day"
+        android:textSize="16sp"
+        android:padding="12dp"
+        android:background="?attr/selectableItemBackground"
+        android:gravity="start"/>
+
+    <!-- Mute for 1 Week -->
+    <TextView
+        android:id="@+id/option_mute_1_week"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/mute_for_1_week"
+        android:textSize="16sp"
+        android:padding="12dp"
+        android:background="?attr/selectableItemBackground"
+        android:gravity="start"/>
+
+    <!-- Mute Forever -->
+    <TextView
+        android:id="@+id/option_mute_forever"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/mute_forever"
+        android:textSize="16sp"
+        android:padding="12dp"
+        android:background="?attr/selectableItemBackground"
+        android:gravity="start"/>
+
+    <!-- Unmute -->
+    <TextView
+        android:id="@+id/option_unmute"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/unmute"
+        android:textSize="16sp"
+        android:padding="12dp"
+        android:background="?attr/selectableItemBackground"
+        android:gravity="start"/>
+</LinearLayout>

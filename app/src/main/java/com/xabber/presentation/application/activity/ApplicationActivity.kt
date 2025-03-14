@@ -3,18 +3,13 @@ package com.xabber.presentation.application.activity
 
 import android.annotation.SuppressLint
 import android.content.Context
-import android.content.ContextParams
 import android.content.Intent
 import android.content.SharedPreferences
 import android.content.res.Configuration
 import android.graphics.Color
-import android.graphics.Outline
 import android.os.Bundle
 import android.util.TypedValue
 import android.view.MenuItem
-import android.view.View
-import android.view.ViewGroup
-import android.view.ViewOutlineProvider
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -30,7 +25,6 @@ import androidx.core.view.GravityCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.isVisible
-import androidx.core.view.marginTop
 import androidx.core.view.updateLayoutParams
 import androidx.drawerlayout.widget.DrawerLayout
 import androidx.fragment.app.DialogFragment
@@ -48,10 +42,9 @@ import com.xabber.dto.AccountDto
 import com.xabber.dto.AvatarDto
 import com.xabber.presentation.AppConstants
 import com.xabber.presentation.AppConstants.CHAT_LIST_UNREAD_KEY
-import com.xabber.presentation.application.BaseViewModel
 import com.xabber.presentation.application.contract.Navigator
 import com.xabber.presentation.application.dialogs.AccountDialog
-import com.xabber.presentation.application.dialogs.SettingsDialog
+import com.xabber.presentation.application.dialogs.NotificationsFragmentFull
 import com.xabber.presentation.application.fragments.account.AccountAdapter
 import com.xabber.presentation.application.fragments.account.AccountFragment
 import com.xabber.presentation.application.fragments.account.qrcode.QRCodeDialogFragment
@@ -73,13 +66,12 @@ import com.xabber.presentation.application.fragments.chatlist.forward.ChatListTo
 import com.xabber.presentation.application.fragments.contacts.*
 import com.xabber.presentation.application.fragments.contacts.edit.EditContactFragment
 import com.xabber.presentation.application.fragments.discover.DiscoverFragment
+import com.xabber.presentation.application.fragments.notifications.NotificationFragment
+import com.xabber.presentation.application.fragments.savedMessages.SavedMessagesFragment
 import com.xabber.presentation.application.fragments.settings.*
 import com.xabber.presentation.application.manage.DisplayManager
-import com.xabber.presentation.application.manage.DisplayManager.getHeightStatusBar
 import com.xabber.presentation.application.manage.DisplayManager.getMainContainerWidth
 import com.xabber.presentation.application.manage.DisplayManager.isDualScreenMode
-import com.xabber.presentation.application.manage.DisplayManager.isHidden
-import com.xabber.presentation.application.manage.DisplayManager.requireArguments
 import com.xabber.presentation.application.manage.MaskManager
 import com.xabber.presentation.onboarding.activity.OnBoardingActivity
 import com.xabber.utils.custom.ShapeOfView
@@ -108,7 +100,6 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
     private val realm = Realm.open(defaultRealmConfig())
     private lateinit var drawerLayout: DrawerLayout
     private lateinit var actionBarToggle: ActionBarDrawerToggle
-    private val accViewModel: BaseViewModel by viewModels()
     private var assist: SoftInputAssist? = null
     private val activeFragment: Fragment?
         get() = supportFragmentManager.findFragmentById(R.id.application_container)
@@ -161,17 +152,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
             goToOnboarding()
         }
         val profileButton: LinearLayout = findViewById(R.id.profile_button)
-//        profileButton.clipToOutline = true
 
-        // Set a ViewOutlineProvider to apply rounded corners
-//        profileButton.outlineProvider = object : ViewOutlineProvider() {
-//            override fun getOutline(view: View, outline: Outline) {
-//                // Define the rounded corners (radius in pixels)
-//                val cornerRadius = 100f // Adjust this value as needed
-//                outline.setRoundRect(0, 0, view.width, view.height, cornerRadius)
-//            }
-//        }
-        // Set the click listener
         profileButton.setOnClickListener {
             handleProfileNavigation()
         }
@@ -187,13 +168,16 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
     private fun setupNavigationDrawer() {
         drawerLayout = findViewById(R.id.drawer_layout)
         val navigationView = findViewById<NavigationView>(R.id.nav_view)
-
-
         val toolbarNav = findViewById<Toolbar>(R.id.toolbar_nav)
-
-
         val dpAsPixels = getStatusBarHeight()
-        toolbarNav.setPadding(0, dpAsPixels, 0, 0)
+
+// Get the current padding values
+        val currentPaddingLeft = toolbarNav.paddingLeft
+        val currentPaddingRight = toolbarNav.paddingRight
+        val currentPaddingBottom = toolbarNav.paddingBottom
+
+// Set the new padding with only the top padding updated
+        toolbarNav.setPadding(currentPaddingLeft, dpAsPixels, currentPaddingRight, currentPaddingBottom)
 
         setSupportActionBar(toolbarNav)
 
@@ -202,7 +186,6 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
 
         val avatarImageView = findViewById<ImageView>(R.id.avatar_image_view)
         val titleTextView = findViewById<TextView>(R.id.title_text_view)
-        val nightDayToggleButton = findViewById<ImageButton>(R.id.nightDayToggleButton)
         val subtitleTextView = findViewById<TextView>(R.id.subtitle_text_view)
 
         val account = getPrimaryAccount()
@@ -307,8 +290,9 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
             R.id.chats -> handleChatsNavigation()
             R.id.calls -> handleCallsNavigation()
             R.id.contacts -> handleContactsNavigation()
-            R.id.discover -> handleDiscoverNavigation()
+            R.id.notifications -> handleNotificationsNavigation()
             R.id.archive -> handleArchiveNavigation()
+            R.id.saved_messages-> handleSavedMessagesNavigation()
         }
 
         closeDrawerSlowly()
@@ -344,12 +328,40 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         }
     }
 
+    private fun handleNotificationsNavigation() {
+        chatListViewModel.setShowUnreadOnly(false)
+        closeDetail()
+        if (activeFragment !is NotificationFragment) {
+            replaceFragment(NotificationFragment())
+
+            binding.toolbarNav!!.isVisible = false
+            drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED)
+            drawerLayout.closeDrawer(GravityCompat.START)
+        }
+        setupIconChat(false)
+
+    }
+
+    private fun handleSavedMessagesNavigation() {
+        chatListViewModel.setShowUnreadOnly(false)
+        closeDetail()
+        if (activeFragment !is SavedMessagesFragment) {
+            replaceFragment(SavedMessagesFragment())
+
+            binding.toolbarNav!!.isVisible = false
+            drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED)
+            drawerLayout.closeDrawer(GravityCompat.START)
+        }
+        setupIconChat(false)
+
+    }
+
     private fun handleArchiveNavigation() {
         chatListViewModel.setShowUnreadOnly(false)
         closeDetail()
         if (activeFragment !is ArchiveFragment) {
             replaceFragment(ArchiveFragment())
-            binding.toolbar!!.toolbarNav.isVisible = false
+            binding.toolbarNav!!.isVisible = false
             drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED)
             drawerLayout.closeDrawer(GravityCompat.START)
         }
@@ -363,7 +375,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         if (activeFragment !is CallsFragment) {
             replaceFragment(CallsFragment())
 
-            binding.toolbar!!.toolbarNav.isVisible = false
+            binding.toolbarNav!!.isVisible = false
             drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED)
             drawerLayout.closeDrawer(GravityCompat.START)
         }
@@ -376,7 +388,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         if (activeFragment !is ContactsFragment) {
             replaceFragment(ContactsFragment())
 
-            binding.toolbar!!.toolbarNav.isVisible = false
+            binding.toolbarNav!!.isVisible = false
             drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED)
             drawerLayout.closeDrawer(GravityCompat.START)
         }
@@ -389,7 +401,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         if (activeFragment !is DiscoverFragment) {
             replaceFragment(DiscoverFragment())
 
-            binding.toolbar!!.toolbarNav.isVisible = false
+            binding.toolbarNav!!.isVisible = false
             drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED)
             drawerLayout.closeDrawer(GravityCompat.START)
         }
@@ -770,7 +782,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
             supportFragmentManager.popBackStack()
             drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_UNLOCKED)
             drawerLayout.closeDrawer(GravityCompat.START)
-            binding.toolbar!!.toolbarNav.isVisible = true
+            binding.toolbarNav!!.isVisible = true
             setupNavigationDrawer()
         }
         else {
@@ -813,7 +825,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
             val view = binding.railNavBar!!.findViewById<BottomNavigationItemView>(R.id.contacts)
             view.performClick()
         } else {
-            val view = binding.navView!!.findViewById<BottomNavigationItemView>(R.id.contacts)
+            val view = binding.navView.findViewById<BottomNavigationItemView>(R.id.contacts)
             view.performClick()
         }
 
@@ -922,9 +934,10 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         if (inStack) launchDetailInStack(InterfaceFragment()) else launchDetail(InterfaceFragment())
     }
 
-    override fun showNotificationsSettings() {
-
+    override fun showNotificationsSettings (inStack: Boolean) {
+        if (inStack) launchDetailInStack(NotificationsFragmentFull()) else launchDetail(NotificationsFragmentFull())
     }
+
 
     override fun showPrivacySettings() {
 

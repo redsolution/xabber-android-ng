@@ -5,6 +5,8 @@ import android.content.SharedPreferences
 import android.graphics.Color
 import android.os.Bundle
 import android.view.*
+import android.widget.ImageView
+import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import androidx.fragment.app.activityViewModels
 import androidx.recyclerview.widget.*
@@ -22,6 +24,7 @@ import com.xabber.presentation.application.dialogs.ChatHistoryClearDialog
 import com.xabber.presentation.application.dialogs.DeletingChatDialog
 import com.xabber.presentation.application.dialogs.NotificationBottomSheet
 import com.xabber.presentation.application.fragments.BaseFragment
+import com.xabber.presentation.application.fragments.account.color.AccountColorDialog
 import com.xabber.presentation.application.fragments.chat.ChatParams
 import com.xabber.presentation.application.manage.ColorManager
 import com.xabber.presentation.application.manage.DisplayManager
@@ -72,6 +75,11 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
         initEmptyButton()
         initMarkAllMessagesUnreadButton()
         initPullRefreshLayout()
+        binding.chatToolbar.navigationIcon = context?.let { ContextCompat.getDrawable(it, android.R.color.transparent) }
+
+
+
+
         if (baseViewModel.getPrimaryAccount() == null)
             binding.refreshLayout.isRefreshEnable = false
     }
@@ -83,16 +91,31 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
     }
 
     private fun initToolbarActions() {
-        binding.chatToolbar.setOnMenuItemClickListener {
-            when (it.itemId) {
-                R.id.add -> {
-                   if (chatListViewModel.chatIsEmpty()) chatListViewModel.addSomeChats()
-                    else navigator().showNewChat()
-                }
+        val toolbar = binding.chatToolbar
 
-                else -> {}
-            }; true
+        // Get the navigation icon's start padding
+        val navigationIconPaddingStart = toolbar.contentInsetStart
 
+        // Calculate vertical padding to match the Toolbar's height
+        toolbar.viewTreeObserver.addOnGlobalLayoutListener(object : ViewTreeObserver.OnGlobalLayoutListener {
+            override fun onGlobalLayout() {
+                // Remove the listener to avoid multiple calls
+                toolbar.viewTreeObserver.removeOnGlobalLayoutListener(this)
+
+                val toolbarHeight = toolbar.height
+                val colorsIcon = toolbar.findViewById<ImageView>(R.id.add)
+
+                val iconHeight = colorsIcon.height
+                val verticalPadding = (toolbarHeight - iconHeight) / 2
+
+                // Apply the padding
+                colorsIcon.setPadding(navigationIconPaddingStart, verticalPadding, navigationIconPaddingStart, verticalPadding)
+            }
+        })
+
+        binding.chatToolbar.findViewById<ImageView>(R.id.add).setOnClickListener {
+            if (chatListViewModel.chatIsEmpty()) chatListViewModel.addSomeChats()
+            else navigator().showNewChat()
         }
 
 

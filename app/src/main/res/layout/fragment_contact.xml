@@ -19,28 +19,17 @@
             style="@style/ApplicationToolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            app:menu="@menu/menu_toolbar_contact_list">
-            <ImageView
-                android:id="@+id/left"
-                android:layout_width="wrap_content"
-                android:src="@drawable/ic_arrow_left_white"
-                android:layout_height="wrap_content"
-                android:padding="12dp"
-                android:clickable="true"
-                android:focusable="true"
-                android:foreground="?android:attr/selectableItemBackgroundBorderless">
+            app:menu="@menu/menu_toolbar_contact_list"
 
-            </ImageView>
+            >
 
             <TextView
                 android:id="@+id/tv_contact_title"
                 style="@style/FragmentsToolbarTitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-
                 android:text="@string/contacts_toolbar_title"
                 app:layout_constraintBottom_toBottomOf="parent"
-
                 app:layout_constraintTop_toTopOf="parent" />
         </androidx.appcompat.widget.Toolbar>
     </com.google.android.material.appbar.AppBarLayout>

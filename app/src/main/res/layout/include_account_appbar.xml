@@ -22,15 +22,24 @@
                 android:layout_width="wrap_content"
                 android:layout_height="64dp"
                 android:theme="@style/ToolbarAccountColorTheme"
-                app:layout_collapseMode="pin">
+                app:layout_collapseMode="pin"
+                app:navigationIcon="?attr/homeAsUpIndicator">
                 <ImageView
-                    android:id="@+id/left"
+                    android:id="@+id/generate_qr_code"
                     android:layout_width="wrap_content"
-                    android:src="@drawable/ic_arrow_left_white"
+                    android:src="@drawable/ic_qr_code_generate_white"
                     android:layout_height="wrap_content"
-                    android:padding="12dp"
-
+                    android:layout_gravity="end"
                     tools:ignore="ContentDescription" />
+                <ImageView
+                    android:id="@+id/colors"
+                    android:layout_width="wrap_content"
+                    android:src="@drawable/ic_color_lens"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="end"
+                    tools:ignore="ContentDescription" />
+
+
                 <Button
                     android:id="@+id/btn_add_contact"
                     android:layout_width="wrap_content"

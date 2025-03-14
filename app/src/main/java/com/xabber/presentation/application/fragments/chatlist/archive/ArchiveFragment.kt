@@ -64,11 +64,11 @@ class ArchiveFragment : BaseFragment(R.layout.fragment_archive),
 
     private fun initToolbarActions() {
         binding.chatToolbar.navigationIcon = null
-        binding.left.setOnClickListener {
-            navigator().closeDetail()
-            navigator().goBack()
-        }
         binding.chatToolbar.setOnClickListener { scrollUp() }
+        binding.chatToolbar.setNavigationIcon(R.drawable.ic_arrow_left_white)
+        binding.chatToolbar.setNavigationOnClickListener {
+            navigator().closeDetail()
+            navigator().goBack()}
     }
 
     private fun scrollUp() {

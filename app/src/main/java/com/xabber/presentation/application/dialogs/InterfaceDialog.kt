@@ -52,8 +52,8 @@ class InterfaceDialog : DialogFragment(R.layout.fragment_interface) {
             val chatSettings = ChatSettingsDialog()
             chatSettings.show(childFragmentManager, "mask fragment")
         }
-        binding.toolbar.navigationIcon = null
-        binding.left.setOnClickListener { dismiss() }
+        binding.toolbar.setNavigationIcon(R.drawable.ic_arrow_left_white)
+        binding.toolbar.setNavigationOnClickListener{dismiss()}
 
         // Set the toolbar color based on the current account's theme
         setupToolbarColor()

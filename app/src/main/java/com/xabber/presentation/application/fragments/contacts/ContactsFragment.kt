@@ -3,10 +3,16 @@ package com.xabber.presentation.application.fragments.contacts
 import android.annotation.SuppressLint
 import android.content.SharedPreferences
 import android.content.res.Configuration
+import android.graphics.drawable.InsetDrawable
 import android.os.Bundle
+import android.view.Menu
 import android.view.View
+import android.view.ViewTreeObserver
+import android.widget.ImageView
+import androidx.core.content.ContextCompat
 import by.kirich1409.viewbindingdelegate.viewBinding
 import com.xabber.R
+import com.xabber.R.drawable
 import com.xabber.databinding.FragmentContactBinding
 import com.xabber.dto.ContactDto
 import com.xabber.presentation.AppConstants
@@ -36,10 +42,8 @@ class ContactsFragment : BaseFragment(R.layout.fragment_contact), ContactAdapter
         subscribeViewModel()
         viewModel.initDataListener()
         viewModel.getChatList()
-        binding.toolbarContacts.navigationIcon = null
-        binding.left.setOnClickListener {
-            navigator().goBack()
-        }
+
+
 //        val account = baseViewModel.getPrimaryAccount()
 //        if (account != null) binding.tvContactTitle.text = account.nickname else binding.tvContactTitle.text = resources.getString(R.string.contacts_toolbar_title)
 
@@ -47,6 +51,17 @@ class ContactsFragment : BaseFragment(R.layout.fragment_contact), ContactAdapter
     }
 
     private fun initToolbarActions() {
+        val toolbar = binding.toolbarContacts
+        val overflowIcon = ContextCompat.getDrawable(requireContext(), R.drawable.more_vert_24px)
+        overflowIcon?.let {
+            val iconHeight = it.intrinsicHeight
+            val toolbarHeight = toolbar.height
+            val padding = iconHeight // Use icon height as padding value
+            val vertical = padding
+            val side = (padding - toolbarHeight) / 3
+            val insetDrawable = InsetDrawable(it, side, vertical, side, vertical)
+            binding.toolbarContacts.overflowIcon = insetDrawable
+        }
         binding.toolbarContacts.setOnMenuItemClickListener {
             when (it.itemId) {
                 R.id.reset_status -> navigator().showStatusFragment()
@@ -54,6 +69,8 @@ class ContactsFragment : BaseFragment(R.layout.fragment_contact), ContactAdapter
                 R.id.display_contacts_offline -> {}
             }; true
         }
+        binding.toolbarContacts.setNavigationIcon(drawable.ic_arrow_left_white)
+        binding.toolbarContacts.setNavigationOnClickListener{navigator().goBack()}
     }
 
     private fun initContactList() {

@@ -19,9 +19,8 @@
             android:id="@+id/chat_toolbar"
             style="@style/ApplicationToolbar"
             android:layout_width="match_parent"
-
             android:layout_height="?attr/actionBarSize"
-            app:menu="@menu/menu_toolbar_chat_list">
+            >
 
                 <TextView
                     android:id="@+id/tv_chat_title"
@@ -30,7 +29,15 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/menu_item_chats" />
+            <ImageView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:id="@+id/add"
+                android:src="@drawable/ic_plus_white"
+                android:layout_gravity="end"
+                tools:ignore="ContentDescription" >
 
+            </ImageView>
         </androidx.appcompat.widget.Toolbar>
     </com.google.android.material.appbar.AppBarLayout>
 
