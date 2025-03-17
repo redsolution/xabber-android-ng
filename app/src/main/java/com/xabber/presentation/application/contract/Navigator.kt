@@ -88,9 +88,6 @@ interface Navigator {
     fun showMaskSettings()
 
     fun setDesignBackground()
-    fun handleArchiveNavigation()
-    fun launchFragment(fragment: Fragment)
-    fun showUnreadChats(showUnread: Boolean)
 
     fun onNavigationItemSelected(item: MenuItem): Boolean
 }
