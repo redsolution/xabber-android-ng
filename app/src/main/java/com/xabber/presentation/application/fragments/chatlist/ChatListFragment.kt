@@ -72,7 +72,6 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
         initToolbarActions()
         initRecyclerView()
         subscribeToViewModelData()
-        initEmptyButton()
         initMarkAllMessagesUnreadButton()
         initPullRefreshLayout()
         binding.chatToolbar.navigationIcon = context?.let { ContextCompat.getDrawable(it, android.R.color.transparent) }
@@ -181,9 +180,6 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
         }
     }
 
-    private fun initEmptyButton() {
-        binding.emptyButton.setOnClickListener { navigator().showContacts() }
-    }
 
     @SuppressLint("NotifyDataSetChanged")
     private fun subscribeToViewModelData() {

@@ -1,5 +1,6 @@
 package com.xabber.presentation.application.CloudStorage
 
+import android.content.res.Configuration
 import android.os.Bundle
 import android.view.Gravity
 import android.view.LayoutInflater
@@ -14,12 +15,36 @@ import com.xabber.databinding.FragmentCloudStorageSettingsBinding
 import com.xabber.presentation.application.manage.ColorManager
 import com.xabber.data_base.defaultRealmConfig
 import com.xabber.dto.AccountDto
+import com.xabber.presentation.application.manage.DisplayManager
 import com.xabber.utils.toAccountDto
 import io.realm.kotlin.Realm
 
 class CloudStorageSettingsDialog : DialogFragment() {
     private val binding by viewBinding(FragmentCloudStorageSettingsBinding::bind)
     private val realm = Realm.open(defaultRealmConfig())
+
+
+    override fun onStart() {
+        super.onStart()
+        val dialog = dialog
+        if (dialog != null) {
+            val widthDp = DisplayManager.getWidthDp()
+            val orientation = resources.configuration.orientation
+            if (widthDp > 600 && orientation == Configuration.ORIENTATION_PORTRAIT) {
+                val width = (resources.displayMetrics.widthPixels * 0.8).toInt() // 90% of screen width
+                val height = (resources.displayMetrics.heightPixels * 0.95).toInt()
+                dialog.window?.setLayout(width, height)
+                dialog.window?.setGravity(Gravity.CENTER) // Center the dialog
+            }
+            if ((widthDp > 800 && orientation == Configuration.ORIENTATION_LANDSCAPE)) {
+                val width = (resources.displayMetrics.widthPixels * 0.48).toInt() // 90% of screen width
+                val height = (resources.displayMetrics.heightPixels * 0.97).toInt()
+                dialog.window?.setLayout(width, height)
+                dialog.window?.setGravity(Gravity.CENTER) // Center the dialog
+            }
+
+        }
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -93,16 +118,6 @@ class CloudStorageSettingsDialog : DialogFragment() {
     }
 
 
-    override fun onStart() {
-        super.onStart()
-        val dialog = dialog
-        if (dialog != null) {
-            val width = (resources.displayMetrics.widthPixels * 0.8).toInt() // 90% of screen width
-            val height = (resources.displayMetrics.heightPixels * 0.95).toInt()
-            dialog.window?.setLayout(width, height)
-            dialog.window?.setGravity(Gravity.CENTER) // Center the dialog
-        }
-    }
 
     override fun onDestroy() {
         super.onDestroy()
