@@ -10,6 +10,7 @@ import android.view.View
 import android.view.ViewTreeObserver
 import android.widget.ImageView
 import androidx.core.content.ContextCompat
+import androidx.fragment.app.Fragment
 import by.kirich1409.viewbindingdelegate.viewBinding
 import com.xabber.R
 import com.xabber.R.drawable
@@ -20,6 +21,7 @@ import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.application.dialogs.BlockContactDialog
 import com.xabber.presentation.application.dialogs.DeletingContactDialog
 import com.xabber.presentation.application.fragments.BaseFragment
+import com.xabber.presentation.application.fragments.chat.ChatFragment
 import com.xabber.presentation.application.fragments.chat.ChatParams
 import com.xabber.presentation.application.manage.DisplayManager
 
@@ -28,7 +30,8 @@ class ContactsFragment : BaseFragment(R.layout.fragment_contact), ContactAdapter
     private val viewModel = ContactsViewModel()
     private var contactAdapter: ContactAdapter? = null
     private var selectedChatId = ""
-
+    private val activeFragment: Fragment?
+        get() = childFragmentManager.findFragmentById(R.id.application_container)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         selectedChatId = savedInstanceState?.getString(AppConstants.SELECTED_CHAT_ID) ?: ""
@@ -43,9 +46,6 @@ class ContactsFragment : BaseFragment(R.layout.fragment_contact), ContactAdapter
         viewModel.initDataListener()
         viewModel.getChatList()
 
-
-//        val account = baseViewModel.getPrimaryAccount()
-//        if (account != null) binding.tvContactTitle.text = account.nickname else binding.tvContactTitle.text = resources.getString(R.string.contacts_toolbar_title)
 
 
     }
@@ -85,18 +85,18 @@ class ContactsFragment : BaseFragment(R.layout.fragment_contact), ContactAdapter
     }
 
     override fun onAvatarClick(contactDto: ContactDto) {
-
-
+        if (activeFragment is ChatFragment) {navigator().closeDetail()}
         val params = ContactAccountParams(
                 contactDto.primary,
                 contactDto.avatar)
 
         if (DisplayManager.getWidthDp() > 600 && resources.configuration.orientation
-            == Configuration.ORIENTATION_PORTRAIT || DisplayManager.getWidthDp() > 800
-            && resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) {
-
+            == Configuration.ORIENTATION_PORTRAIT) {
             val accDialog = ContactAccountFragment.newInstance(params)
-            accDialog.show(childFragmentManager, AppConstants.CHAT_ACCOUNT_INFO)
+            accDialog.show(childFragmentManager, AppConstants.CHAT_LIST_TO_FORWARD_DIALOG_TAG)
+        } else if (DisplayManager.getWidthDp() > 800 && resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) {
+
+            navigator().launchDetail(ContactAccountFragment.newInstance(params))
 
         } else {
             navigator().showContactAccount(
@@ -111,13 +111,16 @@ class ContactsFragment : BaseFragment(R.layout.fragment_contact), ContactAdapter
     }
 
     override fun onContactClick(owner: String, opponentJid: String, avatar: Int) {
-        val chatId = viewModel.getChatId(owner, opponentJid)
-        if (chatId != null) {
-            if (selectedChatId != chatId || !DisplayManager.isDualScreenMode()) {
-                selectedChatId = chatId
-                navigator().showChat(ChatParams(chatId, avatar))
+        if (activeFragment is ContactAccountFragment) {navigator().closeDetail()}
+
+            val chatId = viewModel.getChatId(owner, opponentJid)
+            if (chatId != null) {
+                if (selectedChatId != chatId || !DisplayManager.isDualScreenMode()) {
+                    selectedChatId = chatId
+                    navigator().showChat(ChatParams(chatId, avatar))
+                }
             }
-        }
+
     }
 
     override fun editContact(contactDto: ContactDto, avatar: Int, color: String) {

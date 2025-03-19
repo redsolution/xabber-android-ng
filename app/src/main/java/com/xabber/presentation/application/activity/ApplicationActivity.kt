@@ -10,8 +10,6 @@ import android.graphics.Color
 import android.os.Bundle
 import android.util.TypedValue
 import android.view.MenuItem
-import android.view.View
-import android.view.ViewGroup
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -53,7 +51,6 @@ import com.xabber.presentation.application.fragments.account.qrcode.QRCodeDialog
 import com.xabber.presentation.application.fragments.account.qrcode.QRCodeFragment
 import com.xabber.presentation.application.fragments.account.qrcode.QRCodeParams
 import com.xabber.presentation.application.fragments.account.reorder.ReorderAccountsFragment
-import com.xabber.presentation.application.fragments.calls.CallsDialog
 import com.xabber.presentation.application.fragments.calls.CallsFragment
 import com.xabber.presentation.application.fragments.chat.ChatFragment
 import com.xabber.presentation.application.fragments.chat.ChatParams
@@ -64,15 +61,12 @@ import com.xabber.presentation.application.fragments.chatlist.ChatListViewModel
 import com.xabber.presentation.application.fragments.chatlist.add.NewChatFragment
 import com.xabber.presentation.application.fragments.chatlist.add.NewContactFragment
 import com.xabber.presentation.application.fragments.chatlist.add.NewGroupFragment
-import com.xabber.presentation.application.fragments.chatlist.archive.ArchiveDialog
 import com.xabber.presentation.application.fragments.chatlist.archive.ArchiveFragment
 import com.xabber.presentation.application.fragments.chatlist.forward.ChatListToForwardFragment
 import com.xabber.presentation.application.fragments.contacts.*
 import com.xabber.presentation.application.fragments.contacts.edit.EditContactFragment
 import com.xabber.presentation.application.fragments.discover.DiscoverFragment
-import com.xabber.presentation.application.fragments.notifications.NotificationDialog
 import com.xabber.presentation.application.fragments.notifications.NotificationFragment
-import com.xabber.presentation.application.fragments.savedMessages.SavedMessagesDialog
 import com.xabber.presentation.application.fragments.savedMessages.SavedMessagesFragment
 import com.xabber.presentation.application.fragments.settings.*
 import com.xabber.presentation.application.manage.DisplayManager
@@ -112,36 +106,6 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
     private val viewModel = ApplicationViewModel()
     private val chatListViewModel: ChatListViewModel by viewModels()
     private var shapeView: ShapeOfView? = null
-//    private val showBadge = {
-//        val count = viewModel.unreadMessage.value
-//        if (count != null) {
-//            if (resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) {
-//                if (count > 0) {
-//                    val creator = binding.railNavBar!!.getOrCreateBadge(R.id.chats)
-//                    creator.backgroundColor =
-//                        ResourcesCompat.getColor(
-//                            binding.railNavBar!!.resources,
-//                            R.color.green_500,
-//                            null
-//                        )
-//                    creator.badgeGravity = BadgeDrawable.BOTTOM_END
-//                    creator.number = count
-//                } else binding.railNavBar!!.removeBadge(R.id.chats)
-//            } else {
-//                if (count > 0) {
-//                    val creator = binding.bottomNavBar!!.getOrCreateBadge(R.id.chats)
-//                    creator.backgroundColor =
-//                        ResourcesCompat.getColor(
-//                            binding.bottomNavBar!!.resources,
-//                            R.color.green_500,
-//                            null
-//                        )
-//                    creator.badgeGravity = BadgeDrawable.BOTTOM_END
-//                    creator.number = count
-//                } else binding.bottomNavBar!!.removeBadge(R.id.chats)
-//            }
-//        }else binding.bottomNavBar!!.removeBadge(R.id.chats)
-//    }
 
     @SuppressLint("WrongViewCast")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -176,18 +140,15 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         val navigationView = findViewById<NavigationView>(R.id.nav_view)
         val toolbarNav = findViewById<Toolbar>(R.id.toolbar_nav)
         val dpAsPixels = getStatusBarHeight()
-// Get the current padding values
+
+        // Set padding for the toolbar
         val currentPaddingLeft = toolbarNav.paddingLeft
         val currentPaddingRight = toolbarNav.paddingRight
         val currentPaddingBottom = toolbarNav.paddingBottom
-
-// Set the new padding with only the top padding updated
         toolbarNav.setPadding(currentPaddingLeft, dpAsPixels, currentPaddingRight, currentPaddingBottom)
 
         setSupportActionBar(toolbarNav)
-
         supportActionBar?.setDisplayShowTitleEnabled(false)
-
 
         val avatarImageView = findViewById<ImageView>(R.id.avatar_image_view)
         val titleTextView = findViewById<TextView>(R.id.title_text_view)
@@ -207,34 +168,14 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         }
 
         navigationView.setNavigationItemSelectedListener(this)
-        actionBarToggle = ActionBarDrawerToggle(this, drawerLayout,  0, 0).apply {
+        actionBarToggle = ActionBarDrawerToggle(this, drawerLayout, 0, 0).apply {
             drawerLayout.addDrawerListener(this)
             syncState()
-
         }
 
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
-        if (DisplayManager.isDualScreenMode() && resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) {
-            drawerLayout.setScrimColor(Color.parseColor("#80000000")) // Semi-transparent black overlay
-            drawerLayout.addDrawerListener(object : DrawerLayout.DrawerListener {
-                override fun onDrawerSlide(drawerView: View, slideOffset: Float) {
-                    // Adjust the scrim dynamically if needed
-                    drawerLayout.setScrimColor(Color.parseColor("#80000000"))
-                }
-                override fun onDrawerOpened(drawerView: View) {}
-                override fun onDrawerClosed(drawerView: View) {}
-                override fun onDrawerStateChanged(newState: Int) {}
-            })
-
-            // Ensure the drawer layout spans the full width of the screen
-            drawerLayout.layoutParams = drawerLayout.layoutParams.apply {
-                width = ViewGroup.LayoutParams.MATCH_PARENT
-            }
-        }
-
+        drawerLayout.setScrimColor(Color.parseColor("#88000000"))
     }
-
-
     private fun initViews() {
         shapeView = findViewById(R.id.shape_view)
     }
@@ -248,7 +189,6 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         setMask()
         setChatSettings()
 
-        binding.slidingPaneLayout.lockMode = SlidingPaneLayout.LOCK_MODE_LOCKED_CLOSED
         assist = SoftInputAssist(window)
         subscribeToViewModelData()
 
@@ -353,22 +293,13 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
 
     private fun handleNotificationsNavigation() {
         chatListViewModel.setShowUnreadOnly(false)
-
+        closeDetail()
         if (activeFragment !is NotificationFragment) {
-            val widthDp = DisplayManager.getWidthDp()
-            val orientation = resources.configuration.orientation
-            if ((widthDp > 600 && orientation == Configuration.ORIENTATION_PORTRAIT) ||
-                (widthDp > 800 && orientation == Configuration.ORIENTATION_LANDSCAPE)
-            ) {
-                val notify = NotificationDialog()
-                notify.show(supportFragmentManager, "notifications")
-            } else {
-                replaceFragment(NotificationFragment())
+            replaceFragment(NotificationFragment())
 
-                binding.toolbarNav.isVisible = false
-                drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED)
-                drawerLayout.closeDrawer(GravityCompat.START)
-            }
+            binding.toolbarNav.isVisible = false
+            drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED)
+            drawerLayout.closeDrawer(GravityCompat.START)
         }
         setupIconChat(false)
 
@@ -376,22 +307,13 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
 
     private fun handleSavedMessagesNavigation() {
         chatListViewModel.setShowUnreadOnly(false)
-
+        closeDetail()
         if (activeFragment !is SavedMessagesFragment) {
-            val widthDp = DisplayManager.getWidthDp()
-            val orientation = resources.configuration.orientation
-            if ((widthDp > 600 && orientation == Configuration.ORIENTATION_PORTRAIT) ||
-                (widthDp > 800 && orientation == Configuration.ORIENTATION_LANDSCAPE)
-            ) {
-                val SavedMessages = SavedMessagesDialog()
-                SavedMessages.show(supportFragmentManager, "Saved Messages")
-            } else {
-                replaceFragment(NotificationFragment())
+            replaceFragment(SavedMessagesFragment())
 
-                binding.toolbarNav.isVisible = false
-                drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED)
-                drawerLayout.closeDrawer(GravityCompat.START)
-            }
+            binding.toolbarNav.isVisible = false
+            drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED)
+            drawerLayout.closeDrawer(GravityCompat.START)
         }
         setupIconChat(false)
 
@@ -399,22 +321,12 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
 
     private fun handleArchiveNavigation() {
         chatListViewModel.setShowUnreadOnly(false)
-
+        closeDetail()
         if (activeFragment !is ArchiveFragment) {
-            val widthDp = DisplayManager.getWidthDp()
-            val orientation = resources.configuration.orientation
-            if ((widthDp > 600 && orientation == Configuration.ORIENTATION_PORTRAIT) ||
-                (widthDp > 800 && orientation == Configuration.ORIENTATION_LANDSCAPE)
-            ) {
-                val archive = ArchiveDialog()
-                archive.show(supportFragmentManager, "archive")
-            } else {
-                replaceFragment(ArchiveFragment())
-
-                binding.toolbarNav.isVisible = false
-                drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED)
-                drawerLayout.closeDrawer(GravityCompat.START)
-            }
+            replaceFragment(ArchiveFragment())
+            binding.toolbarNav.isVisible = false
+            drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED)
+            drawerLayout.closeDrawer(GravityCompat.START)
         }
         setupIconChat(false)
     }
@@ -422,45 +334,44 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
     private fun handleCallsNavigation() {
 
         chatListViewModel.setShowUnreadOnly(false)
-
+        closeDetail()
         if (activeFragment !is CallsFragment) {
-            val widthDp = DisplayManager.getWidthDp()
-            val orientation = resources.configuration.orientation
-            if ((widthDp > 600 && orientation == Configuration.ORIENTATION_PORTRAIT) ||
-                (widthDp > 800 && orientation == Configuration.ORIENTATION_LANDSCAPE)
-            ) {
-                val calls = CallsDialog()
-                calls.show(supportFragmentManager, "calls")
-            } else {
-                replaceFragment(CallsFragment())
+            replaceFragment(CallsFragment())
 
-                binding.toolbarNav.isVisible = false
-                drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED)
-                drawerLayout.closeDrawer(GravityCompat.START)
-            }
+            binding.toolbarNav!!.isVisible = false
+            drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED)
+            drawerLayout.closeDrawer(GravityCompat.START)
         }
         setupIconChat(false)
     }
 
     private fun handleContactsNavigation() {
         chatListViewModel.setShowUnreadOnly(false)
+        closeDetail()
         if (activeFragment !is ContactsFragment) {
-            val widthDp = DisplayManager.getWidthDp()
-            val orientation = resources.configuration.orientation
-            if ((widthDp > 600 && orientation == Configuration.ORIENTATION_PORTRAIT) ||
-                (widthDp > 800 && orientation == Configuration.ORIENTATION_LANDSCAPE)
-            ) {
-                val contacts = ContactsDialog()
-                contacts.show(supportFragmentManager, "contacts")
-            } else {
-                replaceFragment(ContactsFragment())
-                binding.toolbarNav.isVisible = false
-                drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED)
-                drawerLayout.closeDrawer(GravityCompat.START)
-            }
+            replaceFragment(ContactsFragment())
+
+            binding.toolbarNav.isVisible = false
+            drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED)
+            drawerLayout.closeDrawer(GravityCompat.START)
         }
         setupIconChat(false)
     }
+
+    private fun handleDiscoverNavigation() {
+        chatListViewModel.setShowUnreadOnly(false)
+        closeDetail()
+        if (activeFragment !is DiscoverFragment) {
+            replaceFragment(DiscoverFragment())
+
+            binding.toolbarNav.isVisible = false
+            drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED)
+            drawerLayout.closeDrawer(GravityCompat.START)
+        }
+        setupIconChat(false)
+    }
+
+
 
     private fun replaceFragment(fragment: Fragment) {
         supportFragmentManager.beginTransaction()
@@ -516,7 +427,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
             insets.consumeSystemWindowInsets()
         }
     }
-    @SuppressLint("DiscouragedApi")
+    @SuppressLint("DiscouragedApi", "InternalInsetResource")
     fun getStatusBarHeight(): Int {
         val resourceId = resources.getIdentifier("status_bar_height", "dimen", "android")
         return if (resourceId > 0) resources.getDimensionPixelSize(resourceId) else 0
@@ -531,7 +442,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
             )
         ) actionBarHeight =
             TypedValue.complexToDimensionPixelSize(typedValue.data, resources.displayMetrics)
-        binding.delimiterToolbar?.updateLayoutParams<ConstraintLayout.LayoutParams> {
+        binding.delimiterToolbar.updateLayoutParams<ConstraintLayout.LayoutParams> {
             this.height = actionBarHeight + prolongation
         }
     }
@@ -587,7 +498,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
                 R.drawable.gradient_blue
             }
         }
-        binding.detailContainer?.setBackgroundResource(gradientDraw)
+        binding.detailContainer.setBackgroundResource(gradientDraw)
         val designDrawable = when (designType) {
             1 -> R.drawable.aliens_repeat
             2 -> R.drawable.cats_repeat
@@ -649,7 +560,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         }
     }
 
-    private fun launchDetail(fragment: Fragment) {
+    override fun launchDetail(fragment: Fragment) {
         supportFragmentManager.commit {
             setReorderingAllowed(true)
             replace(R.id.detail_container, fragment)
@@ -674,7 +585,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
             supportFragmentManager.popBackStack()
             drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_UNLOCKED)
             drawerLayout.closeDrawer(GravityCompat.START)
-            binding.toolbarNav!!.isVisible = true
+            binding.toolbarNav.isVisible = true
             setupNavigationDrawer()
         }
         else {
@@ -710,7 +621,6 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
     override fun showChat(chatParams: ChatParams) {
         launchDetail(ChatFragment.newInstance(chatParams))
     }
-
 
 
     override fun showReorderAccountsFragment() {
@@ -788,10 +698,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
     }
 
     override fun showForwardFragment(forwardMessage: String, jid: String) {
-//        if (isTablet()) showDialogFragment(
-//            ChatListToForwardFragment.newInstance(forwardMessage), CHAT_LIST_TO_FORWARD_DIALOG_TAG
-//        )
-    //    else
+
         launchDetailInStack(ChatListToForwardFragment.newInstance(forwardMessage, jid))
     }
 

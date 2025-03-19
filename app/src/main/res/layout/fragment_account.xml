@@ -35,9 +35,7 @@
                         android:id="@+id/profile"
                         style="@style/ClickableViewGroup"
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-
-                        >
+                        android:layout_height="wrap_content">
 
                         <ImageView
                             android:id="@+id/image_profile"
@@ -77,7 +75,6 @@
                         <ImageView
                             android:id="@+id/image_cloud_storage"
                             style="@style/SettingsIcon"
-
                             android:backgroundTint="@color/purple_500"
                             android:src="@drawable/cloud_24px"
                             app:layout_constraintBottom_toBottomOf="parent"
@@ -112,7 +109,6 @@
                         <ImageView
                             android:id="@+id/image_keys"
                             style="@style/SettingsIcon"
-
                             android:backgroundTint="@color/yellow_700"
                             android:src="@drawable/ic_key"
                             app:layout_constraintBottom_toBottomOf="parent"

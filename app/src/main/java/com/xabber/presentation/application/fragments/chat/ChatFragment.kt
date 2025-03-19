@@ -293,13 +293,14 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
 
 
                 if (DisplayManager.getWidthDp() > 600 && resources.configuration.orientation
-                    == Configuration.ORIENTATION_PORTRAIT || DisplayManager.getWidthDp() > 800
-                    && resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) {
-
+                    == Configuration.ORIENTATION_PORTRAIT) {
                     val accDialog = ContactAccountFragment.newInstance(params)
-                    accDialog.show(childFragmentManager, AppConstants.CHAT_ACCOUNT_INFO)
+                    accDialog.show(childFragmentManager, AppConstants.CHAT_LIST_TO_FORWARD_DIALOG_TAG)
+                } else if (DisplayManager.getWidthDp() > 800 && resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) {
 
-                } else {
+                    navigator().launchDetail(ContactAccountFragment.newInstance(params))
+
+                }else {
                     navigator().showContactAccount(
                         ContactAccountParams(
                             contactId,

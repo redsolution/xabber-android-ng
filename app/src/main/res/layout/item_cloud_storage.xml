@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:elevation="0dp"
+    android:clickable="true"
+    android:focusable="true"
+    android:id="@+id/cardview"
+    app:cardCornerRadius="0dp"
+    app:cardMaxElevation="0dp"
+    android:background="@color/transparent"
+    app:cardElevation="0dp">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/chat_ground"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/chat_list_item_height">
+
+
+
+        <com.xabber.utils.custom.ShapeOfView
+            android:id="@+id/shape_view"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="16dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:shape_clip_drawable="@drawable/ic_mask_circle">
+
+            <ImageView
+                style="@style/SettingsIcon"
+                android:id="@+id/im_cloud_storage_item"
+                android:layout_width="@dimen/avatar48"
+                android:layout_height="@dimen/avatar48"
+                android:backgroundTint="@color/amber_400"
+                android:contentDescription="@string/cloud_storage_item"
+                android:scaleType="centerCrop"
+                android:src="@drawable/ic_image_dark"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                 />
+        </com.xabber.utils.custom.ShapeOfView>
+
+        <FrameLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:layout_marginEnd="@dimen/margin_small"
+            app:layout_constraintBottom_toTopOf="@id/space_center_vertical"
+            app:layout_constraintStart_toEndOf="@id/shape_view">
+
+            <TextView
+                android:id="@+id/Item"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="start"
+                android:drawablePadding="@dimen/drawable_mute_padding"
+                android:ellipsize="end"
+                android:fontFamily="sans-serif-medium"
+                android:maxLines="1"
+                android:singleLine="true"
+                android:textColor="@color/grey_900"
+                android:textSize="@dimen/text_size_item_chat_title"
+                app:layout_constraintBottom_toTopOf="@id/space_center_vertical"
+                app:layout_constraintStart_toEndOf="@id/im_chat_list_item_avatar"
+                tools:text="Block" />
+        </FrameLayout>
+
+        <View
+            android:id="@+id/space_center_vertical"
+            android:layout_width="1dp"
+            android:layout_height="1dp"
+            android:layout_margin="@dimen/margin_extra_small"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <FrameLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            app:layout_constraintStart_toEndOf="@id/shape_view"
+            app:layout_constraintTop_toBottomOf="@id/space_center_vertical">
+
+            <TextView
+                android:id="@+id/tv_chat_list_last_message"
+                android:layout_width="272dp"
+                android:layout_height="wrap_content"
+                android:layout_gravity="start"
+                android:ellipsize="end"
+                android:lines="1"
+                android:textColor="@color/grey_text_2"
+                android:textSize="@dimen/text_size_item_chat_message"
+                tools:text="Item item" />
+        </FrameLayout>
+
+        <TextView
+            android:id="@+id/size"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="28dp"
+            android:layout_marginEnd="16dp"
+            android:textColor="@color/grey_text_2"
+            android:textSize="@dimen/text_size_item_chat_message"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            tools:text="@tools:sample/date/hhmm" />
+
+
+
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</androidx.cardview.widget.CardView>

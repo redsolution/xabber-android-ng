@@ -71,7 +71,8 @@ class ContactsDialog : BaseFragment(R.layout.fragment_contact), ContactAdapter.L
 //        val account = baseViewModel.getPrimaryAccount()
 //        if (account != null) binding.tvContactTitle.text = account.nickname else binding.tvContactTitle.text = resources.getString(R.string.contacts_toolbar_title)
 
-
+        binding.toolbarContacts.setNavigationIcon(R.drawable.ic_arrow_left_white)
+        binding.toolbarContacts.setNavigationOnClickListener{dismiss()}
     }
 
     private fun initToolbarActions() {

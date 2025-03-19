@@ -48,21 +48,27 @@
 
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:id="@+id/cl_status"
-
                 style="@style/ClickableViewGroup"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toBottomOf="@id/appbar">
-
+                <ImageView
+                    android:id="@+id/status"
+                    style="@style/StatusIcon"
+                    android:backgroundTint="@color/blue_500"
+                    android:src="@drawable/ic_status_acc"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent" />
                 <TextView
                     android:id="@+id/tv_status"
                     style="@style/AccountSettingsTitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/status_settings"
-                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintStart_toEndOf="@id/status"
                     app:layout_constraintTop_toTopOf="parent" />
 
                 <TextView
@@ -71,27 +77,33 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Online"
-                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintStart_toEndOf="@id/status"
                     app:layout_constraintTop_toBottomOf="@id/tv_status" />
             </androidx.constraintlayout.widget.ConstraintLayout>
 
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:id="@+id/cl_profile"
-
                 style="@style/ClickableViewGroup"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toBottomOf="@id/cl_status">
-
+                <ImageView
+                    android:id="@+id/profile"
+                    style="@style/StatusIcon"
+                    android:backgroundTint="@color/light_blue_500"
+                    android:src="@drawable/person_24px"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent" />
                 <TextView
                     android:id="@+id/tv_profile"
                     style="@style/AccountSettingsTitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/profile"
-                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintStart_toEndOf="@id/profile"
                     app:layout_constraintTop_toTopOf="parent" />
 
                 <TextView
@@ -99,28 +111,34 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/edit_profile"
-                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintStart_toEndOf="@id/profile"
                     app:layout_constraintTop_toBottomOf="@id/tv_profile" />
 
             </androidx.constraintlayout.widget.ConstraintLayout>
 
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:id="@+id/cl_password"
-
                 style="@style/ClickableViewGroup"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toBottomOf="@id/cl_profile">
-
+                <ImageView
+                    android:id="@+id/password"
+                    style="@style/StatusIcon"
+                    android:backgroundTint="@color/cyan_500"
+                    android:src="@drawable/ic_key"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent" />
                 <TextView
                     android:id="@+id/tv_password"
                     style="@style/AccountSettingsTitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/password"
-                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintStart_toEndOf="@id/password"
                     app:layout_constraintTop_toTopOf="parent" />
 
                 <TextView
@@ -128,7 +146,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/change_password"
-                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintStart_toEndOf="@id/password"
                     app:layout_constraintTop_toBottomOf="@id/tv_password" />
 
             </androidx.constraintlayout.widget.ConstraintLayout>
@@ -142,14 +160,21 @@
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toBottomOf="@id/cl_password">
-
+                <ImageView
+                    android:id="@+id/account_color"
+                    style="@style/StatusIcon"
+                    android:backgroundTint="@color/teal_500"
+                    android:src="@drawable/ic_color_lens"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent" />
                 <TextView
                     android:id="@+id/tv_account_color"
                     style="@style/AccountSettingsTitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/account_color_profile"
-                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintStart_toEndOf="@id/account_color"
                     app:layout_constraintTop_toTopOf="parent" />
 
                 <TextView
@@ -158,7 +183,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Blue"
-                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintStart_toEndOf="@id/account_color"
                     app:layout_constraintTop_toBottomOf="@id/tv_account_color" />
             </androidx.constraintlayout.widget.ConstraintLayout>
 
@@ -171,14 +196,21 @@
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toBottomOf="@id/cl_account_color">
-
+                <ImageView
+                    android:id="@+id/blocked_contacts"
+                    style="@style/StatusIcon"
+                    android:backgroundTint="@color/green_500"
+                    android:src="@drawable/ic_cancel"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent" />
                 <TextView
                     android:id="@+id/tv_blocked_contacts"
                     style="@style/AccountSettingsTitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/blocked_contacts"
-                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintStart_toEndOf="@id/blocked_contacts"
                     app:layout_constraintTop_toTopOf="parent" />
 
                 <TextView
@@ -187,7 +219,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="4 blocked contacts"
-                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintStart_toEndOf="@id/blocked_contacts"
                     app:layout_constraintTop_toBottomOf="@id/tv_blocked_contacts" />
             </androidx.constraintlayout.widget.ConstraintLayout>
 
@@ -200,14 +232,21 @@
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toBottomOf="@id/cl_blocked_contacts">
-
+                <ImageView
+                    android:id="@+id/circles"
+                    style="@style/StatusIcon"
+                    android:backgroundTint="@color/light_green_500"
+                    android:src="@drawable/circles_24px"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent" />
                 <TextView
                     android:id="@+id/tv_circles"
                     style="@style/AccountSettingsTitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/circles"
-                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintStart_toEndOf="@id/circles"
                     app:layout_constraintTop_toTopOf="parent" />
 
                 <TextView
@@ -216,7 +255,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/_2_circles"
-                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintStart_toEndOf="@id/circles"
                     app:layout_constraintTop_toBottomOf="@id/tv_circles" />
             </androidx.constraintlayout.widget.ConstraintLayout>
 
@@ -229,14 +268,21 @@
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toBottomOf="@id/cl_circles">
-
+                <ImageView
+                    android:id="@+id/server_information"
+                    style="@style/StatusIcon"
+                    android:backgroundTint="@color/lime_500"
+                    android:src="@drawable/ic_information_outline_grey"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent" />
                 <TextView
                     android:id="@+id/tv_server_information"
                     style="@style/AccountSettingsTitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/server_information"
-                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintStart_toEndOf="@id/server_information"
                     app:layout_constraintTop_toTopOf="parent" />
 
                 <TextView
@@ -245,7 +291,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/xmpp_server"
-                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintStart_toEndOf="@id/server_information"
                     app:layout_constraintTop_toBottomOf="@id/tv_server_information" />
             </androidx.constraintlayout.widget.ConstraintLayout>
 
@@ -258,7 +304,14 @@
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toBottomOf="@id/cl_server_information">
-
+                <ImageView
+                    android:id="@+id/delete_account"
+                    style="@style/DeleteIcon"
+                    android:backgroundTint="@color/blue_500"
+                    android:src="@drawable/ic_trash_grey"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent" />
                 <TextView
                     android:id="@+id/tv_delete_account"
                     style="@style/AccountSettingsTitle"
@@ -267,7 +320,7 @@
                     android:layout_marginStart="12dp"
                     android:text="@string/delete_account"
                     android:textColor="@color/red_500"
-                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintStart_toEndOf="@id/delete_account"
                     app:layout_constraintTop_toTopOf="parent" />
             </androidx.constraintlayout.widget.ConstraintLayout>
         </LinearLayout>

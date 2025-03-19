@@ -134,6 +134,8 @@
         <item name="android:textSize">18sp</item>
     </style>
     <style name="AccountSettingsSubtitle" parent="Theme.MaterialComponents.Light.NoActionBar">
+        <item name="android:layout_marginStart">12dp</item>
+
         <item name="android:layout_marginEnd">16dp</item>
         <item name="android:textSize">14sp</item>
         <item name="android:textColor">@color/gray_text_600</item>
@@ -201,5 +203,19 @@
         <item name="android:padding">6dp</item>
         <item name="tint">@color/white</item>
     </style>
-
+    <style name="StatusIcon">
+        <item name="android:layout_width">36dp</item>
+        <item name="android:layout_height">36dp</item>
+        <item name="android:layout_marginStart">16dp</item>
+        <item name="android:background">@drawable/circle</item>
+        <item name="android:padding">6dp</item>
+        <item name="tint">@color/white</item>
+    </style>
+    <style name="DeleteIcon">
+        <item name="android:layout_width">36dp</item>
+        <item name="android:layout_height">36dp</item>
+        <item name="android:layout_marginStart">16dp</item>
+        <item name="android:padding">6dp</item>
+        <item name="tint">@color/red_500</item>
+    </style>
 </resources>

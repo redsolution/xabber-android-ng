@@ -5,7 +5,10 @@
     <color name="selected">#2F595C5E</color>
     <color name="forwarded_background_color">#007aff</color>
     <color name="grey_transparent">#80424242</color>
-
+    <color name="cs_green_500">#4CAF50</color>
+    <color name="cs_red_500">#F44336</color>
+    <color name="cs_blue_500">#2196F3</color>
+    <color name="cs_grey_300">#B0BEC5</color>
 
     <array name="account_500">
         <item>@color/red_500</item>

@@ -131,6 +131,7 @@
     <string name="mark_all_messages_as_read">Пометить все сообщения как прочитанные</string>
     <string name="chat_status_image_description">Chat status 16</string>
     <string name="chat_image_description">Аватар чата</string>
+    <string name="cloud_storage_item">Cloud storage item</string>
 
     <!-- ChatList Context Menu -->
     <string name="menu_item_pin_chat">Закрепить</string>
@@ -308,6 +309,7 @@
     <string name="avatar_settings">Аватар</string>
     <string name="chat_settings">Настройки чата</string>
     <string name="app_icon">Иконка приложения</string>
+    <string name="free_up_space">Очистить место</string>
 
     <!-- ACCOUNT -->
     <string name="account">Аккаунт</string>

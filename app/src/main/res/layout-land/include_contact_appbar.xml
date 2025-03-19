@@ -17,29 +17,13 @@
             app:collapsedTitleTextColor="@color/black"
             app:layout_scrollFlags="scroll|snap|exitUntilCollapsed">
 
-            <ImageView
-                android:id="@+id/im_backdrop"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:contentDescription="@string/avatar_background_image_description"
-                android:scaleType="centerCrop" />
-
-
-
             <com.google.android.material.appbar.MaterialToolbar
                 android:id="@+id/account_toolbar"
                 android:layout_width="match_parent"
                 android:layout_height="?attr/actionBarSize"
                 android:theme="@style/ToolbarAccountColorTheme"
                 app:layout_collapseMode="pin">
-                <ImageView
-                    android:id="@+id/left"
-                    android:layout_width="wrap_content"
-                    android:src="@drawable/ic_arrow_left_white"
-                    android:layout_gravity="start"
-                    android:layout_height="wrap_content"
-                    android:padding="12dp"
-                    android:layout_marginStart="16dp"/>
+
                 <Button
                     android:id="@+id/btn_add_contact"
                     android:layout_width="wrap_content"
@@ -62,35 +46,48 @@
                     android:visibility="gone" />
             </com.google.android.material.appbar.MaterialToolbar>
 
+            <ImageView
+                android:id="@+id/im_backdrop"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:contentDescription="@string/avatar_background_image_description"
+                android:scaleType="centerCrop" />
 
             <LinearLayout
                 android:id="@+id/lin_text"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:layout_gravity="center"
+                android:layout_gravity="center|bottom"
+                android:layout_marginTop="64dp"
                 android:clickable="true"
                 android:orientation="vertical"
                 tools:ignore="KeyboardInaccessibleWidget">
 
-                <include
-                    android:id="@+id/avatar_gr"
-                    layout="@layout/include_avatar_group"
-                    android:layout_width="@dimen/avatar176"
-                    android:layout_height="@dimen/avatar176"
+                <com.xabber.utils.custom.ShapeOfView
+                    android:id="@+id/shape_view"
+                    app:shape_clip_drawable="@drawable/rectangle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
                     android:layout_gravity="center"
+                    >
 
-                    android:layout_marginBottom="@dimen/margin_small"
-                    app:layout_collapseMode="none" />
+                    <include
+                        android:id="@+id/avatar_gr"
+                        layout="@layout/include_avatar_group"
+                        android:layout_width="@dimen/avatar176"
+                        android:layout_height="@dimen/avatar176"
+                        android:layout_gravity="center"
+
+                        app:layout_collapseMode="none" />
+                </com.xabber.utils.custom.ShapeOfView>
 
                 <TextView
                     android:id="@+id/tv_title"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:ellipsize="marquee"
-                    android:gravity="center|bottom"
+                    android:layout_gravity="center"
                     android:marqueeRepeatLimit="marquee_forever"
-                    android:maxLines="1"
-                    android:layout_gravity="center|bottom"
                     android:textColor="@color/black"
                     android:textSize="32sp"
                     app:layout_collapseMode="none" />

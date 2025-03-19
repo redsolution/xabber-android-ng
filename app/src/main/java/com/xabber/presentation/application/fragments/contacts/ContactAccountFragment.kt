@@ -9,7 +9,9 @@ import android.util.TypedValue
 import android.view.*
 import android.view.animation.AnimationUtils
 import android.content.res.Configuration
+import android.graphics.drawable.InsetDrawable
 import android.util.DisplayMetrics
+import android.widget.ImageView
 import androidx.coordinatorlayout.widget.CoordinatorLayout
 import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
@@ -34,6 +36,7 @@ import com.xabber.presentation.application.dialogs.BlockContactDialog
 import com.xabber.presentation.application.dialogs.DeletingContactDialog
 import com.xabber.presentation.application.dialogs.NotificationBottomSheet
 import com.xabber.presentation.application.dialogs.TimeMute
+import com.xabber.presentation.application.fragments.BaseFragment
 import com.xabber.presentation.application.fragments.DetailBaseFragment
 import com.xabber.presentation.application.fragments.account.qrcode.QRCodeParams
 import com.xabber.presentation.application.fragments.chat.ChatParams
@@ -48,7 +51,7 @@ import com.xabber.utils.showToast
 import org.intellij.lang.annotations.JdkConstants.BoxLayoutAxis
 
 
-class ContactAccountFragment : DialogFragment(R.layout.fragment_contact_account), SharedPreferences.OnSharedPreferenceChangeListener {
+class ContactAccountFragment : BaseFragment(R.layout.fragment_contact_account), SharedPreferences.OnSharedPreferenceChangeListener {
     private val binding by viewBinding(FragmentContactAccountBinding::bind)
     private lateinit var sh: SharedPreferences
     private var mediaAdapter: MediaAdapter? = null
@@ -57,28 +60,24 @@ class ContactAccountFragment : DialogFragment(R.layout.fragment_contact_account)
 
     override fun onStart() {
         super.onStart()
-        val screenWidth = resources.displayMetrics.widthPixels
-        val screenHeight = resources.displayMetrics.heightPixels
-        val landscapeWidthFactor = 0.7
+        val dialog = dialog
+        if (dialog != null) {
+            val widthDp = DisplayManager.getWidthDp()
+            val orientation = resources.configuration.orientation
+            if (widthDp > 600 && orientation == Configuration.ORIENTATION_PORTRAIT) {
+                val width = (resources.displayMetrics.widthPixels * 0.8).toInt() // 90% of screen width
+                val height = (resources.displayMetrics.heightPixels * 0.95).toInt()
+                dialog.window?.setLayout(width, height)
+                dialog.window?.setGravity(Gravity.CENTER) // Center the dialog
+            }
+            if ((widthDp > 800 && orientation == Configuration.ORIENTATION_LANDSCAPE)) {
+                val width = (resources.displayMetrics.widthPixels * 0.48).toInt() // 90% of screen width
+                val height = (resources.displayMetrics.heightPixels * 0.97).toInt()
+                dialog.window?.setLayout(width, height)
+                dialog.window?.setGravity(Gravity.CENTER) // Center the dialog
+            }
 
-        val minPercentage = 0.6
-        val maxPercentage = 0.9
-        var calculatedWidth = (screenWidth * maxPercentage).toInt().coerceIn(
-            (screenWidth * minPercentage).toInt(),
-            (screenWidth * maxPercentage).toInt()
-        )
-
-        val calculatedHeight = (screenHeight * maxPercentage).toInt().coerceIn(
-            (screenHeight * minPercentage).toInt(),
-            (screenHeight * maxPercentage).toInt()
-        )
-
-        if (resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) {
-            calculatedWidth = (calculatedWidth * landscapeWidthFactor).toInt()
         }
-
-        dialog?.window?.setLayout(calculatedWidth, calculatedHeight)
-
     }
 
     companion object {
@@ -99,14 +98,28 @@ class ContactAccountFragment : DialogFragment(R.layout.fragment_contact_account)
 
         binding.accountAppbar.avatarGr.imAccountAvatar.setImageResource(getParams().avatar!!)
         binding.accountAppbar.tvTitle.isSelected = true
-        val closeButton = binding.accountAppbar.left
-        closeButton.setColorFilter(ContextCompat.getColor(requireContext(), R.color.black))
-        binding.accountAppbar.left.setOnClickListener { dismiss() }
 
         sh = requireActivity().getSharedPreferences(AppConstants.SHARED_PREF_MASK, Context.MODE_PRIVATE)
         sh.registerOnSharedPreferenceChangeListener(this)
-        binding.accountAppbar.shapeView?.setDrawable(MaskManager.mask)
+        binding.accountAppbar.shapeView.setDrawable(MaskManager.mask)
 
+        binding.accountAppbar.accountToolbar.setNavigationIcon(R.drawable.ic_arrow_left_black)
+        binding.accountAppbar.accountToolbar.setNavigationOnClickListener {
+            if (DisplayManager.getWidthDp() > 600 && resources.configuration.orientation
+                == Configuration.ORIENTATION_PORTRAIT
+            ) {
+                dialog!!.dismiss()
+            } else if (DisplayManager.getWidthDp() > 800 && resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) {
+
+                navigator().closeDetail()
+
+            } else {
+                navigator().goBack()
+
+            }
+
+
+        }
 
         setFragmentResultListener(AppConstants.DELETING_CONTACT_DIALOG_KEY) { _, bundle ->
             val result = bundle.getBoolean(AppConstants.DELETING_CONTACT_BUNDLE_KEY)
@@ -189,10 +202,11 @@ class ContactAccountFragment : DialogFragment(R.layout.fragment_contact_account)
         binding.tvJid.isSelected = true
         binding.accountAppbar.tvTitle.setTextColor(ContextCompat.getColor(requireContext(), R.color.black))
         binding.accountAppbar.tvSubtitle.setTextColor(ContextCompat.getColor(requireContext(), R.color.black))
+
     }
 
     override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences?, key: String?) {
-        binding.accountAppbar.shapeView?.setDrawable(MaskManager.mask)
+        binding.accountAppbar.shapeView.setDrawable(MaskManager.mask)
     }
 
     private fun setToolbarPadding() {
@@ -209,25 +223,16 @@ class ContactAccountFragment : DialogFragment(R.layout.fragment_contact_account)
             CollapsingToolbarLayout.LayoutParams.MATCH_PARENT,
             actionBarHeight
         )
-//        val closeButton = CollapsingToolbarLayout.LayoutParams(
-//            CollapsingToolbarLayout.LayoutParams.WRAP_CONTENT,
-//            actionBarHeight
-//        )
-    //    binding.accountAppbar.left.layoutParams = closeButton
+
         if (DisplayManager.getWidthDp() < 600 && resources.configuration.orientation
             == Configuration.ORIENTATION_PORTRAIT || DisplayManager.getWidthDp() < 700
             && resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) {
             params.topMargin = DisplayManager.getHeightStatusBar()
-        //    closeButton.topMargin = DisplayManager.getHeightStatusBar()
         }
         params.collapseMode = CollapsingToolbarLayout.LayoutParams.COLLAPSE_MODE_PIN
         binding.accountAppbar.accountToolbar.layoutParams = params
 
-//        closeButton.gravity =Gravity.START
-//        closeButton.collapseMode = CollapsingToolbarLayout.LayoutParams.COLLAPSE_MODE_PIN
-//        binding.accountAppbar.left.setPadding(12)
-//        closeButton.marginStart = 24
-      //  params.marginStart = 48
+
     }
 
     @SuppressLint("ResourceAsColor")
@@ -299,7 +304,19 @@ class ContactAccountFragment : DialogFragment(R.layout.fragment_contact_account)
     }
 
     private fun initToolbarActions() {
+        val toolbar = binding.accountAppbar.accountToolbar
+        val overflowIcon = ContextCompat.getDrawable(requireContext(), R.drawable.more_vert_24px_black)
+        overflowIcon?.let {
+            val iconHeight = it.intrinsicHeight
+            val toolbarHeight = toolbar.height
+            val padding = iconHeight // Use icon height as padding value
+            val vertical = padding
+            val side = (padding - toolbarHeight) / 3
+            val insetDrawable = InsetDrawable(it, side, vertical, side, vertical)
+            binding.accountAppbar.accountToolbar.overflowIcon = insetDrawable
+        }
 
+        // Calculate vertical padding to match the Toolbar's height
 
         binding.accountAppbar.accountToolbar.addMenuProvider(object : MenuProvider {
             override fun onCreateMenu(menu: Menu, menuInflater: MenuInflater) {
@@ -348,16 +365,7 @@ class ContactAccountFragment : DialogFragment(R.layout.fragment_contact_account)
         })
         var isShow = true
         var scrollRange = -1
-        binding.accountAppbar.left.setOnClickListener {
-            if (DisplayManager.getWidthDp() > 600 && resources.configuration.orientation
-                == Configuration.ORIENTATION_PORTRAIT || DisplayManager.getWidthDp() > 800
-                && resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
-            ) {
-                dialog!!.dismiss()
-            } else {
-                navigator().goBack()
-            }
-        }
+
         with(binding.accountAppbar) {
             val animDis = AnimationUtils.loadAnimation(context, R.anim.disappearance_300)
             val animAp = AnimationUtils.loadAnimation(context, R.anim.appearance)

@@ -292,6 +292,7 @@
     <string name="avatar_settings">Avatar</string>
     <string name="chat_settings">Chat settings</string>
     <string name="app_icon">App icon</string>
+    <string name="free_up_space">Free up space</string>
 
     <!-- ACCOUNT -->
     <string name="account">Account</string>
@@ -330,6 +331,7 @@
     <string name="avatar_toolbar_im_description">Avatar</string>
     <string name="chat_status_image_description">Chat status</string>
     <string name="chat_image_description">Chat avatar</string>
+    <string name="cloud_storage_item">Cloud storage item</string>
     <string name="menu_item_share_qr_code">Share QR code</string>
     <string name="menu_item_choose_account_color">Choose account color</string>
     <string name="menu_item_generate_qr_code">Generate QR code</string>
