@@ -51,6 +51,7 @@ import com.xabber.presentation.application.fragments.account.qrcode.QRCodeDialog
 import com.xabber.presentation.application.fragments.account.qrcode.QRCodeFragment
 import com.xabber.presentation.application.fragments.account.qrcode.QRCodeParams
 import com.xabber.presentation.application.fragments.account.reorder.ReorderAccountsFragment
+import com.xabber.presentation.application.fragments.calls.CallFiltersFragment
 import com.xabber.presentation.application.fragments.calls.CallsFragment
 import com.xabber.presentation.application.fragments.chat.ChatFragment
 import com.xabber.presentation.application.fragments.chat.ChatParams
@@ -332,16 +333,24 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
     }
 
     private fun handleCallsNavigation() {
-
+        val widthDp = DisplayManager.getWidthDp()
+        val orientation = resources.configuration.orientation
         chatListViewModel.setShowUnreadOnly(false)
         closeDetail()
         if (activeFragment !is CallsFragment) {
-            replaceFragment(CallsFragment())
-
-            binding.toolbarNav!!.isVisible = false
-            drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED)
-            drawerLayout.closeDrawer(GravityCompat.START)
-        }
+            if (widthDp > 800 && orientation == Configuration.ORIENTATION_LANDSCAPE) {
+                replaceFragment(CallFiltersFragment())
+                launchDetailInStack(CallsFragment())
+                binding.toolbarNav.isVisible = false
+                drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED)
+                drawerLayout.closeDrawer(GravityCompat.START)
+            } else {
+                replaceFragment(CallsFragment())
+                binding.toolbarNav.isVisible = false
+                drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED)
+                drawerLayout.closeDrawer(GravityCompat.START)
+            }
+            }
         setupIconChat(false)
     }
 
@@ -796,6 +805,13 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         val sharedPreferences = getSharedPreferences(AppConstants.SHARED_PREF_MASK, Context.MODE_PRIVATE)
         sharedPreferences.unregisterOnSharedPreferenceChangeListener(this)
     }
+
+
+
+
+
+
+
 
     override fun onClick(id: String) {
         TODO("Not yet implemented")

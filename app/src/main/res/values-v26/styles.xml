@@ -30,6 +30,12 @@
         <item name="android:paddingVertical">12dp</item>
         <item name="android:paddingHorizontal">4dp</item>
     </style>
+    <style name="ClickableViewGroupNonWhite" parent="Theme.MaterialComponents.Light.NoActionBar">
+        <item name="android:clickable">true</item>
+        <item name="android:background">@drawable/clickable_view_group_background_non_white</item>
+        <item name="android:paddingVertical">12dp</item>
+        <item name="android:paddingHorizontal">4dp</item>
+    </style>
 
     <style name="SwitchStyle" parent="TextAppearance.AppCompat.Widget.Switch">
         <item name="colorControlActivated">@color/white</item>

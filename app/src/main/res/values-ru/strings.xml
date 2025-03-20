@@ -154,6 +154,15 @@
     <string name="calls_toolbar_title">Звонки</string>
     <string name="adt">\tЗвонки приходят в Xabber для Android! Не в этом выпуске, но это есть в наших планах.\n
     \n\tСамые нетерпеливые пользователи могут протестировать работу VoIP прямо сейчас в <a href="https://www.xabber.com/web/">Web</a> и <a href="https://www.xabber.com/ios/">IOS</a> версия Xabber.\n\n\tЕсли вы хотите сохранить силу Xabber и ускорить разработку Xabber, примите участие в нашей <a href="https://www.patreon.com/xabber">краудфандинговой кампании на Patreon!</a></string>
+    <string name="missed_call">Пропущенный вызов</string>
+    <string name="call_made">Исходящий вызов</string>
+    <string name="call_received">Входящий вызов</string>
+    <string name="call_declined">Вызов сброшен</string>
+
+
+
+
+
 
     <!-- CONTACTS  -->
     <string name="contacts_toolbar_title">Контакты</string>
