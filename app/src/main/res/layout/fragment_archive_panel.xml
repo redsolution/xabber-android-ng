@@ -3,7 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#F8F1F1">
+    android:background="@color/grey_300">
 
     <com.google.android.material.appbar.AppBarLayout
         android:id="@+id/appbar"
@@ -11,19 +11,23 @@
         android:layout_height="wrap_content"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
+        app:layout_constraintTop_toTopOf="parent"
+        android:backgroundTint="#809E9E9E"
+        android:backgroundTintMode="src_atop"
+        >
 
         <androidx.appcompat.widget.Toolbar
-            android:id="@+id/notifications_toolbar"
+            android:id="@+id/archive_toolbar"
             style="@style/ApplicationToolbar"
             android:layout_width="match_parent"
             android:layout_height="wrap_content">
 
             <TextView
                     style="@style/FragmentsToolbarTitle"
+                    android:id="@+id/tv_title"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="@string/notifications" />
+                    android:text="Archive" />
 
         </androidx.appcompat.widget.Toolbar>
     </com.google.android.material.appbar.AppBarLayout>

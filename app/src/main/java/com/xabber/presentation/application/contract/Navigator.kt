@@ -85,8 +85,8 @@ interface Navigator {
     fun showChatSettings()
 
     fun showMaskSettings()
-
+    fun launchDetailInStack(fragment: Fragment)
     fun setDesignBackground()
-
+    fun goBackFromCalls()
     fun onNavigationItemSelected(item: MenuItem): Boolean
 }

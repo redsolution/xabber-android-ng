@@ -29,6 +29,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.FragmentTransaction
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -741,7 +742,6 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     }
 
     private fun subscribeToChatData(chat: ChatListDto) {
-
         viewModel.chat.observe(viewLifecycleOwner) {
             if (it == null) navigator().closeDetail()
         }
@@ -759,7 +759,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
 
         viewModel.messages.observe(viewLifecycleOwner) {
             messageAdapter?.updateAdapter(it)
-          messageAdapter?.notifyDataSetChanged()
+            messageAdapter?.notifyDataSetChanged()
             if (layoutManager != null && messageAdapter != null) {
                 if (layoutManager!!.findLastVisibleItemPosition() >= messageAdapter!!.itemCount - 2 && !isSelectedMode) scrollDown()
                 if (it.isNotEmpty()) isNeedScrollDown = it[it.size - 1].isOutgoing
@@ -770,19 +770,28 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
             }
         }
 
-
         viewModel.unreadCount.observe(viewLifecycleOwner) { unread ->
-            val chatId = getParams().id
-            realm.writeBlocking {
-                val chat =
-                    this.query(LastChatsStorageItem::class, "primary = '$chatId'").first().find()
-                if (chat != null) {
-                    findLatest(chat).also {
-                        chat.unread = unread
-                    }
-                }
+            if (!isAdded || !lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+                return@observe // Skip if fragment is not attached or not started
             }
-            handler.postDelayed(unreadShower, 10)
+
+            val chatId = getParams().id
+            try {
+                lifecycleScope.launch(Dispatchers.Main) {
+                    realm.writeBlocking {
+                        val chat = this.query(LastChatsStorageItem::class, "primary = '$chatId'").first().find()
+                        if (chat != null) {
+                            findLatest(chat)?.unread = unread
+                        }
+                    }
+                    handler.postDelayed(unreadShower, 10)
+                }
+            } catch (e: CancellationException) {
+                Log.w("ChatFragment", "Realm write canceled due to lifecycle change: ${e.message}")
+                // Handle cancellation gracefully; no need to crash
+            } catch (e: Exception) {
+                Log.e("ChatFragment", "Error updating unread count: ${e.message}", e)
+            }
         }
 
         viewModel.selectedCount.observe(viewLifecycleOwner) {
@@ -1319,7 +1328,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         saveLastPosition()
         saveDraft()
 //        chatListViewModel.selectedChatId = ""
-        realm.close()
+        val realm = Realm.open(defaultRealmConfig())
         onBackPressedCallback.remove()
     }
 

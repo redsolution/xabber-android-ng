@@ -8,6 +8,7 @@ import android.content.SharedPreferences
 import android.content.res.Configuration
 import android.graphics.Color
 import android.os.Bundle
+import android.util.Log
 import android.util.TypedValue
 import android.view.MenuItem
 import android.widget.ImageButton
@@ -29,7 +30,9 @@ import androidx.core.view.updateLayoutParams
 import androidx.drawerlayout.widget.DrawerLayout
 import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.commit
+import androidx.fragment.app.replace
 import androidx.slidingpanelayout.widget.SlidingPaneLayout
 import com.bumptech.glide.Glide
 import com.google.android.material.bottomnavigation.BottomNavigationItemView
@@ -63,12 +66,15 @@ import com.xabber.presentation.application.fragments.chatlist.add.NewChatFragmen
 import com.xabber.presentation.application.fragments.chatlist.add.NewContactFragment
 import com.xabber.presentation.application.fragments.chatlist.add.NewGroupFragment
 import com.xabber.presentation.application.fragments.chatlist.archive.ArchiveFragment
+import com.xabber.presentation.application.fragments.chatlist.archive.ArchivePanelFragment
 import com.xabber.presentation.application.fragments.chatlist.forward.ChatListToForwardFragment
 import com.xabber.presentation.application.fragments.contacts.*
 import com.xabber.presentation.application.fragments.contacts.edit.EditContactFragment
 import com.xabber.presentation.application.fragments.discover.DiscoverFragment
 import com.xabber.presentation.application.fragments.notifications.NotificationFragment
+import com.xabber.presentation.application.fragments.notifications.NotificationPanelFragment
 import com.xabber.presentation.application.fragments.savedMessages.SavedMessagesFragment
+import com.xabber.presentation.application.fragments.savedMessages.SavedMessagesPanelFragment
 import com.xabber.presentation.application.fragments.settings.*
 import com.xabber.presentation.application.manage.DisplayManager
 import com.xabber.presentation.application.manage.DisplayManager.getMainContainerWidth
@@ -293,78 +299,229 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
     }
 
     private fun handleNotificationsNavigation() {
+
+        val widthDp = DisplayManager.getWidthDp()
+        val orientation = resources.configuration.orientation
         chatListViewModel.setShowUnreadOnly(false)
-        closeDetail()
+
+        // Check if there's an active chat in the detail container
+        val currentDetailFragment = supportFragmentManager.findFragmentById(R.id.detail_container)
+        val isChatActive = currentDetailFragment is ChatFragment
+
         if (activeFragment !is NotificationFragment) {
-            replaceFragment(NotificationFragment())
+            if (widthDp > 800 && orientation == Configuration.ORIENTATION_LANDSCAPE) {
+                // Dual-screen mode: Add CallFiltersFragment to main container and CallsFragment to detail
+                supportFragmentManager.beginTransaction()
+                    .setReorderingAllowed(true)
+                    .replace(R.id.application_container, NotificationFragment())
+                    .addToBackStack("main_notification_frag") // Add to backstack to preserve prior state
+                    .commit()
+
+                supportFragmentManager.beginTransaction()
+                    .setReorderingAllowed(true)
+                    .replace(R.id.detail_container, NotificationPanelFragment())
+                    .addToBackStack("alternative_notification_frag") // Add to backstack to preserve chat
+                    .commit()
+            } else {
+                // Single-screen mode: Replace main container with CallsFragment
+                supportFragmentManager.beginTransaction()
+                    .setReorderingAllowed(true)
+                    .replace(R.id.application_container, NotificationFragment())
+                    .addToBackStack("main_notification_frag") // Add to backstack
+                    .commit()
+            }
 
             binding.toolbarNav.isVisible = false
             drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED)
             drawerLayout.closeDrawer(GravityCompat.START)
         }
+
         setupIconChat(false)
+
+
 
     }
 
     private fun handleSavedMessagesNavigation() {
+//        chatListViewModel.setShowUnreadOnly(false)
+//        closeDetail()
+//        if (activeFragment !is SavedMessagesFragment) {
+//            replaceFragment(SavedMessagesFragment())
+//
+//            binding.toolbarNav.isVisible = false
+//            drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED)
+//            drawerLayout.closeDrawer(GravityCompat.START)
+//        }
+//        setupIconChat(false)
+
+        val widthDp = DisplayManager.getWidthDp()
+        val orientation = resources.configuration.orientation
         chatListViewModel.setShowUnreadOnly(false)
-        closeDetail()
+
+        // Check if there's an active chat in the detail container
+        val currentDetailFragment = supportFragmentManager.findFragmentById(R.id.detail_container)
+        val isChatActive = currentDetailFragment is ChatFragment
+
         if (activeFragment !is SavedMessagesFragment) {
-            replaceFragment(SavedMessagesFragment())
+            if (widthDp > 800 && orientation == Configuration.ORIENTATION_LANDSCAPE) {
+                // Dual-screen mode: Add CallFiltersFragment to main container and CallsFragment to detail
+                supportFragmentManager.beginTransaction()
+                    .setReorderingAllowed(true)
+                    .replace(R.id.application_container, SavedMessagesFragment())
+                    .addToBackStack("main_saved_messages_frag") // Add to backstack to preserve prior state
+                    .commit()
+
+                supportFragmentManager.beginTransaction()
+                    .setReorderingAllowed(true)
+                    .replace(R.id.detail_container, SavedMessagesPanelFragment())
+                    .addToBackStack("alternative_saved_messages_frag") // Add to backstack to preserve chat
+                    .commit()
+            } else {
+                // Single-screen mode: Replace main container with CallsFragment
+                supportFragmentManager.beginTransaction()
+                    .setReorderingAllowed(true)
+                    .replace(R.id.application_container, ContactsFragment())
+                    .addToBackStack("main_contact_frag") // Add to backstack
+                    .commit()
+            }
 
             binding.toolbarNav.isVisible = false
             drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED)
             drawerLayout.closeDrawer(GravityCompat.START)
         }
+
         setupIconChat(false)
+
 
     }
 
     private fun handleArchiveNavigation() {
+
+        val widthDp = DisplayManager.getWidthDp()
+        val orientation = resources.configuration.orientation
         chatListViewModel.setShowUnreadOnly(false)
-        closeDetail()
+
+        // Check if there's an active chat in the detail container
+        val currentDetailFragment = supportFragmentManager.findFragmentById(R.id.detail_container)
+        val isChatActive = currentDetailFragment is ChatFragment
+
         if (activeFragment !is ArchiveFragment) {
-            replaceFragment(ArchiveFragment())
+            if (widthDp > 800 && orientation == Configuration.ORIENTATION_LANDSCAPE) {
+                // Dual-screen mode: Add CallFiltersFragment to main container and CallsFragment to detail
+                supportFragmentManager.beginTransaction()
+                    .setReorderingAllowed(true)
+                    .replace(R.id.application_container, ArchiveFragment())
+                    .addToBackStack("main_archive_frag") // Add to backstack to preserve prior state
+                    .commit()
+
+                supportFragmentManager.beginTransaction()
+                    .setReorderingAllowed(true)
+                    .replace(R.id.detail_container, ArchivePanelFragment())
+                    .addToBackStack("alternative_archive_frag") // Add to backstack to preserve chat
+                    .commit()
+            } else {
+                // Single-screen mode: Replace main container with CallsFragment
+                supportFragmentManager.beginTransaction()
+                    .setReorderingAllowed(true)
+                    .replace(R.id.application_container, ContactsFragment())
+                    .addToBackStack("main_archive_frag") // Add to backstack
+                    .commit()
+            }
+
             binding.toolbarNav.isVisible = false
             drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED)
             drawerLayout.closeDrawer(GravityCompat.START)
         }
+
         setupIconChat(false)
+
     }
 
     private fun handleCallsNavigation() {
         val widthDp = DisplayManager.getWidthDp()
         val orientation = resources.configuration.orientation
         chatListViewModel.setShowUnreadOnly(false)
-        closeDetail()
+
+        // Check if there's an active chat in the detail container
+        val currentDetailFragment = supportFragmentManager.findFragmentById(R.id.detail_container)
+        val isChatActive = currentDetailFragment is ChatFragment
+
         if (activeFragment !is CallsFragment) {
             if (widthDp > 800 && orientation == Configuration.ORIENTATION_LANDSCAPE) {
-                replaceFragment(CallFiltersFragment())
-                launchDetailInStack(CallsFragment())
-                binding.toolbarNav.isVisible = false
-                drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED)
-                drawerLayout.closeDrawer(GravityCompat.START)
-            } else {
-                replaceFragment(CallsFragment())
-                binding.toolbarNav.isVisible = false
-                drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED)
-                drawerLayout.closeDrawer(GravityCompat.START)
-            }
-            }
-        setupIconChat(false)
-    }
+                // Dual-screen mode: Add CallFiltersFragment to main container and CallsFragment to detail
+                supportFragmentManager.beginTransaction()
+                    .setReorderingAllowed(true)
+                    .replace(R.id.application_container, CallFiltersFragment())
+                    .addToBackStack("call_filters") // Add to backstack to preserve prior state
+                    .commit()
 
-    private fun handleContactsNavigation() {
-        chatListViewModel.setShowUnreadOnly(false)
-        closeDetail()
-        if (activeFragment !is ContactsFragment) {
-            replaceFragment(ContactsFragment())
+                supportFragmentManager.beginTransaction()
+                    .setReorderingAllowed(true)
+                    .replace(R.id.detail_container, CallsFragment())
+                    .addToBackStack("calls") // Add to backstack to preserve chat
+                    .commit()
+            } else {
+                // Single-screen mode: Replace main container with CallsFragment
+                supportFragmentManager.beginTransaction()
+                    .setReorderingAllowed(true)
+                    .replace(R.id.application_container, CallsFragment())
+                    .addToBackStack("calls") // Add to backstack
+                    .commit()
+            }
 
             binding.toolbarNav.isVisible = false
             drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED)
             drawerLayout.closeDrawer(GravityCompat.START)
         }
+
         setupIconChat(false)
+    }
+
+    override fun goBackFromCalls() {
+        supportFragmentManager.popBackStack("calls", 0)
+    }
+
+    private fun handleContactsNavigation() {
+
+
+        val widthDp = DisplayManager.getWidthDp()
+        val orientation = resources.configuration.orientation
+        chatListViewModel.setShowUnreadOnly(false)
+
+        // Check if there's an active chat in the detail container
+        val currentDetailFragment = supportFragmentManager.findFragmentById(R.id.detail_container)
+        val isChatActive = currentDetailFragment is ChatFragment
+
+        if (activeFragment !is ContactsFragment) {
+            if (widthDp > 800 && orientation == Configuration.ORIENTATION_LANDSCAPE) {
+                // Dual-screen mode: Add CallFiltersFragment to main container and CallsFragment to detail
+                supportFragmentManager.beginTransaction()
+                    .setReorderingAllowed(true)
+                    .replace(R.id.application_container, ContactsFragment())
+                    .addToBackStack("main_contact_frag") // Add to backstack to preserve prior state
+                    .commit()
+
+                supportFragmentManager.beginTransaction()
+                    .setReorderingAllowed(true)
+                    .replace(R.id.detail_container, ContactsPanelFragment())
+                    .addToBackStack("alternative_contact_frag") // Add to backstack to preserve chat
+                    .commit()
+            } else {
+                // Single-screen mode: Replace main container with CallsFragment
+                supportFragmentManager.beginTransaction()
+                    .setReorderingAllowed(true)
+                    .replace(R.id.application_container, ContactsFragment())
+                    .addToBackStack("main_contact_frag") // Add to backstack
+                    .commit()
+            }
+
+            binding.toolbarNav.isVisible = false
+            drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED)
+            drawerLayout.closeDrawer(GravityCompat.START)
+        }
+
+        setupIconChat(false)
+
     }
 
     private fun handleDiscoverNavigation() {
@@ -378,6 +535,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
             drawerLayout.closeDrawer(GravityCompat.START)
         }
         setupIconChat(false)
+
     }
 
 
@@ -577,7 +735,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         binding.slidingPaneLayout.openPane()
     }
 
-    private fun launchDetailInStack(fragment: Fragment) {
+    override fun launchDetailInStack(fragment: Fragment) {
         supportFragmentManager.commit {
             setReorderingAllowed(true)
             replace(R.id.detail_container, fragment).addToBackStack(null)
@@ -590,16 +748,31 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
     }
 
     override fun goBack() {
+        Log.d("ChatFragment", "Backstack count: ${supportFragmentManager.backStackEntryCount}")
+        val detailFragment = supportFragmentManager.findFragmentById(R.id.detail_container)
+        val mainFragment = supportFragmentManager.findFragmentById(R.id.application_container)
+        Log.d("ChatFragment", "Detail: $detailFragment, Main: $mainFragment")
+
         if (supportFragmentManager.backStackEntryCount > 0) {
             supportFragmentManager.popBackStack()
             drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_UNLOCKED)
-            drawerLayout.closeDrawer(GravityCompat.START)
             binding.toolbarNav.isVisible = true
             setupNavigationDrawer()
-        }
-        else {
+
+            supportFragmentManager.addOnBackStackChangedListener(object : FragmentManager.OnBackStackChangedListener {
+                override fun onBackStackChanged() {
+                    val restoredDetailFragment = supportFragmentManager.findFragmentById(R.id.detail_container)
+                    Log.d("ChatFragment", "Restored detail: $restoredDetailFragment")
+                    if (restoredDetailFragment is ChatFragment) {
+                        binding.slidingPaneLayout.openPane()
+                    }
+                    supportFragmentManager.removeOnBackStackChangedListener(this)
+                }
+            })
+        } else {
             closeDetail()
         }
+        handleChatsNavigation()
     }
 
     override fun closeDetail() {

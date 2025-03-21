@@ -11,19 +11,22 @@
         android:layout_height="wrap_content"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
+        app:layout_constraintTop_toTopOf="parent"
+
+        >
 
         <androidx.appcompat.widget.Toolbar
-            android:id="@+id/notifications_toolbar"
+            android:id="@+id/saved_messages_toolbar"
             style="@style/ApplicationToolbar"
             android:layout_width="match_parent"
             android:layout_height="wrap_content">
 
             <TextView
                     style="@style/FragmentsToolbarTitle"
+                    android:id="@+id/tv_title"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="@string/notifications" />
+                    android:text="Saved Messages" />
 
         </androidx.appcompat.widget.Toolbar>
     </com.google.android.material.appbar.AppBarLayout>

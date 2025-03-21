@@ -3,12 +3,11 @@ package com.xabber.presentation.application.fragments.calls
 import android.os.Bundle
 import android.text.method.LinkMovementMethod
 import android.view.View
-import androidx.constraintlayout.widget.ConstraintLayout
-import androidx.core.view.GravityCompat
-import androidx.drawerlayout.widget.DrawerLayout
+import androidx.fragment.app.Fragment
+import androidx.fragment.app.FragmentManager
+import androidx.fragment.app.commit
 import by.kirich1409.viewbindingdelegate.viewBinding
 import com.xabber.R
-import com.xabber.databinding.FragmentCallsBinding
 import com.xabber.databinding.FragmentCallsFiltersBinding
 import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.application.fragments.BaseFragment
@@ -27,13 +26,12 @@ class CallFiltersFragment : BaseFragment(R.layout.fragment_calls_filters) {
         callsOptions()
     }
 
-private fun toolbarActions(){
-    binding.callsToolbar.navigationIcon = null
-    binding.callsToolbar.setNavigationIcon(R.drawable.ic_arrow_left_white)
-    binding.callsToolbar.setNavigationOnClickListener {
-        navigator().closeDetail()
-        navigator().goBack()}
-}
+    private fun toolbarActions() {
+        binding.callsToolbar.setNavigationIcon(R.drawable.ic_arrow_left_white)
+        binding.callsToolbar.setNavigationOnClickListener {
+            navigator().goBack()
+        }
+    }
 
     private fun callsOptions() {
             handleMissedCall()
@@ -43,7 +41,7 @@ private fun toolbarActions(){
     }
 
     private fun handleMissedCall() {
-        binding.missedCallLayout.setOnClickListener{
+        binding.missedCallLayout.setOnClickListener {
             navigator().launchDetail(MissedCallsFragment())
         }
     }
