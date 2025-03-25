@@ -31,13 +31,25 @@
                     android:text="@string/menu_item_chats" />
             <ImageView
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+                android:layout_height="match_parent"
                 android:id="@+id/add"
+                android:paddingHorizontal="16dp"
                 android:src="@drawable/ic_plus_white"
                 android:layout_gravity="end"
                 tools:ignore="ContentDescription" >
 
             </ImageView>
+            <ImageView
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:id="@+id/unread"
+                android:paddingHorizontal="20dp"
+                android:src="@drawable/mark_unread_chat_alt_24px"
+                android:layout_gravity="end"
+                tools:ignore="ContentDescription" >
+
+            </ImageView>
+
         </androidx.appcompat.widget.Toolbar>
     </com.google.android.material.appbar.AppBarLayout>
 

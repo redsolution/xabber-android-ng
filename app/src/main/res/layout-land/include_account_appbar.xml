@@ -83,12 +83,14 @@
                     android:layout_height="wrap_content"
                     android:layout_gravity="center"
                     >
+
                     <include
                         android:id="@+id/avatar_gr"
                         layout="@layout/include_avatar_group"
                         android:layout_width="@dimen/avatar176"
                         android:layout_height="@dimen/avatar176"
                         android:layout_gravity="center"
+
                         app:layout_collapseMode="none" />
                 </com.xabber.utils.custom.ShapeOfView>
                 <TextView

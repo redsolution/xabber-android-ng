@@ -81,9 +81,9 @@ interface Navigator {
     fun showAddAccountFragment()
 
     fun lockScreen(lock: Boolean)
-
+    fun launchFragmentInStack(fragment: Fragment)
     fun showChatSettings()
-
+    fun closePanel()
     fun showMaskSettings()
     fun launchDetailInStack(fragment: Fragment)
     fun setDesignBackground()

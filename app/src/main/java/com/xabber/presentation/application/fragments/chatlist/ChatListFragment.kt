@@ -90,27 +90,27 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
     }
 
     private fun initToolbarActions() {
-        val toolbar = binding.chatToolbar
-
-        // Get the navigation icon's start padding
-        val navigationIconPaddingStart = toolbar.contentInsetStart
-
-        // Calculate vertical padding to match the Toolbar's height
-        toolbar.viewTreeObserver.addOnGlobalLayoutListener(object : ViewTreeObserver.OnGlobalLayoutListener {
-            override fun onGlobalLayout() {
-                // Remove the listener to avoid multiple calls
-                toolbar.viewTreeObserver.removeOnGlobalLayoutListener(this)
-
-                val toolbarHeight = toolbar.height
-                val colorsIcon = toolbar.findViewById<ImageView>(R.id.add)
-
-                val iconHeight = colorsIcon.height
-                val verticalPadding = (toolbarHeight - iconHeight) / 2
-
-                // Apply the padding
-                colorsIcon.setPadding(navigationIconPaddingStart, verticalPadding, navigationIconPaddingStart, verticalPadding)
-            }
-        })
+//        val toolbar = binding.chatToolbar
+//
+//        // Get the navigation icon's start padding
+//        val navigationIconPaddingStart = toolbar.contentInsetStart
+//
+//        // Calculate vertical padding to match the Toolbar's height
+//        toolbar.viewTreeObserver.addOnGlobalLayoutListener(object : ViewTreeObserver.OnGlobalLayoutListener {
+//            override fun onGlobalLayout() {
+//                // Remove the listener to avoid multiple calls
+//                toolbar.viewTreeObserver.removeOnGlobalLayoutListener(this)
+//
+//                val toolbarHeight = toolbar.height
+//                val colorsIcon = toolbar.findViewById<ImageView>(R.id.add)
+//
+//                val iconHeight = colorsIcon.height
+//                val verticalPadding = (toolbarHeight - iconHeight) / 2
+//
+//                // Apply the padding
+//                colorsIcon.setPadding(navigationIconPaddingStart, verticalPadding, navigationIconPaddingStart, verticalPadding)
+//            }
+//        })
 
         binding.chatToolbar.findViewById<ImageView>(R.id.add).setOnClickListener {
             if (chatListViewModel.chatIsEmpty()) chatListViewModel.addSomeChats()

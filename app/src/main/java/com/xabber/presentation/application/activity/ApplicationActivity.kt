@@ -1,7 +1,7 @@
 package com.xabber.presentation.application.activity
 
 
-import android.annotation.SuppressLint
+import  android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
@@ -156,11 +156,11 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
 
         setSupportActionBar(toolbarNav)
         supportActionBar?.setDisplayShowTitleEnabled(false)
-
+        supportActionBar?.setDisplayHomeAsUpEnabled(true)
         val avatarImageView = findViewById<ImageView>(R.id.avatar_image_view)
         val titleTextView = findViewById<TextView>(R.id.title_text_view)
         val subtitleTextView = findViewById<TextView>(R.id.subtitle_text_view)
-
+        drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_UNLOCKED)
         val account = getPrimaryAccount()
         val avatar = account?.let { getAvatar(it.id) }
 
@@ -175,12 +175,13 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         }
 
         navigationView.setNavigationItemSelectedListener(this)
-        actionBarToggle = ActionBarDrawerToggle(this, drawerLayout, 0, 0).apply {
-            drawerLayout.addDrawerListener(this)
-            syncState()
-        }
 
-        supportActionBar?.setDisplayHomeAsUpEnabled(true)
+        actionBarToggle = ActionBarDrawerToggle(this, drawerLayout,  R.string.open,R.string.close )
+        drawerLayout.addDrawerListener(actionBarToggle)
+        actionBarToggle.syncState()
+
+
+
         drawerLayout.setScrimColor(Color.parseColor("#88000000"))
     }
     private fun initViews() {
@@ -199,10 +200,16 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         assist = SoftInputAssist(window)
         subscribeToViewModelData()
 
-        if (savedInstanceState != null) {
-            setupIconChat(chatListViewModel.showUnreadOnly.value ?: false)
+        if (savedInstanceState == null) { // Only set up if not restoring state
+            if (supportFragmentManager.findFragmentById(R.id.application_container) == null) {
+                supportFragmentManager.commit {
+                    setReorderingAllowed(true)
+                    replace(R.id.application_container, ChatListFragment())
+                    addToBackStack("chat_list_root")
+                }
+            }
         } else {
-            launchFragment(ChatListFragment())
+            setupIconChat(chatListViewModel.showUnreadOnly.value ?: false)
         }
     }
     private fun toggleNightDayMode() {
@@ -246,14 +253,12 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        return when (item.itemId) {
-            android.R.id.home -> {
-                drawerLayout.openDrawer(GravityCompat.START)
-                true
-            }
-            else -> super.onOptionsItemSelected(item)
+        if (actionBarToggle.onOptionsItemSelected(item)) {
+            return true
         }
-    }
+        return super.onOptionsItemSelected(item)
+        }
+
     override fun onNavigationItemSelected(item: MenuItem): Boolean {
         when (item.itemId) {
 
@@ -289,15 +294,25 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
     }
 
     private fun handleChatsNavigation() {
-        if (activeFragment !is ChatListFragment) {
+        val currentFragment = supportFragmentManager.findFragmentById(R.id.application_container)
+        if (currentFragment !is ChatListFragment) {
             closeDetail()
-            replaceFragment(ChatListFragment())
-
+            supportFragmentManager.commit {
+                setReorderingAllowed(true)
+                replace(R.id.application_container, ChatListFragment())
+                addToBackStack("chat_list_root")
+            }
         } else {
             showUnreadChats(!chatListViewModel.showUnreadOnly.value!!)
         }
     }
+    private fun handleChatsNavigationAccount() {
+        if (activeFragment !is ChatListFragment) {
+            closeDetail()
+            replaceFragment(ChatListFragment())
 
+        }
+    }
     private fun handleNotificationsNavigation() {
 
         val widthDp = DisplayManager.getWidthDp()
@@ -309,7 +324,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         val isChatActive = currentDetailFragment is ChatFragment
 
         if (activeFragment !is NotificationFragment) {
-            if (widthDp > 800 && orientation == Configuration.ORIENTATION_LANDSCAPE) {
+            if (orientation == Configuration.ORIENTATION_LANDSCAPE) {
                 // Dual-screen mode: Add CallFiltersFragment to main container and CallsFragment to detail
                 supportFragmentManager.beginTransaction()
                     .setReorderingAllowed(true)
@@ -343,16 +358,6 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
     }
 
     private fun handleSavedMessagesNavigation() {
-//        chatListViewModel.setShowUnreadOnly(false)
-//        closeDetail()
-//        if (activeFragment !is SavedMessagesFragment) {
-//            replaceFragment(SavedMessagesFragment())
-//
-//            binding.toolbarNav.isVisible = false
-//            drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED)
-//            drawerLayout.closeDrawer(GravityCompat.START)
-//        }
-//        setupIconChat(false)
 
         val widthDp = DisplayManager.getWidthDp()
         val orientation = resources.configuration.orientation
@@ -363,7 +368,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         val isChatActive = currentDetailFragment is ChatFragment
 
         if (activeFragment !is SavedMessagesFragment) {
-            if (widthDp > 800 && orientation == Configuration.ORIENTATION_LANDSCAPE) {
+            if (orientation == Configuration.ORIENTATION_LANDSCAPE) {
                 // Dual-screen mode: Add CallFiltersFragment to main container and CallsFragment to detail
                 supportFragmentManager.beginTransaction()
                     .setReorderingAllowed(true)
@@ -380,8 +385,8 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
                 // Single-screen mode: Replace main container with CallsFragment
                 supportFragmentManager.beginTransaction()
                     .setReorderingAllowed(true)
-                    .replace(R.id.application_container, ContactsFragment())
-                    .addToBackStack("main_contact_frag") // Add to backstack
+                    .replace(R.id.application_container, SavedMessagesFragment())
+                    .addToBackStack("main_saved_messages_frag") // Add to backstack
                     .commit()
             }
 
@@ -406,7 +411,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         val isChatActive = currentDetailFragment is ChatFragment
 
         if (activeFragment !is ArchiveFragment) {
-            if (widthDp > 800 && orientation == Configuration.ORIENTATION_LANDSCAPE) {
+            if (orientation == Configuration.ORIENTATION_LANDSCAPE) {
                 // Dual-screen mode: Add CallFiltersFragment to main container and CallsFragment to detail
                 supportFragmentManager.beginTransaction()
                     .setReorderingAllowed(true)
@@ -423,7 +428,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
                 // Single-screen mode: Replace main container with CallsFragment
                 supportFragmentManager.beginTransaction()
                     .setReorderingAllowed(true)
-                    .replace(R.id.application_container, ContactsFragment())
+                    .replace(R.id.application_container, ArchiveFragment())
                     .addToBackStack("main_archive_frag") // Add to backstack
                     .commit()
             }
@@ -442,12 +447,8 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         val orientation = resources.configuration.orientation
         chatListViewModel.setShowUnreadOnly(false)
 
-        // Check if there's an active chat in the detail container
-        val currentDetailFragment = supportFragmentManager.findFragmentById(R.id.detail_container)
-        val isChatActive = currentDetailFragment is ChatFragment
-
         if (activeFragment !is CallsFragment) {
-            if (widthDp > 800 && orientation == Configuration.ORIENTATION_LANDSCAPE) {
+            if (orientation == Configuration.ORIENTATION_LANDSCAPE) {
                 // Dual-screen mode: Add CallFiltersFragment to main container and CallsFragment to detail
                 supportFragmentManager.beginTransaction()
                     .setReorderingAllowed(true)
@@ -493,7 +494,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         val isChatActive = currentDetailFragment is ChatFragment
 
         if (activeFragment !is ContactsFragment) {
-            if (widthDp > 800 && orientation == Configuration.ORIENTATION_LANDSCAPE) {
+            if (orientation == Configuration.ORIENTATION_LANDSCAPE) {
                 // Dual-screen mode: Add CallFiltersFragment to main container and CallsFragment to detail
                 supportFragmentManager.beginTransaction()
                     .setReorderingAllowed(true)
@@ -555,14 +556,46 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
     }
 
     override fun onBackPressed() {
-
+        // Check if the drawer is open first
         if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
+            Log.d("ApplicationActivity", "Drawer open, closing it")
             drawerLayout.closeDrawer(GravityCompat.START)
+            return
+        }
+
+        // Check for visible DialogFragments
+        val dialogFragment = supportFragmentManager.fragments.find { it is DialogFragment && it.dialog?.isShowing == true }
+        if (dialogFragment != null) {
+            Log.d("ApplicationActivity", "Dismissing DialogFragment: ${dialogFragment.javaClass.simpleName}")
+            (dialogFragment as DialogFragment).dismiss()
+            return
+        }
+
+        // Existing navigation logic
+        val currentFragment = supportFragmentManager.findFragmentById(R.id.application_container)
+        Log.d("ApplicationActivity", "onBackPressed: Current fragment = ${currentFragment?.javaClass?.simpleName}, Back stack count = ${supportFragmentManager.backStackEntryCount}")
+
+        if (supportFragmentManager.backStackEntryCount > 0) {
+            Log.d("ApplicationActivity", "Popping to chat_list_root")
+            supportFragmentManager.popBackStack("chat_list_root", 0)
+            drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_UNLOCKED)
+            binding.toolbarNav.isVisible = true
+            setupNavigationDrawer()
+        } else if (currentFragment == null || currentFragment !is ChatListFragment) {
+            Log.d("ApplicationActivity", "Replacing with ChatListFragment")
+            supportFragmentManager.commit {
+                setReorderingAllowed(true)
+                replace(R.id.application_container, ChatListFragment())
+                addToBackStack("chat_list_root")
+            }
+            drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_UNLOCKED)
+            binding.toolbarNav.isVisible = true
+            setupNavigationDrawer()
         } else {
-            onBackPressedDispatcher.onBackPressed()
+            Log.d("ApplicationActivity", "Already on ChatListFragment, finishing")
+            finish()
         }
     }
-
     override fun onResume() {
         super.onResume()
         assist?.onResume()
@@ -699,14 +732,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
             } else {
                 menuItem.setIcon(R.drawable.ic_chat)
             }
-//        } else  {
-//            val menuItem = binding.bottomNavBar!!.menu.findItem(R.id.chats)
-//            if (unreadChats) {
-//                menuItem.setIcon(R.drawable.ic_chat_alert)
-//            } else {
-//                menuItem.setIcon(R.drawable.ic_chat)
-//            }
-//        }
+
     }
 
     private fun goToOnboarding() {
@@ -742,39 +768,63 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         }
     }
 
+    override fun launchFragmentInStack(fragment: Fragment) {
+        supportFragmentManager.commit {
+            setReorderingAllowed(true)
+            replace(R.id.detail_container, fragment).addToBackStack(null)
+        }
+    }
+
     override fun onSupportNavigateUp(): Boolean {
         onBackPressedDispatcher.onBackPressed()
         return true
     }
 
     override fun goBack() {
-        Log.d("ChatFragment", "Backstack count: ${supportFragmentManager.backStackEntryCount}")
-        val detailFragment = supportFragmentManager.findFragmentById(R.id.detail_container)
-        val mainFragment = supportFragmentManager.findFragmentById(R.id.application_container)
-        Log.d("ChatFragment", "Detail: $detailFragment, Main: $mainFragment")
+        val currentFragment = supportFragmentManager.findFragmentById(R.id.application_container)
+        Log.d("ApplicationActivity", "goBack: Current fragment = ${currentFragment?.javaClass?.simpleName}, Back stack count = ${supportFragmentManager.backStackEntryCount}")
+
+        // Check for visible DialogFragments
+        val dialogFragment = supportFragmentManager.fragments.find { it is DialogFragment && it.dialog?.isShowing == true }
+        if (dialogFragment != null) {
+            Log.d("ApplicationActivity", "Dismissing DialogFragment: ${dialogFragment.javaClass.simpleName}")
+            (dialogFragment as DialogFragment).dismiss()
+            return
+        }
 
         if (supportFragmentManager.backStackEntryCount > 0) {
-            supportFragmentManager.popBackStack()
+            supportFragmentManager.popBackStack("chat_list_root", 0)
             drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_UNLOCKED)
             binding.toolbarNav.isVisible = true
             setupNavigationDrawer()
 
             supportFragmentManager.addOnBackStackChangedListener(object : FragmentManager.OnBackStackChangedListener {
                 override fun onBackStackChanged() {
+                    val restoredFragment = supportFragmentManager.findFragmentById(R.id.application_container)
+                    Log.d("ApplicationActivity", "Back stack changed, restored fragment = ${restoredFragment?.javaClass?.simpleName}")
                     val restoredDetailFragment = supportFragmentManager.findFragmentById(R.id.detail_container)
-                    Log.d("ChatFragment", "Restored detail: $restoredDetailFragment")
                     if (restoredDetailFragment is ChatFragment) {
                         binding.slidingPaneLayout.openPane()
                     }
                     supportFragmentManager.removeOnBackStackChangedListener(this)
                 }
             })
+        } else if (currentFragment !is ChatListFragment) {
+            Log.d("ApplicationActivity", "Replacing with ChatListFragment")
+            supportFragmentManager.commit {
+                setReorderingAllowed(true)
+                replace(R.id.application_container, ChatListFragment())
+                addToBackStack("chat_list_root")
+            }
+            closeDetail()
+            drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_UNLOCKED)
+            binding.toolbarNav.isVisible = true
+            setupNavigationDrawer()
         } else {
+            Log.d("ApplicationActivity", "Already on ChatListFragment, closing detail")
             closeDetail()
         }
-        handleChatsNavigation()
     }
-
     override fun closeDetail() {
         if (supportFragmentManager.findFragmentById(R.id.detail_container) != null) {
             supportFragmentManager.beginTransaction()
@@ -784,6 +834,10 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         } else {
             if (supportFragmentManager.backStackEntryCount > 0) supportFragmentManager.popBackStack()
         }
+    }
+    override fun closePanel() {
+        if (binding.slidingPaneLayout.isOpen) binding.slidingPaneLayout.close()
+
     }
 
     override fun showDialogFragment(dialog: DialogFragment, tag: String) {
@@ -810,9 +864,17 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
     }
 
     override fun showNewChat() {
-        launchDetail(NewChatFragment())
-    }
+        val widthDp = DisplayManager.getWidthDp()
+        val orientation = resources.configuration.orientation
 
+        if ((widthDp > 600 && orientation == Configuration.ORIENTATION_PORTRAIT) ||
+            (widthDp > 800 && orientation == Configuration.ORIENTATION_LANDSCAPE)
+        ) {
+            val newChat = NewChatFragment()
+            newChat.show(supportFragmentManager, "New Chat")
+
+        } else launchDetail(NewChatFragment())
+    }
     override fun showNewContact() {
         launchDetailInStack(NewContactFragment.newInstance())
     }

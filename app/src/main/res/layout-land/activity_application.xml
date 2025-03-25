@@ -42,7 +42,7 @@
                     style="@style/ApplicationToolbar"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginEnd="64dp"
+                    android:layout_marginEnd="136dp"
                     android:theme="@style/WhiteToolbarTheme"
                     app:layout_constraintEnd_toEndOf="parent"
                     app:layout_constraintStart_toStartOf="parent"
