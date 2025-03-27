@@ -27,13 +27,13 @@ class NewChatFragment : BaseFragment(R.layout.fragment_new_chat) {
             val orientation = resources.configuration.orientation
             if (widthDp > 600 && orientation == Configuration.ORIENTATION_PORTRAIT) {
                 val width = (resources.displayMetrics.widthPixels * 0.8).toInt() // 90% of screen width
-                val height = (resources.displayMetrics.heightPixels * 0.95).toInt()
+                val height = (resources.displayMetrics.heightPixels * 0.3).toInt()
                 dialog.window?.setLayout(width, height)
                 dialog.window?.setGravity(Gravity.CENTER) // Center the dialog
             }
             if ((widthDp > 800 && orientation == Configuration.ORIENTATION_LANDSCAPE)) {
                 val width = (resources.displayMetrics.widthPixels * 0.48).toInt() // 90% of screen width
-                val height = (resources.displayMetrics.heightPixels * 0.97).toInt()
+                val height = (resources.displayMetrics.heightPixels * 0.5).toInt()
                 dialog.window?.setLayout(width, height)
                 dialog.window?.setGravity(Gravity.CENTER) // Center the dialog
             }

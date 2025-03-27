@@ -11,6 +11,8 @@ import android.os.Bundle
 import android.util.Log
 import android.util.TypedValue
 import android.view.MenuItem
+import android.view.View
+import android.view.ViewTreeObserver
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -118,9 +120,14 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
     override fun onCreate(savedInstanceState: Bundle?) {
         setTheme(R.style.ThemeApplication)
         super.onCreate(savedInstanceState)
+        val toolbarNav = findViewById<Toolbar>(R.id.toolbar_nav)
+        setSupportActionBar(toolbarNav)
+        supportActionBar?.setDisplayHomeAsUpEnabled(true)
+        supportActionBar?.setHomeButtonEnabled(true)
         setContentView(binding.root)
         initViews()
         setupStatusBar()
+
         setupNavigationDrawer()
 
         if (viewModel.checkIsEntry()) {
@@ -154,7 +161,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         val currentPaddingBottom = toolbarNav.paddingBottom
         toolbarNav.setPadding(currentPaddingLeft, dpAsPixels, currentPaddingRight, currentPaddingBottom)
 
-        setSupportActionBar(toolbarNav)
+
         supportActionBar?.setDisplayShowTitleEnabled(false)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         val avatarImageView = findViewById<ImageView>(R.id.avatar_image_view)
@@ -176,27 +183,32 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
 
         navigationView.setNavigationItemSelectedListener(this)
 
-        actionBarToggle = ActionBarDrawerToggle(this, drawerLayout,  R.string.open,R.string.close )
+        actionBarToggle = ActionBarDrawerToggle(this, drawerLayout, toolbarNav, R.string.open, R.string.close )
         drawerLayout.addDrawerListener(actionBarToggle)
         actionBarToggle.syncState()
-
-
-
         drawerLayout.setScrimColor(Color.parseColor("#88000000"))
     }
+
+    override fun onPostCreate(savedInstanceState: Bundle?) {
+        super.onPostCreate(savedInstanceState)
+        actionBarToggle.syncState()
+    }
+
     private fun initViews() {
         shapeView = findViewById(R.id.shape_view)
     }
+
     override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences?, key: String?) {
         shapeView?.setDrawable(MaskManager.mask)
     }
+
     private fun initializeAppForLoggedInUser(savedInstanceState: Bundle?) {
         updateUiDependingOnMode(isDualScreenMode())
         setFullScreenMode()
         setHeightStatusBar()
         setMask()
         setChatSettings()
-
+        handleUnreadMessages()
         assist = SoftInputAssist(window)
         subscribeToViewModelData()
 
@@ -302,7 +314,34 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
                 replace(R.id.application_container, ChatListFragment())
                 addToBackStack("chat_list_root")
             }
-        } else {
+        }
+    }
+    private fun handleUnreadMessages() {
+
+        val toolbar = binding.toolbarNav
+        val navigationIconPaddingStart = toolbar.contentInsetStart
+        toolbar.viewTreeObserver.addOnGlobalLayoutListener(object : ViewTreeObserver.OnGlobalLayoutListener {
+            override fun onGlobalLayout() {
+                // Remove the listener to avoid multiple calls
+                toolbar.viewTreeObserver.removeOnGlobalLayoutListener(this)
+
+                val toolbarHeight = toolbar.height
+                val unread = toolbar.findViewById<ImageView>(R.id.unread)
+
+                val iconHeight = unread.height
+                val verticalPadding = (toolbarHeight - iconHeight) / 3
+
+                // Apply the padding
+                unread.setPadding(navigationIconPaddingStart, verticalPadding, navigationIconPaddingStart, verticalPadding)
+                handleUnread()
+            }
+        })
+
+    }
+
+    private fun handleUnread() {
+        val unreadMessages = binding.toolbarNav.findViewById<ImageView>(R.id.unread)
+        unreadMessages.setOnClickListener{
             showUnreadChats(!chatListViewModel.showUnreadOnly.value!!)
         }
     }
@@ -590,7 +629,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
             }
             drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_UNLOCKED)
             binding.toolbarNav.isVisible = true
-            setupNavigationDrawer()
+            actionBarToggle.syncState()
         } else {
             Log.d("ApplicationActivity", "Already on ChatListFragment, finishing")
             finish()
@@ -725,16 +764,13 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
     }
 
     private fun setupIconChat(unreadChats: Boolean) {
-     // if (resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) {
-            val menuItem = binding.navView.menu.findItem(R.id.chats)
-            if (unreadChats) {
-                menuItem.setIcon(R.drawable.ic_chat_alert)
-            } else {
-                menuItem.setIcon(R.drawable.ic_chat)
-            }
-
+        val menuItem = binding.toolbarNav.findViewById<ImageView>(R.id.unread)
+        if (unreadChats) {
+            menuItem.setImageResource(R.drawable.unread)
+        } else {
+            menuItem.setImageResource(R.drawable.unread_outline)
+        }
     }
-
     private fun goToOnboarding() {
         val intent = Intent(applicationContext, OnBoardingActivity::class.java)
         startActivity(intent)
