@@ -18,14 +18,7 @@
         android:layout_width="match_parent"
         android:layout_height="@dimen/chat_list_item_height">
 
-        <View
-            android:id="@+id/account_color_indicator"
-            android:layout_width="@dimen/color_indicator_width"
-            android:layout_height="0dp"
-            android:layout_marginVertical="1dp"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
+
 
         <com.xabber.utils.custom.ShapeOfView
             android:id="@+id/shape_view"
@@ -102,6 +95,7 @@
             android:id="@+id/space_center_vertical"
             android:layout_width="1dp"
             android:layout_height="1dp"
+            android:visibility="gone"
             android:layout_margin="@dimen/margin_extra_small"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"

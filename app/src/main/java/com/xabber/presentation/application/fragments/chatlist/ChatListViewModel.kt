@@ -352,7 +352,8 @@ class ChatListViewModel : ViewModel() {
             "Евгений",
             "Станислав",
             "Ян",
-            "Жан"
+            "Жан",
+            "Жан-Пьер"
         )
         val familys = listOf(
             "Усачев",
@@ -384,7 +385,8 @@ class ChatListViewModel : ViewModel() {
             "Лужин",
             "Бродский",
             "Акинфеев",
-            "Твардовский"
+            "Твардовский",
+            "Польнарефф"
         )
 
         val accounts = realm.query(com.xabber.data_base.models.account.AccountStorageItem::class).find()
@@ -400,6 +402,13 @@ class ChatListViewModel : ViewModel() {
                 nam.add(m)
             }
         }
+        val log = ArrayList<String>()
+        for (i in 0 until names.size) {
+            for (j in 0 until familys.size) {
+                val m = names[i] + "." + familys[j]
+                log.add(m)
+            }
+        }
         viewModelScope.launch(Dispatchers.IO) {
 
             realm.write {
@@ -411,11 +420,11 @@ class ChatListViewModel : ViewModel() {
                         primary = "$b 10"
                         muteExpired = -1
                         owner = ow
-                        jid = "${nam[i]}@redsolution.ru"
+                        jid = "${log[i]}@redsolution.ru"
                         rosterItem = copyToRealm(RosterStorageItem().apply {
                             primary = "$b 10"
                             owner = ow
-                            jid = "${nam[i]}@redsolution.ru"
+                            jid = "${log[i]}@redsolution.ru"
                             nickname = nam[i]
                             customNickname = nam[i]
                             colorKey = col

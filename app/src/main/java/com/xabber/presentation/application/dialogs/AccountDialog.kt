@@ -295,29 +295,7 @@ class AccountDialog : DialogFragment(R.layout.fragment_account), SharedPreferenc
     }
 
     private fun initToolbarActions() {
-        val toolbar = binding.accountAppbar.accountToolbar
 
-        // Get the navigation icon's start padding
-        val navigationIconPaddingStart = toolbar.contentInsetStart
-
-        // Calculate vertical padding to match the Toolbar's height
-        toolbar.viewTreeObserver.addOnGlobalLayoutListener(object : ViewTreeObserver.OnGlobalLayoutListener {
-            override fun onGlobalLayout() {
-                // Remove the listener to avoid multiple calls
-                toolbar.viewTreeObserver.removeOnGlobalLayoutListener(this)
-
-                val toolbarHeight = toolbar.height
-                val colorsIcon = toolbar.findViewById<ImageView>(R.id.colors)
-                val qrCodeIcon = toolbar.findViewById<ImageView>(R.id.generate_qr_code)
-
-                val iconHeight = colorsIcon.height
-                val verticalPadding = (toolbarHeight - iconHeight) / 2
-
-                // Apply the padding
-                colorsIcon.setPadding(navigationIconPaddingStart, verticalPadding, navigationIconPaddingStart, verticalPadding)
-                qrCodeIcon.setPadding(navigationIconPaddingStart, verticalPadding, navigationIconPaddingStart, verticalPadding)
-            }
-        })
         binding.accountAppbar.accountToolbar.findViewById<ImageView>(R.id.colors).setOnClickListener {
             val dialog = AccountColorDialog.newInstance(
                 viewModel.getAccount(getJid())?.colorKey

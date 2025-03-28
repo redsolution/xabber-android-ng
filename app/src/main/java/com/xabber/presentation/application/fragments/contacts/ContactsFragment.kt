@@ -51,17 +51,6 @@ class ContactsFragment : BaseFragment(R.layout.fragment_contact), ContactAdapter
     }
 
     private fun initToolbarActions() {
-        val toolbar = binding.toolbarContacts
-        val overflowIcon = ContextCompat.getDrawable(requireContext(), R.drawable.more_vert_24px)
-        overflowIcon?.let {
-            val iconHeight = it.intrinsicHeight
-            val toolbarHeight = toolbar.height
-            val padding = iconHeight // Use icon height as padding value
-            val vertical = padding
-            val side = (padding - toolbarHeight) / 3
-            val insetDrawable = InsetDrawable(it, side, vertical, side, vertical)
-            binding.toolbarContacts.overflowIcon = insetDrawable
-        }
         binding.toolbarContacts.setOnMenuItemClickListener {
             when (it.itemId) {
                 R.id.reset_status -> navigator().showStatusFragment()

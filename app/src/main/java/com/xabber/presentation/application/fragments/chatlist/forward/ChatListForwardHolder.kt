@@ -72,7 +72,7 @@ binding.shapeView.setDrawable(MaskManager.mask)
             )
             // unread messages
 
-            unreadMessagesCount.isVisible = chatListDto.unread.isNotEmpty()
+//            unreadMessagesCount.isVisible = chatListDto.unread.isNotEmpty()
             unreadMessagesCount.text = chatListDto.unread
 
 

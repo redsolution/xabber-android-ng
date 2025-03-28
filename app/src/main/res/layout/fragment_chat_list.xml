@@ -31,11 +31,12 @@
                     android:text="@string/menu_item_chats" />
             <ImageView
                 android:layout_width="wrap_content"
-                android:layout_height="match_parent"
+                android:layout_height="wrap_content"
                 android:id="@+id/add"
-                android:paddingHorizontal="16dp"
+                android:padding="12dp"
                 android:src="@drawable/ic_plus_white"
                 android:layout_gravity="end"
+                android:visibility="gone"
                 tools:ignore="ContentDescription" >
 
             </ImageView>

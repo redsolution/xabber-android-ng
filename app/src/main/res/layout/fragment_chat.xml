@@ -65,12 +65,12 @@
                     android:layout_gravity="end|bottom" />
             </FrameLayout>
 
-                <LinearLayout
+                <androidx.constraintlayout.widget.ConstraintLayout
                     android:id="@+id/name_holder"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginEnd="8dp"
-                    android:orientation="vertical">
+
+                    >
 
                     <TextView
                         android:id="@+id/tv_chat_title"
@@ -82,7 +82,10 @@
                         android:ellipsize="end"
                         android:gravity="start"
                         android:maxLines="1"
-                        android:singleLine="true" />
+                        android:singleLine="true"
+                        app:layout_constraintTop_toTopOf="parent"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintBottom_toTopOf="@+id/tv_status_message"/>
 
                     <TextView
                         android:layout_marginStart="22dp"
@@ -96,9 +99,24 @@
                         android:singleLine="true"
                         android:text="@string/available"
                         android:textColor="@color/white"
-                        android:textSize="13sp" />
+                        android:textSize="13sp"
+                        app:layout_constraintTop_toBottomOf="@id/tv_chat_title"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintBottom_toBottomOf="parent"/>
+                    <ImageView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:src="@drawable/ic_search_white"
+                        android:padding="12dp"
+                        android:layout_gravity="end"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintTop_toTopOf="parent"
+                        app:layout_constraintBottom_toBottomOf="parent">
 
-                </LinearLayout>
+                    </ImageView>
+                </androidx.constraintlayout.widget.ConstraintLayout>
+
+
         </com.google.android.material.appbar.MaterialToolbar>
 
         <include
@@ -267,8 +285,9 @@
 
             <ImageButton
                 android:id="@+id/button_send_message"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:padding="12dp"
                 android:layout_gravity="center_vertical"
                 android:layout_marginHorizontal="16dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
@@ -286,8 +305,7 @@
             android:id="@+id/chat_input"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
-            android:layout_marginEnd="12dp"
+            android:layout_marginEnd="4dp"
             android:background="@android:color/transparent"
             android:cursorVisible="true"
             android:fadingEdge="vertical"
@@ -296,9 +314,10 @@
             android:imeOptions="actionSend|flagNoExtractUi"
             android:inputType="textAutoCorrect|textCapSentences|textMultiLine"
             android:maxLines="6"
-            android:paddingTop="8dp"
+            android:paddingVertical="12dp"
             android:scrollbars="vertical"
-            app:layout_constraintBottom_toBottomOf="@id/button_emoticon"
+            app:layout_constraintTop_toTopOf="@id/standard_panel"
+            app:layout_constraintBottom_toBottomOf="@id/standard_panel"
             app:layout_constraintEnd_toStartOf="@id/button_attach"
             app:layout_constraintStart_toEndOf="@id/button_emoticon"
             app:layout_goneMarginEnd="52dp" />
@@ -308,7 +327,8 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center_vertical"
-            android:layout_marginStart="16dp"
+            android:padding="12dp"
+            android:layout_marginStart="4dp"
             android:background="@color/transparent"
             android:contentDescription="@string/content_description_emoji"
             app:layout_constraintBottom_toBottomOf="@id/standard_panel"
@@ -319,25 +339,24 @@
 
         <ImageButton
             android:id="@+id/button_attach"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:layout_marginHorizontal="20dp"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
             android:background="@color/transparent"
             android:contentDescription="@string/content_description_attach"
             android:src="@drawable/ic_attach"
+            android:padding="12dp"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toStartOf="@id/btn_record"
             app:layout_constraintTop_toTopOf="parent"
-            app:layout_goneMarginEnd="50dp"
             app:tint="@color/grey_500" />
 
         <ImageButton
             android:id="@+id/btn_record"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:layout_marginHorizontal="16dp"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
             android:background="@color/transparent"
             android:clickable="false"
+            android:padding="12dp"
             android:contentDescription="@string/content_description_audio_record"
             android:filterTouchesWhenObscured="false"
             android:src="@drawable/ic_microphone"
@@ -345,6 +364,22 @@
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="parent"
             app:tint="@color/grey_500" />
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/btn_record_expanded"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+
+            android:background="@color/blue_500"
+            android:clickable="false"
+            android:src="@drawable/ic_send_white"
+            android:visibility="invisible"
+            app:fabCustomSize="48dp"
+            app:layout_constraintTop_toTopOf="@+id/btn_record"
+            app:layout_constraintBottom_toBottomOf="@id/btn_record"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:tint="@color/white"
+            tools:visibility="visible"
+            tools:ignore="ContentDescription" />
 
         <include
             android:id="@+id/interaction"
@@ -476,24 +511,7 @@
             android:visibility="gone" />
     </RelativeLayout>
 
-    <com.google.android.material.floatingactionbutton.FloatingActionButton
-        android:id="@+id/btn_record_expanded"
-        android:layout_width="84dp"
-        android:layout_height="84dp"
-        android:layout_alignParentEnd="true"
-        android:layout_alignParentBottom="true"
-        android:layout_marginEnd="-14dp"
-        android:layout_marginBottom="-12dp"
-        android:background="@color/blue_500"
-        android:baselineAlignBottom="false"
-        android:clickable="false"
-        android:src="@drawable/ic_send_white"
-        android:visibility="invisible"
-        app:fabCustomSize="84dp"
-        app:layout_constraintBottom_toBottomOf="@id/input_layout"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:tint="@color/white"
-        tools:visibility="visible" />
+
 
     <com.aghajari.emojiview.view.AXEmojiPopupLayout
         android:id="@+id/emoji_popup_layout"

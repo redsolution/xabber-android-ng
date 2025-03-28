@@ -5,6 +5,7 @@
     android:id="@+id/outer_sliding_pane_layout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:fitsSystemWindows="true"
     android:theme="@style/Theme.MaterialComponents.Light.Bridge"
     tools:context=".presentation.application.activity.ApplicationActivity">
 
@@ -19,12 +20,16 @@
         <!-- Main content inside SlidingPaneLayout -->
         <androidx.slidingpanelayout.widget.SlidingPaneLayout
             android:id="@+id/sliding_pane_layout"
+            android:fitsSystemWindows="true"
+
             android:layout_width="match_parent"
             android:layout_height="match_parent">
 
             <!-- Main Container -->
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:id="@+id/main_container"
+                android:fitsSystemWindows="true"
+
                 android:layout_width="@dimen/main_container_width"
                 android:layout_height="match_parent">
 
@@ -42,7 +47,6 @@
                     style="@style/ApplicationToolbar"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginEnd="64dp"
                     android:theme="@style/WhiteToolbarTheme"
                     app:layout_constraintEnd_toEndOf="parent"
                     app:layout_constraintStart_toStartOf="parent"
@@ -50,6 +54,17 @@
                     <ImageView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
+                        android:id="@+id/add"
+                        android:padding="12dp"
+                        android:src="@drawable/ic_plus_white"
+                        android:layout_gravity="end"
+                        tools:ignore="ContentDescription" >
+
+                    </ImageView>
+                    <ImageView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:padding="12dp"
                         android:id="@+id/unread"
                         android:src="@drawable/unread_outline"
                         android:layout_gravity="end"
@@ -131,7 +146,6 @@
             android:layout_width="wrap_content"
             android:layout_height="match_parent"
             android:layout_gravity="start"
-            android:visibility="gone"
             app:labelVisibilityMode="unlabeled"
             app:headerLayout="@layout/drawer_header"
             android:fitsSystemWindows="true"

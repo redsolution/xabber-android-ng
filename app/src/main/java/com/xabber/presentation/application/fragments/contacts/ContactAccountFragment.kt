@@ -9,6 +9,7 @@ import android.util.TypedValue
 import android.view.*
 import android.view.animation.AnimationUtils
 import android.content.res.Configuration
+import android.graphics.Color
 import android.graphics.drawable.InsetDrawable
 import android.util.DisplayMetrics
 import android.widget.ImageView
@@ -224,11 +225,11 @@ class ContactAccountFragment : BaseFragment(R.layout.fragment_contact_account), 
             actionBarHeight
         )
 
-        if (DisplayManager.getWidthDp() < 600 && resources.configuration.orientation
-            == Configuration.ORIENTATION_PORTRAIT || DisplayManager.getWidthDp() < 700
-            && resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) {
+//        if (DisplayManager.getWidthDp() < 600 && resources.configuration.orientation
+//            == Configuration.ORIENTATION_PORTRAIT || DisplayManager.getWidthDp() < 700
+//            && resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) {
             params.topMargin = DisplayManager.getHeightStatusBar()
-        }
+//        }
         params.collapseMode = CollapsingToolbarLayout.LayoutParams.COLLAPSE_MODE_PIN
         binding.accountAppbar.accountToolbar.layoutParams = params
 
@@ -304,23 +305,11 @@ class ContactAccountFragment : BaseFragment(R.layout.fragment_contact_account), 
     }
 
     private fun initToolbarActions() {
-        val toolbar = binding.accountAppbar.accountToolbar
-        val overflowIcon = ContextCompat.getDrawable(requireContext(), R.drawable.more_vert_24px_black)
-        overflowIcon?.let {
-            val iconHeight = it.intrinsicHeight
-            val toolbarHeight = toolbar.height
-            val padding = iconHeight // Use icon height as padding value
-            val vertical = padding
-            val side = (padding - toolbarHeight) / 3
-            val insetDrawable = InsetDrawable(it, side, vertical, side, vertical)
-            binding.accountAppbar.accountToolbar.overflowIcon = insetDrawable
-        }
-
-        // Calculate vertical padding to match the Toolbar's height
-
+        binding.accountAppbar.accountToolbar.overflowIcon?.setTint(Color.BLACK)
         binding.accountAppbar.accountToolbar.addMenuProvider(object : MenuProvider {
             override fun onCreateMenu(menu: Menu, menuInflater: MenuInflater) {
                 menuInflater.inflate(R.menu.menu_toolbar_contact_account, menu)
+
             }
 
             override fun onMenuItemSelected(menuItem: MenuItem): Boolean {

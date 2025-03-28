@@ -85,7 +85,7 @@ class ChatListAdapter(
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         if (holder is ChatListViewHolder) {
-            holder.getDivider().isVisible = isManyOwners
+//            holder.getDivider().isVisible = isManyOwners
             holder.bind(getItem(position), listener)
         }
     }

@@ -41,7 +41,7 @@ class ChatListViewHolder(
     private val binding: ItemChatListBinding
 ) : RecyclerView.ViewHolder(binding.root) {
 
-    fun getDivider(): View = binding.accountColorIndicator
+//    fun getDivider(): View = binding.accountColorIndicator
 
     fun bind(chatListDto: ChatListDto, listener: ChatListAdapter.ChatListener) {
         binding.cardview.radius = 0f             // скругленный уголок появится при сдвиге чата влево, в обычном состоянии 0
@@ -70,7 +70,7 @@ class ChatListViewHolder(
 
     private fun setColorDivider(colorKey: String) {
         val color = ColorManager.convertColorNameToId(colorKey)
-        binding.accountColorIndicator.setBackgroundResource(color)
+//        binding.accountColorIndicator.setBackgroundResource(color)
     }
 
     private fun setAvatar(drawableId: Int) {

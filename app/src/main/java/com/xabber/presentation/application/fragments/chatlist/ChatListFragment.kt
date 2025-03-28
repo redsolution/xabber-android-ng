@@ -150,11 +150,11 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
     }
 
     private fun addSwipeOption() {
-        if (chatListAdapter != null) {
-            val swiper = SwipeToArchiveCallback(chatListAdapter!!)
-            val itemTouch = ItemTouchHelper(swiper)
-            itemTouch.attachToRecyclerView(binding.chatList)
-        }
+//        if (chatListAdapter != null) {
+//            val swiper = SwipeToArchiveCallback(chatListAdapter!!)
+//            val itemTouch = ItemTouchHelper(swiper)
+//            itemTouch.attachToRecyclerView(binding.chatList)
+//        }
     }
 
     private fun addScrollListener() {   // Если находимся вверху списка делаем scrollbar невидимым

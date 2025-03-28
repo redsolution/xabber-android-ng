@@ -48,6 +48,7 @@ import com.xabber.dto.AvatarDto
 import com.xabber.presentation.AppConstants
 import com.xabber.presentation.AppConstants.CHAT_LIST_UNREAD_KEY
 import com.xabber.presentation.application.contract.Navigator
+import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.application.dialogs.AccountDialog
 import com.xabber.presentation.application.dialogs.NotificationsFragmentFull
 import com.xabber.presentation.application.fragments.account.AccountAdapter
@@ -97,6 +98,7 @@ import io.realm.kotlin.Realm
  * In onCreate check condition: user is authorized (stay this activity) or not (go to Onboarding activity)
  */
 
+@Suppress("DEPRECATION")
 class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNavigationItemSelectedListener, AccountAdapter.Listener,
     SharedPreferences.OnSharedPreferenceChangeListener {
 
@@ -162,12 +164,9 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         toolbarNav.setPadding(currentPaddingLeft, dpAsPixels, currentPaddingRight, currentPaddingBottom)
 
 
-        supportActionBar?.setDisplayShowTitleEnabled(false)
-        supportActionBar?.setDisplayHomeAsUpEnabled(true)
         val avatarImageView = findViewById<ImageView>(R.id.avatar_image_view)
         val titleTextView = findViewById<TextView>(R.id.title_text_view)
         val subtitleTextView = findViewById<TextView>(R.id.subtitle_text_view)
-        drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_UNLOCKED)
         val account = getPrimaryAccount()
         val avatar = account?.let { getAvatar(it.id) }
 
@@ -181,18 +180,17 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
             avatarImageView.requestLayout()
         }
 
-        navigationView.setNavigationItemSelectedListener(this)
 
+        supportActionBar?.setDisplayShowTitleEnabled(false)
+        supportActionBar?.setDisplayHomeAsUpEnabled(true)
         actionBarToggle = ActionBarDrawerToggle(this, drawerLayout, toolbarNav, R.string.open, R.string.close )
         drawerLayout.addDrawerListener(actionBarToggle)
         actionBarToggle.syncState()
+        navigationView.setNavigationItemSelectedListener(this)
         drawerLayout.setScrimColor(Color.parseColor("#88000000"))
     }
 
-    override fun onPostCreate(savedInstanceState: Bundle?) {
-        super.onPostCreate(savedInstanceState)
-        actionBarToggle.syncState()
-    }
+
 
     private fun initViews() {
         shapeView = findViewById(R.id.shape_view)
@@ -208,7 +206,8 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         setHeightStatusBar()
         setMask()
         setChatSettings()
-        handleUnreadMessages()
+        handleUnread()
+        handleContactAddition()
         assist = SoftInputAssist(window)
         subscribeToViewModelData()
 
@@ -224,23 +223,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
             setupIconChat(chatListViewModel.showUnreadOnly.value ?: false)
         }
     }
-    private fun toggleNightDayMode() {
 
-        when (AppCompatDelegate.getDefaultNightMode()) {
-            AppCompatDelegate.MODE_NIGHT_YES -> {
-                AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
-            }
-            AppCompatDelegate.MODE_NIGHT_NO -> {
-                AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
-            }
-            else -> {
-                AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
-            }
-        }
-
-        Toast.makeText(this, "Mode switched!", Toast.LENGTH_SHORT).show()
-
-    }
 
 
     private fun getPrimaryAccount(): AccountDto? {
@@ -316,28 +299,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
             }
         }
     }
-    private fun handleUnreadMessages() {
 
-        val toolbar = binding.toolbarNav
-        val navigationIconPaddingStart = toolbar.contentInsetStart
-        toolbar.viewTreeObserver.addOnGlobalLayoutListener(object : ViewTreeObserver.OnGlobalLayoutListener {
-            override fun onGlobalLayout() {
-                // Remove the listener to avoid multiple calls
-                toolbar.viewTreeObserver.removeOnGlobalLayoutListener(this)
-
-                val toolbarHeight = toolbar.height
-                val unread = toolbar.findViewById<ImageView>(R.id.unread)
-
-                val iconHeight = unread.height
-                val verticalPadding = (toolbarHeight - iconHeight) / 3
-
-                // Apply the padding
-                unread.setPadding(navigationIconPaddingStart, verticalPadding, navigationIconPaddingStart, verticalPadding)
-                handleUnread()
-            }
-        })
-
-    }
 
     private fun handleUnread() {
         val unreadMessages = binding.toolbarNav.findViewById<ImageView>(R.id.unread)
@@ -345,11 +307,10 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
             showUnreadChats(!chatListViewModel.showUnreadOnly.value!!)
         }
     }
-    private fun handleChatsNavigationAccount() {
-        if (activeFragment !is ChatListFragment) {
-            closeDetail()
-            replaceFragment(ChatListFragment())
-
+    private fun handleContactAddition() {
+        binding.toolbarNav.findViewById<ImageView>(R.id.add).setOnClickListener {
+            if (chatListViewModel.chatIsEmpty()) chatListViewModel.addSomeChats()
+            else showNewChat()
         }
     }
     private fun handleNotificationsNavigation() {
@@ -597,15 +558,14 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
     override fun onBackPressed() {
         // Check if the drawer is open first
         if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
-            Log.d("ApplicationActivity", "Drawer open, closing it")
             drawerLayout.closeDrawer(GravityCompat.START)
             return
+        }else {
+            super.onBackPressed()
         }
 
-        // Check for visible DialogFragments
         val dialogFragment = supportFragmentManager.fragments.find { it is DialogFragment && it.dialog?.isShowing == true }
         if (dialogFragment != null) {
-            Log.d("ApplicationActivity", "Dismissing DialogFragment: ${dialogFragment.javaClass.simpleName}")
             (dialogFragment as DialogFragment).dismiss()
             return
         }
