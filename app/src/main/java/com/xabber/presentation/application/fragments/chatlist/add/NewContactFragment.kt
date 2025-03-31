@@ -32,7 +32,7 @@ class NewContactFragment : DetailBaseFragment(R.layout.fragment_new_contact) {
     private fun initializeToolbarActions() {
         binding.toolbar.setNavigationIcon(R.drawable.ic_arrow_left_white)
         binding.toolbar.setNavigationOnClickListener {
-            navigator().goBack()
+            navigator().close()
         }
 
         binding.btnAddContact.setOnClickListener {

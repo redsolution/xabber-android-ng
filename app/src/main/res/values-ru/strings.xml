@@ -165,6 +165,10 @@
 
 
     <!-- CONTACTS  -->
+    <string name="contacts">Контакты</string>
+    <string name="groups">Группы</string>
+
+
     <string name="contacts_toolbar_title">Контакты</string>
     <string name="menu_item_reset_status">Изменить статус</string>
     <string name="menu_item_add_contact">Добавить контакт</string>

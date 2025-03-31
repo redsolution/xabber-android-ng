@@ -483,8 +483,6 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
     }
 
     private fun handleContactsNavigation() {
-
-
         val widthDp = DisplayManager.getWidthDp()
         val orientation = resources.configuration.orientation
         chatListViewModel.setShowUnreadOnly(false)
@@ -498,13 +496,13 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
                 // Dual-screen mode: Add CallFiltersFragment to main container and CallsFragment to detail
                 supportFragmentManager.beginTransaction()
                     .setReorderingAllowed(true)
-                    .replace(R.id.application_container, ContactsFragment())
+                    .replace(R.id.application_container, ContactsPanelFragment())
                     .addToBackStack("main_contact_frag") // Add to backstack to preserve prior state
                     .commit()
 
                 supportFragmentManager.beginTransaction()
                     .setReorderingAllowed(true)
-                    .replace(R.id.detail_container, ContactsPanelFragment())
+                    .replace(R.id.detail_container, ContactsFragment())
                     .addToBackStack("alternative_contact_frag") // Add to backstack to preserve chat
                     .commit()
             } else {
@@ -831,6 +829,10 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
             if (supportFragmentManager.backStackEntryCount > 0) supportFragmentManager.popBackStack()
         }
     }
+    override fun close() {
+        if (supportFragmentManager.backStackEntryCount > 0) supportFragmentManager.popBackStack()
+    }
+
     override fun closePanel() {
         if (binding.slidingPaneLayout.isOpen) binding.slidingPaneLayout.close()
 

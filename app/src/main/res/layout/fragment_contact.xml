@@ -19,8 +19,6 @@
             style="@style/ApplicationToolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            app:menu="@menu/menu_toolbar_contact_list"
-
             >
 
             <TextView
@@ -31,6 +29,27 @@
                 android:text="@string/contacts_toolbar_title"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintTop_toTopOf="parent" />
+            <ImageView
+                android:id="@+id/menu"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:clickable="true"
+                android:focusable="true"
+                android:src="@drawable/more_vert_24px"
+                android:layout_gravity="end"
+                android:padding="12dp"
+                android:contentDescription="Menu" />
+
+            <ImageView
+                android:id="@+id/search"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:src="@drawable/ic_search_white"
+                android:layout_gravity="end"
+                android:padding="12dp"
+                android:contentDescription="Search">
+
+            </ImageView>
         </androidx.appcompat.widget.Toolbar>
     </com.google.android.material.appbar.AppBarLayout>
 

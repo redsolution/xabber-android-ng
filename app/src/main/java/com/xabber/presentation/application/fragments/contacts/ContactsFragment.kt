@@ -9,6 +9,7 @@ import android.view.Menu
 import android.view.View
 import android.view.ViewTreeObserver
 import android.widget.ImageView
+import android.widget.PopupMenu
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import by.kirich1409.viewbindingdelegate.viewBinding
@@ -51,15 +52,41 @@ class ContactsFragment : BaseFragment(R.layout.fragment_contact), ContactAdapter
     }
 
     private fun initToolbarActions() {
-        binding.toolbarContacts.setOnMenuItemClickListener {
-            when (it.itemId) {
-                R.id.reset_status -> navigator().showStatusFragment()
-                R.id.add_contact -> navigator().showNewContact()
-                R.id.display_contacts_offline -> {}
-            }; true
+        // Set up navigation (this part remains unchanged)
+        if ( resources.configuration.orientation == Configuration.ORIENTATION_PORTRAIT) {
+            binding.toolbarContacts.setNavigationIcon(R.drawable.ic_arrow_left_white)
+            binding.toolbarContacts.setNavigationOnClickListener { navigator().goBack() }
         }
-        binding.toolbarContacts.setNavigationIcon(drawable.ic_arrow_left_white)
-        binding.toolbarContacts.setNavigationOnClickListener{navigator().goBack()}
+
+
+        // Set up the ImageView menu button
+        binding.menu.setOnClickListener {
+            // Create a PopupMenu anchored to the ImageView
+            val popup = PopupMenu(binding.menu.context, binding.menu)
+            popup.menuInflater.inflate(R.menu.menu_toolbar_contact_list, popup.menu) // Use your existing menu XML
+
+            // Handle menu item clicks
+            popup.setOnMenuItemClickListener { menuItem ->
+                when (menuItem.itemId) {
+                    R.id.reset_status -> {
+                        navigator().showStatusFragment()
+                        true
+                    }
+                    R.id.add_contact -> {
+                        navigator().showNewContact()
+                        true
+                    }
+                    R.id.display_contacts_offline -> {
+                        // Handle offline contacts action
+                        true
+                    }
+                    else -> false
+                }
+            }
+
+            // Show the popup menu
+            popup.show()
+        }
     }
 
     private fun initContactList() {

@@ -152,6 +152,9 @@
     <string name="call_declined">Declined</string>
 
     <!-- CONTACTS -->
+    <string name="contacts">Contacts</string>
+    <string name="groups">Groups</string>
+
     <string name="menu_item_edit_contact">Edit</string>
     <string name="menu_item_delete_contact">Delete contact</string>
     <string name="menu_item_block_contact">Block contact</string>

@@ -89,4 +89,5 @@ interface Navigator {
     fun setDesignBackground()
     fun goBackFromCalls()
     fun onNavigationItemSelected(item: MenuItem): Boolean
+    fun close()
 }
