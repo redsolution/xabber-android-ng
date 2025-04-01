@@ -20,6 +20,7 @@ import android.view.*
 import android.view.animation.Animation
 import android.view.animation.AnimationUtils
 import android.view.animation.TranslateAnimation
+import android.widget.PopupMenu
 import android.widget.PopupWindow
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
@@ -285,59 +286,51 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     private fun initializeToolbarActions(chat: ChatListDto) {
         binding.avatar.setOnClickListener { anchor ->
             val contactId = viewModel.getContactId(getParams().id)
-
             if (contactId != null) {
-                val params = ContactAccountParams(
-                    contactId,
-                    getParams().avatar
-                )
-
-
-                if (DisplayManager.getWidthDp() > 600 && resources.configuration.orientation
-                    == Configuration.ORIENTATION_PORTRAIT) {
+                val params = ContactAccountParams(contactId, getParams().avatar)
+                if (DisplayManager.getWidthDp() > 600 && resources.configuration.orientation == Configuration.ORIENTATION_PORTRAIT) {
                     val accDialog = ContactAccountFragment.newInstance(params)
                     accDialog.show(childFragmentManager, AppConstants.CHAT_LIST_TO_FORWARD_DIALOG_TAG)
                 } else if (DisplayManager.getWidthDp() > 800 && resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) {
-
                     navigator().launchDetail(ContactAccountFragment.newInstance(params))
-
-                }else {
-                    navigator().showContactAccount(
-                        ContactAccountParams(
-                            contactId,
-                            getParams().avatar
-                        )
-                    )
-
+                } else {
+                    navigator().showContactAccount(ContactAccountParams(contactId, getParams().avatar))
                 }
-
             }
-
         }
-        initToolbarMenu(chat)
-        setupToolbarMenu(chat.muteExpired)
+        initToolbarMenu(chat) // Just call this
     }
 
-    ///lower border
 
     private fun initToolbarMenu(chat: ChatListDto) {
-        binding.toolbar.setOnMenuItemClickListener {
-            when (it.itemId) {
-                R.id.call_out -> sendIncomingMessages(chat.owner, chat.opponentJid)
-                R.id.disable_notifications -> disableNotifications()
-                R.id.enable_notifications -> enableNotifications()
-                R.id.clear_message_history -> clearHistory(chat)
-                R.id.delete_chat -> deleteChat(chat)
-            }; true
+        binding.menu.setOnClickListener {
+            val popup = PopupMenu(binding.menu.context, binding.menu)
+            popup.menuInflater.inflate(R.menu.menu_toolbar_chat, popup.menu)
+
+            // Set initial visibility based on mute status
+            val muteExpired = chat.muteExpired - System.currentTimeMillis()
+            popup.menu.findItem(R.id.enable_notifications).isVisible = muteExpired > 0
+            popup.menu.findItem(R.id.disable_notifications).isVisible = muteExpired <= 0
+
+            // Handle menu item clicks
+            popup.setOnMenuItemClickListener { menuItem ->
+                when (menuItem.itemId) {
+                    R.id.call_out -> sendIncomingMessages(chat.owner, chat.opponentJid)
+                    R.id.disable_notifications -> disableNotifications()
+                    R.id.enable_notifications -> enableNotifications()
+                    R.id.clear_message_history -> clearHistory(chat)
+                    R.id.delete_chat -> deleteChat(chat)
+                }
+                true
+            }
+            popup.show() // Show the popup
         }
     }
 
     private fun setupToolbarMenu(mute: Long) {
         val muteExpired = mute - System.currentTimeMillis()
-        binding.toolbar.menu.findItem(R.id.enable_notifications).isVisible =
-            muteExpired > 0
-        binding.toolbar.menu.findItem(R.id.disable_notifications).isVisible =
-            muteExpired <= 0
+        binding.toolbar.menu.findItem(R.id.enable_notifications).isVisible = muteExpired > 0
+        binding.toolbar.menu.findItem(R.id.disable_notifications).isVisible = muteExpired <= 0
     }
 
     private fun restoreState(savedInstanceState: Bundle) {
@@ -390,8 +383,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
 
     private fun enableNotifications() {
         viewModel.setMute(getParams().id, enableNotificationsCode)
-        binding.toolbar.menu.findItem(R.id.enable_notifications).isVisible = false
-        binding.toolbar.menu.findItem(R.id.disable_notifications).isVisible = true
+        // No need to manipulate menu visibility here; it will update on next PopupMenu creation
     }
 
     private fun clearHistory(chat: ChatListDto) {
@@ -754,7 +746,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
 
         viewModel.muteExpired.observe(viewLifecycleOwner) {
             if (it != null) setupMuteIcon(it)
-            setupToolbarMenu(it)
+            // No need to call setupToolbarMenu(it) here; visibility is handled in initToolbarMenu
         }
 
         viewModel.messages.observe(viewLifecycleOwner) {

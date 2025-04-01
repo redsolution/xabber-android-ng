@@ -28,7 +28,7 @@
         <item name="standard_divider_drawable">@drawable/chat_list_divider</item>
         <item name="android:windowDisablePreview">true</item>
         <item name="android:navigationBarColor">@color/white</item>
-        <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:windowLightNavigationBar">true</item>
     </style>
 
 </resources>
