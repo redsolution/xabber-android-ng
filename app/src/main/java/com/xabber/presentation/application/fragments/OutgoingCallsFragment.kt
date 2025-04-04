@@ -19,7 +19,7 @@ class OutgoingCallsFragment : BaseFragment(R.layout.outgoing_calls) {
     private fun toolbarActions() {
         binding.callsToolbar.setNavigationIcon(R.drawable.ic_arrow_left_white)
         binding.callsToolbar.setNavigationOnClickListener {
-            navigator().closePanel()
+            navigator().close()
         }
     }
 

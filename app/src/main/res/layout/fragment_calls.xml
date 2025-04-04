@@ -32,6 +32,7 @@
                 android:id="@+id/filter"
                 android:src="@drawable/filter_alt_24px"
                 android:layout_gravity="end"
+                android:padding="12dp"
                 tools:ignore="ContentDescription"
 
                 >

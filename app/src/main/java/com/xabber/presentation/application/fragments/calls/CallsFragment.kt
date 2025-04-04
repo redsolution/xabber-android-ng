@@ -8,10 +8,9 @@ import android.view.View
 import android.view.ViewTreeObserver
 import android.widget.ImageView
 import android.widget.PopupMenu
-import android.widget.Toast
-import androidx.core.view.GravityCompat
 import androidx.core.view.isVisible
-import androidx.drawerlayout.widget.DrawerLayout
+import androidx.fragment.app.Fragment
+import androidx.fragment.app.FragmentManager
 import by.kirich1409.viewbindingdelegate.viewBinding
 import com.xabber.R
 import com.xabber.databinding.FragmentCallsBinding
@@ -31,22 +30,51 @@ class CallsFragment : BaseFragment(R.layout.fragment_calls) {
         binding.callsToolbar.navigationIcon = null
         binding.filter.isVisible = false
         activeLinks()
-        ifOrientationIsPortrait()
+        setupOrientationLayout()
         filterIcon()
     }
 
-    private fun ifOrientationIsPortrait() {
-        val widthDp = DisplayManager.getWidthDp()
+    private fun setupOrientationLayout() {
         val orientation = resources.configuration.orientation
-
         if (orientation == Configuration.ORIENTATION_PORTRAIT) {
-            binding.callsToolbar.navigationIcon = null
             binding.callsToolbar.setNavigationIcon(R.drawable.ic_arrow_left_white)
             binding.callsToolbar.setNavigationOnClickListener {
-                navigator().goBack() // This will pop the back stack
+                navigator().goBack()
+                navigator().closeDetail()
             }
-            binding.filter.setOnClickListener{
-                view -> showPopupMenu(view)
+            binding.filter.setOnClickListener { view ->
+                showPopupMenu(view)
+            }
+            // Ensure CallsFragment is in application_container, detail_container empty
+            if (requireActivity().supportFragmentManager.findFragmentById(R.id.application_container) !is CallsFragment) {
+                requireActivity().supportFragmentManager.beginTransaction()
+                    .setReorderingAllowed(true)
+                    .replace(R.id.application_container, this)
+                    .addToBackStack("calls")
+                    .commit()
+            }
+            if (requireActivity().supportFragmentManager.findFragmentById(R.id.detail_container) != null) {
+                requireActivity().supportFragmentManager.beginTransaction()
+                    .setReorderingAllowed(true)
+                    .remove(requireActivity().supportFragmentManager.findFragmentById(R.id.detail_container)!!)
+                    .commit()
+            }
+        } else { // Landscape
+
+            // Ensure CallsFragment is in detail_container, CallFiltersFragment in application_container
+            if (requireActivity().supportFragmentManager.findFragmentById(R.id.detail_container) !is CallsFragment) {
+                requireActivity().supportFragmentManager.beginTransaction()
+                    .setReorderingAllowed(true)
+                    .replace(R.id.detail_container, this)
+                    .addToBackStack("calls")
+                    .commit()
+            }
+            if (requireActivity().supportFragmentManager.findFragmentById(R.id.application_container) !is CallFiltersFragment) {
+                requireActivity().supportFragmentManager.beginTransaction()
+                    .setReorderingAllowed(true)
+                    .replace(R.id.application_container, CallFiltersFragment())
+                    .addToBackStack("call_filters")
+                    .commit()
             }
         }
     }
@@ -54,71 +82,65 @@ class CallsFragment : BaseFragment(R.layout.fragment_calls) {
     private fun filterIcon() {
         if (resources.configuration.orientation == Configuration.ORIENTATION_PORTRAIT) {
             binding.filter.isVisible = true
-            val toolbar = binding.callsToolbar
-            val navigationIconPaddingStart = toolbar.contentInsetStart
-            toolbar.viewTreeObserver.addOnGlobalLayoutListener(object : ViewTreeObserver.OnGlobalLayoutListener {
-                override fun onGlobalLayout() {
-                    toolbar.viewTreeObserver.removeOnGlobalLayoutListener(this)
-                    val toolbarHeight = toolbar.height
-                    val filterIcon = toolbar.findViewById<ImageView>(R.id.filter)
-                    val iconHeight = filterIcon.height
-                    val verticalPadding = (toolbarHeight - iconHeight) / 2
-
-                    filterIcon.setPadding(navigationIconPaddingStart, verticalPadding, navigationIconPaddingStart, verticalPadding)
-                }
-            })
+//            val toolbar = binding.callsToolbar
+//            val navigationIconPaddingStart = toolbar.contentInsetStart
+//            toolbar.viewTreeObserver.addOnGlobalLayoutListener(object : ViewTreeObserver.OnGlobalLayoutListener {
+//                override fun onGlobalLayout() {
+//                    toolbar.viewTreeObserver.removeOnGlobalLayoutListener(this)
+//                    val toolbarHeight = toolbar.height
+//                    val filterIcon = toolbar.findViewById<ImageView>(R.id.filter)
+//                    val iconHeight = filterIcon.height
+//                    val verticalPadding = (toolbarHeight - iconHeight) / 2
+//                    filterIcon.setPadding(navigationIconPaddingStart, verticalPadding, navigationIconPaddingStart, verticalPadding)
+//                }
+//            })
         }
     }
 
     private fun showPopupMenu(view: View): Boolean {
         val popup = PopupMenu(context, view)
         popup.menuInflater.inflate(R.menu.filter_menu, popup.menu)
-        popup.setOnMenuItemClickListener {item: MenuItem ->
+        popup.setOnMenuItemClickListener { item: MenuItem ->
             when (item.itemId) {
                 R.id.missed_call_item -> {
-                    missedCalls()
+                    replaceAppFragmentInStack(MissedCallsFragment())
                     true
                 }
                 R.id.incoming_call_item -> {
-                    incomingCalls()
+                    replaceAppFragmentInStack(IncomingCallsFragment())
                     true
                 }
                 R.id.outgoing_call_item -> {
-                    outgoingCalls()
+                    replaceAppFragmentInStack(OutgoingCallsFragment())
                     true
                 }
                 R.id.declined_call_item -> {
-                    declinedCalls()
+                    replaceAppFragmentInStack(DeclinedCallsFragment())
                     true
                 }
                 else -> false
             }
         }
-        // Show the popup menu
         popup.show()
         return true
     }
 
-    private fun missedCalls() {
-        navigator().launchDetail(MissedCallsFragment())
+    private fun replaceAppFragmentInStack(fragment: Fragment) {
+        val currentFragment = requireActivity().supportFragmentManager.findFragmentById(R.id.application_container)
+        if (currentFragment != null) {
+            requireActivity().supportFragmentManager.popBackStackImmediate(
+                currentFragment::class.java.simpleName,
+                FragmentManager.POP_BACK_STACK_INCLUSIVE
+            )
+        }
+        requireActivity().supportFragmentManager.beginTransaction()
+            .setReorderingAllowed(true)
+            .replace(R.id.application_container, fragment)
+            .addToBackStack(fragment::class.java.simpleName)
+            .commit()
     }
-
-    private fun incomingCalls() {
-        navigator().launchDetail(IncomingCallsFragment())
-
-    }
-    private fun outgoingCalls() {
-        navigator().launchDetail(OutgoingCallsFragment())
-
-    }
-    private fun declinedCalls() {
-        navigator().launchDetail(DeclinedCallsFragment())
-
-    }
-
 
     private fun activeLinks() {
         binding.tvAdvertisement.movementMethod = LinkMovementMethod.getInstance()
     }
-
 }

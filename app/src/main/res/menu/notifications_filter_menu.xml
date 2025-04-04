@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/missed_call_item"
+        android:title="Important">
+    </item>
+    <item
+        android:id="@+id/incoming_call_item"
+        android:title="non-important">
+    </item>
+    <item
+        android:id="@+id/outgoing_call_item"
+        android:title="well, how should i call it?">
+    </item>
+    <item
+        android:id="@+id/declined_call_item"
+        android:title="no idea">
+    </item>
+</menu>

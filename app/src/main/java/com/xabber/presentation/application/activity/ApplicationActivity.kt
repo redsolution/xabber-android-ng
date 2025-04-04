@@ -735,6 +735,351 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         finish()
     }
 
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        moveFragmentsOnOrientationChange(newConfig.orientation)
+        updateUiDependingOnMode(isDualScreenMode())
+    }
+
+    private fun moveFragmentsOnOrientationChange(newOrientation: Int) {
+        val detailFragment = supportFragmentManager.findFragmentById(R.id.detail_container)
+        val appFragment = supportFragmentManager.findFragmentById(R.id.application_container)
+
+        Log.d("ApplicationActivity", "Orientation: ${if (newOrientation == Configuration.ORIENTATION_LANDSCAPE) "Landscape" else "Portrait"}")
+        Log.d("ApplicationActivity", "Detail: ${detailFragment?.javaClass?.simpleName}, App: ${appFragment?.javaClass?.simpleName}")
+
+        when {
+            appFragment is CallsFragment || detailFragment is CallsFragment -> adjustCallsFragments(newOrientation)
+            appFragment is ContactsFragment || detailFragment is ContactsFragment -> adjustContactsFragments(newOrientation)
+            appFragment is NotificationPanelFragment || detailFragment is NotificationPanelFragment -> adjustNotificationsFragments(newOrientation)
+            appFragment is SavedMessagesPanelFragment || detailFragment is SavedMessagesPanelFragment -> adjustSavedMessagesFragments(newOrientation)
+            // No changes for other fragments
+        }
+
+        // Update toolbar and drawer visibility, and navigation icon
+        updateToolbarAppearance(appFragment)
+    }
+
+    private fun adjustCallsFragments(orientation: Int) {
+        val detailFragment = supportFragmentManager.findFragmentById(R.id.detail_container)
+        val appFragment = supportFragmentManager.findFragmentById(R.id.application_container)
+
+        when (orientation) {
+            Configuration.ORIENTATION_LANDSCAPE -> {
+                if (detailFragment !is CallsFragment || appFragment !is CallFiltersFragment) {
+                    val callsArgs = (detailFragment as? CallsFragment ?: appFragment as? CallsFragment)?.arguments
+                    if (detailFragment != null) {
+                        supportFragmentManager.beginTransaction()
+                            .setReorderingAllowed(true)
+                            .remove(detailFragment)
+                            .commit()
+                    }
+                    if (appFragment != null && appFragment !is CallFiltersFragment) {
+                        supportFragmentManager.beginTransaction()
+                            .setReorderingAllowed(true)
+                            .remove(appFragment)
+                            .commit()
+                    }
+                    supportFragmentManager.executePendingTransactions()
+
+                    supportFragmentManager.beginTransaction()
+                        .setReorderingAllowed(true)
+                        .replace(R.id.detail_container, CallsFragment().apply { arguments = callsArgs }, "calls")
+                        .addToBackStack("calls")
+                        .commit()
+
+                    supportFragmentManager.beginTransaction()
+                        .setReorderingAllowed(true)
+                        .replace(R.id.application_container, CallFiltersFragment(), "call_filters")
+                        .addToBackStack("call_filters")
+                        .commit()
+                }
+                if (binding.slidingPaneLayout.isSlideable && !binding.slidingPaneLayout.isOpen) {
+                    binding.slidingPaneLayout.openPane()
+                }
+            }
+            Configuration.ORIENTATION_PORTRAIT -> {
+                if (appFragment !is CallsFragment || detailFragment != null) {
+                    val callsArgs = (detailFragment as? CallsFragment ?: appFragment as? CallsFragment)?.arguments
+                    if (detailFragment != null) {
+                        supportFragmentManager.beginTransaction()
+                            .setReorderingAllowed(true)
+                            .remove(detailFragment)
+                            .commit()
+                    }
+                    if (appFragment != null && appFragment !is CallsFragment) {
+                        supportFragmentManager.beginTransaction()
+                            .setReorderingAllowed(true)
+                            .remove(appFragment)
+                            .commit()
+                    }
+                    supportFragmentManager.executePendingTransactions()
+
+                    supportFragmentManager.beginTransaction()
+                        .setReorderingAllowed(true)
+                        .replace(R.id.application_container, CallsFragment().apply { arguments = callsArgs }, "calls")
+                        .addToBackStack("calls")
+                        .commit()
+                }
+                if (binding.slidingPaneLayout.isOpen) {
+                    binding.slidingPaneLayout.closePane()
+                }
+            }
+        }
+    }
+
+    private fun adjustContactsFragments(orientation: Int) {
+        val detailFragment = supportFragmentManager.findFragmentById(R.id.detail_container)
+        val appFragment = supportFragmentManager.findFragmentById(R.id.application_container)
+
+        when (orientation) {
+            Configuration.ORIENTATION_LANDSCAPE -> {
+                // Ensure ContactsFragment in detail_container, ContactsPanelFragment in application_container
+                if (detailFragment !is ContactsFragment || appFragment !is ContactsPanelFragment) {
+                    // Capture state if ContactsFragment exists
+                    val contactsArgs = (detailFragment as? ContactsFragment ?: appFragment as? ContactsFragment)?.arguments
+
+                    // Clear existing fragments
+                    if (detailFragment != null) {
+                        supportFragmentManager.beginTransaction()
+                            .setReorderingAllowed(true)
+                            .remove(detailFragment)
+                            .commit()
+                    }
+                    if (appFragment != null && appFragment !is ContactsPanelFragment) {
+                        supportFragmentManager.beginTransaction()
+                            .setReorderingAllowed(true)
+                            .remove(appFragment)
+                            .commit()
+                    }
+                    supportFragmentManager.executePendingTransactions() // Ensure removals complete
+
+                    // Add new instances
+                    supportFragmentManager.beginTransaction()
+                        .setReorderingAllowed(true)
+                        .replace(R.id.detail_container, ContactsFragment().apply { arguments = contactsArgs }, "contacts")
+                        .addToBackStack("contacts")
+                        .commit()
+
+                    supportFragmentManager.beginTransaction()
+                        .setReorderingAllowed(true)
+                        .replace(R.id.application_container, ContactsPanelFragment(), "contacts_panel")
+                        .addToBackStack("contacts_panel")
+                        .commit()
+                }
+                if (binding.slidingPaneLayout.isSlideable && !binding.slidingPaneLayout.isOpen) {
+                    binding.slidingPaneLayout.openPane()
+                }
+            }
+            Configuration.ORIENTATION_PORTRAIT -> {
+                // Ensure ContactsFragment in application_container, detail_container empty
+                if (appFragment !is ContactsFragment || detailFragment != null) {
+                    // Capture state if ContactsFragment exists
+                    val contactsArgs = (detailFragment as? ContactsFragment ?: appFragment as? ContactsFragment)?.arguments
+
+                    // Clear existing fragments
+                    if (detailFragment != null) {
+                        supportFragmentManager.beginTransaction()
+                            .setReorderingAllowed(true)
+                            .remove(detailFragment)
+                            .commit()
+                    }
+                    if (appFragment != null && appFragment !is ContactsFragment) {
+                        supportFragmentManager.beginTransaction()
+                            .setReorderingAllowed(true)
+                            .remove(appFragment)
+                            .commit()
+                    }
+                    supportFragmentManager.executePendingTransactions() // Ensure removals complete
+
+                    // Add new instance
+                    supportFragmentManager.beginTransaction()
+                        .setReorderingAllowed(true)
+                        .replace(R.id.application_container, ContactsFragment().apply { arguments = contactsArgs }, "contacts")
+                        .addToBackStack("contacts")
+                        .commit()
+                }
+                if (binding.slidingPaneLayout.isOpen) {
+                    binding.slidingPaneLayout.closePane()
+                }
+            }
+        }
+
+        // Update toolbar appearance after adjustment
+        updateToolbarAppearance(appFragment)
+    }
+
+    private fun adjustNotificationsFragments(orientation: Int) {
+        val detailFragment = supportFragmentManager.findFragmentById(R.id.detail_container)
+        val appFragment = supportFragmentManager.findFragmentById(R.id.application_container)
+
+        when (orientation) {
+            Configuration.ORIENTATION_LANDSCAPE -> {
+                // Ensure NotificationPanelFragment in detail_container, NotificationsFragment in application_container
+                if (detailFragment !is NotificationPanelFragment || appFragment !is NotificationFragment) {
+                    // Capture state if NotificationPanelFragment exists
+                    val notificationArgs = (detailFragment as? NotificationPanelFragment ?: appFragment as? NotificationPanelFragment)?.arguments
+
+                    // Clear existing fragments
+                    if (detailFragment != null) {
+                        supportFragmentManager.beginTransaction()
+                            .setReorderingAllowed(true)
+                            .remove(detailFragment)
+                            .commit()
+                    }
+                    if (appFragment != null && appFragment !is NotificationFragment) {
+                        supportFragmentManager.beginTransaction()
+                            .setReorderingAllowed(true)
+                            .remove(appFragment)
+                            .commit()
+                    }
+                    supportFragmentManager.executePendingTransactions()
+
+                    // Add new instances
+                    supportFragmentManager.beginTransaction()
+                        .setReorderingAllowed(true)
+                        .replace(R.id.detail_container, NotificationPanelFragment().apply { arguments = notificationArgs }, "notification_panel")
+                        .addToBackStack("notification_panel")
+                        .commit()
+
+                    supportFragmentManager.beginTransaction()
+                        .setReorderingAllowed(true)
+                        .replace(R.id.application_container, NotificationFragment(), "notifications")
+                        .addToBackStack("notifications")
+                        .commit()
+                }
+                if (binding.slidingPaneLayout.isSlideable && !binding.slidingPaneLayout.isOpen) {
+                    binding.slidingPaneLayout.openPane()
+                }
+            }
+            Configuration.ORIENTATION_PORTRAIT -> {
+                // Ensure NotificationPanelFragment in application_container, detail_container empty
+                if (appFragment !is NotificationPanelFragment || detailFragment != null) {
+                    // Capture state if NotificationPanelFragment exists
+                    val notificationArgs = (detailFragment as? NotificationPanelFragment ?: appFragment as? NotificationPanelFragment)?.arguments
+
+                    // Clear existing fragments
+                    if (detailFragment != null) {
+                        supportFragmentManager.beginTransaction()
+                            .setReorderingAllowed(true)
+                            .remove(detailFragment)
+                            .commit()
+                    }
+                    if (appFragment != null && appFragment !is NotificationPanelFragment) {
+                        supportFragmentManager.beginTransaction()
+                            .setReorderingAllowed(true)
+                            .remove(appFragment)
+                            .commit()
+                    }
+                    supportFragmentManager.executePendingTransactions()
+
+                    // Add new instance
+                    supportFragmentManager.beginTransaction()
+                        .setReorderingAllowed(true)
+                        .replace(R.id.application_container, NotificationPanelFragment().apply { arguments = notificationArgs }, "notification_panel")
+                        .addToBackStack("notification_panel")
+                        .commit()
+                }
+                if (binding.slidingPaneLayout.isOpen) {
+                    binding.slidingPaneLayout.closePane()
+                }
+            }
+        }
+    }
+
+    private fun adjustSavedMessagesFragments(orientation: Int) {
+        val detailFragment = supportFragmentManager.findFragmentById(R.id.detail_container)
+        val appFragment = supportFragmentManager.findFragmentById(R.id.application_container)
+
+        when (orientation) {
+            Configuration.ORIENTATION_LANDSCAPE -> {
+                // Ensure SavedMessagesPanelFragment in detail_container, SavedMessagesFragment in application_container
+                if (detailFragment !is SavedMessagesPanelFragment || appFragment !is SavedMessagesFragment) {
+                    // Capture state if SavedMessagesPanelFragment exists
+                    val savedMessagesArgs = (detailFragment as? SavedMessagesPanelFragment ?: appFragment as? SavedMessagesPanelFragment)?.arguments
+
+                    // Clear existing fragments
+                    if (detailFragment != null) {
+                        supportFragmentManager.beginTransaction()
+                            .setReorderingAllowed(true)
+                            .remove(detailFragment)
+                            .commit()
+                    }
+                    if (appFragment != null && appFragment !is SavedMessagesFragment) {
+                        supportFragmentManager.beginTransaction()
+                            .setReorderingAllowed(true)
+                            .remove(appFragment)
+                            .commit()
+                    }
+                    supportFragmentManager.executePendingTransactions()
+
+                    // Add new instances
+                    supportFragmentManager.beginTransaction()
+                        .setReorderingAllowed(true)
+                        .replace(R.id.detail_container, SavedMessagesPanelFragment().apply { arguments = savedMessagesArgs }, "saved_messages_panel")
+                        .addToBackStack("saved_messages_panel")
+                        .commit()
+
+                    supportFragmentManager.beginTransaction()
+                        .setReorderingAllowed(true)
+                        .replace(R.id.application_container, SavedMessagesFragment(), "saved_messages")
+                        .addToBackStack("saved_messages")
+                        .commit()
+                }
+                if (binding.slidingPaneLayout.isSlideable && !binding.slidingPaneLayout.isOpen) {
+                    binding.slidingPaneLayout.openPane()
+                }
+            }
+            Configuration.ORIENTATION_PORTRAIT -> {
+                // Ensure SavedMessagesPanelFragment in application_container, detail_container empty
+                if (appFragment !is SavedMessagesPanelFragment || detailFragment != null) {
+                    // Capture state if SavedMessagesPanelFragment exists
+                    val savedMessagesArgs = (detailFragment as? SavedMessagesPanelFragment ?: appFragment as? SavedMessagesPanelFragment)?.arguments
+
+                    // Clear existing fragments
+                    if (detailFragment != null) {
+                        supportFragmentManager.beginTransaction()
+                            .setReorderingAllowed(true)
+                            .remove(detailFragment)
+                            .commit()
+                    }
+                    if (appFragment != null && appFragment !is SavedMessagesPanelFragment) {
+                        supportFragmentManager.beginTransaction()
+                            .setReorderingAllowed(true)
+                            .remove(appFragment)
+                            .commit()
+                    }
+                    supportFragmentManager.executePendingTransactions()
+
+                    // Add new instance
+                    supportFragmentManager.beginTransaction()
+                        .setReorderingAllowed(true)
+                        .replace(R.id.application_container, SavedMessagesPanelFragment().apply { arguments = savedMessagesArgs }, "saved_messages_panel")
+                        .addToBackStack("saved_messages_panel")
+                        .commit()
+                }
+                if (binding.slidingPaneLayout.isOpen) {
+                    binding.slidingPaneLayout.closePane()
+                }
+            }
+        }
+    }
+
+    private fun updateToolbarAppearance(appFragment: Fragment?) {
+        binding.toolbarNav.isVisible = appFragment is ChatListFragment
+        drawerLayout.setDrawerLockMode(
+            if (binding.toolbarNav.isVisible) DrawerLayout.LOCK_MODE_UNLOCKED
+            else DrawerLayout.LOCK_MODE_LOCKED_CLOSED
+        )
+        // Remove navigation icon if not ChatListFragment
+        if (appFragment !is ChatListFragment) {
+            binding.toolbarNav.navigationIcon = null
+        } else {
+            // Restore navigation icon for ChatListFragment (assuming it uses the drawer icon)
+            binding.toolbarNav.setNavigationIcon(null) // Adjust to your original icon
+            actionBarToggle.syncState() // Ensure drawer toggle works
+        }
+    }
 
     private fun showUnreadChats(showUnread: Boolean) {
         if (activeFragment is ChatListFragment) chatListViewModel.setShowUnreadOnly(showUnread)

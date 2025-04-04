@@ -20,7 +20,7 @@ class IncomingCallsFragment : BaseFragment(R.layout.incoming_calls) {
     private fun toolbarActions() {
         binding.callsToolbar.setNavigationIcon(R.drawable.ic_arrow_left_white)
         binding.callsToolbar.setNavigationOnClickListener {
-            navigator().closePanel()
+            navigator().close()
         }
     }
 }

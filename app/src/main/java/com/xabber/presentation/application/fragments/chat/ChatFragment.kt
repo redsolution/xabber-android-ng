@@ -217,7 +217,10 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-
+        binding.toolbar.setNavigationIcon(R.drawable.ic_arrow_left_white)
+        binding.toolbar.setNavigationOnClickListener{
+            navigator().closeDetail()
+        }
         val chat = viewModel.loadChat(getParams().id)
         if (chat == null) navigator().closeDetail()
         else {

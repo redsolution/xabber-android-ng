@@ -18,7 +18,7 @@ class MissedCallsFragment : BaseFragment(R.layout.missed_calls) {
     private fun toolbarActions() {
         binding.callsToolbar.setNavigationIcon(R.drawable.ic_arrow_left_white)
         binding.callsToolbar.setNavigationOnClickListener {
-            navigator().closePanel()
+            navigator().close()
         }
     }
 

@@ -27,6 +27,7 @@ class CallFiltersFragment : BaseFragment(R.layout.fragment_calls_filters) {
     }
 
     private fun toolbarActions() {
+
         binding.callsToolbar.setNavigationIcon(R.drawable.ic_arrow_left_white)
         binding.callsToolbar.setNavigationOnClickListener {
             navigator().goBack()
@@ -42,25 +43,42 @@ class CallFiltersFragment : BaseFragment(R.layout.fragment_calls_filters) {
 
     private fun handleMissedCall() {
         binding.missedCallLayout.setOnClickListener {
-            navigator().launchDetail(MissedCallsFragment())
+            replaceDetailFragmentInStack(MissedCallsFragment())
         }
     }
 
     private fun handleIncomingCall() {
-        binding.incomingCallLayout.setOnClickListener{
-            navigator().launchDetail(IncomingCallsFragment())
+        binding.incomingCallLayout.setOnClickListener {
+            replaceDetailFragmentInStack(IncomingCallsFragment())
         }
     }
+
     private fun handleOutgoingCall() {
-        binding.outgoingCallLayout.setOnClickListener{
-            navigator().launchDetail(OutgoingCallsFragment())
+        binding.outgoingCallLayout.setOnClickListener {
+            replaceDetailFragmentInStack(OutgoingCallsFragment())
         }
     }
 
     private fun handleDeclinedCall() {
-        binding.declinedCallLayout.setOnClickListener{
-            navigator().launchDetail(DeclinedCallsFragment())
+        binding.declinedCallLayout.setOnClickListener {
+            replaceDetailFragmentInStack(DeclinedCallsFragment())
         }
+    }
+
+    private fun replaceDetailFragmentInStack(fragment: Fragment) {
+        // Get the current fragment in detail_container
+        val currentFragment = requireActivity().supportFragmentManager.findFragmentById(R.id.detail_container)
+
+        // If there's an existing fragment in detail_container, remove it from the back stack
+        if (currentFragment != null) {
+            requireActivity().supportFragmentManager.popBackStackImmediate(
+                currentFragment::class.java.simpleName,
+                FragmentManager.POP_BACK_STACK_INCLUSIVE
+            )
+        }
+
+        // Launch the new fragment in detail_container, replacing the previous one
+        navigator().launchDetailInStack(fragment)
     }
 
     private fun activeLinks() {
