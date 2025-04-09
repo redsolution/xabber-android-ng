@@ -217,10 +217,8 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        binding.toolbar.setNavigationIcon(R.drawable.ic_arrow_left_white)
-        binding.toolbar.setNavigationOnClickListener{
-            navigator().closeDetail()
-        }
+
+
         val chat = viewModel.loadChat(getParams().id)
         if (chat == null) navigator().closeDetail()
         else {
@@ -244,12 +242,35 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     }
 
     private fun prepareUi(chat: ChatListDto) {
+        onOrientationChange()
         loadContactAvatar()
         setTitle(chat.getChatName())
         setStatus(chat.status, chat.entity)
         setupMuteIcon(chat.muteExpired)
     }
 
+
+    private fun updateToolbarNavigation() {
+        when (resources.configuration.orientation) {
+            Configuration.ORIENTATION_PORTRAIT -> {
+                binding.toolbar.setNavigationIcon(R.drawable.ic_arrow_left_white)
+                binding.toolbar.setNavigationOnClickListener {
+                    navigator().closeDetail()
+                }
+            }
+            Configuration.ORIENTATION_LANDSCAPE -> {
+                binding.toolbar.setNavigationIcon(null) // Remove the back button
+                binding.toolbar.setNavigationOnClickListener(null) // Clear the listener
+            }
+        }
+    }
+    private fun onOrientationChange() {
+        updateToolbarNavigation()
+    }
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        updateToolbarNavigation() // Update toolbar when orientation changes
+    }
     private fun loadContactAvatar() {
         binding.avatar.setImageResource(getParams().avatar!!)
     }

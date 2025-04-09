@@ -76,7 +76,9 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
         initPullRefreshLayout()
         binding.chatToolbar.navigationIcon = context?.let { ContextCompat.getDrawable(it, android.R.color.transparent) }
 
-
+        chatListViewModel.selectedChatId.observe(viewLifecycleOwner) { selectedChatId ->
+            chatListAdapter?.setSelectedChatId(selectedChatId)
+        }
 
 
         if (baseViewModel.getPrimaryAccount() == null)
@@ -237,6 +239,7 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
     }
 
     override fun onClickItem(chatListDto: ChatListDto) {
+        chatListViewModel.selectChat(chatListDto.id)
         if (DisplayManager.isDualScreenMode()) {
             if (selectedChatId != chatListDto.id) {   // В режиме двух экранов перед тем как открыть чат делаем проверку на то что он уже открыт, чтобы не открывать заново
                 selectedChatId = chatListDto.id

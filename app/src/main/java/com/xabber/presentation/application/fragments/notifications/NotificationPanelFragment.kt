@@ -37,33 +37,18 @@ class NotificationPanelFragment : BaseFragment(R.layout.fragment_notifications) 
         binding.filter.isVisible = false
         binding.notificationsToolbar.navigationIcon = null
         activeLinks()
-        ifOrientationIsPortrait()
         setupOrientationLayout()
         filterIcon()
-        binding.tvTitle.isVisible = false
     }
 
-    private fun ifOrientationIsPortrait() {
-        val widthDp = DisplayManager.getWidthDp()
-        val orientation = resources.configuration.orientation
 
-        if (widthDp > 600 && orientation == Configuration.ORIENTATION_PORTRAIT) {
-            binding.notificationsToolbar.navigationIcon = null
-            binding.tvTitle.isVisible = true
-
-            binding.notificationsToolbar.setNavigationIcon(R.drawable.ic_arrow_left_white)
-            binding.notificationsToolbar.setNavigationOnClickListener {
-                navigator().goBack() // This will pop the back stack
-            }
-        }
-    }
     private fun setupOrientationLayout() {
         val orientation = resources.configuration.orientation
         if (orientation == Configuration.ORIENTATION_PORTRAIT) {
+            binding.notificationsToolbar.navigationIcon = null
             binding.notificationsToolbar.setNavigationIcon(R.drawable.ic_arrow_left_white)
             binding.notificationsToolbar.setNavigationOnClickListener {
                 navigator().goBack()
-                navigator().closeDetail()
             }
             binding.filter.setOnClickListener { view ->
                 showPopupMenu(view)
@@ -83,7 +68,7 @@ class NotificationPanelFragment : BaseFragment(R.layout.fragment_notifications) 
                     .commit()
             }
         } else { // Landscape
-
+                binding.tvTitle.isVisible=false
             // Ensure CallsFragment is in detail_container, CallFiltersFragment in application_container
             if (requireActivity().supportFragmentManager.findFragmentById(R.id.detail_container) !is NotificationPanelFragment) {
                 requireActivity().supportFragmentManager.beginTransaction()

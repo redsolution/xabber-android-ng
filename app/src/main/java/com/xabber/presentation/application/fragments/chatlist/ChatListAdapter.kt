@@ -1,14 +1,18 @@
 package com.xabber.presentation.application.fragments.chatlist
 
+import android.annotation.SuppressLint
+import android.graphics.Color
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.ViewGroup
+import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.RecyclerView.ViewHolder
+import com.xabber.R
 import com.xabber.databinding.HideChatItemBinding
 import com.xabber.databinding.ItemChatListBinding
 import com.xabber.dto.ChatListDto
@@ -28,6 +32,7 @@ class ChatListAdapter(
 ) : ListAdapter<ChatListDto, ViewHolder>(DiffUtilCallback) {
     lateinit var recyclerView: RecyclerView
     var isManyOwners = false  // если включено несколько аккаунтов, показываем индикатор цвета аккаунта, если нет - не показываем
+    private var selectedChatId: String? = null
 
     interface ChatListener {
 
@@ -51,12 +56,34 @@ class ChatListAdapter(
     companion object {
         const val HIDE_CHAT = 0   // этот item будет вверху списка и не видим (нужен для правильной работы списка)
         const val NORMAL_CHAT = 1
+        const val PAYLOAD_SELECTION = "PAYLOAD_SELECTION"
     }
 
+    fun setSelectedChatId(newSelectedChatId: String?) {
+        val oldSelectedChatId = selectedChatId
+        selectedChatId = newSelectedChatId
+
+        // Disable animator to prevent flickering during selection updates
+        val previousAnimator = recyclerView.itemAnimator
+        recyclerView.itemAnimator = null
+
+        if (oldSelectedChatId != null) {
+            val oldPosition = currentList.indexOfFirst { it.id == oldSelectedChatId }
+            if (oldPosition != -1) notifyItemChanged(oldPosition, PAYLOAD_SELECTION)
+        }
+        if (newSelectedChatId != null) {
+            val newPosition = currentList.indexOfFirst { it.id == newSelectedChatId }
+            if (newPosition != -1) notifyItemChanged(newPosition, PAYLOAD_SELECTION)
+        }
+
+        recyclerView.itemAnimator = previousAnimator
+    }
+
+
     override fun onAttachedToRecyclerView(recycler: RecyclerView) {
-        recyclerView = recycler
+        this.recyclerView = recycler
         ItemTouchHelper(SwipeToArchiveCallback(this)).attachToRecyclerView(recycler)
-        super.onAttachedToRecyclerView(recyclerView)
+        super.onAttachedToRecyclerView(recycler)
     }
 
     override fun getItemViewType(position: Int): Int {
@@ -66,7 +93,7 @@ class ChatListAdapter(
         }
     }
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
         val inflater = LayoutInflater.from(parent.context)
         return when (viewType) {
             NORMAL_CHAT -> {
@@ -77,29 +104,50 @@ class ChatListAdapter(
                 val binding = HideChatItemBinding.inflate(inflater, parent, false)
                 HideChatListViewHolder(binding)
             }
-            else -> {
-                throw IllegalStateException("Unsupported message view type!")
-            }
+            else -> throw IllegalStateException("Unsupported message view type!")
         }
     }
 
-    override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+    override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
         if (holder is ChatListViewHolder) {
-//            holder.getDivider().isVisible = isManyOwners
-            holder.bind(getItem(position), listener)
+            val chat = getItem(position)
+            holder.bind(chat, listener)
+            updateBackground(holder, chat)
         }
     }
 
     override fun onBindViewHolder(
-        holder: ViewHolder,
+        holder: RecyclerView.ViewHolder,
         position: Int,
         payloads: MutableList<Any>
     ) {
-        if (payloads.isEmpty()) {
-            super.onBindViewHolder(holder, position, payloads)
+        if (holder is ChatListViewHolder) {
+            val chat = getItem(position)
+            if (payloads.isEmpty()) {
+                // Full bind for new messages or initial load
+                holder.bind(chat, listener)
+                updateBackground(holder, chat)
+            } else if (payloads.contains(PAYLOAD_SELECTION)) {
+                // Partial update for selection changes
+                updateBackground(holder, chat)
+            } else {
+                // Handle other payloads (e.g., from DiffUtilCallback)
+                holder.bind(chat, listener, payloads)
+                updateBackground(holder, chat)
+            }
+        }
+    }
+
+    private fun updateBackground(holder: ChatListViewHolder, chat: ChatListDto) {
+        if (chat.id == selectedChatId) {
+            holder.binding.chatGround.setBackgroundColor(
+                ContextCompat.getColor(holder.itemView.context, R.color.grey_200)
+            )
         } else {
-            if (holder is ChatListViewHolder)
-                holder.bind(getItem(position), listener, payloads)
+            holder.binding.chatGround.setBackgroundResource(
+                if (chat.pinnedDate > 0) R.drawable.clickable_pinned_chat_background
+                else R.drawable.clickable_view_group_background
+            )
         }
     }
 
@@ -152,5 +200,6 @@ class ChatListAdapter(
             return diffBundle
         }
     }
+
 
 }

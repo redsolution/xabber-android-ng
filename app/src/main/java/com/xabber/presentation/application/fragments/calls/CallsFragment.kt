@@ -40,7 +40,6 @@ class CallsFragment : BaseFragment(R.layout.fragment_calls) {
             binding.callsToolbar.setNavigationIcon(R.drawable.ic_arrow_left_white)
             binding.callsToolbar.setNavigationOnClickListener {
                 navigator().goBack()
-                navigator().closeDetail()
             }
             binding.filter.setOnClickListener { view ->
                 showPopupMenu(view)

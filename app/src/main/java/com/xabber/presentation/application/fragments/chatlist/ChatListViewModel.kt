@@ -40,8 +40,8 @@ class ChatListViewModel : ViewModel() {
     private val _chats = MutableLiveData<ArrayList<ChatListDto>>()
     val chats: LiveData<ArrayList<ChatListDto>> = _chats
     private var chatListDto = ArrayList<ChatListDto>()
-    var selectedChatId = ""
-
+    private val _selectedChatId = MutableLiveData<String?>()
+    val selectedChatId: LiveData<String?> = _selectedChatId
     private val _showUnreadOnly = MutableLiveData<Boolean>()
     val showUnreadOnly: LiveData<Boolean> = _showUnreadOnly
     private val anchorChatList = ChatListDto(
@@ -74,7 +74,9 @@ class ChatListViewModel : ViewModel() {
         initDataListener()
         getChatList()
     }
-
+    fun selectChat(chatId: String) {
+        _selectedChatId.value = chatId
+    }
     fun initDataListener() {
         job?.cancel()
         val accounts = getEnableAccountList()

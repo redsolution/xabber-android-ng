@@ -38,32 +38,30 @@ import java.util.*
 
 
 class ChatListViewHolder(
-    private val binding: ItemChatListBinding
+    val binding: ItemChatListBinding // Make binding public for adapter access
 ) : RecyclerView.ViewHolder(binding.root) {
 
-//    fun getDivider(): View = binding.accountColorIndicator
-
     fun bind(chatListDto: ChatListDto, listener: ChatListAdapter.ChatListener) {
-        binding.cardview.radius = 0f             // скругленный уголок появится при сдвиге чата влево, в обычном состоянии 0
-        setColorDivider(chatListDto.colorKey)   // цвет-индикатор аккаунта
-        setAvatar(chatListDto.drawableId)      // здесь нужно будет скачивать аватарку с сервера, пока что просто картинка-заглушка
-        setName(chatListDto.getChatName())    // имя собеседника. Групповые чаты пока не реализованы. В дальнейшем добавить если групповой чат - название группы
-        setTextMessage(chatListDto.draftMessage, chatListDto.lastMessageBody)  // контент последнего сообщения или черновик
-        setTime(chatListDto.lastMessageDate)     // время отправки последнего сообщения (если сообщений еще нет - время создания чата)
-        setPin(chatListDto.pinnedDate)           // добавление фона и иконки для запиненных чатов
-        setMuted(chatListDto.muteExpired)        // иконка замьюченных чатов
-        setUnreadMessages(chatListDto.unread, chatListDto.muteExpired, chatListDto.lastMessageIsOutgoing)  // показ бейджа непрочитанных сообщений и установление его цвета: зеленый - уведомления включены, серый - выключены
-        setMessageSendingState(chatListDto)    // статус доставки сообщения
-        setupChatStatus(chatListDto)           // статус чата
+        binding.cardview.radius = 0f
+        setColorDivider(chatListDto.colorKey)
+        setAvatar(chatListDto.drawableId)
+        setName(chatListDto.getChatName())
+        setTextMessage(chatListDto.draftMessage, chatListDto.lastMessageBody)
+        setTime(chatListDto.lastMessageDate)
+        setPin(chatListDto.pinnedDate) // Updated below
+        setMuted(chatListDto.muteExpired)
+        setUnreadMessages(chatListDto.unread, chatListDto.muteExpired, chatListDto.lastMessageIsOutgoing)
+        setMessageSendingState(chatListDto)
+        setupChatStatus(chatListDto)
 
         binding.chatSyncImage.isVisible = chatListDto.isSynced
 
         itemView.setOnClickListener {
-            listener.onClickItem(chatListDto)   // открытие чата
+            listener.onClickItem(chatListDto)
         }
 
         itemView.setOnLongClickListener {
-            setupAndShowPopupMenu(chatListDto.id, chatListDto.muteExpired, chatListDto.pinnedDate, chatListDto.getChatName(), listener)   // показ меню
+            setupAndShowPopupMenu(chatListDto.id, chatListDto.muteExpired, chatListDto.pinnedDate, chatListDto.getChatName(), listener)
             true
         }
     }
@@ -126,16 +124,21 @@ class ChatListViewHolder(
         }
     }
 
+//    private fun setPin(pinnedDate: Long) {
+//        if (pinnedDate > 0) {
+//            binding.chatGround.setBackgroundResource(
+//                R.drawable.clickable_pinned_chat_background
+//            )
+//        } else {
+//            binding.chatGround.setBackgroundResource(R.drawable.clickable_view_group_background)
+//        }
+//        binding.imChatListPinned.isVisible =
+//            pinnedDate > 0
+//    }
+
     private fun setPin(pinnedDate: Long) {
-        if (pinnedDate > 0) {
-            binding.chatGround.setBackgroundResource(
-                R.drawable.clickable_pinned_chat_background
-            )
-        } else {
-            binding.chatGround.setBackgroundResource(R.drawable.clickable_view_group_background)
-        }
-        binding.imChatListPinned.isVisible =
-            pinnedDate > 0
+        // Remove background setting here; let the adapter handle it
+        binding.imChatListPinned.isVisible = pinnedDate > 0
     }
 
     private fun setUnreadMessages(

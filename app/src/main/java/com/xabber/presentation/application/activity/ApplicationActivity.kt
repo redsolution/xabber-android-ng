@@ -341,7 +341,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
                 // Single-screen mode: Replace main container with CallsFragment
                 supportFragmentManager.beginTransaction()
                     .setReorderingAllowed(true)
-                    .replace(R.id.application_container, NotificationFragment())
+                    .replace(R.id.application_container, NotificationPanelFragment())
                     .addToBackStack("main_notification_frag") // Add to backstack
                     .commit()
             }
@@ -826,6 +826,8 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
                 }
             }
         }
+        updateToolbarAppearance(appFragment)
+
     }
 
     private fun adjustContactsFragments(orientation: Int) {
@@ -985,6 +987,8 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
                 }
             }
         }
+        updateToolbarAppearance(appFragment)
+
     }
 
     private fun adjustSavedMessagesFragments(orientation: Int) {
@@ -1063,6 +1067,8 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
                 }
             }
         }
+        updateToolbarAppearance(appFragment)
+
     }
 
     private fun updateToolbarAppearance(appFragment: Fragment?) {
@@ -1131,18 +1137,37 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
             return
         }
 
+        val isPortrait = resources.configuration.orientation == Configuration.ORIENTATION_PORTRAIT
+
         if (supportFragmentManager.backStackEntryCount > 0) {
+            // Pop back to chat_list_root
             supportFragmentManager.popBackStack("chat_list_root", 0)
             drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_UNLOCKED)
             binding.toolbarNav.isVisible = true
             setupNavigationDrawer()
 
+            // In portrait mode, ensure detail_container is cleared and SlidingPaneLayout is closed
+            if (isPortrait) {
+                val detailFragment = supportFragmentManager.findFragmentById(R.id.detail_container)
+                if (detailFragment != null) {
+                    supportFragmentManager.beginTransaction()
+                        .remove(detailFragment)
+                        .commit()
+                    Log.d("ApplicationActivity", "goBack: Cleared detail_container in portrait mode")
+                }
+                if (binding.slidingPaneLayout.isOpen) {
+                    binding.slidingPaneLayout.closePane()
+                    Log.d("ApplicationActivity", "goBack: Closed SlidingPaneLayout in portrait mode")
+                }
+            }
+
+            // Add listener to handle post-back-stack state
             supportFragmentManager.addOnBackStackChangedListener(object : FragmentManager.OnBackStackChangedListener {
                 override fun onBackStackChanged() {
                     val restoredFragment = supportFragmentManager.findFragmentById(R.id.application_container)
                     Log.d("ApplicationActivity", "Back stack changed, restored fragment = ${restoredFragment?.javaClass?.simpleName}")
                     val restoredDetailFragment = supportFragmentManager.findFragmentById(R.id.detail_container)
-                    if (restoredDetailFragment is ChatFragment) {
+                    if (!isPortrait && restoredDetailFragment is ChatFragment) {
                         binding.slidingPaneLayout.openPane()
                     }
                     supportFragmentManager.removeOnBackStackChangedListener(this)
@@ -1155,13 +1180,21 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
                 replace(R.id.application_container, ChatListFragment())
                 addToBackStack("chat_list_root")
             }
-            closeDetail()
+            // Clear detail_container and close SlidingPaneLayout in portrait mode
+            if (isPortrait) {
+                closeDetail()
+            }
             drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_UNLOCKED)
             binding.toolbarNav.isVisible = true
             setupNavigationDrawer()
         } else {
             Log.d("ApplicationActivity", "Already on ChatListFragment, closing detail")
-            closeDetail()
+            // Ensure detail_container is cleared in portrait mode
+            if (isPortrait) {
+                closeDetail()
+            } else if (binding.slidingPaneLayout.isOpen) {
+                binding.slidingPaneLayout.closePane()
+            }
         }
     }
     override fun closeDetail() {
