@@ -8,7 +8,6 @@ import android.text.Spannable
 import android.text.SpannableString
 import android.text.style.ForegroundColorSpan
 import android.view.Gravity
-import android.view.View
 import androidx.appcompat.widget.PopupMenu
 import androidx.core.content.ContextCompat
 import androidx.core.text.HtmlCompat
@@ -31,7 +30,7 @@ import com.xabber.presentation.AppConstants.PAYLOAD_PINNED_POSITION_CHAT
 import com.xabber.presentation.application.dialogs.TimeMute
 import com.xabber.presentation.application.fragments.chat.StatusMaker
 import com.xabber.presentation.application.manage.ColorManager
-import com.xabber.presentation.application.util.dateFormat
+import com.xabber.utils.dateFormat
 import com.xabber.presentation.application.manage.MaskManager
 import com.xabber.utils.parcelable
 import java.util.*

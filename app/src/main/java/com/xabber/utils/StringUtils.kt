@@ -1,7 +1,6 @@
 package com.xabber.utils
 
 import android.content.Context
-import com.xabber.presentation.application.util.isCurrentYear
 import java.text.SimpleDateFormat
 import java.util.*
 

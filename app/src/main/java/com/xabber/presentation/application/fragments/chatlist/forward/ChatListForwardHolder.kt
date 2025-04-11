@@ -14,7 +14,7 @@ import com.xabber.data_base.models.presences.ResourceStatus
 import com.xabber.data_base.models.presences.RosterItemEntity
 import com.xabber.presentation.application.manage.MaskManager
 import com.xabber.presentation.application.dialogs.TimeMute
-import com.xabber.presentation.application.util.dateFormat
+import com.xabber.utils.dateFormat
 import com.xabber.utils.dp
 import java.util.*
 

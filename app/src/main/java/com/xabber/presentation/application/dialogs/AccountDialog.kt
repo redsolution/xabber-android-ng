@@ -114,7 +114,7 @@ class AccountDialog : DialogFragment(R.layout.fragment_account), SharedPreferenc
         createAvatarPopupMenu()
         initAccountSettingsActions()
         subscribeToViewModelData()
-        binding.accountAppbar.shapeView?.setDrawable(MaskManager.mask)
+        binding.accountAppbar.shapeView.setDrawable(MaskManager.mask)
         viewModel.avatarBitmap.observe(viewLifecycleOwner) {
             setAvatar(it)
         }
@@ -139,7 +139,7 @@ class AccountDialog : DialogFragment(R.layout.fragment_account), SharedPreferenc
 
 
     override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences?, key: String?) {
-        binding.accountAppbar.shapeView?.setDrawable(MaskManager.mask)
+        binding.accountAppbar.shapeView.setDrawable(MaskManager.mask)
     }
     private fun setupTitle() {
 //        binding.accountAppbar.tvTitle.isSelected = true

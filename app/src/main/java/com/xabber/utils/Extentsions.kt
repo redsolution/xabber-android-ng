@@ -254,3 +254,57 @@ fun MessageReferenceStorageItem.toMessageReferenceDto() =
         longitude = longitude,
         isVoiceMessage = isAudioMessage
     )
+
+/**
+ * Joins a list of strings with an underscore (_) separator.
+ * Mirrors the Swift `prp()` method.
+ *
+ * @return A single string with elements joined by "_".
+ * @sample ["uid", "owner"].prp() returns "uid_owner"
+ */
+fun List<String>.prp(): String {
+    return joinToString(separator = "_")
+}
+
+/**
+ * Joins an array of strings with an underscore (_) separator.
+ * Mirrors the Swift `prp()` method for array inputs.
+ *
+ * @return A single string with elements joined by "_".
+ * @sample arrayOf("uid", "owner").prp() returns "uid_owner"
+ */
+fun Array<String>.prp(): String {
+    return joinToString(separator = "_")
+}
+
+/**
+ * Splits a list into sublists of the specified [size].
+ * The last sublist may be smaller than [size] if the list's size is not evenly divisible.
+ *
+ * @param size The desired size of each chunk. Must be positive.
+ * @return A list of sublists, each containing up to [size] elements.
+ * @throws IllegalArgumentException if [size] is not positive.
+ * @sample [1, 2, 3, 4, 5].chunked(2) returns [[1, 2], [3, 4], [5]]
+ */
+fun <T> List<T>.chunked(size: Int): List<List<T>> {
+    require(size > 0) { "Chunk size must be positive, was $size" }
+    return (0 until this.size step size).map { start ->
+        subList(start, minOf(start + size, this.size))
+    }
+}
+
+/**
+ * Splits an array into subarrays of the specified [size].
+ * The last subarray may be smaller than [size] if the array's size is not evenly divisible.
+ *
+ * @param size The desired size of each chunk. Must be positive.
+ * @return A list of arrays, each containing up to [size] elements.
+ * @throws IllegalArgumentException if [size] is not positive.
+ * @sample arrayOf(1, 2, 3, 4, 5).chunked(2) returns [[1, 2], [3, 4], [5]]
+ */
+fun <T> Array<T>.chunked(size: Int): List<Array<T>> {
+    require(size > 0) { "Chunk size must be positive, was $size" }
+    return (0 until this.size step size).map { start ->
+        sliceArray(start until minOf(start + size, this.size))
+    }
+}

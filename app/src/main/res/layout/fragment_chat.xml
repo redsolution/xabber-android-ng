@@ -426,7 +426,8 @@
         android:layout_height="match_parent"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="@id/btn_record_expanded"
-        app:layout_constraintStart_toStartOf="@id/btn_record_expanded">
+        app:layout_constraintStart_toStartOf="@id/btn_record_expanded"
+        tools:ignore="NotSibling">
 
         <androidx.constraintlayout.widget.ConstraintLayout
             android:id="@+id/lin_record_lock"
@@ -475,7 +476,8 @@
         android:visibility="gone"
         app:layout_constraintBottom_toBottomOf="@id/input_layout"
         app:layout_constraintEnd_toEndOf="@id/btn_record_expanded"
-        app:layout_constraintStart_toStartOf="@id/btn_record_expanded">
+        app:layout_constraintStart_toStartOf="@id/btn_record_expanded"
+        tools:ignore="NotSibling">
 
         <ImageView
             android:id="@+id/imStop"

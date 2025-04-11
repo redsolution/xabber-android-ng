@@ -5,21 +5,21 @@ import io.realm.kotlin.types.RealmObject
 import io.realm.kotlin.types.annotations.PrimaryKey
 
 open class ResourceStorageItem: RealmObject { // устройство, подключение. если null устройство не подключено
-    @PrimaryKey
-    var primary: String = ""
-    var owner: String = ""
-    var jid: String = ""
-    var resource: String = ""
-    var client: String = ""
-    var priority: Int = 0
-    var timestamp: Long = 0
-    var type_: String = ClientType.Unknown.rawValue
-    var status_: String = ResourceStatus.Offline.rawValue
-    var entity_: String = RosterItemEntity.Contact.rawValue
-    var statusMessage: String = ""
-    var isTemporary: Boolean = false
-    var isCurrentResourceForAccount: Boolean = false
-    var deviceId: String = ""
+//    @PrimaryKey
+//    var primary: String = ""
+//    var owner: String = ""
+//    var jid: String = ""
+//    var resource: String = ""
+//    var client: String = ""
+//    var priority: Int = 0
+//    var timestamp: Long = 0
+//    var type_: String = ClientType.Unknown.rawValue
+//    var status_: String = ResourceStatus.Offline.rawValue
+//    var entity_: String = RosterItemEntity.Contact.rawValue
+//    var statusMessage: String = ""
+//    var isTemporary: Boolean = false
+//    var isCurrentResourceForAccount: Boolean = false
+//    var deviceId: String = ""
 
 //    @delegate:Ignore
 //    var type: ClientType

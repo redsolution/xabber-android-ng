@@ -1,4 +1,4 @@
-package com.xabber.presentation.application.util
+package com.xabber.utils
 
 import android.annotation.SuppressLint
 import android.content.Context

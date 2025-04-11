@@ -10,7 +10,7 @@ import com.xabber.data_base.models.messages.MessageDisplayType
 import com.xabber.dto.MessageDto
 import com.xabber.presentation.application.fragments.chat.ChatSettingsManager
 import com.xabber.presentation.application.fragments.chat.MessageVhExtraData
-import com.xabber.presentation.application.util.isSameDayWith
+import com.xabber.utils.isSameDayWith
 
 class MessageAdapter(private val layoutInflater: LayoutInflater,
     private val listener: MenuItemListener? = null,

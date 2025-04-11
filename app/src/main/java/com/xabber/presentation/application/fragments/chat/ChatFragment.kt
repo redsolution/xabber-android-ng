@@ -1292,7 +1292,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         }
         val imageList = ArrayList<String>()
         if (imagePaths != null) {
-            imagePaths!!.forEach {
+            imagePaths.forEach {
 
                 imageList.add(it)
 

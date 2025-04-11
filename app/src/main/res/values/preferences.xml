@@ -27,10 +27,10 @@
     <string name="interface_smiles_default" translatable="false">@string/interface_smiles_android_value</string>
 
     <string name="main_account_color_level" translatable="false">main_account_color_level</string>
-    <string name="main_account_color_level_default">0</string>
+    <string name="main_account_color_level_default" translatable="false">0</string>
 
     <string name="main_account_avatar_hash" translatable="false">main_account_hash_avatar</string>
-    <string name="main_account_avatar_hash_default">default_hash_avatar</string>
+    <string name="main_account_avatar_hash_default" translatable="false">default_hash_avatar</string>
 
 
 </resources>
