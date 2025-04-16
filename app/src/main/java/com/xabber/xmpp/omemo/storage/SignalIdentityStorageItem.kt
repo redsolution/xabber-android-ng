@@ -6,6 +6,8 @@ import io.realm.kotlin.types.annotations.PrimaryKey
 
 
 open class SignalIdentityStorageItem : RealmObject {
+    fun primaryKey(): String? = "primary"
+
     @PrimaryKey
     var primary: String = ""
 

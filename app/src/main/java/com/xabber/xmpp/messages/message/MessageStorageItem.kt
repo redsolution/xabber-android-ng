@@ -176,9 +176,6 @@ open class MessageStorageItem : RealmObject {
             }
         }
 
-    /**
-     * Displayed nickname for group chat messages, prefixed with "You:" for outgoing.
-     */
     val groupchatDisplayedNickname: String?
         get() = groupchatAuthorNickname?.let {
             if (displayAs != MessageDisplayType.SYSTEM) {
@@ -186,23 +183,17 @@ open class MessageStorageItem : RealmObject {
             } else null
         }
 
-    /**
-     * Avatar path for group chat user, derived from metadata.
-     */
+
     val groupchatUserAvatarPath: String?
         get() = (groupchatMetadata?.get("avatar_uri") as? String)?.let {
             listOf(it, opponent).prp()
         }
 
-    /**
-     * Metadata for call-related messages.
-     */
+
     val callMetadata: Map<String, Any>?
         get() = references.find { it.kind == ReferenceKind.CALL }?.metadata
 
-    /**
-     * Error metadata as a JSON dictionary.
-     */
+
     var errorMetadata: Map<String, Any>?
         get() = errorMetadataRaw?.let { raw ->
             try {
@@ -223,9 +214,7 @@ open class MessageStorageItem : RealmObject {
             }
         }
 
-    /**
-     * System metadata as a JSON dictionary.
-     */
+
     var systemMetadata: Map<String, Any>?
         get() = systemMetadataRaw?.let { raw ->
             try {
@@ -246,11 +235,7 @@ open class MessageStorageItem : RealmObject {
             }
         }
 
-    /**
-     * Returns the body text formatted for display, based on [displayAs].
-     *
-     * @param context Android context for accessing string resources.
-     */
+
     fun displayedBody(context: Context): String {
         return when (displayAs) {
             MessageDisplayType.INITIAL -> ""
@@ -325,9 +310,7 @@ open class MessageStorageItem : RealmObject {
         }
     }
 
-    /**
-     * Updates the primary key, appending suffixes for system or auth messages.
-     */
+
     fun updatePrimary(system: Boolean = false, auth: Boolean = false) {
         if (primary.isNotEmpty()) return
         primary = genPrimary(messageId = messageId, owner = owner)
@@ -336,9 +319,7 @@ open class MessageStorageItem : RealmObject {
         if (isInvite) primary += "_invite"
     }
 
-    /**
-     * Stores the original stanza in a [MessageStanzaStorageItem].
-     */
+
     fun storeStanza(realm: Realm) {
         if (originalStanza == null || primary.isEmpty()) return
         val instance = MessageStanzaStorageItem().apply {
@@ -353,9 +334,7 @@ open class MessageStorageItem : RealmObject {
         }
     }
 
-    /**
-     * Saves a stanza from an [XMPPMessage].
-     */
+
     fun saveStanza(message: XMPPMessage, date: Date, realm: Realm) {
         if (primary.isEmpty()) return
         val stanza = MessageStanzaStorageItem().apply {
@@ -372,9 +351,7 @@ open class MessageStorageItem : RealmObject {
         }
     }
 
-    /**
-     * Configures a system message from an [XMPPMessage].
-     */
+
     fun configureSystemMessage(messageContainer: XMPPMessage, owner: String, opponent: String, date: Date) {
         references.addAll(parseReferences(messageContainer, opponent, owner))
         legacyBody = messageContainer.body ?: ""
@@ -393,9 +370,6 @@ open class MessageStorageItem : RealmObject {
         updatePrimary()
     }
 
-    /**
-     * Edits a message from an [XMPPMessage].
-     */
     fun editMessage(messageContainer: XMPPMessage, editDate: Date) {
         references.clear()
         references.addAll(parseReferences(messageContainer, opponent, owner))
@@ -419,9 +393,7 @@ open class MessageStorageItem : RealmObject {
         originalStanza = messageContainer
     }
 
-    /**
-     * Configures an incoming message from an [XMPPMessage].
-     */
+
     fun configureIncomingMessage(
         messageContainer: XMPPMessage,
         owner: String,
@@ -474,9 +446,7 @@ open class MessageStorageItem : RealmObject {
         }
     }
 
-    /**
-     * Configures an outgoing message.
-     */
+
     fun configureOutgoingMessage(
         body: String,
         legacy: String,
@@ -516,9 +486,7 @@ open class MessageStorageItem : RealmObject {
         }
     }
 
-    /**
-     * Configures an authentication request message.
-     */
+
     fun configureAuthRequestMessage(body: String, opponent: String, owner: String) {
         this.body = body
         this.opponent = opponent
@@ -558,9 +526,7 @@ open class MessageStorageItem : RealmObject {
         state = MessageSendingState.NONE
     }
 
-    /**
-     * Configures a VoIP call message.
-     */
+
     fun configureVoIPCallMessage(
         opponent: String,
         owner: String,
@@ -607,9 +573,7 @@ open class MessageStorageItem : RealmObject {
         trustedSource = true
     }
 
-    /**
-     * Checks if the message is stored in Realm.
-     */
+
     fun isInStorage(realm: Realm): Boolean {
         return try {
             realm.query<MessageStorageItem>("primary = $0", primary).first().find() != null
@@ -619,9 +583,7 @@ open class MessageStorageItem : RealmObject {
         }
     }
 
-    /**
-     * Saves the message to Realm, updating related [LastChatsStorageItem].
-     */
+
     fun save(realm: Realm, commitTransaction: Boolean, silentNotifications: Boolean = false): Boolean {
         if (opponent.isEmpty()) return false
         // TODO: Implement auto-delete logic if needed
