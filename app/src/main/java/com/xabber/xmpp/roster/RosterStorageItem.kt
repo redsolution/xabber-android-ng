@@ -12,20 +12,11 @@ import io.realm.kotlin.types.RealmObject
 import io.realm.kotlin.types.annotations.Index
 import io.realm.kotlin.types.annotations.PrimaryKey
 
-/**
- * Represents an XMPP roster contact storage item, tracking subscription and avatar metadata.
- * Persisted using Realm for database storage.
- */
+
 open class RosterStorageItem : RealmObject {
     companion object {
         private const val TAG = "RosterStorageItem"
 
-        /**
-         * Generates a primary key from [jid] and [owner].
-         * Uses [prp] to join with underscores.
-         *
-         * @return A string like "jid_owner".
-         */
         fun genPrimary(jid: String, owner: String): String {
             return listOf(jid, owner).prp()
         }
@@ -90,27 +81,6 @@ open class RosterStorageItem : RealmObject {
             return jid.split("/").first() // Simplified JID parsing; replace with JidManager
         }
 
-
-    fun isThereSubscriptionRequest(): Boolean {
-        if (jid.contains("/")) return false // Simplified server check; replace with XMPPJID.isServer
-        return ask == Ask.IN || ask == Ask.BOTH
-    }
-
-
-    fun getPrimaryResource(realm: Realm): ResourceStorageItem? {
-        return try {
-            realm.query<ResourceStorageItem>(
-                "owner = $0 AND jid = $1",
-                owner, jid
-            ).find().sortedWith(
-                compareByDescending<ResourceStorageItem> { it.timestamp }
-                    .thenByDescending { it.priority }
-            ).firstOrNull()
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to get status for roster item: ${e.message}")
-            null
-        }
-    }
 }
 
 

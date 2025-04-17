@@ -5,10 +5,7 @@ import io.realm.kotlin.types.RealmObject
 import io.realm.kotlin.types.annotations.PrimaryKey
 import java.util.Date
 
-/**
- * Represents a blocked XMPP contact or group chat invitation.
- * Persisted using Realm for database storage.
- */
+
 open class BlockStorageItem : RealmObject {
     @PrimaryKey
     var primary: String = ""

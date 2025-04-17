@@ -65,21 +65,5 @@ class DeviceStorageItem : RealmObject {
     }
 
 
-    fun getResource(realm: Realm): ResourceStorageItem? {
-        return try {
-            resource?.let { resourceValue ->
-                realm.query<ResourceStorageItem>(
-                    "primary = $0",
-                    com.xabber.xmpp.presence.ResourceStorageItem.genPrimary(
-                        jid = owner,
-                        owner = owner,
-                        resource = resourceValue
-                    )
-                ).first().find()
-            }
-        } catch (e: Exception) {
-            logger.warning("Failed to fetch ResourceStorageItem: ${e.message}")
-            null
-        }
-    }
+
 }

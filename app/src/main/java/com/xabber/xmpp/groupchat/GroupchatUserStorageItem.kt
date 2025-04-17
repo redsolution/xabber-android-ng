@@ -28,11 +28,7 @@ open class GroupchatUserStorageItem : RealmObject {
                 values().find { it.rawValue == raw } ?: MEMBER
         }
 
-        fun localized(context: Context): String = when (this) {
-            OWNER -> context.getString(R.string.groupchat_personal_status_owner)
-            ADMIN -> context.getString(R.string.groupchat_personal_status_administrator)
-            MEMBER -> context.getString(R.string.groupchat_personal_status_member)
-        }
+
     }
 
     enum class IntegerRole(val rawValue: Int) {
@@ -223,11 +219,8 @@ open class GroupchatUserStorageItem : RealmObject {
             return null
         }
 
-    fun compareHash(hash: String): Boolean {
-        return avatarHash == hash
-    }
 
-    // Placeholder for context, required for dateString
+
     private lateinit var context: Context
 
     fun setContext(context: Context) {

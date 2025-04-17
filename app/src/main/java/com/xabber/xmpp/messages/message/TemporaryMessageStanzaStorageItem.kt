@@ -7,8 +7,12 @@ import io.realm.kotlin.types.annotations.PrimaryKey
 import java.util.Date
 
 open class TemporaryMessageStanzaStorageItem: RealmObject {
-    companion object{
-        fun primaryKey(): String? = "primary"
+
+    fun primaryKey(): String? = "primary"
+
+
+    companion object {
+
         fun genPrimary(jid: String, owner: String): String {
             return listOf(jid, owner).prp()
         }
@@ -17,11 +21,8 @@ open class TemporaryMessageStanzaStorageItem: RealmObject {
     @PrimaryKey
     val primary:String=""
 
-    @Index
     val owner:String=""
-    @Index
     val jid:String=""
-
     val date: Date = Date()
     val stanza: String=""
 }

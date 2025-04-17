@@ -1,13 +1,14 @@
 package com.xabber.data_base.models.messages
 
 import com.xabber.data_base.models.roster.RosterStorageItem
+import com.xabber.xmpp.messages.MessageForwardsInlineStorageItem
 import io.realm.kotlin.ext.realmListOf
 import io.realm.kotlin.types.RealmList
 
 import io.realm.kotlin.types.RealmObject
 
 
-enum class MessageForwardsInlineStorageItemKind(val rawValue: String) {
+enum class MessageForwardsInlineStorageItemKindDeprecated(val rawValue: String) {
     text("text"),
     images("images"),
     videos("videos"),
@@ -16,7 +17,7 @@ enum class MessageForwardsInlineStorageItemKind(val rawValue: String) {
     quote("quote")
 }
 
-class MessageForwardsInlineStorageItem: RealmObject {
+class MessageForwardsInlineStorageItemDeprecated: RealmObject {
     var messageId: String = ""
     var owner: String = ""
     var jid: String = ""
