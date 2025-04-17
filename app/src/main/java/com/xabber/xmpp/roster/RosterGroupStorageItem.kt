@@ -31,12 +31,6 @@ open class RosterGroupStorageItem : RealmObject {
     var contacts: RealmList<RosterStorageItem> = realmListOf()
 
 
-    fun groupName(context: Context): String {
-        return when (name) {
-            SYSTEM_GROUP_NAME -> context.getString(R.string.groupchat_general)
-            NOT_IN_ROSTER_GROUP_NAME -> context.getString(R.string.groupchat_not_roster)
-            else -> name
-        }
-    }
+
 }
 

@@ -82,17 +82,7 @@ open class GroupChatStorageItem : RealmObject {
         }
 
 
-    fun statusVerbose(context: Context): String {
-        return when (status) {
-            "Inactive" -> context.getString(R.string.groupchat_status_inactive)
-            "xa" -> context.getString(R.string.groupchat_status_away_long)
-            "away" -> context.getString(R.string.groupchat_status_away)
-            "dnd" -> context.getString(R.string.groupchat_status_busy)
-            "online", "active" -> context.getString(R.string.groupchat_status_online)
-            "chat" -> context.getString(R.string.groupchat_status_ready_to_chat)
-            else -> context.getString(R.string.groupchat_status_offline)
-        }
-    }
+
 
 
     val statusDisplayed: ResourceStatus
@@ -107,19 +97,6 @@ open class GroupChatStorageItem : RealmObject {
         }
 
 
-    fun statusString(context: Context): String {
-        return if (present == 0) {
-            if (members == 1) "$members member" else "$members members"
-        } else {
-            context.getString(R.string.number_of_members_and_online, members.toString(), present.toString())
-        }
-    }
-
-    fun configure(jid: String, owner: String) {
-        this.jid = jid
-        this.owner = owner
-        this.primary = genPrimary(jid, owner)
-    }
 }
 
 
@@ -134,11 +111,7 @@ enum class Membership(val rawValue: String) {
     }
 
 
-    fun localized(context: Context): String? = when (this) {
-        NONE -> null
-        OPEN -> context.getString(R.string.groupchat_status_open)
-        MEMBER_ONLY -> context.getString(R.string.groupchat_status_member_only)
-    }
+
 }
 
 
@@ -153,11 +126,7 @@ enum class Privacy(val rawValue: String) {
     }
 
 
-    fun localized(context: Context): String? = when (this) {
-        NONE -> null
-        INCOGNITO -> context.getString(R.string.groupchat_status_incognito)
-        PUBLIC_CHAT -> context.getString(R.string.groupchat_status_public)
-    }
+
 }
 
 
@@ -172,11 +141,6 @@ enum class Index(val rawValue: String) {
     }
 
 
-    fun localized(context: Context): String = when (this) {
-        NONE -> context.getString(R.string.groupchat_status_none)
-        LOCAL -> context.getString(R.string.groupchat_status_local)
-        GLOBAL -> context.getString(R.string.groupchat_status_global)
-    }
 }
 
 

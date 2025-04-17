@@ -6,6 +6,7 @@ import io.realm.kotlin.types.annotations.Index
 import io.realm.kotlin.types.annotations.PrimaryKey
 import android.net.Uri
 import android.util.Log
+import com.xabber.xmpp.notifications.toMap
 import org.json.JSONObject
 
 
@@ -89,11 +90,3 @@ enum class Kind(val rawValue: String) {
     }
 }
 
-// Utility to convert JSONObject to Map (simplified)
-fun JSONObject.toMap(): Map<String, Any> {
-    val map = mutableMapOf<String, Any>()
-    for (key in keys()) {
-        map[key] = get(key)
-    }
-    return map
-}

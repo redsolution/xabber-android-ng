@@ -91,26 +91,9 @@ open class RosterStorageItem : RealmObject {
         }
 
 
-    fun isThereSubscriptionRequest(): Boolean {
-        if (jid.contains("/")) return false // Simplified server check; replace with XMPPJID.isServer
-        return ask == Ask.IN || ask == Ask.BOTH
-    }
 
 
-    fun getPrimaryResource(realm: Realm): ResourceStorageItem? {
-        return try {
-            realm.query<ResourceStorageItem>(
-                "owner = $0 AND jid = $1",
-                owner, jid
-            ).find().sortedWith(
-                compareByDescending<ResourceStorageItem> { it.timestamp }
-                    .thenByDescending { it.priority }
-            ).firstOrNull()
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to get status for roster item: ${e.message}")
-            null
-        }
-    }
+
 }
 
 

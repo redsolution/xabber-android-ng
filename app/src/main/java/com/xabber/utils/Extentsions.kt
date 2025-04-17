@@ -41,6 +41,7 @@ import com.xabber.dto.AvatarDto
 import com.xabber.dto.ChatListDto
 import com.xabber.dto.MessageReferenceDto
 import com.xabber.presentation.onboarding.fragments.signup.emoji.EmojiTypeDto
+import org.json.JSONObject
 
 
 fun Fragment.showToast(message: String) {
@@ -307,4 +308,12 @@ fun <T> Array<T>.chunked(size: Int): List<Array<T>> {
     return (0 until this.size step size).map { start ->
         sliceArray(start until minOf(start + size, this.size))
     }
+}
+
+fun JSONObject.toMap(): Map<String, Any> {
+    val map = mutableMapOf<String, Any>()
+    for (key in keys()) {
+        map[key] = get(key)
+    }
+    return map
 }

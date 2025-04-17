@@ -22,7 +22,9 @@ import android.util.LruCache
 import android.util.Size
 import java.util.Base64
 import android.text.format.Formatter
-import com.xabber.xmpp.messages.toMap
+import com.xabber.utils.toMap
+import com.xabber.xmpp.messages.MessageStorageItem
+import com.xabber.xmpp.notifications.toMap
 import io.realm.kotlin.RealmConfiguration
 import io.realm.kotlin.UpdatePolicy
 import io.realm.kotlin.ext.realmListOf
@@ -32,6 +34,8 @@ import io.realm.kotlin.types.RealmList
  * Represents a message reference storage item, tracking metadata for message attachments.
  * Persisted using Realm for database storage.
  */
+private const val TAG = "MessageReferenceStorageItem"
+
 open class MessageReferenceStorageItem : RealmObject {
     data class Model(
         val primary: String,
@@ -57,7 +61,10 @@ open class MessageReferenceStorageItem : RealmObject {
                 try {
                     JSONObject(String(data, Charsets.UTF_8)).toMap()
                 } catch (e: Exception) {
-                    Log.e(TAG, "Cannot create JSON object from reference metadata with id: $messageId")
+                    Log.e(
+                        TAG,
+                        "Cannot create JSON object from reference metadata with id: $messageId"
+                    )
                     null
                 }
             }
@@ -81,14 +88,6 @@ open class MessageReferenceStorageItem : RealmObject {
                 return if (height != null && width != null) Size(width, height) else null
             }
 
-        /*
-        val sizeInPxThumb: Size?
-            get() {
-                val height = metadata?.get("height_thumb") as? Int
-                val width = metadata?.get("width_thumb") as? Int
-                return if (height != null && width != null) Size(width, height) else null
-            }
-        */
 
         val meteringLevels: List<Float>?
             get() {
@@ -151,80 +150,6 @@ open class MessageReferenceStorageItem : RealmObject {
         }
     }
 
-    companion object {
-        private const val TAG = "MessageReferenceStorageItem"
-
-        fun prepareVoice(messagePrimary: String, realm: Realm) {
-            try {
-                val instance = realm.query<MessageStorageItem>("primary = $0", messagePrimary)
-                    .first().find()
-                instance?.let {
-                    it.references.forEach { ref -> ref.prepare() }
-                    it.inlineForwards.forEach { forward ->
-                        forward.references.forEach { ref -> ref.prepare() }
-                    }
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "prepareVoice: ${e.message}")
-            }
-        }
-
-        fun prepareVoice(inlineMessageId: String, realm: Realm) {
-            try {
-                realm.query<MessageForwardsInlineStorageItem>("messageId = $0", inlineMessageId)
-                    .find().forEach { instance ->
-                        instance.references.forEach { ref -> ref.prepare() }
-                        instance.subforwards.forEach { sub ->
-                            sub.references.forEach { ref -> ref.prepare() }
-                        }
-                    }
-            } catch (e: Exception) {
-                Log.e(TAG, "prepareVoice(inline): ${e.message}")
-            }
-        }
-
-        fun prepareVoice(messageId: String, jid: String, metadata: String, realm: Realm) {
-            try {
-                realm.query<MessageReferenceStorageItem>(
-                    "messageId = $0 AND jid = $1 AND metadata_ = $2",
-                    messageId, jid, metadata
-                ).find().forEach { it.prepare() }
-            } catch (e: Exception) {
-                Log.e(TAG, "prepareVoice(for): ${e.message}")
-            }
-        }
-
-        fun prepareVideo(messagePrimary: String, realm: Realm) {
-            try {
-                val instance = realm.query<MessageStorageItem>("primary = $0", messagePrimary)
-                    .first().find()
-                instance?.let {
-                    it.references.forEach { ref ->
-                        if (ref.mimeType == "video") ref.prepare()
-                    }
-                    it.inlineForwards.forEach { forward ->
-                        forward.references.forEach { ref ->
-                            if (ref.mimeType == "video") ref.prepare()
-                        }
-                    }
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "prepareVideo: ${e.message}")
-            }
-        }
-
-        fun prepareVideo(messageId: String, jid: String, metadata: String, realm: Realm) {
-            if (CommonConfigManager.useFileEncryptionByDefault) return
-            try {
-                realm.query<MessageReferenceStorageItem>(
-                    "messageId = $0 AND jid = $1 AND metadata_ = $2",
-                    messageId, jid, metadata
-                ).find().forEach { it.prepare() }
-            } catch (e: Exception) {
-                Log.e(TAG, "prepareVideo(for): ${e.message}")
-            }
-        }
-    }
 
     fun primaryKey(): String = "primary"
 
@@ -292,7 +217,8 @@ open class MessageReferenceStorageItem : RealmObject {
     var localFileUrl: Uri?
         get() = metadata?.get("localFileUri")?.let { Uri.parse((it as String).encodeUri()) }
         set(value) {
-            metadata = metadata?.toMutableMap()?.apply { put("localFileUri", value?.toString() ?: "") }
+            metadata =
+                metadata?.toMutableMap()?.apply { put("localFileUri", value?.toString() ?: "") }
         }
 
     var downloadUrl: Uri?
@@ -439,169 +365,9 @@ open class MessageReferenceStorageItem : RealmObject {
             else -> "mutable"
         }
 
-    fun prepare() {
-        if (isDownloaded) return
-        when (kind) {
-            Kind.VOICE -> {
-                val uri = metadata?.get("uri") as? String
-                val url = uri?.let { Uri.parse(it.encodeUri()) } ?: return
-                // TODO: Implement OpusAudio equivalent for Android
-                val messageId = this.messageId
-                val jid = this.jid
-                val metadataRaw = this.metadataRaw
-                // Placeholder for OpusAudio logic
-                // OpusAudio.add(url) { result, meters, duration ->
-                //     if (!result) return@add
-                //     try {
-                //         realm.writeBlocking {
-                //             query<MessageReferenceStorageItem>(
-                //                 "messageId = $0 AND jid = $1 AND metadata_ = $2 AND isDownloaded = false",
-                //                 messageId, jid, metadataRaw, false
-                //             ).find().forEach { instance ->
-                //                 instance.isDownloaded = true
-                //                 instance.metadata = instance.metadata?.toMutableMap()?.apply {
-                //                     put("meters", meters.joinToString(" ") { it.toString() })
-                //                     put("duration", duration)
-                //                 }
-                //             }
-                //         }
-                //     } catch (e: Exception) {
-                //         Log.e(TAG, e.message)
-                //     }
-                // }
-            }
-            Kind.MEDIA -> {
-                if (mimeType == "video") {
-                    if (CommonConfigManager.useFileEncryptionByDefault) {
-                        val primary = this.primary
-                        try {
-                            realm.writeBlocking {
-                                query<MessageReferenceStorageItem>("primary = $0", primary)
-                                    .first().find()?.isDownloading = true
-                            }
-                        } catch (e: Exception) {
-                            Log.e(TAG, "prepare: ${e.message}")
-                        }
-                        try {
-                            val url = downloadUrl ?: return
-                            val encryptedData = url.toURL().readBytes()
-                            val keyb64 = metadata?.get("encryption-key") as? String
-                            val ivb64 = metadata?.get("iv") as? String
-                            if (keyb64 == null || ivb64 == null) return
-                            val encryptionKeyRaw = Base64.getDecoder().decode(keyb64)
-                            val ivRaw = Base64.getDecoder().decode(ivb64)
-                            val gcmSpec = GCMParameterSpec(128, ivRaw)
-                            val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-                            cipher.init(Cipher.DECRYPT_MODE, SecretKeySpec(encryptionKeyRaw, "AES"), gcmSpec)
-                            val decrypted = cipher.doFinal(encryptedData)
-                            val appDir = File("/data/data/your.app.package/app_files") // Replace with actual path
-                            val resultFile = File(appDir, url.toString().substringAfterLast("/"))
-                            resultFile.writeBytes(decrypted)
-                            try {
-                                realm.writeBlocking {
-                                    val instance = query<MessageReferenceStorageItem>("primary = $0", primary)
-                                        .first().find()
-                                    instance?.isDownloaded = true
-                                    instance?.localFileUrl = Uri.fromFile(resultFile)
-                                }
-                            } catch (e: Exception) {
-                                Log.e(TAG, "prepare: ${e.message}")
-                            }
-                            val previewKey = videoPreviewKey
-                            if (previewKey == null) {
-                                val urlStr = downloadUrl?.toString() ?: return
-                                val key = listOf(jid, owner, urlStr).prp()
-                                val result = extractFrameFromVideo(key)
-                                try {
-                                    realm.writeBlocking {
-                                        val instance = query<MessageReferenceStorageItem>("primary = $0", primary)
-                                            .first().find()
-                                        instance?.isDownloaded = true
-                                        instance?.videoPreviewKey = key
-                                        instance?.videoDuration = result.videoDuration ?: ""
-                                    }
-                                } catch (e: Exception) {
-                                    Log.e(TAG, "prepare: ${e.message}")
-                                }
-                                return
-                            }
-                            extractFrameFromVideo(previewKey)
-                        } catch (e: Exception) {
-                            Log.e(TAG, "prepare: ${e.message}")
-                        }
-                    } else {
-                        val previewKey = videoPreviewKey
-                        if (previewKey == null) {
-                            val url = downloadUrl?.toString() ?: return
-                            val key = listOf(jid, owner, url).prp()
-                            val result = extractFrameFromVideo(key)
-                            try {
-                                realm.writeBlocking {
-                                    query<MessageReferenceStorageItem>(
-                                        "messageId = $0 AND jid = $1 AND metadata_ = $2",
-                                        messageId, jid, metadataRaw
-                                    ).find().forEach { instance ->
-                                        instance.isDownloaded = true
-                                        instance.videoPreviewKey = key
-                                        instance.videoDuration = result.videoDuration ?: ""
-                                    }
-                                }
-                            } catch (e: Exception) {
-                                Log.e(TAG, "prepare: ${e.message}")
-                            }
-                            return
-                        }
-                        extractFrameFromVideo(previewKey)
-                    }
-                }
-            }
-            else -> {}
-        }
-    }
 
-    fun extractFrameFromVideo(forKey: String): VideoFrameResult {
-        if (!imageCache.isCached(forKey)) {
-            var orientation: BitmapOrientation = BitmapOrientation.UP
-            videoOrientation?.let { orient ->
-                when (Orientations.fromRaw(orient)) {
-                    Orientations.PORTRAIT -> orientation = BitmapOrientation.RIGHT
-                    Orientations.PORTRAIT_UPSIDE_DOWN -> orientation = BitmapOrientation.LEFT
-                    Orientations.LANDSCAPE_RIGHT -> orientation = BitmapOrientation.UP
-                    Orientations.LANDSCAPE_LEFT -> orientation = BitmapOrientation.DOWN
-                    else -> {}
-                }
-            }
-
-            val url = localFileUrl ?: downloadUrl ?: return VideoFrameResult(null, null, null)
-            val retriever = MediaMetadataRetriever()
-            try {
-                retriever.setDataSource(url.toString())
-                val durationMs = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0
-                val timeForFrame = durationMs / 2
-                val bitmap = retriever.getFrameAtTime(timeForFrame * 1000, MediaMetadataRetriever.OPTION_CLOSEST)
-                bitmap?.let {
-                    imageCache.put(forKey, it)
-                }
-
-                val seconds = (durationMs / 1000.0) % 60
-                val minutes = ((durationMs / 1000.0 - seconds) % 60).toInt()
-                val durationStr = String.format("%d:%02.0f", minutes, seconds).replace(" ", "0")
-
-                return VideoFrameResult(
-                    width = bitmap?.width?.toFloat(),
-                    height = bitmap?.height?.toFloat(),
-                    videoDuration = durationStr
-                )
-            } catch (e: Exception) {
-                Log.e(TAG, "extractFrameFromVideo: ${e.message}")
-                return VideoFrameResult(null, null, null)
-            } finally {
-                retriever.release()
-            }
-        }
-        return VideoFrameResult(null, null, null)
-    }
 }
+
 
 // Stubs for dependencies
 enum class ConversationType(val rawValue: String) {
@@ -625,17 +391,6 @@ enum class VoIPCallState(val rawValue: Int) {
     }
 }
 
-open class MessageStorageItem : RealmObject {
-    var primary: String = ""
-    var references: RealmList<MessageReferenceStorageItem> = realmListOf()
-    var inlineForwards: RealmList<MessageForwardsInlineStorageItem> = realmListOf()
-}
-
-open class MessageForwardsInlineStorageItem : RealmObject {
-    var messageId: String = ""
-    var references: RealmList<MessageReferenceStorageItem> = realmListOf()
-    var subforwards: RealmList<MessageForwardsInlineStorageItem> = realmListOf()
-}
 
 object CommonConfigManager {
     val useFileEncryptionByDefault: Boolean = false
@@ -665,16 +420,7 @@ enum class BitmapOrientation {
     UP, RIGHT, DOWN, LEFT
 }
 
-// Placeholder image cache
-object ImageCache {
-    private val cache = LruCache<String, Bitmap>(100)
 
-    fun isCached(forKey: String): Boolean = cache.get(forKey) != null
-
-    fun store(image: Bitmap, forKey: String) {
-        cache.put(forKey, image)
-    }
-}
 
 // Utility extensions
 fun String.encodeUri(): String = Uri.encode(this)

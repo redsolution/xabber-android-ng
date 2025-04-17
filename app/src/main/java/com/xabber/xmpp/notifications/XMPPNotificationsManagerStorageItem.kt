@@ -5,6 +5,7 @@ import io.realm.kotlin.types.RealmObject
 import io.realm.kotlin.types.annotations.PrimaryKey
 import org.json.JSONObject
 import android.util.Log
+import com.xabber.utils.toMap
 import java.util.Date
 
 
@@ -92,10 +93,3 @@ enum class Category(val rawValue: String) {
 }
 
 // Utility to convert JSONObject to Map (simplified)
-fun JSONObject.toMap(): Map<String, Any> {
-    val map = mutableMapOf<String, Any>()
-    for (key in keys()) {
-        map[key] = get(key)
-    }
-    return map
-}

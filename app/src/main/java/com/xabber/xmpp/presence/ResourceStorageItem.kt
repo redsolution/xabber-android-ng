@@ -103,20 +103,7 @@ class ResourceStorageItem : RealmObject {
         }
 
 
-    fun getDevice(realm: Realm): DeviceStorageItem? {
-        if (deviceId == null || jid != owner) {
-            return null
-        }
-        return try {
-            realm.query<DeviceStorageItem>(
-                "primary = $0",
-                DeviceStorageItem.genPrimary(uid = deviceId!!, owner = owner)
-            ).first().find()
-        } catch (e: Exception) {
-            logger.warning("Failed to fetch DeviceStorageItem: ${e.message}")
-            null
-        }
-    }
+
 }
 
 
