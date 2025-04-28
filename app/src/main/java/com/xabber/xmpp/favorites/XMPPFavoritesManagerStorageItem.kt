@@ -17,10 +17,10 @@ open class XMPPFavoritesManagerStorageItem: RealmObject {
         }
     }
     @PrimaryKey
-    val primary: String = ""
+    var primary: String = ""
 
-    val owner:String=""
-    val node:String=""
+    var owner:String=""
+    var node:String=""
 
 
 }

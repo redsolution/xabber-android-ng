@@ -10,6 +10,7 @@ import android.content.Context
 import android.net.Uri
 import android.util.Log
 import com.xabber.R
+import io.realm.kotlin.types.annotations.Ignore
 import org.json.JSONObject
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -78,7 +79,7 @@ open class GroupchatUserStorageItem : RealmObject {
     var temporaryAvatarHash: String = ""
     var avatarHash: String = ""
     var isOnline: Boolean = false
-    var lastSeen: Date? = null
+    @Ignore var lastSeen: Date? = null
     var isBlocked: Boolean = false
     var isKicked: Boolean = false
     var isTemporary: Boolean = false
@@ -86,8 +87,8 @@ open class GroupchatUserStorageItem : RealmObject {
     var restrictionsRaw: RealmList<String> = realmListOf()
     var subscribtionRaw: String = Subscribtion.BOTH.rawValue
     var isMe: Boolean = false
-    var sortedRole: Int = IntegerRole.MEMBER.rawValue
-    var updateTimestamp: Date = Date(978307200000) // Matches Date(timeIntervalSinceReferenceDate: 0)
+    @Ignore var sortedRole: Int = IntegerRole.MEMBER.rawValue
+    @Ignore var updateTimestamp: Date = Date(978307200000) // Matches Date(timeIntervalSinceReferenceDate: 0)
 
     var subscribtion: Subscribtion
         get() = when (subscribtionRaw) {
@@ -181,46 +182,46 @@ open class GroupchatUserStorageItem : RealmObject {
             restrictionsRaw.addAll(out)
         }
 
-    val dateString: String?
-        get() {
-            val lastSeenDateFormatter = SimpleDateFormat("", Locale.getDefault())
-            lastSeen?.let { date ->
-                val today = Date()
-                val interval = (today.time - date.time) / 1000
-                if (interval < 60) {
-                    lastSeenDateFormatter.applyPattern(context.getString(R.string.chat_seen_just_now))
-                } else if (interval < 60 * 60) {
-                    val minutes = (interval / 60).toInt()
-                    lastSeenDateFormatter.applyPattern(
-                        context.getString(R.string.chat_seen_minutes_ago, minutes)
-                    )
-                } else if (interval < 2 * 60 * 60) {
-                    lastSeenDateFormatter.applyPattern(context.getString(R.string.chat_seen_hour_ago))
-                } else if (interval < 12 * 60 * 60) {
-                    lastSeenDateFormatter.applyPattern(context.getString(R.string.chat_seen_at))
-                } else if (interval < 24 * 60 * 60) {
-                    lastSeenDateFormatter.applyPattern(context.getString(R.string.chat_seen_yesterday))
-                } else {
-                    val calendar = Calendar.getInstance()
-                    calendar.time = date
-                    val todayCalendar = Calendar.getInstance()
-                    todayCalendar.time = today
-                    val days = daysBetween(calendar, todayCalendar)
-                    if (days <= 7) {
-                        lastSeenDateFormatter.applyPattern(context.getString(R.string.chat_seen_date_time))
-                    } else if (todayCalendar.get(Calendar.YEAR) == calendar.get(Calendar.YEAR)) {
-                        lastSeenDateFormatter.applyPattern(context.getString(R.string.chat_seen_date))
-                    } else {
-                        lastSeenDateFormatter.applyPattern(context.getString(R.string.chat_seen_date_year))
-                    }
-                }
-                return lastSeenDateFormatter.format(date)
-            }
-            return null
-        }
+//    val dateString: String?
+//        get() {
+//            val lastSeenDateFormatter = SimpleDateFormat("", Locale.getDefault())
+//            lastSeen?.let { date ->
+//                val today = Date()
+//                val interval = (today.time - date.time) / 1000
+//                if (interval < 60) {
+//                    lastSeenDateFormatter.applyPattern(context.getString(R.string.chat_seen_just_now))
+//                } else if (interval < 60 * 60) {
+//                    val minutes = (interval / 60).toInt()
+//                    lastSeenDateFormatter.applyPattern(
+//                        context.getString(R.string.chat_seen_minutes_ago, minutes)
+//                    )
+//                } else if (interval < 2 * 60 * 60) {
+//                    lastSeenDateFormatter.applyPattern(context.getString(R.string.chat_seen_hour_ago))
+//                } else if (interval < 12 * 60 * 60) {
+//                    lastSeenDateFormatter.applyPattern(context.getString(R.string.chat_seen_at))
+//                } else if (interval < 24 * 60 * 60) {
+//                    lastSeenDateFormatter.applyPattern(context.getString(R.string.chat_seen_yesterday))
+//                } else {
+//                    val calendar = Calendar.getInstance()
+//                    calendar.time = date
+//                    val todayCalendar = Calendar.getInstance()
+//                    todayCalendar.time = today
+//                    val days = daysBetween(calendar, todayCalendar)
+//                    if (days <= 7) {
+//                        lastSeenDateFormatter.applyPattern(context.getString(R.string.chat_seen_date_time))
+//                    } else if (todayCalendar.get(Calendar.YEAR) == calendar.get(Calendar.YEAR)) {
+//                        lastSeenDateFormatter.applyPattern(context.getString(R.string.chat_seen_date))
+//                    } else {
+//                        lastSeenDateFormatter.applyPattern(context.getString(R.string.chat_seen_date_year))
+//                    }
+//                }
+//                return lastSeenDateFormatter.format(date)
+//            }
+//            return null
+//        }
 
 
-
+    @Ignore
     private lateinit var context: Context
 
     fun setContext(context: Context) {

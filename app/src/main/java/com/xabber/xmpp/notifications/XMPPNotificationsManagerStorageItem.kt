@@ -6,6 +6,7 @@ import io.realm.kotlin.types.annotations.PrimaryKey
 import org.json.JSONObject
 import android.util.Log
 import com.xabber.utils.toMap
+import io.realm.kotlin.types.annotations.Ignore
 import java.util.Date
 
 
@@ -51,6 +52,7 @@ open class NotificationStorageItem : RealmObject {
     var displayedNick: String? = null
     var text: String? = null
     private var metadataRaw: String? = null
+    @Ignore
     var date: Date = Date()
     var shouldShow: Boolean = false
 

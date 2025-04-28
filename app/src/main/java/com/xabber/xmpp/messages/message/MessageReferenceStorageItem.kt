@@ -24,7 +24,6 @@ import java.util.Base64
 import android.text.format.Formatter
 import com.xabber.utils.toMap
 import com.xabber.xmpp.messages.MessageStorageItem
-import com.xabber.xmpp.notifications.toMap
 import io.realm.kotlin.RealmConfiguration
 import io.realm.kotlin.UpdatePolicy
 import io.realm.kotlin.ext.realmListOf
@@ -155,21 +154,11 @@ open class MessageReferenceStorageItem : RealmObject {
 
     @PrimaryKey
     var primary: String = UUID.randomUUID().toString()
-
-    @Index
     var messageId: String = ""
-
-    @Index
-    var sentDate: Date = Date(0)
-
-    @Index
+    @Ignore var sentDate: Date = Date(0)
     var owner: String = ""
-
     var jid: String = ""
-
-    @Index
     var kindRaw: String = ""
-
     var mimeType: String = ""
     var begin: Int = 0
     var end: Int = 0
@@ -308,7 +297,7 @@ open class MessageReferenceStorageItem : RealmObject {
 
     var metadata: Map<String, Any>?
         get() {
-            if (isInvalidated) return null
+            if (metadataRaw.isEmpty()) return null
             return try {
                 JSONObject(metadataRaw).toMap()
             } catch (e: Exception) {

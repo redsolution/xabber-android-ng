@@ -2,6 +2,7 @@ package com.xabber.xmpp.omemo.storage
 
 import com.xabber.utils.prp
 import io.realm.kotlin.types.RealmObject
+import io.realm.kotlin.types.annotations.Ignore
 import io.realm.kotlin.types.annotations.PrimaryKey
 import java.util.Date
 
@@ -16,7 +17,7 @@ open class SignalDeviceStorageItem : RealmObject {
     var name: String? = null
 
     private var stateRaw: String = TrustState.UNKNOWN.rawValue
-
+    @Ignore
     var updateDate: Date = Date()
     var trustDate: Date = Date(-1)
     var lastTrustedItemsUpdateTimestamp: String = ""

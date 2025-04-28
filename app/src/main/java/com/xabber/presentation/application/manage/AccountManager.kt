@@ -1,7 +1,9 @@
 package com.xabber.presentation.application.manage
 
+import android.annotation.SuppressLint
 import android.util.Log
 import com.xabber.data_base.defaultRealmConfig
+import com.xabber.data_base.models.account.AccountStorageItem
 import com.xabber.dto.AvatarDto
 import io.realm.kotlin.Realm
 
@@ -9,50 +11,112 @@ import io.realm.kotlin.Realm
 object AccountManager {
     private val realm = Realm.open(defaultRealmConfig())
 
-    fun getAvatar(): AvatarDto? {
-        var avatarDto: AvatarDto? = null
+//    @SuppressLint("SuspiciousIndentation")
+//    fun getAvatar(): AvatarDto? {
+//        var avatarDto: AvatarDto? = null
+//            realm.writeBlocking {
+//                val id = this.query(com.xabber.data_base.models.account.AccountStorageItem::class, "order = 0").first().find()?.jid
+//                if (id != null) {
+//                    val realmAvatar =
+//                        this.query(com.xabber.data_base.models.avatar.AvatarStorageItem::class, "primary = '$id'").first().find()
+//                    if (realmAvatar != null) avatarDto = AvatarDto(
+//                        realmAvatar.primary,
+//                        jid = realmAvatar.jid,
+//                        owner = realmAvatar.owner,
+//                        uploadUrl = realmAvatar.uploadUrl,
+//                        fileUri = realmAvatar.fileUri,
+//                        image96 = realmAvatar.image96,
+//                        image128 = realmAvatar.image128,
+//                        image192 = realmAvatar.image192,
+//                        image384 = realmAvatar.image384,
+//                        image512 = realmAvatar.image512
+//                    )
+//                }
+//        }
+//        return avatarDto
+//    }
+//
+//    fun getHaveAvatar(): Boolean {
+//        var hasAvatar = false
+//        realm.writeBlocking {
+//            val primaryAccount = this.query(com.xabber.data_base.models.account.AccountStorageItem::class, "order = 0").first().find()
+//            hasAvatar = primaryAccount?.hasAvatar ?: false
+//        }
+//        return hasAvatar
+//    }
+//
+//    fun getInitials(): String {
+//        var initials = ""
+//        realm.writeBlocking {
+//            val primaryAccount = this.query(com.xabber.data_base.models.account.AccountStorageItem::class, "order = 0").first().find()
+//          val name = primaryAccount?.username
+//            initials =
+//               name?.split(' ')?.mapNotNull { it.firstOrNull()?.toString() }?.reduce { acc, s -> acc + s }
+//                    ?: ""
+//          if (initials.length > 2)  initials = initials.substring(0, 2)
+//        }
+//        return initials
+//    }
+
+    fun addAccount(
+        jid: String,
+        username: String,
+        order: Int = 0,
+        hasAvatar: Boolean = false
+    ): Boolean {
+        return try {
             realm.writeBlocking {
-                val id = this.query(com.xabber.data_base.models.account.AccountStorageItem::class, "order = 0").first().find()?.jid
-                if (id != null) {
-                    val realmAvatar =
-                        this.query(com.xabber.data_base.models.avatar.AvatarStorageItem::class, "primary = '$id'").first().find()
-                    if (realmAvatar != null) avatarDto = AvatarDto(
-                        realmAvatar.primary,
-                        jid = realmAvatar.jid,
-                        owner = realmAvatar.owner,
-                        uploadUrl = realmAvatar.uploadUrl,
-                        fileUri = realmAvatar.fileUri,
-                        image96 = realmAvatar.image96,
-                        image128 = realmAvatar.image128,
-                        image192 = realmAvatar.image192,
-                        image384 = realmAvatar.image384,
-                        image512 = realmAvatar.image512
-                    )
+                // Check if account with same JID already exists
+                val existingAccount = this.query(AccountStorageItem::class, "jid = '$jid'").first().find()
+                if (existingAccount != null) {
+                    return@writeBlocking false // Account already exists
                 }
+
+                // Create new account
+                val newAccount = AccountStorageItem().apply {
+                    this.jid = jid
+                    this.username = username
+                    this.order = order
+                    this.hasAvatar = hasAvatar
+                }
+
+                // Write to Realm
+                this.copyToRealm(newAccount)
+                true
+            }
+        } catch (e: Exception) {
+            Log.e("AccountManager", "Failed to add account: ${e.message}")
+            false
         }
-        return avatarDto
     }
 
-    fun getHaveAvatar(): Boolean {
-        var hasAvatar = false
-        realm.writeBlocking {
-            val primaryAccount = this.query(com.xabber.data_base.models.account.AccountStorageItem::class, "order = 0").first().find()
-            hasAvatar = primaryAccount?.hasAvatar ?: false
+    fun findAccount(realm: Realm, jid: String): AccountStorageItem? {
+        return try {
+            // Query the Realm database for an account with the given jid
+            realm.query(AccountStorageItem::class, "jid = '$jid'").first().find()
+        } catch (e: Exception) {
+            Log.e("AccountManager", "Failed to find account: ${e.message}")
+            null
         }
-        return hasAvatar
     }
 
-    fun getInitials(): String {
-        var initials = ""
-        realm.writeBlocking {
-            val primaryAccount = this.query(com.xabber.data_base.models.account.AccountStorageItem::class, "order = 0").first().find()
-          val name = primaryAccount?.username
-            initials =
-               name?.split(' ')?.mapNotNull { it.firstOrNull()?.toString() }?.reduce { acc, s -> acc + s }
-                    ?: ""
-          if (initials.length > 2)  initials = initials.substring(0, 2)
+    fun deleteAccount(realm: Realm, jid: String): Boolean {
+        return try {
+            realm.writeBlocking {
+                // Find the account with the given jid
+                val account = this.query(AccountStorageItem::class, "jid = $0", jid).first().find()
+                if (account != null) {
+                    // Delete the account from Realm
+                    delete(account)
+                    true
+                } else {
+                    // Account not found
+                    false
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("AccountManager", "Failed to delete account: ${e.message}")
+            false
         }
-        return initials
     }
-
 }

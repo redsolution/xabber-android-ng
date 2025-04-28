@@ -19,10 +19,10 @@ open class TemporaryMessageStanzaStorageItem: RealmObject {
     }
 
     @PrimaryKey
-    val primary:String=""
+    var primary:String=""
 
-    val owner:String=""
-    val jid:String=""
-    val date: Date = Date()
-    val stanza: String=""
+    var owner:String=""
+    var jid:String=""
+    var date: Date = Date()
+    var stanza: String=""
 }

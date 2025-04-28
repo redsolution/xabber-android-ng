@@ -7,7 +7,6 @@ import io.realm.kotlin.types.annotations.PrimaryKey
 import android.net.Uri
 import android.util.Log
 import com.xabber.utils.toMap
-import com.xabber.xmpp.notifications.toMap
 import org.json.JSONObject
 
 
@@ -22,13 +21,9 @@ open class AvatarStorageItem : RealmObject {
 
     @PrimaryKey
     var primary: String = ""
-
-    @Index
     var jid: String = ""
-
-    @Index
     var owner: String = ""
-
+    var fileUri: String=""
     var imageHash: String? = null
     private var imageMetadataRaw: String? = null
     private var kindRaw: String = Kind.NONE.rawValue

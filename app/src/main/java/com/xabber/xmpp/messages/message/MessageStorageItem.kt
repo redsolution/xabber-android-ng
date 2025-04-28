@@ -9,8 +9,6 @@ import com.xabber.xmpp.groupchat.GroupchatUserStorageItem
 import com.xabber.xmpp.last_chats.LastChatsStorageItem
 import com.xabber.xmpp.messages.message.MessageForwardsInlineStorageItem
 import com.xabber.xmpp.messages.message.MessageReferenceStorageItem
-import com.xabber.xmpp.messages.message.XMPPMessage
-import com.xabber.xmpp.notifications.toMap
 import com.xabber.xmpp.roster.Ask
 import com.xabber.xmpp.roster.RosterGroupStorageItem
 import com.xabber.xmpp.roster.RosterStorageItem
@@ -64,36 +62,30 @@ open class MessageStorageItem : RealmObject {
     @PrimaryKey
     var primary: String = ""
 
-    @Index
     var owner: String = ""
 
-    @Index
+
     var opponent: String = ""
 
-    @Index
     var body: String = ""
 
     var legacyBody: String = ""
 
-    @Index
-    var date: Date = Date()
+    @Ignore var date: Date = Date()
 
-    var sentDate: Date = Date()
-    var editDate: Date? = null
+    @Ignore var sentDate: Date = Date()
+    @Ignore var editDate: Date? = null
     var outgoing: Boolean = false
-    var isRead: Boolean = false
-
-    @Index
+    @Ignore var isRead: Boolean = false
+    @Ignore
     private var messageType: Int = MessageDisplayType.TEXT.rawValue
 
-    @Index
     var messageId: String = ""
 
     var trustedSource: Boolean = false
     var previousId: String? = null
     var queryIds: String? = null
 
-    @Index
     var archivedId: String = ""
 
     var isDeleted: Boolean = false
@@ -111,14 +103,6 @@ open class MessageStorageItem : RealmObject {
     var references: RealmList<MessageReferenceStorageItem> = realmListOf()
     var inlineForwards: RealmList<MessageForwardsInlineStorageItem> = realmListOf()
 
-    @Ignore
-    var forceUnreadState: Boolean? = null
-
-    @Ignore
-    var isInvite: Boolean = false
-
-    @Ignore
-    var originalStanza: XMPPMessage? = null
 
 
     var displayAs: MessageDisplayType
@@ -151,7 +135,7 @@ open class MessageStorageItem : RealmObject {
 
 
     val groupchatMetadata: Map<String, Any>?
-        get() = references.find { it.kind == ReferenceKind.GROUPCHAT }?.metadata
+        get() = references.find { it.kind.rawValue == ReferenceKind.GROUPCHAT.xmlType }?.metadata
 
 
     val groupchatAuthorId: String?
@@ -171,16 +155,16 @@ open class MessageStorageItem : RealmObject {
         }
 
 
-    val groupchatAuthorBadge: String?
-        get() {
-            val role = groupchatCard?.role?.localized() ?: (groupchatMetadata?.get("role") as? String)
-            val badge = groupchatCard?.badge ?: (groupchatMetadata?.get("badge") as? String ?: "")
-            return if (role?.lowercase() == "member") {
-                badge
-            } else {
-                if (badge.isNotEmpty()) badge else role?.replaceFirstChar { it.uppercase() }
-            }
-        }
+//    val groupchatAuthorBadge: String?
+//        get() {
+//            val role = groupchatCard?.role?.localized() ?: (groupchatMetadata?.get("role") as? String)
+//            val badge = groupchatCard?.badge ?: (groupchatMetadata?.get("badge") as? String ?: "")
+//            return if (role?.lowercase() == "member") {
+//                badge
+//            } else {
+//                if (badge.isNotEmpty()) badge else role?.replaceFirstChar { it.uppercase() }
+//            }
+//        }
 
     val groupchatDisplayedNickname: String?
         get() = groupchatAuthorNickname?.let {
@@ -196,8 +180,8 @@ open class MessageStorageItem : RealmObject {
         }
 
 
-    val callMetadata: Map<String, Any>?
-        get() = references.find { it.kind == ReferenceKind.CALL }?.metadata
+//    val callMetadata: Map<String, Any>?
+//        get() = references.find { it.kind == ReferenceKind.CALL }?.metadata
 
 
     var errorMetadata: Map<String, Any>?
@@ -320,14 +304,14 @@ enum class ConversationType(val rawValue: String) {
 enum class ReferenceKind(val xmlType: String) {
     MEDIA("media"),
     VOICE("voice"),
-    CALL("call"),
-    QUOTE("quote"),
-    GROUPCHAT("groupchat"),
-    SYSTEM_MESSAGE("systemMessage"),
     FORWARD("forward"),
     MARKUP("markup"),
     MENTION("mention"),
-    NONE("none");
+    QUOTE("quote"),
+    GROUPCHAT("groupchat"),
+    CALL("call"),
+    SYSTEM_MESSAGE("system-message"),
+    NONE("");
 
     companion object {
         fun fromXmlType(type: String): ReferenceKind =

@@ -24,20 +24,13 @@ open class RosterStorageItem : RealmObject {
 
     @PrimaryKey
     var primary: String = ""
-
-    @Index
     var owner: String = ""
-
-    @Index
     var jid: String = ""
-
     var username: String = ""
     var customUsername: String = ""
     var removed: Boolean = false
-
     private var subscriptionRaw: String = ""
     private var askRaw: String = ""
-
     var askMessage: String = ""
     var approved: Boolean = false
     var isHidden: Boolean = false
@@ -50,7 +43,6 @@ open class RosterStorageItem : RealmObject {
     var avatarUpdatedTS: Double = -1.0
     var updatedTS: Double = -1.0
     var encryptionUpdatedTS: Double = -1.0
-
     var groups: RealmList<String> = realmListOf()
     var associatedLastChat: LastChatsStorageItem? = null
 

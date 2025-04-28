@@ -5,6 +5,7 @@ import com.xabber.utils.prp
 import io.realm.kotlin.Realm
 import io.realm.kotlin.ext.query
 import io.realm.kotlin.types.RealmObject
+import io.realm.kotlin.types.annotations.Ignore
 import io.realm.kotlin.types.annotations.Index
 import io.realm.kotlin.types.annotations.PrimaryKey
 import java.util.Date
@@ -33,8 +34,8 @@ class DeviceStorageItem : RealmObject {
     var device: String = ""
     var descr: String = ""
     var ip: String = ""
-    var authDate: Date = Date()
-    var expire: Date = Date()
+    @Ignore var authDate: Date = Date()
+    @Ignore var expire: Date = Date()
     var resource: String? = null
     var omemoDeviceId: Int = -1
 

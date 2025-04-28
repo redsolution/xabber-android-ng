@@ -16,10 +16,10 @@ open class PreaprovedSubscribtionStorageItem: RealmObject {
     }
 
     @PrimaryKey
-    val primary: String=""
+    var primary: String=""
 
-    val owner: String=""
-    val jid: String=""
-    val dateCreated: Date = Date()
+    var owner: String=""
+    var jid: String=""
+    var dateCreated: Date = Date()
 
 }

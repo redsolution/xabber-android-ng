@@ -1,7 +1,7 @@
 package com.xabber.data_base.models.account
 
 
-import com.xabber.data_base.models.presences.ResourceStorageItem
+import com.xabber.xmpp.presence.ResourceStorageItem
 import io.realm.kotlin.types.RealmObject
 import io.realm.kotlin.types.annotations.PrimaryKey
 

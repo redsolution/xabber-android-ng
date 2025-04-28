@@ -21,15 +21,11 @@ open class GroupChatStorageItem : RealmObject {
 
     @PrimaryKey
     var primary: String = ""
-
     var jid: String = ""
-
-    @Index
     var owner: String = ""
-
     var name: String = ""
     private var privacyRaw: String = Privacy.NONE.rawValue
-    private var indexRaw: String = Index.NONE.rawValue
+    private var indexRaw: String = IndexRaw.NONE.rawValue
     private var membershipRaw: String = Membership.NONE.rawValue
     var descr: String = ""
     var pinnedMessage: String = ""
@@ -68,8 +64,8 @@ open class GroupChatStorageItem : RealmObject {
         }
 
 
-    var index: Index
-        get() = Index.fromRaw(indexRaw)
+    var index: IndexRaw
+        get() = IndexRaw.fromRaw(indexRaw)
         set(value) {
             indexRaw = value.rawValue
         }
@@ -110,8 +106,6 @@ enum class Membership(val rawValue: String) {
             values().find { it.rawValue == raw } ?: NONE
     }
 
-
-
 }
 
 
@@ -125,23 +119,20 @@ enum class Privacy(val rawValue: String) {
             values().find { it.rawValue == raw } ?: NONE
     }
 
-
-
 }
 
-
-enum class Index(val rawValue: String) {
+enum class IndexRaw(val rawValue: String) {
     NONE("none"),
     LOCAL("local"),
     GLOBAL("global");
 
     companion object {
-        fun fromRaw(raw: String): Index =
+        fun fromRaw(raw: String): IndexRaw =
             values().find { it.rawValue == raw } ?: NONE
     }
 
-
 }
+
 
 
 enum class MuteState(val rawValue: Int) {

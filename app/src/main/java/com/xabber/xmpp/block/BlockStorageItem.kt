@@ -2,6 +2,7 @@ package com.xabber.xmpp.block
 
 import com.xabber.utils.prp
 import io.realm.kotlin.types.RealmObject
+import io.realm.kotlin.types.annotations.Ignore
 import io.realm.kotlin.types.annotations.PrimaryKey
 import java.util.Date
 
@@ -12,7 +13,7 @@ open class BlockStorageItem : RealmObject {
 
     var jid: String = ""
     var owner: String = ""
-    var timestamp: Date = Date()
+    @Ignore var timestamp: Date = Date()
     var isGroupchatInvitation: Boolean = false
 
 

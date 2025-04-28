@@ -6,6 +6,7 @@ import com.xabber.xmpp.roster.RosterStorageItem
 import io.realm.kotlin.ext.realmListOf
 import io.realm.kotlin.types.RealmList
 import io.realm.kotlin.types.RealmObject
+import io.realm.kotlin.types.annotations.Ignore
 import io.realm.kotlin.types.annotations.Index
 import io.realm.kotlin.types.annotations.PrimaryKey
 import java.util.Date
@@ -18,30 +19,20 @@ open class LastChatsStorageItem : RealmObject {
             return listOf(jid, owner, conversationType.rawValue).prp()
         }
     }
-
-    @PrimaryKey
-    var primary: String = ""
-
-    @Index
+   @PrimaryKey
+   var primary: String = ""
     var owner: String = ""
-
-    @Index
-    var jid: String = ""
-
-    @Index
+    @Ignore var jid: String = ""
+    @Ignore
     var messageDate: Date = Date(0)
-
-    var lastReadMessageDate: Date = Date()
+    @Ignore var lastReadMessageDate: Date = Date()
     var rosterItem: RosterStorageItem? = null
     var lastMessage: MessageStorageItem? = null
     var lastMessageId: String = ""
     var isSynced: Boolean = true
     var isInitialArchiveLoaded: Boolean = false
     var isHistoryGapFixedForSession: Boolean = false
-
-    @Index
     var isArchived: Boolean = false
-
     var fullArchiveLoaded: Boolean = false
     var retractVersion: String? = null
     var mentionId: String? = null
@@ -93,10 +84,10 @@ open class LastChatsStorageItem : RealmObject {
         get() = (System.currentTimeMillis() / 1000.0) < muteExpired
 
 
-    fun setPrimary(owner: String) {
-        this.primary = genPrimary(jid, owner, conversationType)
-        this.owner = owner
-    }
+//    fun setPrimary(owner: String) {
+//        this.primary = genPrimary(jid, owner, conversationType)
+//        this.owner = owner
+//    }
 }
 
 

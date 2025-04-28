@@ -3,6 +3,7 @@ package com.xabber.xmpp.groupchat
 
 import com.xabber.utils.prp
 import io.realm.kotlin.types.RealmObject
+import io.realm.kotlin.types.annotations.Ignore
 import io.realm.kotlin.types.annotations.PrimaryKey
 import java.util.Date
 
@@ -25,7 +26,7 @@ open class GroupchatInvitesStorageItem : RealmObject {
     var jid: String = ""
     var sender: String = ""
     var inviteId: String = ""
-    var date: Date = Date(978307200000) // Matches Date(timeIntervalSinceReferenceDate: 0)
+    @Ignore var date: Date = Date(978307200000) // Matches Date(timeIntervalSinceReferenceDate: 0)
     var reason: String? = null
     var outgoing: Boolean = true
     var isRead: Boolean = false
