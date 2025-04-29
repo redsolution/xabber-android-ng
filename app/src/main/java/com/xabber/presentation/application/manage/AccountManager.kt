@@ -10,7 +10,7 @@ import io.realm.kotlin.Realm
 
 object AccountManager {
     private val realm = Realm.open(defaultRealmConfig())
-
+    val users = [Account]
 //    @SuppressLint("SuspiciousIndentation")
 //    fun getAvatar(): AvatarDto? {
 //        var avatarDto: AvatarDto? = null
@@ -90,14 +90,8 @@ object AccountManager {
         }
     }
 
-    fun findAccount(realm: Realm, jid: String): AccountStorageItem? {
-        return try {
-            // Query the Realm database for an account with the given jid
-            realm.query(AccountStorageItem::class, "jid = '$jid'").first().find()
-        } catch (e: Exception) {
-            Log.e("AccountManager", "Failed to find account: ${e.message}")
-            null
-        }
+    fun find(jid: String): Account? {
+
     }
 
     fun deleteAccount(realm: Realm, jid: String): Boolean {
