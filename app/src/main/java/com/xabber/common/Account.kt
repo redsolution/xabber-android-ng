@@ -1,15 +1,14 @@
-package com.xabber.presentation.application.manage
+package com.xabber.common
 
 import android.util.Log
 import com.xabber.data_base.defaultRealmConfig
 import com.xabber.data_base.models.account.AccountStorageItem
 import com.xabber.utils.custom.NickGenerator
-import com.xabber.xmpp.messages.message.CommonConfigManager
+import io.reactivex.subjects.BehaviorSubject
 import io.realm.kotlin.Realm
 import io.realm.kotlin.UpdatePolicy
 import io.realm.kotlin.ext.query
 import java.util.Date
-import io.realm.kotlin.types.RealmInstant
 
 class Account {
     var jid: String =""
@@ -31,8 +30,11 @@ class Account {
     //service data
     var deviceName: String = ""
 
+    //observable
+    var statusMessage: BehaviorSubject<String> = BehaviorSubject.createDefault("Offline")
 
-    var push: PushNotificationsManager
+    //custon models
+
 
 
     fun load() {
@@ -45,18 +47,13 @@ class Account {
             item?.let {
                 this.jid = it.jid
                 this.host = it.host
-                this.supportTokens = it.xTokenSupport
-                this.tokenUid = it.xTokenUID
-                this.savePassword = it.savePassword
-                this.manuallySetHost = it.manuallySetHost
+
                 this.port = it.port
-                this.deviceName = it.deviceName
                 it.resource?.resource?.let { res ->
                     this.resource = res
                 }
                 this.username = it.username
-                this.push.node = it.node
-                this.push.service = it.service
+
             }
 
             if (this.deviceName.isEmpty()) {
@@ -67,12 +64,12 @@ class Account {
         }
     }
 
-    fun save() {
+    fun create() {
         try {
             val realm = Realm.open(defaultRealmConfig())
             realm.writeBlocking {
                 val item = AccountStorageItem().apply {
-                    order = query<AccountStorageItem>().count().toInt()
+                    order = query<AccountStorageItem>().find().size
                     jid = this@Account.jid
                     host = this@Account.host
                     savePassword = this@Account.savePassword
@@ -80,21 +77,29 @@ class Account {
                     port = this@Account.port
 
                     username = this@Account.username
-                    node = this@Account.push.node
-                    service = this@Account.push.service
-                    statusMessage = this@Account.statusMessage.value
-                    xTokenSupport = this@Account.supportTokens
-                    xTokenUID = this@Account.tokenUid
+
+
                     createdAt = Date()
 
                     deviceName = this@Account.deviceName
-                    deviceUuid = this@Account.devices.deviceId
                 }
 
-                copyToRealm(item, updatePolicy = UpdatePolicy.MODIFIED)
+                copyToRealm(item, updatePolicy = UpdatePolicy.ALL)
             }
         } catch (e: Exception) {
             Log.d("Account", "Can't update push info for user ${this.jid}", e)
         }
     }
+
+    fun isExist(jid: String): Boolean {
+        try {
+            val realm = Realm.open(defaultRealmConfig())
+            return realm.query(AccountStorageItem::class, "jid = $0", jid).first().find() == null
+        } catch (e: Exception) {
+            // Assuming DDLogDebug is a logging utility
+            Log.d("Existing Account", "cant get information about new user $jid", e)
+        }
+        return true
+    }
+
 }

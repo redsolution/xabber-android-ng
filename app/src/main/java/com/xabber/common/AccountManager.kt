@@ -1,17 +1,15 @@
-package com.xabber.presentation.application.manage
+package com.xabber.common
 
-import android.annotation.SuppressLint
 import android.util.Log
 import com.xabber.data_base.defaultRealmConfig
 import com.xabber.data_base.models.account.AccountStorageItem
-import com.xabber.dto.AvatarDto
 import io.realm.kotlin.Realm
 
 
 object AccountManager {
     private val realm = Realm.open(defaultRealmConfig())
-    val users = [Account]
-//    @SuppressLint("SuspiciousIndentation")
+    var users: MutableList<Account> = mutableListOf()
+    //    @SuppressLint("SuspiciousIndentation")
 //    fun getAvatar(): AvatarDto? {
 //        var avatarDto: AvatarDto? = null
 //            realm.writeBlocking {
@@ -58,11 +56,10 @@ object AccountManager {
 //        return initials
 //    }
 
-    fun addAccount(
+    fun createAccount(
         jid: String,
         username: String,
         order: Int = 0,
-        hasAvatar: Boolean = false
     ): Boolean {
         return try {
             realm.writeBlocking {
@@ -71,15 +68,12 @@ object AccountManager {
                 if (existingAccount != null) {
                     return@writeBlocking false // Account already exists
                 }
-
                 // Create new account
                 val newAccount = AccountStorageItem().apply {
                     this.jid = jid
                     this.username = username
                     this.order = order
-                    this.hasAvatar = hasAvatar
                 }
-
                 // Write to Realm
                 this.copyToRealm(newAccount)
                 true
@@ -91,7 +85,7 @@ object AccountManager {
     }
 
     fun find(jid: String): Account? {
-
+        return users.firstOrNull { it.jid == jid }
     }
 
     fun deleteAccount(realm: Realm, jid: String): Boolean {
@@ -112,5 +106,43 @@ object AccountManager {
             Log.e("AccountManager", "Failed to delete account: ${e.message}")
             false
         }
+    }
+
+    suspend fun setColorKey(primary: String, colorKey: String) {
+        realm.write {
+            val item = this.query(
+                AccountStorageItem::class,
+                "primary = '$primary'"
+            ).first().find()
+            if (item != null) findLatest(item)?.colorKey = colorKey
+        }
+    }
+
+    fun getAccount(primary: String): AccountStorageItem? =
+        realm.query(
+            AccountStorageItem::class,
+            "primary = '$primary'"
+        ).first().find()
+
+    suspend fun setEnabled(primary: String, isChecked: Boolean) {
+        realm.write {
+            val account =
+                this.query(
+                    AccountStorageItem::class,
+                    "primary = '$primary'"
+                ).first().find()
+            if (account != null) account.enabled = isChecked
+        }
+    }
+
+    fun getMainAccountPrimary(): String? {
+        var accountPrimary: String? = null
+        realm.writeBlocking {
+            val item =
+                this.query(AccountStorageItem::class, "order = 0")
+                    .first().find()
+            accountPrimary = item?.jid
+        }
+        return accountPrimary
     }
 }

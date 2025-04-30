@@ -2,6 +2,7 @@ package com.xabber.xmpp.presence
 
 import com.xabber.utils.prp
 import io.realm.kotlin.types.RealmObject
+import io.realm.kotlin.types.annotations.Ignore
 import io.realm.kotlin.types.annotations.Index
 import io.realm.kotlin.types.annotations.PrimaryKey
 import java.util.Date
@@ -20,6 +21,7 @@ open class PreaprovedSubscribtionStorageItem: RealmObject {
 
     var owner: String=""
     var jid: String=""
+    @Ignore
     var dateCreated: Date = Date()
 
 }

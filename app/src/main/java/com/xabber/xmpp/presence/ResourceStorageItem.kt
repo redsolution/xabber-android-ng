@@ -5,6 +5,7 @@ import com.xabber.xmpp.device.DeviceStorageItem
 import io.realm.kotlin.Realm
 import io.realm.kotlin.ext.query
 import io.realm.kotlin.types.RealmObject
+import io.realm.kotlin.types.annotations.Ignore
 import io.realm.kotlin.types.annotations.Index
 import io.realm.kotlin.types.annotations.PrimaryKey
 import java.util.Date
@@ -24,23 +25,19 @@ class ResourceStorageItem : RealmObject {
     @PrimaryKey
     var primary: String = ""
 
-    @Index
     var owner: String = ""
 
-    @Index
     var jid: String = ""
 
-    @Index
     var resource: String = ""
 
     var client: String = ""
 
-    @Index
     var priority: Int = 0
 
     private var typeRaw: Int = 0
 
-    @Index
+    @Ignore
     var timestamp: Date = Date()
 
     private var statusRaw: String = ResourceStatus.OFFLINE.rawValue

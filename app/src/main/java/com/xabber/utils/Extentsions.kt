@@ -224,7 +224,7 @@ fun com.xabber.data_base.models.account.AccountStorageItem.toAccountDto() =
         order = order,
         nickname = username,
         enabled = enabled,
-        statusMessage = statusMessage,
+      //  statusMessage = statusMessage,
         colorKey = colorKey,
         hasAvatar = hasAvatar
     )

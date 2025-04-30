@@ -6,7 +6,7 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.xabber.R
-import com.xabber.data_base.dao.AccountStorageItemDao
+import com.xabber.common.AccountManager
 import com.xabber.data_base.dao.LastChatStorageItemDao
 import com.xabber.data_base.defaultRealmConfig
 import com.xabber.data_base.models.last_chats.LastChatsStorageItem
@@ -35,7 +35,7 @@ import kotlinx.coroutines.withContext
 class ChatListViewModel : ViewModel() {
     val realm = Realm.open(defaultRealmConfig())
     private val lastChatDao = LastChatStorageItemDao(realm)
-    private val accountStorageItemDao = AccountStorageItemDao(realm)
+    private val accountStorageItemDao = AccountManager
     private var job: Job? = null
     private val _chats = MutableLiveData<ArrayList<ChatListDto>>()
     val chats: LiveData<ArrayList<ChatListDto>> = _chats

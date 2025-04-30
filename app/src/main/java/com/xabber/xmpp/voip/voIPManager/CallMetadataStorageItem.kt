@@ -1,6 +1,7 @@
 package com.xabber.xmpp.voip.voIPManager
 
 import io.realm.kotlin.types.RealmObject
+import io.realm.kotlin.types.annotations.Ignore
 import io.realm.kotlin.types.annotations.PrimaryKey
 import java.util.Date
 
@@ -11,7 +12,9 @@ open class CallMetadataStorageItem : RealmObject {
 
     var owner: String = ""
     var opponent: String = ""
+    @Ignore
     var dateStart: Date = Date()
+    @Ignore
     var dateEnd: Date? = null
     var isCallEnded: Boolean = false
     private var callStateRaw: Int = 0

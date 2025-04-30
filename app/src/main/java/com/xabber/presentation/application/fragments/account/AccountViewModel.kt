@@ -6,7 +6,7 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.xabber.data_base.dao.AccountStorageItemDao
+import com.xabber.common.AccountManager
 import com.xabber.data_base.defaultRealmConfig
 import com.xabber.data_base.models.account.AccountStorageItem
 import com.xabber.data_base.models.avatar.AvatarStorageItem
@@ -25,7 +25,7 @@ class AccountViewModel : ViewModel() {
     val realm = Realm.open(defaultRealmConfig())
     private val passwordStorage: PasswordStorageHelper =
         PasswordStorageHelper(XabberApplication.applicationContext())
-    private val accountStorageItemDao = AccountStorageItemDao(realm)
+    private val accountStorageItemDao = AccountManager
     private val _accounts = MutableLiveData<List<AccountDto>>()
     val accounts: LiveData<List<AccountDto>> = _accounts
     private val _colorKey = MutableLiveData<String>()
@@ -49,8 +49,6 @@ class AccountViewModel : ViewModel() {
         accountStorageItemDao.createAccount(
             accountJid,
             userName,
-            accountColor,
-            accountHasAvatar
         )
         passwordStorage.setData(accountJid, password.toByteArray())
     }

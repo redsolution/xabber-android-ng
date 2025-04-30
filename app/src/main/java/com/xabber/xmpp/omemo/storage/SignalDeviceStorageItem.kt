@@ -19,6 +19,7 @@ open class SignalDeviceStorageItem : RealmObject {
     private var stateRaw: String = TrustState.UNKNOWN.rawValue
     @Ignore
     var updateDate: Date = Date()
+    @Ignore
     var trustDate: Date = Date(-1)
     var lastTrustedItemsUpdateTimestamp: String = ""
     var trustedByDeviceId: String? = null
