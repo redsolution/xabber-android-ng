@@ -106,7 +106,7 @@ class AccountViewModel : ViewModel() {
                 })
             } else avatar.fileUri = uri
             val account = this.query(AccountStorageItem::class, "primary = '$id'").first().find()
-            account?.hasAvatar = true
+         //   account?.hasAvatar = true
         }
     }
 

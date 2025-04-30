@@ -22,7 +22,7 @@ class AccountStorageItem : RealmObject {
     var deviceUuid: String = ""
 
     var isEncryptionEnabled: Boolean = true
-    @Ignore var createdAt: Date = Date()
+    var createdAt: Long = System.currentTimeMillis()
 
     var oldschoolAvatarKey: String? = null
     var avatarMaxUrl: String? = null

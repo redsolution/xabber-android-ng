@@ -27,7 +27,7 @@ import org.json.JSONObject
 import java.util.Date
 
 
-open class MessageStorageItem : RealmObject {
+open class MessageStorageItem {
     companion object {
         private const val TAG = "MessageStorageItem"
 
@@ -71,13 +71,12 @@ open class MessageStorageItem : RealmObject {
 
     var legacyBody: String = ""
 
-    @Ignore var date: Date = Date()
+    var date: Long = System.currentTimeMillis()
 
-    @Ignore var sentDate: Date = Date()
+    var sentDate: Long = System.currentTimeMillis()
     @Ignore var editDate: Date? = null
     var outgoing: Boolean = false
     @Ignore var isRead: Boolean = false
-    @Ignore
     private var messageType: Int = MessageDisplayType.TEXT.rawValue
 
     var messageId: String = ""
@@ -90,7 +89,7 @@ open class MessageStorageItem : RealmObject {
 
     var isDeleted: Boolean = false
     private var stateRaw: Int = 0
-    var groupchatCard: GroupchatUserStorageItem? = null
+   // var groupchatCard: GroupchatUserStorageItem? = null
     var envelopeContainer: String? = null
     var afterburnInterval: Double = -1.0
     var burnDate: Double = -1.0
@@ -134,25 +133,25 @@ open class MessageStorageItem : RealmObject {
         get() = false
 
 
-    val groupchatMetadata: Map<String, Any>?
-        get() = references.find { it.kind.rawValue == ReferenceKind.GROUPCHAT.xmlType }?.metadata
+//    val groupchatMetadata: Map<String, Any>?
+//        get() = references.find { it.kind.rawValue == ReferenceKind.GROUPCHAT.xmlType }?.metadata
+//
 
-
-    val groupchatAuthorId: String?
-        get() = if (displayAs == MessageDisplayType.SYSTEM) {
-            null
-        } else {
-            groupchatCard?.userId ?: groupchatMetadata?.get("id") as? String
-        }
-
-
-    val groupchatAuthorNickname: String?
-        get() = if (displayAs == MessageDisplayType.SYSTEM) {
-            null
-        } else {
-            groupchatCard?.nickname ?: (groupchatMetadata?.get("nickname") as? String
-                ?: groupchatMetadata?.get("jid") as? String)
-        }
+//    val groupchatAuthorId: String?
+//        get() = if (displayAs == MessageDisplayType.SYSTEM) {
+//            null
+//        } else {
+//            groupchatCard?.userId ?: groupchatMetadata?.get("id") as? String
+//        }
+//
+//
+//    val groupchatAuthorNickname: String?
+//        get() = if (displayAs == MessageDisplayType.SYSTEM) {
+//            null
+//        } else {
+//            groupchatCard?.nickname ?: (groupchatMetadata?.get("nickname") as? String
+//                ?: groupchatMetadata?.get("jid") as? String)
+//        }
 
 
 //    val groupchatAuthorBadge: String?
@@ -166,18 +165,18 @@ open class MessageStorageItem : RealmObject {
 //            }
 //        }
 
-    val groupchatDisplayedNickname: String?
-        get() = groupchatAuthorNickname?.let {
-            if (displayAs != MessageDisplayType.SYSTEM) {
-                if (outgoing) "You:" else it
-            } else null
-        }
-
-
-    val groupchatUserAvatarPath: String?
-        get() = (groupchatMetadata?.get("avatar_uri") as? String)?.let {
-            listOf(it, opponent).prp()
-        }
+//    val groupchatDisplayedNickname: String?
+//        get() = groupchatAuthorNickname?.let {
+//            if (displayAs != MessageDisplayType.SYSTEM) {
+//                if (outgoing) "You:" else it
+//            } else null
+//        }
+//
+//
+//    val groupchatUserAvatarPath: String?
+//        get() = (groupchatMetadata?.get("avatar_uri") as? String)?.let {
+//            listOf(it, opponent).prp()
+//        }
 
 
 //    val callMetadata: Map<String, Any>?

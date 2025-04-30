@@ -79,7 +79,7 @@ class Account {
                     username = this@Account.username
 
 
-                    createdAt = Date()
+                    createdAt = System.currentTimeMillis()
 
                     deviceName = this@Account.deviceName
                 }
