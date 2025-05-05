@@ -16,8 +16,6 @@ import android.text.style.UnderlineSpan
 import android.text.style.URLSpan
 import androidx.core.content.ContextCompat
 import com.xabber.R
-import com.xabber.xmpp.messages.MessageStorageItem
-import com.xabber.xmpp.roster.RosterStorageItem
 import java.util.Date
 
 

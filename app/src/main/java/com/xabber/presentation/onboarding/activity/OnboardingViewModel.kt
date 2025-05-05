@@ -7,8 +7,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.xabber.R
 import com.xabber.data_base.defaultRealmConfig
+import com.xabber.data_base.models.avatar.AvatarStorageItem
 import com.xabber.dto.HostListDto
-import com.xabber.xmpp.presence.ResourceStorageItem
+import com.xabber.data_base.models.presences.ResourceStorageItem
 import com.xabber.presentation.XabberApplication
 import com.xabber.presentation.onboarding.util.PasswordStorageHelper
 import com.xabber.remote.AccountRepository
@@ -83,7 +84,7 @@ class OnboardingViewModel : ViewModel() {
                         resource = accountResource
                     })
                     if (savedUri != null)
-                        this.copyToRealm(com.xabber.xmpp.avatar.AvatarStorageItem().apply {
+                        this.copyToRealm(AvatarStorageItem().apply {
                             primary = accountJid!!
                             jid = accountJid!!
                             owner = accountJid!!

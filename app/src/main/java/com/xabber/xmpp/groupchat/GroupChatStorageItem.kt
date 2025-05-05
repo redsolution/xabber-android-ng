@@ -1,9 +1,10 @@
 package com.xabber.xmpp.groupchat
 
 import android.content.Context
+import android.provider.Contacts.PresenceColumns.OFFLINE
 import com.xabber.R
 import com.xabber.utils.prp
-import com.xabber.xmpp.presence.ResourceStatus
+import com.xabber.data_base.models.presences.ResourceStatus
 import io.realm.kotlin.ext.realmListOf
 import io.realm.kotlin.types.RealmList
 import io.realm.kotlin.types.RealmObject
@@ -83,13 +84,13 @@ open class GroupChatStorageItem : RealmObject {
 
     val statusDisplayed: ResourceStatus
         get() = when (status) {
-            "Inactive" -> ResourceStatus.OFFLINE
-            "xa" -> ResourceStatus.XA
-            "away" -> ResourceStatus.AWAY
-            "dnd" -> ResourceStatus.DND
-            "online", "active" -> ResourceStatus.ONLINE
-            "chat" -> ResourceStatus.CHAT
-            else -> ResourceStatus.OFFLINE
+            "Inactive" -> ResourceStatus.Offline
+            "xa" -> ResourceStatus.Xa
+            "away" -> ResourceStatus.Away
+            "dnd" -> ResourceStatus.Dnd
+            "online", "active" -> ResourceStatus.Online
+            "chat" -> ResourceStatus.Chat
+            else -> ResourceStatus.Offline
         }
 
 

@@ -1,7 +1,7 @@
 package com.xabber.data_base.models.account
 
 
-import com.xabber.xmpp.presence.ResourceStorageItem
+import com.xabber.data_base.models.presences.ResourceStorageItem
 import io.realm.kotlin.types.RealmObject
 import io.realm.kotlin.types.annotations.Ignore
 import io.realm.kotlin.types.annotations.PrimaryKey
@@ -22,7 +22,7 @@ class AccountStorageItem : RealmObject {
     var deviceUuid: String = ""
 
     var isEncryptionEnabled: Boolean = true
-    @Ignore var createdAt: Date = Date()
+    var createdAt: Long = 0
 
     var oldschoolAvatarKey: String? = null
     var avatarMaxUrl: String? = null

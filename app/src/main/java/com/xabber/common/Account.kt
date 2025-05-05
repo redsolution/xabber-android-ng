@@ -37,32 +37,32 @@ class Account {
 
 
 
-    fun load() {
-        try {
-            val realm = Realm.open(defaultRealmConfig())
-            val item = realm.query(AccountStorageItem::class, "primary == $0", jid)
-                .first()
-                .find()
-
-            item?.let {
-                this.jid = it.jid
-                this.host = it.host
-
-                this.port = it.port
-                it.resource?.resource?.let { res ->
-                    this.resource = res
-                }
-                this.username = it.username
-
-            }
-
-            if (this.deviceName.isEmpty()) {
-                this.deviceName = NickGenerator.genRandomNick()
-            }
-        } catch (e: Exception) {
-            Log.e("Account","cant load user ${this.jid} from db")
-        }
-    }
+//    fun load() {
+//        try {
+//            val realm = Realm.open(defaultRealmConfig())
+//            val item = realm.query(AccountStorageItem::class, "primary == $0", jid)
+//                .first()
+//                .find()
+//
+//            item?.let {
+//                this.jid = it.jid
+//                this.host = it.host
+//
+//                this.port = it.port
+//                it.resource?.resource?.let { res ->
+//                    this.resource = res
+//                }
+//                this.username = it.username
+//
+//            }
+//
+//            if (this.deviceName.isEmpty()) {
+//                this.deviceName = NickGenerator.genRandomNick()
+//            }
+//        } catch (e: Exception) {
+//            Log.e("Account","cant load user ${this.jid} from db")
+//        }
+//    }
 
     fun create() {
         try {
@@ -79,7 +79,7 @@ class Account {
                     username = this@Account.username
 
 
-                    createdAt = Date()
+                    createdAt = 0
 
                     deviceName = this@Account.deviceName
                 }

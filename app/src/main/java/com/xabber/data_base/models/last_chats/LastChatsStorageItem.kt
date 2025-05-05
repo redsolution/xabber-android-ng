@@ -5,11 +5,19 @@ import com.xabber.data_base.models.chat_states.ComposingType
 import com.xabber.data_base.models.messages.MessageStorageItem
 import com.xabber.data_base.models.roster.RosterStorageItem
 import com.xabber.data_base.models.sync.ConversationType
+import com.xabber.utils.prp
 
 import io.realm.kotlin.types.RealmObject
 import io.realm.kotlin.types.annotations.PrimaryKey
 
 class LastChatsStorageItem: RealmObject {
+    companion object {
+
+        fun genPrimary(jid: String, owner: String, conversationType: ConversationType): String {
+            return listOf(jid, owner, conversationType.rawValue).prp()
+        }
+    }
+
     @PrimaryKey
     var primary: String = ""  // автоматически jid + owner + conversation type
     var owner: String = ""   // jid юзера
