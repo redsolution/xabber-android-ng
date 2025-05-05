@@ -18,7 +18,7 @@ import java.util.Calendar
 import java.util.Locale
 
 
-open class GroupchatUserStorageItem : RealmObject {
+open class GroupchatUserStorageItem {
     enum class Role(val rawValue: String) {
         OWNER("owner"),
         ADMIN("admin"),
