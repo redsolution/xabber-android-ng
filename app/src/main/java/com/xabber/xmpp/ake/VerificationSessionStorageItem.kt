@@ -25,9 +25,9 @@ class VerificationSessionStorageItem: RealmObject {
     }
 
     var state: VerificationState
-        get() = VerificationState.values().find { it.rawValue == stateRaw } ?: VerificationState.NONE
+        get() = VerificationState.values().find { it.rawValue == state_ } ?: VerificationState.NONE
         set(value) {
-            stateRaw = value.rawValue
+            state_ = value.rawValue
         }
 
 
@@ -41,7 +41,7 @@ class VerificationSessionStorageItem: RealmObject {
     var opponentDeviceId: Int=0
     var byteSequence: String=""
     var code: String=""
-    var stateRaw: String = VerificationState.NONE.rawValue
+    var state_: String = VerificationState.NONE.rawValue
     var sid: String=""
     var opponentByteSequenceEncrypted: String=""
     var OpponentByteSequenceIv: String=""

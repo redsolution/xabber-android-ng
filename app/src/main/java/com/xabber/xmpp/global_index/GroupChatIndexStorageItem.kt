@@ -34,33 +34,32 @@ open class GroupChatIndexStorageItem : RealmObject {
 
     @PrimaryKey
     var jid: String = ""
-
     var itemId: String = ""
     var name: String = ""
     var text: String = ""
-    var membershipRaw: Int = Membership.NONE.rawValue
-    var privacyRaw: Int = Privacy.NONE.rawValue
+    var membership_: Int = Membership.NONE.rawValue
+    var privacy_: Int = Privacy.NONE.rawValue
     var members: Int = 0
     var messagesCount: Int = 0
 
     var membership: Membership
-        get() = when (membershipRaw) {
+        get() = when (membership_) {
             Membership.NONE.rawValue -> Membership.NONE
             Membership.OPEN.rawValue -> Membership.OPEN
             Membership.MEMBER_ONLY.rawValue -> Membership.MEMBER_ONLY
             else -> Membership.NONE
         }
         set(newValue) {
-            membershipRaw = newValue.rawValue
+            membership_ = newValue.rawValue
         }
 
     var privacy: Privacy
-        get() = when (privacyRaw) {
+        get() = when (privacy_) {
             Privacy.NONE.rawValue -> Privacy.NONE
             Privacy.IS_PUBLIC.rawValue -> Privacy.IS_PUBLIC
             else -> Privacy.NONE
         }
         set(newValue) {
-            privacyRaw = newValue.rawValue
+            privacy_ = newValue.rawValue
         }
 }

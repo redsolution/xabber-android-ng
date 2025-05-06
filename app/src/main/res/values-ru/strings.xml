@@ -21,7 +21,7 @@
     <string name="signin_toolbar_title_1">Вход</string>
     <string name="signin_toolbar_title_2">Возможности сервера</string>
     <string name="signin_title_label_1">Привет! Подключитесь к существующему XMPP ID</string>
-    <string name="signin_title_label_template_2">Подождите секунду! Проверяем, поддерживает ли dev.xabber.org все необходимые функции.</string>
+    <string name="signin_title_label_template_2">Подождите секунду! Проверяем, поддерживает ли %s все необходимые функции.</string>
     <string name="signin_edit_text_login_label">username@xabber.com</string>
     <string name="signin_edit_text_password_label">пароль</string>
     <string name="signin_subtitle_label_1_start">Если у вас еще нет учетной записи,</string>

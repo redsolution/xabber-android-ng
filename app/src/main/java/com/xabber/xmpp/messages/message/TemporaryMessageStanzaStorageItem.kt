@@ -9,7 +9,7 @@ import java.util.Date
 
 open class TemporaryMessageStanzaStorageItem: RealmObject {
 
-    fun primaryKey(): String? = "primary"
+
 
 
     companion object {
@@ -17,6 +17,7 @@ open class TemporaryMessageStanzaStorageItem: RealmObject {
         fun genPrimary(jid: String, owner: String): String {
             return listOf(jid, owner).prp()
         }
+        fun primaryKey(): String? = "primary"
     }
 
     @PrimaryKey
@@ -24,7 +25,6 @@ open class TemporaryMessageStanzaStorageItem: RealmObject {
 
     var owner:String=""
     var jid:String=""
-    @Ignore
-    var date: Date = Date()
+    var date: Long = 0
     var stanza: String=""
 }

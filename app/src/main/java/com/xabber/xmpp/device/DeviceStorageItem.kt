@@ -23,19 +23,14 @@ class DeviceStorageItem : RealmObject {
 
     @PrimaryKey
     var primary: String = ""
-
-    @Index
     var owner: String = ""
-
-    @Index
     var uid: String = ""
-
     var client: String = ""
     var device: String = ""
     var descr: String = ""
     var ip: String = ""
-    @Ignore var authDate: Date = Date()
-    @Ignore var expire: Date = Date()
+    var authDate: Double = 1.0
+    var expire: Double = 1.0
     var resource: String? = null
     var omemoDeviceId: Int = -1
 
@@ -61,8 +56,8 @@ class DeviceStorageItem : RealmObject {
         this.client = client
         this.device = device
         this.descr = descr
-        this.expire = Date((expire * 1000).toLong())
-        this.authDate = Date((authDate * 1000).toLong())
+        this.expire = expire
+        this.authDate = authDate
     }
 
 

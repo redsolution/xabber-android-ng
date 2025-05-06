@@ -62,53 +62,47 @@ open class GroupchatUserStorageItem {
 
     @PrimaryKey
     var primary: String = ""
-
-    @Index
     var groupchatId: String = ""
-
     var userId: String = ""
-
-    @Index
     var owner: String = ""
-
     var jid: String = ""
-    var roleRaw: String = Role.MEMBER.rawValue
+    var role_: String = Role.MEMBER.rawValue
     var nickname: String = ""
     var badge: String = ""
     var avatarURI: String = ""
     var temporaryAvatarHash: String = ""
     var avatarHash: String = ""
     var isOnline: Boolean = false
-    @Ignore var lastSeen: Date? = null
+    var lastSeen: Date? = null
     var isBlocked: Boolean = false
     var isKicked: Boolean = false
     var isTemporary: Boolean = false
-    var permissonsRaw: RealmList<String> = realmListOf()
-    var restrictionsRaw: RealmList<String> = realmListOf()
-    var subscribtionRaw: String = Subscribtion.BOTH.rawValue
+    var permissons_: RealmList<String> = realmListOf()
+    var restrictions_: RealmList<String> = realmListOf()
+    var subscribtion_: String = Subscribtion.BOTH.rawValue
     var isMe: Boolean = false
-    @Ignore var sortedRole: Int = IntegerRole.MEMBER.rawValue
-    @Ignore var updateTimestamp: Date = Date(978307200000) // Matches Date(timeIntervalSinceReferenceDate: 0)
+    var sortedRole: Int = IntegerRole.MEMBER.rawValue
+    var updateTimestamp: Date = Date(978307200000) // Matches Date(timeIntervalSinceReferenceDate: 0)
 
     var subscribtion: Subscribtion
-        get() = when (subscribtionRaw) {
+        get() = when (subscribtion_) {
             Subscribtion.BOTH.rawValue -> Subscribtion.BOTH
             Subscribtion.NONE.rawValue -> Subscribtion.NONE
             else -> Subscribtion.BOTH
         }
         set(newValue) {
-            subscribtionRaw = newValue.rawValue
+            subscribtion_ = newValue.rawValue
         }
 
     var role: Role
-        get() = when (roleRaw) {
+        get() = when (role_) {
             Role.MEMBER.rawValue -> Role.MEMBER
             Role.ADMIN.rawValue -> Role.ADMIN
             Role.OWNER.rawValue -> Role.OWNER
             else -> Role.MEMBER
         }
         set(newValue) {
-            roleRaw = newValue.rawValue
+            role_ = newValue.rawValue
         }
 
     var avatarURL: Uri?
@@ -123,7 +117,7 @@ open class GroupchatUserStorageItem {
     var permissions: List<Map<String, String>>
         get() {
             val out = mutableListOf<Map<String, String>>()
-            permissonsRaw.forEach { item ->
+            permissons_.forEach { item ->
                 try {
                     val json = JSONObject(item)
                     val map = mutableMapOf<String, String>()
@@ -147,14 +141,14 @@ open class GroupchatUserStorageItem {
                     Log.e(TAG, "permissions: ${e.message}")
                 }
             }
-            permissonsRaw.clear()
-            permissonsRaw.addAll(out)
+            permissons_.clear()
+            permissons_.addAll(out)
         }
 
     var restrictions: List<Map<String, String>>
         get() {
             val out = mutableListOf<Map<String, String>>()
-            restrictionsRaw.forEach { item ->
+            restrictions_.forEach { item ->
                 try {
                     val json = JSONObject(item)
                     val map = mutableMapOf<String, String>()
@@ -178,8 +172,8 @@ open class GroupchatUserStorageItem {
                     Log.e(TAG, "restrictions: ${e.message}")
                 }
             }
-            restrictionsRaw.clear()
-            restrictionsRaw.addAll(out)
+            restrictions_.clear()
+            restrictions_.addAll(out)
         }
 
 //    val dateString: String?
@@ -221,7 +215,6 @@ open class GroupchatUserStorageItem {
 //        }
 
 
-    @Ignore
     private lateinit var context: Context
 
     fun setContext(context: Context) {

@@ -25,9 +25,9 @@ open class GroupChatStorageItem : RealmObject {
     var jid: String = ""
     var owner: String = ""
     var name: String = ""
-    private var privacyRaw: String = Privacy.NONE.rawValue
-    private var indexRaw: String = IndexRaw.NONE.rawValue
-    private var membershipRaw: String = Membership.NONE.rawValue
+    var privacy_: String = Privacy.NONE.rawValue
+    var index_: String = IndexRaw.NONE.rawValue
+    var membership_: String = Membership.NONE.rawValue
     var descr: String = ""
     var pinnedMessage: String = ""
     var contacts: RealmList<String> = realmListOf()
@@ -47,35 +47,35 @@ open class GroupChatStorageItem : RealmObject {
     var canDeleteMessages: Boolean = false
     var defaultRestrictions: RealmList<String> = realmListOf()
     var status: String = ""
-    private var muteStateRaw: Int = MuteState.ENABLED.rawValue
+    private var muteState_: Int = MuteState.ENABLED.rawValue
     var isDeleted: Boolean = false
 
 
     var membership: Membership
-        get() = Membership.fromRaw(membershipRaw)
+        get() = Membership.fromRaw(membership_)
         set(value) {
-            membershipRaw = value.rawValue
+            membership_ = value.rawValue
         }
 
 
     var privacy: Privacy
-        get() = Privacy.fromRaw(privacyRaw)
+        get() = Privacy.fromRaw(privacy_)
         set(value) {
-            privacyRaw = value.rawValue
+            privacy_ = value.rawValue
         }
 
 
     var index: IndexRaw
-        get() = IndexRaw.fromRaw(indexRaw)
+        get() = IndexRaw.fromRaw(index_)
         set(value) {
-            indexRaw = value.rawValue
+            index_ = value.rawValue
         }
 
 
     var muteState: MuteState
-        get() = MuteState.fromRaw(muteStateRaw)
+        get() = MuteState.fromRaw(muteState_)
         set(value) {
-            muteStateRaw = value.rawValue
+            muteState_ = value.rawValue
         }
 
 

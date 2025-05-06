@@ -17,6 +17,8 @@ import io.reactivex.rxjava3.core.Single
 import io.realm.kotlin.Realm
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import com.xabber.data_base.models.account.AccountStorageItem
+
 
 class OnboardingViewModel : ViewModel() {
     private val realm = Realm.open(defaultRealmConfig())
@@ -73,7 +75,7 @@ class OnboardingViewModel : ViewModel() {
                         owner = accountNickName!!
                         resource = deviceName
                     })
-                    this.copyToRealm(com.xabber.data_base.models.account.AccountStorageItem().apply {
+                    this.copyToRealm(AccountStorageItem().apply {
                         primary = accountJid!!
                         order = primaryAccountOrder
                         jid = accountJid!!

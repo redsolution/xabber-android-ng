@@ -1,5 +1,6 @@
 package com.xabber.xmpp.voip.voIPManager
 
+import com.xabber.utils.prp
 import io.realm.kotlin.types.RealmObject
 import io.realm.kotlin.types.annotations.Ignore
 import io.realm.kotlin.types.annotations.PrimaryKey
@@ -7,34 +8,36 @@ import java.util.Date
 
 
 open class CallMetadataStorageItem : RealmObject {
+    companion object {
+        fun genPrimary(jid: String, owner: String, resource: String): String {
+            return listOf(jid, resource, owner).prp()
+        }
+    }
     @PrimaryKey
     var sid: String = ""
-
     var owner: String = ""
     var opponent: String = ""
-    @Ignore
-    var dateStart: Date = Date()
-    @Ignore
-    var dateEnd: Date? = null
+    var dateStart: Long = 0
+    var dateEnd: Long = 0
     var isCallEnded: Boolean = false
-    private var callStateRaw: Int = 0
+    var callState_: Int = 0
     var income: Boolean = false
     var cancelled: Boolean = false
     var isDeleted: Boolean = false
 
 
     var callState: CallState
-        get() = CallState.fromRaw(callStateRaw)
+        get() = CallState.fromRaw(callState_)
         set(value) {
-            callStateRaw = value.rawValue
+            callState_ = value.rawValue
         }
 
 
-    val duration: Double
-        get() {
-            val end = dateEnd ?: dateStart
-            return (end.time - dateStart.time) / 1000.0
-        }
+//    val duration: Double
+//        get() {
+//            val end = dateEnd ?: dateStart
+//            return (end.time - dateStart.time) / 1000.0
+//        }
 }
 
 

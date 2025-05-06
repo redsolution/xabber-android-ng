@@ -41,6 +41,7 @@ import com.google.android.material.bottomnavigation.BottomNavigationItemView
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.google.android.material.navigation.NavigationView
 import com.xabber.R
+import com.xabber.common.AccountManager
 import com.xabber.data_base.defaultRealmConfig
 import com.xabber.databinding.ActivityApplicationBinding
 import com.xabber.dto.AccountDto
@@ -89,6 +90,7 @@ import com.xabber.utils.lockScreenRotation
 import com.xabber.utils.toAccountDto
 import com.xabber.utils.toAvatarDto
 import io.realm.kotlin.Realm
+import kotlin.math.log
 
 /**
  * ApplicationActivity implements the interface Navigator. Its methods are responsible for navigation.
@@ -132,11 +134,17 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
 
         setupNavigationDrawer()
 
-        if (viewModel.checkIsEntry()) {
+
+        if (AccountManager.loadFirstAccount() != null) {
             initializeAppForLoggedInUser(savedInstanceState)
         } else {
             goToOnboarding()
         }
+//        if (viewModel.checkIsEntry()) {
+//            initializeAppForLoggedInUser(savedInstanceState)
+//        } else {
+//            goToOnboarding()
+//        }
         val profileButton: LinearLayout = findViewById(R.id.profile_button)
 
         profileButton.setOnClickListener {
@@ -188,6 +196,10 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         actionBarToggle.syncState()
         navigationView.setNavigationItemSelectedListener(this)
         drawerLayout.setScrimColor(Color.parseColor("#88000000"))
+
+
+        val logOutButton = findViewById<ImageView>(R.id.log_out)
+        logOutButton.setOnClickListener{logOut()}
     }
 
 
@@ -710,7 +722,12 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         binding.fr.setBackgroundResource(designDrawable)
     }
 
+    private fun logOut() {
+            AccountManager.logout()
+            goToOnboarding()
 
+
+    }
 
     private fun subscribeToViewModelData() {
         viewModel.initAccountListListener()

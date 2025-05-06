@@ -20,7 +20,6 @@ open class XMPPNotificationsManagerStorageItem : RealmObject {
 
     @PrimaryKey
     var primary: String = ""
-
     var owner: String = ""
     var lastItemId: String? = null
     var unread: Int = 0
@@ -40,31 +39,27 @@ open class NotificationStorageItem : RealmObject {
 
     @PrimaryKey
     var primary: String = ""
-
     var owner: String = ""
     var jid: String = ""
     var uniqueId: String = ""
-
-    private var categoryRaw: String = ""
-
+    var category_: String = ""
     var isRead: Boolean = true
     var associatedJid: String? = null
     var displayedNick: String? = null
     var text: String? = null
-    private var metadataRaw: String? = null
-    @Ignore
-    var date: Date = Date()
+    var metadata_: String? = null
+    var date: Long = 0
     var shouldShow: Boolean = false
 
 
     var category: Category
-        get() = Category.fromRaw(categoryRaw)
+        get() = Category.fromRaw(category_)
         set(value) {
-            categoryRaw = value.rawValue
+            category_ = value.rawValue
         }
 
     var metadata: Map<String, Any>?
-        get() = metadataRaw?.let { raw ->
+        get() = metadata_?.let { raw ->
             try {
                 JSONObject(raw).toMap()
             } catch (e: Exception) {
@@ -73,7 +68,7 @@ open class NotificationStorageItem : RealmObject {
             }
         }
         set(value) {
-            metadataRaw = value?.let { map ->
+            metadata_ = value?.let { map ->
                 try {
                     JSONObject(map).toString()
                 } catch (e: Exception) {
@@ -94,4 +89,3 @@ enum class Category(val rawValue: String) {
     }
 }
 
-// Utility to convert JSONObject to Map (simplified)

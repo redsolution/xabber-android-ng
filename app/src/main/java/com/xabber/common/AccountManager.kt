@@ -1,8 +1,14 @@
 package com.xabber.common
 
+import android.content.Context
+import android.content.Intent
 import android.util.Log
 import com.xabber.data_base.defaultRealmConfig
 import com.xabber.data_base.models.account.AccountStorageItem
+import com.xabber.data_base.models.avatar.AvatarStorageItem
+import com.xabber.data_base.models.presences.ResourceStorageItem
+import com.xabber.presentation.application.activity.ApplicationActivity
+import com.xabber.presentation.onboarding.activity.OnBoardingActivity
 import io.realm.kotlin.Realm
 
 
@@ -56,6 +62,9 @@ object AccountManager {
 //        return initials
 //    }
 
+
+
+
     fun createAccount(
         jid: String,
         username: String,
@@ -76,6 +85,13 @@ object AccountManager {
                 }
                 // Write to Realm
                 this.copyToRealm(newAccount)
+                // Create Account object for users list
+                val newUserAccount = Account().apply {
+                    this.jid = jid
+                    this.username = username
+                }
+                // Add to users list
+                users.add(newUserAccount)
                 true
             }
         } catch (e: Exception) {
@@ -144,5 +160,40 @@ object AccountManager {
             accountPrimary = item?.jid
         }
         return accountPrimary
+    }
+
+    fun loadFirstAccount(): Account? {
+        var account: Account? = null
+        realm.writeBlocking {
+            val accountStorageItem = this.query(AccountStorageItem::class).first().find()
+            if (accountStorageItem != null) {
+                account = Account().apply {
+                    jid = accountStorageItem.jid
+                    loadAccount()
+                }
+            }
+        }
+        return account
+    }
+
+    fun logout(): Boolean {
+        return try {
+            realm.writeBlocking {
+                // Delete all AccountStorageItem entries
+                val accounts = this.query(AccountStorageItem::class).find()
+                delete(accounts)
+                // Delete all AvatarStorageItem entries (if applicable)
+                val avatars = this.query(AvatarStorageItem::class).find()
+                delete(avatars)
+                // Delete all ResourceStorageItem entries (if applicable)
+                val resources = this.query(ResourceStorageItem::class).find()
+                delete(resources)
+            }
+            users.clear()
+            true
+        } catch (e: Exception) {
+            Log.e("AccountManager", "Failed to logout: ${e.message}")
+            false
+        }
     }
 }

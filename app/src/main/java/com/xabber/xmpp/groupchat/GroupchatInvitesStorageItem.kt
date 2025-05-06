@@ -20,26 +20,25 @@ open class GroupchatInvitesStorageItem : RealmObject {
 
     @PrimaryKey
     var primary: String = ""
-
     var owner: String = ""
     var groupchat: String = ""
     var jid: String = ""
     var sender: String = ""
     var inviteId: String = ""
-    @Ignore var date: Date = Date(978307200000) // Matches Date(timeIntervalSinceReferenceDate: 0)
+    var date: Long = 0
     var reason: String? = null
     var outgoing: Boolean = true
     var isRead: Boolean = false
     var isHidden: Boolean = false
     var temporary: Boolean = true
     var isProcessed: Boolean = false
-    var entityRaw: String = RosterItemEntity.GROUPCHAT.rawValue
+    var entity_: String = RosterItemEntity.GROUPCHAT.rawValue
     var isAnonymous: Boolean = false
 
     var entity: RosterItemEntity
-        get() = RosterItemEntity.fromRaw(entityRaw) ?: RosterItemEntity.GROUPCHAT
+        get() = RosterItemEntity.fromRaw(entity_) ?: RosterItemEntity.GROUPCHAT
         set(newValue) {
-            entityRaw = newValue.rawValue
+            entity_ = newValue.rawValue
         }
 }
 
