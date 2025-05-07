@@ -7,6 +7,7 @@ import android.content.Intent
 import android.content.SharedPreferences
 import android.content.res.Configuration
 import android.graphics.Color
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.util.TypedValue
@@ -19,6 +20,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.viewModels
+import androidx.annotation.RequiresApi
 import androidx.appcompat.app.ActionBarDrawerToggle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
@@ -119,6 +121,8 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
     private val viewModel = ApplicationViewModel()
     private val chatListViewModel: ChatListViewModel by viewModels()
     private var shapeView: ShapeOfView? = null
+    private var isLoggingOut: Boolean = false // Prevent multiple logout calls
+    private var isUpdatingUI: Boolean = false // Prevent recursive UI updates
 
     @SuppressLint("WrongViewCast")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -135,16 +139,15 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         setupNavigationDrawer()
 
 
+
+        // Check for an existing account
         if (AccountManager.loadFirstAccount() != null) {
+            Log.d("ApplicationActivity", "Found existing account, initializing app")
             initializeAppForLoggedInUser(savedInstanceState)
         } else {
+            Log.d("ApplicationActivity", "No account found, redirecting to onboarding")
             goToOnboarding()
         }
-//        if (viewModel.checkIsEntry()) {
-//            initializeAppForLoggedInUser(savedInstanceState)
-//        } else {
-//            goToOnboarding()
-//        }
         val profileButton: LinearLayout = findViewById(R.id.profile_button)
 
         profileButton.setOnClickListener {
@@ -160,48 +163,58 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
     }
 
     private fun setupNavigationDrawer() {
-        drawerLayout = findViewById(R.id.drawer_layout)
-        val navigationView = findViewById<NavigationView>(R.id.nav_view)
-        val toolbarNav = findViewById<Toolbar>(R.id.toolbar_nav)
-        val dpAsPixels = getStatusBarHeight()
-
-        // Set padding for the toolbar
-        val currentPaddingLeft = toolbarNav.paddingLeft
-        val currentPaddingRight = toolbarNav.paddingRight
-        val currentPaddingBottom = toolbarNav.paddingBottom
-        toolbarNav.setPadding(currentPaddingLeft, dpAsPixels, currentPaddingRight, currentPaddingBottom)
-
-
-        val avatarImageView = findViewById<ImageView>(R.id.avatar_image_view)
-        val titleTextView = findViewById<TextView>(R.id.title_text_view)
-        val subtitleTextView = findViewById<TextView>(R.id.subtitle_text_view)
-        val account = getPrimaryAccount()
-        val avatar = account?.let { getAvatar(it.id) }
-
-        account?.let {
-            titleTextView.text = it.getAccountName()
-            subtitleTextView.text = it.jid
+        if (isLoggingOut || isUpdatingUI) {
+            Log.w("ApplicationActivity", "Skipping setupNavigationDrawer during logout or UI update")
+            return
         }
+        isUpdatingUI = true
+        try {
+            drawerLayout = findViewById(R.id.drawer_layout)
+            val navigationView = findViewById<NavigationView>(R.id.nav_view)
+            val toolbarNav = findViewById<Toolbar>(R.id.toolbar_nav)
+            val dpAsPixels = getStatusBarHeight()
 
-        avatar?.let {
-            Glide.with(this).load(it.fileUri).into(avatarImageView)
-            avatarImageView.requestLayout()
+            // Set padding for the toolbar
+            val currentPaddingLeft = toolbarNav.paddingLeft
+            val currentPaddingRight = toolbarNav.paddingRight
+            val currentPaddingBottom = toolbarNav.paddingBottom
+            toolbarNav.setPadding(currentPaddingLeft, dpAsPixels, currentPaddingRight, currentPaddingBottom)
+
+            val avatarImageView = findViewById<ImageView>(R.id.avatar_image_view)
+            val titleTextView = findViewById<TextView>(R.id.title_text_view)
+            val subtitleTextView = findViewById<TextView>(R.id.subtitle_text_view)
+            val account = getPrimaryAccount()
+            val avatar = account?.let { getAvatar(it.id) }
+
+            account?.let {
+                titleTextView.text = it.getAccountName()
+                subtitleTextView.text = it.jid
+            }
+
+            avatar?.let {
+                Glide.with(this).load(it.fileUri).into(avatarImageView)
+                avatarImageView.requestLayout()
+            }
+
+            supportActionBar?.setDisplayShowTitleEnabled(false)
+            supportActionBar?.setDisplayHomeAsUpEnabled(true)
+            actionBarToggle = ActionBarDrawerToggle(this, drawerLayout, toolbarNav, R.string.open, R.string.close)
+            drawerLayout.addDrawerListener(actionBarToggle)
+            actionBarToggle.syncState()
+            navigationView.setNavigationItemSelectedListener(this)
+            drawerLayout.setScrimColor(Color.parseColor("#88000000"))
+
+            val logOutButton = findViewById<ImageView>(R.id.log_out)
+            logOutButton.setOnClickListener {
+                if (!isLoggingOut) {
+                    Log.d("ApplicationActivity", "Logout button clicked")
+                    logOut()
+                }
+            }
+        } finally {
+            isUpdatingUI = false
         }
-
-
-        supportActionBar?.setDisplayShowTitleEnabled(false)
-        supportActionBar?.setDisplayHomeAsUpEnabled(true)
-        actionBarToggle = ActionBarDrawerToggle(this, drawerLayout, toolbarNav, R.string.open, R.string.close )
-        drawerLayout.addDrawerListener(actionBarToggle)
-        actionBarToggle.syncState()
-        navigationView.setNavigationItemSelectedListener(this)
-        drawerLayout.setScrimColor(Color.parseColor("#88000000"))
-
-
-        val logOutButton = findViewById<ImageView>(R.id.log_out)
-        logOutButton.setOnClickListener{logOut()}
     }
-
 
 
     private fun initViews() {
@@ -217,6 +230,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         setFullScreenMode()
         setHeightStatusBar()
         setMask()
+        logOut()
         setChatSettings()
         handleUnread()
         handleContactAddition()
@@ -722,11 +736,73 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         binding.fr.setBackgroundResource(designDrawable)
     }
 
+
+
     private fun logOut() {
-            AccountManager.logout()
-            goToOnboarding()
+        if (isLoggingOut) {
+            Log.w("ApplicationActivity", "Logout already in progress, skipping")
+            return
+        }
+        isLoggingOut = true
+        try {
+            val primaryAccount = getPrimaryAccount()
+            if (primaryAccount == null) {
+                Log.w("ApplicationActivity", "No primary account found to log out")
+                Toast.makeText(this, "No account found to log out", Toast.LENGTH_SHORT).show()
+                goToOnboarding()
+                return
+            }
+            val jid = primaryAccount.jid.trim().lowercase()
+            Log.d("ApplicationActivity", "Attempting logout for jid $jid")
+            if (AccountManager.logout(jid)) {
+                Log.d("ApplicationActivity", "Logout successful for jid $jid")
+                if (AccountManager.loadFirstAccount() == null) {
+                    Log.d("ApplicationActivity", "No accounts remain, navigating to OnBoardingActivity")
+                    goToOnboarding()
+                } else {
+                    Log.d("ApplicationActivity", "Other accounts remain, updating UI")
+                    updateAccountUI()
+                }
+            } else {
+                Log.w("ApplicationActivity", "Logout failed for jid $jid, forcing session reset")
+                AccountManager.users.clear()
+                if (AccountManager.loadFirstAccount() == null) {
+                    Log.d("ApplicationActivity", "No accounts remain after forced reset, navigating to OnBoardingActivity")
+                    goToOnboarding()
+                } else {
+                    Log.d("ApplicationActivity", "Other accounts remain after forced reset, updating UI")
+                    updateAccountUI()
+                }
+            }
+        } finally {
+            isLoggingOut = false
+        }
+    }
 
-
+    private fun updateAccountUI() {
+        if (isLoggingOut || isUpdatingUI) {
+            Log.w("ApplicationActivity", "Skipping updateAccountUI during logout or UI update")
+            return
+        }
+        isUpdatingUI = true
+        try {
+            Log.d("ApplicationActivity", "Updating UI for current account")
+            // Refresh the navigation drawer
+            setupNavigationDrawer()
+            // Ensure the main fragment is shown (e.g., ChatListFragment)
+            if (supportFragmentManager.findFragmentById(R.id.application_container) !is ChatListFragment) {
+                Log.d("ApplicationActivity", "Replacing fragment with ChatListFragment")
+                supportFragmentManager.commit {
+                    setReorderingAllowed(true)
+                    replace(R.id.application_container, ChatListFragment())
+                    addToBackStack("chat_list_root")
+                }
+            } else {
+                Log.d("ApplicationActivity", "ChatListFragment already active")
+            }
+        } finally {
+            isUpdatingUI = false
+        }
     }
 
     private fun subscribeToViewModelData() {

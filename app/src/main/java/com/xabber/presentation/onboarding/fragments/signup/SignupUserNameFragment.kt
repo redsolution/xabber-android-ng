@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.View
+import android.widget.Toast
 import androidx.annotation.ColorRes
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.isInvisible
@@ -16,11 +17,6 @@ import com.xabber.databinding.FragmentSignupUsernameBinding
 import com.xabber.presentation.onboarding.activity.OnboardingViewModel
 import com.xabber.presentation.onboarding.contract.navigator
 import com.xabber.presentation.onboarding.contract.toolbarChanger
-import kotlin.properties.Delegates
-
-/** Here the user selects a jid name
- *
- */
 
 class SignupUserNameFragment : Fragment(R.layout.fragment_signup_username) {
     private val binding by viewBinding(FragmentSignupUsernameBinding::bind)
@@ -51,22 +47,29 @@ class SignupUserNameFragment : Fragment(R.layout.fragment_signup_username) {
                 }
 
                 override fun onTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {}
+
                 override fun afterTextChanged(p0: Editable?) {
-                    usernameBtnNext.isEnabled = p0.toString().trim().length >= minUserNameLength
-                    if (p0.toString().trimEnd().length < 3) {
+                    val username = p0.toString().trim()
+                    val isValidLength = username.length >= minUserNameLength
+                    usernameBtnNext.isEnabled = isValidLength && viewModel.checkIsNameAvailable(username, host)
+
+                    if (!isValidLength) {
                         binding.resultSubtitle.isVisible = false
                         binding.usernameSubtitle.isInvisible = false
                     } else {
                         binding.usernameSubtitle.isInvisible = true
                         binding.resultSubtitle.isVisible = true
-                        if (viewModel.checkIsNameAvailable(p0.toString().trim(), host)) {  // Проверяем свободен ли данный jid (пока заглушка)
-                            resultSubtitle.text =
-                                resources.getString(R.string.signup_username_success_subtitle)
+                        if (viewModel.checkIsNameAvailable(username, host)) {
+                            resultSubtitle.text = resources.getString(R.string.signup_username_success_subtitle)
                             changeSubtitleColor(R.color.blue_600)
                         } else {
-                            resultSubtitle.text =
-                                resources.getString(R.string.signup_username_error_subtitle)
+                            resultSubtitle.text = resources.getString(R.string.signup_username_error_subtitle)
                             changeSubtitleColor(R.color.red_600)
+                            Toast.makeText(
+                                requireContext(),
+                                "Username already exists, please choose another",
+                                Toast.LENGTH_LONG
+                            ).show()
                         }
                     }
                 }
@@ -91,5 +94,4 @@ class SignupUserNameFragment : Fragment(R.layout.fragment_signup_username) {
             navigator().openSignupPasswordFragment()
         }
     }
-
 }
