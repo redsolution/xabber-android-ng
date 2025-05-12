@@ -32,7 +32,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlin.reflect.KClass
 
-
 object AccountManager {
     private val realm = Realm.open(defaultRealmConfig())
     var users: MutableList<Account> = mutableListOf()
@@ -40,46 +39,55 @@ object AccountManager {
 
     suspend fun login(jid: String, username: String, password: String): Boolean = withContext(Dispatchers.IO) {
         try {
-            Log.d("AccountManager", "Attempting login for jid $jid, current users: ${users.map { it.jid }}")
-            if (jid.isEmpty() || password.isEmpty()) {
-                Log.e("AccountManager", "Invalid credentials: jid or password empty")
+            Log.d("AccountManager", "Attempting to create account (login) for jid $jid, current users: ${users.map { it.jid }}")
+            if (jid.isEmpty() || username.isEmpty() || password.isEmpty()) {
+                Log.e("AccountManager", "Invalid credentials: jid, username, or password empty")
                 throw IllegalArgumentException("Invalid credentials")
             }
             // Normalize jid to avoid mismatches
             val normalizedJid = jid.trim().lowercase()
-            // Check if account exists
-            val accountStorageItem = realm.query(AccountStorageItem::class, "jid = $0", normalizedJid).first().find()
-            if (accountStorageItem == null) {
-                Log.w("AccountManager", "No account found for jid $normalizedJid in Realm")
-                throw IllegalArgumentException("Account not found")
-            }
-            // Validate password locally using SigninViewModel
-            val signinViewModel = SigninViewModel()
-            if (!signinViewModel.verifyPassword(password, normalizedJid)) {
-                Log.e("AccountManager", "Password validation failed for jid $normalizedJid")
-                throw IllegalArgumentException("Invalid password")
+            // Check if account already exists
+            val existingAccount = realm.query(AccountStorageItem::class, "jid = $0", normalizedJid).first().find()
+            if (existingAccount != null) {
+                Log.w("AccountManager", "Account with jid $normalizedJid already exists in Realm")
+                throw IllegalArgumentException("Account already exists")
             }
             // Placeholder XMPP authentication (replace with actual XMPP library, e.g., Smack)
             Log.d("AccountManager", "XMPP authentication successful for jid $normalizedJid (placeholder)")
-            // Load existing account into users list
-            val account = Account().apply {
-                this.jid = accountStorageItem.jid.trim().lowercase()
-                this.username = accountStorageItem.username
+            // Create new account
+            realm.write {
+                // Check for stale ResourceStorageItem
+//                val existingResources = query(ResourceStorageItem::class, "jid = $0", normalizedJid).find()
+//                if (existingResources.isNotEmpty()) {
+//                    Log.w("AccountManager", "Found ${existingResources.size} stale ResourceStorageItem for jid $normalizedJid, deleting")
+//                    delete(existingResources)
+//                }
+                // Create new account
+                val newAccount = copyToRealm(AccountStorageItem().apply {
+                    this.jid = normalizedJid
+                    this.username = username
+                    this.order = 0
+                    this.primary = normalizedJid
+                    this.enabled = true
+                })
+                Log.d("AccountManager", "Created AccountStorageItem for jid $normalizedJid")
+            }
+            // Create Account object for users list
+            val newUserAccount = Account().apply {
+                this.jid = normalizedJid
+                this.username = username
                 loadAccount()
             }
+            // Add to users list
             synchronized(users) {
-                if (!users.any { it.jid == account.jid }) {
-                    users.add(account)
-                    Log.d("AccountManager", "Added account with jid $normalizedJid to users list, new users: ${users.map { it.jid }}")
-                } else {
-                    Log.d("AccountManager", "Account with jid $normalizedJid already in users list")
-                }
+                users.add(newUserAccount)
+                Log.d("AccountManager", "Added account with jid $normalizedJid to users list, new users: ${users.map { it.jid }}")
             }
-            Log.d("AccountManager", "Login successful for jid $normalizedJid")
+            Log.d("AccountManager", "Account creation (login) successful for jid $normalizedJid")
             true
         } catch (e: Exception) {
-            Log.e("AccountManager", "Login failed for jid $jid: ${e.message}", e)
-            false
+            Log.e("AccountManager", "Account creation (login) failed for jid $jid: ${e.message}", e)
+            throw e
         }
     }
 
@@ -170,10 +178,9 @@ object AccountManager {
                 deleteStorageItems(MessageStanzaStorageItem::class, "owner", jid)
                 deleteStorageItems(GroupchatInvitesStorageItem::class, "owner", jid)
                 deleteStorageItems(GroupChatStorageItem::class, "owner", jid)
-                // Skip GroupChatIndexStorageItem as it lacks 'owner' field
+                // Skip MessageForwardsInlineStorageItem due to schema issue
                 deleteStorageItems(DeviceStorageItem::class, "owner", jid)
                 deleteStorageItems(BlockStorageItem::class, "owner", jid)
-                deleteStorageItems(MessageForwardsInlineStorageItem::class, "owner", jid)
                 deleteStorageItems(MessageReferenceStorageItem::class, "owner", jid)
                 deleteStorageItems(RosterGroupStorageItem::class, "owner", jid)
                 deleteStorageItems(MessageStorageItem::class, "owner", jid)
@@ -244,43 +251,26 @@ object AccountManager {
     }
 
     fun logout(jid: String): Boolean {
-        if (isLoggingOut) {
-            Log.w("AccountManager", "Logout already in progress for jid $jid, skipping")
-            return false
-        }
-        isLoggingOut = true
         return try {
-            Log.d("AccountManager", "Attempting logout for jid $jid, current users: ${users.map { it.jid }}")
-            // Remove the account from the users list
-            val iterator = users.iterator()
-            var removed = false
-            while (iterator.hasNext()) {
-                val account = iterator.next()
-                if (account.jid.equals(jid.trim().lowercase(), ignoreCase = true)) {
-                    iterator.remove()
-                    removed = true
+            // Delete the specific account and its associated data
+            val deleted = deleteAccount(jid)
+            if (deleted) {
+                // Remove the account from the users list using iterator
+                val iterator = users.iterator()
+                while (iterator.hasNext()) {
+                    if (iterator.next().jid == jid) {
+                        iterator.remove()
+                    }
                 }
-            }
-            // Clear users list if no specific jid is found and list is not empty
-            if (!removed && users.isNotEmpty()) {
-                Log.w("AccountManager", "No account found in users list for jid $jid, clearing all users")
-                users.clear()
-                removed = true
-            }
-            // Placeholder: Disconnect XMPP session (replace with actual XMPP code)
-            Log.d("AccountManager", "Disconnecting XMPP session for jid $jid (placeholder)")
-            if (removed) {
-                Log.d("AccountManager", "Successfully logged out account with jid $jid (session cleared), users now: ${users.map { it.jid }}")
+                Log.d("AccountManager", "Successfully logged out account with jid $jid")
                 true
             } else {
-                Log.d("AccountManager", "No action taken for logout of jid $jid (users list already empty)")
-                true // Return true to allow navigation
+                Log.w("AccountManager", "Failed to delete account with jid $jid in logout")
+                false
             }
         } catch (e: Exception) {
             Log.e("AccountManager", "Failed to logout account with jid $jid: ${e.message}", e)
             false
-        } finally {
-            isLoggingOut = false
         }
     }
 }

@@ -90,4 +90,5 @@ interface Navigator {
     fun goBackFromCalls()
     fun onNavigationItemSelected(item: MenuItem): Boolean
     fun close()
+    fun logOut()
 }

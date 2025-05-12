@@ -10,6 +10,7 @@ import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.widget.TextView
+import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.core.view.isInvisible
 import androidx.core.view.isVisible
@@ -84,8 +85,8 @@ class SigninFragment : Fragment(R.layout.fragment_signin) {
                     delay(500) // Wait 500ms after typing stops
                     if (viewModel.isJidValid(jidText)) {
                         val exists = realm.query(AccountStorageItem::class, "jid = $0", jidText).count().find() > 0
-                        binding.errorSubtitle.isVisible = !exists
-                        binding.errorSubtitle.text = if (!exists) "Account not found" else ""
+                        binding.errorSubtitle.isVisible = exists
+                        binding.errorSubtitle.text = if (exists) "Account already exists" else ""
                         Log.d("SigninFragment", "Account check for jid $jidText: exists = $exists")
                     }
                 }
@@ -113,6 +114,7 @@ class SigninFragment : Fragment(R.layout.fragment_signin) {
                 val jid = editTextLogin.text?.trim().toString().let {
                     if (!it.contains('@')) "$it@$host" else it
                 }
+                val username = jid.split("@")[0]
                 val password = editTextPassword.text?.trim().toString()
                 if (!viewModel.isJidValid(jid)) {
                     binding.signinSubtitle1.isInvisible = true
@@ -122,31 +124,41 @@ class SigninFragment : Fragment(R.layout.fragment_signin) {
                 }
                 lifecycleScope.launch {
                     try {
-                        val success = AccountManager.login(jid, jid.split("@")[0], password)
+                        val success = AccountManager.login(jid, username, password)
                         if (success) {
-                            Log.d("SigninFragment", "Login successful for jid $jid, navigating to ApplicationActivity")
+                            Log.d("SigninFragment", "Account creation (login) successful for jid $jid, navigating to ApplicationActivity")
                             navigator().goToApplicationActivity()
                         } else {
-                            Log.w("SigninFragment", "Login failed for jid $jid")
+                            Log.w("SigninFragment", "Account creation (login) failed for jid $jid")
                             binding.signinSubtitle1.isInvisible = true
                             binding.errorSubtitle.isVisible = true
-                            binding.errorSubtitle.text = "Login failed"
+                            binding.errorSubtitle.text = "Failed to create account"
+                            Toast.makeText(requireContext(), "Failed to create account", Toast.LENGTH_LONG).show()
                         }
                     } catch (e: IllegalArgumentException) {
-                        Log.w("SigninFragment", "Login error for jid $jid: ${e.message}")
+                        Log.w("SigninFragment", "Account creation error for jid $jid: ${e.message}")
                         binding.signinSubtitle1.isInvisible = true
                         binding.errorSubtitle.isVisible = true
                         when (e.message) {
-                            "Account not found" -> binding.errorSubtitle.text = "Account does not exist"
-                            "Invalid password" -> binding.errorSubtitle.text = "Incorrect password"
-                            "Invalid credentials" -> binding.errorSubtitle.text = "Invalid JID or password"
-                            else -> binding.errorSubtitle.text = "Login error: ${e.message}"
+                            "Account already exists" -> {
+                                binding.errorSubtitle.text = "Account already exists"
+                                Toast.makeText(requireContext(), "Account already exists, please choose another JID", Toast.LENGTH_LONG).show()
+                            }
+                            "Invalid credentials" -> {
+                                binding.errorSubtitle.text = "Invalid JID, username, or password"
+                                Toast.makeText(requireContext(), "Invalid JID, username, or password", Toast.LENGTH_LONG).show()
+                            }
+                            else -> {
+                                binding.errorSubtitle.text = "Error: ${e.message}"
+                                Toast.makeText(requireContext(), "Error: ${e.message}", Toast.LENGTH_LONG).show()
+                            }
                         }
                     } catch (e: Exception) {
-                        Log.e("SigninFragment", "Unexpected error during login for jid $jid: ${e.message}", e)
+                        Log.e("SigninFragment", "Unexpected error during account creation for jid $jid: ${e.message}", e)
                         binding.signinSubtitle1.isInvisible = true
                         binding.errorSubtitle.isVisible = true
                         binding.errorSubtitle.text = "Unexpected error: ${e.message}"
+                        Toast.makeText(requireContext(), "Unexpected error: ${e.message}", Toast.LENGTH_LONG).show()
                     }
                 }
             }

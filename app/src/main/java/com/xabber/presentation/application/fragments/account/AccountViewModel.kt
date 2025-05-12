@@ -2,6 +2,7 @@ package com.xabber.presentation.application.fragments.account
 
 import android.graphics.Bitmap
 import android.net.Uri
+import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
@@ -44,7 +45,8 @@ class AccountViewModel : ViewModel() {
         accountJid: String,
         userName: String,
         accountColor: String,
-        accountHasAvatar: Boolean = false, password: String
+        accountHasAvatar: Boolean = false,
+        password: String
     ) {
         accountStorageItemDao.createAccount(
             accountJid,
@@ -63,19 +65,21 @@ class AccountViewModel : ViewModel() {
 
     fun initDataListener(id: String) {
         viewModelScope.launch(Dispatchers.IO) {
-            val request =
-                realm.query(AccountStorageItem::class, "primary = '$id'")
+            val request = realm.query(AccountStorageItem::class, "primary = '$id'")
             request.asFlow().collect { changes: ResultsChange<AccountStorageItem> ->
                 when (changes) {
                     is UpdatedResults -> {
-                        changes.list
+                        val accountList = changes.list
                         val dataSource = ArrayList<AccountDto>()
-                        dataSource.addAll(changes.list.map { T ->
-                            T.toAccountDto()
-                        })
+                        dataSource.addAll(accountList.map { it.toAccountDto() })
                         withContext(Dispatchers.Main) {
                             _accounts.value = dataSource
-                            _colorKey.value = dataSource[0].colorKey
+                            _colorKey.value = if (dataSource.isNotEmpty()) {
+                                dataSource[0].colorKey
+                            } else {
+                                null // Or a default color, e.g., ""
+                            }
+                            Log.d("AccountViewModel", "Updated accounts: ${dataSource.map { it.jid }}, colorKey: ${_colorKey.value}")
                         }
                     }
                     else -> {}
@@ -104,9 +108,11 @@ class AccountViewModel : ViewModel() {
                     jid = id
                     owner = id
                 })
-            } else avatar.fileUri = uri
+            } else {
+                avatar.fileUri = uri
+            }
             val account = this.query(AccountStorageItem::class, "primary = '$id'").first().find()
-         //   account?.hasAvatar = true
+            account?.hasAvatar = true
         }
     }
 
@@ -120,5 +126,4 @@ class AccountViewModel : ViewModel() {
 
     private val _avatarUri = MutableLiveData<Uri>()
     val avatarUri: LiveData<Uri> = _avatarUri
-
 }

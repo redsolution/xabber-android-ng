@@ -204,13 +204,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
             navigationView.setNavigationItemSelectedListener(this)
             drawerLayout.setScrimColor(Color.parseColor("#88000000"))
 
-            val logOutButton = findViewById<ImageView>(R.id.log_out)
-            logOutButton.setOnClickListener {
-                if (!isLoggingOut) {
-                    Log.d("ApplicationActivity", "Logout button clicked")
-                    logOut()
-                }
-            }
+
         } finally {
             isUpdatingUI = false
         }
@@ -230,7 +224,6 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         setFullScreenMode()
         setHeightStatusBar()
         setMask()
-        logOut()
         setChatSettings()
         handleUnread()
         handleContactAddition()
@@ -738,7 +731,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
 
 
 
-    private fun logOut() {
+     override fun logOut() {
         if (isLoggingOut) {
             Log.w("ApplicationActivity", "Logout already in progress, skipping")
             return
@@ -779,7 +772,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         }
     }
 
-    private fun updateAccountUI() {
+     fun updateAccountUI() {
         if (isLoggingOut || isUpdatingUI) {
             Log.w("ApplicationActivity", "Skipping updateAccountUI during logout or UI update")
             return

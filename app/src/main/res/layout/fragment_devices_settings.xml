@@ -33,4 +33,27 @@
                 android:layout_gravity="center_vertical"/>
         </androidx.appcompat.widget.Toolbar>
     </com.google.android.material.appbar.AppBarLayout>
+    <LinearLayout
+        app:layout_constraintTop_toBottomOf="@id/appbar"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_marginTop="8dp"
+        android:padding="12dp"
+        android:orientation="vertical"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:id="@+id/log_out_button"
+        android:clickable="true"
+        android:focusable="true"
+        style="@style/ClickableViewGroupNonWhite"
+        >
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="press to log out"
+            android:textSize="18sp"
+            android:layout_gravity="center">
+
+        </TextView>
+    </LinearLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>
