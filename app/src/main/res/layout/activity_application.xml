@@ -69,8 +69,25 @@
                         android:src="@drawable/unread_outline"
                         android:layout_gravity="end"
                         tools:ignore="ContentDescription" >
+                    </ImageView>
+                    <ImageView
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:id="@+id/button"
+                        android:layout_gravity="end"
+                        android:focusable="true"
+                        android:src="@drawable/circle"
+                        android:clickable="true">
 
                     </ImageView>
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:id="@+id/result_text"
+                        android:layout_gravity="end">
+
+                    </TextView>
+
                 </androidx.appcompat.widget.Toolbar>
                 <FrameLayout
                     android:id="@+id/fragment_container"

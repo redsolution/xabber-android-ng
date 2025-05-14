@@ -37,6 +37,7 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.commit
 import androidx.fragment.app.replace
+import androidx.lifecycle.lifecycleScope
 import androidx.slidingpanelayout.widget.SlidingPaneLayout
 import com.bumptech.glide.Glide
 import com.google.android.material.bottomnavigation.BottomNavigationItemView
@@ -91,7 +92,9 @@ import com.xabber.utils.custom.ShapeOfView
 import com.xabber.utils.lockScreenRotation
 import com.xabber.utils.toAccountDto
 import com.xabber.utils.toAvatarDto
+import com.xabber.xmpp.dns.performDnsResolvedRequest
 import io.realm.kotlin.Realm
+import kotlinx.coroutines.launch
 import kotlin.math.log
 
 /**
@@ -156,6 +159,21 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         shapeView?.setDrawable(MaskManager.mask)
         val sharedPreferences = getSharedPreferences(AppConstants.SHARED_PREF_MASK, Context.MODE_PRIVATE)
         sharedPreferences.registerOnSharedPreferenceChangeListener(this)
+
+        val button = findViewById<ImageView>(R.id.button)
+        val resultText = findViewById<TextView>(R.id.result_text)
+        button.setOnClickListener {
+            // Launch coroutine in lifecycleScope to call the suspend function
+            lifecycleScope.launch {
+                try {
+                    val result = performDnsResolvedRequest()
+                    resultText.text = result
+                } catch (e: Exception) {
+                    Log.e("MainActivity", "Failed to fetch data: ${e.message}", e)
+                    resultText.text = "Failed: ${e.message}"
+                }
+            }
+        }
     }
 
     private fun setupStatusBar() {
@@ -325,6 +343,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         unreadMessages.setOnClickListener{
             showUnreadChats(!chatListViewModel.showUnreadOnly.value!!)
         }
+
     }
     private fun handleContactAddition() {
         binding.toolbarNav.findViewById<ImageView>(R.id.add).setOnClickListener {

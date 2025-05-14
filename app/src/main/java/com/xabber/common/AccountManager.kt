@@ -135,6 +135,7 @@ object AccountManager {
             Log.e("AccountManager", "Failed to create account with jid $jid: ${e.message}", e)
             false
         }
+
     }
 
     fun find(jid: String): Account? {
