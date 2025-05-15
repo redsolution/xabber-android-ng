@@ -92,9 +92,11 @@ import com.xabber.utils.custom.ShapeOfView
 import com.xabber.utils.lockScreenRotation
 import com.xabber.utils.toAccountDto
 import com.xabber.utils.toAvatarDto
-import com.xabber.xmpp.dns.performDnsResolvedRequest
+import com.xabber.xmpp.dns.fetchFromSrv
 import io.realm.kotlin.Realm
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlin.math.log
 
 /**
@@ -160,16 +162,22 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         val sharedPreferences = getSharedPreferences(AppConstants.SHARED_PREF_MASK, Context.MODE_PRIVATE)
         sharedPreferences.registerOnSharedPreferenceChangeListener(this)
 
-        val button = findViewById<ImageView>(R.id.button)
+        val DNStestButton = findViewById<ImageView>(R.id.button)
         val resultText = findViewById<TextView>(R.id.result_text)
-        button.setOnClickListener {
-            // Launch coroutine in lifecycleScope to call the suspend function
+        DNStestButton.setOnClickListener {
             lifecycleScope.launch {
                 try {
-                    val result = performDnsResolvedRequest()
+                    val result = withContext(Dispatchers.IO) {
+                        fetchFromSrv(
+                            scheme = "https",
+                            service = "sip",
+                            protocol = "tcp",
+                            domain = "example.com"
+                        )
+                    }
                     resultText.text = result
                 } catch (e: Exception) {
-                    Log.e("MainActivity", "Failed to fetch data: ${e.message}", e)
+                    Log.e("ApplicationActivity", "Failed to fetch SRV data: ${e.message}", e)
                     resultText.text = "Failed: ${e.message}"
                 }
             }

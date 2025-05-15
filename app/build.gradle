@@ -70,6 +70,9 @@ dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlinVersion"
     implementation 'androidx.navigation:navigation-runtime-ktx:2.8.6'
     implementation 'androidx.legacy:legacy-support-v4:1.0.0'
+    implementation 'org.minidns:minidns-core:1.1.1'
+    implementation 'org.minidns:minidns-hla:1.1.1'
+
 
     // Test
     testImplementation 'junit:junit:4.13.2'
