@@ -73,13 +73,14 @@
                     <ImageView
                         android:layout_width="24dp"
                         android:layout_height="24dp"
-                        android:id="@+id/button"
+                        android:id="@+id/dnsTestButton"
                         android:layout_gravity="end"
                         android:focusable="true"
                         android:src="@drawable/circle"
                         android:clickable="true">
 
                     </ImageView>
+
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"

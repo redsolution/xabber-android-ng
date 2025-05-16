@@ -2,6 +2,7 @@ package com.xabber.presentation.application.activity
 
 
 import  android.annotation.SuppressLint
+import android.content.ContentValues.TAG
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
@@ -162,26 +163,23 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         val sharedPreferences = getSharedPreferences(AppConstants.SHARED_PREF_MASK, Context.MODE_PRIVATE)
         sharedPreferences.registerOnSharedPreferenceChangeListener(this)
 
-        val DNStestButton = findViewById<ImageView>(R.id.button)
+        val dnsTestButton = findViewById<ImageView>(R.id.dnsTestButton)
         val resultText = findViewById<TextView>(R.id.result_text)
-        DNStestButton.setOnClickListener {
+        dnsTestButton.setOnClickListener {
             lifecycleScope.launch {
                 try {
                     val result = withContext(Dispatchers.IO) {
-                        fetchFromSrv(
-                            scheme = "https",
-                            service = "sip",
-                            protocol = "tcp",
-                            domain = "example.com"
-                        )
+                        fetchFromSrv()
                     }
                     resultText.text = result
                 } catch (e: Exception) {
-                    Log.e("ApplicationActivity", "Failed to fetch SRV data: ${e.message}", e)
+                    Log.e(TAG, "Failed to fetch SRV data: ${e.message}", e)
                     resultText.text = "Failed: ${e.message}"
                 }
             }
         }
+
+
     }
 
     private fun setupStatusBar() {

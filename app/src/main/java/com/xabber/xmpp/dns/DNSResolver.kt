@@ -1,157 +1,114 @@
 package com.xabber.xmpp.dns
 
-import okhttp3.Dns
-import okhttp3.OkHttpClient
-import okhttp3.Request
+import android.util.Log
+import org.minidns.dnsmessage.DnsMessage
+import org.minidns.hla.DnssecResolverApi
 import org.minidns.hla.ResolverApi
+import org.minidns.hla.ResolverResult
 import org.minidns.hla.SrvResolverResult
+import org.minidns.hla.srv.SrvProto
+import org.minidns.hla.srv.SrvService
+import org.minidns.hla.srv.SrvType
+import org.minidns.record.A
 import org.minidns.record.SRV
-import org.minidns.dnslabel.DnsLabel
-import org.minidns.dnsname.DnsName
-import java.net.Inet4Address
 import java.net.InetAddress
-import java.io.IOException
 
+class DNSResolver {
+    private val TAG = "DNSResolver"
 
-/**
- * A typical DNS resolver for resolving SRV records using MiniDNS.
- */
-class SRVDNSResolver {
-    /**
-     * Resolves SRV records for the given service, protocol, and domain.
-     *
-     * @param service The service name (e.g., "xmpp-client").
-     * @param protocol The protocol (e.g., "tcp").
-     * @param domain The domain name (e.g., "xmpp.org").
-     * @return An SrvResolverResult containing the resolved SRV records or an error.
-     */
-    fun resolveSRV(service: String, protocol: String, domain: String): SrvResolverResult {
-        val serviceLabel = DnsLabel.from("_$service")
-        val protocolLabel = DnsLabel.from("_$protocol")
-        val domainName = DnsName.from(domain)
-        return ResolverApi.INSTANCE.resolveSrv(serviceLabel, protocolLabel, domainName)
-    }
-}
-
-/**
- * Custom DNS resolver for OkHttp, mapping specific hostnames to IPs.
- */
-class DNSResolver(private val map: Map<String, String>) : Dns {
-    override fun lookup(hostname: String): List<InetAddress> {
-        val ip = map[hostname]
-        return if (ip != null) {
-            println("Resolved $hostname to $ip")
-            listOf(Inet4Address.getByName(ip))
-        } else {
-            println("Using system DNS for $hostname")
-            Dns.SYSTEM.lookup(hostname)
-        }
-    }
-}
-
-/**
- * Fetches data from an SRV-resolved target using HTTP.
- *
- * @param scheme The URL scheme (e.g., "https").
- * @param service The service name (e.g., "xmpp-client").
- * @param protocol The protocol (e.g., "tcp").
- * @param domain The domain name (e.g., "xmpp.org").
- * @return The HTTP response body or an error message.
- */
-fun fetchFromSrv(scheme: String, service: String, protocol: String, domain: String): String {
-    val resolver = SRVDNSResolver()
-    val dnsMap = mapOf("example.com" to "23.55.44.79") // Configurable map
-    val customDns = DNSResolver(dnsMap)
-    val okHttpClient = OkHttpClient.Builder()
-        .dns(customDns)
-        .build()
-
-    try {
-        val result: SrvResolverResult = resolver.resolveSRV(service, protocol, domain)
-        if (result.wasSuccessful() && result.sortedSrvResolvedAddresses.isNotEmpty()) {
-            val firstSrv: SRV = result.sortedSrvResolvedAddresses.first().srv
-            val target = firstSrv.target.toString().trimEnd('.')
-            val url = "$scheme://$target:${firstSrv.port}" // Include SRV port
-
-            val request = Request.Builder()
-                .url(url)
-                .build()
-            okHttpClient.newCall(request).execute().use { response ->
-                return if (response.isSuccessful) {
-                    response.body?.string() ?: "No response body"
-                } else {
-                    "Error: HTTP ${response.code} from $url"
-                }
+    fun resolveSRV(host : String): String {
+        try {
+            val result: SrvResolverResult =
+                ResolverApi.INSTANCE.resolveSrv(SrvService.xmpp_client, SrvProto.tcp, host)
+            if (!result.wasSuccessful()) {
+                val responseCode: DnsMessage.RESPONSE_CODE = result.responseCode
+                Log.e(TAG, "SRV resolution failed with response code: $responseCode")
+                return "Failed: Response code $responseCode"
             }
-        } else {
-            return "No SRV records found for _${service}._${protocol}.${domain}"
+            // Log raw SRV records and extract hostname
+            val rawAnswers = result.answers
+            Log.d(TAG, "Raw SRV answers: $rawAnswers")
+            rawAnswers.filterIsInstance<SRV>().forEach { srv ->
+                Log.d(TAG, "SRV: target=${srv.target}, port=${srv.port}, priority=${srv.priority}, weight=${srv.weight}")
+            }
+
+            // Extract hostname from the first SRV record, if available
+            val hostName: String = rawAnswers.filterIsInstance<SRV>()
+                .firstOrNull()?.target?.toString() ?: "No SRV target found"
+            Log.d(TAG, "Extracted hostName: $hostName")
+
+            val srvRecords: List<SrvResolverResult.ResolvedSrvRecord> = result.sortedSrvResolvedAddresses
+            Log.d(TAG, "srvRecords size: ${srvRecords.size}")
+                Log.w(TAG, "No resolved SRV records in sortedSrvResolvedAddresses")
+                // Fallback to resolving A records for SRV target
+                val srvRecordsRaw = rawAnswers.filterIsInstance<SRV>()
+                if (srvRecordsRaw.isEmpty()) {
+                    Log.w(TAG, "No SRV records in answers")
+                    return "Failed: No SRV records found"
+                }
+                // Use the first SRV record's target and port
+                val srvRecordRaw = srvRecordsRaw.first()
+                val target = srvRecordRaw.target.toString()
+                val port = srvRecordRaw.port
+                Log.d(TAG, "Falling back to A record resolution for target: $target")
+                val aResult = resolveA(target)
+                if (aResult != "Success") {
+                    Log.e(TAG, "A record resolution failed for $target: $aResult")
+                    return "Failed: No A records resolved for SRV target $target"
+                } else Log.d(TAG, "A record resolution for $target: $aResult")
+
+            // Note: IP addresses are logged in resolveA
+
+            for (srvRecord in srvRecords) {
+                for (inetAddressRR in srvRecord.addresses) {
+                    val inetAddress: InetAddress = inetAddressRR.inetAddress
+                    val port: Int = srvRecord.port
+                    val name: String = srvRecord.name.toString()
+                    val aResult: String = srvRecord.srv.toString()
+                    Log.d(TAG, "Resolved inetAddress: $inetAddress, port: $port, name: $name, aResult: $aResult")
+
+                }
+
+            }
+            return "Success"
+        } catch (e: Exception) {
+            Log.e(TAG, "Error resolving SRV: ${e.message}", e)
+            return "Error: ${e.message}"
         }
-    } catch (e: IOException) {
-        return "IO Error: ${e.message}"
-    } catch (e: Exception) {
-        return "Error: ${e.message}"
+    }
+    private fun resolveA(host: String): String {
+        try {
+            val result: ResolverResult<A> =
+                ResolverApi.INSTANCE.resolve(host, A::class.java)
+            if (!result.wasSuccessful()) {
+                val responseCode: DnsMessage.RESPONSE_CODE = result.responseCode
+                Log.e(TAG, "A record resolution failed with response code: $responseCode")
+                return "Failed: Response code $responseCode"
+            }
+            val answers: Set<A> = result.answers
+            if (answers.isEmpty()) {
+                Log.w(TAG, "No A records found")
+                return "Failed: No A records found"
+            }
+
+            for (a in answers) {
+                val inetAddress: InetAddress = a.inetAddress
+                Log.d(TAG, "Resolved inetAddress: $inetAddress")
+                // Do something with the InetAddress, e.g., connect to.
+
+            }
+
+            return answers.toString()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error resolving A record: ${e.message}", e)
+            return "Error: ${e.message}"
+        }
     }
 }
 
+fun fetchFromSrv(): String {
+     return DNSResolver().resolveSRV("redsolution.com")
 
-// Custom DNS resolver, unchanged
-//class DNSResolver(private val map: Map<String, String>) : Dns {
-//    override fun lookup(hostname: String): List<InetAddress> {
-//        val ip = map[hostname]
-//        return if (ip != null) {
-//            println("Resolved $hostname to $ip")
-//            listOf(Inet4Address.getByName(ip))
-//        } else {
-//            println("Using system DNS for $hostname")
-//            Dns.SYSTEM.lookup(hostname)
-//        }
-//    }
-//}
-//
-//// Function to resolve SRV and perform HTTP request
-//fun fetchFromSrv(scheme: String, service: String, protocol: String, domain: String): String {
-//    // Initialize OkHttp client with custom DNS
-//    val dnsMap = mapOf("example.com" to "23.55.44.79") // Configurable map
-//    val customDns = DNSResolver(dnsMap)
-//    val okHttpClient = OkHttpClient.Builder()
-//        .dns(customDns)
-//        .build()
-//
-//    // Convert inputs to MiniDNS types
-//    val serviceLabel = DnsLabel.from("_$service") // e.g., "_mysrv"
-//    val protocolLabel = DnsLabel.from("_$protocol") // e.g., "_tcp"
-//    val domainName = DnsName.from(domain) // e.g., "example.com"
-//
-//    // Resolve SRV record using MiniDNS
-//    try {
-//        val result: SrvResolverResult = ResolverApi.INSTANCE.resolveSrv(serviceLabel, protocolLabel, domainName)
-//        if (result.wasSuccessful() && result.sortedSrvResolvedAddresses.isNotEmpty()) {
-//            val firstSrv: SRV = result.sortedSrvResolvedAddresses.first().srv
-//            val target = firstSrv.target.toString().trimEnd('.')
-//            val url = "$scheme://$target" // Construct URL, e.g., https://target
-//
-//            // Perform HTTP request
-//            val request = Request.Builder()
-//                .url(url)
-//                .build()
-//            okHttpClient.newCall(request).execute().use { response ->
-//                return if (response.isSuccessful) {
-//                    val body = response.body?.string() ?: "No response body"
-//                    println("Response from $url: $body")
-//                    body
-//                } else {
-//                    "Error: HTTP ${response.code} from $url"
-//                }
-//            }
-//        } else {
-//            return "No SRV records found for _${service}._${protocol}.${domain}"
-//        }
-//    } catch (e: IOException) {
-//        println("IO Error: ${e.message}")
-//        return "Error: ${e.message}"
-//    } catch (e: Exception) {
-//        println("Error: ${e.message}")
-//        return "Error: ${e.message}"
-//    }
-//}
-//
+}
+
+
