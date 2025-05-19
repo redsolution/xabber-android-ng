@@ -163,21 +163,21 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         val sharedPreferences = getSharedPreferences(AppConstants.SHARED_PREF_MASK, Context.MODE_PRIVATE)
         sharedPreferences.registerOnSharedPreferenceChangeListener(this)
 
-        val dnsTestButton = findViewById<ImageView>(R.id.dnsTestButton)
-        val resultText = findViewById<TextView>(R.id.result_text)
-        dnsTestButton.setOnClickListener {
-            lifecycleScope.launch {
-                try {
-                    val result = withContext(Dispatchers.IO) {
-                        fetchFromSrv()
-                    }
-                    resultText.text = result
-                } catch (e: Exception) {
-                    Log.e(TAG, "Failed to fetch SRV data: ${e.message}", e)
-                    resultText.text = "Failed: ${e.message}"
-                }
-            }
-        }
+//        val dnsTestButton = findViewById<ImageView>(R.id.dnsTestButton)
+//        val resultText = findViewById<TextView>(R.id.result_text)
+//        dnsTestButton.setOnClickListener {
+//            lifecycleScope.launch {
+//                try {
+//                    val result = withContext(Dispatchers.IO) {
+//                        fetchFromSrv()
+//                    }
+//                    resultText.text = result
+//                } catch (e: Exception) {
+//                    Log.e(TAG, "Failed to fetch SRV data: ${e.message}", e)
+//                    resultText.text = "Failed: ${e.message}"
+//                }
+//            }
+//        }
 
 
     }

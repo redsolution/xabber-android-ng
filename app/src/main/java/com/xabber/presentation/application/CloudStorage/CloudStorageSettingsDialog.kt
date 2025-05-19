@@ -66,7 +66,7 @@ class CloudStorageSettingsDialog : DialogFragment() {
 
         setupToolbarColor()
         setupStorageUsageList()
-        setupStorageInfo()
+       // setupStorageInfo()
     }
 
     private fun setupToolbarColor() {
@@ -101,40 +101,40 @@ class CloudStorageSettingsDialog : DialogFragment() {
         }
     }
 
-    private fun setupStorageInfo() {
-        val totalStorageBytes = 10_737_418_240L // 10 GB - replace with your actual total
-        val storageBlocks = getStorageBlocksFromDataSource()
-        val usedStorageBytes = storageBlocks.sumOf { it.sizeInBytes }
-
-        // ProgressBar
-        val progress = ((usedStorageBytes.toDouble() / totalStorageBytes) * 100).toInt()
-        binding.storageProgressBar.apply {
-            max = 100
-            this.progress = progress
-        }
-
-        // Legend: Total Storage
-        binding.tvStorageTotal.text = "${formatSize(usedStorageBytes)} / ${formatSize(totalStorageBytes)}"
-
-        // Legend: Breakdown (dynamically show/hide based on data)
-        val imagesBlock = storageBlocks.find { it.type == "Images" }
-        binding.tvLegendImages.apply {
-            visibility = if (imagesBlock != null && imagesBlock.sizeInBytes > 0) View.VISIBLE else View.GONE
-            text = "Images: ${formatSize(imagesBlock?.sizeInBytes ?: 0)}"
-        }
-
-        val videosBlock = storageBlocks.find { it.type == "Videos" }
-        binding.tvLegendVideos.apply {
-            visibility = if (videosBlock != null && videosBlock.sizeInBytes > 0) View.VISIBLE else View.GONE
-            text = "Videos: ${formatSize(videosBlock?.sizeInBytes ?: 0)}"
-        }
-
-        val documentsBlock = storageBlocks.find { it.type == "Documents" }
-        binding.tvLegendDocuments.apply {
-            visibility = if (documentsBlock != null && documentsBlock.sizeInBytes > 0) View.VISIBLE else View.GONE
-            text = "Documents: ${formatSize(documentsBlock?.sizeInBytes ?: 0)}"
-        }
-    }
+//    private fun setupStorageInfo() {
+//        val totalStorageBytes = 10_737_418_240L // 10 GB - replace with your actual total
+//        val storageBlocks = getStorageBlocksFromDataSource()
+//        val usedStorageBytes = storageBlocks.sumOf { it.sizeInBytes }
+//
+//        // ProgressBar
+//        val progress = ((usedStorageBytes.toDouble() / totalStorageBytes) * 100).toInt()
+//        binding.storageProgressBar.apply {
+//            max = 100
+//            this.progress = progress
+//        }
+//
+//        // Legend: Total Storage
+//        binding.tvStorageTotal.text = "${formatSize(usedStorageBytes)} / ${formatSize(totalStorageBytes)}"
+//
+//        // Legend: Breakdown (dynamically show/hide based on data)
+//        val imagesBlock = storageBlocks.find { it.type == "Images" }
+//        binding.tvLegendImages.apply {
+//            visibility = if (imagesBlock != null && imagesBlock.sizeInBytes > 0) View.VISIBLE else View.GONE
+//            text = "Images: ${formatSize(imagesBlock?.sizeInBytes ?: 0)}"
+//        }
+//
+//        val videosBlock = storageBlocks.find { it.type == "Videos" }
+//        binding.tvLegendVideos.apply {
+//            visibility = if (videosBlock != null && videosBlock.sizeInBytes > 0) View.VISIBLE else View.GONE
+//            text = "Videos: ${formatSize(videosBlock?.sizeInBytes ?: 0)}"
+//        }
+//
+//        val documentsBlock = storageBlocks.find { it.type == "Documents" }
+//        binding.tvLegendDocuments.apply {
+//            visibility = if (documentsBlock != null && documentsBlock.sizeInBytes > 0) View.VISIBLE else View.GONE
+//            text = "Documents: ${formatSize(documentsBlock?.sizeInBytes ?: 0)}"
+//        }
+//    }
 
     private fun getStorageBlocksFromDataSource(): List<StorageBlock> {
         // Placeholder - replace with your real data source
