@@ -111,7 +111,7 @@ class DNSResolver {
 
     var fin: String = ""
 
-    private fun resolveA(host: String): String {
+     fun resolveA(host: String): String {
         try {
             val result: ResolverResult<A> =
                 ResolverApi.INSTANCE.resolve(host, A::class.java)
