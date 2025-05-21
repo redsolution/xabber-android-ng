@@ -14,17 +14,17 @@ import java.net.InetAddress
 class DNSResolver {
     private val TAG = "DNSResolver"
 
-    companion object {
-        private val responseHistory = mutableListOf<String>()
-
-        fun getResponseHistory(): List<String> {
-            return responseHistory.toList()
-        }
-
-        fun clearResponseHistory() {
-            responseHistory.clear()
-        }
-    }
+//    companion object {
+//        private val responseHistory = mutableListOf<String>()
+//
+//        fun getResponseHistory(): List<String> {
+//            return responseHistory.toList()
+//        }
+//
+//        fun clearResponseHistory() {
+//            responseHistory.clear()
+//        }
+//    }
 
     fun resolveSRV(host: String): String {
         try {
@@ -34,7 +34,7 @@ class DNSResolver {
                 val responseCode: DnsMessage.RESPONSE_CODE = result.responseCode
                 Log.e(TAG, "SRV resolution failed with response code: $responseCode")
                 val response = "Failed: Response code $responseCode"
-                responseHistory.add("Host: $host, Result: $response")
+//                responseHistory.add("Host: $host, Result: $response")
                 return response
             }
             // Log raw SRV records and extract hostname
@@ -58,7 +58,7 @@ class DNSResolver {
                 if (srvRecordsRaw.isEmpty()) {
                     Log.w(TAG, "No SRV records in answers")
                     val response = "Failed: No SRV records found"
-                    responseHistory.add("Host: $host, Result: $response")
+//                    responseHistory.add("Host: $host, Result: $response")
                     return response
                 }
                 // Use the first SRV record's target and port
@@ -70,7 +70,7 @@ class DNSResolver {
                 if (aResult != fin) {
                     Log.e(TAG, "A record resolution failed for $target: $aResult")
                     val response = "Failed: No A records resolved for SRV target $target"
-                    responseHistory.add("Host: $host, Result: $response")
+//                    responseHistory.add("Host: $host, Result: $response")
                     return response
                 } else Log.d(TAG, "A record resolution for $target: $aResult")
             }
@@ -99,12 +99,12 @@ class DNSResolver {
                 }
             }
             val response = "Success"
-            responseHistory.add("Host: $host, Result: $response")
+//            responseHistory.add("Host: $host, Result: $response")
             return response
         } catch (e: Exception) {
             Log.e(TAG, "Error resolving SRV: ${e.message}", e)
             val response = "Error: ${e.message}"
-            responseHistory.add("Host: $host, Result: $response")
+//            responseHistory.add("Host: $host, Result: $response")
             return response
         }
     }

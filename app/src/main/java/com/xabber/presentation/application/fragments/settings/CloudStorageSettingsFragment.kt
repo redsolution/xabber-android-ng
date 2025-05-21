@@ -44,8 +44,6 @@ class CloudStorageSettingsFragment : DetailBaseFragment(R.layout.fragment_cloud_
                         fetchFromSrv(host)
                     }
                     // Display the entire response history
-                    val history = DNSResolver.getResponseHistory()
-                    resultText.text = history.joinToString("\n")
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to fetch SRV data: ${e.message}", e)
                     resultText.text = "Failed: ${e.message}"

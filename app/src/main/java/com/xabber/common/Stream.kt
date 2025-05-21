@@ -43,25 +43,25 @@ class Stream {
                 Log.e(TAG, "DNS resolution failed for host $host: $result")
                 return@withContext false
             }
-            val history = DNSResolver.getResponseHistory()
+//            val history = DNSResolver.getResponseHistory()
             var resolvedIp: String? = null
             var resolvedPort: Int = port
-            for (entry in history.reversed()) {
-                if (entry.contains("Host: $host")) {
-                    if (entry.contains("inetAddress")) {
-                        val lines = entry.split(", ")
-                        for (line in lines) {
-                            if (line.contains("inetAddress")) {
-                                resolvedIp = line.substringAfter("inetAddress=").substringBefore(",").trim()
-                            }
-                            if (line.contains("port")) {
-                                resolvedPort = line.substringAfter("port=").substringBefore(",").trim().toInt()
-                            }
-                        }
-                        break
-                    }
-                }
-            }
+//            for (entry in history.reversed()) {
+//                if (entry.contains("Host: $host")) {
+//                    if (entry.contains("inetAddress")) {
+//                        val lines = entry.split(", ")
+//                        for (line in lines) {
+//                            if (line.contains("inetAddress")) {
+//                                resolvedIp = line.substringAfter("inetAddress=").substringBefore(",").trim()
+//                            }
+//                            if (line.contains("port")) {
+//                                resolvedPort = line.substringAfter("port=").substringBefore(",").trim().toInt()
+//                            }
+//                        }
+//                        break
+//                    }
+//                }
+//            }
             if (resolvedIp == null) {
                 Log.w(TAG, "No SRV records with IP found, falling back to A record resolution")
                 val aResult = resolver.resolveA(host)
@@ -78,9 +78,19 @@ class Stream {
             this@Stream.remoteAddress = resolvedIp
             this@Stream.port = resolvedPort
             Log.d(TAG, "Resolved IP: $remoteAddress, Port: $port")
-            socket = Socket(remoteAddress, port)
+            socket = Socket(host, port)
             if (socket?.connect() == true) {
                 Log.d(TAG, "Socket connected successfully for $remoteAddress:$port")
+                val serverResponse = socket!!.read()
+                println("Server response: $serverResponse")
+
+                // Send a ping stanza
+                socket!!.sendPing("aleksey.bolding@redsolution.com")
+
+                // Read the ping response
+                val pingResponse = socket!!.read()
+                println("Ping response: $pingResponse")
+                socket!!.close()
                 return@withContext true
             } else {
                 Log.e(TAG, "Socket connection failed for $remoteAddress:$port")
