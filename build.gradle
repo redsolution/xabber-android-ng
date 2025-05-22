@@ -1,6 +1,4 @@
-
 buildscript {
-
     ext {
         kotlinVersion = '2.0.20'
         retrofit_version = "2.9.0"
@@ -10,17 +8,11 @@ buildscript {
         koin_version = '3.4.2'
     }
 
-    dependencies {
-        repositories {
-            google()
-            mavenCentral()
-            maven {
-                url 'https://jitpack.io'
-            }
-            maven { url "https://google.bintray.com/flexbox-layout"
-                }
-            maven { url "https://s01.oss.sonatype.org/content/repositories/releases/" }
-        }
+    repositories {
+        google()
+        mavenCentral()
+        maven { url 'https://jitpack.io' }
+        maven { url "https://s01.oss.sonatype.org/content/repositories/releases/" }
     }
 
     dependencies {
@@ -29,19 +21,18 @@ buildscript {
         classpath "org.jetbrains.kotlin:kotlin-serialization:$kotlinVersion"
         classpath 'com.google.gms:google-services:4.3.15'
         classpath 'com.google.firebase:firebase-crashlytics-gradle:2.9.6'
-
     }
 }
 
 plugins {
     id 'com.android.application' version '8.8.2' apply false
     id 'com.android.library' version '8.8.2' apply false
-    id 'org.jetbrains.kotlin.android' version '1.6.21' apply false
+    id 'org.jetbrains.kotlin.android' version '2.0.20' apply false
     id 'io.realm.kotlin' version '2.3.0' apply false
     id 'com.google.gms.google-services' version '4.3.15' apply false
     id 'com.google.firebase.crashlytics' version '2.9.4' apply false
     id("io.ktor.plugin") version "3.1.3" apply false
-    id 'org.jetbrains.kotlin.plugin.serialization' version '2.1.20' apply true
+    id 'org.jetbrains.kotlin.plugin.serialization' version '2.0.20' apply true
 }
 
 task clean(type: Delete) {
