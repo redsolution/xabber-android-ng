@@ -30,7 +30,7 @@ class Stream {
             Log.w(TAG, "Invalid JID format: $jid, using JID as host")
             return jid
         } catch (e: Exception) {
-            Log.e(TAG, "Error extracting host from JID: ${e.message}", e)
+            Log.e(TAG, "Error extracting host from JID: $e")
             return jid
         }
     }
@@ -69,27 +69,34 @@ class Stream {
             Log.d(TAG, "Socket connected successfully for $remoteAddress:$port")
 
             // Initiate XMPP stream
-            val serverResponse = socket?.initiateXmppStream(socket!!, host, jid)
-            if (serverResponse == null) {
+            val response = socket?.initiateXmppStream(socket!!, host, jid)
+            if (response == null) {
                 Log.e(TAG, "Failed to initiate XMPP stream for $jid")
                 socket?.close()
                 return@withContext false
             }
-            Log.d(TAG, "XMPP stream initiated successfully. Server response: $serverResponse")
+            Log.d(TAG, "XMPP stream initiated successfully. Server response: $response")
 
-            // Example: Send a ping stanza after stream initiation
-            socket?.sendPing(jid)?.let { pingSent ->
-                if (pingSent) {
-                    val pingResponse = socket?.read()
-                    Log.d(TAG, "Ping response: $pingResponse")
-                } else {
-                    Log.w(TAG, "Failed to send ping for $jid")
+            // Access stream features
+            response.features?.let { features ->
+                Log.d(TAG, "Stream features: $features")
+                if (features.starttls?.present == true) {
+                    Log.d(TAG, "STARTTLS is supported")
+                    // TODO: Implement STARTTLS
+                }
+                features.mechanisms?.mechanism?.let { mechanisms ->
+                    Log.d(TAG, "Supported SASL mechanisms: $mechanisms")
+                    if (mechanisms.contains("PLAIN")) {
+                        Log.d(TAG, "PLAIN authentication is supported")
+                        // TODO: Implement SASL PLAIN
+                    }
                 }
             }
 
+
             true
         } catch (e: Exception) {
-            Log.e(TAG, "Error connecting to $host: ${e.message}", e)
+            Log.e(TAG, "Error connecting to $host: $e")
             socket?.close()
             false
         }
