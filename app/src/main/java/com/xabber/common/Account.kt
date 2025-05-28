@@ -102,10 +102,10 @@ class Account {
                 val connected = it.connect()
                 if (connected) {
                     statusMessage.onNext("Online")
-                    Log.d("Account", "Stream connected for $jid")
+                    Log.d("Account", "Stream connected and XMPP stream initiated for $jid")
                 } else {
                     statusMessage.onNext("Offline")
-                    Log.e("Account", "Stream connection failed for $jid")
+                    Log.e("Account", "Stream connection or XMPP stream initiation failed for $jid")
                 }
                 connected
             } ?: run {

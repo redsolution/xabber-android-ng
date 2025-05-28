@@ -7,31 +7,37 @@ import io.ktor.utils.io.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
+import nl.adaptivity.xmlutil.XmlDeclMode
 import nl.adaptivity.xmlutil.serialization.XML
 import nl.adaptivity.xmlutil.serialization.XML.Companion.decodeFromString
 import nl.adaptivity.xmlutil.serialization.XML.Companion.encodeToString
 import nl.adaptivity.xmlutil.serialization.XmlSerialName
+import java.nio.charset.StandardCharsets
 
 @Serializable
-@XmlSerialName("stream:stream")
+@XmlSerialName("stream", "http://etherx.jabber.org/streams", "stream")
 data class ClientStreamHeader(
-     val from: String,
-     val to: String,
-     val version: String = "1.0",
-     val xmlns: String = "jabber:client",
-     val xmlnsStream: String = "http://etherx.jabber.org/streams"
+    val from: String,
+    val to: String,
+    val version: String = "1.0",
+    @XmlSerialName("xmlns", "", "")
+    val xmlns: String = "jabber:client"
 )
 
 @Serializable
-@XmlSerialName("stream:stream")
+@XmlSerialName("stream", "http://etherx.jabber.org/streams", "stream")
 data class ServerStreamHeader(
-     val id: String,
-     val version: String,
-     val xmlnsStream: String,
-     val xmlns: String,
-     val from: String? = null
+    val id: String,
+    val version: String,
+    @XmlSerialName("xmlns:stream", "", "")
+    val xmlnsStream: String,
+    @XmlSerialName("xmlns", "", "")
+    val xmlns: String,
+    val from: String? = null,
+    val to: String? = null,
+    @XmlSerialName("xml:lang", "http://www.w3.org/XML/1998/namespace", "xml")
+    val xmlLang: String? = null
 )
-
 
 class Socket(private val host: String, private val port: Int) {
     private var socket: io.ktor.network.sockets.Socket? = null
@@ -40,71 +46,96 @@ class Socket(private val host: String, private val port: Int) {
     private val selectorManager = SelectorManager(Dispatchers.IO)
     private val TAG = "Socket_ng"
 
-    // Connects to the specified host and port and sends XMPP stream opening
     suspend fun connect(): Boolean = withContext(Dispatchers.IO) {
         try {
             socket = aSocket(selectorManager).tcp().connect(host, port)
             reader = socket?.openReadChannel()
             writer = socket?.openWriteChannel(autoFlush = true)
             Log.d(TAG, "Ktor TCP socket connected to $host:$port")
-
-            // Send XMPP stream opening tag
-            val streamOpen = """<?xml version='1.0'?>
-                <stream:stream to='$host' version='1.0' xml:lang='en' 
-                xmlns='jabber:client' xmlns:stream='http://etherx.jabber.org/streams'>"""
-            return@withContext write(streamOpen, host)
+            true
         } catch (e: Exception) {
             Log.e(TAG, "Error connecting to $host:$port: ${e.message}", e)
             false
         }
     }
 
-    // Writes a string to the socket
     suspend fun write(message: String, domain: String): Boolean = withContext(Dispatchers.IO) {
         try {
             writer?.let {
+                // Log raw bytes for debugging
+//                val bytes = message.toByteArray(StandardCharsets.UTF_8)
+//                Log.d(TAG, "Raw bytes to send: ${bytes.joinToString(", ") { it.toString() }}")
                 it.writeString(message)
                 Log.d(TAG, "Sent message: $message")
                 return@withContext true
             }
-            Log.e(TAG, "Cannot write: Socket writer is null")
+            Log.e(TAG, "Cannot send: Socket writer is null")
             false
         } catch (e: Exception) {
-            Log.e(TAG, "Error writing to socket: ${e.message}", e)
+            Log.e(TAG, "Failed to send message: ${e.message}")
             false
         }
     }
 
     suspend fun sendStreamHeader(socket: Socket, domain: String, jid: String) {
-        // Create the client stream header
-        val streamHeader = ClientStreamHeader(from = jid,to = domain )
+        val streamHeader = ClientStreamHeader(
+            from = jid,
+            to = domain,
+            version = "1.0",
+            xmlns = "jabber:client"
+        )
 
-        // Serialize the stream header to XML
-        val xmlContent = encodeToString(ClientStreamHeader.serializer(), streamHeader)
-
-        // Prepend the XML declaration
-        val fullXml = "<?xml version='1.0' encoding='UTF-8'?>" + xmlContent
-
-        // Send the XML over the socket
-        socket.write(fullXml, host)
+        val xml = XML {
+            indent = 0 // Avoid extra whitespace
+            xmlDeclMode = XmlDeclMode.None // No XML declaration
+            autoPolymorphic = true
+        }
+        val xmlContent = xml.encodeToString(ClientStreamHeader.serializer(), streamHeader)
+        Log.d(TAG, "Serialized stream header: $xmlContent")
+        socket.write(xmlContent, domain)
     }
 
-    // Reads a string from the socket until a complete XML tag is received
     suspend fun read(): String? = withContext(Dispatchers.IO) {
         try {
             reader?.let { channel ->
                 val buffer = StringBuilder()
                 val tempBuffer = ByteArray(1024)
+                var openTags = 0
+                var inTag = false
                 while (true) {
                     val bytesRead = channel.readAvailable(tempBuffer)
                     if (bytesRead == -1) {
-                        Log.d(TAG, "Socket closed by remote peer")
+                        Log.e(TAG, "Socket closed by remote peer before receiving response")
                         return@withContext null
                     }
                     val chunk = tempBuffer.decodeToString(0, bytesRead)
                     buffer.append(chunk)
-                    // Check for complete XML tag (simplified: assumes tag ends with '>')
-                    if (chunk.contains(">")) {
+
+                    // Count tags to detect complete stream header or error
+                    for (char in chunk) {
+                        if (char == '<' && !inTag) {
+                            inTag = true
+                        } else if (char == '>' && inTag) {
+                            inTag = false
+                            if (chunk.contains("<stream:stream")) {
+                                openTags++
+                            } else if (chunk.contains("</stream:stream")) {
+                                openTags--
+                            }
+                        }
+                    }
+
+                    // Break if we have the stream header (open tag only)
+                    if (openTags == 1 && buffer.contains("<stream:stream") && !inTag &&
+                        (buffer.contains("/>") || buffer.contains(">"))) {
+                        // Extract only the stream header
+                        val endIndex = buffer.indexOf(">", buffer.indexOf("<stream:stream")) + 1
+                        val header = buffer.substring(0, endIndex)
+                        Log.d(TAG, "Extracted stream header: $header")
+                        return@withContext header
+                    }
+                    // Break if an error is detected
+                    if (buffer.contains("<stream:error")) {
                         break
                     }
                 }
@@ -116,22 +147,34 @@ class Socket(private val host: String, private val port: Int) {
             null
         } catch (e: Exception) {
             Log.e(TAG, "Error reading from socket: ${e.message}", e)
-            null
+            return@withContext null
         }
     }
 
     suspend fun readServerResponse(socket: Socket): ServerStreamHeader? {
-        // Read the server's response as a string
         val response = socket.read() ?: return null
+        try {
+            // Check for stream error
+            if (response.contains("<stream:error")) {
+                Log.e(TAG, "Server responded with stream error: $response")
+                return null
+            }
 
-        // Strip the XML declaration if present
-        val xmlContent = response.replace(Regex("""<\?xml[^?]+\?>"""), "").trim()
-
-        // Deserialize the XML content into a ServerStreamHeader object
-        return decodeFromString(ServerStreamHeader.serializer(), xmlContent)
+            // Remove XML declaration and normalize response
+            val xmlContent = response.replace(Regex("""<\?xml[^?]+\?>"""), "").trim()
+            val xml = XML {
+                indent = 2
+                autoPolymorphic = true
+            }
+            val parsed = xml.decodeFromString(ServerStreamHeader.serializer(), xmlContent)
+            Log.d(TAG, "Parsed ServerStreamHeader: $parsed")
+            return parsed
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to parse server response: ${e.message}\nRaw response: $response", e)
+            return null
+        }
     }
 
-    // Sends a sample XMPP IQ ping stanza
     suspend fun sendPing(jid: String): Boolean = withContext(Dispatchers.IO) {
         val ping = """
             <iq type='get' id='ping1' to='$jid'>
@@ -140,11 +183,9 @@ class Socket(private val host: String, private val port: Int) {
         return@withContext write(ping, host)
     }
 
-    // Closes the socket if open
     suspend fun close() = withContext(Dispatchers.IO) {
         try {
             socket?.let {
-                // Send stream closing tag
                 write("</stream:stream>", host)
                 it.close()
                 Log.d(TAG, "Ktor TCP socket closed for $host:$port")
@@ -159,10 +200,15 @@ class Socket(private val host: String, private val port: Int) {
 
     suspend fun initiateXmppStream(socket: Socket, domain: String, jid: String): ServerStreamHeader? {
         sendStreamHeader(socket, domain, jid)
-        return readServerResponse(socket)
+        val response = readServerResponse(socket)
+        if (response == null) {
+            Log.e(TAG, "Stream initiation failed for $jid")
+        } else {
+            Log.d(TAG, "Stream initiated successfully for $jid")
+        }
+        return response
     }
 
-    // Getter for the Ktor socket
     fun getSocket(): io.ktor.network.sockets.Socket? {
         return socket
     }

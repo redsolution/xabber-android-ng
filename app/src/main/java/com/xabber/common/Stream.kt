@@ -43,25 +43,8 @@ class Stream {
                 Log.e(TAG, "DNS resolution failed for host $host: $result")
                 return@withContext false
             }
-//            val history = DNSResolver.getResponseHistory()
             var resolvedIp: String? = null
             var resolvedPort: Int = port
-//            for (entry in history.reversed()) {
-//                if (entry.contains("Host: $host")) {
-//                    if (entry.contains("inetAddress")) {
-//                        val lines = entry.split(", ")
-//                        for (line in lines) {
-//                            if (line.contains("inetAddress")) {
-//                                resolvedIp = line.substringAfter("inetAddress=").substringBefore(",").trim()
-//                            }
-//                            if (line.contains("port")) {
-//                                resolvedPort = line.substringAfter("port=").substringBefore(",").trim().toInt()
-//                            }
-//                        }
-//                        break
-//                    }
-//                }
-//            }
             if (resolvedIp == null) {
                 Log.w(TAG, "No SRV records with IP found, falling back to A record resolution")
                 val aResult = resolver.resolveA(host)
@@ -78,33 +61,44 @@ class Stream {
             this@Stream.remoteAddress = resolvedIp
             this@Stream.port = resolvedPort
             Log.d(TAG, "Resolved IP: $remoteAddress, Port: $port")
-            socket = Socket(host, port)
-            if (socket?.connect() == true) {
-                Log.d(TAG, "Socket connected successfully for $remoteAddress:$port")
-                val serverResponse = socket!!.read()
-                println("Server response: $serverResponse")
-
-                // Send a ping stanza
-                socket!!.sendPing("aleksey.bolding@redsolution.com")
-
-                // Read the ping response
-                val pingResponse = socket!!.read()
-                println("Ping response: $pingResponse")
-                socket!!.close()
-                return@withContext true
-            } else {
+            socket = Socket(remoteAddress, port)
+            if (socket?.connect() != true) {
                 Log.e(TAG, "Socket connection failed for $remoteAddress:$port")
                 return@withContext false
             }
+            Log.d(TAG, "Socket connected successfully for $remoteAddress:$port")
+
+            // Initiate XMPP stream
+            val serverResponse = socket?.initiateXmppStream(socket!!, host, jid)
+            if (serverResponse == null) {
+                Log.e(TAG, "Failed to initiate XMPP stream for $jid")
+                socket?.close()
+                return@withContext false
+            }
+            Log.d(TAG, "XMPP stream initiated successfully. Server response: $serverResponse")
+
+            // Example: Send a ping stanza after stream initiation
+            socket?.sendPing(jid)?.let { pingSent ->
+                if (pingSent) {
+                    val pingResponse = socket?.read()
+                    Log.d(TAG, "Ping response: $pingResponse")
+                } else {
+                    Log.w(TAG, "Failed to send ping for $jid")
+                }
+            }
+
+            true
         } catch (e: Exception) {
             Log.e(TAG, "Error connecting to $host: ${e.message}", e)
-            return@withContext false
+            socket?.close()
+            false
         }
     }
 
     suspend fun close() = withContext(Dispatchers.IO) {
         socket?.close()
         socket = null
+        Log.d(TAG, "Stream closed for $jid")
     }
 
     fun getSocket(): Socket? {
