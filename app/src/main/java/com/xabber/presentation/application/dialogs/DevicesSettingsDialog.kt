@@ -2,10 +2,12 @@ package com.xabber.presentation.application.dialogs
 
 import android.content.res.Configuration
 import android.os.Bundle
+import android.util.Log
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Toast
 import androidx.core.content.res.ResourcesCompat
 import androidx.fragment.app.DialogFragment
 import by.kirich1409.viewbindingdelegate.viewBinding
@@ -23,6 +25,7 @@ import io.realm.kotlin.Realm
 class DevicesSettingsDialog : DialogFragment() {
     private val binding by viewBinding(FragmentDevicesSettingsBinding::bind)
     private val realm = Realm.open(defaultRealmConfig())
+    private var isLoggingOut: Boolean = false // Prevent multiple logout calls
 
     override fun onStart() {
         super.onStart()
@@ -58,7 +61,23 @@ class DevicesSettingsDialog : DialogFragment() {
         super.onViewCreated(view, savedInstanceState)
         binding.toolbar.setNavigationIcon(R.drawable.ic_arrow_left_white)
         binding.toolbar.setNavigationOnClickListener{dismiss()}
-
+        binding.logOutButton.setOnClickListener {
+            if (!isLoggingOut) {
+                isLoggingOut = true
+                Log.d("DevicesSettingsFragment", "Logout button clicked")
+                try {
+                    navigator().logOut()
+                    Toast.makeText(requireContext(), "Logged out successfully", Toast.LENGTH_SHORT).show()
+                } catch (e: Exception) {
+                    Log.e("DevicesSettingsFragment", "Logout failed: ${e.message}", e)
+                    Toast.makeText(requireContext(), "Logout failed: ${e.message}", Toast.LENGTH_LONG).show()
+                } finally {
+                    isLoggingOut = false
+                }
+            } else {
+                Log.w("DevicesSettingsFragment", "Logout already in progress, skipping")
+            }
+        }
         // Set the toolbar color based on the current account's theme
         setupToolbarColor()
     }

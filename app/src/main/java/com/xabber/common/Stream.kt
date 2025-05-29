@@ -5,6 +5,21 @@ import com.xabber.xmpp.dns.DNSResolver
 import io.realm.kotlin.types.annotations.PrimaryKey
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import com.xabber.common.Socket
+
+
+enum class StreamState {
+    NOT_CONNECTING,
+    STREAM_OPEN,
+    START_TLS,
+    PROCEED,
+    START_AUTH,
+    PROCESS_AUTH,
+    AUTH_SUCCESS,
+    AUTH_FAILED,
+    BINDING,
+    CONNECTED
+}
 
 class Stream {
     @PrimaryKey
@@ -13,12 +28,30 @@ class Stream {
     var port: Int = 5222
     var remoteAddress: String = ""
     private var socket: Socket? = null
+    private var state: StreamState = StreamState.NOT_CONNECTING
+        set(value) {
+            field = value
+            Log.d(TAG, "Transitioned to state: $value")
+            when (value) {
+                StreamState.NOT_CONNECTING -> onNotConnecting()
+                StreamState.STREAM_OPEN -> onStreamOpen()
+                StreamState.START_TLS -> onStartTls()
+                StreamState.PROCEED -> onProceed()
+                StreamState.START_AUTH -> onStartAuth()
+                StreamState.PROCESS_AUTH -> onProcessAuth()
+                StreamState.AUTH_SUCCESS -> onAuthSuccess()
+                StreamState.AUTH_FAILED -> onAuthFailed()
+                StreamState.BINDING -> onBinding()
+                StreamState.CONNECTED -> onConnected()
+            }
+        }
     private val TAG = "Stream"
 
     constructor(jid: String, port: Int? = null) {
         this.jid = jid
         this.port = port ?: 5222
         this.host = extractHostFromJid(jid)
+        this.state = StreamState.NOT_CONNECTING
     }
 
     private fun extractHostFromJid(jid: String): String {
@@ -37,6 +70,7 @@ class Stream {
 
     suspend fun connect(): Boolean = withContext(Dispatchers.IO) {
         try {
+            state = StreamState.NOT_CONNECTING
             val resolver = DNSResolver()
             val result = resolver.resolveSRV(host)
             if (result != "Success") {
@@ -76,23 +110,25 @@ class Stream {
                 return@withContext false
             }
             Log.d(TAG, "XMPP stream initiated successfully. Server response: $response")
+            state = StreamState.STREAM_OPEN
 
             // Access stream features
             response.features?.let { features ->
                 Log.d(TAG, "Stream features: $features")
                 if (features.starttls?.present == true) {
                     Log.d(TAG, "STARTTLS is supported")
+                    state = StreamState.START_TLS
                     // TODO: Implement STARTTLS
                 }
                 features.mechanisms?.mechanism?.let { mechanisms ->
                     Log.d(TAG, "Supported SASL mechanisms: $mechanisms")
                     if (mechanisms.contains("PLAIN")) {
                         Log.d(TAG, "PLAIN authentication is supported")
+                        state = StreamState.START_AUTH
                         // TODO: Implement SASL PLAIN
                     }
                 }
             }
-
 
             true
         } catch (e: Exception) {
@@ -105,10 +141,23 @@ class Stream {
     suspend fun close() = withContext(Dispatchers.IO) {
         socket?.close()
         socket = null
+        state = StreamState.NOT_CONNECTING
         Log.d(TAG, "Stream closed for $jid")
     }
 
     fun getSocket(): Socket? {
         return socket
     }
+
+    // State handler functions
+    open fun onNotConnecting() {}
+    open fun onStreamOpen() {}
+    open fun onStartTls() {}
+    open fun onProceed() {}
+    open fun onStartAuth() {}
+    open fun onProcessAuth() {}
+    open fun onAuthSuccess() {}
+    open fun onAuthFailed() {}
+    open fun onBinding() {}
+    open fun onConnected() {}
 }

@@ -181,7 +181,7 @@ class Socket(private val host: String, private val port: Int) {
                 return null
             }
 
-            val xmlContent = response.replace(Regex("""<?xml[^>]+?>"""), "").trim()
+            val xmlContent = response.replace(Regex("""<\?xml\s+version=['"][^'"]+['"](?:\s+encoding=['"][^'"]+['"])?\s*\?>"""), "").trim()
             Log.d(TAG, "Processing XML content: $xmlContent")
             val xml = XML {
                 indent = 2
@@ -193,7 +193,7 @@ class Socket(private val host: String, private val port: Int) {
             }
             // Extract attributes with regex
             Log.d(TAG, "Extracting stream:stream attributes")
-            val headerMatch = Regex("""<stream:stream\s+([^>]+)>""").find(xmlContent)
+            val headerMatch = Regex("""<stream:stream\s+([^>]+?)>""").find(xmlContent)
             if (headerMatch == null) {
                 Log.e(TAG, "No <stream:stream> tag found in response")
                 return null
@@ -218,13 +218,20 @@ class Socket(private val host: String, private val port: Int) {
             val features = if (featuresMatch != null) {
                 Log.d(TAG, "Features match found: ${featuresMatch.value}")
                 try {
-                    // Add xmlns:stream to the features tag
+                    // Add necessary namespace declarations
                     val featuresAttrs = featuresMatch.groupValues[1]
                     val featuresContent = featuresMatch.groupValues[2]
-                    val featuresXml = if (featuresAttrs.contains("xmlns:stream")) {
-                        "<stream:features$featuresAttrs>$featuresContent</stream:features>"
+                    // Check if mechanisms tag has its namespace
+                    val mechanismsMatch = Regex("""<mechanisms([^>]*)>""").find(featuresContent)
+                    val mechanismsXml = if (mechanismsMatch != null && !mechanismsMatch.groupValues[1].contains("xmlns=")) {
+                        featuresContent.replace("<mechanisms", "<mechanisms xmlns=\"urn:xml:namespace:xmpp-sasl\"")
                     } else {
-                        "<stream:features$featuresAttrs xmlns:stream=\"http://etherx.jabber.org/streams\">$featuresContent</stream:features>"
+                        featuresContent
+                    }
+                    val featuresXml = if (featuresAttrs.contains("xmlns:stream")) {
+                        "<stream:features$featuresAttrs>$mechanismsXml</stream:features>"
+                    } else {
+                        "<stream:features$featuresAttrs xmlns:stream=\"http://etherx.jabber.org/streams\">$mechanismsXml</stream:features>"
                     }
                     Log.d(TAG, "Parsing features XML: $featuresXml")
                     xml.decodeFromString(StreamFeatures.serializer(), featuresXml)
