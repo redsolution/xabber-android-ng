@@ -4,9 +4,8 @@ import android.util.Log
 import com.xabber.xmpp.dns.DNSResolver
 import io.realm.kotlin.types.annotations.PrimaryKey
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
-import com.xabber.common.Socket
-
 
 enum class StreamState {
     NOT_CONNECTING,
@@ -34,15 +33,15 @@ class Stream {
             Log.d(TAG, "Transitioned to state: $value")
             when (value) {
                 StreamState.NOT_CONNECTING -> onNotConnecting()
-                StreamState.STREAM_OPEN -> onStreamOpen()
-                StreamState.START_TLS -> onStartTls()
-                StreamState.PROCEED -> onProceed()
-                StreamState.START_AUTH -> onStartAuth()
-                StreamState.PROCESS_AUTH -> onProcessAuth()
-                StreamState.AUTH_SUCCESS -> onAuthSuccess()
-                StreamState.AUTH_FAILED -> onAuthFailed()
-                StreamState.BINDING -> onBinding()
-                StreamState.CONNECTED -> onConnected()
+                StreamState.STREAM_OPEN -> runBlocking(Dispatchers.IO) { onStreamOpen() }
+                StreamState.START_TLS -> runBlocking(Dispatchers.IO) { onStartTls() }
+                StreamState.PROCEED -> runBlocking(Dispatchers.IO) { onProceed() }
+                StreamState.START_AUTH -> runBlocking(Dispatchers.IO) { onStartAuth() }
+                StreamState.PROCESS_AUTH -> runBlocking(Dispatchers.IO) { onProcessAuth() }
+                StreamState.AUTH_SUCCESS -> runBlocking(Dispatchers.IO) { onAuthSuccess() }
+                StreamState.AUTH_FAILED -> runBlocking(Dispatchers.IO) { onAuthFailed() }
+                StreamState.BINDING -> runBlocking(Dispatchers.IO) { onBinding() }
+                StreamState.CONNECTED -> runBlocking(Dispatchers.IO) { onConnected() }
             }
         }
     private val TAG = "Stream"
@@ -118,14 +117,12 @@ class Stream {
                 if (features.starttls?.present == true) {
                     Log.d(TAG, "STARTTLS is supported")
                     state = StreamState.START_TLS
-                    // TODO: Implement STARTTLS
                 }
                 features.mechanisms?.mechanism?.let { mechanisms ->
                     Log.d(TAG, "Supported SASL mechanisms: $mechanisms")
                     if (mechanisms.contains("PLAIN")) {
                         Log.d(TAG, "PLAIN authentication is supported")
                         state = StreamState.START_AUTH
-                        // TODO: Implement SASL PLAIN
                     }
                 }
             }
@@ -134,6 +131,7 @@ class Stream {
         } catch (e: Exception) {
             Log.e(TAG, "Error connecting to $host: $e")
             socket?.close()
+            state = StreamState.NOT_CONNECTING
             false
         }
     }
@@ -145,19 +143,58 @@ class Stream {
         Log.d(TAG, "Stream closed for $jid")
     }
 
+    fun logout(jid: String) {
+        if (this.jid == jid) {
+            runBlocking(Dispatchers.IO) {
+                close()
+            }
+        }
+    }
+
     fun getSocket(): Socket? {
         return socket
     }
 
     // State handler functions
     open fun onNotConnecting() {}
-    open fun onStreamOpen() {}
-    open fun onStartTls() {}
-    open fun onProceed() {}
-    open fun onStartAuth() {}
-    open fun onProcessAuth() {}
-    open fun onAuthSuccess() {}
-    open fun onAuthFailed() {}
-    open fun onBinding() {}
-    open fun onConnected() {}
+    open suspend fun onStreamOpen() {}
+    open suspend fun onStartTls() {
+        socket?.write("<starttls xmlns=\"urn:ietf:params:xml:ns:xmpp-tls\" />")
+        val proceed = socket?.read()
+        Log.w(TAG, "Proceed: $proceed")
+        if (proceed?.contains("<proceed xmlns='urn:ietf:params:xml:ns:xmpp-tls'/>") == true) {
+            Log.d(TAG, "Received proceed, upgrading to TLS")
+            if (socket?.upgradeToTls() == true) {
+                state = StreamState.PROCEED
+                // Restart the stream over TLS
+                val response = socket?.initiateXmppStream(socket!!, host, jid)
+                if (response != null) {
+                    Log.d(TAG, "New stream initiated over TLS: $response")
+                    state = StreamState.STREAM_OPEN
+                    // Handle new stream features
+                    response.features?.let { features ->
+                        Log.d(TAG, "New stream features: $features")
+                        if (features.mechanisms?.mechanism?.contains("PLAIN") == true) {
+                            state = StreamState.START_AUTH
+                        }
+                    }
+                } else {
+                    Log.e(TAG, "Failed to restart stream over TLS")
+                }
+            } else {
+                Log.e(TAG, "Failed to upgrade to TLS")
+            }
+        } else {
+            Log.e(TAG, "Failed to receive proceed: $proceed")
+        }
+    }
+    open suspend fun onProceed() {}
+    open suspend fun onStartAuth() {
+        // TODO: Implement SASL PLAIN authentication
+    }
+    open suspend fun onProcessAuth() {}
+    open suspend fun onAuthSuccess() {}
+    open suspend fun onAuthFailed() {}
+    open suspend fun onBinding() {}
+    open suspend fun onConnected() {}
 }

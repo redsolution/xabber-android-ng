@@ -3,6 +3,7 @@ package com.xabber.common
 import android.util.Log
 import io.ktor.network.selector.*
 import io.ktor.network.sockets.*
+import io.ktor.network.tls.*
 import io.ktor.utils.io.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -15,6 +16,10 @@ import nl.adaptivity.xmlutil.serialization.XML.Companion.encodeToString
 import nl.adaptivity.xmlutil.serialization.XmlSerialName
 import nl.adaptivity.xmlutil.serialization.XmlElement
 import java.nio.charset.StandardCharsets
+import javax.net.ssl.TrustManagerFactory
+import java.security.KeyStore
+import java.security.cert.X509Certificate
+import javax.net.ssl.X509TrustManager
 
 @Serializable
 @XmlSerialName("stream", "http://etherx.jabber.org/streams", "stream")
@@ -94,7 +99,37 @@ class Socket(private val host: String, private val port: Int) {
         }
     }
 
-    suspend fun write(message: String, domain: String): Boolean = withContext(Dispatchers.IO) {
+    suspend fun upgradeToTls(): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val currentSocket = socket ?: run {
+                Log.e(TAG, "Cannot upgrade to TLS: Socket is null")
+                return@withContext false
+            }
+            // Create a custom TrustManager that trusts the server's certificate
+            val trustManagerFactory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm())
+            trustManagerFactory.init(null as KeyStore?)
+            val trustManagers = trustManagerFactory.trustManagers
+            val trustManager = trustManagers[0] as X509TrustManager
+
+            // Create TLS configuration
+            val tlsConfig = TLSConfigBuilder().apply {
+                // Optional: Configure cipher suites or other TLS settings
+            }.build()
+
+            // Upgrade the socket to TLS
+            val tlsSocket = currentSocket.tls(Dispatchers.IO, tlsConfig)
+            socket = tlsSocket
+            reader = tlsSocket.openReadChannel()
+            writer = tlsSocket.openWriteChannel(autoFlush = true)
+            Log.d(TAG, "Socket upgraded to TLS for $host:$port")
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to upgrade socket to TLS: $e")
+            false
+        }
+    }
+
+    suspend fun write(message: String): Boolean = withContext(Dispatchers.IO) {
         try {
             writer?.let {
                 val bytes = message.toByteArray(StandardCharsets.UTF_8)
@@ -129,7 +164,7 @@ class Socket(private val host: String, private val port: Int) {
             }
             val xmlContent = "<?xml version='1.0'?>\n" + xml.encodeToString(ClientStreamHeader.serializer(), streamHeader)
             Log.d(TAG, "Serialized stream header: $xmlContent")
-            socket.write(xmlContent, domain)
+            socket.write(xmlContent)
         } catch (e: Exception) {
             Log.e(TAG, "Error sending stream header: $e")
         }
@@ -157,7 +192,9 @@ class Socket(private val host: String, private val port: Int) {
                     // Check for complete stanza
                     if (buffer.contains("</stream:stream>") ||
                         buffer.contains("</stream:features>") ||
-                        buffer.contains("</stream:error>")) {
+                        buffer.contains("</stream:error>") ||
+                        buffer.contains("<proceed")
+                        ) {
                         break
                     }
                 }
@@ -181,11 +218,17 @@ class Socket(private val host: String, private val port: Int) {
                 return null
             }
 
+            // Handle <proceed> response for STARTTLS
+            if (response.contains("<proceed")) {
+                Log.d(TAG, "Received proceed response for STARTTLS")
+                return null // Indicate no StreamResponse, as this is a control message
+            }
+
             val xmlContent = response.replace(Regex("""<\?xml\s+version=['"][^'"]+['"](?:\s+encoding=['"][^'"]+['"])?\s*\?>"""), "").trim()
             Log.d(TAG, "Processing XML content: $xmlContent")
             val xml = XML {
                 indent = 2
-                autoPolymorphic = true
+                autoPolymorphic = false
                 defaultPolicy {
                     ignoreUnknownChildren()
                     pedantic = false
@@ -217,28 +260,21 @@ class Socket(private val host: String, private val port: Int) {
             val featuresMatch = Regex("""<stream:features([^>]*)>(.*?)</stream:features>""", RegexOption.DOT_MATCHES_ALL).find(xmlContent)
             val features = if (featuresMatch != null) {
                 Log.d(TAG, "Features match found: ${featuresMatch.value}")
-                try {
-                    // Add necessary namespace declarations
-                    val featuresAttrs = featuresMatch.groupValues[1]
-                    val featuresContent = featuresMatch.groupValues[2]
-                    // Check if mechanisms tag has its namespace
-                    val mechanismsMatch = Regex("""<mechanisms([^>]*)>""").find(featuresContent)
-                    val mechanismsXml = if (mechanismsMatch != null && !mechanismsMatch.groupValues[1].contains("xmlns=")) {
-                        featuresContent.replace("<mechanisms", "<mechanisms xmlns=\"urn:xml:namespace:xmpp-sasl\"")
-                    } else {
-                        featuresContent
-                    }
-                    val featuresXml = if (featuresAttrs.contains("xmlns:stream")) {
-                        "<stream:features$featuresAttrs>$mechanismsXml</stream:features>"
-                    } else {
-                        "<stream:features$featuresAttrs xmlns:stream=\"http://etherx.jabber.org/streams\">$mechanismsXml</stream:features>"
-                    }
-                    Log.d(TAG, "Parsing features XML: $featuresXml")
-                    xml.decodeFromString(StreamFeatures.serializer(), featuresXml)
-                } catch (e: Exception) {
-                    Log.w(TAG, "Failed to parse features: $e")
-                    null
-                }
+                // Use fallback parsing directly
+                val mechanismsContent = Regex("""<mechanisms[^>]*>(.*?)</mechanisms>""", RegexOption.DOT_MATCHES_ALL).find(featuresMatch.value)?.groupValues?.get(1)
+                val mechanisms = if (mechanismsContent != null) {
+                    val mechanismList = Regex("""<mechanism>([^<]+)</mechanism>""").findAll(mechanismsContent)
+                        .map { it.groupValues[1] }
+                        .toList()
+                    Mechanisms(mechanismList)
+                } else null
+                val starttlsPresent = featuresMatch.value.contains("<starttls")
+                val proxyPresent = featuresMatch.value.contains("<proxy")
+                StreamFeatures(
+                    mechanisms = mechanisms,
+                    starttls = if (starttlsPresent) StartTls(present = true) else null,
+                    proxy = if (proxyPresent) Proxy(present = true) else null
+                )
             } else {
                 Log.w(TAG, "No features found in response")
                 null
@@ -267,13 +303,13 @@ class Socket(private val host: String, private val port: Int) {
             <iq type='get' id='ping1' to='$jid'>
                 <ping xmlns='urn:xmpp:ping'/>
             </iq>"""
-        return@withContext write(ping, host)
+        return@withContext write(ping)
     }
 
     suspend fun close() = withContext(Dispatchers.IO) {
         try {
             socket?.let {
-                write("</stream:stream>", host)
+                write("</stream:stream>")
                 it.close()
                 Log.d(TAG, "Ktor TCP socket closed for $host:$port")
             }
