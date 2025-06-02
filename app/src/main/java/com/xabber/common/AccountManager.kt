@@ -26,6 +26,7 @@ import com.xabber.xmpp.notifications.XMPPNotificationsManagerStorageItem
 import com.xabber.xmpp.voip.voIPManager.CallMetadataStorageItem
 import com.xabber.xmpp.x509.X509StorageItem
 import io.realm.kotlin.Realm
+import io.realm.kotlin.ext.query
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
@@ -49,14 +50,13 @@ object AccountManager {
                 Log.w("AccountManager", "Account with jid $normalizedJid already exists in Realm")
                 throw IllegalArgumentException("Account already exists")
             }
-            Log.d("AccountManager", "XMPP authentication successful for jid $normalizedJid (placeholder)")
             realm.write {
                 val newAccount = copyToRealm(AccountStorageItem().apply {
+                    this.order = query<AccountStorageItem>().find().size
                     this.jid = normalizedJid
                     this.username = username
-                    this.order = 0
-                    this.primary = normalizedJid
-                    this.enabled = true
+                    primary = normalizedJid
+                    enabled = true
                 })
                 Log.d("AccountManager", "Created AccountStorageItem for jid $normalizedJid")
             }

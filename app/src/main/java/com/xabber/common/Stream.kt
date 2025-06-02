@@ -3,9 +3,9 @@ package com.xabber.common
 import android.util.Log
 import com.xabber.xmpp.dns.DNSResolver
 import io.realm.kotlin.types.annotations.PrimaryKey
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.ReceiveChannel
 
 enum class StreamState {
     NOT_CONNECTING,
@@ -45,6 +45,7 @@ class Stream {
             }
         }
     private val TAG = "Stream"
+    private val proceedChannel = Channel<String?>(1)
 
     constructor(jid: String, port: Int? = null) {
         this.jid = jid
@@ -95,6 +96,14 @@ class Stream {
             this@Stream.port = resolvedPort
             Log.d(TAG, "Resolved IP: $remoteAddress, Port: $port")
             socket = Socket(remoteAddress, port)
+            socket?.setMessageCallback { message ->
+                CoroutineScope(Dispatchers.IO).launch {
+                    if (message.contains("<proceed")) {
+                        proceedChannel.send(message)
+                    }
+                    // Handle other messages as needed
+                }
+            }
             if (socket?.connect() != true) {
                 Log.e(TAG, "Socket connection failed for $remoteAddress:$port")
                 return@withContext false
@@ -140,6 +149,7 @@ class Stream {
         socket?.close()
         socket = null
         state = StreamState.NOT_CONNECTING
+        proceedChannel.close()
         Log.d(TAG, "Stream closed for $jid")
     }
 
@@ -159,33 +169,49 @@ class Stream {
     open fun onNotConnecting() {}
     open suspend fun onStreamOpen() {}
     open suspend fun onStartTls() {
-        socket?.write("<starttls xmlns=\"urn:ietf:params:xml:ns:xmpp-tls\" />")
-        val proceed = socket?.read()
-        Log.w(TAG, "Proceed: $proceed")
-        if (proceed?.contains("<proceed xmlns='urn:ietf:params:xml:ns:xmpp-tls'/>") == true) {
-            Log.d(TAG, "Received proceed, upgrading to TLS")
-            if (socket?.upgradeToTls() == true) {
-                state = StreamState.PROCEED
-                // Restart the stream over TLS
-                val response = socket?.initiateXmppStream(socket!!, host, jid)
-                if (response != null) {
-                    Log.d(TAG, "New stream initiated over TLS: $response")
-                    state = StreamState.STREAM_OPEN
-                    // Handle new stream features
-                    response.features?.let { features ->
-                        Log.d(TAG, "New stream features: $features")
-                        if (features.mechanisms?.mechanism?.contains("PLAIN") == true) {
-                            state = StreamState.START_AUTH
+        if (socket == null) {
+            Log.e(TAG, "Cannot send starttls: Socket is null")
+            return
+        }
+        if (!socket!!.write("<starttls xmlns='urn:xml:namespace:xmpp-tls'/>\n")) {
+            Log.e(TAG, "Failed to send starttls due to write error")
+            return
+        }
+        if (socket == null || socket!!.getSocket() == null) {
+            Log.e(TAG, "Socket became null or invalid before reading proceed")
+            return
+        }
+        try {
+            // Wait for proceed message from the read loop
+            val proceed = withTimeoutOrNull(5000) {
+                proceedChannel.receive()
+            }
+            Log.w(TAG, "Proceed: $proceed")
+            if (proceed != null && proceed.contains("<proceed")) {
+                Log.d(TAG, "Received proceed, upgrading to TLS")
+                if (socket?.upgradeToTls() == true) {
+                    state = StreamState.PROCEED
+                    val response = socket?.initiateXmppStream(socket!!, host, jid)
+                    if (response != null) {
+                        Log.d(TAG, "New stream initiated over TLS: $response")
+                        state = StreamState.STREAM_OPEN
+                        response.features?.let { features ->
+                            Log.d(TAG, "New stream features: $features")
+                            if (features.mechanisms?.mechanism?.contains("PLAIN") == true) {
+                                state = StreamState.START_AUTH
+                            }
                         }
+                    } else {
+                        Log.e(TAG, "Failed to restart stream over TLS")
                     }
                 } else {
-                    Log.e(TAG, "Failed to restart stream over TLS")
+                    Log.e(TAG, "Failed to upgrade to TLS")
                 }
             } else {
-                Log.e(TAG, "Failed to upgrade to TLS")
+                Log.e(TAG, "Failed to receive proceed: $proceed")
             }
-        } else {
-            Log.e(TAG, "Failed to receive proceed: $proceed")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error waiting for proceed: $e")
         }
     }
     open suspend fun onProceed() {}

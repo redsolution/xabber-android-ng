@@ -5,8 +5,16 @@ import io.ktor.network.selector.*
 import io.ktor.network.sockets.*
 import io.ktor.network.tls.*
 import io.ktor.utils.io.*
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.channels.ClosedReceiveChannelException
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.io.IOException
 import kotlinx.serialization.Serializable
 import nl.adaptivity.xmlutil.XmlDeclMode
 import nl.adaptivity.xmlutil.serialization.DefaultXmlSerializationPolicy
@@ -84,18 +92,84 @@ class Socket(private val host: String, private val port: Int) {
     private var reader: ByteReadChannel? = null
     private var writer: ByteWriteChannel? = null
     private val selectorManager = SelectorManager(Dispatchers.IO)
+    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val TAG = "Socket_ng"
+    private var messageCallback: ((String) -> Unit)? = null
+
+    // Set a callback to handle incoming messages from the read loop
+    fun setMessageCallback(callback: (String) -> Unit) {
+        messageCallback = callback
+    }
 
     suspend fun connect(): Boolean = withContext(Dispatchers.IO) {
         try {
-            socket = aSocket(selectorManager).tcp().connect(host, port)
+            socket = aSocket(selectorManager).tcp().connect(host, port) {
+                keepAlive = true
+            }
             reader = socket?.openReadChannel()
             writer = socket?.openWriteChannel(autoFlush = true)
+            if (reader == null || writer == null) {
+                Log.e(TAG, "Failed to initialize reader or writer channels")
+                socket?.close()
+                socket = null
+                reader = null
+                writer = null
+                return@withContext false
+            }
             Log.d(TAG, "Ktor TCP socket connected to $host:$port")
+            // Start the continuous read loop
+            scope.launch { startReadLoop() }
             true
         } catch (e: Exception) {
             Log.e(TAG, "Error connecting to $host:$port: $e")
+            socket?.close()
+            socket = null
+            reader = null
+            writer = null
             false
+        }
+    }
+
+    // Continuous read loop to process incoming messages
+    private suspend fun startReadLoop() {
+        while (scope.isActive && socket?.isClosed == false) {
+            try {
+                val message = read(timeoutMs = 5000)
+                if (message != null) {
+                    Log.d(TAG, "Processed message: $message")
+                    messageCallback?.invoke(message)
+                } else {
+                    Log.w(TAG, "No message received in this cycle")
+                    if (socket?.isClosed == true || reader?.isClosedForRead == true) {
+                        Log.w(TAG, "Socket or reader closed, attempting to reconnect")
+                        reconnect()
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error in read loop: $e")
+                if (socket?.isClosed == true || reader?.isClosedForRead == true) {
+                    Log.w(TAG, "Socket or reader closed in read loop, attempting to reconnect")
+                    reconnect()
+                }
+                delay(1000) // Prevent tight looping on errors
+            }
+        }
+        Log.w(TAG, "Read loop terminated: scope active=${scope.isActive}, socket closed=${socket?.isClosed}")
+    }
+
+    // Reconnect logic
+    private suspend fun reconnect() {
+        try {
+            close()
+            if (connect()) {
+                Log.d(TAG, "Reconnected successfully to $host:$port")
+            } else {
+                Log.e(TAG, "Reconnection failed to $host:$port")
+                delay(5000) // Wait before retrying
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Reconnection error: $e")
+            delay(5000)
         }
     }
 
@@ -105,22 +179,23 @@ class Socket(private val host: String, private val port: Int) {
                 Log.e(TAG, "Cannot upgrade to TLS: Socket is null")
                 return@withContext false
             }
-            // Create a custom TrustManager that trusts the server's certificate
             val trustManagerFactory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm())
             trustManagerFactory.init(null as KeyStore?)
-            val trustManagers = trustManagerFactory.trustManagers
-            val trustManager = trustManagers[0] as X509TrustManager
-
-            // Create TLS configuration
             val tlsConfig = TLSConfigBuilder().apply {
-                // Optional: Configure cipher suites or other TLS settings
+                // Optional: Configure cipher suites
             }.build()
-
-            // Upgrade the socket to TLS
             val tlsSocket = currentSocket.tls(Dispatchers.IO, tlsConfig)
             socket = tlsSocket
             reader = tlsSocket.openReadChannel()
             writer = tlsSocket.openWriteChannel(autoFlush = true)
+            if (reader == null || writer == null) {
+                Log.e(TAG, "Failed to initialize reader or writer after TLS upgrade")
+                socket?.close()
+                socket = null
+                reader = null
+                writer = null
+                return@withContext false
+            }
             Log.d(TAG, "Socket upgraded to TLS for $host:$port")
             true
         } catch (e: Exception) {
@@ -132,8 +207,9 @@ class Socket(private val host: String, private val port: Int) {
     suspend fun write(message: String): Boolean = withContext(Dispatchers.IO) {
         try {
             writer?.let {
+
                 val bytes = message.toByteArray(StandardCharsets.UTF_8)
-                Log.d(TAG, "Raw bytes to send: ${bytes.joinToString(", ") { it.toString() }}")
+                Log.d(TAG, "Raw bytes to send: ${bytes.joinToString(", ")}")
                 it.writeFully(bytes, 0, bytes.size)
                 Log.d(TAG, "Sent message: $message")
                 true
@@ -147,6 +223,66 @@ class Socket(private val host: String, private val port: Int) {
         }
     }
 
+    suspend fun read(timeoutMs: Long = 5000): String? = withContext(Dispatchers.IO) {
+        try {
+            reader?.let { channel ->
+                if (channel.isClosedForRead) {
+                    Log.w(TAG, "Reader channel is already closed before read attempt")
+                    return@withContext null
+                }
+                val buffer = StringBuilder()
+                val tempBuffer = ByteArray(1024)
+                val startTime = System.currentTimeMillis()
+                while (System.currentTimeMillis() - startTime < timeoutMs) {
+                    try {
+                        val bytesRead = channel.readAvailable(tempBuffer)
+                        when {
+                            bytesRead == -1 -> {
+                                Log.w(TAG, "Socket closed by remote peer after ${System.currentTimeMillis() - startTime}ms")
+                                return@withContext null
+                            }
+                            bytesRead > 0 -> {
+                                val chunk = tempBuffer.decodeToString(0, bytesRead)
+                                buffer.append(chunk)
+                                Log.d(TAG, "Read chunk: $chunk")
+                                if (buffer.contains("</stream:stream>") ||
+                                    buffer.contains("</stream:features>") ||
+                                    buffer.contains("</stream:error>") ||
+                                    buffer.contains("<proceed")) {
+                                    return@withContext buffer.toString()
+                                }
+                            }
+                            else -> {
+                                Log.d(TAG, "No data available after ${System.currentTimeMillis() - startTime}ms, continuing")
+                            }
+                        }
+                        delay(10)
+                    } catch (e: IOException) {
+                        Log.w(TAG, "Read error after ${System.currentTimeMillis() - startTime}ms: $e")
+                        return@withContext null
+                    } catch (e: ClosedReceiveChannelException) {
+                        Log.w(TAG, "Reader channel closed during read: $e")
+                        return@withContext null
+                    }
+                }
+                val message = buffer.toString()
+                if (message.isNotEmpty()) {
+                    Log.d(TAG, "Received partial message: $message")
+                    message
+                } else {
+                    Log.w(TAG, "No data received within $timeoutMs ms timeout")
+                    null
+                }
+            } ?: run {
+                Log.e(TAG, "Cannot read: Socket reader is null")
+                null
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error reading from socket: $e")
+            null
+        }
+    }
+
     suspend fun sendStreamHeader(socket: Socket, domain: String, jid: String) {
         try {
             val streamHeader = ClientStreamHeader(
@@ -156,7 +292,6 @@ class Socket(private val host: String, private val port: Int) {
                 xmlLang = "en",
                 xmlns = "jabber:client"
             )
-
             val xml = XML {
                 indent = 0
                 xmlDeclMode = XmlDeclMode.None
@@ -170,46 +305,6 @@ class Socket(private val host: String, private val port: Int) {
         }
     }
 
-    suspend fun read(): String? = withContext(Dispatchers.IO) {
-        try {
-            reader?.let { channel ->
-                val buffer = StringBuilder()
-                val tempBuffer = ByteArray(1024)
-                while (true) {
-                    val bytesRead = channel.readAvailable(tempBuffer)
-                    if (bytesRead == -1) {
-                        Log.d(TAG, "Socket closed by remote peer")
-                        return@withContext if (buffer.isEmpty()) null else buffer.toString()
-                    }
-                    if (bytesRead == 0) {
-                        Log.d(TAG, "No data available, continuing to read")
-                        continue
-                    }
-                    val chunk = tempBuffer.decodeToString(0, bytesRead)
-                    buffer.append(chunk)
-                    Log.d(TAG, "Read chunk: $chunk")
-
-                    // Check for complete stanza
-                    if (buffer.contains("</stream:stream>") ||
-                        buffer.contains("</stream:features>") ||
-                        buffer.contains("</stream:error>") ||
-                        buffer.contains("<proceed")
-                        ) {
-                        break
-                    }
-                }
-                val message = buffer.toString()
-                Log.d(TAG, "Received message: $message")
-                return@withContext message
-            }
-            Log.e(TAG, "Cannot read: Socket reader is null")
-            null
-        } catch (e: Exception) {
-            Log.e(TAG, "Error reading from socket: $e")
-            null
-        }
-    }
-
     suspend fun readServerResponse(socket: Socket): StreamResponse? {
         val response = socket.read() ?: return null
         try {
@@ -217,13 +312,10 @@ class Socket(private val host: String, private val port: Int) {
                 Log.e(TAG, "Server responded with stream error: $response")
                 return null
             }
-
-            // Handle <proceed> response for STARTTLS
             if (response.contains("<proceed")) {
                 Log.d(TAG, "Received proceed response for STARTTLS")
-                return null // Indicate no StreamResponse, as this is a control message
+                return null
             }
-
             val xmlContent = response.replace(Regex("""<\?xml\s+version=['"][^'"]+['"](?:\s+encoding=['"][^'"]+['"])?\s*\?>"""), "").trim()
             Log.d(TAG, "Processing XML content: $xmlContent")
             val xml = XML {
@@ -234,7 +326,6 @@ class Socket(private val host: String, private val port: Int) {
                     pedantic = false
                 }
             }
-            // Extract attributes with regex
             Log.d(TAG, "Extracting stream:stream attributes")
             val headerMatch = Regex("""<stream:stream\s+([^>]+?)>""").find(xmlContent)
             if (headerMatch == null) {
@@ -256,11 +347,9 @@ class Socket(private val host: String, private val port: Int) {
                 return null
             }
 
-            // Parse features
             val featuresMatch = Regex("""<stream:features([^>]*)>(.*?)</stream:features>""", RegexOption.DOT_MATCHES_ALL).find(xmlContent)
             val features = if (featuresMatch != null) {
                 Log.d(TAG, "Features match found: ${featuresMatch.value}")
-                // Use fallback parsing directly
                 val mechanismsContent = Regex("""<mechanisms[^>]*>(.*?)</mechanisms>""", RegexOption.DOT_MATCHES_ALL).find(featuresMatch.value)?.groupValues?.get(1)
                 val mechanisms = if (mechanismsContent != null) {
                     val mechanismList = Regex("""<mechanism>([^<]+)</mechanism>""").findAll(mechanismsContent)
@@ -316,6 +405,7 @@ class Socket(private val host: String, private val port: Int) {
             socket = null
             reader = null
             writer = null
+            scope.cancel("Socket closed")
         } catch (e: Exception) {
             Log.e(TAG, "Error closing socket: $e")
         }
@@ -323,13 +413,76 @@ class Socket(private val host: String, private val port: Int) {
 
     suspend fun initiateXmppStream(socket: Socket, domain: String, jid: String): StreamResponse? {
         sendStreamHeader(socket, domain, jid)
-        val response = readServerResponse(socket)
+        val response = read() // Use the read loop via callback
         if (response == null) {
             Log.e(TAG, "Stream initiation failed for $jid")
         } else {
             Log.d(TAG, "Stream initiated successfully for $jid")
         }
-        return response
+        return response?.let { parseStreamResponse(it) }
+    }
+
+    private fun parseStreamResponse(response: String): StreamResponse? {
+        try {
+            if (response.contains("<stream:error")) {
+                Log.e(TAG, "Server responded with stream error: $response")
+                return null
+            }
+            if (response.contains("<proceed")) {
+                Log.d(TAG, "Received proceed response for STARTTLS")
+                return null
+            }
+            val xmlContent = response.replace(Regex("""<\?xml\s+version=['"][^'"]+['"](?:\s+encoding=['"][^'"]+['"])?\s*\?>"""), "").trim()
+            val xml = XML {
+                indent = 2
+                autoPolymorphic = false
+                defaultPolicy {
+                    ignoreUnknownChildren()
+                    pedantic = false
+                }
+            }
+            val headerMatch = Regex("""<stream:stream\s+([^>]+?)>""").find(xmlContent) ?: return null
+            val attributes = headerMatch.groupValues[1]
+            val idMatch = Regex("""id=['"]([^'"]+)['"]""").find(attributes) ?: return null
+            val versionMatch = Regex("""version=['"]([^'"]+)['"]""").find(attributes) ?: return null
+            val fromMatch = Regex("""from=['"]([^'"]+)['"]""").find(attributes)
+            val toMatch = Regex("""to=['"]([^'"]+)['"]""").find(attributes)
+            val xmlLangMatch = Regex("""xml:lang=['"]([^'"]+)['"]""").find(attributes)
+            val xmlnsMatch = Regex("""xmlns=['"]([^'"]+)['"]""").find(attributes)
+            val xmlnsStreamMatch = Regex("""xmlns:stream=['"]([^'"]+)['"]""").find(attributes)
+
+            val featuresMatch = Regex("""<stream:features([^>]*)>(.*?)</stream:features>""", RegexOption.DOT_MATCHES_ALL).find(xmlContent)
+            val features = if (featuresMatch != null) {
+                val mechanismsContent = Regex("""<mechanisms[^>]*>(.*?)</mechanisms>""", RegexOption.DOT_MATCHES_ALL).find(featuresMatch.value)?.groupValues?.get(1)
+                val mechanisms = if (mechanismsContent != null) {
+                    val mechanismList = Regex("""<mechanism>([^<]+)</mechanism>""").findAll(mechanismsContent)
+                        .map { it.groupValues[1] }
+                        .toList()
+                    Mechanisms(mechanismList)
+                } else null
+                val starttlsPresent = featuresMatch.value.contains("<starttls")
+                val proxyPresent = featuresMatch.value.contains("<proxy")
+                StreamFeatures(
+                    mechanisms = mechanisms,
+                    starttls = if (starttlsPresent) StartTls(present = true) else null,
+                    proxy = if (proxyPresent) Proxy(present = true) else null
+                )
+            } else null
+
+            return StreamResponse(
+                id = idMatch.groupValues[1],
+                version = versionMatch.groupValues[1],
+                from = fromMatch?.groupValues?.get(1),
+                to = toMatch?.groupValues?.get(1),
+                xmlLang = xmlLangMatch?.groupValues?.get(1),
+                xmlns = xmlnsMatch?.groupValues?.get(1) ?: "jabber:client",
+                xmlnsStream = xmlnsStreamMatch?.groupValues?.get(1) ?: "http://etherx.jabber.org/streams",
+                features = features
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to parse stream response: $e")
+            return null
+        }
     }
 
     fun getSocket(): io.ktor.network.sockets.Socket? {
