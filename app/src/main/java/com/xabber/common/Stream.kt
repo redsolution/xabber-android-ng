@@ -1,11 +1,12 @@
 package com.xabber.common
 
+import android.annotation.TargetApi
 import android.util.Log
 import com.xabber.xmpp.dns.DNSResolver
+import io.ktor.network.sockets.isClosed
 import io.realm.kotlin.types.annotations.PrimaryKey
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.channels.ReceiveChannel
 
 enum class StreamState {
     NOT_CONNECTING,
@@ -27,6 +28,11 @@ class Stream {
     var port: Int = 5222
     var remoteAddress: String = ""
     private var socket: Socket? = null
+
+    private val connectionLock = Any()
+    private var isConnecting = false
+    private var reconnectAttempts = 0
+    private val messageCallbackChannel = Channel<String>(Channel.UNLIMITED)
     private var state: StreamState = StreamState.NOT_CONNECTING
         set(value) {
             field = value
@@ -69,79 +75,200 @@ class Stream {
     }
 
     suspend fun connect(): Boolean = withContext(Dispatchers.IO) {
+        synchronized(connectionLock) {
+            if (isConnecting) {
+                Log.w(TAG, "Connect already in progress for $jid, ignoring")
+                return@withContext false
+            }
+            isConnecting = true
+            reconnectAttempts = 0
+        }
         try {
             state = StreamState.NOT_CONNECTING
             val resolver = DNSResolver()
             val result = resolver.resolveSRV(host)
-            if (result != "Success") {
-                Log.e(TAG, "DNS resolution failed for host $host: $result")
+            if (result == null) {
+                Log.e(TAG, "DNS resolution failed for host $host")
                 return@withContext false
             }
-            var resolvedIp: String? = null
-            var resolvedPort: Int = port
-            if (resolvedIp == null) {
-                Log.w(TAG, "No SRV records with IP found, falling back to A record resolution")
-                val aResult = resolver.resolveA(host)
-                if (aResult.startsWith("Failed") || aResult.startsWith("Error")) {
-                    Log.e(TAG, "A record resolution failed: $aResult")
-                    return@withContext false
-                }
-                resolvedIp = aResult.substringAfter("[").substringBefore("]").trim()
-            }
-            if (resolvedIp.isEmpty()) {
-                Log.e(TAG, "No IP address resolved for host $host")
-                return@withContext false
-            }
-            this@Stream.remoteAddress = resolvedIp
-            this@Stream.port = resolvedPort
+            this@Stream.remoteAddress = result.first
+            this@Stream.port = result.second
             Log.d(TAG, "Resolved IP: $remoteAddress, Port: $port")
+            socket?.close()
             socket = Socket(remoteAddress, port)
             socket?.setMessageCallback { message ->
                 CoroutineScope(Dispatchers.IO).launch {
-                    if (message.contains("<proceed")) {
-                        proceedChannel.send(message)
-                    }
-                    // Handle other messages as needed
+                    Log.d(TAG, "Received message via callback: $message")
+                    messageCallbackChannel.send(message)
+                    handleIncomingMessage(message)
                 }
             }
             if (socket?.connect() != true) {
                 Log.e(TAG, "Socket connection failed for $remoteAddress:$port")
+                socket?.close()
+                socket = null
                 return@withContext false
             }
             Log.d(TAG, "Socket connected successfully for $remoteAddress:$port")
-
-            // Initiate XMPP stream
-            val response = socket?.initiateXmppStream(socket!!, host, jid)
-            if (response == null) {
-                Log.e(TAG, "Failed to initiate XMPP stream for $jid")
-                socket?.close()
-                return@withContext false
-            }
-            Log.d(TAG, "XMPP stream initiated successfully. Server response: $response")
-            state = StreamState.STREAM_OPEN
-
-            // Access stream features
-            response.features?.let { features ->
-                Log.d(TAG, "Stream features: $features")
-                if (features.starttls?.present == true) {
-                    Log.d(TAG, "STARTTLS is supported")
-                    state = StreamState.START_TLS
-                }
-                features.mechanisms?.mechanism?.let { mechanisms ->
-                    Log.d(TAG, "Supported SASL mechanisms: $mechanisms")
-                    if (mechanisms.contains("PLAIN")) {
-                        Log.d(TAG, "PLAIN authentication is supported")
-                        state = StreamState.START_AUTH
-                    }
-                }
-            }
-
+            socket?.initiateXmppStream(socket!!, host, jid)
+            Log.d(TAG, "XMPP stream initiation started, waiting for server response")
             true
         } catch (e: Exception) {
             Log.e(TAG, "Error connecting to $host: $e")
             socket?.close()
+            socket = null
             state = StreamState.NOT_CONNECTING
             false
+        } finally {
+            synchronized(connectionLock) {
+                isConnecting = false
+            }
+        }
+    }
+
+    private suspend fun handleIncomingMessage(message: String) {
+        try {
+            Log.d(TAG, "Handling incoming message: $message")
+            when {
+                message == "RECONNECT_REQUIRED" -> {
+                    Log.w(TAG, "Reconnection required due to stream closure or reader issue")
+                    if (state != StreamState.START_TLS && state != StreamState.PROCEED) {
+                        reconnect()
+                    } else {
+                        Log.d(TAG, "Delaying reconnection until STARTTLS or PROCEED completes")
+                    }
+                }
+                message.contains("<stream:features>") -> {
+                    Log.d(TAG, "Received stream features")
+                    val response = socket?.parseStreamResponse(message)
+                    if (response == null) {
+                        Log.e(TAG, "Failed to parse stream features")
+                        return
+                    }
+                    if (state == StreamState.NOT_CONNECTING) {
+                        Log.d(TAG, "Initial stream response received")
+                        state = StreamState.STREAM_OPEN
+                    }
+                    response.features?.let { features ->
+                        Log.d(TAG, "Stream features: $features")
+                        if (features.starttls?.present == true) {
+                            Log.d(TAG, "STARTTLS is supported, sending starttls immediately")
+                            state = StreamState.START_TLS
+                            if (socket?.getSocket()?.isClosed == true || socket == null) {
+                                Log.e(TAG, "Socket is null or closed, triggering reconnect")
+                                reconnect()
+                                return
+                            }
+                            if (socket?.write("<starttls xmlns='urn:ietf:params:xml:ns:xmpp-tls'/>\n") == true) {
+                                Log.d(TAG, "Sent starttls, awaiting proceed")
+                                // Wait for proceed with timeout
+                                val proceed = withTimeoutOrNull(90000) {
+                                    var received: String? = null
+                                    while (received == null) {
+                                        received = messageCallbackChannel.receive()
+                                        if (received.contains("<proceed")) break
+                                    }
+                                    received
+                                }
+                                if (proceed != null && proceed.contains("<proceed")) {
+                                    Log.d(TAG, "Received proceed for STARTTLS")
+                                    if (socket?.upgradeToTls() == true) {
+                                        state = StreamState.PROCEED
+                                        socket?.initiateXmppStream(socket!!, host, jid)
+                                        Log.d(TAG, "New stream initiated over TLS")
+                                    } else {
+                                        Log.e(TAG, "Failed to upgrade to TLS")
+                                        state = StreamState.NOT_CONNECTING
+                                        reconnect()
+                                    }
+                                } else {
+                                    Log.e(TAG, "No proceed received within timeout")
+                                    state = StreamState.NOT_CONNECTING
+                                    reconnect()
+                                }
+                            } else {
+                                Log.e(TAG, "Failed to send starttls")
+                                state = StreamState.NOT_CONNECTING
+                                reconnect()
+                            }
+                        } else if (features.mechanisms?.mechanism?.contains("PLAIN") == true) {
+                            Log.d(TAG, "PLAIN authentication is supported")
+                            state = StreamState.START_AUTH
+                        } else {
+                            Log.w(TAG, "OOPS")
+                        }
+                    }
+                }
+                message.contains("<proceed") -> {
+                    Log.d(TAG, "Received proceed for STARTTLS (handled in stream features)")
+                    messageCallbackChannel.send(message) // Forward to channel
+                }
+                message.contains("<iq") -> {
+                    Log.d(TAG, "Received IQ stanza")
+                }
+                message.contains("<message") -> {
+                    Log.d(TAG, "Received message stanza")
+                }
+                message.contains("<presence") -> {
+                    Log.d(TAG, "Received presence stanza")
+                }
+                message.contains("<stream:error") -> {
+                    Log.e(TAG, "Received stream error: $message")
+                    state = StreamState.NOT_CONNECTING
+                    if (state != StreamState.START_TLS && state != StreamState.PROCEED) {
+                        reconnect()
+                    }
+                }
+                message.contains("</stream:stream>") -> {
+                    Log.w(TAG, "Received stream termination")
+                    state = StreamState.NOT_CONNECTING
+                    if (state != StreamState.START_TLS && state != StreamState.PROCEED) {
+                        reconnect()
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error handling message: $e")
+            if (state != StreamState.START_TLS && state != StreamState.PROCEED) {
+                state = StreamState.NOT_CONNECTING
+                reconnect()
+            }
+        }
+    }
+
+    private suspend fun reconnect(maxAttempts: Int = 3, attempt: Int = 1) {
+        synchronized(connectionLock) {
+            if (isConnecting) {
+                Log.w(TAG, "Reconnect already in progress for $jid, ignoring")
+                return
+            }
+            if (attempt > maxAttempts) {
+                Log.e(TAG, "Max reconnection attempts ($maxAttempts) reached for $jid")
+                state = StreamState.NOT_CONNECTING
+                return
+            }
+            reconnectAttempts = attempt
+            Log.d(TAG, "Attempting to reconnect for $jid (attempt $attempt/$maxAttempts)")
+            isConnecting = true
+        }
+        try {
+            socket?.close()
+            socket = null
+            delay(5000L * attempt)
+            if (connect()) {
+                Log.d(TAG, "Reconnected successfully")
+            } else {
+                Log.e(TAG, "Reconnection failed")
+                reconnect(maxAttempts, attempt + 1)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Reconnection error: $e")
+            delay(5000L * attempt)
+            reconnect(maxAttempts, attempt + 1)
+        } finally {
+            synchronized(connectionLock) {
+                isConnecting = false
+            }
         }
     }
 
@@ -169,51 +296,52 @@ class Stream {
     open fun onNotConnecting() {}
     open suspend fun onStreamOpen() {}
     open suspend fun onStartTls() {
-        if (socket == null) {
-            Log.e(TAG, "Cannot send starttls: Socket is null")
+        if (socket == null || socket?.getSocket()?.isClosed == true) {
+            Log.e(TAG, "Cannot send starttls: Socket is null or closed")
+            state = StreamState.NOT_CONNECTING
+            reconnect()
             return
         }
-        if (!socket!!.write("<starttls xmlns='urn:xml:namespace:xmpp-tls'/>\n")) {
+        if (!socket!!.write("<starttls xmlns='urn:ietf:params:xml:ns:xmpp-tls'/>")) {
             Log.e(TAG, "Failed to send starttls due to write error")
-            return
-        }
-        if (socket == null || socket!!.getSocket() == null) {
-            Log.e(TAG, "Socket became null or invalid before reading proceed")
+            state = StreamState.NOT_CONNECTING
+            reconnect()
             return
         }
         try {
-            // Wait for proceed message from the read loop
-            val proceed = withTimeoutOrNull(5000) {
-                proceedChannel.receive()
-            }
-            Log.w(TAG, "Proceed: $proceed")
-            if (proceed != null && proceed.contains("<proceed")) {
-                Log.d(TAG, "Received proceed, upgrading to TLS")
-                if (socket?.upgradeToTls() == true) {
-                    state = StreamState.PROCEED
-                    val response = socket?.initiateXmppStream(socket!!, host, jid)
-                    if (response != null) {
-                        Log.d(TAG, "New stream initiated over TLS: $response")
-                        state = StreamState.STREAM_OPEN
-                        response.features?.let { features ->
-                            Log.d(TAG, "New stream features: $features")
-                            if (features.mechanisms?.mechanism?.contains("PLAIN") == true) {
-                                state = StreamState.START_AUTH
-                            }
-                        }
-                    } else {
-                        Log.e(TAG, "Failed to restart stream over TLS")
-                    }
-                } else {
-                    Log.e(TAG, "Failed to upgrade to TLS")
+            repeat(3) { attempt ->
+                Log.d(TAG, "Waiting for proceed response (attempt ${attempt + 1})")
+                val proceed = withTimeoutOrNull(90000) {
+                    proceedChannel.receive()
                 }
-            } else {
-                Log.e(TAG, "Failed to receive proceed: $proceed")
+                Log.d(TAG, "Proceed: $proceed")
+                if (proceed != null && proceed.contains("<proceed")) {
+                    Log.d(TAG, "Received proceed, upgrading to TLS")
+                    if (socket?.upgradeToTls() == true) {
+                        state = StreamState.PROCEED
+                        socket?.initiateXmppStream(socket!!, host, jid)
+                        Log.d(TAG, "New stream initiated over TLS, awaiting response")
+                        return
+                    } else {
+                        Log.e(TAG, "Failed to upgrade to TLS")
+                        state = StreamState.NOT_CONNECTING
+                        reconnect()
+                    }
+                    return
+                }
+                Log.w(TAG, "No proceed received, retrying...")
+                delay(1000)
             }
+            Log.e(TAG, "Failed to receive proceed after retries")
+            state = StreamState.NOT_CONNECTING
+            reconnect()
         } catch (e: Exception) {
             Log.e(TAG, "Error waiting for proceed: $e")
+            state = StreamState.NOT_CONNECTING
+            reconnect()
         }
     }
+
     open suspend fun onProceed() {}
     open suspend fun onStartAuth() {
         // TODO: Implement SASL PLAIN authentication
@@ -222,5 +350,26 @@ class Stream {
     open suspend fun onAuthSuccess() {}
     open suspend fun onAuthFailed() {}
     open suspend fun onBinding() {}
-    open suspend fun onConnected() {}
+    open suspend fun onConnected() {
+        socket!!.scope.launch {
+            while (state == StreamState.CONNECTED && socket?.getSocket()?.isClosed == false) {
+                try {
+                    if (socket?.sendPing(jid) == true) {
+                        Log.d(TAG, "Sent ping to $jid")
+                    } else {
+                        Log.w(TAG, "Failed to send ping, reconnecting")
+                        reconnect()
+                        break
+                    }
+                    delay(30000)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Ping error: $e")
+                    state = StreamState.NOT_CONNECTING
+                    reconnect()
+                    break
+                }
+            }
+            Log.d(TAG, "Ping loop terminated for $jid")
+        }
+    }
 }

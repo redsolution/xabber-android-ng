@@ -10,136 +10,153 @@ import org.minidns.hla.srv.SrvService
 import org.minidns.record.A
 import org.minidns.record.SRV
 import java.net.InetAddress
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 
 class DNSResolver {
     private val TAG = "DNSResolver"
+    private val resolutionMutex = Mutex()
+    private val cache = mutableMapOf<String, Pair<String, Int>>()
 
-//    companion object {
-//        private val responseHistory = mutableListOf<String>()
-//
-//        fun getResponseHistory(): List<String> {
-//            return responseHistory.toList()
-//        }
-//
-//        fun clearResponseHistory() {
-//            responseHistory.clear()
-//        }
-//    }
+    // Uncomment if response history is needed for debugging
+    /*
+    companion object {
+        private val responseHistory = mutableListOf<String>()
 
-    fun resolveSRV(host: String): String {
-        try {
-            val result: SrvResolverResult =
-                ResolverApi.INSTANCE.resolveSrv(SrvService.xmpp_client, SrvProto.tcp, host)
-            if (!result.wasSuccessful()) {
-                val responseCode: DnsMessage.RESPONSE_CODE = result.responseCode
-                Log.e(TAG, "SRV resolution failed with response code: $responseCode")
-                val response = "Failed: Response code $responseCode"
-//                responseHistory.add("Host: $host, Result: $response")
-                return response
-            }
-            // Log raw SRV records and extract hostname
-            val rawAnswers = result.answers
-            Log.d(TAG, "Raw SRV answers: $rawAnswers")
-            rawAnswers.filterIsInstance<SRV>().forEach { srv ->
-                Log.d(TAG, "SRV: target=${srv.target}, port=${srv.port}, priority=${srv.priority}, weight=${srv.weight}")
+        fun getResponseHistory(): List<String> = responseHistory.toList()
+
+        fun clearResponseHistory() {
+            responseHistory.clear()
+        }
+    }
+    */
+
+    suspend fun resolveSRV(host: String): Pair<String, Int>? = withContext(Dispatchers.IO) {
+        resolutionMutex.withLock {
+            // Check cache first
+            cache[host]?.let {
+                Log.d(TAG, "Returning cached result for $host: ${it.first}:${it.second}")
+                return@withLock it
             }
 
-            // Extract hostname from the first SRV record, if available
-            val hostName: String = rawAnswers.filterIsInstance<SRV>()
-                .firstOrNull()?.target?.toString() ?: "No SRV target found"
-            Log.d(TAG, "Extracted hostName: $hostName")
-
-            val srvRecords: List<SrvResolverResult.ResolvedSrvRecord> = result.sortedSrvResolvedAddresses
-            Log.d(TAG, "srvRecords size: ${srvRecords.size}")
-            if (srvRecords.isEmpty()) {
-                Log.w(TAG, "No resolved SRV records in sortedSrvResolvedAddresses")
-                // Fallback to resolving A records for SRV target
-                val srvRecordsRaw = rawAnswers.filterIsInstance<SRV>()
-                if (srvRecordsRaw.isEmpty()) {
-                    Log.w(TAG, "No SRV records in answers")
-                    val response = "Failed: No SRV records found"
-//                    responseHistory.add("Host: $host, Result: $response")
-                    return response
+            try {
+                val result: SrvResolverResult =
+                    ResolverApi.INSTANCE.resolveSrv(SrvService.xmpp_client, SrvProto.tcp, host)
+                if (!result.wasSuccessful()) {
+                    val responseCode: DnsMessage.RESPONSE_CODE = result.responseCode
+                    Log.e(TAG, "SRV resolution failed with response code: $responseCode")
+                    // responseHistory.add("Host: $host, Result: Failed: Response code $responseCode")
+                    return@withLock null
                 }
-                // Use the first SRV record's target and port
-                val srvRecordRaw = srvRecordsRaw.first()
-                val target = srvRecordRaw.target.toString()
-                val port = srvRecordRaw.port
-                Log.d(TAG, "Falling back to A record resolution for target: $target")
-                val aResult = resolveA(target)
-                if (aResult != fin) {
-                    Log.e(TAG, "A record resolution failed for $target: $aResult")
-                    val response = "Failed: No A records resolved for SRV target $target"
-//                    responseHistory.add("Host: $host, Result: $response")
-                    return response
-                } else Log.d(TAG, "A record resolution for $target: $aResult")
-            }
 
-            // Sort srvRecords by priority (ascending) and weight (descending)
-            val sortedSrvRecords = srvRecords.sortedWith(compareBy(
-                { it.srv.priority }, // Sort by priority first (lower is better)
-                { -it.srv.weight }   // Then by weight (higher is better, hence negative)
-            ))
-
-            // Log sorted SRV records in human-readable format
-            Log.d(TAG, "Sorted SRV Records:")
-            sortedSrvRecords.forEachIndexed { index, srvRecord ->
-                Log.d(TAG, "  Record ${index + 1}: target=${srvRecord.srv.target}, port=${srvRecord.port}, priority=${srvRecord.srv.priority}, weight=${srvRecord.srv.weight}")
-            }
-
-            // Iterate over sorted records
-            for (srvRecord in sortedSrvRecords) {
-                for (inetAddressRR in srvRecord.addresses) {
-                    val inetAddress: InetAddress = inetAddressRR.inetAddress
-                    val port: Int = srvRecord.port
-                    val name: String = srvRecord.name.toString()
-                    val aResult: String = srvRecord.srv.toString()
-                    Log.d(TAG, "Resolved inetAddress: $inetAddress, port: $port, name: $name, aResult: $aResult")
-                    Log.d(TAG, "priority: ${srvRecord.srv.priority}, weight: ${srvRecord.srv.weight}")
+                // Log raw SRV records
+                val rawAnswers = result.answers
+                Log.d(TAG, "Raw SRV answers: $rawAnswers")
+                rawAnswers.filterIsInstance<SRV>().forEach { srv ->
+                    Log.d(TAG, "SRV: target=${srv.target}, port=${srv.port}, priority=${srv.priority}, weight=${srv.weight}")
                 }
+
+                // Extract hostname from the first SRV record
+                val hostName: String = rawAnswers.filterIsInstance<SRV>()
+                    .firstOrNull()?.target?.toString() ?: run {
+                    Log.w(TAG, "No SRV target found")
+                    return@withLock null
+                }
+                Log.d(TAG, "Extracted hostName: $hostName")
+
+                val srvRecords: List<SrvResolverResult.ResolvedSrvRecord> = result.sortedSrvResolvedAddresses
+                Log.d(TAG, "srvRecords size: ${srvRecords.size}")
+                if (srvRecords.isEmpty()) {
+                    Log.w(TAG, "No resolved SRV records in sortedSrvResolvedAddresses")
+                    // Fallback to resolving A records for SRV target
+                    val srvRecordsRaw = rawAnswers.filterIsInstance<SRV>()
+                    if (srvRecordsRaw.isEmpty()) {
+                        Log.w(TAG, "No SRV records in answers")
+                        // responseHistory.add("Host: $host, Result: Failed: No SRV records found")
+                        return@withLock null
+                    }
+                    val srvRecordRaw = srvRecordsRaw.first()
+                    val target = srvRecordRaw.target.toString().trimEnd('.')
+                    val port = srvRecordRaw.port
+                    Log.d(TAG, "Falling back to A record resolution for target: $target")
+                    val ip = resolveA(target) ?: run {
+                        Log.e(TAG, "A record resolution failed for $target")
+                        // responseHistory.add("Host: $host, Result: Failed: No A records resolved for SRV target $target")
+                        return@withLock null
+                    }
+                    val resultPair = Pair(ip, port)
+                    cache[host] = resultPair
+                    return@withLock resultPair
+                }
+
+                // Sort srvRecords by priority and weight
+                val sortedSrvRecords = srvRecords.sortedWith(compareBy(
+                    { it.srv.priority },
+                    { -it.srv.weight }
+                ))
+
+                Log.d(TAG, "Sorted SRV Records:")
+                sortedSrvRecords.forEachIndexed { index, srvRecord ->
+                    Log.d(TAG, "  Record ${index + 1}: target=${srvRecord.srv.target}, port=${srvRecord.port}, priority=${srvRecord.srv.priority}, weight=${srvRecord.srv.weight}")
+                }
+
+                // Use the first valid SRV record with an IP
+                for (srvRecord in sortedSrvRecords) {
+                    for (inetAddressRR in srvRecord.addresses) {
+                        val ip = inetAddressRR.inetAddress.hostAddress
+                        val port = srvRecord.port
+                        Log.d(TAG, "Resolved inetAddress: $ip, port: $port, name: ${srvRecord.name}")
+                        val resultPair = Pair(ip, port)
+                        cache[host] = resultPair
+                        return@withLock resultPair
+                    }
+                }
+
+                Log.w(TAG, "No valid IP addresses found in SRV records")
+                return@withLock null
+            } catch (e: Exception) {
+                Log.e(TAG, "Error resolving SRV: ${e.message}", e)
+                // responseHistory.add("Host: $host, Result: Error: ${e.message}")
+                return@withLock null
             }
-            val response = "Success"
-//            responseHistory.add("Host: $host, Result: $response")
-            return response
-        } catch (e: Exception) {
-            Log.e(TAG, "Error resolving SRV: ${e.message}", e)
-            val response = "Error: ${e.message}"
-//            responseHistory.add("Host: $host, Result: $response")
-            return response
         }
     }
 
-    var fin: String = ""
-
-     fun resolveA(host: String): String {
-        try {
-            val result: ResolverResult<A> =
-                ResolverApi.INSTANCE.resolve(host, A::class.java)
-            if (!result.wasSuccessful()) {
-                val responseCode: DnsMessage.RESPONSE_CODE = result.responseCode
-                Log.e(TAG, "A record resolution failed with response code: $responseCode")
-                return "Failed: Response code $responseCode"
+    suspend fun resolveA(host: String): String? = withContext(Dispatchers.IO) {
+        resolutionMutex.withLock {
+            try {
+                // Try minidns first
+                val result: ResolverResult<A> = ResolverApi.INSTANCE.resolve(host, A::class.java)
+                if (!result.wasSuccessful()) {
+                    Log.e(TAG, "A record resolution failed with response code: ${result.responseCode}")
+                    return@withLock null
+                }
+                val answers: Set<A> = result.answers
+                if (answers.isEmpty()) {
+                    Log.w(TAG, "No A records found for $host")
+                    return@withLock null
+                }
+                val ip = answers.first().inetAddress.hostAddress
+                Log.d(TAG, "Resolved inetAddress: $ip for $host")
+                return@withLock ip
+            } catch (e: Exception) {
+                Log.w(TAG, "minidns A record resolution failed: ${e.message}, falling back to InetAddress")
+                // Fallback to Android's InetAddress
+                try {
+                    val inetAddress = InetAddress.getByName(host).hostAddress
+                    Log.d(TAG, "InetAddress resolved: $inetAddress for $host")
+                    return@withLock inetAddress
+                } catch (e: Exception) {
+                    Log.e(TAG, "InetAddress A record resolution failed: ${e.message}")
+                    return@withLock null
+                }
             }
-            val answers: Set<A> = result.answers
-            if (answers.isEmpty()) {
-                Log.w(TAG, "No A records found")
-                return "Failed: No A records found"
-            }
-
-            for (a in answers) {
-                val inetAddress: InetAddress = a.inetAddress
-                Log.d(TAG, "Resolved inetAddress: $inetAddress")
-                // Do something with the InetAddress, e.g., connect to.
-            }
-            fin = answers.toString()
-            return answers.toString()
-        } catch (e: Exception) {
-            Log.e(TAG, "Error resolving A record: ${e.message}", e)
-            return "Error: ${e.message}"
         }
     }
 }
 
-fun fetchFromSrv(host: String): String {
+suspend fun fetchFromSrv(host: String): Pair<String, Int>? {
     return DNSResolver().resolveSRV(host)
 }

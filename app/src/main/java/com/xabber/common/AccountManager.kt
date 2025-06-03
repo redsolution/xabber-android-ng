@@ -2,7 +2,9 @@ package com.xabber.common
 
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.util.Log
+import androidx.annotation.RequiresApi
 import com.xabber.data_base.defaultRealmConfig
 import com.xabber.data_base.models.account.AccountStorageItem
 import com.xabber.data_base.models.avatar.AvatarStorageItem
@@ -199,22 +201,68 @@ object AccountManager {
         return accountPrimary
     }
 
+    @RequiresApi(Build.VERSION_CODES.N)
     fun loadFirstAccount(): Account? {
         var account: Account? = null
-        realm.writeBlocking {
-            val accountStorageItem = this.query(AccountStorageItem::class).first().find()
-            if (accountStorageItem != null) {
-                account = Account().apply {
-                    jid = accountStorageItem.jid
+
+        runBlocking(Dispatchers.IO) {
+            try {
+                val accountStorageItem = realm.query(AccountStorageItem::class).first().find()
+                if (accountStorageItem == null) {
+                    Log.w("AccountManager", "No accounts found in loadFirstAccount")
+                    return@runBlocking
+                }
+
+                val jid = accountStorageItem.jid
+                val username = accountStorageItem.username
+                Log.d("AccountManager", "Attempting to load and connect first account with jid $jid")
+
+                // Create Account object
+                val newUserAccount = Account().apply {
+                    this.jid = jid
+                    this.username = username
                     loadAccount()
                 }
-                Log.d("AccountManager", "Loaded first account with jid ${accountStorageItem.jid}")
-            } else {
-                Log.w("AccountManager", "No accounts found in loadFirstAccount")
+
+                // Attempt to connect stream
+                val streamConnected = newUserAccount.connectStream()
+                if (!streamConnected) {
+                    Log.e("AccountManager", "Failed to connect Stream for jid $jid")
+                    realm.write {
+                        val accountToDelete = query(AccountStorageItem::class, "jid = $0", jid).first().find()
+                        accountToDelete?.let { delete(it) }
+                        Log.d("AccountManager", "Deleted AccountStorageItem for jid $jid due to stream connection failure")
+                    }
+                    return@runBlocking
+                }
+
+                // Add to users list if not already present
+                synchronized(users) {
+                    if (users.none { it.jid == jid }) {
+                        users.add(newUserAccount)
+                        Log.d("AccountManager", "Added account with jid $jid to users list, new users: ${users.map { it.jid }}")
+                    } else {
+                        Log.d("AccountManager", "Account with jid $jid already in users list")
+                    }
+                }
+
+                account = newUserAccount
+                Log.d("AccountManager", "Successfully loaded and connected first account with jid $jid")
+            } catch (e: Exception) {
+                Log.e("AccountManager", "Failed to load and connect first account: ${e.message}", e)
+                // Ensure account is not left in users list on failure
+                account?.let {
+                    synchronized(users) {
+                        users.removeIf { user -> user.jid == it.jid }
+                        Log.d("AccountManager", "Removed account with jid ${it.jid} from users list due to failure")
+                    }
+                }
             }
         }
+
         return account
     }
+
 
     fun logout(jid: String): Boolean {
         return try {
