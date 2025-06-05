@@ -1,12 +1,11 @@
 package com.xabber.common
 
-import android.annotation.TargetApi
 import android.util.Log
 import com.xabber.xmpp.dns.DNSResolver
-import io.ktor.network.sockets.isClosed
 import io.realm.kotlin.types.annotations.PrimaryKey
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
+import io.ktor.network.sockets.isClosed
 
 enum class StreamState {
     NOT_CONNECTING,
@@ -28,10 +27,8 @@ class Stream {
     var port: Int = 5222
     var remoteAddress: String = ""
     private var socket: Socket? = null
-
     private val connectionLock = Any()
     private var isConnecting = false
-    private var reconnectAttempts = 0
     private val messageCallbackChannel = Channel<String>(Channel.UNLIMITED)
     private var state: StreamState = StreamState.NOT_CONNECTING
         set(value) {
@@ -81,7 +78,6 @@ class Stream {
                 return@withContext false
             }
             isConnecting = true
-            reconnectAttempts = 0
         }
         try {
             state = StreamState.NOT_CONNECTING
@@ -103,7 +99,7 @@ class Stream {
                     handleIncomingMessage(message)
                 }
             }
-            if (socket?.connect() != true) {
+            if (socket?.connect(host, port) != true) {
                 Log.e(TAG, "Socket connection failed for $remoteAddress:$port")
                 socket?.close()
                 socket = null
@@ -130,19 +126,12 @@ class Stream {
         try {
             Log.d(TAG, "Handling incoming message: $message")
             when {
-                message == "RECONNECT_REQUIRED" -> {
-                    Log.w(TAG, "Reconnection required due to stream closure or reader issue")
-                    if (state != StreamState.START_TLS && state != StreamState.PROCEED) {
-                        reconnect()
-                    } else {
-                        Log.d(TAG, "Delaying reconnection until STARTTLS or PROCEED completes")
-                    }
-                }
                 message.contains("<stream:features>") -> {
                     Log.d(TAG, "Received stream features")
                     val response = socket?.parseStreamResponse(message)
                     if (response == null) {
                         Log.e(TAG, "Failed to parse stream features")
+                        state = StreamState.NOT_CONNECTING
                         return
                     }
                     if (state == StreamState.NOT_CONNECTING) {
@@ -152,56 +141,20 @@ class Stream {
                     response.features?.let { features ->
                         Log.d(TAG, "Stream features: $features")
                         if (features.starttls?.present == true) {
-                            Log.d(TAG, "STARTTLS is supported, sending starttls immediately")
+                            Log.d(TAG, "STARTTLS is supported")
                             state = StreamState.START_TLS
-                            if (socket?.getSocket()?.isClosed == true || socket == null) {
-                                Log.e(TAG, "Socket is null or closed, triggering reconnect")
-                                reconnect()
-                                return
-                            }
-                            if (socket?.write("<starttls xmlns='urn:ietf:params:xml:ns:xmpp-tls'/>\n") == true) {
-                                Log.d(TAG, "Sent starttls, awaiting proceed")
-                                // Wait for proceed with timeout
-                                val proceed = withTimeoutOrNull(90000) {
-                                    var received: String? = null
-                                    while (received == null) {
-                                        received = messageCallbackChannel.receive()
-                                        if (received.contains("<proceed")) break
-                                    }
-                                    received
-                                }
-                                if (proceed != null && proceed.contains("<proceed")) {
-                                    Log.d(TAG, "Received proceed for STARTTLS")
-                                    if (socket?.upgradeToTls() == true) {
-                                        state = StreamState.PROCEED
-                                        socket?.initiateXmppStream(socket!!, host, jid)
-                                        Log.d(TAG, "New stream initiated over TLS")
-                                    } else {
-                                        Log.e(TAG, "Failed to upgrade to TLS")
-                                        state = StreamState.NOT_CONNECTING
-                                        reconnect()
-                                    }
-                                } else {
-                                    Log.e(TAG, "No proceed received within timeout")
-                                    state = StreamState.NOT_CONNECTING
-                                    reconnect()
-                                }
-                            } else {
-                                Log.e(TAG, "Failed to send starttls")
-                                state = StreamState.NOT_CONNECTING
-                                reconnect()
-                            }
                         } else if (features.mechanisms?.mechanism?.contains("PLAIN") == true) {
                             Log.d(TAG, "PLAIN authentication is supported")
                             state = StreamState.START_AUTH
                         } else {
-                            Log.w(TAG, "OOPS")
+                            Log.w(TAG, "No supported features found")
+                            state = StreamState.NOT_CONNECTING
                         }
                     }
                 }
                 message.contains("<proceed") -> {
-                    Log.d(TAG, "Received proceed for STARTTLS (handled in stream features)")
-                    messageCallbackChannel.send(message) // Forward to channel
+                    Log.d(TAG, "Received proceed for STARTTLS")
+                    proceedChannel.send(message)
                 }
                 message.contains("<iq") -> {
                     Log.d(TAG, "Received IQ stanza")
@@ -215,60 +168,15 @@ class Stream {
                 message.contains("<stream:error") -> {
                     Log.e(TAG, "Received stream error: $message")
                     state = StreamState.NOT_CONNECTING
-                    if (state != StreamState.START_TLS && state != StreamState.PROCEED) {
-                        reconnect()
-                    }
                 }
                 message.contains("</stream:stream>") -> {
                     Log.w(TAG, "Received stream termination")
                     state = StreamState.NOT_CONNECTING
-                    if (state != StreamState.START_TLS && state != StreamState.PROCEED) {
-                        reconnect()
-                    }
                 }
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error handling message: $e")
-            if (state != StreamState.START_TLS && state != StreamState.PROCEED) {
-                state = StreamState.NOT_CONNECTING
-                reconnect()
-            }
-        }
-    }
-
-    private suspend fun reconnect(maxAttempts: Int = 3, attempt: Int = 1) {
-        synchronized(connectionLock) {
-            if (isConnecting) {
-                Log.w(TAG, "Reconnect already in progress for $jid, ignoring")
-                return
-            }
-            if (attempt > maxAttempts) {
-                Log.e(TAG, "Max reconnection attempts ($maxAttempts) reached for $jid")
-                state = StreamState.NOT_CONNECTING
-                return
-            }
-            reconnectAttempts = attempt
-            Log.d(TAG, "Attempting to reconnect for $jid (attempt $attempt/$maxAttempts)")
-            isConnecting = true
-        }
-        try {
-            socket?.close()
-            socket = null
-            delay(5000L * attempt)
-            if (connect()) {
-                Log.d(TAG, "Reconnected successfully")
-            } else {
-                Log.e(TAG, "Reconnection failed")
-                reconnect(maxAttempts, attempt + 1)
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Reconnection error: $e")
-            delay(5000L * attempt)
-            reconnect(maxAttempts, attempt + 1)
-        } finally {
-            synchronized(connectionLock) {
-                isConnecting = false
-            }
+            state = StreamState.NOT_CONNECTING
         }
     }
 
@@ -277,6 +185,7 @@ class Stream {
         socket = null
         state = StreamState.NOT_CONNECTING
         proceedChannel.close()
+        messageCallbackChannel.close()
         Log.d(TAG, "Stream closed for $jid")
     }
 
@@ -291,54 +200,48 @@ class Stream {
     fun getSocket(): Socket? {
         return socket
     }
-
-    // State handler functions
     open fun onNotConnecting() {}
     open suspend fun onStreamOpen() {}
     open suspend fun onStartTls() {
         if (socket == null || socket?.getSocket()?.isClosed == true) {
             Log.e(TAG, "Cannot send starttls: Socket is null or closed")
             state = StreamState.NOT_CONNECTING
-            reconnect()
-            return
-        }
-        if (!socket!!.write("<starttls xmlns='urn:ietf:params:xml:ns:xmpp-tls'/>")) {
-            Log.e(TAG, "Failed to send starttls due to write error")
-            state = StreamState.NOT_CONNECTING
-            reconnect()
             return
         }
         try {
-            repeat(3) { attempt ->
-                Log.d(TAG, "Waiting for proceed response (attempt ${attempt + 1})")
-                val proceed = withTimeoutOrNull(90000) {
-                    proceedChannel.receive()
-                }
-                Log.d(TAG, "Proceed: $proceed")
-                if (proceed != null && proceed.contains("<proceed")) {
-                    Log.d(TAG, "Received proceed, upgrading to TLS")
-                    if (socket?.upgradeToTls() == true) {
-                        state = StreamState.PROCEED
-                        socket?.initiateXmppStream(socket!!, host, jid)
-                        Log.d(TAG, "New stream initiated over TLS, awaiting response")
-                        return
-                    } else {
-                        Log.e(TAG, "Failed to upgrade to TLS")
-                        state = StreamState.NOT_CONNECTING
-                        reconnect()
-                    }
-                    return
-                }
-                Log.w(TAG, "No proceed received, retrying...")
-                delay(1000)
+            Log.d(TAG, "Sending starttls command")
+            if (!socket!!.write("<starttls xmlns='urn:ietf:params:xml:ns:xmpp-tls'/>")) {
+                Log.e(TAG, "Failed to send starttls due to write error")
+                state = StreamState.NOT_CONNECTING
+                return
             }
-            Log.e(TAG, "Failed to receive proceed after retries")
-            state = StreamState.NOT_CONNECTING
-            reconnect()
+            Log.d(TAG, "Sent starttls, waiting for proceed")
+            val proceed = withTimeoutOrNull(30000) {
+                proceedChannel.receive()
+            }
+            Log.w(TAG, "Proceed: $proceed")
+            if (proceed != null && proceed.contains("<proceed")) {
+                Log.d(TAG, "Received proceed, waiting for server to prepare TLS")
+                delay(1000) // Увеличить задержку до 1 секунды
+                Log.d(TAG, "Preparing for TLS upgrade")
+//                socket?.prepareForTlsUpgrade()
+                Log.d(TAG, "Initiating TLS upgrade")
+                if (socket?.upgradeToTls() == true) {
+                    Log.d(TAG, "TLS upgrade successful, initiating new stream")
+                    state = StreamState.PROCEED
+                    socket?.initiateXmppStream(socket!!, host, jid)
+                    Log.d(TAG, "New stream initiated over TLS, awaiting response")
+                } else {
+                    Log.e(TAG, "Failed to upgrade to TLS")
+                    state = StreamState.NOT_CONNECTING
+                }
+            } else {
+                Log.e(TAG, "Failed to receive proceed within 30 seconds")
+                state = StreamState.NOT_CONNECTING
+            }
         } catch (e: Exception) {
-            Log.e(TAG, "Error waiting for proceed: $e")
+            Log.e(TAG, "Error during TLS upgrade: $e")
             state = StreamState.NOT_CONNECTING
-            reconnect()
         }
     }
 
@@ -351,21 +254,20 @@ class Stream {
     open suspend fun onAuthFailed() {}
     open suspend fun onBinding() {}
     open suspend fun onConnected() {
-        socket!!.scope.launch {
+        socket?.scope?.launch {
             while (state == StreamState.CONNECTED && socket?.getSocket()?.isClosed == false) {
                 try {
                     if (socket?.sendPing(jid) == true) {
                         Log.d(TAG, "Sent ping to $jid")
                     } else {
-                        Log.w(TAG, "Failed to send ping, reconnecting")
-                        reconnect()
+                        Log.w(TAG, "Failed to send ping")
+                        state = StreamState.NOT_CONNECTING
                         break
                     }
                     delay(30000)
                 } catch (e: Exception) {
                     Log.e(TAG, "Ping error: $e")
                     state = StreamState.NOT_CONNECTING
-                    reconnect()
                     break
                 }
             }
