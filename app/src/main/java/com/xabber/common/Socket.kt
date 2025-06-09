@@ -1,7 +1,9 @@
 package com.xabber.common
 
+import android.os.Build
 import io.ktor.util.logging.*
 import android.util.Log
+import androidx.annotation.RequiresApi
 import io.ktor.network.selector.*
 import io.ktor.network.sockets.*
 import io.ktor.network.tls.*
@@ -106,6 +108,14 @@ class Socket(private val host: String, private val port: Int) {
     private val selectorManager = SelectorManager(Dispatchers.IO)
     var scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val TAG = "Socket_ng"
+    val sslContext = SSLContext.getInstance("TLS")
+
+    val sslEngine = sslContext.createSSLEngine(host, port)
+
+    var appBuffer = ByteBuffer.allocate(sslEngine.session.applicationBufferSize)
+    var packetBuffer = ByteBuffer.allocate(sslEngine.session.packetBufferSize * 2) // ~66KB
+    var accumulatedData = ByteBuffer.allocate(1048576) // 1MB
+
     private var messageCallback: ((String) -> Unit)? = null
 
     fun setMessageCallback(callback: (String) -> Unit) {
@@ -211,7 +221,6 @@ class Socket(private val host: String, private val port: Int) {
                 }
 
                 // Step 3: Initialize SSLEngine for TLS with certificate pinning
-                val sslContext = SSLContext.getInstance("TLS")
                 val trustManager = object : X509TrustManager {
                     override fun checkClientTrusted(chain: Array<out X509Certificate>?, authType: String?) {}
                     override fun checkServerTrusted(chain: Array<out X509Certificate>?, authType: String?) {
@@ -229,7 +238,6 @@ class Socket(private val host: String, private val port: Int) {
                     override fun getAcceptedIssuers(): Array<X509Certificate> = emptyArray()
                 }
                 sslContext.init(null, arrayOf(trustManager), null)
-                val sslEngine = sslContext.createSSLEngine(host, port)
                 sslEngine.useClientMode = true
                 sslEngine.enabledProtocols = arrayOf("TLSv1.2", "TLSv1.3")
                 sslEngine.enabledCipherSuites = arrayOf(
@@ -520,54 +528,227 @@ class Socket(private val host: String, private val port: Int) {
     }
 
 
-
-    suspend fun connect2(): Boolean = withContext(Dispatchers.IO) {
+    @RequiresApi(Build.VERSION_CODES.O)
+    suspend fun authenticatePlain(username: String, password: String, domain: String): Boolean = withContext(Dispatchers.IO) {
         try {
-            val manager = SelectorManager(Dispatchers.IO)
-            val tcp = aSocket(manager).tcp()
-
-
-            socket = tcp.connect(host, port) {
-                noDelay = true
-                keepAlive = true
-            }
-            reader = socket?.openReadChannel()
-            writer = socket?.openWriteChannel(autoFlush = true)
-
-
-            if (reader == null || writer == null) {
-                Log.e(TAG, "Failed to initialize reader or writer channels")
-                closeInternal()
+            // Step 1: Verify server supports PLAIN mechanism
+            val streamResponse = readServerResponse(this@Socket)
+            if (streamResponse?.features?.mechanisms?.mechanism?.contains("PLAIN") != true) {
+                Log.e(TAG, "PLAIN SASL mechanism not supported by server")
                 return@withContext false
             }
-            Log.d(TAG, "Ktor TCP socket connected to $host:$port")
-            scope.launch { startReadLoop() }
-            val tlsConfig = TLSConfigBuilder().apply {
-                cipherSuites = listOf(
-                    ECDHE_RSA_AES256_SHA384,
-                    ECDHE_RSA_AES128_SHA256,
-                    ECDHE_ECDSA_AES256_SHA384,
-                    ECDHE_ECDSA_AES128_SHA256,
-                    TLS_RSA_WITH_AES_128_GCM_SHA256,
-                    TLS_RSA_WITH_AES256_CBC_SHA,
-                    TLS_RSA_WITH_AES128_CBC_SHA
-                )
-            }.build()
-            writer?.flush()
-            val tlsSocket = withContext(Dispatchers.IO) {
-                socket!!.tls(Dispatchers.IO, tlsConfig)
+            Log.d(TAG, "PLAIN SASL mechanism supported, proceeding with authentication")
+
+            // Step 2: Construct PLAIN SASL auth payload
+            // PLAIN format: [authzid]\0authcid\0password
+            // authzid is optional, so we use username@domain as authcid
+            val authcid = "$username@$domain"
+            val plainPayload = "\u0000$authcid\u0000$password"
+            val encodedPayload = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                java.util.Base64.getEncoder().encodeToString(plainPayload.toByteArray(StandardCharsets.UTF_8))
+            } else {
+                TODO("VERSION.SDK_INT < O")
+            }
+            val authStanza = """
+                <auth xmlns='urn:ietf:params:xml:ns:xmpp-sasl' mechanism='PLAIN'>$encodedPayload</auth>
+            """.trimIndent()
+            Log.d(TAG, "Sending PLAIN auth stanza (payload obscured for security)")
+
+            // Step 3: Encrypt and send auth stanza
+            if (!writeEncrypted(authStanza)) {
+                Log.e(TAG, "Failed to send PLAIN auth stanza")
+                return@withContext false
             }
 
-            // Step 5: Open new read and write channels AFTER TLS upgrade
-            val sslreader = tlsSocket.openReadChannel()
-            val sslwriter = tlsSocket.openWriteChannel(autoFlush = true)
-            true
+            // Step 4: Read and process server response
+            val response = readEncrypted()
+            if (response == null) {
+                Log.e(TAG, "No response received for PLAIN auth")
+                return@withContext false
+            }
+            Log.d(TAG, "Received auth response: $response")
+
+            when {
+                response.contains("<success xmlns='urn:ietf:params:xml:ns:xmpp-sasl'>") -> {
+                    Log.d(TAG, "PLAIN SASL authentication successful")
+                    // Restart the XMPP stream after successful SASL auth
+                    val restartedStream = """
+                        <stream:stream xmlns='jabber:client' xmlns:stream='http://etherx.jabber.org/streams' version='1.0' to='$domain'>
+                    """.trimIndent()
+                    if (!writeEncrypted(restartedStream)) {
+                        Log.e(TAG, "Failed to send restarted XMPP stream after auth")
+                        return@withContext false
+                    }
+                    Log.d(TAG, "Sent restarted XMPP stream after auth")
+                    scope.launch { startReadLoop() } // Restart read loop
+                    true
+                }
+                response.contains("<failure xmlns='urn:ietf:params:xml:ns:xmpp-sasl'>") -> {
+                    Log.e(TAG, "PLAIN SASL authentication failed: $response")
+                    false
+                }
+                else -> {
+                    Log.e(TAG, "Unexpected response to PLAIN auth: $response")
+                    false
+                }
+            }
         } catch (e: Exception) {
-            Log.e(TAG, "Error connecting to $host:$port: $e")
-            closeInternal()
+            Log.e(TAG, "Error during PLAIN SASL authentication: ${e.message}", e)
             false
         }
     }
+    private suspend fun writeEncrypted(message: String): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val sslEngine = sslEngine ?: run {
+                Log.e(TAG, "SSLEngine is null, cannot write encrypted data")
+                return@withContext false
+            }
+            val appBuffer = appBuffer ?: ByteBuffer.allocate(sslEngine.session.applicationBufferSize)
+            val packetBuffer = packetBuffer ?: ByteBuffer.allocate(sslEngine.session.packetBufferSize * 2)
+
+            appBuffer.clear()
+            appBuffer.put(message.toByteArray(StandardCharsets.UTF_8))
+            appBuffer.flip()
+            packetBuffer.clear()
+
+            val wrapResult = sslEngine.wrap(appBuffer, packetBuffer)
+            Log.d(TAG, "Wrap message result: status=${wrapResult.status}, bytesProduced=${wrapResult.bytesProduced()}")
+
+            if (wrapResult.status != SSLEngineResult.Status.OK || wrapResult.bytesProduced() == 0) {
+                Log.e(TAG, "Failed to wrap message: status=${wrapResult.status}")
+                return@withContext false
+            }
+
+            packetBuffer.flip()
+            writer?.write { buffer ->
+                buffer.put(packetBuffer)
+                buffer.remaining()
+            }
+            writer?.flush()
+            Log.d(TAG, "Sent encrypted message: $message")
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "Error writing encrypted message: ${e.message}", e)
+            false
+        }
+    }
+
+    // Helper method to read and decrypt data using SSLEngine
+    private suspend fun readEncrypted(timeoutMs: Long = 30000): String? = withContext(Dispatchers.IO) {
+        try {
+            val sslEngine = sslEngine ?: run {
+                Log.e(TAG, "SSLEngine is null, cannot read encrypted data")
+                return@withContext null
+            }
+            var appBuffer = appBuffer ?: ByteBuffer.allocate(sslEngine.session.applicationBufferSize)
+            val packetBuffer = packetBuffer ?: ByteBuffer.allocate(sslEngine.session.packetBufferSize * 2)
+            val accumulatedData = accumulatedData ?: ByteBuffer.allocate(1048576)
+
+            val startTime = System.currentTimeMillis()
+            while (System.currentTimeMillis() - startTime < timeoutMs) {
+                val buffer = ByteArray(65536)
+                val bytesRead = reader?.readAvailable(buffer) ?: -1
+                Log.d(TAG, "Read attempt: bytesRead=$bytesRead")
+
+                if (bytesRead == -1) {
+                    Log.w(TAG, "Socket closed by server")
+                    return@withContext null
+                } else if (bytesRead > 0) {
+                    accumulatedData.put(buffer, 0, bytesRead)
+                    Log.d(TAG, "Received raw bytes: ${buffer.copyOfRange(0, bytesRead.coerceAtMost(256)).joinToString(", ")}")
+
+                    // Process accumulated data
+                    accumulatedData.flip()
+                    appBuffer.clear()
+                    val unwrapResult = sslEngine.unwrap(accumulatedData, appBuffer)
+                    accumulatedData.compact()
+
+                    Log.d(TAG, "Unwrap result: status=${unwrapResult.status}, bytesProduced=${unwrapResult.bytesProduced()}")
+
+                    if (unwrapResult.status == SSLEngineResult.Status.BUFFER_UNDERFLOW) {
+                        Log.d(TAG, "Buffer underflow, need more data")
+                        continue
+                    } else if (unwrapResult.status == SSLEngineResult.Status.BUFFER_OVERFLOW) {
+                        Log.w(TAG, "Buffer overflow, increasing appBuffer size")
+                        appBuffer = ByteBuffer.allocate(appBuffer.capacity() * 2)
+                        this@Socket.appBuffer = appBuffer
+                        continue
+                    } else if (unwrapResult.status == SSLEngineResult.Status.CLOSED) {
+                        Log.e(TAG, "SSLEngine closed during read")
+                        closeInternal()
+                        return@withContext null
+                    }
+
+                    if (unwrapResult.bytesProduced() > 0) {
+                        appBuffer.flip()
+                        val response = ByteArray(appBuffer.remaining())
+                        appBuffer.get(response)
+                        val result = String(response, StandardCharsets.UTF_8)
+                        Log.d(TAG, "Decrypted response: $result")
+
+                        if (result.contains("</success>") || result.contains("</failure>") ||
+                            result.contains("</stream:features>") || result.contains("</stream:stream>")) {
+                            return@withContext result
+                        }
+                    }
+                }
+                delay(10)
+            }
+            Log.w(TAG, "No complete message received within $timeoutMs ms")
+            null
+        } catch (e: Exception) {
+            Log.e(TAG, "Error reading encrypted data: ${e.message}", e)
+            null
+        }
+    }
+
+//    suspend fun connect2(): Boolean = withContext(Dispatchers.IO) {
+//        try {
+//            val manager = SelectorManager(Dispatchers.IO)
+//            val tcp = aSocket(manager).tcp()
+//
+//
+//            socket = tcp.connect(host, port) {
+//                noDelay = true
+//                keepAlive = true
+//            }
+//            reader = socket?.openReadChannel()
+//            writer = socket?.openWriteChannel(autoFlush = true)
+//
+//
+//            if (reader == null || writer == null) {
+//                Log.e(TAG, "Failed to initialize reader or writer channels")
+//                closeInternal()
+//                return@withContext false
+//            }
+//            Log.d(TAG, "Ktor TCP socket connected to $host:$port")
+//            scope.launch { startReadLoop() }
+//            val tlsConfig = TLSConfigBuilder().apply {
+//                cipherSuites = listOf(
+//                    ECDHE_RSA_AES256_SHA384,
+//                    ECDHE_RSA_AES128_SHA256,
+//                    ECDHE_ECDSA_AES256_SHA384,
+//                    ECDHE_ECDSA_AES128_SHA256,
+//                    TLS_RSA_WITH_AES_128_GCM_SHA256,
+//                    TLS_RSA_WITH_AES256_CBC_SHA,
+//                    TLS_RSA_WITH_AES128_CBC_SHA
+//                )
+//            }.build()
+//            writer?.flush()
+//            val tlsSocket = withContext(Dispatchers.IO) {
+//                socket!!.tls(Dispatchers.IO, tlsConfig)
+//            }
+//
+//            // Step 5: Open new read and write channels AFTER TLS upgrade
+//            val sslreader = tlsSocket.openReadChannel()
+//            val sslwriter = tlsSocket.openWriteChannel(autoFlush = true)
+//            true
+//        } catch (e: Exception) {
+//            Log.e(TAG, "Error connecting to $host:$port: $e")
+//            closeInternal()
+//            false
+//        }
+//    }
 
     private suspend fun startReadLoop() {
         while (scope.isActive && socket?.isClosed == false) {

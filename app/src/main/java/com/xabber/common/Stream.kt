@@ -1,6 +1,7 @@
 package com.xabber.common
 
 import android.util.Log
+import com.xabber.data_base.models.account.AccountStorageItem
 import com.xabber.xmpp.dns.DNSResolver
 import io.realm.kotlin.types.annotations.PrimaryKey
 import kotlinx.coroutines.*
@@ -247,7 +248,12 @@ class Stream {
 
     open suspend fun onProceed() {}
     open suspend fun onStartAuth() {
-        // TODO: Implement SASL PLAIN authentication
+        while (state == StreamState.CONNECTED && socket?.getSocket()?.isClosed == false) {
+            try {
+                if (socket.authenticatePlain())
+            }
+
+        }
     }
     open suspend fun onProcessAuth() {}
     open suspend fun onAuthSuccess() {}
