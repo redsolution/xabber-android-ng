@@ -1,6 +1,8 @@
 package com.xabber.common
 
+import android.os.Build
 import android.util.Log
+import androidx.annotation.RequiresApi
 import com.xabber.data_base.models.account.AccountStorageItem
 import com.xabber.xmpp.dns.DNSResolver
 import io.realm.kotlin.types.annotations.PrimaryKey
@@ -20,6 +22,7 @@ enum class StreamState {
     BINDING,
     CONNECTED
 }
+@RequiresApi(Build.VERSION_CODES.O)
 
 class Stream {
     @PrimaryKey
@@ -49,7 +52,6 @@ class Stream {
             }
         }
     private val TAG = "Stream"
-    private val proceedChannel = Channel<String?>(1)
 
     constructor(jid: String, port: Int? = null) {
         this.jid = jid
@@ -67,7 +69,21 @@ class Stream {
             Log.w(TAG, "Invalid JID format: $jid, using JID as host")
             return jid
         } catch (e: Exception) {
-            Log.e(TAG, "Error extracting host from JID: $e")
+            Log.e(TAG, "Error extracting host from JID: ${e.message}", e)
+            return jid
+        }
+    }
+
+    private fun extractUsernameFromJid(jid: String): String {
+        try {
+            val parts = jid.split("@")
+            if (parts.size > 1) {
+                return parts[0]
+            }
+            Log.w(TAG, "Invalid JID format: $jid, using JID as username")
+            return jid
+        } catch (e: Exception) {
+            Log.e(TAG, "Error extracting username from JID: ${e.message}", e)
             return jid
         }
     }
@@ -100,7 +116,7 @@ class Stream {
                     handleIncomingMessage(message)
                 }
             }
-            if (socket?.connect(host, port) != true) {
+            if (socket?.connect(remoteAddress, port) != true) {
                 Log.e(TAG, "Socket connection failed for $remoteAddress:$port")
                 socket?.close()
                 socket = null
@@ -111,7 +127,7 @@ class Stream {
             Log.d(TAG, "XMPP stream initiation started, waiting for server response")
             true
         } catch (e: Exception) {
-            Log.e(TAG, "Error connecting to $host: $e")
+            Log.e(TAG, "Error connecting to $host: ${e.message}", e)
             socket?.close()
             socket = null
             state = StreamState.NOT_CONNECTING
@@ -127,6 +143,10 @@ class Stream {
         try {
             Log.d(TAG, "Handling incoming message: $message")
             when {
+                message.contains("<stream:stream") && !message.contains("<stream:features") -> {
+                    Log.d(TAG, "Received stream header, awaiting features")
+                    // Do not transition state, wait for features
+                }
                 message.contains("<stream:features>") -> {
                     Log.d(TAG, "Received stream features")
                     val response = socket?.parseStreamResponse(message)
@@ -135,7 +155,7 @@ class Stream {
                         state = StreamState.NOT_CONNECTING
                         return
                     }
-                    if (state == StreamState.NOT_CONNECTING) {
+                    if (state == StreamState.NOT_CONNECTING || state == StreamState.PROCEED || state == StreamState.AUTH_SUCCESS) {
                         Log.d(TAG, "Initial stream response received")
                         state = StreamState.STREAM_OPEN
                     }
@@ -153,9 +173,16 @@ class Stream {
                         }
                     }
                 }
+                message.contains("<success") && state == StreamState.PROCESS_AUTH -> {
+                    Log.d(TAG, "SASL PLAIN authentication successful")
+                    state = StreamState.AUTH_SUCCESS
+                }
+                message.contains("<failure") && state == StreamState.PROCESS_AUTH -> {
+                    Log.e(TAG, "SASL PLAIN authentication failed: $message")
+                    state = StreamState.AUTH_FAILED
+                }
                 message.contains("<proceed") -> {
                     Log.d(TAG, "Received proceed for STARTTLS")
-                    proceedChannel.send(message)
                 }
                 message.contains("<iq") -> {
                     Log.d(TAG, "Received IQ stanza")
@@ -174,9 +201,12 @@ class Stream {
                     Log.w(TAG, "Received stream termination")
                     state = StreamState.NOT_CONNECTING
                 }
+                else -> {
+                    Log.w(TAG, "Unhandled message: $message")
+                }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Error handling message: $e")
+            Log.e(TAG, "Error handling message: ${e.message}", e)
             state = StreamState.NOT_CONNECTING
         }
     }
@@ -185,7 +215,6 @@ class Stream {
         socket?.close()
         socket = null
         state = StreamState.NOT_CONNECTING
-        proceedChannel.close()
         messageCallbackChannel.close()
         Log.d(TAG, "Stream closed for $jid")
     }
@@ -201,64 +230,98 @@ class Stream {
     fun getSocket(): Socket? {
         return socket
     }
+
     open fun onNotConnecting() {}
+
     open suspend fun onStreamOpen() {}
+
     open suspend fun onStartTls() {
         if (socket == null || socket?.getSocket()?.isClosed == true) {
-            Log.e(TAG, "Cannot send starttls: Socket is null or closed")
+            Log.e(TAG, "Cannot initiate STARTTLS: Socket is null or closed")
             state = StreamState.NOT_CONNECTING
             return
         }
         try {
-            Log.d(TAG, "Sending starttls command")
-            if (!socket!!.write("<starttls xmlns='urn:ietf:params:xml:ns:xmpp-tls'/>")) {
-                Log.e(TAG, "Failed to send starttls due to write error")
+            Log.d(TAG, "Initiating STARTTLS negotiation")
+            if (!socket!!.initiateStartTls()) {
+                Log.e(TAG, "Failed to initiate STARTTLS")
                 state = StreamState.NOT_CONNECTING
                 return
             }
-            Log.d(TAG, "Sent starttls, waiting for proceed")
-            val proceed = withTimeoutOrNull(30000) {
-                proceedChannel.receive()
-            }
-            Log.w(TAG, "Proceed: $proceed")
-            if (proceed != null && proceed.contains("<proceed")) {
-                Log.d(TAG, "Received proceed, waiting for server to prepare TLS")
-                delay(1000) // Увеличить задержку до 1 секунды
-                Log.d(TAG, "Preparing for TLS upgrade")
-//                socket?.prepareForTlsUpgrade()
-                Log.d(TAG, "Initiating TLS upgrade")
-                if (socket?.upgradeToTls() == true) {
-                    Log.d(TAG, "TLS upgrade successful, initiating new stream")
-                    state = StreamState.PROCEED
-                    socket?.initiateXmppStream(socket!!, host, jid)
-                    Log.d(TAG, "New stream initiated over TLS, awaiting response")
-                } else {
-                    Log.e(TAG, "Failed to upgrade to TLS")
-                    state = StreamState.NOT_CONNECTING
-                }
+            Log.d(TAG, "STARTTLS negotiation successful, preparing for TLS upgrade")
+            delay(1000)
+            Log.d(TAG, "Upgrading to TLS")
+            if (socket?.upgradeToTls() == true) {
+                Log.d(TAG, "TLS upgrade successful, initiating new stream")
+                state = StreamState.START_AUTH
+                socket?.initiateXmppStream(socket!!, host, jid)
+                Log.d(TAG, "New stream initiated over TLS, awaiting response")
             } else {
-                Log.e(TAG, "Failed to receive proceed within 30 seconds")
+                Log.e(TAG, "Failed to upgrade to TLS")
                 state = StreamState.NOT_CONNECTING
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Error during TLS upgrade: $e")
+            Log.e(TAG, "Error during STARTTLS process: ${e.message}", e)
             state = StreamState.NOT_CONNECTING
         }
     }
 
-    open suspend fun onProceed() {}
-    open suspend fun onStartAuth() {
-        while (state == StreamState.CONNECTED && socket?.getSocket()?.isClosed == false) {
-            try {
-                if (socket.authenticatePlain())
-            }
+    open suspend fun onProceed() {
+        Log.d(TAG, "Awaiting stream features after TLS upgrade for JID: $jid")
+        // Wait for <stream:features> via handleIncomingMessage
+    }
 
+    open suspend fun onStartAuth() {
+        if (socket == null || socket?.getSocket()?.isClosed == true) {
+            Log.e(TAG, "Cannot initiate SASL PLAIN authentication: Socket is null or closed")
+            state = StreamState.AUTH_FAILED
+            return
+        }
+        try {
+            Log.d(TAG, "Initiating SASL PLAIN authentication for JID: $jid")
+            val username = extractUsernameFromJid(jid)
+            val authData = socket!!.saslPlainAuth(jid, username)
+            val authMessage = """
+                <autz xmlns='urn:ietf:params:xml:ns:xmpp-sasl' mechanism='PLAIN'>$authData</auth>
+            """.trimIndent()
+            if (socket?.write(authMessage) == true) {
+                Log.d(TAG, "Sent SASL PLAIN auth request for JID: $jid")
+                state = StreamState.PROCESS_AUTH
+            } else {
+                Log.e(TAG, "Failed to send SASL PLAIN auth request for JID: $jid")
+                state = StreamState.AUTH_FAILED
+            }
+        } catch (e: IllegalStateException) {
+            Log.e(TAG, "SASL PLAIN authentication failed for JID: $jid: ${e.message}", e)
+            state = StreamState.AUTH_FAILED
+        } catch (e: Exception) {
+            Log.e(TAG, "Unexpected error during SASL PLAIN authentication for JID: $jid: ${e.message}", e)
+            state = StreamState.AUTH_FAILED
         }
     }
-    open suspend fun onProcessAuth() {}
-    open suspend fun onAuthSuccess() {}
-    open suspend fun onAuthFailed() {}
+
+    open suspend fun onProcessAuth() {
+        Log.d(TAG, "Awaiting SASL authentication response for JID: $jid")
+    }
+
+    open suspend fun onAuthSuccess() {
+        Log.d(TAG, "Authentication successful for JID: $jid, initiating new stream")
+        try {
+            socket?.initiateXmppStream(socket!!, host, jid)
+            Log.d(TAG, "New stream initiated after auth success for JID: $jid, awaiting response")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error initiating new stream after auth success for JID: $jid: ${e.message}", e)
+            state = StreamState.NOT_CONNECTING
+        }
+    }
+
+    open suspend fun onAuthFailed() {
+        Log.e(TAG, "Authentication failed for JID: $jid, closing connection")
+        close()
+    }
+
     open suspend fun onBinding() {}
+
     open suspend fun onConnected() {
         socket?.scope?.launch {
             while (state == StreamState.CONNECTED && socket?.getSocket()?.isClosed == false) {
@@ -266,13 +329,13 @@ class Stream {
                     if (socket?.sendPing(jid) == true) {
                         Log.d(TAG, "Sent ping to $jid")
                     } else {
-                        Log.w(TAG, "Failed to send ping")
+                        Log.w(TAG, "Failed to send ping for JID: $jid")
                         state = StreamState.NOT_CONNECTING
                         break
                     }
                     delay(30000)
                 } catch (e: Exception) {
-                    Log.e(TAG, "Ping error: $e")
+                    Log.e(TAG, "Ping error for JID: $jid: ${e.message}", e)
                     state = StreamState.NOT_CONNECTING
                     break
                 }

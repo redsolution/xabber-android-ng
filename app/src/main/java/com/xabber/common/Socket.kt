@@ -1,58 +1,36 @@
 package com.xabber.common
 
 import android.os.Build
-import io.ktor.util.logging.*
 import android.util.Log
 import androidx.annotation.RequiresApi
+import com.xabber.data_base.models.account.AccountStorageItem
+import com.xabber.presentation.XabberApplication
+import com.xabber.presentation.onboarding.util.PasswordStorageHelper
 import io.ktor.network.selector.*
 import io.ktor.network.sockets.*
-import io.ktor.network.tls.*
-import io.ktor.network.tls.CIOCipherSuites.ECDHE_ECDSA_AES128_SHA256
-import io.ktor.network.tls.CIOCipherSuites.ECDHE_ECDSA_AES256_SHA384
-import io.ktor.network.tls.CIOCipherSuites.ECDHE_RSA_AES128_SHA256
-import io.ktor.network.tls.CIOCipherSuites.ECDHE_RSA_AES256_SHA384
-import io.ktor.network.tls.CIOCipherSuites.TLS_RSA_WITH_AES128_CBC_SHA
-import io.ktor.network.tls.CIOCipherSuites.TLS_RSA_WITH_AES256_CBC_SHA
-import io.ktor.network.tls.CIOCipherSuites.TLS_RSA_WITH_AES_128_GCM_SHA256
 import io.ktor.utils.io.*
+import io.ktor.util.logging.*
 import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ClosedReceiveChannelException
 import kotlinx.serialization.Serializable
-import nl.adaptivity.xmlutil.XmlDeclMode
 import nl.adaptivity.xmlutil.serialization.XML
 import nl.adaptivity.xmlutil.serialization.XmlSerialName
 import nl.adaptivity.xmlutil.serialization.XmlElement
-import okhttp3.CipherSuite.Companion.TLS_RSA_WITH_AES_128_CBC_SHA
-import okhttp3.CipherSuite.Companion.TLS_RSA_WITH_AES_256_CBC_SHA
-import java.nio.charset.StandardCharsets
-import javax.net.ssl.TrustManagerFactory
-import java.security.KeyStore
-import java.io.IOException
-import java.security.SecureRandom
-import java.security.cert.X509Certificate
-import javax.net.ssl.SSLContext
-import javax.net.ssl.TrustManager
-import javax.net.ssl.X509TrustManager
-import kotlin.coroutines.cancellation.CancellationException
-import io.ktor.network.tls.*
-import io.ktor.network.selector.*
-import io.ktor.network.sockets.*
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withContext
-import okhttp3.CipherSuite.Companion.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA
-import okhttp3.CipherSuite.Companion.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA
 import org.xmlpull.v1.XmlPullParser
 import org.xmlpull.v1.XmlPullParserFactory
+import java.io.IOException
 import java.io.StringReader
 import java.nio.BufferOverflowException
 import java.nio.ByteBuffer
+import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
+import java.security.SecureRandom
 import java.security.cert.CertificateException
-import javax.net.ssl.SSLEngine
-import javax.net.ssl.SSLEngineResult
-import javax.net.ssl.SSLException
-
+import java.security.cert.X509Certificate
+import java.util.Base64
+import javax.net.ssl.*
+import kotlin.coroutines.cancellation.CancellationException
 
 @Serializable
 @XmlSerialName("stream", "http://etherx.jabber.org/streams", "stream")
@@ -108,31 +86,28 @@ class Socket(private val host: String, private val port: Int) {
     private val selectorManager = SelectorManager(Dispatchers.IO)
     var scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val TAG = "Socket_ng"
-    val sslContext = SSLContext.getInstance("TLS")
-
-    val sslEngine = sslContext.createSSLEngine(host, port)
-
-    var appBuffer = ByteBuffer.allocate(sslEngine.session.applicationBufferSize)
-    var packetBuffer = ByteBuffer.allocate(sslEngine.session.packetBufferSize * 2) // ~66KB
-    var accumulatedData = ByteBuffer.allocate(1048576) // 1MB
-
+    private val sslContext = SSLContext.getInstance("TLS")
+    private lateinit var sslEngine: SSLEngine
+    private lateinit var appBuffer: ByteBuffer
+    private lateinit var packetBuffer: ByteBuffer
+    private lateinit var accumulatedData: ByteBuffer
     private var messageCallback: ((String) -> Unit)? = null
+    private val proceedChannel = Channel<String?>(1)
+    private val tlsDataChannel = Channel<ByteArray>(Channel.UNLIMITED)
+    private var tlsHandshaking = false
+    private var isReadingLoopActive = false
 
     fun setMessageCallback(callback: (String) -> Unit) {
         messageCallback = callback
     }
 
-
     suspend fun connect(host: String, port: Int): Boolean = withContext(Dispatchers.IO) {
         var attempts = 0
         val maxAttempts = 3
-        val expectedFingerprint = "dab1d6bc9c8c825aa9fd266aee12ea562de40817a75fb81b79b50ad939a21f28"
-
         while (attempts < maxAttempts) {
             attempts++
             Log.d(TAG, "Connection attempt $attempts of $maxAttempts")
             try {
-                // Step 1: Open a plain TCP socket
                 val tcp = aSocket(selectorManager).tcp()
                 socket = tcp.connect(host, port) {
                     noDelay = true
@@ -147,371 +122,8 @@ class Socket(private val host: String, private val port: Int) {
                     return@withContext false
                 }
 
-                // Step 2: Perform XMPP STARTTLS negotiation
-                val streamOpen = """
-                    <?xml version='1.0'?>
-                    <stream:stream to='$host' xmlns='jabber:client' xmlns:stream='http://etherx.jabber.org/streams' version='1.0'>
-                """.trimIndent()
-                writer?.writeStringUtf8(streamOpen)
-                writer?.flush()
-                Log.d(TAG, "Sent initial stream open: $streamOpen")
-
-                // Read server response to detect <starttls> in <features>
-                val buffer = ByteArray(32768)
-                var bytesRead = reader?.readAvailable(buffer) ?: -1
-                var response = ""
-                if (bytesRead > 0) {
-                    response = String(buffer, 0, bytesRead)
-                    Log.d(TAG, "Server response: $response")
-                } else {
-                    Log.e(TAG, "No server response received")
-                    closeInternal()
-                    continue
-                }
-
-                // Parse response to check for <starttls> in <features>
-                var hasStartTls = false
-                val parser = XmlPullParserFactory.newInstance().newPullParser()
-                parser.setInput(StringReader(response))
-                var eventType = parser.eventType
-                while (eventType != XmlPullParser.END_DOCUMENT) {
-                    if (eventType == XmlPullParser.START_TAG && parser.name == "starttls" &&
-                        parser.getAttributeValue(null, "xmlns") == "urn:ietf:params:xml:ns:xmpp-tls") {
-                        hasStartTls = true
-                        break
-                    }
-                    eventType = parser.next()
-                }
-
-                if (!hasStartTls) {
-                    Log.e(TAG, "STARTTLS not offered in <features>")
-                    closeInternal()
-                    continue
-                }
-
-                // Send STARTTLS command
-                writer?.writeStringUtf8("<starttls xmlns='urn:ietf:params:xml:ns:xmpp-tls'/>")
-                writer?.flush()
-                Log.d(TAG, "Sent STARTTLS command")
-
-                // Read STARTTLS response (<proceed>)
-                bytesRead = reader?.readAvailable(buffer) ?: -1
-                if (bytesRead > 0) {
-                    val startTlsResponse = String(buffer, 0, bytesRead)
-                    Log.d(TAG, "STARTTLS response: $startTlsResponse")
-                    parser.setInput(StringReader(startTlsResponse))
-                    eventType = parser.eventType
-                    var hasProceed = false
-                    while (eventType != XmlPullParser.END_DOCUMENT) {
-                        if (eventType == XmlPullParser.START_TAG && parser.name == "proceed") {
-                            hasProceed = true
-                            break
-                        }
-                        eventType = parser.next()
-                    }
-                    if (!hasProceed) {
-                        Log.e(TAG, "Server did not send <proceed>")
-                        closeInternal()
-                        continue
-                    }
-                } else {
-                    Log.e(TAG, "No STARTTLS response received")
-                    closeInternal()
-                    continue
-                }
-
-                // Step 3: Initialize SSLEngine for TLS with certificate pinning
-                val trustManager = object : X509TrustManager {
-                    override fun checkClientTrusted(chain: Array<out X509Certificate>?, authType: String?) {}
-                    override fun checkServerTrusted(chain: Array<out X509Certificate>?, authType: String?) {
-                        if (chain == null || chain.isEmpty()) {
-                            throw CertificateException("No server certificate provided")
-                        }
-                        val serverCert = chain[0]
-                        val sha256 = MessageDigest.getInstance("SHA-256")
-                        val fingerprint = sha256.digest(serverCert.encoded).joinToString("") { "%02x".format(it) }
-                        Log.d(TAG, "Server certificate: issuer=${serverCert.issuerDN}, subject=${serverCert.subjectDN}, fingerprint=$fingerprint")
-//                        if (!fingerprint.equals(expectedFingerprint, ignoreCase = true)) {
-//                            throw CertificateException("Certificate fingerprint mismatch: expected=$expectedFingerprint, actual=$fingerprint")
-//                        }
-                    }
-                    override fun getAcceptedIssuers(): Array<X509Certificate> = emptyArray()
-                }
-                sslContext.init(null, arrayOf(trustManager), null)
-                sslEngine.useClientMode = true
-                sslEngine.enabledProtocols = arrayOf("TLSv1.2", "TLSv1.3")
-                sslEngine.enabledCipherSuites = arrayOf(
-                    "TLS_AES_128_GCM_SHA256",
-                    "TLS_AES_256_GCM_SHA384",
-                    "TLS_CHACHA20_POLY1305_SHA256",
-                    "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384",
-                    "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
-                    "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384",
-                    "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256",
-                    "TLS_RSA_WITH_AES_256_GCM_SHA384",
-                    "TLS_RSA_WITH_AES_128_GCM_SHA256",
-                    "TLS_RSA_WITH_AES_256_CBC_SHA",
-                    "TLS_RSA_WITH_AES_128_CBC_SHA"
-                )
-                sslEngine.beginHandshake()
-                Log.d(TAG, "SSLEngine initialized with protocols: ${sslEngine.enabledProtocols.joinToString()}")
-                Log.d(TAG, "SSLEngine initialized with cipher suites: ${sslEngine.enabledCipherSuites.joinToString()}")
-
-// Step 4: Perform TLS handshake with timeout
-                var appBuffer = ByteBuffer.allocate(sslEngine.session.applicationBufferSize)
-                var packetBuffer = ByteBuffer.allocate(sslEngine.session.packetBufferSize * 2) // ~66KB
-                var accumulatedData = ByteBuffer.allocate(1048576) // 1MB
-                val handshakeTimeoutMs = 10000L // 10 seconds
-                var lastStatus: SSLEngineResult.Status? = null
-                var accumulatedBytes = 0
-                var readRetries = 0
-                val maxReadRetries = 10
-
-                withTimeoutOrNull(handshakeTimeoutMs) {
-                    while (sslEngine.handshakeStatus != SSLEngineResult.HandshakeStatus.FINISHED &&
-                        sslEngine.handshakeStatus != SSLEngineResult.HandshakeStatus.NOT_HANDSHAKING) {
-                        Log.d(TAG, "Handshake loop iteration, status=${sslEngine.handshakeStatus}")
-                        when (sslEngine.handshakeStatus) {
-                            SSLEngineResult.HandshakeStatus.NEED_WRAP -> {
-                                Log.d(TAG, "Entering NEED_WRAP state at ${System.currentTimeMillis()}")
-                                packetBuffer.clear()
-                                var result: SSLEngineResult
-                                try {
-                                    result = sslEngine.wrap(appBuffer, packetBuffer)
-                                } catch (e: SSLException) {
-                                    if (e.message?.contains("buffer overflow") == true) {
-                                        Log.w(TAG, "Buffer overflow during wrap, increasing packetBuffer size")
-                                        packetBuffer = ByteBuffer.allocate(packetBuffer.capacity() * 2)
-                                        packetBuffer.clear()
-                                        result = sslEngine.wrap(appBuffer, packetBuffer)
-                                    } else {
-                                        throw e
-                                    }
-                                }
-                                Log.d(TAG, "Wrap result: status=${result.status}, bytesProduced=${result.bytesProduced()}, handshakeStatus=${result.handshakeStatus}")
-                                packetBuffer.flip()
-                                if (result.bytesProduced() > 0) {
-                                    // Write in smaller chunks to avoid write channel overflow
-                                    var chunkSize = 4096 // Start with 4KB chunks
-                                    while (packetBuffer.hasRemaining()) {
-                                        val currentChunkSize = minOf(packetBuffer.remaining(), chunkSize)
-                                        val chunk = ByteArray(currentChunkSize)
-                                        packetBuffer.get(chunk)
-                                        try {
-                                            writer?.write { buffer ->
-                                                buffer.put(chunk)
-                                                buffer.remaining()
-                                            }
-                                            writer?.flush()
-                                            Log.d(TAG, "Sent TLS handshake data chunk: $currentChunkSize bytes")
-                                        } catch (e: Exception) {
-                                            if (e is BufferOverflowException && chunkSize > 1024) {
-                                                Log.w(TAG, "Write buffer overflow, reducing chunk size to ${chunkSize / 2}")
-                                                chunkSize /= 2
-                                                packetBuffer.position(packetBuffer.position() - currentChunkSize) // Rewind
-                                                continue
-                                            }
-                                            throw e
-                                        }
-                                    }
-                                    Log.d(TAG, "Sent TLS handshake data: ${result.bytesProduced()} bytes total")
-                                }
-                                lastStatus = result.status
-                                if (result.status == SSLEngineResult.Status.BUFFER_OVERFLOW) {
-                                    Log.w(TAG, "Buffer overflow during wrap, increasing packetBuffer size")
-                                    packetBuffer = ByteBuffer.allocate(packetBuffer.capacity() * 2)
-                                    continue // Retry wrap
-                                } else if (result.status == SSLEngineResult.Status.CLOSED) {
-                                    Log.e(TAG, "SSLEngine closed during wrap")
-                                    closeInternal()
-                                    return@withTimeoutOrNull false
-                                }
-                            }
-                            SSLEngineResult.HandshakeStatus.NEED_UNWRAP -> {
-                                // Process all available data in accumulatedData
-                                var unwrapAttempts = 0
-                                val maxUnwrapAttempts = 200
-                                while (accumulatedData.position() > 0 && unwrapAttempts < maxUnwrapAttempts) {
-                                    accumulatedData.flip() // Prepare to read
-                                    appBuffer.clear()
-                                    try {
-                                        val result = sslEngine.unwrap(accumulatedData, appBuffer)
-                                        accumulatedData.compact() // Remove consumed bytes
-                                        Log.d(TAG, "Unwrap attempt $unwrapAttempts: status=${result.status}, bytesConsumed=${result.bytesConsumed()}, bytesProduced=${result.bytesProduced()}, handshakeStatus=${result.handshakeStatus}")
-                                        lastStatus = result.status
-                                        accumulatedBytes -= result.bytesConsumed()
-                                        Log.d(TAG, "Consumed ${result.bytesConsumed()} bytes, remaining: $accumulatedBytes")
-                                        if (result.status == SSLEngineResult.Status.BUFFER_UNDERFLOW) {
-                                            Log.d(TAG, "Buffer underflow, exiting unwrap loop to read more data")
-                                            break
-                                        } else if (result.status == SSLEngineResult.Status.BUFFER_OVERFLOW) {
-                                            Log.w(TAG, "Buffer overflow during unwrap, increasing appBuffer size")
-                                            appBuffer = ByteBuffer.allocate(appBuffer.capacity() * 2)
-                                        } else if (result.status == SSLEngineResult.Status.CLOSED) {
-                                            Log.e(TAG, "SSLEngine closed during unwrap, accumulated bytes: $accumulatedBytes")
-                                            closeInternal()
-                                            return@withTimeoutOrNull false
-                                        }
-                                        // Exit unwrap loop if status changes (e.g., to NEED_WRAP)
-                                        if (sslEngine.handshakeStatus != SSLEngineResult.HandshakeStatus.NEED_UNWRAP) {
-                                            Log.d(TAG, "Handshake status changed to ${sslEngine.handshakeStatus}, exiting unwrap loop")
-                                            break
-                                        }
-                                    } catch (e: SSLException) {
-                                        Log.e(TAG, "SSLException during unwrap: ${e.message}, accumulated bytes: $accumulatedBytes", e)
-                                        closeInternal()
-                                        return@withTimeoutOrNull false
-                                    }
-                                    unwrapAttempts++
-                                }
-
-                                // Only read from network if still in NEED_UNWRAP and no data remains
-                                if (sslEngine.handshakeStatus == SSLEngineResult.HandshakeStatus.NEED_UNWRAP &&
-                                    accumulatedData.position() == 0) {
-                                    val buffer = ByteArray(65536)
-                                    bytesRead = reader?.readAvailable(buffer) ?: -1
-                                    Log.d(TAG, "Read attempt: bytesRead=$bytesRead, retry=$readRetries")
-                                    if (bytesRead > 0) {
-                                        accumulatedBytes += bytesRead
-                                        readRetries = 0
-                                        if (accumulatedData.remaining() < bytesRead) {
-                                            Log.w(TAG, "Accumulated data buffer overflow, increasing size")
-                                            val newBuffer = ByteBuffer.allocate(accumulatedData.capacity() * 2)
-                                            accumulatedData.flip()
-                                            newBuffer.put(accumulatedData)
-                                            accumulatedData = newBuffer
-                                        }
-                                        accumulatedData.put(buffer, 0, bytesRead)
-                                        // Log TLS record details
-                                        var offset = 0
-                                        while (offset + 5 <= bytesRead) {
-                                            val contentType = buffer[offset].toInt() and 0xFF
-                                            val majorVersion = buffer[offset + 1].toInt() and 0xFF
-                                            val minorVersion = buffer[offset + 2].toInt() and 0xFF
-                                            val length = ((buffer[offset + 3].toInt() and 0xFF) shl 8) or (buffer[offset + 4].toInt() and 0xFF)
-                                            Log.d(TAG, "TLS record at offset $offset: type=$contentType, version=$majorVersion.$minorVersion, length=$length")
-                                            if (contentType == 22 && offset + 6 <= bytesRead) {
-                                                val handshakeType = buffer[offset + 5].toInt() and 0xFF
-                                                val handshakeTypeName = when (handshakeType) {
-                                                    2 -> "ServerHello"
-                                                    11 -> "Certificate"
-                                                    12 -> "ServerKeyExchange"
-                                                    13 -> "CertificateRequest"
-                                                    14 -> "ServerHelloDone"
-                                                    20 -> "Finished"
-                                                    else -> "Unknown ($handshakeType)"
-                                                }
-                                                Log.d(TAG, "Handshake message at offset $offset: $handshakeTypeName")
-                                            } else if (contentType == 21 && offset + 7 <= bytesRead) {
-                                                val alertLevel = buffer[offset + 5].toInt() and 0xFF
-                                                val alertDescription = buffer[offset + 6].toInt() and 0xFF
-                                                Log.e(TAG, "TLS alert: level=$alertLevel, description=$alertDescription")
-                                                closeInternal()
-                                                return@withTimeoutOrNull false
-                                            }
-                                            offset += 5 + length
-                                        }
-                                        val hexBytes = buffer.copyOfRange(0, bytesRead.coerceAtMost(256)).joinToString(", ") { byte -> "0x${byte.toUByte().toString(16).padStart(2, '0')}" }
-                                        Log.d(TAG, "Received raw bytes: $hexBytes${if (bytesRead > 256) " ... (truncated, total $bytesRead bytes)" else ""}, total accumulated: $accumulatedBytes")
-                                    } else if (bytesRead == -1) {
-                                        Log.e(TAG, "Socket closed by server, last status: $lastStatus, accumulated bytes: $accumulatedBytes")
-                                        closeInternal()
-                                        return@withTimeoutOrNull false
-                                    } else {
-                                        readRetries++
-                                        if (readRetries >= maxReadRetries) {
-                                            Log.e(TAG, "Max read retries reached, accumulated bytes: $accumulatedBytes")
-                                            closeInternal()
-                                            return@withTimeoutOrNull false
-                                        }
-                                        Log.d(TAG, "No new data, retrying ($readRetries/$maxReadRetries)...")
-                                        delay(50)
-                                    }
-                                }
-                            }
-                            SSLEngineResult.HandshakeStatus.NEED_TASK -> {
-                                var task: Runnable?
-                                while (sslEngine.delegatedTask.also { task = it } != null) {
-                                    task!!.run()
-                                    Log.d(TAG, "Ran delegated TLS task")
-                                }
-                            }
-                            else -> {
-                                Log.d(TAG, "Handshake status: ${sslEngine.handshakeStatus}")
-                            }
-                        }
-                    }
-                    Log.d(TAG, "TLS handshake completed: protocol=${sslEngine.session.protocol}, cipherSuite=${sslEngine.session.cipherSuite}")
-                    true
-                } ?: run {
-                    Log.e(TAG, "TLS handshake timed out after $handshakeTimeoutMs ms, last status: $lastStatus, accumulated bytes: $accumulatedBytes")
-                    closeInternal()
-                    return@withContext false
-                }
-
-                // Step 5: Verify SSLEngine state before sending restarted stream
-                if (sslEngine.handshakeStatus != SSLEngineResult.HandshakeStatus.FINISHED &&
-                    sslEngine.handshakeStatus != SSLEngineResult.HandshakeStatus.NOT_HANDSHAKING) {
-                    Log.e(TAG, "SSLEngine not in valid state for encryption: ${sslEngine.handshakeStatus}")
-                    closeInternal()
-                    return@withContext false
-                }
-
-                // Step 6: Send restarted XMPP stream
-                val restartedStream = """
-                    <stream:stream xmlns='jabber:client' xmlns:stream='http://etherx.jabber.org/streams' version='1.0' to='$host'>
-                """.trimIndent()
-                appBuffer.clear()
-                appBuffer.put(restartedStream.toByteArray())
-                appBuffer.flip()
-                packetBuffer.clear()
-                val wrapResult = sslEngine.wrap(appBuffer, packetBuffer)
-                Log.d(TAG, "Wrap stream result: status=${wrapResult.status}, bytesProduced=${wrapResult.bytesProduced()}")
-                packetBuffer.flip()
-                if (wrapResult.bytesProduced() > 0 && wrapResult.status == SSLEngineResult.Status.OK) {
-                    writer?.write { buffer ->
-                        buffer.put(packetBuffer)
-                        buffer.remaining()
-                    }
-                    writer?.flush()
-                    Log.d(TAG, "Sent restarted XMPP stream: $restartedStream")
-                } else {
-                    Log.e(TAG, "Failed to wrap XMPP stream: status=${wrapResult.status}, bytesProduced=${wrapResult.bytesProduced()}")
-                    closeInternal()
-                    return@withContext false
-                }
-
-                // Step 7: Read encrypted response
-                packetBuffer.clear()
-                bytesRead = reader?.readAvailable(buffer) ?: -1
-                if (bytesRead > 0) {
-                    Log.d(TAG, "Received raw TLS response bytes: ${buffer.copyOfRange(0, bytesRead.coerceAtMost(256)).joinToString(", ")}")
-                    packetBuffer.put(buffer, 0, bytesRead)
-                    packetBuffer.flip()
-                    appBuffer.clear()
-                    val unwrapResult = sslEngine.unwrap(packetBuffer, appBuffer)
-                    Log.d(TAG, "Unwrap response result: status=${unwrapResult.status}, bytesProduced=${unwrapResult.bytesProduced()}")
-                    if (unwrapResult.bytesProduced() > 0) {
-                        appBuffer.flip()
-                        val response = ByteArray(appBuffer.remaining())
-                        appBuffer.get(response)
-                        val tlsResponse = String(response)
-                        Log.d(TAG, "TLS response: $tlsResponse")
-                        messageCallback?.invoke(tlsResponse)
-                    } else {
-                        Log.e(TAG, "No application data in TLS response: ${unwrapResult.status}")
-                        closeInternal()
-                        return@withContext false
-                    }
-                } else {
-                    Log.e(TAG, "No TLS response received")
-                    closeInternal()
-                    return@withContext false
-                }
-
-                // Step 8: Start read loop
-                scope.launch { startReadLoop() }
-                Log.d(TAG, "Connection established and read loop started")
+                startReadingLoop()
+                Log.d(TAG, "TCP connection established and read loop started")
                 return@withContext true
             } catch (e: Exception) {
                 Log.e(TAG, "Error during connection attempt $attempts: ${e.message}", e)
@@ -527,248 +139,410 @@ class Socket(private val host: String, private val port: Int) {
         return@withContext false
     }
 
-
-    @RequiresApi(Build.VERSION_CODES.O)
-    suspend fun authenticatePlain(username: String, password: String, domain: String): Boolean = withContext(Dispatchers.IO) {
-        try {
-            // Step 1: Verify server supports PLAIN mechanism
-            val streamResponse = readServerResponse(this@Socket)
-            if (streamResponse?.features?.mechanisms?.mechanism?.contains("PLAIN") != true) {
-                Log.e(TAG, "PLAIN SASL mechanism not supported by server")
-                return@withContext false
-            }
-            Log.d(TAG, "PLAIN SASL mechanism supported, proceeding with authentication")
-
-            // Step 2: Construct PLAIN SASL auth payload
-            // PLAIN format: [authzid]\0authcid\0password
-            // authzid is optional, so we use username@domain as authcid
-            val authcid = "$username@$domain"
-            val plainPayload = "\u0000$authcid\u0000$password"
-            val encodedPayload = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                java.util.Base64.getEncoder().encodeToString(plainPayload.toByteArray(StandardCharsets.UTF_8))
-            } else {
-                TODO("VERSION.SDK_INT < O")
-            }
-            val authStanza = """
-                <auth xmlns='urn:ietf:params:xml:ns:xmpp-sasl' mechanism='PLAIN'>$encodedPayload</auth>
-            """.trimIndent()
-            Log.d(TAG, "Sending PLAIN auth stanza (payload obscured for security)")
-
-            // Step 3: Encrypt and send auth stanza
-            if (!writeEncrypted(authStanza)) {
-                Log.e(TAG, "Failed to send PLAIN auth stanza")
-                return@withContext false
-            }
-
-            // Step 4: Read and process server response
-            val response = readEncrypted()
-            if (response == null) {
-                Log.e(TAG, "No response received for PLAIN auth")
-                return@withContext false
-            }
-            Log.d(TAG, "Received auth response: $response")
-
-            when {
-                response.contains("<success xmlns='urn:ietf:params:xml:ns:xmpp-sasl'>") -> {
-                    Log.d(TAG, "PLAIN SASL authentication successful")
-                    // Restart the XMPP stream after successful SASL auth
-                    val restartedStream = """
-                        <stream:stream xmlns='jabber:client' xmlns:stream='http://etherx.jabber.org/streams' version='1.0' to='$domain'>
-                    """.trimIndent()
-                    if (!writeEncrypted(restartedStream)) {
-                        Log.e(TAG, "Failed to send restarted XMPP stream after auth")
-                        return@withContext false
-                    }
-                    Log.d(TAG, "Sent restarted XMPP stream after auth")
-                    scope.launch { startReadLoop() } // Restart read loop
-                    true
-                }
-                response.contains("<failure xmlns='urn:ietf:params:xml:ns:xmpp-sasl'>") -> {
-                    Log.e(TAG, "PLAIN SASL authentication failed: $response")
-                    false
-                }
-                else -> {
-                    Log.e(TAG, "Unexpected response to PLAIN auth: $response")
-                    false
+    private fun startReadingLoop() {
+        if (isReadingLoopActive) {
+            Log.d(TAG, "Reading loop already active, skipping start")
+            return
+        }
+        isReadingLoopActive = true
+        scope.launch {
+            try {
+                startReadLoop()
+            } catch (e: Exception) {
+                Log.e(TAG, "Reading loop failed: ${e.message}", e)
+            } finally {
+                isReadingLoopActive = false
+                Log.d(TAG, "Reading loop coroutine terminated")
+                // Attempt to restart only if socket is still valid
+                if (socket?.isClosed == false && reader?.isClosedForRead == false) {
+                    Log.d(TAG, "Restarting reading loop due to unexpected termination")
+                    delay(100)
+                    startReadingLoop()
                 }
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error during PLAIN SASL authentication: ${e.message}", e)
-            false
         }
     }
-    private suspend fun writeEncrypted(message: String): Boolean = withContext(Dispatchers.IO) {
+
+    suspend fun initiateStartTls(): Boolean = withContext(Dispatchers.IO) {
         try {
-            val sslEngine = sslEngine ?: run {
-                Log.e(TAG, "SSLEngine is null, cannot write encrypted data")
-                return@withContext false
-            }
-            val appBuffer = appBuffer ?: ByteBuffer.allocate(sslEngine.session.applicationBufferSize)
-            val packetBuffer = packetBuffer ?: ByteBuffer.allocate(sslEngine.session.packetBufferSize * 2)
-
-            appBuffer.clear()
-            appBuffer.put(message.toByteArray(StandardCharsets.UTF_8))
-            appBuffer.flip()
-            packetBuffer.clear()
-
-            val wrapResult = sslEngine.wrap(appBuffer, packetBuffer)
-            Log.d(TAG, "Wrap message result: status=${wrapResult.status}, bytesProduced=${wrapResult.bytesProduced()}")
-
-            if (wrapResult.status != SSLEngineResult.Status.OK || wrapResult.bytesProduced() == 0) {
-                Log.e(TAG, "Failed to wrap message: status=${wrapResult.status}")
-                return@withContext false
-            }
-
-            packetBuffer.flip()
-            writer?.write { buffer ->
-                buffer.put(packetBuffer)
-                buffer.remaining()
-            }
+            writer?.writeStringUtf8("<starttls xmlns='urn:ietf:params:xml:ns:xmpp-tls'/>")
             writer?.flush()
-            Log.d(TAG, "Sent encrypted message: $message")
-            true
+            Log.d(TAG, "Sent STARTTLS command")
+
+            val proceed = withTimeoutOrNull(30000) {
+                proceedChannel.receive()
+            }
+            if (proceed == null || !proceed.contains("<proceed")) {
+                Log.e(TAG, "Failed to receive <proceed> within 30 seconds or invalid response: $proceed")
+                closeInternal()
+                return@withContext false
+            }
+            Log.d(TAG, "STARTTLS negotiation successful, received <proceed>")
+            return@withContext true
         } catch (e: Exception) {
-            Log.e(TAG, "Error writing encrypted message: ${e.message}", e)
-            false
+            Log.e(TAG, "Error during STARTTLS initiation: ${e.message}", e)
+            closeInternal()
+            return@withContext false
         }
     }
 
-    // Helper method to read and decrypt data using SSLEngine
-    private suspend fun readEncrypted(timeoutMs: Long = 30000): String? = withContext(Dispatchers.IO) {
+    suspend fun upgradeToTls(): Boolean = withContext(Dispatchers.IO) {
         try {
-            val sslEngine = sslEngine ?: run {
-                Log.e(TAG, "SSLEngine is null, cannot read encrypted data")
-                return@withContext null
-            }
-            var appBuffer = appBuffer ?: ByteBuffer.allocate(sslEngine.session.applicationBufferSize)
-            val packetBuffer = packetBuffer ?: ByteBuffer.allocate(sslEngine.session.packetBufferSize * 2)
-            val accumulatedData = accumulatedData ?: ByteBuffer.allocate(1048576)
-
-            val startTime = System.currentTimeMillis()
-            while (System.currentTimeMillis() - startTime < timeoutMs) {
-                val buffer = ByteArray(65536)
-                val bytesRead = reader?.readAvailable(buffer) ?: -1
-                Log.d(TAG, "Read attempt: bytesRead=$bytesRead")
-
-                if (bytesRead == -1) {
-                    Log.w(TAG, "Socket closed by server")
-                    return@withContext null
-                } else if (bytesRead > 0) {
-                    accumulatedData.put(buffer, 0, bytesRead)
-                    Log.d(TAG, "Received raw bytes: ${buffer.copyOfRange(0, bytesRead.coerceAtMost(256)).joinToString(", ")}")
-
-                    // Process accumulated data
-                    accumulatedData.flip()
-                    appBuffer.clear()
-                    val unwrapResult = sslEngine.unwrap(accumulatedData, appBuffer)
-                    accumulatedData.compact()
-
-                    Log.d(TAG, "Unwrap result: status=${unwrapResult.status}, bytesProduced=${unwrapResult.bytesProduced()}")
-
-                    if (unwrapResult.status == SSLEngineResult.Status.BUFFER_UNDERFLOW) {
-                        Log.d(TAG, "Buffer underflow, need more data")
-                        continue
-                    } else if (unwrapResult.status == SSLEngineResult.Status.BUFFER_OVERFLOW) {
-                        Log.w(TAG, "Buffer overflow, increasing appBuffer size")
-                        appBuffer = ByteBuffer.allocate(appBuffer.capacity() * 2)
-                        this@Socket.appBuffer = appBuffer
-                        continue
-                    } else if (unwrapResult.status == SSLEngineResult.Status.CLOSED) {
-                        Log.e(TAG, "SSLEngine closed during read")
-                        closeInternal()
-                        return@withContext null
+            tlsHandshaking = true
+            val expectedFingerprint = "dab1d6bc9c8c825aa9fd266aee12ea562de40817a75fb81b79b50ad939a21f28"
+            val trustManager = object : X509TrustManager {
+                override fun checkClientTrusted(chain: Array<out X509Certificate>?, authType: String?) {}
+                override fun checkServerTrusted(chain: Array<out X509Certificate>?, authType: String?) {
+                    if (chain == null || chain.isEmpty()) {
+                        throw CertificateException("No server certificate provided")
                     }
+                    val serverCert = chain[0]
+                    val sha256 = MessageDigest.getInstance("SHA-256")
+                    val fingerprint = sha256.digest(serverCert.encoded).joinToString("") { "%02x".format(it) }
+                    Log.d(TAG, "Server certificate fingerprint: $fingerprint")
+                }
+                override fun getAcceptedIssuers(): Array<X509Certificate> = emptyArray()
+            }
+            sslContext.init(null, arrayOf(trustManager), SecureRandom())
+            sslEngine = sslContext.createSSLEngine(host, port)
+            appBuffer = ByteBuffer.allocate(sslEngine.session.applicationBufferSize)
+            packetBuffer = ByteBuffer.allocate(sslEngine.session.packetBufferSize * 2)
+            accumulatedData = ByteBuffer.allocate(1048576)
 
-                    if (unwrapResult.bytesProduced() > 0) {
-                        appBuffer.flip()
-                        val response = ByteArray(appBuffer.remaining())
-                        appBuffer.get(response)
-                        val result = String(response, StandardCharsets.UTF_8)
-                        Log.d(TAG, "Decrypted response: $result")
+            sslEngine.useClientMode = true
+            sslEngine.enabledProtocols = arrayOf("TLSv1.2", "TLSv1.3")
+            val preferredCipherSuites = listOf(
+                "TLS_AES_128_GCM_SHA256",
+                "TLS_AES_256_GCM_SHA384",
+                "TLS_CHACHA20_POLY1305_SHA256",
+                "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
+                "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384",
+                "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256",
+                "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384"
+            )
+            val supportedCipherSuites = sslEngine.supportedCipherSuites.toList()
+            val enabledCipherSuites = preferredCipherSuites.filter { it in supportedCipherSuites }.toTypedArray()
+            if (enabledCipherSuites.isEmpty()) {
+                Log.e(TAG, "No supported cipher suites available")
+                closeInternal()
+                return@withContext false
+            }
+            sslEngine.enabledCipherSuites = enabledCipherSuites
+            Log.d(TAG, "SSLEngine initialized with protocols: ${sslEngine.enabledProtocols.joinToString()}")
+            Log.d(TAG, "SSLEngine initialized with cipher suites: ${enabledCipherSuites.joinToString()}")
 
-                        if (result.contains("</success>") || result.contains("</failure>") ||
-                            result.contains("</stream:features>") || result.contains("</stream:stream>")) {
-                            return@withContext result
+            sslEngine.beginHandshake()
+            Log.d(TAG, "TLS initialization completed")
+
+            val handshakeTimeoutMs = 10000L
+            var lastStatus: SSLEngineResult.Status? = null
+            var accumulatedBytes = 0
+            var readRetries = 0
+            val maxReadRetries = 10
+
+            withTimeoutOrNull(handshakeTimeoutMs) {
+                while (sslEngine.handshakeStatus != SSLEngineResult.HandshakeStatus.FINISHED &&
+                    sslEngine.handshakeStatus != SSLEngineResult.HandshakeStatus.NOT_HANDSHAKING) {
+                    Log.d(TAG, "Handshake loop iteration, status=${sslEngine.handshakeStatus}")
+                    when (sslEngine.handshakeStatus) {
+                        SSLEngineResult.HandshakeStatus.NEED_WRAP -> {
+                            Log.d(TAG, "Entering NEED_WRAP state at ${System.currentTimeMillis()}")
+                            packetBuffer.clear()
+                            var result: SSLEngineResult
+                            try {
+                                result = sslEngine.wrap(appBuffer, packetBuffer)
+                            } catch (e: SSLException) {
+                                if (e.message?.contains("buffer overflow") == true) {
+                                    Log.w(TAG, "Buffer overflow during wrap, increasing packetBuffer size")
+                                    packetBuffer = ByteBuffer.allocate(packetBuffer.capacity() * 2)
+                                    packetBuffer.clear()
+                                    result = sslEngine.wrap(appBuffer, packetBuffer)
+                                } else {
+                                    throw e
+                                }
+                            }
+                            Log.d(TAG, "Wrap result: status=${result.status}, bytesProduced=${result.bytesProduced()}, handshakeStatus=${result.handshakeStatus}")
+                            packetBuffer.flip()
+                            if (result.bytesProduced() > 0) {
+                                var chunkSize = 4096
+                                while (packetBuffer.hasRemaining()) {
+                                    val currentChunkSize = minOf(packetBuffer.remaining(), chunkSize)
+                                    val chunk = ByteArray(currentChunkSize)
+                                    packetBuffer.get(chunk)
+                                    try {
+                                        writer?.write { buffer ->
+                                            buffer.put(chunk)
+                                            buffer.remaining()
+                                        }
+                                        writer?.flush()
+                                        Log.d(TAG, "Sent TLS handshake data chunk: $currentChunkSize bytes")
+                                    } catch (e: Exception) {
+                                        if (e is BufferOverflowException && chunkSize > 1024) {
+                                            Log.w(TAG, "Write buffer overflow, reducing chunk size to ${chunkSize / 2}")
+                                            chunkSize /= 2
+                                            packetBuffer.position(packetBuffer.position() - currentChunkSize)
+                                            continue
+                                        }
+                                        throw e
+                                    }
+                                }
+                                Log.d(TAG, "Sent TLS handshake data: ${result.bytesProduced()} bytes total")
+                            }
+                            lastStatus = result.status
+                            if (result.status == SSLEngineResult.Status.BUFFER_OVERFLOW) {
+                                Log.w(TAG, "Buffer overflow during wrap, increasing packetBuffer size")
+                                packetBuffer = ByteBuffer.allocate(packetBuffer.capacity() * 2)
+                                continue
+                            } else if (result.status == SSLEngineResult.Status.CLOSED) {
+                                Log.e(TAG, "SSLEngine closed during wrap")
+                                closeInternal()
+                                return@withTimeoutOrNull false
+                            }
+                        }
+                        SSLEngineResult.HandshakeStatus.NEED_UNWRAP -> {
+                            var unwrapAttempts = 0
+                            val maxUnwrapAttempts = 200
+                            while (accumulatedData.position() > 0 && unwrapAttempts < maxUnwrapAttempts) {
+                                accumulatedData.flip()
+                                appBuffer.clear()
+                                try {
+                                    val result = sslEngine.unwrap(accumulatedData, appBuffer)
+                                    accumulatedData.compact()
+                                    Log.d(TAG, "Unwrap attempt $unwrapAttempts: status=${result.status}, bytesConsumed=${result.bytesConsumed()}, bytesProduced=${result.bytesProduced()}, handshakeStatus=${result.handshakeStatus}")
+                                    lastStatus = result.status
+                                    accumulatedBytes -= result.bytesConsumed()
+                                    Log.d(TAG, "Consumed ${result.bytesConsumed()} bytes, remaining: $accumulatedBytes")
+                                    if (result.status == SSLEngineResult.Status.BUFFER_UNDERFLOW) {
+                                        Log.d(TAG, "Buffer underflow, exiting unwrap loop to read more data")
+                                        break
+                                    } else if (result.status == SSLEngineResult.Status.BUFFER_OVERFLOW) {
+                                        Log.w(TAG, "Buffer overflow during unwrap, increasing appBuffer size")
+                                        appBuffer = ByteBuffer.allocate(appBuffer.capacity() * 2)
+                                    } else if (result.status == SSLEngineResult.Status.CLOSED) {
+                                        Log.e(TAG, "SSLEngine closed during unwrap, accumulated bytes: $accumulatedBytes")
+                                        closeInternal()
+                                        return@withTimeoutOrNull false
+                                    }
+                                    if (sslEngine.handshakeStatus != SSLEngineResult.HandshakeStatus.NEED_UNWRAP) {
+                                        Log.d(TAG, "Handshake status changed to ${sslEngine.handshakeStatus}, exiting unwrap loop")
+                                        break
+                                    }
+                                } catch (e: SSLException) {
+                                    Log.e(TAG, "SSLException during unwrap: ${e.message}, accumulated bytes: $accumulatedBytes", e)
+                                    closeInternal()
+                                    return@withTimeoutOrNull false
+                                }
+                                unwrapAttempts++
+                            }
+
+                            if (sslEngine.handshakeStatus == SSLEngineResult.HandshakeStatus.NEED_UNWRAP &&
+                                accumulatedData.position() == 0) {
+                                Log.d(TAG, "Waiting for TLS data from channel, retry=$readRetries")
+                                val bytes = withTimeoutOrNull(2000) {
+                                    tlsDataChannel.receive()
+                                }
+                                Log.d(TAG, "Read attempt: bytesRead=${bytes?.size ?: -1}, retry=$readRetries")
+                                if (bytes != null) {
+                                    accumulatedBytes += bytes.size
+                                    readRetries = 0
+                                    if (accumulatedData.remaining() < bytes.size) {
+                                        Log.w(TAG, "Accumulated data buffer overflow, increasing size")
+                                        val newBuffer = ByteBuffer.allocate(accumulatedData.capacity() * 2)
+                                        accumulatedData.flip()
+                                        newBuffer.put(accumulatedData)
+                                        accumulatedData = newBuffer
+                                    }
+                                    accumulatedData.put(bytes)
+                                    var offset = 0
+                                    while (offset + 5 <= bytes.size) {
+                                        val contentType = bytes[offset].toInt() and 0xFF
+                                        val majorVersion = bytes[offset + 1].toInt() and 0xFF
+                                        val minorVersion = bytes[offset + 2].toInt() and 0xFF
+                                        val length = ((bytes[offset + 3].toInt() and 0xFF) shl 8) or (bytes[offset + 4].toInt() and 0xFF)
+                                        Log.d(TAG, "TLS record at offset $offset: type=$contentType, version=$majorVersion.$minorVersion, length=$length")
+                                        if (contentType == 22 && offset + 6 <= bytes.size) {
+                                            val handshakeType = bytes[offset + 5].toInt() and 0xFF
+                                            val handshakeTypeName = when (handshakeType) {
+                                                2 -> "ServerHello"
+                                                11 -> "Certificate"
+                                                12 -> "ServerKeyExchange"
+                                                13 -> "CertificateRequest"
+                                                14 -> "ServerHelloDone"
+                                                20 -> "Finished"
+                                                else -> "Unknown ($handshakeType)"
+                                            }
+                                            Log.d(TAG, "Handshake message at offset $offset: $handshakeTypeName")
+                                        } else if (contentType == 21 && offset + 7 <= bytes.size) {
+                                            val alertLevel = bytes[offset + 5].toInt() and 0xFF
+                                            val alertDescription = bytes[offset + 6].toInt() and 0xFF
+                                            Log.e(TAG, "TLS alert: level=$alertLevel, description=$alertDescription")
+                                            closeInternal()
+                                            return@withTimeoutOrNull false
+                                        }
+                                        offset += 5 + length
+                                    }
+                                    val hexBytes = bytes.copyOfRange(0, bytes.size.coerceAtMost(256)).joinToString(", ") { byte -> "0x${byte.toUByte().toString(16).padStart(2, '0')}" }
+                                    Log.d(TAG, "Received raw bytes: $hexBytes${if (bytes.size > 256) " ... (truncated, total ${bytes.size} bytes)" else ""}, total accumulated: $accumulatedBytes")
+                                } else {
+                                    readRetries++
+                                    if (readRetries >= maxReadRetries) {
+                                        Log.e(TAG, "Max read retries reached, accumulated bytes: $accumulatedBytes")
+                                        closeInternal()
+                                        return@withTimeoutOrNull false
+                                    }
+                                    Log.d(TAG, "No new data, retrying ($readRetries/$maxReadRetries)...")
+                                    delay(50)
+                                }
+                            }
+                        }
+                        SSLEngineResult.HandshakeStatus.NEED_TASK -> {
+                            var task: Runnable?
+                            while (sslEngine.delegatedTask.also { task = it } != null) {
+                                task!!.run()
+                                Log.d(TAG, "Ran delegated TLS task")
+                            }
+                        }
+                        else -> {
+                            Log.d(TAG, "Handshake status: ${sslEngine.handshakeStatus}")
                         }
                     }
                 }
-                delay(10)
+                Log.d(TAG, "TLS handshake completed: protocol=${sslEngine.session.protocol}, cipherSuite=${sslEngine.session.cipherSuite}")
+                true
+            } ?: run {
+                Log.e(TAG, "TLS handshake timed out after $handshakeTimeoutMs ms, last status: $lastStatus, accumulated bytes: $accumulatedBytes")
+                closeInternal()
+                return@withContext false
             }
-            Log.w(TAG, "No complete message received within $timeoutMs ms")
-            null
+
+            if (sslEngine.handshakeStatus != SSLEngineResult.HandshakeStatus.FINISHED &&
+                sslEngine.handshakeStatus != SSLEngineResult.HandshakeStatus.NOT_HANDSHAKING) {
+                Log.e(TAG, "SSLEngine not in valid state for encryption: ${sslEngine.handshakeStatus}")
+                closeInternal()
+                return@withContext false
+            }
+
+            val restartedStream = """
+                <stream:stream xmlns='jabber:client' xmlns:stream='http://etherx.jabber.org/streams' version='1.0' to='$host'>
+            """.trimIndent()
+            appBuffer.clear()
+            appBuffer.put(restartedStream.toByteArray())
+            appBuffer.flip()
+            packetBuffer.clear()
+            val wrapResult = sslEngine.wrap(appBuffer, packetBuffer)
+            Log.d(TAG, "Wrap stream result: status=${wrapResult.status}, bytesProduced=${wrapResult.bytesProduced()}")
+            packetBuffer.flip()
+            if (wrapResult.bytesProduced() > 0 && wrapResult.status == SSLEngineResult.Status.OK) {
+                writer?.write { buffer ->
+                    buffer.put(packetBuffer)
+                    buffer.remaining()
+                }
+                writer?.flush()
+                Log.d(TAG, "Sent restarted XMPP stream: $restartedStream")
+            } else {
+                Log.e(TAG, "Failed to wrap XMPP stream: status=${wrapResult.status}, bytesProduced=${wrapResult.bytesProduced()}")
+                closeInternal()
+                return@withContext false
+            }
+
+            packetBuffer.clear()
+            Log.d(TAG, "Waiting for TLS stream response")
+            val bytes = withTimeoutOrNull(2000) {
+                tlsDataChannel.receive()
+            }
+            if (bytes != null) {
+                Log.d(TAG, "Received raw TLS response bytes: ${bytes.copyOfRange(0, bytes.size.coerceAtMost(256)).joinToString(", ")}")
+                packetBuffer.put(bytes)
+                packetBuffer.flip()
+                appBuffer.clear()
+                val unwrapResult = sslEngine.unwrap(packetBuffer, appBuffer)
+                Log.d(TAG, "Unwrap response result: status=${unwrapResult.status}, bytesProduced=${unwrapResult.bytesProduced()}")
+                if (unwrapResult.bytesProduced() > 0) {
+                    appBuffer.flip()
+                    val response = ByteArray(appBuffer.remaining())
+                    appBuffer.get(response)
+                    val tlsResponse = String(response)
+                    Log.d(TAG, "TLS response: $tlsResponse")
+                    messageCallback?.invoke(tlsResponse)
+                } else {
+                    Log.e(TAG, "No application data in TLS response: ${unwrapResult.status}")
+                    closeInternal()
+                    return@withContext false
+                }
+            } else {
+                Log.e(TAG, "No TLS response received")
+                closeInternal()
+                return@withContext false
+            }
+
+            Log.d(TAG, "TLS upgrade completed successfully")
+            tlsHandshaking = false
+            // Restart reading loop for post-TLS messages
+            startReadingLoop()
+            return@withContext true
         } catch (e: Exception) {
-            Log.e(TAG, "Error reading encrypted data: ${e.message}", e)
-            null
+            Log.e(TAG, "Failed to upgrade to TLS: ${e.message}", e)
+            closeInternal()
+            return@withContext false
+        } finally {
+            tlsHandshaking = false
+            tlsDataChannel.close()
         }
     }
 
-//    suspend fun connect2(): Boolean = withContext(Dispatchers.IO) {
-//        try {
-//            val manager = SelectorManager(Dispatchers.IO)
-//            val tcp = aSocket(manager).tcp()
-//
-//
-//            socket = tcp.connect(host, port) {
-//                noDelay = true
-//                keepAlive = true
-//            }
-//            reader = socket?.openReadChannel()
-//            writer = socket?.openWriteChannel(autoFlush = true)
-//
-//
-//            if (reader == null || writer == null) {
-//                Log.e(TAG, "Failed to initialize reader or writer channels")
-//                closeInternal()
-//                return@withContext false
-//            }
-//            Log.d(TAG, "Ktor TCP socket connected to $host:$port")
-//            scope.launch { startReadLoop() }
-//            val tlsConfig = TLSConfigBuilder().apply {
-//                cipherSuites = listOf(
-//                    ECDHE_RSA_AES256_SHA384,
-//                    ECDHE_RSA_AES128_SHA256,
-//                    ECDHE_ECDSA_AES256_SHA384,
-//                    ECDHE_ECDSA_AES128_SHA256,
-//                    TLS_RSA_WITH_AES_128_GCM_SHA256,
-//                    TLS_RSA_WITH_AES256_CBC_SHA,
-//                    TLS_RSA_WITH_AES128_CBC_SHA
-//                )
-//            }.build()
-//            writer?.flush()
-//            val tlsSocket = withContext(Dispatchers.IO) {
-//                socket!!.tls(Dispatchers.IO, tlsConfig)
-//            }
-//
-//            // Step 5: Open new read and write channels AFTER TLS upgrade
-//            val sslreader = tlsSocket.openReadChannel()
-//            val sslwriter = tlsSocket.openWriteChannel(autoFlush = true)
-//            true
-//        } catch (e: Exception) {
-//            Log.e(TAG, "Error connecting to $host:$port: $e")
-//            closeInternal()
-//            false
-//        }
-//    }
+    @RequiresApi(Build.VERSION_CODES.O)
+    suspend fun saslPlainAuth(jid: String, username: String): String {
+        AccountStorageItem().username = username
+        val passwordVal = PasswordStorageHelper(XabberApplication.applicationContext()).getData(jid)
+        if (passwordVal == null) {
+            Log.e(TAG, "Failed to retrieve password for JID: $jid")
+            throw IllegalStateException("Password not found for JID: $jid")
+        }
+        val authzId = ""
+        val saslPlain = "$authzId\u0000$username\u0000$passwordVal"
+        Log.d(TAG, "SASL PLAIN struct: authzId='$authzId', username='$username', password length=${passwordVal.length}")
+        val encoded = Base64.getEncoder().encodeToString(saslPlain.toByteArray())
+        Log.d(TAG, "SASL PLAIN Base64 encoded: $encoded")
+        return encoded
+    }
 
     private suspend fun startReadLoop() {
-        while (scope.isActive && socket?.isClosed == false) {
+        while (scope.isActive && socket?.isClosed == false && reader?.isClosedForRead == false) {
             try {
-                val message = read(timeoutMs = 30000)
-                if (message != null) {
-                    Log.d(TAG, "Processed message: $message")
-                    messageCallback?.invoke(message)
-                } else {
-                    Log.d(TAG, "No complete message received, continuing to listen")
-                    if (socket?.isClosed == true || reader?.isClosedForRead == true) {
-                        Log.w(TAG, "Socket or reader closed, terminating read loop")
-                        break
+                val tempBuffer = ByteArray(65536)
+                val bytesRead = reader?.readAvailable(tempBuffer) ?: -1
+                if (bytesRead == -1) {
+                    Log.w(TAG, "Socket closed by remote peer")
+                    break
+                } else if (bytesRead > 0) {
+                    val bytes = tempBuffer.copyOfRange(0, bytesRead)
+                    if (tlsHandshaking && !tlsDataChannel.isClosedForSend) {
+                        tlsDataChannel.send(bytes)
+                        Log.d(TAG, "Sent ${bytesRead} bytes to TLS channel")
+                    } else {
+                        val message = String(bytes, StandardCharsets.UTF_8)
+                        Log.d(TAG, "Read chunk: $message")
+                        Log.d(TAG, "Read chunk (bytes): ${bytes.joinToString(", ")}")
+                        if (message.contains("<proceed") && !proceedChannel.isClosedForSend) {
+                            proceedChannel.send(message)
+                        }
+                        messageCallback?.invoke(message)
                     }
+                } else {
+                    Log.d(TAG, "No data available, continuing")
                 }
+                delay(if (tlsHandshaking) 5 else 10)
             } catch (e: CancellationException) {
-                Log.w(TAG, "Read loop cancelled: $e")
+                Log.w(TAG, "Read loop cancelled: ${e.message}", e)
+                break
+            } catch (e: ConcurrentIOException) {
+                Log.e(TAG, "Concurrent read attempt in read loop: ${e.message}", e)
+                break
+            } catch (e: ClosedByteChannelException) {
+                Log.w(TAG, "Reader channel closed in read loop: ${e.message}", e)
                 break
             } catch (e: Exception) {
-                Log.e(TAG, "Error in read loop: $e")
+                Log.e(TAG, "Error in read loop: ${e.message}", e)
                 if (socket?.isClosed == true || reader?.isClosedForRead == true) {
                     Log.w(TAG, "Socket or reader closed, terminating read loop")
                     break
@@ -776,7 +550,9 @@ class Socket(private val host: String, private val port: Int) {
                 delay(1000)
             }
         }
-        Log.w(TAG, "Read loop terminated: scope active=${scope.isActive}, socket closed=${socket?.isClosed}")
+        Log.w(TAG, "Read loop terminated: scope active=${scope.isActive}, socket closed=${socket?.isClosed}, reader closed=${reader?.isClosedForRead}")
+        proceedChannel.close()
+        tlsDataChannel.close()
     }
 
     suspend fun prepareForTlsUpgrade() {
@@ -813,7 +589,6 @@ class Socket(private val host: String, private val port: Int) {
                     Log.d(TAG, "Writer already closed for writing")
                 }
             }
-            // Проверка остаточных данных
             socket?.let {
                 try {
                     val tempReader = it.openReadChannel()
@@ -831,7 +606,7 @@ class Socket(private val host: String, private val port: Int) {
                 }
             }
         } catch (e: Exception) {
-            Log.w(TAG, "Error closing channels before TLS upgrade: $e")
+            Log.w(TAG, "Error closing channels before TLS upgrade: ${e.message}", e)
             KTOR_LOGGER.error("Error closing channels: $e")
         } finally {
             reader = null
@@ -845,86 +620,9 @@ class Socket(private val host: String, private val port: Int) {
 
     private fun stopReadLoop() {
         scope.cancel("Stopping read loop for TLS upgrade")
+        isReadingLoopActive = false
         Log.d(TAG, "Read loop stopped for TLS upgrade")
         KTOR_LOGGER.debug("Read loop scope cancelled")
-    }
-
-    suspend fun upgradeToTls(): Boolean = withContext(Dispatchers.IO) {
-//        reader?.cancel()
-//        socket?.tls(Dispatchers.IO)
-        return@withContext false
-//        try {
-//            val currentSocket = socket ?: run {
-//                Log.e(TAG, "Cannot upgrade to TLS: Socket is null")
-//                KTOR_LOGGER.error("Socket is null")
-//                return@withContext false
-//            }
-//            if (currentSocket.isClosed) {
-//                Log.e(TAG, "Cannot upgrade to TLS: Socket is closed")
-//                KTOR_LOGGER.error("Socket is closed")
-//                return@withContext false
-//            }
-//
-//            // Дополнительная проверка на привязанные каналы
-//            if (reader != null || writer != null) {
-//                Log.w(TAG, "Channels not fully cleared, forcing cleanup")
-//                KTOR_LOGGER.warn("Forcing channel cleanup before TLS upgrade")
-////                prepareForTlsUpgrade()
-//            }
-//
-//            val tlsConfig = TLSConfigBuilder().apply {
-//                cipherSuites = listOf(
-//                    ECDHE_RSA_AES256_SHA384,
-//                    ECDHE_RSA_AES128_SHA256,
-//                    ECDHE_ECDSA_AES256_SHA384,
-//                    ECDHE_ECDSA_AES128_SHA256,
-//                    TLS_RSA_WITH_AES_128_GCM_SHA256,
-//                    TLS_RSA_WITH_AES256_CBC_SHA,
-//                    TLS_RSA_WITH_AES128_CBC_SHA
-//                )
-//                // Предложенная конфигурация TLS с кастомным trustManager
-//                trustManager = object : X509TrustManager {
-//                    override fun checkClientTrusted(chain: Array<out X509Certificate>?, authType: String?) {
-//                        KTOR_LOGGER.debug("Skipping client certificate validation")
-//                    }
-//
-//                    override fun checkServerTrusted(chain: Array<out X509Certificate>?, authType: String?) {
-//                        KTOR_LOGGER.debug("Skipping server certificate validation")
-//                    }
-//
-//                    override fun getAcceptedIssuers(): Array<X509Certificate>? {
-//                        KTOR_LOGGER.debug("Returning null for accepted issuers")
-//                        return null
-//                    }
-//                }
-//            }.build()
-//
-//            KTOR_LOGGER.debug("Initiating TLS upgrade on existing socket")
-//            val tlsSocket = currentSocket.tls(Dispatchers.IO, tlsConfig)
-//            socket = tlsSocket
-//
-//            KTOR_LOGGER.debug("TLS handshake completed, opening channels")
-//            reader = tlsSocket.openReadChannel()
-//            writer = tlsSocket.openWriteChannel(autoFlush = true)
-//
-//            if (reader == null || writer == null) {
-//                Log.e(TAG, "Failed to initialize reader or writer after TLS upgrade")
-//                KTOR_LOGGER.error("Failed to initialize reader or writer channels")
-//                closeInternal()
-//                return@withContext false
-//            }
-//
-//            Log.d(TAG, "Socket upgraded to TLS for $host:$port")
-//            KTOR_LOGGER.debug("TLS socket created, starting read loop")
-//            scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-//            scope.launch { startReadLoop() }
-//            true
-//        } catch (e: Exception) {
-//            Log.e(TAG, "Failed to upgrade socket to TLS: $e", e)
-//            KTOR_LOGGER.error("TLS handshake failed: $e")
-//            closeInternal()
-//            false
-//        }
     }
 
     suspend fun write(message: String): Boolean = withContext(Dispatchers.IO) {
@@ -944,7 +642,7 @@ class Socket(private val host: String, private val port: Int) {
                 false
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to send message: $e")
+            Log.e(TAG, "Failed to send message: ${e.message}", e)
             false
         }
     }
@@ -988,10 +686,10 @@ class Socket(private val host: String, private val port: Int) {
                         }
                         delay(10)
                     } catch (e: IOException) {
-                        Log.w(TAG, "Read error after ${System.currentTimeMillis() - startTime}ms: $e")
+                        Log.w(TAG, "Read error after ${System.currentTimeMillis() - startTime}ms: ${e.message}", e)
                         return@withContext null
                     } catch (e: ClosedReceiveChannelException) {
-                        Log.w(TAG, "Reader channel closed during read: $e")
+                        Log.w(TAG, "Reader channel closed during read: ${e.message}", e)
                         return@withContext null
                     }
                 }
@@ -1008,7 +706,7 @@ class Socket(private val host: String, private val port: Int) {
                 null
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Error reading from socket: $e")
+            Log.e(TAG, "Error reading from socket: ${e.message}", e)
             null
         }
     }
@@ -1019,7 +717,7 @@ class Socket(private val host: String, private val port: Int) {
             Log.d(TAG, "Serialized stream header: $xmlContent")
             socket.write(xmlContent)
         } catch (e: Exception) {
-            Log.e(TAG, "Error sending stream header: $e")
+            Log.e(TAG, "Error sending stream header: ${e.message}", e)
         }
     }
 
@@ -1035,7 +733,7 @@ class Socket(private val host: String, private val port: Int) {
                 return null
             }
             if (response.contains("</stream:stream>") && !response.contains("<stream:features>")) {
-                Log.e(TAG, "Server closed stream unexpectedly: $response")
+                Log.e(TAG, "Server responded with stream termination: $response")
                 return null
             }
             val xmlContent = response.replace(Regex("""<\?xml\s+version=['"][^'"]+['"](?:\s+encoding=['"][^'"]+['"])?\s*\?>"""), "").trim()
@@ -1141,9 +839,12 @@ class Socket(private val host: String, private val port: Int) {
             reader = null
             writer = null
             scope.cancel("Socket closed")
-            scope = CoroutineScope(Dispatchers.IO + SupervisorJob()) // Создать новый scope
+            scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+            proceedChannel.close()
+            tlsDataChannel.close()
+            isReadingLoopActive = false
         } catch (e: Exception) {
-            Log.e(TAG, "Error closing socket: $e")
+            Log.e(TAG, "Error closing socket: ${e.message}", e)
         }
     }
 
@@ -1166,7 +867,7 @@ class Socket(private val host: String, private val port: Int) {
                 return null
             }
             if (response.contains("</stream:stream>") && !response.contains("<stream:features>")) {
-                Log.e(TAG, "Server closed stream unexpectedly: $response")
+                Log.e(TAG, "Server responded with stream termination: $response")
                 return null
             }
             val xmlContent = response.replace(Regex("""<\?xml\s+version=['"][^'"]+['"](?:\s+encoding=['"][^'"]+['"])?\s*\?>"""), "").trim()

@@ -1,7 +1,6 @@
 package com.xabber.common
 
 import android.content.Context
-import android.content.Intent
 import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
@@ -15,12 +14,10 @@ import com.xabber.data_base.models.messages.MessageStorageItem
 import com.xabber.data_base.models.roster.BlockStorageItem
 import com.xabber.data_base.models.roster.RosterGroupStorageItem
 import com.xabber.data_base.models.roster.RosterStorageItem
-import com.xabber.presentation.application.activity.ApplicationActivity
-import com.xabber.presentation.onboarding.activity.OnBoardingActivity
+import com.xabber.presentation.onboarding.util.PasswordStorageHelper
 import com.xabber.xmpp.device.DeviceStorageItem
 import com.xabber.xmpp.groupchat.GroupChatStorageItem
 import com.xabber.xmpp.groupchat.GroupchatInvitesStorageItem
-import com.xabber.xmpp.messages.message.MessageForwardsInlineStorageItem
 import com.xabber.xmpp.messages.message.MessageStanzaStorageItem
 import com.xabber.xmpp.messages.message.TemporaryMessageStanzaStorageItem
 import com.xabber.xmpp.notifications.NotificationStorageItem
@@ -38,6 +35,17 @@ object AccountManager {
     private val realm = Realm.open(defaultRealmConfig())
     var users: MutableList<Account> = mutableListOf()
     private var isLoggingOut: Boolean = false
+    private var passwordStorageHelper: PasswordStorageHelper? = null
+
+    // Initialize PasswordStorageHelper with application context
+    fun initialize(context: Context) {
+        if (passwordStorageHelper == null) {
+            passwordStorageHelper = PasswordStorageHelper(context)
+            Log.d("AccountManager", "PasswordStorageHelper initialized")
+        } else {
+            Log.d("AccountManager", "PasswordStorageHelper already initialized")
+        }
+    }
 
     suspend fun login(jid: String, username: String, password: String): Boolean = withContext(Dispatchers.IO) {
         try {
@@ -52,6 +60,12 @@ object AccountManager {
                 Log.w("AccountManager", "Account with jid $normalizedJid already exists in Realm")
                 throw IllegalArgumentException("Account already exists")
             }
+
+            // Store password before creating account
+            passwordStorageHelper?.setData(normalizedJid, password.toByteArray())
+                ?: Log.w("AccountManager", "PasswordStorageHelper not initialized, skipping password storage")
+            Log.d("AccountManager", "Stored password for jid $normalizedJid")
+
             realm.write {
                 val newAccount = copyToRealm(AccountStorageItem().apply {
                     this.order = query<AccountStorageItem>().find().size
@@ -73,6 +87,7 @@ object AccountManager {
                 realm.write {
                     val account = query(AccountStorageItem::class, "jid = $0", normalizedJid).first().find()
                     account?.let { delete(it) }
+                    passwordStorageHelper?.remove(normalizedJid)
                 }
                 throw IllegalStateException("Stream connection failed")
             }
@@ -84,6 +99,7 @@ object AccountManager {
             true
         } catch (e: Exception) {
             Log.e("AccountManager", "Account creation (login) failed for jid $jid: ${e.message}", e)
+            passwordStorageHelper?.remove(jid)
             throw e
         }
     }
@@ -167,6 +183,8 @@ object AccountManager {
                 deleteStorageItems(MessageStorageItem::class, "owner", jid)
                 deleteStorageItems(RosterStorageItem::class, "owner", jid)
                 deleteStorageItems(LastChatsStorageItem::class, "owner", jid)
+                passwordStorageHelper?.remove(jid)
+                    ?: Log.w("AccountManager", "PasswordStorageHelper not initialized, skipping password removal for jid $jid")
                 true
             }
         } catch (e: Exception) {
@@ -217,26 +235,23 @@ object AccountManager {
                 val username = accountStorageItem.username
                 Log.d("AccountManager", "Attempting to load and connect first account with jid $jid")
 
-                // Create Account object
                 val newUserAccount = Account().apply {
                     this.jid = jid
                     this.username = username
                     loadAccount()
                 }
 
-                // Attempt to connect stream
                 val streamConnected = newUserAccount.connectStream()
                 if (!streamConnected) {
                     Log.e("AccountManager", "Failed to connect Stream for jid $jid")
                     realm.write {
                         val accountToDelete = query(AccountStorageItem::class, "jid = $0", jid).first().find()
                         accountToDelete?.let { delete(it) }
-                        Log.d("AccountManager", "Deleted AccountStorageItem for jid $jid due to stream connection failure")
+                        passwordStorageHelper?.remove(jid)
                     }
                     return@runBlocking
                 }
 
-                // Add to users list if not already present
                 synchronized(users) {
                     if (users.none { it.jid == jid }) {
                         users.add(newUserAccount)
@@ -250,11 +265,11 @@ object AccountManager {
                 Log.d("AccountManager", "Successfully loaded and connected first account with jid $jid")
             } catch (e: Exception) {
                 Log.e("AccountManager", "Failed to load and connect first account: ${e.message}", e)
-                // Ensure account is not left in users list on failure
                 account?.let {
                     synchronized(users) {
                         users.removeIf { user -> user.jid == it.jid }
-                        Log.d("AccountManager", "Removed account with jid ${it.jid} from users list due to failure")
+                        passwordStorageHelper?.remove(it.jid)
+                        Log.d("AccountManager", "Removed account with jid ${it.jid} from users list and password storage due to failure")
                     }
                 }
             }
@@ -262,7 +277,6 @@ object AccountManager {
 
         return account
     }
-
 
     fun logout(jid: String): Boolean {
         return try {

@@ -43,6 +43,9 @@ class SigninFragment : Fragment(R.layout.fragment_signin) {
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        // Initialize AccountManager with application context
+        AccountManager.initialize(requireContext())
         toolbarChanger().showArrowBack(true)
         toolbarChanger().setTitle(R.string.signin_toolbar_title_1)
         initEditText()
@@ -116,6 +119,7 @@ class SigninFragment : Fragment(R.layout.fragment_signin) {
                 }
                 val username = jid.split("@")[0]
                 val password = editTextPassword.text?.trim().toString()
+                Log.d("SigninFragment", "Sign-in attempt with jid: $jid, username: $username")
                 if (!viewModel.isJidValid(jid)) {
                     binding.signinSubtitle1.isInvisible = true
                     binding.errorSubtitle.isVisible = true
