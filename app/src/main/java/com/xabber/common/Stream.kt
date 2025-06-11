@@ -4,11 +4,16 @@ import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
 import com.xabber.data_base.models.account.AccountStorageItem
+import com.xabber.xmpp.device.DeviceStorageItem
 import com.xabber.xmpp.dns.DNSResolver
+import io.realm.kotlin.Realm
+import io.realm.kotlin.ext.query
 import io.realm.kotlin.types.annotations.PrimaryKey
+import io.viascom.nanoid.NanoId
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import io.ktor.network.sockets.isClosed
+import io.realm.kotlin.RealmConfiguration
 
 enum class StreamState {
     NOT_CONNECTING,
@@ -19,11 +24,12 @@ enum class StreamState {
     PROCESS_AUTH,
     AUTH_SUCCESS,
     AUTH_FAILED,
+    DEVICE_REGISTRATION,
     BINDING,
     CONNECTED
 }
-@RequiresApi(Build.VERSION_CODES.O)
 
+@RequiresApi(Build.VERSION_CODES.O)
 class Stream {
     @PrimaryKey
     var jid: String = ""
@@ -47,17 +53,43 @@ class Stream {
                 StreamState.PROCESS_AUTH -> runBlocking(Dispatchers.IO) { onProcessAuth() }
                 StreamState.AUTH_SUCCESS -> runBlocking(Dispatchers.IO) { onAuthSuccess() }
                 StreamState.AUTH_FAILED -> runBlocking(Dispatchers.IO) { onAuthFailed() }
+                StreamState.DEVICE_REGISTRATION -> runBlocking(Dispatchers.IO) { onDeviceRegistration() }
                 StreamState.BINDING -> runBlocking(Dispatchers.IO) { onBinding() }
                 StreamState.CONNECTED -> runBlocking(Dispatchers.IO) { onConnected() }
             }
         }
     private val TAG = "Stream"
+    private var reconnectAttempts = 0
+    private val maxReconnectAttempts = 3
+    private var attemptedPreTlsAuth = false
+    private var boundJid: String? = null
+    private val deviceModel = Build.MODEL
+    private var isDeviceRegistered = false
+    private val realm: Realm by lazy {
+        val config = RealmConfiguration.Builder(setOf(DeviceStorageItem::class)).build()
+        Realm.open(config)
+    }
+
+    init {
+        checkExistingDevice()
+    }
 
     constructor(jid: String, port: Int? = null) {
         this.jid = jid
         this.port = port ?: 5222
         this.host = extractHostFromJid(jid)
         this.state = StreamState.NOT_CONNECTING
+    }
+
+    private fun checkExistingDevice() {
+        realm.query<DeviceStorageItem>("owner = $0", jid).first().find()?.let { device ->
+            if (device.expire > System.currentTimeMillis().toDouble() / 1000) {
+                isDeviceRegistered = true
+                Log.d(TAG, "Found valid existing device for JID: $jid, uid: ${device.uid}")
+            } else {
+                Log.d(TAG, "Existing device expired for JID: $jid, uid: ${device.uid}")
+            }
+        } ?: Log.d(TAG, "No existing device found for JID: $jid")
     }
 
     private fun extractHostFromJid(jid: String): String {
@@ -96,47 +128,63 @@ class Stream {
             }
             isConnecting = true
         }
-        try {
-            state = StreamState.NOT_CONNECTING
-            val resolver = DNSResolver()
-            val result = resolver.resolveSRV(host)
-            if (result == null) {
-                Log.e(TAG, "DNS resolution failed for host $host")
-                return@withContext false
-            }
-            this@Stream.remoteAddress = result.first
-            this@Stream.port = result.second
-            Log.d(TAG, "Resolved IP: $remoteAddress, Port: $port")
-            socket?.close()
-            socket = Socket(remoteAddress, port)
-            socket?.setMessageCallback { message ->
-                CoroutineScope(Dispatchers.IO).launch {
-                    Log.d(TAG, "Received message via callback: $message")
-                    messageCallbackChannel.send(message)
-                    handleIncomingMessage(message)
+        var attempts = 0
+        val maxAttempts = 3
+        while (attempts < maxAttempts) {
+            attempts++
+            Log.d(TAG, "Connection attempt $attempts of $maxAttempts for JID: $jid")
+            try {
+                state = StreamState.NOT_CONNECTING
+                val resolver = DNSResolver()
+                val result = resolver.resolveSRV(host)
+                if (result == null) {
+                    Log.e(TAG, "DNS resolution failed for host $host")
+                    return@withContext false
                 }
-            }
-            if (socket?.connect(remoteAddress, port) != true) {
-                Log.e(TAG, "Socket connection failed for $remoteAddress:$port")
+                this@Stream.remoteAddress = result.first
+                this@Stream.port = result.second
+                Log.d(TAG, "Resolved IP: $remoteAddress, Port: $port")
+                socket?.close()
+                socket = Socket(remoteAddress, port)
+                socket?.setDomain(host)
+                socket?.setMessageCallback { message ->
+                    CoroutineScope(Dispatchers.IO).launch {
+                        Log.d(TAG, "Received message via callback: $message")
+                        messageCallbackChannel.send(message)
+                        handleIncomingMessage(message)
+                    }
+                }
+                if (socket?.connect(remoteAddress, port) != true) {
+                    Log.e(TAG, "Socket connection failed for $remoteAddress:$port")
+                    socket?.close()
+                    socket = null
+                    delay(1000)
+                    continue
+                }
+                Log.d(TAG, "Socket connected successfully for $remoteAddress:$port")
+                socket?.initiateXmppStream(socket!!, host, jid)
+                Log.d(TAG, "XMPP stream initiation started, waiting for server response")
+                reconnectAttempts = 0
+                attemptedPreTlsAuth = false
+                return@withContext true
+            } catch (e: Exception) {
+                Log.e(TAG, "Error connecting to $host: ${e.message}", e)
                 socket?.close()
                 socket = null
+                state = StreamState.NOT_CONNECTING
+                if (attempts < maxAttempts) {
+                    delay(1000)
+                    continue
+                }
                 return@withContext false
-            }
-            Log.d(TAG, "Socket connected successfully for $remoteAddress:$port")
-            socket?.initiateXmppStream(socket!!, host, jid)
-            Log.d(TAG, "XMPP stream initiation started, waiting for server response")
-            true
-        } catch (e: Exception) {
-            Log.e(TAG, "Error connecting to $host: ${e.message}", e)
-            socket?.close()
-            socket = null
-            state = StreamState.NOT_CONNECTING
-            false
-        } finally {
-            synchronized(connectionLock) {
-                isConnecting = false
+            } finally {
+                synchronized(connectionLock) {
+                    isConnecting = false
+                }
             }
         }
+        Log.e(TAG, "All connection attempts failed for JID: $jid")
+        return@withContext false
     }
 
     private suspend fun handleIncomingMessage(message: String) {
@@ -145,7 +193,6 @@ class Stream {
             when {
                 message.contains("<stream:stream") && !message.contains("<stream:features") -> {
                     Log.d(TAG, "Received stream header, awaiting features")
-                    // Do not transition state, wait for features
                 }
                 message.contains("<stream:features>") -> {
                     Log.d(TAG, "Received stream features")
@@ -153,6 +200,7 @@ class Stream {
                     if (response == null) {
                         Log.e(TAG, "Failed to parse stream features")
                         state = StreamState.NOT_CONNECTING
+                        reconnect()
                         return
                     }
                     if (state == StreamState.NOT_CONNECTING || state == StreamState.PROCEED || state == StreamState.AUTH_SUCCESS) {
@@ -161,15 +209,33 @@ class Stream {
                     }
                     response.features?.let { features ->
                         Log.d(TAG, "Stream features: $features")
-                        if (features.starttls?.present == true) {
-                            Log.d(TAG, "STARTTLS is supported")
-                            state = StreamState.START_TLS
-                        } else if (features.mechanisms?.mechanism?.contains("PLAIN") == true) {
-                            Log.d(TAG, "PLAIN authentication is supported")
+                        if (state == StreamState.PROCEED && features.mechanisms?.mechanism?.contains("PLAIN") == true) {
+                            Log.d(TAG, "PLAIN authentication is supported post-TLS")
                             state = StreamState.START_AUTH
+                        } else if (!attemptedPreTlsAuth && features.mechanisms?.mechanism?.contains("PLAIN") == true) {
+                            Log.d(TAG, "PLAIN authentication is supported pre-TLS")
+                            attemptedPreTlsAuth = true
+                            state = StreamState.START_AUTH
+                        } else if (features.starttls?.present == true) {
+                            val isTlsRequired = message.contains("<required/>")
+                            Log.d(TAG, "STARTTLS is supported${if (isTlsRequired) " and required" else ""}")
+                            if (isTlsRequired && attemptedPreTlsAuth) {
+                                Log.w(TAG, "TLS required after failed pre-TLS auth attempt")
+                                attemptedPreTlsAuth = false
+                            }
+                            state = StreamState.START_TLS
+                        } else if (state == StreamState.STREAM_OPEN && features.devices?.present == true) {
+                            Log.d(TAG, "Device registration is supported")
+                            if (isDeviceRegistered) {
+                                Log.d(TAG, "Skipping device registration, already registered for JID: $jid")
+                                state = StreamState.BINDING
+                            } else {
+                                state = StreamState.DEVICE_REGISTRATION
+                            }
                         } else {
                             Log.w(TAG, "No supported features found")
                             state = StreamState.NOT_CONNECTING
+                            reconnect()
                         }
                     }
                 }
@@ -184,8 +250,106 @@ class Stream {
                 message.contains("<proceed") -> {
                     Log.d(TAG, "Received proceed for STARTTLS")
                 }
-                message.contains("<iq") -> {
-                    Log.d(TAG, "Received IQ stanza")
+                message.contains("<iq") && state == StreamState.DEVICE_REGISTRATION -> {
+                    Log.d(TAG, "Received IQ response for device registration")
+                    if (message.contains("type='result'")) {
+                        Log.d(TAG, "Device registration successful")
+                        // Extract device details
+                        val uidMatch = Regex("""device id=['"]([^'"]+)['"]""").find(message)
+                        val validationKeyMatch = Regex("""<validation-key>([^<]+)</validation-key>""").find(message)
+                        val expireMatch = Regex("""<expire>([^<]+)</expire>""").find(message)
+                        val secretMatch = Regex("""<secret>([^<]+)</secret>""").find(message)
+                        if (uidMatch != null && validationKeyMatch != null && expireMatch != null && secretMatch != null) {
+                            val uid = uidMatch.groupValues[1]
+                            val validationKey = validationKeyMatch.groupValues[1]
+                            val expire = expireMatch.groupValues[1].toDoubleOrNull() ?: 1.0
+                            val secret = secretMatch.groupValues[1]
+                            // Save to Realm
+                            realm.write {
+                                val existingDevice = query<DeviceStorageItem>("uid = $0 AND owner = $1", uid, jid).first().find()
+                                if (existingDevice != null) {
+                                    // Update existing device
+                                    findLatest(existingDevice)?.apply {
+                                        configure(
+                                            owner = jid,
+                                            uid = uid,
+                                            ip = socket?.getSocket()?.remoteAddress?.toString() ?: "",
+                                            client = "Xabber-android",
+                                            device = "Xabben-android-device",
+                                            expire = expire,
+                                            authDate = System.currentTimeMillis().toDouble() / 1000,
+                                            descr = "Confident Albatross",
+                                            secret = secret,
+                                            validationKey = validationKey
+                                        )
+                                    }
+                                    Log.d(TAG, "Updated existing DeviceStorageItem for uid: $uid, owner: $jid")
+                                } else {
+                                    // Create new device
+                                    val newDevice = DeviceStorageItem().apply {
+                                        configure(
+                                            owner = jid,
+                                            uid = uid,
+                                            ip = socket?.getSocket()?.remoteAddress?.toString() ?: "",
+                                            client = "Xabber-android",
+                                            device = "Xabben-android-device",
+                                            expire = expire,
+                                            authDate = System.currentTimeMillis().toDouble() / 1000,
+                                            descr = "Confident Albatross",
+                                            secret = secret,
+                                            validationKey = validationKey
+                                        )
+                                    }
+                                    copyToRealm(newDevice)
+                                    Log.d(TAG, "Created new DeviceStorageItem for uid: $uid, owner: $jid")
+                                }
+                            }
+                            isDeviceRegistered = true
+                            state = StreamState.BINDING
+                        } else {
+                            Log.e(TAG, "Failed to parse device registration response: $message")
+                            state = StreamState.NOT_CONNECTING
+                            reconnect()
+                        }
+                    } else {
+                        Log.e(TAG, "Device registration failed: $message")
+                        state = StreamState.NOT_CONNECTING
+                        reconnect()
+                    }
+                }
+                message.contains("<iq") && state == StreamState.BINDING -> {
+                    Log.d(TAG, "Received IQ stanza for binding")
+                    val jidMatch = Regex("""<jid>([^<]+)</jid>""").find(message)
+                    if (jidMatch != null) {
+                        boundJid = jidMatch.groupValues[1]
+                        Log.d(TAG, "Resource binding successful, bound JID: $boundJid")
+                        state = StreamState.CONNECTED
+                    } else {
+                        Log.e(TAG, "Binding failed, no JID in response: $message")
+                        state = StreamState.NOT_CONNECTING
+                        reconnect()
+                    }
+                }
+                message.contains("<iq") && message.contains("type='get'") && message.contains("urn:xmpp:ping") && state == StreamState.CONNECTED -> {
+                    Log.d(TAG, "Received server ping request")
+                    val idMatch = Regex("""id=['"]([^'"]+)['"]""").find(message)
+                    val fromMatch = Regex("""from=['"]([^'"]+)['"]""").find(message)
+                    if (idMatch != null && fromMatch != null) {
+                        val pingId = idMatch.groupValues[1]
+                        val fromJid = fromMatch.groupValues[1]
+                        val response = """
+                            <iq type='result' id='$pingId' to='$fromJid'/>
+                        """.trimIndent()
+                        if (socket?.write(response) == true) {
+                            Log.d(TAG, "Sent ping response: $response")
+                        } else {
+                            Log.e(TAG, "Failed to send ping response")
+                            state = StreamState.NOT_CONNECTING
+                            reconnect()
+                        }
+                    } else {
+                        Log.w(TAG, "Invalid ping stanza, missing id or from: $message")
+                    }
                 }
                 message.contains("<message") -> {
                     Log.d(TAG, "Received message stanza")
@@ -196,10 +360,12 @@ class Stream {
                 message.contains("<stream:error") -> {
                     Log.e(TAG, "Received stream error: $message")
                     state = StreamState.NOT_CONNECTING
+                    reconnect()
                 }
                 message.contains("</stream:stream>") -> {
                     Log.w(TAG, "Received stream termination")
                     state = StreamState.NOT_CONNECTING
+                    reconnect()
                 }
                 else -> {
                     Log.w(TAG, "Unhandled message: $message")
@@ -208,15 +374,43 @@ class Stream {
         } catch (e: Exception) {
             Log.e(TAG, "Error handling message: ${e.message}", e)
             state = StreamState.NOT_CONNECTING
+            reconnect()
+        }
+    }
+
+    private suspend fun reconnect() {
+        if (reconnectAttempts >= maxReconnectAttempts) {
+            Log.e(TAG, "Max reconnect attempts ($maxReconnectAttempts) reached for JID: $jid")
+            state = StreamState.NOT_CONNECTING
+            return
+        }
+        reconnectAttempts++
+        Log.d(TAG, "Attempting to reconnect for JID: $jid (attempt $reconnectAttempts/$maxReconnectAttempts)")
+        socket?.close()
+        socket = null
+        delay(1000)
+        if (connect()) {
+            Log.d(TAG, "Reconnection successful for JID: $jid")
+        } else {
+            Log.e(TAG, "Reconnection failed for JID: $jid")
+            state = StreamState.NOT_CONNECTING
+            reconnect()
         }
     }
 
     suspend fun close() = withContext(Dispatchers.IO) {
-        socket?.close()
-        socket = null
-        state = StreamState.NOT_CONNECTING
-        messageCallbackChannel.close()
-        Log.d(TAG, "Stream closed for $jid")
+        synchronized(connectionLock) {
+//            socket?.close()
+            socket = null
+            realm.close()
+            state = StreamState.NOT_CONNECTING
+            messageCallbackChannel.close()
+            reconnectAttempts = 0
+            attemptedPreTlsAuth = false
+            boundJid = null
+            isDeviceRegistered = false
+            Log.d(TAG, "Stream closed for $jid")
+        }
     }
 
     fun logout(jid: String) {
@@ -239,6 +433,7 @@ class Stream {
         if (socket == null || socket?.getSocket()?.isClosed == true) {
             Log.e(TAG, "Cannot initiate STARTTLS: Socket is null or closed")
             state = StreamState.NOT_CONNECTING
+            reconnect()
             return
         }
         try {
@@ -246,6 +441,7 @@ class Stream {
             if (!socket!!.initiateStartTls()) {
                 Log.e(TAG, "Failed to initiate STARTTLS")
                 state = StreamState.NOT_CONNECTING
+                reconnect()
                 return
             }
             Log.d(TAG, "STARTTLS negotiation successful, preparing for TLS upgrade")
@@ -253,43 +449,49 @@ class Stream {
             Log.d(TAG, "Upgrading to TLS")
             if (socket?.upgradeToTls() == true) {
                 Log.d(TAG, "TLS upgrade successful, initiating new stream")
-                state = StreamState.START_AUTH
+                state = StreamState.PROCEED
                 socket?.initiateXmppStream(socket!!, host, jid)
                 Log.d(TAG, "New stream initiated over TLS, awaiting response")
             } else {
                 Log.e(TAG, "Failed to upgrade to TLS")
                 state = StreamState.NOT_CONNECTING
+                reconnect()
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error during STARTTLS process: ${e.message}", e)
             state = StreamState.NOT_CONNECTING
+            reconnect()
         }
     }
 
     open suspend fun onProceed() {
         Log.d(TAG, "Awaiting stream features after TLS upgrade for JID: $jid")
-        // Wait for <stream:features> via handleIncomingMessage
     }
 
     open suspend fun onStartAuth() {
+        Log.d(TAG, "Entering onStartAuth for JID: $jid")
         if (socket == null || socket?.getSocket()?.isClosed == true) {
             Log.e(TAG, "Cannot initiate SASL PLAIN authentication: Socket is null or closed")
             state = StreamState.AUTH_FAILED
+            reconnect()
             return
         }
         try {
             Log.d(TAG, "Initiating SASL PLAIN authentication for JID: $jid")
             val username = extractUsernameFromJid(jid)
+            Log.d(TAG, "Extracted username: $username")
             val authData = socket!!.saslPlainAuth(jid, username)
+            Log.d(TAG, "Generated SASL PLAIN auth data: $authData")
             val authMessage = """
-                <autz xmlns='urn:ietf:params:xml:ns:xmpp-sasl' mechanism='PLAIN'>$authData</auth>
+                <auth xmlns='urn:ietf:params:xml:ns:xmpp-sasl' mechanism='PLAIN'>$authData</auth>
             """.trimIndent()
             if (socket?.write(authMessage) == true) {
-                Log.d(TAG, "Sent SASL PLAIN auth request for JID: $jid")
+                Log.d(TAG, "Sent SASL PLAIN auth request for JID: $jid: $authMessage")
                 state = StreamState.PROCESS_AUTH
             } else {
                 Log.e(TAG, "Failed to send SASL PLAIN auth request for JID: $jid")
                 state = StreamState.AUTH_FAILED
+                reconnect()
             }
         } catch (e: IllegalStateException) {
             Log.e(TAG, "SASL PLAIN authentication failed for JID: $jid: ${e.message}", e)
@@ -297,6 +499,7 @@ class Stream {
         } catch (e: Exception) {
             Log.e(TAG, "Unexpected error during SASL PLAIN authentication for JID: $jid: ${e.message}", e)
             state = StreamState.AUTH_FAILED
+            reconnect()
         }
     }
 
@@ -312,31 +515,108 @@ class Stream {
         } catch (e: Exception) {
             Log.e(TAG, "Error initiating new stream after auth success for JID: $jid: ${e.message}", e)
             state = StreamState.NOT_CONNECTING
+            reconnect()
         }
     }
 
     open suspend fun onAuthFailed() {
-        Log.e(TAG, "Authentication failed for JID: $jid, closing connection")
-        close()
+        Log.e(TAG, "Authentication failed for JID: $jid")
+        if (!attemptedPreTlsAuth || state == StreamState.PROCEED) {
+            Log.e(TAG, "Closing connection due to auth failure")
+            close()
+        } else {
+            Log.d(TAG, "Pre-TLS auth failed, falling back to START_TLS")
+            state = StreamState.START_TLS
+        }
     }
 
-    open suspend fun onBinding() {}
+    open suspend fun onDeviceRegistration() {
+        Log.d(TAG, "Entering onDeviceRegistration for JID: $jid")
+        if (socket == null || socket?.getSocket()?.isClosed == true) {
+            Log.e(TAG, "Cannot perform device registration: Socket is null or closed")
+            state = StreamState.NOT_CONNECTING
+            reconnect()
+            return
+        }
+        try {
+            Log.w(TAG, "D E V I C E $deviceModel")
+            val deviceId = NanoId.generateOptimized(9, "_-0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", 63, 16)
+            val deviceRequest = """
+                <iq type='set' id='$deviceId'>
+                    <register xmlns='https://xabber.com/protocol/devices'>
+                        <device xmlns='https://xabber.com/protocol/devices'>
+                            <info>$deviceModel</info>
+                            <client>Xabber-android</client>
+                            <public-label>Confident Albatross</public-label>
+                            <type>android</type>
+                        </device>
+                    </register>
+                </iq>
+            """.trimIndent()
+            if (socket?.write(deviceRequest) == true) {
+                Log.d(TAG, "Sent device registration request for JID: $jid: $deviceRequest")
+            } else {
+                Log.e(TAG, "Failed to send device registration request for JID: $jid")
+                state = StreamState.NOT_CONNECTING
+                reconnect()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error during device registration for JID: $jid: ${e.message}", e)
+            state = StreamState.NOT_CONNECTING
+            reconnect()
+        }
+    }
+
+    open suspend fun onBinding() {
+        Log.d(TAG, "Entering onBinding for JID: $jid")
+        if (socket == null || socket?.getSocket()?.isClosed == true) {
+            Log.e(TAG, "Cannot perform resource binding: Socket is null or closed")
+            state = StreamState.NOT_CONNECTING
+            reconnect()
+            return
+        }
+        try {
+            val bindId = NanoId.generateOptimized(9, "_-0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", 63, 16)
+            val resourceId = NanoId.generateOptimized(8, "0123456789ABCDEF", 63, 16)
+            val bindRequest = """
+                <iq type='set' id='$bindId'>
+                    <bind xmlns='urn:ietf:params:xml:ns:xmpp-bind'>
+                        <resource>xabber-android-$resourceId</resource>
+                    </bind>
+                </iq>
+            """.trimIndent()
+            if (socket?.write(bindRequest) == true) {
+                Log.d(TAG, "Sent bind request for JID: $jid: $bindRequest")
+            } else {
+                Log.e(TAG, "Failed to send bind request for JID: $jid")
+                state = StreamState.NOT_CONNECTING
+                reconnect()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error during resource binding for JID: $jid: ${e.message}", e)
+            state = StreamState.NOT_CONNECTING
+            reconnect()
+        }
+    }
 
     open suspend fun onConnected() {
         socket?.scope?.launch {
             while (state == StreamState.CONNECTED && socket?.getSocket()?.isClosed == false) {
                 try {
-                    if (socket?.sendPing(jid) == true) {
-                        Log.d(TAG, "Sent ping to $jid")
+                    val pingJid = boundJid ?: jid
+                    if (socket?.sendPing(pingJid) == true) {
+                        Log.d(TAG, "Sent ping to $pingJid")
                     } else {
                         Log.w(TAG, "Failed to send ping for JID: $jid")
                         state = StreamState.NOT_CONNECTING
+                        reconnect()
                         break
                     }
                     delay(30000)
                 } catch (e: Exception) {
                     Log.e(TAG, "Ping error for JID: $jid: ${e.message}", e)
                     state = StreamState.NOT_CONNECTING
+                    reconnect()
                     break
                 }
             }

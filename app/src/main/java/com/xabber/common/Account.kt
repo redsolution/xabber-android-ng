@@ -1,6 +1,8 @@
 package com.xabber.common
 
+import android.os.Build
 import android.util.Log
+import androidx.annotation.RequiresApi
 import com.xabber.data_base.defaultRealmConfig
 import com.xabber.data_base.models.account.AccountStorageItem
 import com.xabber.utils.custom.NickGenerator
@@ -10,6 +12,7 @@ import io.realm.kotlin.UpdatePolicy
 import io.realm.kotlin.ext.query
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+@RequiresApi(Build.VERSION_CODES.O)
 
 class Account {
     var jid: String = ""
@@ -28,7 +31,7 @@ class Account {
     var priority: Int = 0
     var deviceName: String = ""
     var statusMessage: BehaviorSubject<String> = BehaviorSubject.createDefault("Offline")
-    private var stream: Stream? = null
+    var stream: Stream? = null
 
     fun loadAccount() {
         try {
@@ -96,6 +99,7 @@ class Account {
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     suspend fun connectStream(): Boolean = withContext(Dispatchers.IO) {
         try {
             stream?.let {
@@ -119,6 +123,7 @@ class Account {
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     suspend fun closeStream() = withContext(Dispatchers.IO) {
         stream?.close()
         stream = null
@@ -126,7 +131,7 @@ class Account {
         Log.d("Account", "Stream closed for $jid")
     }
 
-    fun getStream(): Stream? {
-        return stream
-    }
+//    fun getStream(): Stream? {
+//        return stream
+//    }
 }

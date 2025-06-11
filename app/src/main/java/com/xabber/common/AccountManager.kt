@@ -14,6 +14,7 @@ import com.xabber.data_base.models.messages.MessageStorageItem
 import com.xabber.data_base.models.roster.BlockStorageItem
 import com.xabber.data_base.models.roster.RosterGroupStorageItem
 import com.xabber.data_base.models.roster.RosterStorageItem
+import com.xabber.presentation.XabberApplication
 import com.xabber.presentation.onboarding.util.PasswordStorageHelper
 import com.xabber.xmpp.device.DeviceStorageItem
 import com.xabber.xmpp.groupchat.GroupChatStorageItem
@@ -31,7 +32,10 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import kotlin.reflect.KClass
 
+
+@RequiresApi(Build.VERSION_CODES.O)
 object AccountManager {
+
     private val realm = Realm.open(defaultRealmConfig())
     var users: MutableList<Account> = mutableListOf()
     private var isLoggingOut: Boolean = false
@@ -47,6 +51,7 @@ object AccountManager {
         }
     }
 
+
     suspend fun login(jid: String, username: String, password: String): Boolean = withContext(Dispatchers.IO) {
         try {
             Log.d("AccountManager", "Attempting to create account (login) for jid $jid, current users: ${users.map { it.jid }}")
@@ -61,7 +66,6 @@ object AccountManager {
                 throw IllegalArgumentException("Account already exists")
             }
 
-            // Store password before creating account
             passwordStorageHelper?.setData(normalizedJid, password.toByteArray())
                 ?: Log.w("AccountManager", "PasswordStorageHelper not initialized, skipping password storage")
             Log.d("AccountManager", "Stored password for jid $normalizedJid")
@@ -219,7 +223,6 @@ object AccountManager {
         return accountPrimary
     }
 
-    @RequiresApi(Build.VERSION_CODES.N)
     fun loadFirstAccount(): Account? {
         var account: Account? = null
 

@@ -11,7 +11,6 @@ import io.realm.kotlin.types.annotations.PrimaryKey
 import java.util.Date
 import java.util.logging.Logger
 
-
 class DeviceStorageItem : RealmObject {
     companion object {
         private val logger = Logger.getLogger(DeviceStorageItem::class.java.name)
@@ -33,11 +32,11 @@ class DeviceStorageItem : RealmObject {
     var expire: Double = 1.0
     var resource: String? = null
     var omemoDeviceId: Int = -1
-
+    var secret: String = "" // New field for secret
+    var validationKey: String = "" // New field for validation-key
 
     val encryptionEnabled: Boolean
         get() = omemoDeviceId >= 0
-
 
     fun configure(
         owner: String,
@@ -47,7 +46,9 @@ class DeviceStorageItem : RealmObject {
         device: String,
         expire: Double,
         authDate: Double,
-        descr: String
+        descr: String,
+        secret: String = this.secret, // Preserve existing secret if not provided
+        validationKey: String = this.validationKey // Preserve existing validationKey if not provided
     ) {
         this.primary = genPrimary(uid = uid, owner = owner)
         this.owner = owner
@@ -58,8 +59,7 @@ class DeviceStorageItem : RealmObject {
         this.descr = descr
         this.expire = expire
         this.authDate = authDate
+        this.secret = secret
+        this.validationKey = validationKey
     }
-
-
-
 }

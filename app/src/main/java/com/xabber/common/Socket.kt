@@ -17,10 +17,7 @@ import kotlinx.serialization.Serializable
 import nl.adaptivity.xmlutil.serialization.XML
 import nl.adaptivity.xmlutil.serialization.XmlSerialName
 import nl.adaptivity.xmlutil.serialization.XmlElement
-import org.xmlpull.v1.XmlPullParser
-import org.xmlpull.v1.XmlPullParserFactory
 import java.io.IOException
-import java.io.StringReader
 import java.nio.BufferOverflowException
 import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
@@ -35,8 +32,8 @@ import kotlin.coroutines.cancellation.CancellationException
 @Serializable
 @XmlSerialName("stream", "http://etherx.jabber.org/streams", "stream")
 data class StreamResponse(
-    val id: String,
-    val version: String,
+    val id: String? = null,
+    val version: String? = null,
     val from: String? = null,
     val to: String? = null,
     val xmlLang: String? = null,
@@ -49,21 +46,27 @@ data class StreamResponse(
 @XmlSerialName("features", "http://etherx.jabber.org/streams", "stream")
 data class StreamFeatures(
     @XmlElement(true)
-    @XmlSerialName("mechanisms", "urn:xml:namespace:xmpp-sasl", "")
+    @XmlSerialName("mechanisms", "urn:ietf:params:xml:ns:xmpp-sasl", "")
     val mechanisms: Mechanisms? = null,
     @XmlElement(true)
-    @XmlSerialName("starttls", "urn:xml:namespace:xmpp-tls", "")
+    @XmlSerialName("starttls", "urn:ietf:params:xml:ns:xmpp-tls", "")
     val starttls: StartTls? = null,
     @XmlElement(true)
     @XmlSerialName("proxy", "urn:xabber:ws:proxy", "")
-    val proxy: Proxy? = null
+    val proxy: Proxy? = null,
+    @XmlElement(true)
+    @XmlSerialName("devices", "https://xabber.com/protocol/devices", "")
+    val devices: Devices? = null,
+    @XmlElement(true)
+    @XmlSerialName("bind", "urn:ietf:params:xml:ns:xmpp-bind", "")
+    val bind: Bind? = null
 )
 
 @Serializable
 data class Mechanisms(
     @XmlElement(true)
-    @XmlSerialName("mechanism", "urn:xml:namespace:xmpp-sasl", "")
-    val mechanism: List<String> = emptyList()
+    @XmlSerialName("mechanism", "urn:ietf:params:xml:ns:xmpp-sasl", "")
+    val mechanism: List<String?> = emptyList()
 )
 
 @Serializable
@@ -78,27 +81,44 @@ data class Proxy(
     val present: Boolean = true
 )
 
+@Serializable
+data class Devices(
+    @XmlElement(false)
+    val present: Boolean = true
+)
+
+@Serializable
+data class Bind(
+    @XmlElement(false)
+    val present: Boolean = true
+)
+
 class Socket(private val host: String, private val port: Int) {
     private val KTOR_LOGGER = KtorSimpleLogger("io.ktor.network")
     private var socket: io.ktor.network.sockets.Socket? = null
     private var reader: ByteReadChannel? = null
     private var writer: ByteWriteChannel? = null
-    private val selectorManager = SelectorManager(Dispatchers.IO)
+    private val selectorManager = SelectorManager(Dispatchers.Default)
     var scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-    private val TAG = "Socket_ng"
+    private val TAG = "Socket_nging"
     private val sslContext = SSLContext.getInstance("TLS")
     private lateinit var sslEngine: SSLEngine
     private lateinit var appBuffer: ByteBuffer
     private lateinit var packetBuffer: ByteBuffer
     private lateinit var accumulatedData: ByteBuffer
     private var messageCallback: ((String) -> Unit)? = null
-    private val proceedChannel = Channel<String?>(1)
-    private val tlsDataChannel = Channel<ByteArray>(Channel.UNLIMITED)
+    private var proceedChannel = Channel<String?>(1)
+    private var tlsDataChannel = Channel<ByteArray>(Channel.UNLIMITED)
     private var tlsHandshaking = false
     private var isReadingLoopActive = false
+    private var domain: String = host
 
     fun setMessageCallback(callback: (String) -> Unit) {
         messageCallback = callback
+    }
+
+    fun setDomain(domain: String) {
+        this.domain = domain
     }
 
     suspend fun connect(host: String, port: Int): Boolean = withContext(Dispatchers.IO) {
@@ -153,11 +173,12 @@ class Socket(private val host: String, private val port: Int) {
             } finally {
                 isReadingLoopActive = false
                 Log.d(TAG, "Reading loop coroutine terminated")
-                // Attempt to restart only if socket is still valid
-                if (socket?.isClosed == false && reader?.isClosedForRead == false) {
+                if (socket?.isClosed == false && reader?.isClosedForRead == false && !tlsHandshaking) {
                     Log.d(TAG, "Restarting reading loop due to unexpected termination")
                     delay(100)
                     startReadingLoop()
+                } else {
+                    Log.w(TAG, "Cannot restart reading loop: socket closed=${socket?.isClosed}, reader closed=${reader?.isClosedForRead}, tlsHandshaking=$tlsHandshaking")
                 }
             }
         }
@@ -189,6 +210,15 @@ class Socket(private val host: String, private val port: Int) {
     suspend fun upgradeToTls(): Boolean = withContext(Dispatchers.IO) {
         try {
             tlsHandshaking = true
+            if (tlsDataChannel.isClosedForSend || tlsDataChannel.isClosedForReceive) {
+                Log.d(TAG, "Reinitializing tlsDataChannel")
+                tlsDataChannel = Channel<ByteArray>(Channel.UNLIMITED)
+            }
+            if (proceedChannel.isClosedForSend || proceedChannel.isClosedForReceive) {
+                Log.d(TAG, "Reinitializing proceedChannel")
+                proceedChannel = Channel<String?>(1)
+            }
+
             val expectedFingerprint = "dab1d6bc9c8c825aa9fd266aee12ea562de40817a75fb81b79b50ad939a21f28"
             val trustManager = object : X509TrustManager {
                 override fun checkClientTrusted(chain: Array<out X509Certificate>?, authType: String?) {}
@@ -341,7 +371,7 @@ class Socket(private val host: String, private val port: Int) {
                                 val bytes = withTimeoutOrNull(2000) {
                                     tlsDataChannel.receive()
                                 }
-                                Log.d(TAG, "Read attempt: bytesRead=${bytes?.size ?: -1}, retry=$readRetries")
+                                Log.d(TAG, "Read attempt: bytesRead=${bytes?.size ?: -1}, retry=$readRetries, reader closed=${reader?.isClosedForRead}")
                                 if (bytes != null) {
                                     accumulatedBytes += bytes.size
                                     readRetries = 0
@@ -410,7 +440,7 @@ class Socket(private val host: String, private val port: Int) {
                 Log.d(TAG, "TLS handshake completed: protocol=${sslEngine.session.protocol}, cipherSuite=${sslEngine.session.cipherSuite}")
                 true
             } ?: run {
-                Log.e(TAG, "TLS handshake timed out after $handshakeTimeoutMs ms, last status: $lastStatus, accumulated bytes: $accumulatedBytes")
+                Log.e(TAG, "TLS handshake timed out after $handshakeTimeoutMs ms, last status: $lastStatus, accumulatedBytes=$accumulatedBytes")
                 closeInternal()
                 return@withContext false
             }
@@ -422,8 +452,47 @@ class Socket(private val host: String, private val port: Int) {
                 return@withContext false
             }
 
+            reader?.let {
+                if (!it.isClosedForRead) {
+                    try {
+                        val discarded = it.discard(it.availableForRead.toLong())
+                        Log.d(TAG, "Discarded $discarded bytes from reader channel")
+                        val tempBuffer = ByteArray(65536)
+                        var totalFlushed = 0L
+                        while (it.availableForRead > 0) {
+                            val bytesRead = it.readAvailable(tempBuffer)
+                            if (bytesRead > 0) {
+                                totalFlushed += bytesRead
+                                Log.w(TAG, "Flushed residual data: ${tempBuffer.copyOfRange(0, bytesRead).joinToString(", ")}")
+                            } else {
+                                break
+                            }
+                        }
+                        Log.d(TAG, "Total flushed residual data: $totalFlushed bytes")
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Error discarding/flushing residual data: ${e.message}", e)
+                    }
+                } else {
+                    Log.w(TAG, "Reader channel closed before TLS stream, attempting reinitialization")
+                    reader = socket?.openReadChannel()
+                    if (reader == null) {
+                        Log.e(TAG, "Failed to reinitialize reader channel")
+                        closeInternal()
+                        return@withContext false
+                    }
+                    Log.d(TAG, "Reader channel reinitialized successfully")
+                }
+            }
+
+            if (writer?.isClosedForWrite == true || writer == null) {
+                Log.e(TAG, "Writer closed or null before sending stream header")
+                closeInternal()
+                return@withContext false
+            }
+
+            delay(200)
             val restartedStream = """
-                <stream:stream xmlns='jabber:client' xmlns:stream='http://etherx.jabber.org/streams' version='1.0' to='$host'>
+                <stream:stream xmlns='jabber:client' xmlns:stream='http://etherx.jabber.org/streams' version='1.0' to='$domain'>
             """.trimIndent()
             appBuffer.clear()
             appBuffer.put(restartedStream.toByteArray())
@@ -447,7 +516,7 @@ class Socket(private val host: String, private val port: Int) {
 
             packetBuffer.clear()
             Log.d(TAG, "Waiting for TLS stream response")
-            val bytes = withTimeoutOrNull(2000) {
+            val bytes = withTimeoutOrNull(15000) {
                 tlsDataChannel.receive()
             }
             if (bytes != null) {
@@ -470,15 +539,17 @@ class Socket(private val host: String, private val port: Int) {
                     return@withContext false
                 }
             } else {
-                Log.e(TAG, "No TLS response received")
+                Log.e(TAG, "No TLS response received within 15 seconds")
                 closeInternal()
                 return@withContext false
             }
 
+            if (!isReadingLoopActive) {
+                Log.d(TAG, "Reading loop not active, restarting")
+                startReadingLoop()
+            }
             Log.d(TAG, "TLS upgrade completed successfully")
             tlsHandshaking = false
-            // Restart reading loop for post-TLS messages
-            startReadingLoop()
             return@withContext true
         } catch (e: Exception) {
             Log.e(TAG, "Failed to upgrade to TLS: ${e.message}", e)
@@ -486,7 +557,6 @@ class Socket(private val host: String, private val port: Int) {
             return@withContext false
         } finally {
             tlsHandshaking = false
-            tlsDataChannel.close()
         }
     }
 
@@ -501,7 +571,9 @@ class Socket(private val host: String, private val port: Int) {
         val authzId = ""
         val saslPlain = "$authzId\u0000$username\u0000$passwordVal"
         Log.d(TAG, "SASL PLAIN struct: authzId='$authzId', username='$username', password length=${passwordVal.length}")
-        val encoded = Base64.getEncoder().encodeToString(saslPlain.toByteArray())
+        val rawBytes = saslPlain.toByteArray(StandardCharsets.UTF_8)
+        Log.d(TAG, "SASL PLAIN raw bytes: ${rawBytes.joinToString(", ") { byte -> "0x${byte.toUByte().toString(16).padStart(2, '0')}" }}")
+        val encoded = Base64.getEncoder().encodeToString(rawBytes)
         Log.d(TAG, "SASL PLAIN Base64 encoded: $encoded")
         return encoded
     }
@@ -511,6 +583,7 @@ class Socket(private val host: String, private val port: Int) {
             try {
                 val tempBuffer = ByteArray(65536)
                 val bytesRead = reader?.readAvailable(tempBuffer) ?: -1
+                Log.d(TAG, "Read attempt: bytesRead=$bytesRead, reader closed=${reader?.isClosedForRead}")
                 if (bytesRead == -1) {
                     Log.w(TAG, "Socket closed by remote peer")
                     break
@@ -537,7 +610,8 @@ class Socket(private val host: String, private val port: Int) {
                 break
             } catch (e: ConcurrentIOException) {
                 Log.e(TAG, "Concurrent read attempt in read loop: ${e.message}", e)
-                break
+                delay(100)
+                continue
             } catch (e: ClosedByteChannelException) {
                 Log.w(TAG, "Reader channel closed in read loop: ${e.message}", e)
                 break
@@ -551,12 +625,13 @@ class Socket(private val host: String, private val port: Int) {
             }
         }
         Log.w(TAG, "Read loop terminated: scope active=${scope.isActive}, socket closed=${socket?.isClosed}, reader closed=${reader?.isClosedForRead}")
-        proceedChannel.close()
-        tlsDataChannel.close()
+        if (!tlsHandshaking) {
+            proceedChannel.close()
+            tlsDataChannel.close()
+        }
     }
 
     suspend fun prepareForTlsUpgrade() {
-        stopReadLoop()
         try {
             Log.d(TAG, "Preparing to clean up channels. Reader: $reader, Writer: $writer")
             reader?.let {
@@ -569,8 +644,6 @@ class Socket(private val host: String, private val port: Int) {
                     } catch (e: Exception) {
                         KTOR_LOGGER.warn("Error discarding reader buffer: $e")
                     }
-                    it.cancel()
-                    KTOR_LOGGER.debug("Reader channel cancelled")
                 } else {
                     Log.d(TAG, "Reader already closed for reading")
                 }
@@ -583,46 +656,14 @@ class Socket(private val host: String, private val port: Int) {
                     } catch (e: Exception) {
                         KTOR_LOGGER.warn("Error flushing writer: $e")
                     }
-                    it.flushAndClose()
-                    KTOR_LOGGER.debug("Writer channel closed")
                 } else {
                     Log.d(TAG, "Writer already closed for writing")
                 }
             }
-            socket?.let {
-                try {
-                    val tempReader = it.openReadChannel()
-                    val tempBuffer = ByteArray(1024)
-                    val bytesRead = tempReader.readAvailable(tempBuffer)
-                    if (bytesRead > 0) {
-                        Log.w(TAG, "Residual data found after channel cleanup: ${tempBuffer.copyOfRange(0, bytesRead).joinToString(", ")}")
-                        KTOR_LOGGER.warn("Residual data: ${tempBuffer.copyOfRange(0, bytesRead).joinToString(", ")}")
-                    } else if (bytesRead == -1) {
-                        Log.w(TAG, "Socket closed by server during cleanup check")
-                    }
-                    tempReader.cancel()
-                } catch (e: Exception) {
-                    KTOR_LOGGER.warn("Error checking residual data: $e")
-                }
-            }
         } catch (e: Exception) {
-            Log.w(TAG, "Error closing channels before TLS upgrade: ${e.message}", e)
-            KTOR_LOGGER.error("Error closing channels: $e")
-        } finally {
-            reader = null
-            writer = null
-            Log.w(TAG, "READER: $reader")
-            Log.w(TAG, "WRITER: $writer")
-            Log.d(TAG, "Reader and writer nullified for TLS upgrade")
-            KTOR_LOGGER.debug("Reader and writer set to null")
+            Log.w(TAG, "Error preparing channels for TLS upgrade: ${e.message}", e)
+            KTOR_LOGGER.error("Error preparing channels: $e")
         }
-    }
-
-    private fun stopReadLoop() {
-        scope.cancel("Stopping read loop for TLS upgrade")
-        isReadingLoopActive = false
-        Log.d(TAG, "Read loop stopped for TLS upgrade")
-        KTOR_LOGGER.debug("Read loop scope cancelled")
     }
 
     suspend fun write(message: String): Boolean = withContext(Dispatchers.IO) {
@@ -676,7 +717,9 @@ class Socket(private val host: String, private val port: Int) {
                                     buffer.contains("<proceed") ||
                                     buffer.contains("</iq>") ||
                                     buffer.contains("</message>") ||
-                                    buffer.contains("</presence>")) {
+                                    buffer.contains("</presence>") ||
+                                    buffer.contains("<success") ||
+                                    buffer.contains("<failure>")) {
                                     return@withContext buffer.toString()
                                 }
                             }
@@ -723,6 +766,10 @@ class Socket(private val host: String, private val port: Int) {
 
     suspend fun readServerResponse(socket: Socket): StreamResponse? {
         val response = socket.read() ?: return null
+        return parseStreamResponse(response)
+    }
+
+    fun parseStreamResponse(response: String): StreamResponse? {
         try {
             if (response.contains("<stream:error")) {
                 Log.e(TAG, "Server responded with stream error: $response")
@@ -738,6 +785,7 @@ class Socket(private val host: String, private val port: Int) {
             }
             val xmlContent = response.replace(Regex("""<\?xml\s+version=['"][^'"]+['"](?:\s+encoding=['"][^'"]+['"])?\s*\?>"""), "").trim()
             Log.d(TAG, "Processing XML content: $xmlContent")
+
             val xml = XML {
                 indent = 2
                 autoPolymorphic = false
@@ -746,13 +794,38 @@ class Socket(private val host: String, private val port: Int) {
                     pedantic = false
                 }
             }
-            Log.d(TAG, "Extracting stream:stream attributes")
-            val headerMatch = Regex("""<stream:stream\s+([^>]+?)>""").find(xmlContent)
-            if (headerMatch == null) {
-                Log.e(TAG, "No <stream:stream> tag found in response")
-                return null
+
+            if (xmlContent.startsWith("<stream:features")) {
+                Log.d(TAG, "Parsing standalone stream features")
+                val featuresMatch = Regex("""<stream:features([^>]*)>(.*?)</stream:features>""", RegexOption.DOT_MATCHES_ALL).find(xmlContent)
+                val features = if (featuresMatch != null) {
+                    val mechanismsContent = Regex("""<mechanisms[^>]*>(.*?)</mechanisms>""", RegexOption.DOT_MATCHES_ALL).find(featuresMatch.value)?.groupValues?.get(1)
+                    val mechanisms = if (mechanismsContent != null) {
+                        val mechanismList = Regex("""<mechanism>([^<]+)</mechanism>""").findAll(mechanismsContent)
+                            .map { it.groupValues[1] }
+                            .toList()
+                        Mechanisms(mechanismList)
+                    } else null
+                    val starttlsPresent = featuresMatch.value.contains("<starttls")
+                    val proxyPresent = featuresMatch.value.contains("<proxy")
+                    val devicesPresent = featuresMatch.value.contains("https://xabber.com/protocol/devices")
+                    val bindPresent = featuresMatch.value.contains("<bind")
+                    StreamFeatures(
+                        mechanisms = mechanisms,
+                        starttls = if (starttlsPresent) StartTls(present = true) else null,
+                        proxy = if (proxyPresent) Proxy(present = true) else null,
+                        devices = if (devicesPresent) Devices(present = true) else null,
+                        bind = if (bindPresent) Bind(present = true) else null
+                    )
+                } else {
+                    Log.w(TAG, "No features found in response")
+                    null
+                }
+                return StreamResponse(features = features)
             }
-            Log.d(TAG, "Header match found: ${headerMatch.value}")
+
+            Log.d(TAG, "Extracting stream:stream attributes")
+            val headerMatch = Regex("""<stream:stream\s+([^>]+?)>""").find(xmlContent) ?: return null
             val attributes = headerMatch.groupValues[1]
             val idMatch = Regex("""id=['"]([^'"]+)['"]""").find(attributes)
             val versionMatch = Regex("""version=['"]([^'"]+)['"]""").find(attributes)
@@ -761,11 +834,6 @@ class Socket(private val host: String, private val port: Int) {
             val xmlLangMatch = Regex("""xml:lang=['"]([^'"]+)['"]""").find(attributes)
             val xmlnsMatch = Regex("""xmlns=['"]([^'"]+)['"]""").find(attributes)
             val xmlnsStreamMatch = Regex("""xmlns:stream=['"]([^'"]+)['"]""").find(attributes)
-
-            if (idMatch == null || versionMatch == null) {
-                Log.e(TAG, "Missing required attributes (id or version) in <stream:stream>")
-                return null
-            }
 
             val featuresMatch = Regex("""<stream:features([^>]*)>(.*?)</stream:features>""", RegexOption.DOT_MATCHES_ALL).find(xmlContent)
             val features = if (featuresMatch != null) {
@@ -779,10 +847,14 @@ class Socket(private val host: String, private val port: Int) {
                 } else null
                 val starttlsPresent = featuresMatch.value.contains("<starttls")
                 val proxyPresent = featuresMatch.value.contains("<proxy")
+                val devicesPresent = featuresMatch.value.contains("https://xabber.com/protocol/devices")
+                val bindPresent = featuresMatch.value.contains("<bind")
                 StreamFeatures(
                     mechanisms = mechanisms,
                     starttls = if (starttlsPresent) StartTls(present = true) else null,
-                    proxy = if (proxyPresent) Proxy(present = true) else null
+                    proxy = if (proxyPresent) Proxy(present = true) else null,
+                    devices = if (devicesPresent) Devices(present = true) else null,
+                    bind = if (bindPresent) Bind(present = true) else null
                 )
             } else {
                 Log.w(TAG, "No features found in response")
@@ -790,8 +862,8 @@ class Socket(private val host: String, private val port: Int) {
             }
 
             val parsed = StreamResponse(
-                id = idMatch.groupValues[1],
-                version = versionMatch.groupValues[1],
+                id = idMatch?.groupValues?.get(1),
+                version = versionMatch?.groupValues?.get(1),
                 from = fromMatch?.groupValues?.get(1),
                 to = toMatch?.groupValues?.get(1),
                 xmlLang = xmlLangMatch?.groupValues?.get(1),
@@ -802,7 +874,7 @@ class Socket(private val host: String, private val port: Int) {
             Log.d(TAG, "Parsed StreamResponse: $parsed")
             return parsed
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to parse server response: $e\nRaw response: $response")
+            Log.e(TAG, "Failed to parse stream response: ${e.message}\nRaw response: $response", e)
             return null
         }
     }
@@ -838,7 +910,9 @@ class Socket(private val host: String, private val port: Int) {
             socket = null
             reader = null
             writer = null
-            scope.cancel("Socket closed")
+            if (scope.isActive) {
+                scope.cancel("Socket closed")
+            }
             scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
             proceedChannel.close()
             tlsDataChannel.close()
@@ -851,76 +925,10 @@ class Socket(private val host: String, private val port: Int) {
     suspend fun close() = closeInternal()
 
     suspend fun initiateXmppStream(socket: Socket, domain: String, jid: String): StreamResponse? {
+        this.domain = domain
         sendStreamHeader(socket, domain, jid)
         Log.d(TAG, "Stream header sent, awaiting server response via callback")
         return null
-    }
-
-    fun parseStreamResponse(response: String): StreamResponse? {
-        try {
-            if (response.contains("<stream:error")) {
-                Log.e(TAG, "Server responded with stream error: $response")
-                return null
-            }
-            if (response.contains("<proceed")) {
-                Log.d(TAG, "Received proceed response for STARTTLS")
-                return null
-            }
-            if (response.contains("</stream:stream>") && !response.contains("<stream:features>")) {
-                Log.e(TAG, "Server responded with stream termination: $response")
-                return null
-            }
-            val xmlContent = response.replace(Regex("""<\?xml\s+version=['"][^'"]+['"](?:\s+encoding=['"][^'"]+['"])?\s*\?>"""), "").trim()
-            val xml = XML {
-                indent = 2
-                autoPolymorphic = false
-                defaultPolicy {
-                    ignoreUnknownChildren()
-                    pedantic = false
-                }
-            }
-            val headerMatch = Regex("""<stream:stream\s+([^>]+?)>""").find(xmlContent) ?: return null
-            val attributes = headerMatch.groupValues[1]
-            val idMatch = Regex("""id=['"]([^'"]+)['"]""").find(attributes) ?: return null
-            val versionMatch = Regex("""version=['"]([^'"]+)['"]""").find(attributes) ?: return null
-            val fromMatch = Regex("""from=['"]([^'"]+)['"]""").find(attributes)
-            val toMatch = Regex("""to=['"]([^'"]+)['"]""").find(attributes)
-            val xmlLangMatch = Regex("""xml:lang=['"]([^'"]+)['"]""").find(attributes)
-            val xmlnsMatch = Regex("""xmlns=['"]([^'"]+)['"]""").find(attributes)
-            val xmlnsStreamMatch = Regex("""xmlns:stream=['"]([^'"]+)['"]""").find(attributes)
-
-            val featuresMatch = Regex("""<stream:features([^>]*)>(.*?)</stream:features>""", RegexOption.DOT_MATCHES_ALL).find(xmlContent)
-            val features = if (featuresMatch != null) {
-                val mechanismsContent = Regex("""<mechanisms[^>]*>(.*?)</mechanisms>""", RegexOption.DOT_MATCHES_ALL).find(featuresMatch.value)?.groupValues?.get(1)
-                val mechanisms = if (mechanismsContent != null) {
-                    val mechanismList = Regex("""<mechanism>([^<]+)</mechanism>""").findAll(mechanismsContent)
-                        .map { it.groupValues[1] }
-                        .toList()
-                    Mechanisms(mechanismList)
-                } else null
-                val starttlsPresent = featuresMatch.value.contains("<starttls")
-                val proxyPresent = featuresMatch.value.contains("<proxy")
-                StreamFeatures(
-                    mechanisms = mechanisms,
-                    starttls = if (starttlsPresent) StartTls(present = true) else null,
-                    proxy = if (proxyPresent) Proxy(present = true) else null
-                )
-            } else null
-
-            return StreamResponse(
-                id = idMatch.groupValues[1],
-                version = versionMatch.groupValues[1],
-                from = fromMatch?.groupValues?.get(1),
-                to = toMatch?.groupValues?.get(1),
-                xmlLang = xmlLangMatch?.groupValues?.get(1),
-                xmlns = xmlnsMatch?.groupValues?.get(1) ?: "jabber:client",
-                xmlnsStream = xmlnsStreamMatch?.groupValues?.get(1) ?: "http://etherx.jabber.org/streams",
-                features = features
-            )
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to parse stream response: $e")
-            return null
-        }
     }
 
     fun getSocket(): io.ktor.network.sockets.Socket? {
