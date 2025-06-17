@@ -14,6 +14,12 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import io.ktor.network.sockets.isClosed
 import io.realm.kotlin.RealmConfiguration
+import java.nio.charset.StandardCharsets
+import java.security.MessageDigest
+import java.util.Base64
+import javax.crypto.Mac
+import javax.crypto.spec.SecretKeySpec
+import kotlin.math.pow
 
 enum class StreamState {
     NOT_CONNECTING,
@@ -22,6 +28,8 @@ enum class StreamState {
     PROCEED,
     START_AUTH,
     PROCESS_AUTH,
+    PROCESS_OCRA_CHALLENGE,
+    PROCESS_OCRA_RESPONSE,
     AUTH_SUCCESS,
     AUTH_FAILED,
     DEVICE_REGISTRATION,
@@ -51,6 +59,8 @@ class Stream {
                 StreamState.PROCEED -> runBlocking(Dispatchers.IO) { onProceed() }
                 StreamState.START_AUTH -> runBlocking(Dispatchers.IO) { onStartAuth() }
                 StreamState.PROCESS_AUTH -> runBlocking(Dispatchers.IO) { onProcessAuth() }
+                StreamState.PROCESS_OCRA_CHALLENGE -> runBlocking(Dispatchers.IO) { onProcessOcraChallenge() }
+                StreamState.PROCESS_OCRA_RESPONSE -> runBlocking(Dispatchers.IO) { onProcessOcraResponse() }
                 StreamState.AUTH_SUCCESS -> runBlocking(Dispatchers.IO) { onAuthSuccess() }
                 StreamState.AUTH_FAILED -> runBlocking(Dispatchers.IO) { onAuthFailed() }
                 StreamState.DEVICE_REGISTRATION -> runBlocking(Dispatchers.IO) { onDeviceRegistration() }
@@ -69,6 +79,12 @@ class Stream {
         val config = RealmConfiguration.Builder(setOf(DeviceStorageItem::class)).build()
         Realm.open(config)
     }
+    private var clientOcraSuit: String = "OCRA-1:HOTP-SHA256-8:QA10"
+    private var clientChallengeQuestion: String? = null
+    private var deviceId: String? = null
+    private var secret: String? = null
+    private var validationKey: String? = null
+    private var authCounter: Long = 0
 
     init {
         checkExistingDevice()
@@ -85,6 +101,10 @@ class Stream {
         realm.query<DeviceStorageItem>("owner = $0", jid).first().find()?.let { device ->
             if (device.expire > System.currentTimeMillis().toDouble() / 1000) {
                 isDeviceRegistered = true
+                deviceId = device.uid
+                secret = device.secret
+                validationKey = device.validationKey
+                authCounter = device.authDate.toLong()
                 Log.d(TAG, "Found valid existing device for JID: $jid, uid: ${device.uid}")
             } else {
                 Log.d(TAG, "Existing device expired for JID: $jid, uid: ${device.uid}")
@@ -209,7 +229,14 @@ class Stream {
                     }
                     response.features?.let { features ->
                         Log.d(TAG, "Stream features: $features")
-                        if (state == StreamState.PROCEED && features.mechanisms?.mechanism?.contains("PLAIN") == true) {
+                        if (state == StreamState.PROCEED && features.mechanisms?.mechanism?.contains("DEVICES-OCRA") == true) {
+                            Log.d(TAG, "DEVICES-OCRA authentication is supported post-TLS")
+                            state = StreamState.START_AUTH
+                        } else if (!attemptedPreTlsAuth && features.mechanisms?.mechanism?.contains("DEVICES-OCRA") == true) {
+                            Log.d(TAG, "DEVICES-OCRA authentication is supported pre-TLS")
+                            attemptedPreTlsAuth = true
+                            state = StreamState.START_AUTH
+                        } else if (state == StreamState.PROCEED && features.mechanisms?.mechanism?.contains("PLAIN") == true) {
                             Log.d(TAG, "PLAIN authentication is supported post-TLS")
                             state = StreamState.START_AUTH
                         } else if (!attemptedPreTlsAuth && features.mechanisms?.mechanism?.contains("PLAIN") == true) {
@@ -239,12 +266,16 @@ class Stream {
                         }
                     }
                 }
-                message.contains("<success") && state == StreamState.PROCESS_AUTH -> {
-                    Log.d(TAG, "SASL PLAIN authentication successful")
+                message.contains("<challenge") && state == StreamState.PROCESS_AUTH -> {
+                    Log.d(TAG, "Received OCRA challenge")
+                    state = StreamState.PROCESS_OCRA_CHALLENGE
+                }
+                message.contains("<success") && (state == StreamState.PROCESS_AUTH || state == StreamState.PROCESS_OCRA_RESPONSE) -> {
+                    Log.d(TAG, "Authentication successful (OCRA or PLAIN)")
                     state = StreamState.AUTH_SUCCESS
                 }
-                message.contains("<failure") && state == StreamState.PROCESS_AUTH -> {
-                    Log.e(TAG, "SASL PLAIN authentication failed: $message")
+                message.contains("<failure") && (state == StreamState.PROCESS_AUTH || state == StreamState.PROCESS_OCRA_RESPONSE) -> {
+                    Log.e(TAG, "Authentication failed: $message")
                     state = StreamState.AUTH_FAILED
                 }
                 message.contains("<proceed") -> {
@@ -254,7 +285,6 @@ class Stream {
                     Log.d(TAG, "Received IQ response for device registration")
                     if (message.contains("type='result'")) {
                         Log.d(TAG, "Device registration successful")
-                        // Extract device details
                         val uidMatch = Regex("""device id=['"]([^'"]+)['"]""").find(message)
                         val validationKeyMatch = Regex("""<validation-key>([^<]+)</validation-key>""").find(message)
                         val expireMatch = Regex("""<expire>([^<]+)</expire>""").find(message)
@@ -264,11 +294,9 @@ class Stream {
                             val validationKey = validationKeyMatch.groupValues[1]
                             val expire = expireMatch.groupValues[1].toDoubleOrNull() ?: 1.0
                             val secret = secretMatch.groupValues[1]
-                            // Save to Realm
                             realm.write {
                                 val existingDevice = query<DeviceStorageItem>("uid = $0 AND owner = $1", uid, jid).first().find()
                                 if (existingDevice != null) {
-                                    // Update existing device
                                     findLatest(existingDevice)?.apply {
                                         configure(
                                             owner = jid,
@@ -285,7 +313,6 @@ class Stream {
                                     }
                                     Log.d(TAG, "Updated existing DeviceStorageItem for uid: $uid, owner: $jid")
                                 } else {
-                                    // Create new device
                                     val newDevice = DeviceStorageItem().apply {
                                         configure(
                                             owner = jid,
@@ -305,6 +332,9 @@ class Stream {
                                 }
                             }
                             isDeviceRegistered = true
+                            deviceId = uid
+                            this@Stream.secret = secret
+                            this@Stream.validationKey = validationKey
                             state = StreamState.BINDING
                         } else {
                             Log.e(TAG, "Failed to parse device registration response: $message")
@@ -409,6 +439,11 @@ class Stream {
             attemptedPreTlsAuth = false
             boundJid = null
             isDeviceRegistered = false
+            clientChallengeQuestion = null
+            deviceId = null
+            secret = null
+            validationKey = null
+            authCounter = 0
             Log.d(TAG, "Stream closed for $jid")
         }
     }
@@ -471,40 +506,166 @@ class Stream {
     open suspend fun onStartAuth() {
         Log.d(TAG, "Entering onStartAuth for JID: $jid")
         if (socket == null || socket?.getSocket()?.isClosed == true) {
-            Log.e(TAG, "Cannot initiate SASL PLAIN authentication: Socket is null or closed")
+            Log.e(TAG, "Cannot initiate authentication: Socket is null or closed")
             state = StreamState.AUTH_FAILED
             reconnect()
             return
         }
         try {
-            Log.d(TAG, "Initiating SASL PLAIN authentication for JID: $jid")
-            val username = extractUsernameFromJid(jid)
-            Log.d(TAG, "Extracted username: $username")
-            val authData = socket!!.saslPlainAuth(jid, username)
-            Log.d(TAG, "Generated SASL PLAIN auth data: $authData")
-            val authMessage = """
-                <auth xmlns='urn:ietf:params:xml:ns:xmpp-sasl' mechanism='PLAIN'>$authData</auth>
-            """.trimIndent()
-            if (socket?.write(authMessage) == true) {
-                Log.d(TAG, "Sent SASL PLAIN auth request for JID: $jid: $authMessage")
-                state = StreamState.PROCESS_AUTH
+            // Fetch the latest stream features
+            val latestMessage = withTimeoutOrNull(5000) {
+                messageCallbackChannel.receive()
+            } ?: run {
+                Log.e(TAG, "No stream features received within timeout")
+                state = StreamState.AUTH_FAILED
+                reconnect()
+                return
+            }
+            val response = socket?.parseStreamResponse(latestMessage)
+            if (response?.features == null) {
+                Log.e(TAG, "Failed to parse stream features for authentication")
+                state = StreamState.AUTH_FAILED
+                reconnect()
+                return
+            }
+
+            // Prioritize DEVICES-OCRA if supported and device is registered
+            if (response.features.mechanisms?.mechanism?.contains("DEVICES-OCRA") == true && isDeviceRegistered) {
+                Log.d(TAG, "Initializing DEVICES-OCRA authentication for JID: $jid")
+                // Validate OCRA data
+                if (deviceId.isNullOrEmpty() || secret.isNullOrEmpty() || validationKey.isNullOrEmpty()) {
+                    Log.e(TAG, "Missing OCRA data: deviceId=$deviceId, secret=$secret, validationKey=$validationKey")
+                    state = StreamState.AUTH_FAILED
+                    reconnect()
+                    return
+                }
+                // Generate client challenge
+                clientChallengeQuestion = generateClientChallenge()
+                // Construct OCRA initial message
+                val username = extractUsernameFromJid(jid)
+                val message = "n,,\u0000$username\u0000$deviceId\u0000$clientOcraSuit\u0000$clientChallengeQuestion\u0000$validationKey"
+                val base64 = Base64.getEncoder().encodeToString(message.toByteArray(StandardCharsets.UTF_8))
+                val authMessage = """
+                    <auth xmlns='urn:ietf:params:xml:ns:xmpp-sasl' mechanism='DEVICES-OCRA'>$base64</auth>
+                """.trimIndent()
+                if (socket?.write(authMessage) == true) {
+                    Log.d(TAG, "Sent DEVICES-OCRA auth request for JID: $jid: $authMessage")
+                    state = StreamState.PROCESS_AUTH
+                } else {
+                    Log.e(TAG, "Failed to send DEVICES-OCRA auth request for JID: $jid")
+                    state = StreamState.AUTH_FAILED
+                    reconnect()
+                }
+            } else if (response.features.mechanisms?.mechanism?.contains("PLAIN") == true) {
+                // Fallback to PLAIN authentication
+                Log.d(TAG, "Falling back to SASL PLAIN authentication for JID: $jid")
+                val username = extractUsernameFromJid(jid)
+                val authData = socket!!.saslPlainAuth(jid, username)
+                val authMessage = """
+                    <auth xmlns='urn:ietf:params:xml:ns:xmpp-sasl' mechanism='PLAIN'>$authData</auth>
+                """.trimIndent()
+                if (socket?.write(authMessage) == true) {
+                    Log.d(TAG, "Sent SASL PLAIN auth request for JID: $jid: $authMessage")
+                    state = StreamState.PROCESS_AUTH
+                } else {
+                    Log.e(TAG, "Failed to send SASL PLAIN auth request for JID: $jid")
+                    state = StreamState.AUTH_FAILED
+                    reconnect()
+                }
             } else {
-                Log.e(TAG, "Failed to send SASL PLAIN auth request for JID: $jid")
+                Log.e(TAG, "No supported authentication mechanisms found")
                 state = StreamState.AUTH_FAILED
                 reconnect()
             }
-        } catch (e: IllegalStateException) {
-            Log.e(TAG, "SASL PLAIN authentication failed for JID: $jid: ${e.message}", e)
-            state = StreamState.AUTH_FAILED
         } catch (e: Exception) {
-            Log.e(TAG, "Unexpected error during SASL PLAIN authentication for JID: $jid: ${e.message}", e)
+            Log.e(TAG, "Error during authentication initialization for JID: $jid: ${e.message}", e)
             state = StreamState.AUTH_FAILED
             reconnect()
         }
     }
 
     open suspend fun onProcessAuth() {
-        Log.d(TAG, "Awaiting SASL authentication response for JID: $jid")
+        Log.d(TAG, "Awaiting authentication response for JID: $jid")
+    }
+
+    open suspend fun onProcessOcraChallenge() {
+        Log.d(TAG, "Processing OCRA challenge for JID: $jid")
+        try {
+            val message = messageCallbackChannel.receive()
+            if (!message.contains("<challenge")) {
+                Log.e(TAG, "Expected challenge, received: $message")
+                state = StreamState.AUTH_FAILED
+                reconnect()
+                return
+            }
+            val base64Data = message.substringAfter(">").substringBefore("</challenge>")
+            val decodedData = Base64.getDecoder().decode(base64Data)
+            val serverChallenge = String(decodedData, StandardCharsets.UTF_8).split("\u0000")
+            if (serverChallenge.size != 3) {
+                Log.e(TAG, "Invalid OCRA challenge format: ${serverChallenge.joinToString()}")
+                state = StreamState.AUTH_FAILED
+                reconnect()
+                return
+            }
+            val srvResponse = serverChallenge[0]
+            val srvOcraSuit = serverChallenge[1]
+            val srvChallengeQuestion = serverChallenge[2]
+            val srvResponseDecoded = String(Base64.getDecoder().decode(srvResponse), StandardCharsets.UTF_8)
+
+            Log.d(TAG, "Challenge srvResponse: $srvResponse")
+            Log.d(TAG, "Challenge srvResponseDecoded: $srvResponseDecoded")
+            Log.d(TAG, "Challenge srvOcraSuit: $srvOcraSuit")
+            Log.d(TAG, "Challenge srvChallengeQuestion: $srvChallengeQuestion")
+
+            // Verify client challenge
+            val clHash = computeHmac(clientOcraSuit, secret!!, clientChallengeQuestion!!)
+            val clHotpLength = getHotpLength(clientOcraSuit)
+            val isValid = if (clHotpLength == 0) {
+                val hashString = Base64.getEncoder().encodeToString(clHash)
+                hashString == srvResponse
+            } else {
+                val pinValue = truncateHash(clHash, clHotpLength)
+                val payload = String.format("%0${clHotpLength}d", pinValue)
+                payload == srvResponseDecoded
+            }
+
+            if (isValid) {
+                // Compute server response
+                val hash = computeHmac(srvOcraSuit, secret!!, srvChallengeQuestion, authCounter)
+                val hotpLength = getHotpLength(srvOcraSuit)
+                val response = if (hotpLength == 0) {
+                    val base64 = Base64.getEncoder().encodeToString(hash)
+                    Base64.getEncoder().encodeToString(base64.toByteArray(StandardCharsets.UTF_8))
+                } else {
+                    val pinValue = truncateHash(hash, hotpLength)
+                    val payload = String.format("%0${hotpLength}d", pinValue)
+                    Base64.getEncoder().encodeToString(payload.toByteArray(StandardCharsets.UTF_8))
+                }
+                val responseMessage = """
+                    <response xmlns='urn:ietf:params:xml:ns:xmpp-sasl'>$response</response>
+                """.trimIndent()
+                if (socket?.write(responseMessage) == true) {
+                    Log.d(TAG, "Sent OCRA response for JID: $jid: $responseMessage")
+                    state = StreamState.PROCESS_OCRA_RESPONSE
+                } else {
+                    Log.e(TAG, "Failed to send OCRA response for JID: $jid")
+                    state = StreamState.AUTH_FAILED
+                    reconnect()
+                }
+            } else {
+                Log.e(TAG, "Client challenge verification failed")
+                state = StreamState.AUTH_FAILED
+                reconnect()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error processing OCRA challenge: ${e.message}", e)
+            state = StreamState.AUTH_FAILED
+            reconnect()
+        }
+    }
+
+    open suspend fun onProcessOcraResponse() {
+        Log.d(TAG, "Awaiting OCRA response for JID: $jid")
     }
 
     open suspend fun onAuthSuccess() {
@@ -622,5 +783,77 @@ class Stream {
             }
             Log.d(TAG, "Ping loop terminated for $jid")
         }
+    }
+
+    private fun generateClientChallenge(): String {
+        val len = 10
+        val letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+        return (1..len).map { letters.random() }.joinToString("")
+    }
+
+    private fun getCryptoAlgorithm(ocraSuit: String): String {
+        val cryptoFunction = ocraSuit.split(":")[1]
+        val algo = cryptoFunction.split("-")[1]
+        return when (algo) {
+            "SHA1" -> "HmacSHA1"
+            "SHA256" -> "HmacSHA256"
+            "SHA512" -> "HmacSHA512"
+            else -> "HmacSHA1"
+        }
+    }
+
+    private fun getHashLength(ocraSuit: String): Int {
+        val cryptoFunction = ocraSuit.split(":")[1]
+        val algo = cryptoFunction.split("-")[1]
+        return when (algo) {
+            "SHA1" -> 20
+            "SHA256" -> 32
+            "SHA512" -> 64
+            else -> 20
+        }
+    }
+
+    private fun getHotpLength(ocraSuit: String): Int {
+        val cryptoFunction = ocraSuit.split(":")[1]
+        val hotpLength = cryptoFunction.split("-")[2]
+        return hotpLength.toIntOrNull() ?: 0
+    }
+
+    private fun computeHmac(ocraSuit: String, secret: String, challengeQuestion: String, counter: Long = 0): ByteArray {
+        val algorithm = getCryptoAlgorithm(ocraSuit)
+        val secretBytes = Base64.getDecoder().decode(secret)
+        val keySpec = SecretKeySpec(secretBytes, algorithm)
+        val mac = Mac.getInstance(algorithm)
+        mac.init(keySpec)
+
+        val challengeData = challengeQuestion.toByteArray(StandardCharsets.UTF_8)
+        val paddedChallenge = ByteArray(128)
+        System.arraycopy(challengeData, 0, paddedChallenge, 0, challengeData.size)
+
+        val dataInput = mutableListOf<Byte>()
+        dataInput.addAll(ocraSuit.toByteArray(StandardCharsets.UTF_8).toList())
+        dataInput.add(0)
+        if (counter > 0) {
+            val counterBytes = ByteArray(8)
+            for (i in 0 until 8) {
+                counterBytes[7 - i] = (counter shr (i * 8)).toByte()
+            }
+            dataInput.addAll(counterBytes.toList())
+        }
+        dataInput.addAll(paddedChallenge.toList())
+
+        return mac.doFinal(dataInput.toByteArray())
+    }
+
+    private fun truncateHash(hash: ByteArray, hotpLength: Int): Long {
+        val offset = (hash[hash.size - 1].toInt() and 0x0f)
+        val truncatedHash = ByteArray(4)
+        System.arraycopy(hash, offset, truncatedHash, 0, 4)
+        var value = 0
+        for (i in 0 until 4) {
+            value = (value shl 8) or (truncatedHash[i].toInt() and 0xff)
+        }
+        value = value and 0x7fffffff
+        return (value % 10.0.pow(hotpLength).toLong()).toLong()
     }
 }

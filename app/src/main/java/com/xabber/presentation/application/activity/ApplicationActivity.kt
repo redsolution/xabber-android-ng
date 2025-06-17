@@ -130,6 +130,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
     private var isLoggingOut: Boolean = false // Prevent multiple logout calls
     private var isUpdatingUI: Boolean = false // Prevent recursive UI updates
 
+    @RequiresApi(Build.VERSION_CODES.O)
     @SuppressLint("WrongViewCast")
     override fun onCreate(savedInstanceState: Bundle?) {
         setTheme(R.style.ThemeApplication)
