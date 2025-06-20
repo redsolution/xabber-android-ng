@@ -4,6 +4,8 @@ import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
 import com.xabber.data_base.models.account.AccountStorageItem
+import com.xabber.data_base.models.presences.ResourceStorageItem
+import com.xabber.xmpp.auth.DevicesOCRA
 import com.xabber.xmpp.device.DeviceStorageItem
 import com.xabber.xmpp.dns.DNSResolver
 import io.realm.kotlin.Realm
@@ -40,7 +42,7 @@ class Stream {
     private val connectionLock = Any()
     private var isConnecting = false
     private val messageCallbackChannel = Channel<String>(Channel.UNLIMITED)
-    private var state: StreamState = StreamState.NOT_CONNECTING
+    var state: StreamState = StreamState.NOT_CONNECTING
         set(value) {
             field = value
             Log.d(TAG, "Transitioned to state: $value")
@@ -65,13 +67,19 @@ class Stream {
     private var boundJid: String? = null
     private val deviceModel = Build.MODEL
     private var isDeviceRegistered = false
+    private var ocraAuth: DevicesOCRA? = null
     private val realm: Realm by lazy {
-        val config = RealmConfiguration.Builder(setOf(DeviceStorageItem::class)).build()
+        val config = RealmConfiguration.Builder(
+            setOf(DeviceStorageItem::class, AccountStorageItem::class, ResourceStorageItem::class)
+        ).build()
         Realm.open(config)
     }
 
     init {
-        checkExistingDevice()
+        CoroutineScope(Dispatchers.IO).launch {
+            checkExistingDevice()
+        }
+
     }
 
     constructor(jid: String, port: Int? = null) {
@@ -81,11 +89,11 @@ class Stream {
         this.state = StreamState.NOT_CONNECTING
     }
 
-    private fun checkExistingDevice() {
+    private suspend fun checkExistingDevice() {
         realm.query<DeviceStorageItem>("owner = $0", jid).first().find()?.let { device ->
             if (device.expire > System.currentTimeMillis().toDouble() / 1000) {
                 isDeviceRegistered = true
-                Log.d(TAG, "Found valid existing device for JID: $jid, uid: ${device.uid}")
+                Log.d(TAG, "Found valid existing device for JID: $jid, uid: ${device.uid}, authCounter: ${device.authCounter}")
             } else {
                 Log.d(TAG, "Existing device expired for JID: $jid, uid: ${device.uid}")
             }
@@ -106,7 +114,7 @@ class Stream {
         }
     }
 
-    private fun extractUsernameFromJid(jid: String): String {
+    fun extractUsernameFromJid(jid: String): String {
         try {
             val parts = jid.split("@")
             if (parts.size > 1) {
@@ -209,7 +217,14 @@ class Stream {
                     }
                     response.features?.let { features ->
                         Log.d(TAG, "Stream features: $features")
-                        if (state == StreamState.PROCEED && features.mechanisms?.mechanism?.contains("PLAIN") == true) {
+                        if (state == StreamState.PROCEED && DevicesOCRA.isSupported(features)) {
+                            Log.d(TAG, "DEVICES-OCRA authentication is supported post-TLS")
+                            state = StreamState.START_AUTH
+                        } else if (!attemptedPreTlsAuth && DevicesOCRA.isSupported(features)) {
+                            Log.d(TAG, "DEVICES-OCRA authentication is supported pre-TLS")
+                            attemptedPreTlsAuth = true
+                            state = StreamState.START_AUTH
+                        } else if (state == StreamState.PROCEED && features.mechanisms?.mechanism?.contains("PLAIN") == true) {
                             Log.d(TAG, "PLAIN authentication is supported post-TLS")
                             state = StreamState.START_AUTH
                         } else if (!attemptedPreTlsAuth && features.mechanisms?.mechanism?.contains("PLAIN") == true) {
@@ -239,12 +254,28 @@ class Stream {
                         }
                     }
                 }
+                message.contains("<challenge") && state == StreamState.PROCESS_AUTH && ocraAuth != null -> {
+                    Log.d(TAG, "Received OCRA challenge")
+                    val success = ocraAuth!!.handleAuthChallenge(message)
+                    if (!success) {
+                        Log.e(TAG, "OCRA challenge handling failed")
+                        state = StreamState.AUTH_FAILED
+                    }
+                }
                 message.contains("<success") && state == StreamState.PROCESS_AUTH -> {
-                    Log.d(TAG, "SASL PLAIN authentication successful")
+                    Log.d(TAG, "Authentication successful")
+                    if (ocraAuth != null) {
+                        val success = ocraAuth!!.handleAuthResponse(message)
+                        if (!success) {
+                            Log.e(TAG, "OCRA authentication response handling failed")
+                            state = StreamState.AUTH_FAILED
+                            return
+                        }
+                    }
                     state = StreamState.AUTH_SUCCESS
                 }
                 message.contains("<failure") && state == StreamState.PROCESS_AUTH -> {
-                    Log.e(TAG, "SASL PLAIN authentication failed: $message")
+                    Log.e(TAG, "Authentication failed: $message")
                     state = StreamState.AUTH_FAILED
                 }
                 message.contains("<proceed") -> {
@@ -254,7 +285,6 @@ class Stream {
                     Log.d(TAG, "Received IQ response for device registration")
                     if (message.contains("type='result'")) {
                         Log.d(TAG, "Device registration successful")
-                        // Extract device details
                         val uidMatch = Regex("""device id=['"]([^'"]+)['"]""").find(message)
                         val validationKeyMatch = Regex("""<validation-key>([^<]+)</validation-key>""").find(message)
                         val expireMatch = Regex("""<expire>([^<]+)</expire>""").find(message)
@@ -264,11 +294,9 @@ class Stream {
                             val validationKey = validationKeyMatch.groupValues[1]
                             val expire = expireMatch.groupValues[1].toDoubleOrNull() ?: 1.0
                             val secret = secretMatch.groupValues[1]
-                            // Save to Realm
                             realm.write {
                                 val existingDevice = query<DeviceStorageItem>("uid = $0 AND owner = $1", uid, jid).first().find()
                                 if (existingDevice != null) {
-                                    // Update existing device
                                     findLatest(existingDevice)?.apply {
                                         configure(
                                             owner = jid,
@@ -278,14 +306,14 @@ class Stream {
                                             device = "Xabben-android-device",
                                             expire = expire,
                                             authDate = System.currentTimeMillis().toDouble() / 1000,
+                                            authCounter = 1,
                                             descr = "Confident Albatross",
                                             secret = secret,
                                             validationKey = validationKey
                                         )
                                     }
-                                    Log.d(TAG, "Updated existing DeviceStorageItem for uid: $uid, owner: $jid")
+                                    Log.d(TAG, "Updated existing DeviceStorageItem for uid: $uid, owner: $jid, authCounter: ${existingDevice.authCounter}")
                                 } else {
-                                    // Create new device
                                     val newDevice = DeviceStorageItem().apply {
                                         configure(
                                             owner = jid,
@@ -295,13 +323,14 @@ class Stream {
                                             device = "Xabben-android-device",
                                             expire = expire,
                                             authDate = System.currentTimeMillis().toDouble() / 1000,
+                                            authCounter = 1,
                                             descr = "Confident Albatross",
                                             secret = secret,
                                             validationKey = validationKey
                                         )
                                     }
                                     copyToRealm(newDevice)
-                                    Log.d(TAG, "Created new DeviceStorageItem for uid: $uid, owner: $jid")
+                                    Log.d(TAG, "Created new DeviceStorageItem for uid: $uid, owner: $jid, authCounter: ${newDevice.authCounter}")
                                 }
                             }
                             isDeviceRegistered = true
@@ -400,7 +429,6 @@ class Stream {
 
     suspend fun close() = withContext(Dispatchers.IO) {
         synchronized(connectionLock) {
-//            socket?.close()
             socket = null
             realm.close()
             state = StreamState.NOT_CONNECTING
@@ -409,8 +437,10 @@ class Stream {
             attemptedPreTlsAuth = false
             boundJid = null
             isDeviceRegistered = false
+            ocraAuth = null
             Log.d(TAG, "Stream closed for $jid")
         }
+        socket?.close()
     }
 
     fun logout(jid: String) {
@@ -471,11 +501,66 @@ class Stream {
     open suspend fun onStartAuth() {
         Log.d(TAG, "Entering onStartAuth for JID: $jid")
         if (socket == null || socket?.getSocket()?.isClosed == true) {
-            Log.e(TAG, "Cannot initiate SASL PLAIN authentication: Socket is null or closed")
+            Log.e(TAG, "Cannot initiate authentication: Socket is null or closed")
             state = StreamState.AUTH_FAILED
             reconnect()
             return
         }
+        try {
+            val response = socket?.parseStreamResponse(messageCallbackChannel.tryReceive().getOrNull() ?: "")
+            val features = response?.features
+            if (DevicesOCRA.isSupported(features)) {
+                Log.d(TAG, "Initiating DEVICES-OCRA authentication for JID: $jid")
+                realm.query<DeviceStorageItem>("owner = $0", jid).first().find()?.let { device ->
+                    if (device.secret.isNotEmpty() && device.validationKey.isNotEmpty() && device.uid.isNotEmpty()) {
+                        ocraAuth = DevicesOCRA(
+                            stream = this,
+                            deviceId = device.uid,
+                            secret = device.secret,
+                            validationKey = device.validationKey,
+                            authCounter = device.authCounter,
+                            realm = realm
+                        )
+                        if (ocraAuth?.start() == true) {
+                            Log.d(TAG, "DEVICES-OCRA authentication started for JID: $jid")
+                            state = StreamState.PROCESS_AUTH
+                        } else {
+                            Log.e(TAG, "Failed to start DEVICES-OCRA authentication for JID: $jid")
+                            state = StreamState.AUTH_FAILED
+                            reconnect()
+                        }
+                    } else {
+                        Log.e(TAG, "DeviceStorageItem missing required fields for OCRA: uid=${device.uid}, secret=${device.secret}, validationKey=${device.validationKey}, authCounter=${device.authCounter}")
+                        state = StreamState.AUTH_FAILED
+                        reconnect()
+                    }
+                } ?: run {
+                    Log.e(TAG, "No valid device found for OCRA authentication for JID: $jid")
+                    // Fallback to PLAIN if OCRA is not possible
+                    if (features?.mechanisms?.mechanism?.contains("PLAIN") == true) {
+                        Log.d(TAG, "Falling back to PLAIN authentication")
+                        startPlainAuth()
+                    } else {
+                        state = StreamState.AUTH_FAILED
+                        reconnect()
+                    }
+                }
+            } else if (features?.mechanisms?.mechanism?.contains("PLAIN") == true) {
+                Log.d(TAG, "DEVICES-OCRA not supported, using PLAIN authentication")
+                startPlainAuth()
+            } else {
+                Log.e(TAG, "No supported authentication mechanisms found")
+                state = StreamState.AUTH_FAILED
+                reconnect()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Unexpected error during authentication for JID: $jid: ${e.message}", e)
+            state = StreamState.AUTH_FAILED
+            reconnect()
+        }
+    }
+
+    private suspend fun startPlainAuth() {
         try {
             Log.d(TAG, "Initiating SASL PLAIN authentication for JID: $jid")
             val username = extractUsernameFromJid(jid)
@@ -496,15 +581,11 @@ class Stream {
         } catch (e: IllegalStateException) {
             Log.e(TAG, "SASL PLAIN authentication failed for JID: $jid: ${e.message}", e)
             state = StreamState.AUTH_FAILED
-        } catch (e: Exception) {
-            Log.e(TAG, "Unexpected error during SASL PLAIN authentication for JID: $jid: ${e.message}", e)
-            state = StreamState.AUTH_FAILED
-            reconnect()
         }
     }
 
     open suspend fun onProcessAuth() {
-        Log.d(TAG, "Awaiting SASL authentication response for JID: $jid")
+        Log.d(TAG, "Awaiting authentication response for JID: $jid")
     }
 
     open suspend fun onAuthSuccess() {
