@@ -76,10 +76,10 @@ class Stream {
     }
 
     init {
-        CoroutineScope(Dispatchers.IO).launch {
+        // Synchronously check existing device to ensure isDeviceRegistered is set before connect()
+        runBlocking(Dispatchers.IO) {
             checkExistingDevice()
         }
-
     }
 
     constructor(jid: String, port: Int? = null) {
@@ -90,14 +90,20 @@ class Stream {
     }
 
     private suspend fun checkExistingDevice() {
-        realm.query<DeviceStorageItem>("owner = $0", jid).first().find()?.let { device ->
-            if (device.expire > System.currentTimeMillis().toDouble() / 1000) {
-                isDeviceRegistered = true
-                Log.d(TAG, "Found valid existing device for JID: $jid, uid: ${device.uid}, authCounter: ${device.authCounter}")
-            } else {
-                Log.d(TAG, "Existing device expired for JID: $jid, uid: ${device.uid}")
+        synchronized(connectionLock) {
+            realm.query<DeviceStorageItem>("owner = $0", jid).first().find()?.let { device ->
+                if (device.expire > System.currentTimeMillis().toDouble() / 1000) {
+                    isDeviceRegistered = true
+                    Log.d(TAG, "Found valid existing device for JID: $jid, uid: ${device.uid}, authCounter: ${device.authCounter}")
+                } else {
+                    Log.d(TAG, "Existing device expired for JID: $jid, uid: ${device.uid}")
+                    isDeviceRegistered = false
+                }
+            } ?: run {
+                Log.d(TAG, "No existing device found for JID: $jid")
+                isDeviceRegistered = false
             }
-        } ?: Log.d(TAG, "No existing device found for JID: $jid")
+        }
     }
 
     private fun extractHostFromJid(jid: String): String {
@@ -138,61 +144,63 @@ class Stream {
         }
         var attempts = 0
         val maxAttempts = 3
-        while (attempts < maxAttempts) {
-            attempts++
-            Log.d(TAG, "Connection attempt $attempts of $maxAttempts for JID: $jid")
-            try {
-                state = StreamState.NOT_CONNECTING
-                val resolver = DNSResolver()
-                val result = resolver.resolveSRV(host)
-                if (result == null) {
-                    Log.e(TAG, "DNS resolution failed for host $host")
-                    return@withContext false
-                }
-                this@Stream.remoteAddress = result.first
-                this@Stream.port = result.second
-                Log.d(TAG, "Resolved IP: $remoteAddress, Port: $port")
-                socket?.close()
-                socket = Socket(remoteAddress, port)
-                socket?.setDomain(host)
-                socket?.setMessageCallback { message ->
-                    CoroutineScope(Dispatchers.IO).launch {
-                        Log.d(TAG, "Received message via callback: $message")
-                        messageCallbackChannel.send(message)
-                        handleIncomingMessage(message)
+        try {
+            while (attempts < maxAttempts) {
+                attempts++
+                Log.d(TAG, "Connection attempt $attempts of $maxAttempts for JID: $jid")
+                try {
+                    state = StreamState.NOT_CONNECTING
+                    val resolver = DNSResolver()
+                    val result = resolver.resolveSRV(host)
+                    if (result == null) {
+                        Log.e(TAG, "DNS resolution failed for host $host")
+                        return@withContext false
                     }
-                }
-                if (socket?.connect(remoteAddress, port) != true) {
-                    Log.e(TAG, "Socket connection failed for $remoteAddress:$port")
+                    this@Stream.remoteAddress = result.first
+                    this@Stream.port = result.second
+                    Log.d(TAG, "Resolved IP: $remoteAddress, Port: $port")
+                    socket?.close()
+                    socket = Socket(remoteAddress, port)
+                    socket?.setDomain(host)
+                    socket?.setMessageCallback { message ->
+                        CoroutineScope(Dispatchers.IO).launch {
+                            Log.d(TAG, "Received message via callback: $message")
+                            messageCallbackChannel.send(message)
+                            handleIncomingMessage(message)
+                        }
+                    }
+                    if (socket?.connect(remoteAddress, port) != true) {
+                        Log.e(TAG, "Socket connection failed for $remoteAddress:$port")
+                        socket?.close()
+                        socket = null
+                        delay(1000)
+                        continue
+                    }
+                    Log.d(TAG, "Socket connected successfully for $remoteAddress:$port")
+                    socket?.initiateXmppStream(socket!!, host, jid)
+                    Log.d(TAG, "XMPP stream initiation started, waiting for server response")
+                    reconnectAttempts = 0
+                    attemptedPreTlsAuth = false
+                    return@withContext true
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error connecting to $host: ${e.message}", e)
                     socket?.close()
                     socket = null
-                    delay(1000)
-                    continue
-                }
-                Log.d(TAG, "Socket connected successfully for $remoteAddress:$port")
-                socket?.initiateXmppStream(socket!!, host, jid)
-                Log.d(TAG, "XMPP stream initiation started, waiting for server response")
-                reconnectAttempts = 0
-                attemptedPreTlsAuth = false
-                return@withContext true
-            } catch (e: Exception) {
-                Log.e(TAG, "Error connecting to $host: ${e.message}", e)
-                socket?.close()
-                socket = null
-                state = StreamState.NOT_CONNECTING
-                if (attempts < maxAttempts) {
-                    delay(1000)
-                    continue
-                }
-                return@withContext false
-            } finally {
-                synchronized(connectionLock) {
-                    isConnecting = false
+                    state = StreamState.NOT_CONNECTING
+                    if (attempts < maxAttempts) {
+                        delay(1000)
+                        continue
+                    }
+                    return@withContext false
                 }
             }
+            Log.e(TAG, "All connection attempts failed for JID: $jid")
+            return@withContext false
+        } finally {
+            synchronized(connectionLock) {
+                isConnecting = false
+            }
         }
-        Log.e(TAG, "All connection attempts failed for JID: $jid")
-        return@withContext false
     }
 
     private suspend fun handleIncomingMessage(message: String) {
@@ -294,16 +302,19 @@ class Stream {
                             val validationKey = validationKeyMatch.groupValues[1]
                             val expire = expireMatch.groupValues[1].toDoubleOrNull() ?: 1.0
                             val secret = secretMatch.groupValues[1]
+                            var existingDevice: DeviceStorageItem? = null
+                            synchronized(connectionLock) {
+                                existingDevice = realm.query<DeviceStorageItem>("uid = $0 AND owner = $1", uid, jid).first().find()
+                            }
                             realm.write {
-                                val existingDevice = query<DeviceStorageItem>("uid = $0 AND owner = $1", uid, jid).first().find()
                                 if (existingDevice != null) {
-                                    findLatest(existingDevice)?.apply {
+                                    findLatest(existingDevice!!)?.apply {
                                         configure(
                                             owner = jid,
                                             uid = uid,
                                             ip = socket?.getSocket()?.remoteAddress?.toString() ?: "",
-                                            client = "Xabber-android",
-                                            device = "Xabben-android-device",
+                                            client = "Xabben-android-device",
+                                            device = deviceModel,
                                             expire = expire,
                                             authDate = System.currentTimeMillis().toDouble() / 1000,
                                             authCounter = 1,
@@ -312,7 +323,7 @@ class Stream {
                                             validationKey = validationKey
                                         )
                                     }
-                                    Log.d(TAG, "Updated existing DeviceStorageItem for uid: $uid, owner: $jid, authCounter: ${existingDevice.authCounter}")
+                                    Log.d(TAG, "Updated existing DeviceStorageItem for uid: $uid, owner: $jid, authCounter: ${existingDevice!!.authCounter}")
                                 } else {
                                     val newDevice = DeviceStorageItem().apply {
                                         configure(
@@ -320,7 +331,7 @@ class Stream {
                                             uid = uid,
                                             ip = socket?.getSocket()?.remoteAddress?.toString() ?: "",
                                             client = "Xabber-android",
-                                            device = "Xabben-android-device",
+                                            device = deviceModel,
                                             expire = expire,
                                             authDate = System.currentTimeMillis().toDouble() / 1000,
                                             authCounter = 1,
@@ -333,7 +344,9 @@ class Stream {
                                     Log.d(TAG, "Created new DeviceStorageItem for uid: $uid, owner: $jid, authCounter: ${newDevice.authCounter}")
                                 }
                             }
-                            isDeviceRegistered = true
+                            synchronized(connectionLock) {
+                                isDeviceRegistered = true
+                            }
                             state = StreamState.BINDING
                         } else {
                             Log.e(TAG, "Failed to parse device registration response: $message")
@@ -511,14 +524,18 @@ class Stream {
             val features = response?.features
             if (DevicesOCRA.isSupported(features)) {
                 Log.d(TAG, "Initiating DEVICES-OCRA authentication for JID: $jid")
-                realm.query<DeviceStorageItem>("owner = $0", jid).first().find()?.let { device ->
-                    if (device.secret.isNotEmpty() && device.validationKey.isNotEmpty() && device.uid.isNotEmpty()) {
+                var device: DeviceStorageItem? = null
+                synchronized(connectionLock) {
+                    device = realm.query<DeviceStorageItem>("owner = $0", jid).first().find()
+                }
+                device?.let {
+                    if (it.secret.isNotEmpty() && it.validationKey.isNotEmpty() && it.uid.isNotEmpty()) {
                         ocraAuth = DevicesOCRA(
                             stream = this,
-                            deviceId = device.uid,
-                            secret = device.secret,
-                            validationKey = device.validationKey,
-                            authCounter = device.authCounter,
+                            deviceId = it.uid,
+                            secret = it.secret,
+                            validationKey = it.validationKey,
+                            authCounter = it.authCounter,
                             realm = realm
                         )
                         if (ocraAuth?.start() == true) {
@@ -530,7 +547,7 @@ class Stream {
                             reconnect()
                         }
                     } else {
-                        Log.e(TAG, "DeviceStorageItem missing required fields for OCRA: uid=${device.uid}, secret=${device.secret}, validationKey=${device.validationKey}, authCounter=${device.authCounter}")
+                        Log.e(TAG, "DeviceStorageItem missing required fields for OCRA: uid=${it.uid}, secret=${it.secret}, validationKey=${it.validationKey}, authCounter=${it.authCounter}")
                         state = StreamState.AUTH_FAILED
                         reconnect()
                     }
@@ -618,6 +635,13 @@ class Stream {
             state = StreamState.NOT_CONNECTING
             reconnect()
             return
+        }
+        synchronized(connectionLock) {
+            if (isDeviceRegistered) {
+                Log.d(TAG, "Device already registered for JID: $jid, skipping registration")
+                state = StreamState.BINDING
+                return
+            }
         }
         try {
             Log.w(TAG, "D E V I C E $deviceModel")
