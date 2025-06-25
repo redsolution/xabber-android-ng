@@ -23,6 +23,7 @@ import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.ActionBarDrawerToggle
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.appcompat.widget.Toolbar
@@ -45,7 +46,9 @@ import com.google.android.material.bottomnavigation.BottomNavigationItemView
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.google.android.material.navigation.NavigationView
 import com.xabber.R
+import com.xabber.common.Account
 import com.xabber.common.AccountManager
+import com.xabber.common.Stream
 import com.xabber.data_base.defaultRealmConfig
 import com.xabber.databinding.ActivityApplicationBinding
 import com.xabber.dto.AccountDto
@@ -93,12 +96,12 @@ import com.xabber.utils.custom.ShapeOfView
 import com.xabber.utils.lockScreenRotation
 import com.xabber.utils.toAccountDto
 import com.xabber.utils.toAvatarDto
-import com.xabber.xmpp.dns.fetchFromSrv
 import io.realm.kotlin.Realm
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlin.math.log
+
 
 /**
  * ApplicationActivity implements the interface Navigator. Its methods are responsible for navigation.
@@ -117,6 +120,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
             layoutInflater
         )
     }
+    private lateinit var stream: Stream
 
     private val realm = Realm.open(defaultRealmConfig())
     private lateinit var drawerLayout: DrawerLayout
@@ -164,6 +168,15 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         val sharedPreferences = getSharedPreferences(AppConstants.SHARED_PREF_MASK, Context.MODE_PRIVATE)
         sharedPreferences.registerOnSharedPreferenceChangeListener(this)
 
+        CoroutineScope(Dispatchers.IO).launch {
+            Account().loadAccount()
+            val connected = Account().connectStream()
+            if (!connected) {
+                withContext(Dispatchers.Main) {
+                    showErrorDialog("Failed to connect to server.")
+                }
+            }
+        }
 //        val dnsTestButton = findViewById<ImageView>(R.id.dnsTestButton)
 //        val resultText = findViewById<TextView>(R.id.result_text)
 //        dnsTestButton.setOnClickListener {
@@ -181,6 +194,19 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
 //        }
 
 
+    }
+
+    private fun showErrorDialog(errorMessage: String) {
+        AlertDialog.Builder(this)
+            .setTitle("Error")
+            .setMessage(errorMessage)
+            .setPositiveButton("OK") { dialog, _ ->
+                dialog.dismiss()
+                // Опционально: перенаправить на экран логина
+            }
+            .setCancelable(false)
+            .create()
+            .show()
     }
 
     private fun setupStatusBar() {
@@ -313,6 +339,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         return true
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     private fun handleProfileNavigation() {
         val widthDp = DisplayManager.getWidthDp()
         val orientation = resources.configuration.orientation
@@ -757,6 +784,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
 
 
 
+     @RequiresApi(Build.VERSION_CODES.O)
      override fun logOut() {
         if (isLoggingOut) {
             Log.w("ApplicationActivity", "Logout already in progress, skipping")

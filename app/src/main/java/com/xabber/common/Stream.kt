@@ -1,5 +1,6 @@
 package com.xabber.common
 
+import android.app.AlertDialog
 import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
@@ -74,6 +75,8 @@ class Stream {
         ).build()
         Realm.open(config)
     }
+    // Callback для уведомления об ошибках
+    private var onErrorCallback: ((String) -> Unit)? = null
 
     init {
         runBlocking(Dispatchers.IO) {
@@ -86,6 +89,11 @@ class Stream {
         this.port = port ?: 5222
         this.host = extractHostFromJid(jid)
         this.state = StreamState.NOT_CONNECTING
+    }
+
+    // Метод для установки callback
+    fun setOnErrorCallback(callback: (String) -> Unit) {
+        onErrorCallback = callback
     }
 
     private suspend fun checkExistingDevice() {
@@ -111,7 +119,7 @@ class Stream {
             if (parts.size > 1) {
                 return parts[1].split("/").first()
             }
-            Log.w(TAG, "Invalid JID format: $jid, using JID as host")
+            Log.w(TAG, "Invalid JID format: $jid")
             return jid
         } catch (e: Exception) {
             Log.e(TAG, "Error extracting host from JID: ${e.message}", e)
@@ -122,22 +130,18 @@ class Stream {
     fun extractUsernameFromJid(jid: String): String {
         try {
             val parts = jid.split("@")
-            if (parts.size > 1) {
-                return parts[0]
-            }
-            Log.w(TAG, "Invalid JID format: $jid, using JID as username")
-            return jid
+            return if (parts.size > 1) parts[0] else jid
         } catch (e: Exception) {
             Log.e(TAG, "Error extracting username from JID: ${e.message}", e)
             return jid
         }
     }
 
-    suspend fun connect(): Boolean = withContext(Dispatchers.IO) {
+    suspend fun connect(): String? = withContext(Dispatchers.IO) {
         synchronized(connectionLock) {
             if (isConnecting) {
                 Log.w(TAG, "Connect already in progress for $jid, ignoring")
-                return@withContext false
+                return@withContext "Connect already in progress"
             }
             isConnecting = true
         }
@@ -153,11 +157,11 @@ class Stream {
                     val result = resolver.resolveSRV(host)
                     if (result == null) {
                         Log.e(TAG, "DNS resolution failed for host $host")
-                        return@withContext false
+                        return@withContext "DNS resolution failed"
                     }
                     this@Stream.remoteAddress = result.first
                     this@Stream.port = result.second
-                    Log.d(TAG, "Resolved IP: $remoteAddress, Port: $port")
+                    Log.d(TAG, "Resolved IP: $remoteAddress, Port: $port}")
                     socket?.close()
                     socket = Socket(remoteAddress, port)
                     socket?.setDomain(host)
@@ -180,7 +184,7 @@ class Stream {
                     Log.d(TAG, "XMPP stream initiation started, waiting for server response")
                     reconnectAttempts = 0
                     attemptedPreTlsAuth = false
-                    return@withContext true
+                    return@withContext null
                 } catch (e: Exception) {
                     Log.e(TAG, "Error connecting to $host: ${e.message}", e)
                     socket?.close()
@@ -190,11 +194,11 @@ class Stream {
                         delay(1000)
                         continue
                     }
-                    return@withContext false
+                    return@withContext "All connection attempts failed: ${e.message}"
                 }
             }
             Log.e(TAG, "All connection attempts failed for JID: $jid")
-            return@withContext false
+            return@withContext "All connection attempts failed"
         } finally {
             synchronized(connectionLock) {
                 isConnecting = false
@@ -214,6 +218,7 @@ class Stream {
                     val response = socket?.parseStreamResponse(message)
                     if (response == null) {
                         Log.e(TAG, "Failed to parse stream features")
+                        onErrorCallback?.invoke("Failed to parse stream features")
                         state = StreamState.NOT_CONNECTING
                         reconnect()
                         return
@@ -256,6 +261,7 @@ class Stream {
                             }
                         } else {
                             Log.w(TAG, "No supported features found")
+                            onErrorCallback?.invoke("No supported authentication features found")
                             state = StreamState.NOT_CONNECTING
                             reconnect()
                         }
@@ -266,6 +272,7 @@ class Stream {
                     val success = ocraAuth!!.handleAuthChallenge(message)
                     if (!success) {
                         Log.e(TAG, "OCRA challenge handling failed")
+                        onErrorCallback?.invoke("OCRA authentication challenge failed")
                         state = StreamState.AUTH_FAILED
                     }
                 }
@@ -275,6 +282,7 @@ class Stream {
                         val success = ocraAuth!!.handleAuthResponse(message)
                         if (!success) {
                             Log.e(TAG, "OCRA authentication response handling failed")
+                            onErrorCallback?.invoke("OCRA authentication response handling failed")
                             state = StreamState.AUTH_FAILED
                             return
                         }
@@ -283,6 +291,19 @@ class Stream {
                 }
                 message.contains("<failure") && state == StreamState.PROCESS_AUTH -> {
                     Log.e(TAG, "Authentication failed: $message")
+                    // Извлечение текста ошибки
+                    val errorTextMatch = Regex("""<text[^>]*>([^<]+)</text>""").find(message)
+                    val errorText = errorTextMatch?.groupValues?.get(1) ?: "Unknown authentication error"
+                    // Извлечение типа ошибки
+                    val errorTypeMatch = Regex("""<([a-z\-]+)\/>""").find(message)
+                    val errorType = errorTypeMatch?.groupValues?.get(1) ?: "unknown"
+                    // Формирование сообщения
+                    val userMessage = when (errorType) {
+                        "not-authorized" -> "Authentication failed: $errorText"
+                        else -> "Authentication failed: $errorText ($errorType)"
+                    }
+                    Log.e(TAG, userMessage)
+                    onErrorCallback?.invoke(userMessage)
                     state = StreamState.AUTH_FAILED
                 }
                 message.contains("<proceed") -> {
@@ -322,7 +343,7 @@ class Stream {
                                             validationKey = validationKey
                                         )
                                     }
-                                    Log.d(TAG, "Updated existing DeviceStorageItem for uid: $uid, owner: $jid, authCounter: ${existingDevice!!.authCounter}")
+                                    Log.d(TAG, "Updated existing DeviceStorageItem for uid: $uid, owner: $jid")
                                 } else {
                                     val newDevice = DeviceStorageItem().apply {
                                         configure(
@@ -340,16 +361,15 @@ class Stream {
                                         )
                                     }
                                     copyToRealm(newDevice)
-                                    Log.d(TAG, "Created new DeviceStorageItem for uid: $uid, owner: $jid, authCounter: ${newDevice.authCounter}")
+                                    Log.d(TAG, "Created new DeviceStorageItem for uid: $uid, owner: $jid")
                                 }
                             }
-                            // Increment authCounter to 2 after registration
                             realm.write {
                                 val device = query<DeviceStorageItem>("uid = $0 AND owner = $1", uid, jid).first().find()
                                 if (device != null) {
                                     findLatest(device)?.apply {
                                         authCounter++
-                                        Log.d(TAG, "Incremented authCounter to 2 for uid: $uid, owner: $jid, counter: $authCounter")
+                                        Log.d(TAG, "Incremented authCounter to 2 for uid: $uid, owner: $jid")
                                     }
                                 } else {
                                     Log.e(TAG, "Failed to find device for incrementing authCounter: uid=$uid, owner=$jid")
@@ -361,11 +381,13 @@ class Stream {
                             state = StreamState.BINDING
                         } else {
                             Log.e(TAG, "Failed to parse device registration response: $message")
+                            onErrorCallback?.invoke("Failed to parse device registration response")
                             state = StreamState.NOT_CONNECTING
                             reconnect()
                         }
                     } else {
                         Log.e(TAG, "Device registration failed: $message")
+                        onErrorCallback?.invoke("Device registration failed")
                         state = StreamState.NOT_CONNECTING
                         reconnect()
                     }
@@ -379,6 +401,7 @@ class Stream {
                         state = StreamState.CONNECTED
                     } else {
                         Log.e(TAG, "Binding failed, no JID in response: $message")
+                        onErrorCallback?.invoke("Resource binding failed")
                         state = StreamState.NOT_CONNECTING
                         reconnect()
                     }
@@ -397,6 +420,7 @@ class Stream {
                             Log.d(TAG, "Sent ping response: $response")
                         } else {
                             Log.e(TAG, "Failed to send ping response")
+                            onErrorCallback?.invoke("Failed to send ping response")
                             state = StreamState.NOT_CONNECTING
                             reconnect()
                         }
@@ -412,11 +436,13 @@ class Stream {
                 }
                 message.contains("<stream:error") -> {
                     Log.e(TAG, "Received stream error: $message")
+                    onErrorCallback?.invoke("Stream error occurred")
                     state = StreamState.NOT_CONNECTING
                     reconnect()
                 }
                 message.contains("</stream:stream>") -> {
                     Log.w(TAG, "Received stream termination")
+                    onErrorCallback?.invoke("Connection closed by server")
                     state = StreamState.NOT_CONNECTING
                     reconnect()
                 }
@@ -426,6 +452,7 @@ class Stream {
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error handling message: ${e.message}", e)
+            onErrorCallback?.invoke("Error processing server response: ${e.message}")
             state = StreamState.NOT_CONNECTING
             reconnect()
         }
@@ -434,6 +461,7 @@ class Stream {
     private suspend fun reconnect() {
         if (reconnectAttempts >= maxReconnectAttempts) {
             Log.e(TAG, "Max reconnect attempts ($maxReconnectAttempts) reached for JID: $jid")
+            onErrorCallback?.invoke("Maximum reconnection attempts reached")
             state = StreamState.NOT_CONNECTING
             return
         }
@@ -442,10 +470,12 @@ class Stream {
         socket?.close()
         socket = null
         delay(1000)
-        if (connect()) {
+        val connectError = connect()
+        if (connectError == null) {
             Log.d(TAG, "Reconnection successful for JID: $jid")
         } else {
-            Log.e(TAG, "Reconnection failed for JID: $jid")
+            Log.e(TAG, "Reconnection failed for JID: $jid: $connectError")
+            onErrorCallback?.invoke("Reconnection failed: $connectError")
             state = StreamState.NOT_CONNECTING
             reconnect()
         }
@@ -475,9 +505,7 @@ class Stream {
         }
     }
 
-    fun getSocket(): Socket? {
-        return socket
-    }
+    fun getSocket(): Socket? = socket
 
     open fun onNotConnecting() {}
 
@@ -486,6 +514,7 @@ class Stream {
     open suspend fun onStartTls() {
         if (socket == null || socket?.getSocket()?.isClosed == true) {
             Log.e(TAG, "Cannot initiate STARTTLS: Socket is null or closed")
+            onErrorCallback?.invoke("Cannot initiate STARTTLS: Connection closed")
             state = StreamState.NOT_CONNECTING
             reconnect()
             return
@@ -494,6 +523,7 @@ class Stream {
             Log.d(TAG, "Initiating STARTTLS negotiation")
             if (!socket!!.initiateStartTls()) {
                 Log.e(TAG, "Failed to initiate STARTTLS")
+                onErrorCallback?.invoke("Failed to initiate STARTTLS")
                 state = StreamState.NOT_CONNECTING
                 reconnect()
                 return
@@ -508,11 +538,13 @@ class Stream {
                 Log.d(TAG, "New stream initiated over TLS, awaiting response")
             } else {
                 Log.e(TAG, "Failed to upgrade to TLS")
+                onErrorCallback?.invoke("Failed to upgrade to TLS")
                 state = StreamState.NOT_CONNECTING
                 reconnect()
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error during STARTTLS process: ${e.message}", e)
+            onErrorCallback?.invoke("STARTTLS error: ${e.message}")
             state = StreamState.NOT_CONNECTING
             reconnect()
         }
@@ -526,6 +558,7 @@ class Stream {
         Log.d(TAG, "Entering onStartAuth for JID: $jid")
         if (socket == null || socket?.getSocket()?.isClosed == true) {
             Log.e(TAG, "Cannot initiate authentication: Socket is null or closed")
+            onErrorCallback?.invoke("Cannot initiate authentication: Connection closed")
             state = StreamState.AUTH_FAILED
             reconnect()
             return
@@ -551,15 +584,17 @@ class Stream {
                             realm = realm
                         )
                         if (ocraAuth?.start() == true) {
-                            Log.d(TAG, "DEVICES-OCRA authentication started for JID: $jid with authCounter=${it.authCounter}")
+                            Log.d(TAG, "DEVICES-OCRA authentication started for JID: $jid")
                             state = StreamState.PROCESS_AUTH
                         } else {
                             Log.e(TAG, "Failed to start DEVICES-OCRA authentication for JID: $jid")
+                            onErrorCallback?.invoke("Failed to start DEVICES-OCRA authentication")
                             state = StreamState.AUTH_FAILED
                             reconnect()
                         }
                     } else {
-                        Log.e(TAG, "DeviceStorageItem missing required fields for OCRA: uid=${it.uid}, secret=${it.secret}, validationKey=${it.validationKey}, authCounter=${it.authCounter}")
+                        Log.e(TAG, "DeviceStorageItem missing required fields for OCRA")
+                        onErrorCallback?.invoke("Invalid device data for OCRA authentication")
                         state = StreamState.AUTH_FAILED
                         reconnect()
                     }
@@ -569,6 +604,8 @@ class Stream {
                         Log.d(TAG, "Falling back to PLAIN authentication")
                         startPlainAuth()
                     } else {
+                        Log.e(TAG, "No supported authentication mechanisms")
+                        onErrorCallback?.invoke("No supported authentication mechanisms")
                         state = StreamState.AUTH_FAILED
                         reconnect()
                     }
@@ -578,11 +615,13 @@ class Stream {
                 startPlainAuth()
             } else {
                 Log.e(TAG, "No supported authentication mechanisms found")
+                onErrorCallback?.invoke("No supported authentication mechanisms")
                 state = StreamState.AUTH_FAILED
                 reconnect()
             }
         } catch (e: Exception) {
             Log.e(TAG, "Unexpected error during authentication for JID: $jid: ${e.message}", e)
+            onErrorCallback?.invoke("Authentication error: ${e.message}")
             state = StreamState.AUTH_FAILED
             reconnect()
         }
@@ -594,21 +633,24 @@ class Stream {
             val username = extractUsernameFromJid(jid)
             Log.d(TAG, "Extracted username: $username")
             val authData = socket!!.saslPlainAuth(jid, username)
-            Log.d(TAG, "Generated SASL PLAIN auth data: $authData")
+            Log.d(TAG, "Generated SASL PLAIN auth data")
             val authMessage = """
                 <auth xmlns='urn:ietf:params:xml:ns:xmpp-sasl' mechanism='PLAIN'>$authData</auth>
             """.trimIndent()
             if (socket?.write(authMessage) == true) {
-                Log.d(TAG, "Sent SASL PLAIN auth request for JID: $jid: $authMessage")
+                Log.d(TAG, "Sent SASL PLAIN auth request for JID: $jid")
                 state = StreamState.PROCESS_AUTH
             } else {
                 Log.e(TAG, "Failed to send SASL PLAIN auth request for JID: $jid")
+                onErrorCallback?.invoke("Failed to send PLAIN authentication request")
                 state = StreamState.AUTH_FAILED
                 reconnect()
             }
         } catch (e: IllegalStateException) {
             Log.e(TAG, "SASL PLAIN authentication failed for JID: $jid: ${e.message}", e)
+            onErrorCallback?.invoke("PLAIN authentication failed: ${e.message}")
             state = StreamState.AUTH_FAILED
+            reconnect()
         }
     }
 
@@ -620,9 +662,10 @@ class Stream {
         Log.d(TAG, "Authentication successful for JID: $jid, initiating new stream")
         try {
             socket?.initiateXmppStream(socket!!, host, jid)
-            Log.d(TAG, "New stream initiated after auth success for JID: $jid, awaiting response")
+            Log.d(TAG, "New stream initiated after auth success for JID: $jid")
         } catch (e: Exception) {
-            Log.e(TAG, "Error initiating new stream after auth success for JID: $jid: ${e.message}", e)
+            Log.e(TAG, "Error initiating new stream after auth success: ${e.message}", e)
+            onErrorCallback?.invoke("Error initiating stream after authentication")
             state = StreamState.NOT_CONNECTING
             reconnect()
         }
@@ -630,6 +673,7 @@ class Stream {
 
     open suspend fun onAuthFailed() {
         Log.e(TAG, "Authentication failed for JID: $jid")
+        onErrorCallback?.invoke("Authentication failed")
         if (!attemptedPreTlsAuth || state == StreamState.PROCEED) {
             Log.e(TAG, "Closing connection due to auth failure")
             close()
@@ -643,6 +687,7 @@ class Stream {
         Log.d(TAG, "Entering onDeviceRegistration for JID: $jid")
         if (socket == null || socket?.getSocket()?.isClosed == true) {
             Log.e(TAG, "Cannot perform device registration: Socket is null or closed")
+            onErrorCallback?.invoke("Cannot perform device registration: Connection closed")
             state = StreamState.NOT_CONNECTING
             reconnect()
             return
@@ -655,7 +700,6 @@ class Stream {
             }
         }
         try {
-            Log.w(TAG, "D E V I C E $deviceModel")
             val deviceId = NanoId.generateOptimized(9, "_-0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", 63, 16)
             val deviceRequest = """
                 <iq type='set' id='$deviceId'>
@@ -671,14 +715,16 @@ class Stream {
                 </iq>
             """.trimIndent()
             if (socket?.write(deviceRequest) == true) {
-                Log.d(TAG, "Sent device registration request for JID: $jid: $deviceRequest")
+                Log.d(TAG, "Sent device registration request for JID: $jid")
             } else {
                 Log.e(TAG, "Failed to send device registration request for JID: $jid")
+                onErrorCallback?.invoke("Failed to send device registration request")
                 state = StreamState.NOT_CONNECTING
                 reconnect()
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error during device registration for JID: $jid: ${e.message}", e)
+            onErrorCallback?.invoke("Device registration error: ${e.message}")
             state = StreamState.NOT_CONNECTING
             reconnect()
         }
@@ -688,6 +734,7 @@ class Stream {
         Log.d(TAG, "Entering onBinding for JID: $jid")
         if (socket == null || socket?.getSocket()?.isClosed == true) {
             Log.e(TAG, "Cannot perform resource binding: Socket is null or closed")
+            onErrorCallback?.invoke("Cannot perform resource binding: Connection closed")
             state = StreamState.NOT_CONNECTING
             reconnect()
             return
@@ -703,14 +750,16 @@ class Stream {
                 </iq>
             """.trimIndent()
             if (socket?.write(bindRequest) == true) {
-                Log.d(TAG, "Sent bind request for JID: $jid: $bindRequest")
+                Log.d(TAG, "Sent bind request for JID: $jid")
             } else {
                 Log.e(TAG, "Failed to send bind request for JID: $jid")
+                onErrorCallback?.invoke("Failed to send resource binding request")
                 state = StreamState.NOT_CONNECTING
                 reconnect()
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error during resource binding for JID: $jid: ${e.message}", e)
+            onErrorCallback?.invoke("Resource binding error: ${e.message}")
             state = StreamState.NOT_CONNECTING
             reconnect()
         }
@@ -725,6 +774,7 @@ class Stream {
                         Log.d(TAG, "Sent ping to $pingJid")
                     } else {
                         Log.w(TAG, "Failed to send ping for JID: $jid")
+                        onErrorCallback?.invoke("Failed to send ping")
                         state = StreamState.NOT_CONNECTING
                         reconnect()
                         break
@@ -732,6 +782,7 @@ class Stream {
                     delay(30000)
                 } catch (e: Exception) {
                     Log.e(TAG, "Ping error for JID: $jid: ${e.message}", e)
+                    onErrorCallback?.invoke("Ping error: ${e.message}")
                     state = StreamState.NOT_CONNECTING
                     reconnect()
                     break

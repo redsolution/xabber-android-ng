@@ -4,19 +4,18 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.content.res.Configuration
 import android.graphics.Bitmap
+import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import android.view.Gravity
 import android.view.LayoutInflater
-import android.view.Menu
-import android.view.MenuInflater
-import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
-import android.view.ViewTreeObserver
 import android.widget.ImageView
+import android.widget.Toast
+import androidx.annotation.RequiresApi
 import androidx.appcompat.widget.PopupMenu
 import androidx.core.content.res.ResourcesCompat
-import androidx.core.view.MenuProvider
 import androidx.core.view.isVisible
 import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.viewModels
@@ -29,7 +28,6 @@ import com.xabber.databinding.FragmentAccountBinding
 import com.xabber.dto.AccountDto
 import com.xabber.dto.AvatarDto
 import com.xabber.presentation.AppConstants
-
 import com.xabber.presentation.application.CloudStorage.CloudStorageSettingsDialog
 import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.application.fragments.account.AccountViewModel
@@ -52,6 +50,7 @@ import io.realm.kotlin.Realm
 import kotlinx.coroutines.launch
 import java.util.zip.Inflater
 
+@RequiresApi(Build.VERSION_CODES.O)
 class AccountDialog : DialogFragment(R.layout.fragment_account), SharedPreferences.OnSharedPreferenceChangeListener {
     private val binding by viewBinding(FragmentAccountBinding::bind)
     private val viewModel: AccountViewModel by viewModels()
@@ -60,6 +59,7 @@ class AccountDialog : DialogFragment(R.layout.fragment_account), SharedPreferenc
     private val realm = Realm.open(defaultRealmConfig())
     private var shapeView: ShapeOfView? = null
     private lateinit var sh: SharedPreferences
+
     override fun onStart() {
         super.onStart()
         val dialog = dialog
@@ -67,24 +67,24 @@ class AccountDialog : DialogFragment(R.layout.fragment_account), SharedPreferenc
             val widthDp = DisplayManager.getWidthDp()
             val orientation = resources.configuration.orientation
             if (widthDp > 600 && orientation == Configuration.ORIENTATION_PORTRAIT) {
-                val width = (resources.displayMetrics.widthPixels * 0.8).toInt() // 90% of screen width
+                val width = (resources.displayMetrics.widthPixels * 0.8).toInt()
                 val height = (resources.displayMetrics.heightPixels * 0.95).toInt()
                 dialog.window?.setLayout(width, height)
-                dialog.window?.setGravity(Gravity.CENTER) // Center the dialog
+                dialog.window?.setGravity(Gravity.CENTER)
             }
-            if ((widthDp > 800 && orientation == Configuration.ORIENTATION_LANDSCAPE)) {
-                val width = (resources.displayMetrics.widthPixels * 0.48).toInt() // 90% of screen width
+            if (widthDp > 800 && orientation == Configuration.ORIENTATION_LANDSCAPE) {
+                val width = (resources.displayMetrics.widthPixels * 0.48).toInt()
                 val height = (resources.displayMetrics.heightPixels * 0.97).toInt()
                 dialog.window?.setLayout(width, height)
-                dialog.window?.setGravity(Gravity.CENTER) // Center the dialog
+                dialog.window?.setGravity(Gravity.CENTER)
             }
-
         }
     }
+
     companion object {
         fun newInstance(jid: String?): AccountDialog {
             val args = Bundle().apply {
-                putString(AppConstants.PARAMS_ACCOUNT_DIALOG, jid) // Ensure the key matches
+                putString(AppConstants.PARAMS_ACCOUNT_DIALOG, jid)
             }
             val dialog = AccountDialog()
             dialog.arguments = args
@@ -92,9 +92,16 @@ class AccountDialog : DialogFragment(R.layout.fragment_account), SharedPreferenc
         }
     }
 
-    private fun getJid(): String =
-        requireArguments().getString(AppConstants.PARAMS_ACCOUNT_DIALOG)!!
-
+    private fun getJid(): String {
+        val jid = requireArguments().getString(AppConstants.PARAMS_ACCOUNT_DIALOG)
+        if (jid.isNullOrEmpty()) {
+            Log.e("AccountDialog", "Invalid or missing JID in arguments")
+            Toast.makeText(context, "Error: Invalid account ID", Toast.LENGTH_LONG).show()
+            dismiss()
+            return ""
+        }
+        return jid
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -106,14 +113,15 @@ class AccountDialog : DialogFragment(R.layout.fragment_account), SharedPreferenc
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        //setupTitle()
+        val jid = getJid()
+        if (jid.isEmpty()) return // Dialog dismissed in getJid() if invalid
+
         setupSwitch()
         setColorDialogResultListener()
         changeUiWithAccountData()
         initToolbarActions()
         createAvatarPopupMenu()
         initAccountSettingsActions()
-        subscribeToViewModelData()
         binding.accountAppbar.shapeView.setDrawable(MaskManager.mask)
         viewModel.avatarBitmap.observe(viewLifecycleOwner) {
             setAvatar(it)
@@ -123,11 +131,10 @@ class AccountDialog : DialogFragment(R.layout.fragment_account), SharedPreferenc
                 .into(binding.accountAppbar.avatarGr.imAccountAvatar)
             viewModel.saveAvatar(getJid(), it.toString())
         }
-
-        binding.accountAppbar.accountToolbar.setNavigationOnClickListener{dismiss()}
-//    binding.accountAppbar.left.setOnClickListener {dismiss()}
-        sh = activity?.getSharedPreferences(AppConstants.SHARED_PREF_MASK, Context.MODE_PRIVATE)!!
+        binding.accountAppbar.accountToolbar.setNavigationOnClickListener { dismiss() }
+        sh = requireActivity().getSharedPreferences(AppConstants.SHARED_PREF_MASK, Context.MODE_PRIVATE)
         sh.registerOnSharedPreferenceChangeListener(this)
+        subscribeToViewModelData()
     }
 
     private fun setAvatar(bitmap: Bitmap) {
@@ -137,36 +144,17 @@ class AccountDialog : DialogFragment(R.layout.fragment_account), SharedPreferenc
             .into(binding.accountAppbar.avatarGr.imAccountAvatar)
     }
 
-
     override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences?, key: String?) {
         binding.accountAppbar.shapeView.setDrawable(MaskManager.mask)
     }
-    private fun setupTitle() {
-//        binding.accountAppbar.tvTitle.isSelected = true
-//        if (!DisplayManager.isDualScreenMode() && DisplayManager.getWidthDp() > 600) {
-//            val params = CollapsingToolbarLayout.LayoutParams(
-//                CoordinatorLayout.LayoutParams.WRAP_CONTENT,
-//                CollapsingToolbarLayout.LayoutParams.WRAP_CONTENT
-//            )
-//            params.gravity = Gravity.CENTER
-//
-//            binding.accountAppbar.linText.layoutParams = params
-//        }
-    }
 
     private fun setupSwitch() {
-//        binding.accountAppbar.switchAccountEnable.isVisible = true
-//        val colorStateList =
-//            ColorStateList.valueOf(ContextCompat.getColor(requireContext(), R.color.white))
-//        binding.accountAppbar.switchAccountEnable.thumbTintList = colorStateList
-//        binding.accountAppbar.switchAccountEnable.isChecked =
-//            viewModel.getAccount(getJid())!!.enabled
-//        binding.accountAppbar.switchAccountEnable.setOnCheckedChangeListener { _, isChecked ->
-//            viewModel.setEnabled(
-//                getJid(),
-//                isChecked
-//            )
-//        }
+        binding.accountAppbar.switchAccountEnable.isVisible = true
+        val account = viewModel.getAccount(getJid())
+        binding.accountAppbar.switchAccountEnable.isChecked = account?.enabled ?: false
+        binding.accountAppbar.switchAccountEnable.setOnCheckedChangeListener { _, isChecked ->
+            viewModel.setEnabled(getJid(), isChecked)
+        }
     }
 
     private fun setColorDialogResultListener() {
@@ -178,55 +166,42 @@ class AccountDialog : DialogFragment(R.layout.fragment_account), SharedPreferenc
 
     private fun changeUiWithAccountData() {
         val account = viewModel.getAccount(getJid())
-        hasAvatar = account?.hasAvatar ?: false
-        val colorKey = account?.colorKey ?: resources.getString(R.string.blue)
+        if (account == null) {
+            Log.e("AccountDialog", "No account found for JID: ${getJid()}")
+            Toast.makeText(context, "Error: Account not found", Toast.LENGTH_LONG).show()
+            dismiss()
+            return
+        }
+        hasAvatar = account.hasAvatar
+        val colorKey = account.colorKey ?: resources.getString(R.string.blue)
         val colorRes = ColorManager.convertColorNameToId(colorKey)
         loadBackground(colorRes)
         defineColor(colorRes)
-        if (account != null) loadAvatar(account)
+        loadAvatar(account)
         with(binding.accountAppbar) {
-            if (account != null) {
-                tvTitle.text = account.getAccountName()
-                tvSubtitle.text = account.jid
-            }
+            tvTitle.text = account.getAccountName() ?: ""
+            tvSubtitle.text = account.jid
+            switchAccountEnable.isChecked = account.enabled
         }
-
     }
 
     private fun loadBackground(colorRes: Int) {
         binding.accountAppbar.appbar.setBackgroundResource(colorRes)
-//        Glide.with(requireContext())
-//            .load(AccountManager.getAvatar())
-//            .transform(
-//                BlurTransformation(
-//                    25,
-//                    6,
-//                    ContextCompat.getColor(
-//                        requireContext(),
-//                        colorRes
-//                    )
-//                )
-//            ).placeholder(colorRes).transition(
-//                DrawableTransitionOptions.withCrossFade()
-//            )
-//            .into(binding.accountAppbar.imBackdrop)
     }
 
     private fun defineColor(colorRes: Int) {
         binding.accountAppbar.collapsingToolbar.setContentScrimColor(
-            ResourcesCompat.getColor(
-                resources,
-                colorRes,
-                requireContext().theme
-            )
+            ResourcesCompat.getColor(resources, colorRes, requireContext().theme)
         )
     }
 
     private fun loadAvatar(account: AccountDto) {
-        if (account.hasAvatar) loadAccountAvatar() else loadAvatarWithInitials(
-            account.nickname,
-            account.colorKey
-        )
+        Log.d("AccountDialog", "Loading avatar for account: jid=${account.jid}, hasAvatar=${account.hasAvatar}, nickname=${account.nickname}, colorKey=${account.colorKey}")
+        if (account.hasAvatar) {
+            loadAccountAvatar()
+        } else {
+            loadAvatarWithInitials(account.nickname ?: "", account.colorKey ?: resources.getString(R.string.blue))
+        }
     }
 
     private fun loadAccountAvatar() {
@@ -235,16 +210,21 @@ class AccountDialog : DialogFragment(R.layout.fragment_account), SharedPreferenc
             val account = getPrimaryAccount()
             val avatar = account?.let { getAvatar(it.id) }
             val uri = avatar?.fileUri
+            Log.d("AccountDialog", "Loading account avatar: uri=$uri")
             Glide.with(binding.root.context).load(uri)
                 .into(binding.accountAppbar.avatarGr.imAccountAvatar)
         }
     }
+
     private fun getPrimaryAccount(): AccountDto? {
         var accountDto: AccountDto? = null
         val realmAccounts = realm.query(com.xabber.data_base.models.account.AccountStorageItem::class, "enabled = true").find()
-        val primaryAccount = realmAccounts.minByOrNull { T -> T.order }
+        val primaryAccount = realmAccounts.minByOrNull { it.order }
         if (primaryAccount != null) {
             accountDto = primaryAccount.toAccountDto()
+            Log.d("AccountDialog", "Primary account: $accountDto")
+        } else {
+            Log.w("AccountDialog", "No primary account found")
         }
         return accountDto
     }
@@ -254,27 +234,30 @@ class AccountDialog : DialogFragment(R.layout.fragment_account), SharedPreferenc
         realm.writeBlocking {
             val realmAvatar =
                 this.query(com.xabber.data_base.models.avatar.AvatarStorageItem::class, "primary = '$id'").first().find()
-            if (realmAvatar != null)
+            if (realmAvatar != null) {
                 avatarDto = realmAvatar.toAvatarDto()
+                Log.d("AccountDialog", "Avatar found for id=$id: $avatarDto")
+            } else {
+                Log.w("AccountDialog", "No avatar found for id=$id")
+            }
         }
         return avatarDto
     }
+
     private fun loadAvatarWithInitials(name: String, colorKey: String) {
         val color = ColorManager.convertColorLightNameToId(colorKey)
         binding.accountAppbar.avatarGr.imAccountAvatar.setImageResource(color)
-        var initials =
-            name.split(' ').mapNotNull { it.firstOrNull()?.toString() }.reduce { acc, s -> acc + s }
+        var initials = name.split(' ').mapNotNull { it.firstOrNull()?.toString() }.reduceOrNull { acc, s -> acc + s } ?: ""
         if (initials.length > 2) initials = initials.substring(0, 2)
         binding.accountAppbar.avatarGr.tvAccountInitials.isVisible = true
         binding.accountAppbar.avatarGr.tvAccountInitials.text = initials
+        Log.d("AccountDialog", "Loaded avatar with initials: name=$name, colorKey=$colorKey, initials=$initials")
     }
 
     private fun createAvatarPopupMenu() {
-        popupMenu =
-            PopupMenu(requireContext(), binding.accountAppbar.avatarGr.imAvatarGroup, Gravity.TOP)
+        popupMenu = PopupMenu(requireContext(), binding.accountAppbar.avatarGr.imAvatarGroup, Gravity.TOP)
         popupMenu?.inflate(R.menu.popup_menu_account_avatar)
-        if (popupMenu != null) popupMenu?.menu?.findItem(R.id.delete_avatar)?.isVisible =
-            viewModel.getAccount(getJid())!!.hasAvatar
+        popupMenu?.menu?.findItem(R.id.delete_avatar)?.isVisible = hasAvatar
         popupMenu?.setOnMenuItemClickListener {
             when (it.itemId) {
                 R.id.change_avatar -> showAvatarBottomSheet()
@@ -295,25 +278,17 @@ class AccountDialog : DialogFragment(R.layout.fragment_account), SharedPreferenc
     }
 
     private fun initToolbarActions() {
-
         binding.accountAppbar.accountToolbar.findViewById<ImageView>(R.id.colors).setOnClickListener {
-            val dialog = AccountColorDialog.newInstance(
-                viewModel.getAccount(getJid())?.colorKey
-                    ?: resources.getString(R.string.blue))
+            val colorKey = viewModel.getAccount(getJid())?.colorKey ?: resources.getString(R.string.blue)
+            val dialog = AccountColorDialog.newInstance(colorKey)
             navigator().showDialogFragment(dialog, "")
-
         }
 
         binding.accountAppbar.accountToolbar.findViewById<ImageView>(R.id.generate_qr_code).setOnClickListener {
-            val color = viewModel.getAccount(getJid())?.colorKey ?: resources.getString(R.string.blue)
-            val name = viewModel.getAccount(getJid())?.getAccountName() ?: ""
-            navigator().showQRCode(
-                QRCodeParams(
-                    name,
-                    getJid(),
-                    color
-                )
-            )
+            val account = viewModel.getAccount(getJid())
+            val color = account?.colorKey ?: resources.getString(R.string.blue)
+            val name = account?.getAccountName() ?: ""
+            navigator().showQRCode(QRCodeParams(name, getJid(), color))
         }
 
         var isShow = true
@@ -324,12 +299,9 @@ class AccountDialog : DialogFragment(R.layout.fragment_account), SharedPreferenc
                     scrollRange = bar.totalScrollRange
                 }
                 if (scrollRange + verticalOffset < 20) {
-                    val anim =
-                        android.view.animation.AnimationUtils.loadAnimation(context, com.xabber.R.anim.disappearance_300)
+                    val anim = android.view.animation.AnimationUtils.loadAnimation(context, com.xabber.R.anim.disappearance_300)
                     if (tvTitle.isVisible) {
-                        tvTitle.startAnimation(
-                            anim
-                        )
+                        tvTitle.startAnimation(anim)
                         tvSubtitle.startAnimation(anim)
                         avatarGr.imAvatarGroup.startAnimation(anim)
                         avatarGr.imAvatarGroup.isVisible = false
@@ -337,7 +309,6 @@ class AccountDialog : DialogFragment(R.layout.fragment_account), SharedPreferenc
                         tvTitle.isVisible = false
                     }
                 }
-
                 if (scrollRange + verticalOffset > 20) {
                     val anim = android.view.animation.AnimationUtils.loadAnimation(context, com.xabber.R.anim.appearance)
                     if (!tvTitle.isVisible) {
@@ -350,11 +321,11 @@ class AccountDialog : DialogFragment(R.layout.fragment_account), SharedPreferenc
                     }
                 }
                 if (scrollRange + verticalOffset == 0) {
-                    collapsingToolbar.title = viewModel.getAccount(getJid())!!.nickname
+                    val nickname = viewModel.getAccount(getJid())?.nickname ?: ""
+                    collapsingToolbar.title = nickname
                     isShow = true
                 } else if (isShow) {
-                    collapsingToolbar.title =
-                        " "
+                    collapsingToolbar.title = " "
                     isShow = false
                 }
             }
@@ -362,35 +333,47 @@ class AccountDialog : DialogFragment(R.layout.fragment_account), SharedPreferenc
     }
 
     private fun subscribeToViewModelData() {
-        viewModel.initDataListener(getJid())
-        viewModel.accounts.observe(viewLifecycleOwner) {
-            loadAvatar(it[0])
-            if (hasAvatar != it[0].hasAvatar) {
-                loadAvatar(it[0])
-                popupMenu?.menu?.findItem(R.id.delete_avatar)?.isVisible = it[0].hasAvatar
-                hasAvatar = it[0].hasAvatar
+        val jid = getJid()
+        viewModel.initDataListener(jid)
+        viewModel.accounts.observe(viewLifecycleOwner) { accounts ->
+            if (accounts.isEmpty()) {
+                Log.e("AccountDialog", "No accounts found for JID: $jid")
+                Toast.makeText(context, "Error: No account found for this ID", Toast.LENGTH_LONG).show()
+                dismiss()
+                return@observe
+            }
+            val account = accounts[0]
+            Log.d("AccountDialog", "Received account for JID: $jid, account: $account")
+            if (account.jid.isEmpty() || account.colorKey == null) {
+                Log.e("AccountDialog", "Invalid account data: jid=${account.jid}, colorKey=${account.colorKey}")
+                Toast.makeText(context, "Error: Invalid account data", Toast.LENGTH_LONG).show()
+                dismiss()
+                return@observe
+            }
+            loadAvatar(account)
+            if (hasAvatar != account.hasAvatar) {
+                loadAvatar(account)
+                popupMenu?.menu?.findItem(R.id.delete_avatar)?.isVisible = account.hasAvatar
+                hasAvatar = account.hasAvatar
             }
             binding.accountAppbar.switchAccountEnable.setOnCheckedChangeListener(null)
-            binding.accountAppbar.switchAccountEnable.isChecked = it[0].enabled
+            binding.accountAppbar.switchAccountEnable.isChecked = account.enabled
             binding.accountAppbar.switchAccountEnable.setOnCheckedChangeListener { _, isChecked ->
-                viewModel.setEnabled(
-                    getJid(),
-                    isChecked
-                )
+                viewModel.setEnabled(jid, isChecked)
             }
         }
 
         viewModel.colorKey.observe(viewLifecycleOwner) {
-            val color = ColorManager.convertColorNameToId(it)
+            val colorKey = it ?: resources.getString(R.string.blue)
+            val color = ColorManager.convertColorNameToId(colorKey)
             defineColor(color)
             loadBackground(color)
             if (!hasAvatar) {
-                val colorLight = ColorManager.convertColorLightNameToId(it)
+                val colorLight = ColorManager.convertColorLightNameToId(colorKey)
                 binding.accountAppbar.avatarGr.imAccountAvatar.setImageResource(colorLight)
             }
         }
     }
-
 
     private fun initAccountSettingsActions() {
         with(binding) {
@@ -414,7 +397,7 @@ class AccountDialog : DialogFragment(R.layout.fragment_account), SharedPreferenc
                 settings.interfaceSettings.setOnClickListener {
                     val interfaceD = InterfaceDialog()
                     interfaceD.show(childFragmentManager, "Interface")
-                    }
+                }
                 settings.notifications.setOnClickListener {
                     val notifyButton = NotificationsFragment()
                     notifyButton.show(childFragmentManager, "Notifications")
@@ -423,84 +406,58 @@ class AccountDialog : DialogFragment(R.layout.fragment_account), SharedPreferenc
                     val storage = CloudStorageSettingsDialog()
                     storage.show(childFragmentManager, "data and storage")
                 }
-//                settings.interfaceSettings.setOnClickListener {
-//                    val interfaceD = InterfaceDialog()
-//                    interfaceD.show(childFragmentManager, "confidential")
-//                }
-//                settings.interfaceSettings.setOnClickListener {
-//                    val interfaceD = InterfaceDialog()
-//                    interfaceD.show(childFragmentManager, "connection")
-//                }
-//                settings.interfaceSettings.setOnClickListener {
-//                    val interfaceD = InterfaceDialog()
-//                    interfaceD.show(childFragmentManager, "debug")
-//                }
-//                settings.interfaceSettings.setOnClickListener {
-//                    val interfaceD = InterfaceDialog()
-//                    interfaceD.show(childFragmentManager, "language")
-//                }
-
             } else {
                 profile.setOnClickListener {
-                childFragmentManager.beginTransaction()
-                    .setReorderingAllowed(true)
-                    .replace(com.xabber.R.id.application_container, ProfileSettingsFragment())
-                    .addToBackStack(null) // Add to back stack for back navigation
-                    .commit()
+                    childFragmentManager.beginTransaction()
+                        .setReorderingAllowed(true)
+                        .replace(com.xabber.R.id.application_container, ProfileSettingsFragment())
+                        .addToBackStack(null)
+                        .commit()
                 }
                 cloudStorage.setOnClickListener {
                     childFragmentManager.beginTransaction()
-                    .setReorderingAllowed(true)
-                    .replace(com.xabber.R.id.application_container, CloudStorageSettingsFragment())
-                    .addToBackStack(null) // Add to back stack for back navigation
-                    .commit()
+                        .setReorderingAllowed(true)
+                        .replace(com.xabber.R.id.application_container, CloudStorageSettingsFragment())
+                        .addToBackStack(null)
+                        .commit()
                 }
                 encryptionAndKeys.setOnClickListener {
                     childFragmentManager.beginTransaction()
-                    .setReorderingAllowed(true)
-                    .replace(com.xabber.R.id.application_container, EncryptionSettingsFragment())
-                    .addToBackStack(null) // Add to back stack for back navigation
-                    .commit()
+                        .setReorderingAllowed(true)
+                        .replace(com.xabber.R.id.application_container, EncryptionSettingsFragment())
+                        .addToBackStack(null)
+                        .commit()
                 }
                 devices.setOnClickListener {
                     childFragmentManager.beginTransaction()
-                    .setReorderingAllowed(true)
-                    .replace(com.xabber.R.id.application_container, DevicesSettingsFragment())
-                    .addToBackStack(null) // Add to back stack for back navigation
-                    .commit()
+                        .setReorderingAllowed(true)
+                        .replace(com.xabber.R.id.application_container, DevicesSettingsFragment())
+                        .addToBackStack(null)
+                        .commit()
                 }
                 settings.interfaceSettings.setOnClickListener {
                     childFragmentManager.beginTransaction()
-                    .setReorderingAllowed(true)
-                    .replace(com.xabber.R.id.application_container, InterfaceFragment())
-                    .addToBackStack(null) // Add to back stack for back navigation
-                    .commit()
+                        .setReorderingAllowed(true)
+                        .replace(com.xabber.R.id.application_container, InterfaceFragment())
+                        .addToBackStack(null)
+                        .commit()
                 }
                 settings.dataAndStorage.setOnClickListener {
                     childFragmentManager.beginTransaction()
                         .setReorderingAllowed(true)
                         .replace(com.xabber.R.id.application_container, CloudStorageSettingsDialog())
-                        .addToBackStack(null) // Add to back stack for back navigation
+                        .addToBackStack(null)
                         .commit()
                 }
             }
-
-            }
-
-//                cloudStorage.setOnClickListener { navigator().showCloudStorageSettings() }
-//                encryptionAndKeys.setOnClickListener { navigator().showEncryptionAndKeysSettings() }
-//                devices.setOnClickListener { navigator().showDevicesSettings() }
-//                settings.interfaceSettings.setOnClickListener { navigator().showInterfaceSettings(true) }
-
-
-
         }
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         if (::sh.isInitialized) {
             sh.unregisterOnSharedPreferenceChangeListener(this)
         }
+        realm.close()
     }
-
-    }
-
+}

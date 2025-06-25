@@ -31,7 +31,7 @@ class DevicesOCRA(
     private val secret: String,
     private val validationKey: String,
     private var authCounter: Long,
-    private val realm: Realm
+    private val realm: Realm,
 ) {
     companion object {
         private const val TAG = "DevicesOCRA"
@@ -397,6 +397,11 @@ class DevicesOCRA(
             true
         } else {
             Log.e(TAG, "OCRA authentication failed: $message")
+            // Извлечение текста ошибки
+            val errorTextMatch = Regex("""<text[^>]*>([^<]+)</text>""").find(message)
+            val errorText = errorTextMatch?.groupValues?.get(1) ?: "Unknown OCRA authentication error"
+            Log.e(TAG, "OCRA error details: $errorText")
+            // Уведомление через callback в Stream
             state = OCRAAuthState.FAILED
             stream.state = StreamState.DEVICE_REGISTRATION
             return@withContext false

@@ -32,28 +32,41 @@ class Account {
     var deviceName: String = ""
     var statusMessage: BehaviorSubject<String> = BehaviorSubject.createDefault("Offline")
     var stream: Stream? = null
+    private var onErrorCallback: ((String) -> Unit)? = null
 
-    fun loadAccount() {
+
+    fun setOnErrorCallback(callback: (String) -> Unit) {
+        onErrorCallback = callback
+        stream?.setOnErrorCallback { error ->
+            callback(error)
+            statusMessage.onNext("Offline")
+        }
+    }
+
+
+    suspend fun loadAccount() = withContext(Dispatchers.IO) {
         try {
             val realm = Realm.open(defaultRealmConfig())
             val item = realm.query(AccountStorageItem::class, "primary == $0", jid).first().find()
             item?.let {
-                this.jid = it.jid
-                this.host = it.host
-                this.port = it.port
-                it.resource?.resource?.let { res -> this.resource = res }
-                this.username = it.username
+                this@Account.jid = it.jid
+                this@Account.host = it.host
+                this@Account.port = it.port
+                it.resource?.resource?.let { res -> this@Account.resource = res }
+                this@Account.username = it.username
             }
-            if (this.deviceName.isEmpty()) {
-                this.deviceName = NickGenerator.genRandomNick()
+            if (this@Account.deviceName.isEmpty()) {
+                this@Account.deviceName = NickGenerator.genRandomNick()
             }
+            realm.close()
             initializeStream()
         } catch (e: Exception) {
-            Log.e("Account", "Can't load user ${this.jid} from db", e)
+            Log.e("Account", "Can't load user $jid from db", e)
+            onErrorCallback?.invoke("Error loading account: ${e.message}")
         }
     }
 
-    fun create() {
+    suspend fun create() {
         try {
             val realm = Realm.open(defaultRealmConfig())
             realm.writeBlocking {
@@ -79,23 +92,30 @@ class Account {
     fun isExist(jid: String): Boolean {
         try {
             val realm = Realm.open(defaultRealmConfig())
-            return realm.query(AccountStorageItem::class, "jid = $0", jid).first().find() == null
+            val exists = realm.query(AccountStorageItem::class, "jid = $0", jid).first().find() != null
+            realm.close()
+            return exists
         } catch (e: Exception) {
-            Log.d("Existing Account", "Can't get information about new user $jid", e)
+            Log.e("Account", "Error checking account existence for $jid: ${e.message}", e)
+            return false // Assume non-existent on error
         }
-        return true
     }
 
-    private fun initializeStream() {
+    private suspend fun initializeStream() = withContext(Dispatchers.IO) {
         try {
             if (jid.isNotEmpty()) {
-                stream = Stream(jid, port)
+                stream?.close() // Close existing stream
+                stream = Stream(jid, port).apply {
+                    onErrorCallback?.let { setOnErrorCallback(it) }
+                }
                 Log.d("Account", "Stream initialized for $jid with port $port")
             } else {
                 Log.w("Account", "Cannot initialize Stream: JID is empty")
+                onErrorCallback?.invoke("Cannot initialize connection: Invalid JID")
             }
         } catch (e: Exception) {
             Log.e("Account", "Error initializing Stream for $jid: ${e.message}", e)
+            onErrorCallback?.invoke("Error initializing connection: ${e.message}")
         }
     }
 
@@ -103,21 +123,25 @@ class Account {
     suspend fun connectStream(): Boolean = withContext(Dispatchers.IO) {
         try {
             stream?.let {
-                val connected = it.connect()
-                if (connected) {
+                val connectError = it.connect()
+                if (connectError == null) {
                     statusMessage.onNext("Online")
-                    Log.d("Account", "Stream connected and XMPP stream initiated for $jid")
+                    Log.d("Account", "Stream connected for $jid")
+                    true
                 } else {
                     statusMessage.onNext("Offline")
-                    Log.e("Account", "Stream connection or XMPP stream initiation failed for $jid")
+                    Log.e("Account", "Stream connection failed for $jid: $connectError")
+                    onErrorCallback?.invoke(connectError)
+                    false
                 }
-                connected
             } ?: run {
                 Log.w("Account", "No Stream initialized for $jid")
+                onErrorCallback?.invoke("No connection initialized")
                 false
             }
         } catch (e: Exception) {
             Log.e("Account", "Error connecting Stream for $jid: ${e.message}", e)
+            onErrorCallback?.invoke("Connection error: ${e.message}")
             statusMessage.onNext("Offline")
             false
         }
