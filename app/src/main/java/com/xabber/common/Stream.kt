@@ -76,7 +76,6 @@ class Stream {
     }
 
     init {
-        // Synchronously check existing device to ensure isDeviceRegistered is set before connect()
         runBlocking(Dispatchers.IO) {
             checkExistingDevice()
         }
@@ -313,7 +312,7 @@ class Stream {
                                             owner = jid,
                                             uid = uid,
                                             ip = socket?.getSocket()?.remoteAddress?.toString() ?: "",
-                                            client = "Xabben-android-device",
+                                            client = "Xabber-android-device",
                                             device = deviceModel,
                                             expire = expire,
                                             authDate = System.currentTimeMillis().toDouble() / 1000,
@@ -342,6 +341,18 @@ class Stream {
                                     }
                                     copyToRealm(newDevice)
                                     Log.d(TAG, "Created new DeviceStorageItem for uid: $uid, owner: $jid, authCounter: ${newDevice.authCounter}")
+                                }
+                            }
+                            // Increment authCounter to 2 after registration
+                            realm.write {
+                                val device = query<DeviceStorageItem>("uid = $0 AND owner = $1", uid, jid).first().find()
+                                if (device != null) {
+                                    findLatest(device)?.apply {
+                                        authCounter++
+                                        Log.d(TAG, "Incremented authCounter to 2 for uid: $uid, owner: $jid, counter: $authCounter")
+                                    }
+                                } else {
+                                    Log.e(TAG, "Failed to find device for incrementing authCounter: uid=$uid, owner=$jid")
                                 }
                             }
                             synchronized(connectionLock) {
@@ -530,6 +541,7 @@ class Stream {
                 }
                 device?.let {
                     if (it.secret.isNotEmpty() && it.validationKey.isNotEmpty() && it.uid.isNotEmpty()) {
+                        Log.d(TAG, "Using DeviceStorageItem for OCRA: uid=${it.uid}, authCounter=${it.authCounter}")
                         ocraAuth = DevicesOCRA(
                             stream = this,
                             deviceId = it.uid,
@@ -539,7 +551,7 @@ class Stream {
                             realm = realm
                         )
                         if (ocraAuth?.start() == true) {
-                            Log.d(TAG, "DEVICES-OCRA authentication started for JID: $jid")
+                            Log.d(TAG, "DEVICES-OCRA authentication started for JID: $jid with authCounter=${it.authCounter}")
                             state = StreamState.PROCESS_AUTH
                         } else {
                             Log.e(TAG, "Failed to start DEVICES-OCRA authentication for JID: $jid")
@@ -553,7 +565,6 @@ class Stream {
                     }
                 } ?: run {
                     Log.e(TAG, "No valid device found for OCRA authentication for JID: $jid")
-                    // Fallback to PLAIN if OCRA is not possible
                     if (features?.mechanisms?.mechanism?.contains("PLAIN") == true) {
                         Log.d(TAG, "Falling back to PLAIN authentication")
                         startPlainAuth()
@@ -652,6 +663,7 @@ class Stream {
                         <device xmlns='https://xabber.com/protocol/devices'>
                             <info>$deviceModel</info>
                             <client>Xabber-android</client>
+                            <expire>3600000</expire>
                             <public-label>Confident Albatross</public-label>
                             <type>android</type>
                         </device>

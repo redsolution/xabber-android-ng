@@ -58,7 +58,7 @@ class DevicesOCRA(
 
     @RequiresApi(Build.VERSION_CODES.O)
     suspend fun start(): Boolean = withContext(Dispatchers.IO) {
-        if (deviceId.isEmpty() || secret.isEmpty() || validationKey.isEmpty()) {
+        if (deviceId.isEmpty() || secret.isEmpty() || validationKey.isEmpty() || authCounter == 0L) {
             Log.e(TAG, "Missing OCRA DataInput: deviceId=$deviceId, secret=$secret, validationKey=$validationKey, authCounter=$authCounter")
             return@withContext false
         }
@@ -69,12 +69,11 @@ class DevicesOCRA(
                 stream.state = StreamState.DEVICE_REGISTRATION
                 return@withContext false
             }
-            if (device.secret != secret || device.validationKey != validationKey) {
+            if (device.secret != secret || device.validationKey != validationKey || device.authCounter != authCounter) {
                 Log.w(TAG, "Mismatch: stored_secret=${device.secret}, input_secret=$secret, stored_validationKey=${device.validationKey}, input_validationKey=$validationKey, stored_authCounter=${device.authCounter}, input_authCounter=$authCounter, triggering re-registration")
                 stream.state = StreamState.DEVICE_REGISTRATION
                 return@withContext false
             }
-            authCounter = device.authCounter // Use stored authCounter
         } ?: run {
             Log.e(TAG, "No DeviceStorageItem found for deviceId=$deviceId, owner=${stream.jid}, triggering re-registration")
             stream.state = StreamState.DEVICE_REGISTRATION
@@ -101,8 +100,10 @@ class DevicesOCRA(
         clientChallengeQuestion = generateClientChallenge()
         val username = stream.extractUsernameFromJid(stream.jid)
         val message = "n,,${NULL_BYTE}$username${NULL_BYTE}$deviceId${NULL_BYTE}$clientOCRASuit${NULL_BYTE}$clientChallengeQuestion${NULL_BYTE}$validationKey"
+        val messageBytes = message.toByteArray(Charsets.UTF_8)
         Log.d(TAG, "Client initial response message: ${message.replace(NULL_BYTE, "|")}")
-        return Base64.encodeToString(message.toByteArray(Charsets.UTF_8), Base64.NO_WRAP)
+        Log.d(TAG, "Client initial response bytes: ${messageBytes.joinToString(", ") { it.toUByte().toString(16).padStart(2, '0') }}")
+        return Base64.encodeToString(messageBytes, Base64.NO_WRAP)
     }
 
     private fun getCryptoAlgorithm(ocraSuit: String): String {
@@ -139,20 +140,20 @@ class DevicesOCRA(
             val parts = ocraSuit.split(":")
             if (parts.size < 2) {
                 Log.e(TAG, "Invalid ocraSuit format: $ocraSuit")
-                return 8
+                return 0
             }
             val cryptoFunction = parts[1]
             val hotpParts = cryptoFunction.split("-")
             if (hotpParts.size < 3) {
                 Log.e(TAG, "Invalid cryptoFunction format: $cryptoFunction")
-                return 8
+                return 0
             }
-            val hotpLength = hotpParts[2].toIntOrNull() ?: 8
+            val hotpLength = hotpParts[2].toIntOrNull() ?: 0
             Log.d(TAG, "Parsed HOTP length from ocraSuit: $ocraSuit, length: $hotpLength")
             return hotpLength
         } catch (e: Exception) {
             Log.e(TAG, "Failed to parse HOTP length from ocraSuit: $ocraSuit, error: ${e.message}")
-            return 8
+            return 0
         }
     }
 
@@ -198,6 +199,7 @@ class DevicesOCRA(
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     private suspend fun processChallengeParts(parts: List<String>): Boolean {
         if (parts.size != 3) {
             Log.e(TAG, "Invalid number of challenge parts: ${parts.size}")
@@ -312,22 +314,16 @@ class DevicesOCRA(
             return ""
         }
         Log.d(TAG, "Generating server response with secret=${Base64.encodeToString(secretBytes, Base64.NO_WRAP)}, authCounter=$authCounter")
-        val challengeBytes = srvChallengeQuestion.toByteArray(Charsets.UTF_8)
-        val srvChallengeQuestionData = ByteArray(128)
-        System.arraycopy(challengeBytes, 0, srvChallengeQuestionData, 0, challengeBytes.size)
-        val padLength = 128 - challengeBytes.size
-        if (padLength > 0) {
-            System.arraycopy(ByteArray(padLength), 0, srvChallengeQuestionData, challengeBytes.size, padLength)
-        }
-        val suitBytes = srvOCRASuit.toByteArray(Charsets.UTF_8)
-        val nullByteArray = byteArrayOf(0)
-        val counterBytes = ByteBuffer.allocate(8).putLong(authCounter).array()
-        val dataInput = suitBytes + nullByteArray + counterBytes + srvChallengeQuestionData
+        val dataInput = buildServerChallengeData(srvOCRASuit, srvChallengeQuestion)
         val hash = computeHmac(algorithm, secretBytes, dataInput)
         Log.d(TAG, "Server response HMAC: algorithm=$algorithm, challengeData=${dataInput.joinToString(", ") { it.toUByte().toString(16).padStart(2, '0') }}, hash=${Base64.encodeToString(hash, Base64.NO_WRAP)}")
         val clHotpLength = getHotpLength(srvOCRASuit)
         if (clHotpLength == 0) {
-            return Base64.encodeToString(hash, Base64.NO_WRAP)
+            val base64Hash = Base64.encodeToString(hash, Base64.NO_WRAP)
+            Log.d(TAG, "Server response base64 hash: $base64Hash")
+            val doubleBase64Hash = Base64.encodeToString(base64Hash.toByteArray(Charsets.UTF_8), Base64.NO_WRAP)
+            Log.d(TAG, "Server response double base64 hash: $doubleBase64Hash")
+            return doubleBase64Hash
         } else {
             val offset = (hash[hash.size - 1].toInt() and 0x0F)
             val binary = ((hash[offset].toInt() and 0x7F) shl 24) or
@@ -342,8 +338,33 @@ class DevicesOCRA(
                 else -> pinValue.toString()
             }
             Log.d(TAG, "Server response HOTP payload: $payload")
-            return Base64.encodeToString(payload.toByteArray(Charsets.UTF_8), Base64.NO_WRAP)
+            val base64Payload = Base64.encodeToString(payload.toByteArray(Charsets.UTF_8), Base64.NO_WRAP)
+            Log.d(TAG, "Server response base64 HOTP payload: $base64Payload")
+            val doubleBase64Payload = Base64.encodeToString(base64Payload.toByteArray(Charsets.UTF_8), Base64.NO_WRAP)
+            Log.d(TAG, "Server response double base64 HOTP payload: $doubleBase64Payload")
+            return doubleBase64Payload
         }
+    }
+
+    private fun buildServerChallengeData(ocraSuit: String, challengeQuestion: String): ByteArray {
+        val challengeData = ByteArray(128)
+        val suitBytes = ocraSuit.toByteArray(Charsets.UTF_8)
+        val challengeBytes = challengeQuestion.toByteArray(Charsets.UTF_8)
+        val counterBytes = ByteBuffer.allocate(8).putLong(authCounter).array()
+        var offset = 0
+        System.arraycopy(suitBytes, 0, challengeData, offset, suitBytes.size)
+        offset += suitBytes.size
+        challengeData[offset++] = 0
+        System.arraycopy(counterBytes, 0, challengeData, offset, counterBytes.size)
+        offset += counterBytes.size
+        System.arraycopy(challengeBytes, 0, challengeData, offset, challengeBytes.size)
+        offset += challengeBytes.size
+        val padLength = 128 - offset
+        if (padLength > 0) {
+            System.arraycopy(ByteArray(padLength), 0, challengeData, offset, padLength)
+        }
+        Log.d(TAG, "Server challenge data: ${challengeData.joinToString(", ") { it.toUByte().toString(16).padStart(2, '0') }}")
+        return challengeData
     }
 
     private fun computeHmac(algorithm: String, key: ByteArray, data: ByteArray): ByteArray {
@@ -368,7 +389,7 @@ class DevicesOCRA(
                 if (device != null) {
                     findLatest(device)?.apply {
                         authDate = System.currentTimeMillis().toDouble() / 1000
-                        authCounter = this@DevicesOCRA.authCounter + 1 // Increment on success
+                        authCounter = this@DevicesOCRA.authCounter + 1
                     }
                     Log.d(TAG, "Updated DeviceStorageItem: authDate=${device?.authDate}, authCounter=${device?.authCounter} for deviceId=$deviceId")
                 }
@@ -377,7 +398,7 @@ class DevicesOCRA(
         } else {
             Log.e(TAG, "OCRA authentication failed: $message")
             state = OCRAAuthState.FAILED
-            stream.state = StreamState.DEVICE_REGISTRATION // Trigger re-registration
+            stream.state = StreamState.DEVICE_REGISTRATION
             return@withContext false
         }
     }

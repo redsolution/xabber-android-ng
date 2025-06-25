@@ -141,7 +141,7 @@ class DevicesSettingsDialog : DialogFragment() {
                 model = device.device,
                 lastAuth = lastAuth,
                 isExpired = isExpired,
-                client = "Android ${Build.VERSION.SDK_INT}"
+                client = "Android ${Build.VERSION.RELEASE}"
             ).also {
                 Log.d("DevicesSettingsFragment", "Mapped DeviceDto: uid=${it.uid}, name=${it.name}, model=${it.model}, lastAuth=${it.lastAuth}, isExpired=${it.isExpired}")
             }
