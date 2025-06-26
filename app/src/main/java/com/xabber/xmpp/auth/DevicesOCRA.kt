@@ -28,8 +28,8 @@ enum class OCRAAuthState {
 class DevicesOCRA(
     private val stream: Stream,
     private val deviceId: String,
-    private val secret: String,
-    private val validationKey: String,
+    private var secret: String,
+    private var validationKey: String,
     private var authCounter: Long,
     private val realm: Realm,
 ) {
@@ -47,6 +47,8 @@ class DevicesOCRA(
     private var state: OCRAAuthState = OCRAAuthState.START
     private var clientChallengeQuestion: String? = null
     private val clientOCRASuit: String = CLIENT_OCRA_SUIT
+
+
 
     private fun generateClientChallenge(): String {
         val length = 10
@@ -208,7 +210,7 @@ class DevicesOCRA(
         }
         val srvResponse = parts[0]
         val srvOCRASuit = parts[1]
-        val srvChallengeQuestion = parts[2]
+        var srvChallengeQuestion = parts[2]
         try {
             Log.d(TAG, "Server challenge: srvResponse=$srvResponse, srvOCRASuit=$srvOCRASuit, srvChallengeQuestion=$srvChallengeQuestion")
             val clientChallengeValid = verifyClientChallenge(srvResponse)
@@ -217,6 +219,11 @@ class DevicesOCRA(
                 stream.state = StreamState.DEVICE_REGISTRATION
                 return false
             }
+//            srvChallengeQuestion = "EZM4JiZkv8"
+//            this.authCounter = 356
+//            this.validationKey = "CzbqHNItUt7VDGz0wI4z7Mp5XQBQofFw1v/PBmuSaz+JYkuKq+k5E8jaknOHdPXHOPOwS862cUDBwtK/2vX87Q=="
+//            this.secret = "FhkwG5xOJIJ4gMDZIBIJQdoz24iVzeGZhrFBFQ86FgwoG/ROjN5itRSKz521PUTAdhtxa0awqrZUeTIevmoXog=="
+
             val response = generateServerResponse(srvOCRASuit, srvChallengeQuestion)
             Log.d(TAG, "Sending OCRA response payload: $response")
             val responseMessage = """
@@ -307,6 +314,7 @@ class DevicesOCRA(
     private fun generateServerResponse(srvOCRASuit: String, srvChallengeQuestion: String): String {
         val algorithm = getCryptoAlgorithm(srvOCRASuit)
         val hashLength = getHashLength(srvOCRASuit)
+
         val secretBytes = try {
             Base64.decode(secret, Base64.DEFAULT)
         } catch (e: IllegalArgumentException) {
@@ -347,9 +355,18 @@ class DevicesOCRA(
     }
 
     private fun buildServerChallengeData(ocraSuit: String, challengeQuestion: String): ByteArray {
-        val challengeData = ByteArray(128)
+        val challengeData = ByteArray(164)
         val suitBytes = ocraSuit.toByteArray(Charsets.UTF_8)
         val challengeBytes = challengeQuestion.toByteArray(Charsets.UTF_8)
+
+        // Inserted fragment for ChallengeBytesCounter
+        val challengeBytesCounter = ByteArray(128)
+        System.arraycopy(challengeBytes, 0, challengeBytesCounter, 0, challengeBytes.size)
+        val padLengthCounter = 128 - challengeBytes.size
+        if (padLengthCounter > 0) {
+            System.arraycopy(ByteArray(padLengthCounter), 0, challengeBytesCounter, challengeBytes.size, padLengthCounter)
+        }
+
         val counterBytes = ByteBuffer.allocate(8).putLong(authCounter).array()
         var offset = 0
         System.arraycopy(suitBytes, 0, challengeData, offset, suitBytes.size)
@@ -357,9 +374,9 @@ class DevicesOCRA(
         challengeData[offset++] = 0
         System.arraycopy(counterBytes, 0, challengeData, offset, counterBytes.size)
         offset += counterBytes.size
-        System.arraycopy(challengeBytes, 0, challengeData, offset, challengeBytes.size)
-        offset += challengeBytes.size
-        val padLength = 128 - offset
+        System.arraycopy(challengeBytesCounter, 0, challengeData, offset, challengeBytesCounter.size)
+        offset += challengeBytesCounter.size
+        val padLength = 164 - offset
         if (padLength > 0) {
             System.arraycopy(ByteArray(padLength), 0, challengeData, offset, padLength)
         }

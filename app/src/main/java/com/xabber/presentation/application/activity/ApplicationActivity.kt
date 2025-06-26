@@ -168,15 +168,15 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         val sharedPreferences = getSharedPreferences(AppConstants.SHARED_PREF_MASK, Context.MODE_PRIVATE)
         sharedPreferences.registerOnSharedPreferenceChangeListener(this)
 
-        CoroutineScope(Dispatchers.IO).launch {
-            Account().loadAccount()
-            val connected = Account().connectStream()
-            if (!connected) {
-                withContext(Dispatchers.Main) {
-                    showErrorDialog("Failed to connect to server.")
-                }
-            }
-        }
+//        CoroutineScope(Dispatchers.IO).launch {
+//            Account().loadAccount()
+//            val connected = Account().connectStream()
+//            if (!connected) {
+//                withContext(Dispatchers.Main) {
+//                    showErrorDialog("Failed to connect to server.")
+//                }
+//            }
+//        }
 //        val dnsTestButton = findViewById<ImageView>(R.id.dnsTestButton)
 //        val resultText = findViewById<TextView>(R.id.result_text)
 //        dnsTestButton.setOnClickListener {
