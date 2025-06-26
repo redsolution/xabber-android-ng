@@ -2,6 +2,16 @@
     <string name="app_name">Xabber NG</string>
     <string name="com.google.firebase.crashlytics.mapping_file_id">none</string>
 
+    <!-- Errors -->
+    <string name="error_invalid_jid_format" translatable="false">Invalid JID format</string>
+    <string name="error_account_already_exists" translatable="false">Account already exists, please choose another JID</string>
+    <string name="error_invalid_credentials" translatable="false">Invalid JID, username, or password</string>
+    <string name="error_incorrect_password" translatable="false">Incorrect password</string>
+    <string name="error_account_disabled" translatable="false">Account is disabled: %1$s</string>
+    <string name="error_ocra_failed" translatable="false">DEVICES-OCRA authentication failed: %1$s</string>
+    <string name="error_authentication_failed" translatable="false">Authentication failed: %1$s</string>
+    <string name="error_unexpected" translatable="false">Unexpected error: %1$s</string>
+
     <!-- Permissions -->
     <string name="dialog_title_permission_denied">Permission denied</string>
     <string name="offer_to_open_settings">Would you like to open app settings if change your mind?</string>
