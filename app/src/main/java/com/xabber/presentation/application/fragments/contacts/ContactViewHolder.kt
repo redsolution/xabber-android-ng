@@ -26,24 +26,24 @@ class ContactViewHolder(
             //  contactSubtitle.text = contact.subtitle
 
             val icon = when (contact.entity) {
-                RosterItemEntity.Contact -> R.drawable.status_contact
-                RosterItemEntity.Server -> R.drawable.status_server
-                RosterItemEntity.Bot -> R.drawable.status_bot_chat
-                RosterItemEntity.PrivateChat -> R.drawable.status_private_chat
-                RosterItemEntity.Groupchat -> R.drawable.status_public_group_online
-                RosterItemEntity.IncognitoChat -> R.drawable.status_incognito_group_chat
+                RosterItemEntity.CONTACT -> R.drawable.status_contact
+                RosterItemEntity.SERVER -> R.drawable.status_server
+                RosterItemEntity.BOT -> R.drawable.status_bot_chat
+                RosterItemEntity.PRIVATE_CHAT -> R.drawable.status_private_chat
+                RosterItemEntity.GROUP_CHAT -> R.drawable.status_public_group_online
+                RosterItemEntity.INCOGNITO -> R.drawable.status_incognito_group_chat
                 else -> {
                     null
                 }
             }
 
             val tint = when (contact.status) {
-                ResourceStatus.Online -> R.color.green_700
-                ResourceStatus.Chat -> R.color.light_green_500
-                ResourceStatus.Away -> R.color.amber_700
-                ResourceStatus.Dnd -> R.color.red_700
-                ResourceStatus.Xa -> R.color.blue_500
-                ResourceStatus.Offline -> R.color.grey_500
+                ResourceStatus.ONLINE -> R.color.green_700
+                ResourceStatus.CHAT -> R.color.light_green_500
+                ResourceStatus.AWAY -> R.color.amber_700
+                ResourceStatus.DND -> R.color.red_700
+                ResourceStatus.XA -> R.color.blue_500
+                ResourceStatus.OFFLINE -> R.color.grey_500
             }
 
             if (icon != null) {

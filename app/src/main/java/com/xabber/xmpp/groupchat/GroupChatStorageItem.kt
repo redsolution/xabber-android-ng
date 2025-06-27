@@ -84,13 +84,13 @@ open class GroupChatStorageItem : RealmObject {
 
     val statusDisplayed: ResourceStatus
         get() = when (status) {
-            "Inactive" -> ResourceStatus.Offline
-            "xa" -> ResourceStatus.Xa
-            "away" -> ResourceStatus.Away
-            "dnd" -> ResourceStatus.Dnd
-            "online", "active" -> ResourceStatus.Online
-            "chat" -> ResourceStatus.Chat
-            else -> ResourceStatus.Offline
+            "Inactive" -> ResourceStatus.OFFLINE
+            "xa" -> ResourceStatus.XA
+            "away" -> ResourceStatus.AWAY
+            "dnd" -> ResourceStatus.DND
+            "online", "active" -> ResourceStatus.ONLINE
+            "chat" -> ResourceStatus.CHAT
+            else -> ResourceStatus.OFFLINE
         }
 
 

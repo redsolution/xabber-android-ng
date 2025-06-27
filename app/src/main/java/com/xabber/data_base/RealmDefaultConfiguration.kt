@@ -19,6 +19,7 @@ import com.xabber.xmpp.messages.message.MessageStanzaStorageItem
 import com.xabber.xmpp.messages.message.TemporaryMessageStanzaStorageItem
 import com.xabber.xmpp.notifications.NotificationStorageItem
 import com.xabber.xmpp.notifications.XMPPNotificationsManagerStorageItem
+import com.xabber.xmpp.roster.RosterDisplayNameStorageItem
 import com.xabber.xmpp.voip.voIPManager.CallMetadataStorageItem
 import com.xabber.xmpp.x509.X509StorageItem
 import io.realm.kotlin.RealmConfiguration
@@ -47,7 +48,8 @@ fun defaultRealmConfig(): RealmConfiguration {
             XMPPNotificationsManagerStorageItem::class,
             NotificationStorageItem::class,
             CallMetadataStorageItem::class,
-            X509StorageItem::class
+            X509StorageItem::class,
+            RosterDisplayNameStorageItem::class
 
         )
     ).build()

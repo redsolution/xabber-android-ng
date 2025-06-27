@@ -43,8 +43,8 @@ class ContactsViewModel : ViewModel() {
                                 jid = T.jid,
                                 customNickName = T.customNickname,
                                 color = T.colorKey,
-                                status = ResourceStatus.Chat,
-                                entity = RosterItemEntity.Contact,
+                                status = ResourceStatus.CHAT,
+                                entity = RosterItemEntity.CONTACT,
                                 isDeleted = T.isDeleted,
                                 group = "",
                                 avatar = T.avatarR
@@ -78,8 +78,8 @@ class ContactsViewModel : ViewModel() {
                     jid = T.jid,
                     customNickName = T.customNickname,
                     color = T.colorKey,
-                    status = ResourceStatus.Chat,
-                    entity = RosterItemEntity.Contact,
+                    status = ResourceStatus.CHAT,
+                    entity = RosterItemEntity.CONTACT,
                     isDeleted = T.isDeleted,
                     group = "",
                     avatar = T.avatarR

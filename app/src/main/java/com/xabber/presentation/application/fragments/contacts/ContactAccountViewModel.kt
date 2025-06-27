@@ -50,8 +50,8 @@ class ContactAccountViewModel : ViewModel() {
             color = contact.colorKey,
             avatar = contact.avatarR,
             isHide = contact.isHidden,
-            entity = RosterItemEntity.Contact,
-            status = ResourceStatus.Chat,
+            entity = RosterItemEntity.CONTACT,
+            status = ResourceStatus.CHAT,
             group = null
         )
         _contactAccount.value = contactDto

@@ -51,8 +51,8 @@ class ChatListViewModel : ViewModel() {
         "",
         lastMessageState = MessageSendingState.None,
         drawableId = R.drawable.angel,
-        entity = RosterItemEntity.Contact,
-        status = ResourceStatus.Offline,
+        entity = RosterItemEntity.CONTACT,
+        status = ResourceStatus.OFFLINE,
         isHide = true
     )
 

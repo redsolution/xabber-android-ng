@@ -19,6 +19,35 @@
 
     <!-- Onboarding -->
 
+
+    <!-- Setting Manager -->
+    <string name="account_settings_chat" translatable="false">account settings chat</string>
+    <string name="account_settings_background" translatable="false">account settings background</string>
+    <string name="account_settings_choose_background" translatable="false">account settings choose_background</string>
+    <string name="account_settings_display" translatable="false">account settings display</string>
+    <string name="account_settings_show_background" translatable="false">account settings show_background</string>
+    <string name="account_settings_chat_display_settings" translatable="false">account settings chat_display_settings</string>
+    <string name="account_settings_messaging" translatable="false">account settings messaging</string>
+    <string name="account_settings_send_by_enter" translatable="false">account settings send_by_enter</string>
+    <string name="account_settings_message_sending_options" translatable="false">account settings message_sending_options</string>
+    <string name="account_settings_contact_list" translatable="false">account settings contact_list</string>
+    <string name="account_settings_display_options" translatable="false">account settings display_options</string>
+    <string name="account_settings_offline_contacts" translatable="false">account settings offline_contacts</string>
+    <string name="account_settings_show_avatars" translatable="false">account settings show_avatars</string>
+    <string name="account_settings_notificaions" translatable="false">account settings notificaions</string>
+    <string name="account_settings_in_app_notifications" translatable="false">account settings in_app_notifications</string>
+    <string name="account_settings_chat_message_preview" translatable="false">account settings chat_message_preview</string>
+    <string name="account_settings_in_app_sounds" translatable="false">account settings in_app_sounds</string>
+    <string name="account_settings_privacy" translatable="false">account settings privacy</string>
+    <string name="account_settings_privacy_settings" translatable="false">account settings privacy_settings</string>
+    <string name="account_settings_typing_notification" translatable="false">account settings typing_notification</string>
+    <string name="settings_choose_language" translatable="false">settings choose language</string>
+    <string name="account_settings_developer" translatable="false">account settings developer</string>
+    <string name="account_settings_show_circles" translatable="false">account settings show_circles</string>
+    <string name="account_settings_developer_mode" translatable="false">account settings developer_mode</string>
+    <string name="account_settings_write_log" translatable="false">account settings write_log</string>
+
+
     <!-- Start -->
     <string name="xabber_image_content_description">Xabber application icon</string>
     <string name="start_title_label">Xabber</string>

@@ -1,6 +1,5 @@
 package com.xabber.common
 
-import android.app.AlertDialog
 import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
@@ -9,14 +8,14 @@ import com.xabber.data_base.models.presences.ResourceStorageItem
 import com.xabber.xmpp.auth.DevicesOCRA
 import com.xabber.xmpp.device.DeviceStorageItem
 import com.xabber.xmpp.dns.DNSResolver
+import com.xabber.xmpp.roster.RosterManager
 import io.realm.kotlin.Realm
+import io.realm.kotlin.RealmConfiguration
 import io.realm.kotlin.ext.query
-import io.realm.kotlin.types.annotations.PrimaryKey
 import io.viascom.nanoid.NanoId
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import io.ktor.network.sockets.isClosed
-import io.realm.kotlin.RealmConfiguration
 
 enum class StreamState {
     NOT_CONNECTING,
@@ -34,7 +33,7 @@ enum class StreamState {
 
 @RequiresApi(Build.VERSION_CODES.O)
 class Stream {
-    @PrimaryKey
+    @io.realm.kotlin.types.annotations.PrimaryKey
     var jid: String = ""
     var host: String = ""
     var port: Int = 5222
@@ -75,7 +74,8 @@ class Stream {
         ).build()
         Realm.open(config)
     }
-    // Callback для уведомления об ошибках
+    private val rosterManager: RosterManager by lazy { RosterManager(jid) }
+    // Callback for notifying errors
     private var onErrorCallback: ((String) -> Unit)? = null
 
     init {
@@ -91,7 +91,7 @@ class Stream {
         this.state = StreamState.NOT_CONNECTING
     }
 
-    // Метод для установки callback
+    // Method to set error callback
     fun setOnErrorCallback(callback: (String) -> Unit) {
         onErrorCallback = callback
     }
@@ -161,7 +161,7 @@ class Stream {
                     }
                     this@Stream.remoteAddress = result.first
                     this@Stream.port = result.second
-                    Log.d(TAG, "Resolved IP: $remoteAddress, Port: $port}")
+                    Log.d(TAG, "Resolved IP: $remoteAddress, Port: $port")
                     socket?.close()
                     socket = Socket(remoteAddress, port)
                     socket?.setDomain(host)
@@ -291,13 +291,10 @@ class Stream {
                 }
                 message.contains("<failure") && state == StreamState.PROCESS_AUTH -> {
                     Log.e(TAG, "Authentication failed: $message")
-                    // Извлечение текста ошибки
                     val errorTextMatch = Regex("""<text[^>]*>([^<]+)</text>""").find(message)
                     val errorText = errorTextMatch?.groupValues?.get(1) ?: "Unknown authentication error"
-                    // Извлечение типа ошибки
                     val errorTypeMatch = Regex("""<([a-z\-]+)\/>""").find(message)
                     val errorType = errorTypeMatch?.groupValues?.get(1) ?: "unknown"
-                    // Формирование сообщения
                     val userMessage = when (errorType) {
                         "not-authorized" -> "Authentication failed: $errorText"
                         else -> "Authentication failed: $errorText ($errorType)"
@@ -427,6 +424,10 @@ class Stream {
                     } else {
                         Log.w(TAG, "Invalid ping stanza, missing id or from: $message")
                     }
+                }
+                message.contains("<iq") && message.contains("jabber:iq:roster") -> {
+                    Log.d(TAG, "Forwarding roster IQ to RosterManager")
+                    rosterManager.read(message)
                 }
                 message.contains("<message") -> {
                     Log.d(TAG, "Received message stanza")
@@ -766,6 +767,14 @@ class Stream {
     }
 
     open suspend fun onConnected() {
+        Log.d(TAG, "Stream connected for JID: $jid, initiating roster request")
+        try {
+            rosterManager.request(this)
+            Log.d(TAG, "Roster request sent for JID: $jid")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error sending roster request for JID: $jid: ${e.message}", e)
+            onErrorCallback?.invoke("Error sending roster request: ${e.message}")
+        }
         socket?.scope?.launch {
             while (state == StreamState.CONNECTED && socket?.getSocket()?.isClosed == false) {
                 try {

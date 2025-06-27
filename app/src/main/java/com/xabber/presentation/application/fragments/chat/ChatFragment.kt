@@ -280,8 +280,8 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     }
 
     private fun setStatus(resourceStatus: ResourceStatus, rosterItemEntity: RosterItemEntity) {
-        val statusIcon = StatusMaker.statusIcon(RosterItemEntity.Bot)
-        val statusTint = StatusMaker.statusTint(ResourceStatus.Dnd)
+        val statusIcon = StatusMaker.statusIcon(RosterItemEntity.BOT)
+        val statusTint = StatusMaker.statusTint(ResourceStatus.DND)
         if (statusIcon != null) {
             binding.avatarStatus.isVisible = true
 //            binding.avatarStatus.setImageResource(statusIcon)
