@@ -3,6 +3,7 @@ package com.xabber.common
 import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
+import com.xabber.data_base.defaultRealmConfig
 import com.xabber.data_base.models.account.AccountStorageItem
 import com.xabber.data_base.models.presences.ResourceStorageItem
 import com.xabber.xmpp.auth.DevicesOCRA
@@ -12,10 +13,11 @@ import com.xabber.xmpp.roster.RosterManager
 import io.realm.kotlin.Realm
 import io.realm.kotlin.RealmConfiguration
 import io.realm.kotlin.ext.query
-import io.viascom.nanoid.NanoId
+import io.ktor.network.sockets.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import io.ktor.network.sockets.isClosed
+import io.viascom.nanoid.NanoId
 
 enum class StreamState {
     NOT_CONNECTING,
@@ -69,14 +71,12 @@ class Stream {
     private var isDeviceRegistered = false
     private var ocraAuth: DevicesOCRA? = null
     private val realm: Realm by lazy {
-        val config = RealmConfiguration.Builder(
-            setOf(DeviceStorageItem::class, AccountStorageItem::class, ResourceStorageItem::class)
-        ).build()
-        Realm.open(config)
+        Realm.open(defaultRealmConfig())
     }
-    private val rosterManager: RosterManager by lazy { RosterManager(jid) }
-    // Callback for notifying errors
+    private val rosterManager: RosterManager by lazy { RosterManager(jid, realm) }
     private var onErrorCallback: ((String) -> Unit)? = null
+    private val rosterStanzaBuffer = StringBuilder()
+
 
     init {
         runBlocking(Dispatchers.IO) {
@@ -91,7 +91,6 @@ class Stream {
         this.state = StreamState.NOT_CONNECTING
     }
 
-    // Method to set error callback
     fun setOnErrorCallback(callback: (String) -> Unit) {
         onErrorCallback = callback
     }
@@ -164,7 +163,6 @@ class Stream {
                     Log.d(TAG, "Resolved IP: $remoteAddress, Port: $port")
                     socket?.close()
                     socket = Socket(remoteAddress, port)
-                    socket?.setDomain(host)
                     socket?.setMessageCallback { message ->
                         CoroutineScope(Dispatchers.IO).launch {
                             Log.d(TAG, "Received message via callback: $message")
@@ -209,6 +207,39 @@ class Stream {
     private suspend fun handleIncomingMessage(message: String) {
         try {
             Log.d(TAG, "Handling incoming message: $message")
+            // Check if the message is roster-related
+            if (message.contains("jabber:iq:roster") || message.contains("<item") || message.contains("<group>")) {
+                var completeStanza: String? = null
+                synchronized(rosterStanzaBuffer) {
+                    rosterStanzaBuffer.append(message)
+                    Log.d(TAG, "Appended to roster stanza buffer: $message")
+
+                    // Check if the buffer contains a complete IQ stanza
+                    val bufferedContent = rosterStanzaBuffer.toString()
+                    if (!bufferedContent.trim().startsWith("<iq")) {
+                        Log.d(TAG, "Waiting for IQ start, current buffer: $bufferedContent")
+                        return
+                    }
+                    if (!bufferedContent.contains("</iq>")) {
+                        Log.d(TAG, "Incomplete roster IQ stanza, waiting for more data. Current buffer: $bufferedContent")
+                        return
+                    }
+
+                    // Complete IQ stanza received, copy and clear buffer
+                    completeStanza = bufferedContent
+                    rosterStanzaBuffer.clear()
+                    Log.d(TAG, "Cleared roster stanza buffer after copying complete stanza")
+                }
+
+                // Process the complete stanza outside the synchronized block
+                completeStanza?.let {
+                    Log.d(TAG, "Processing complete roster IQ stanza: $it")
+                    rosterManager.read(it)
+                }
+                return
+            }
+
+            // Handle non-roster messages as before
             when {
                 message.contains("<stream:stream") && !message.contains("<stream:features") -> {
                     Log.d(TAG, "Received stream header, awaiting features")
@@ -411,8 +442,8 @@ class Stream {
                         val pingId = idMatch.groupValues[1]
                         val fromJid = fromMatch.groupValues[1]
                         val response = """
-                            <iq type='result' id='$pingId' to='$fromJid'/>
-                        """.trimIndent()
+                        <iq type='result' id='$pingId' to='$fromJid'/>
+                    """.trimIndent()
                         if (socket?.write(response) == true) {
                             Log.d(TAG, "Sent ping response: $response")
                         } else {
@@ -424,10 +455,6 @@ class Stream {
                     } else {
                         Log.w(TAG, "Invalid ping stanza, missing id or from: $message")
                     }
-                }
-                message.contains("<iq") && message.contains("jabber:iq:roster") -> {
-                    Log.d(TAG, "Forwarding roster IQ to RosterManager")
-                    rosterManager.read(message)
                 }
                 message.contains("<message") -> {
                     Log.d(TAG, "Received message stanza")
@@ -470,6 +497,7 @@ class Stream {
         Log.d(TAG, "Attempting to reconnect for JID: $jid (attempt $reconnectAttempts/$maxReconnectAttempts)")
         socket?.close()
         socket = null
+        rosterStanzaBuffer.clear() // Clear roster buffer on reconnect
         delay(1000)
         val connectError = connect()
         if (connectError == null) {
@@ -488,6 +516,7 @@ class Stream {
             realm.close()
             state = StreamState.NOT_CONNECTING
             messageCallbackChannel.close()
+            rosterStanzaBuffer.clear() // Clear roster buffer on close
             reconnectAttempts = 0
             attemptedPreTlsAuth = false
             boundJid = null
@@ -742,7 +771,7 @@ class Stream {
         }
         try {
             val bindId = NanoId.generateOptimized(9, "_-0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", 63, 16)
-            val resourceId = NanoId.generateOptimized(8, "0123456789ABCDEF", 63, 16)
+            val resourceId = NanoId.generateOptimized(8, "0123456789ABC Chaz6", 63, 16)
             val bindRequest = """
                 <iq type='set' id='$bindId'>
                     <bind xmlns='urn:ietf:params:xml:ns:xmpp-bind'>

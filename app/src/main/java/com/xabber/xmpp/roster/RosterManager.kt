@@ -4,6 +4,11 @@ import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
 import com.xabber.common.Stream
+import com.xabber.data_base.models.roster.RosterStorageItem
+import com.xabber.data_base.models.roster.Subscription
+import com.xabber.data_base.models.roster.Ask
+import io.realm.kotlin.Realm
+import io.realm.kotlin.ext.query
 import io.viascom.nanoid.NanoId
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -33,7 +38,7 @@ data class RosterItem(
 )
 
 @RequiresApi(Build.VERSION_CODES.O)
-class RosterManager(private val owner: String) {
+class RosterManager(private val owner: String, private val realm: Realm) {
     private val TAG = "RosterManager"
     private val queryIds = ConcurrentHashMap.newKeySet<String>()
     private val xml = XML {
@@ -71,11 +76,15 @@ class RosterManager(private val owner: String) {
 
     suspend fun read(iq: String): Boolean {
         try {
-            when {
-                readError(iq) -> return true
-                readSuccess(iq) -> return true
-                readResponse(iq) -> return true
-                else -> return false
+            Log.d(TAG, "Processing complete roster IQ: $iq")
+            return when {
+                readError(iq) -> true
+                readSuccess(iq) -> true
+                readResponse(iq) -> true
+                else -> {
+                    Log.w(TAG, "Unhandled roster IQ: $iq")
+                    false
+                }
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error reading IQ: ${e.message}, IQ: $iq", e)
@@ -101,16 +110,47 @@ class RosterManager(private val owner: String) {
         }
 
         Log.d(TAG, "Parsed RosterQuery with version: ${rosterQuery.ver}")
-        rosterQuery.items.forEachIndexed { index, item ->
-            Log.d(TAG, """
-                Roster Item ${index + 1}:
-                    JID: ${item.jid}
-                    Name: ${item.name ?: "None"}
-                    Subscription: ${item.subscription ?: "none"}
-                    Ask: ${item.ask ?: "None"}
-                    Approved: ${item.approved ?: "false"}
-                    Groups: ${item.groups.joinToString(", ") { it }}
-            """.trimIndent())
+        realm.write {
+            rosterQuery.items.forEach { item ->
+                val primaryKey = RosterStorageItem.genPrimary(item.jid, owner)
+                val existingItem = query<RosterStorageItem>("primary = $0", primaryKey).first().find()
+                if (existingItem != null) {
+                    findLatest(existingItem)?.apply {
+                        customNickname = item.name ?: ""
+                        subscription = item.subscription?.let { Subscription.fromRaw(it) } ?: Subscription.NONE
+                        ask = item.ask?.let { Ask.fromRaw(it) } ?: Ask.NONE
+                        approved = item.approved == "true"
+                        groups.clear()
+                        groups.addAll(item.groups)
+                        updatedTS = System.currentTimeMillis().toDouble() / 1000
+                    }
+                    Log.d(TAG, "Updated RosterStorageItem for JID: ${item.jid}")
+                } else {
+                    val newItem = RosterStorageItem().apply {
+                        primary = primaryKey
+                        this.owner = this@RosterManager.owner
+                        jid = item.jid
+                        customNickname = item.name ?: ""
+                        subscription = item.subscription?.let { Subscription.fromRaw(it) } ?: Subscription.NONE
+                        ask = item.ask?.let { Ask.fromRaw(it) } ?: Ask.NONE
+                        approved = item.approved == "true"
+                        groups.addAll(item.groups)
+                        updatedTS = System.currentTimeMillis().toDouble() / 1000
+                    }
+                    copyToRealm(newItem)
+                    Log.d(TAG, "Created new RosterStorageItem for JID: ${item.jid}")
+                }
+
+                Log.d(TAG, """
+                    Roster Item:
+                        JID: ${item.jid}
+                        Name: ${item.name ?: "None"}
+                        Subscription: ${item.subscription ?: "none"}
+                        Ask: ${item.ask ?: "None"}
+                        Approved: ${item.approved ?: "false"}
+                        Groups: ${item.groups.joinToString(", ") { it }}
+                """.trimIndent())
+            }
         }
 
         return true
@@ -137,9 +177,3 @@ class RosterManager(private val owner: String) {
         return true
     }
 }
-
-
-
-
-
-
