@@ -239,6 +239,24 @@ class Stream {
                 return
             }
 
+            // Handle sync request response
+            if (message.contains("<iq") && message.contains("https://xabber.com/protocol/synchronization")) {
+                Log.d(TAG, "Received sync request response")
+                if (message.contains("type='result'")) {
+                    Log.d(TAG, "Sync request successful: $message")
+                    // Process the sync response data if needed
+                    // Example: Extract specific data from the <query> element
+                } else if (message.contains("type='error'")) {
+                    Log.e(TAG, "Sync request failed: $message")
+                    val errorTextMatch = Regex("""<text[^>]*>([^<]+)</text>""").find(message)
+                    val errorText = errorTextMatch?.groupValues?.get(1) ?: "Unknown sync error"
+                    onErrorCallback?.invoke("Sync request failed: $errorText")
+                } else {
+                    Log.w(TAG, "Unexpected sync response type: $message")
+                }
+                return
+            }
+
             // Handle non-roster messages as before
             when {
                 message.contains("<stream:stream") && !message.contains("<stream:features") -> {
@@ -535,6 +553,43 @@ class Stream {
         }
     }
 
+
+    suspend fun sendSyncRequest() = withContext(Dispatchers.IO) {
+        if (state != StreamState.CONNECTED) {
+            Log.w(TAG, "Cannot send sync request: Stream is not in CONNECTED state, current state: $state")
+            onErrorCallback?.invoke("Cannot send sync request: Not connected")
+            return@withContext
+        }
+        if (socket == null || socket?.getSocket()?.isClosed == true) {
+            Log.e(TAG, "Cannot send sync request: Socket is null or closed")
+            onErrorCallback?.invoke("Cannot send sync request: Connection closed")
+            state = StreamState.NOT_CONNECTING
+            reconnect()
+            return@withContext
+        }
+        try {
+            val syncId = NanoId.generateOptimized(9, "_-0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", 63, 16)
+            val syncRequest = """
+            <iq type='get' id='$syncId' from='$jid' to='$jid'>
+                <query xmlns='https://xabber.com/protocol/synchronization'/>
+            </iq>
+        """.trimIndent()
+            if (socket?.write(syncRequest) == true) {
+                Log.d(TAG, "Sent sync request for JID: $jid with id: $syncId")
+            } else {
+                Log.e(TAG, "Failed to send sync request for JID: $jid")
+                onErrorCallback?.invoke("Failed to send sync request")
+                state = StreamState.NOT_CONNECTING
+                reconnect()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error sending sync request for JID: $jid: ${e.message}", e)
+            onErrorCallback?.invoke("Sync request error: ${e.message}")
+            state = StreamState.NOT_CONNECTING
+            reconnect()
+        }
+    }
+
     fun getSocket(): Socket? = socket
 
     open fun onNotConnecting() {}
@@ -796,13 +851,15 @@ class Stream {
     }
 
     open suspend fun onConnected() {
-        Log.d(TAG, "Stream connected for JID: $jid, initiating roster request")
+        Log.d(TAG, "Stream connected for JID: $jid, initiating roster and sync requests")
         try {
             rosterManager.request(this)
             Log.d(TAG, "Roster request sent for JID: $jid")
+            sendSyncRequest()
+            Log.d(TAG, "Sync request sent for JID: $jid")
         } catch (e: Exception) {
-            Log.e(TAG, "Error sending roster request for JID: $jid: ${e.message}", e)
-            onErrorCallback?.invoke("Error sending roster request: ${e.message}")
+            Log.e(TAG, "Error sending roster or sync request for JID: $jid: ${e.message}", e)
+            onErrorCallback?.invoke("Error sending roster or sync request: ${e.message}")
         }
         socket?.scope?.launch {
             while (state == StreamState.CONNECTED && socket?.getSocket()?.isClosed == false) {

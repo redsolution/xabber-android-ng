@@ -167,7 +167,8 @@
     <!-- CONTACTS  -->
     <string name="contacts">Контакты</string>
     <string name="groups">Группы</string>
-
+    <string name="online">Онлайн</string>
+    <string name="show_all_contacts">Показать все контакты</string>
 
     <string name="contacts_toolbar_title">Контакты</string>
     <string name="menu_item_reset_status">Изменить статус</string>

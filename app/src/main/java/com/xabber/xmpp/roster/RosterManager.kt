@@ -4,11 +4,13 @@ import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
 import com.xabber.common.Stream
+import com.xabber.data_base.models.roster.RosterGroupStorageItem
 import com.xabber.data_base.models.roster.RosterStorageItem
 import com.xabber.data_base.models.roster.Subscription
 import com.xabber.data_base.models.roster.Ask
 import io.realm.kotlin.Realm
 import io.realm.kotlin.ext.query
+import io.realm.kotlin.ext.realmListOf
 import io.viascom.nanoid.NanoId
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -112,19 +114,53 @@ class RosterManager(private val owner: String, private val realm: Realm) {
         Log.d(TAG, "Parsed RosterQuery with version: ${rosterQuery.ver}")
         realm.write {
             rosterQuery.items.forEach { item ->
+                // Skip the specific JID
+                if (item.jid.equals("xabber@xmppdev01.xabber.com", ignoreCase = true)) {
+                    Log.d(TAG, "Skipping JID: ${item.jid}")
+                    // Handle removal if it exists
+                    val primaryKey = RosterStorageItem.genPrimary(item.jid, owner)
+                    val existingItem = query<RosterStorageItem>("primary = $0", primaryKey).first().find()
+                    if (existingItem != null) {
+                        query<RosterGroupStorageItem>("owner = $0", owner).find().forEach { group ->
+                            group.contacts.removeAll { it.primary == existingItem.primary }
+                        }
+                        delete(existingItem)
+                        Log.d(TAG, "Removed existing RosterStorageItem for JID: ${item.jid}")
+                    }
+                    return@forEach
+                }
+
+                // Handle subscription="remove"
+                if (item.subscription == "remove") {
+                    val primaryKey = RosterStorageItem.genPrimary(item.jid, owner)
+                    val existingItem = query<RosterStorageItem>("primary = $0", primaryKey).first().find()
+                    if (existingItem != null) {
+                        // Remove from all groups
+                        query<RosterGroupStorageItem>("owner = $0", owner).find().forEach { group ->
+                            group.contacts.removeAll { it.primary == existingItem.primary }
+                        }
+                        // Delete the RosterStorageItem
+                        delete(existingItem)
+                        Log.d(TAG, "Deleted RosterStorageItem for JID: ${item.jid} due to subscription='remove'")
+                    }
+                    return@forEach
+                }
+
+                // Update or create RosterStorageItem
                 val primaryKey = RosterStorageItem.genPrimary(item.jid, owner)
                 val existingItem = query<RosterStorageItem>("primary = $0", primaryKey).first().find()
-                if (existingItem != null) {
+                val instance = if (existingItem != null) {
                     findLatest(existingItem)?.apply {
                         customNickname = item.name ?: ""
                         subscription = item.subscription?.let { Subscription.fromRaw(it) } ?: Subscription.NONE
-                        ask = item.ask?.let { Ask.fromRaw(it) } ?: Ask.NONE
+                        ask = if (item.ask == "subscribe") Ask.OUT else (item.ask?.let { Ask.fromRaw(it) } ?: Ask.NONE)
                         approved = item.approved == "true"
                         groups.clear()
                         groups.addAll(item.groups)
                         updatedTS = System.currentTimeMillis().toDouble() / 1000
                     }
                     Log.d(TAG, "Updated RosterStorageItem for JID: ${item.jid}")
+                    existingItem
                 } else {
                     val newItem = RosterStorageItem().apply {
                         primary = primaryKey
@@ -132,13 +168,76 @@ class RosterManager(private val owner: String, private val realm: Realm) {
                         jid = item.jid
                         customNickname = item.name ?: ""
                         subscription = item.subscription?.let { Subscription.fromRaw(it) } ?: Subscription.NONE
-                        ask = item.ask?.let { Ask.fromRaw(it) } ?: Ask.NONE
+                        ask = if (item.ask == "subscribe") Ask.OUT else (item.ask?.let { Ask.fromRaw(it) } ?: Ask.NONE)
                         approved = item.approved == "true"
                         groups.addAll(item.groups)
                         updatedTS = System.currentTimeMillis().toDouble() / 1000
                     }
                     copyToRealm(newItem)
                     Log.d(TAG, "Created new RosterStorageItem for JID: ${item.jid}")
+                    newItem
+                }
+
+                // Update group assignments
+                // Remove from "Not in roster" group
+                val notInRosterGroup = query<RosterGroupStorageItem>(
+                    "primary = $0",
+                    RosterGroupStorageItem.genPrimary(RosterGroupStorageItem.NOT_IN_ROSTER_GROUP_NAME, owner)
+                ).first().find()
+                notInRosterGroup?.contacts?.removeAll { it.primary == instance.primary }
+
+                if (item.groups.isEmpty()) {
+                    // Remove from all other groups
+                    query<RosterGroupStorageItem>("owner = $0", owner).find().forEach { group ->
+                        group.contacts.removeAll { it.primary == instance.primary }
+                    }
+                    // Add to system group if not already present
+                    val systemGroupPrimary = RosterGroupStorageItem.genPrimary(RosterGroupStorageItem.SYSTEM_GROUP_NAME, owner)
+                    var systemGroup = query<RosterGroupStorageItem>("primary = $0", systemGroupPrimary).first().find()
+                    if (systemGroup == null) {
+                        systemGroup = RosterGroupStorageItem().apply {
+                            primary = systemGroupPrimary
+                            this.owner = this@RosterManager.owner
+                            name = RosterGroupStorageItem.SYSTEM_GROUP_NAME
+                            isSystemGroup = true
+                            contacts = realmListOf()
+                        }
+                        copyToRealm(systemGroup)
+                        Log.d(TAG, "Created new system group: ${RosterGroupStorageItem.SYSTEM_GROUP_NAME}")
+                    }
+                    if (!systemGroup.contacts.any { it.primary == instance.primary }) {
+                        systemGroup.contacts.add(instance)
+                        Log.d(TAG, "Added JID ${instance.jid} to system group")
+                    }
+                } else {
+                    // Remove from system group
+                    val systemGroupPrimary = RosterGroupStorageItem.genPrimary(RosterGroupStorageItem.SYSTEM_GROUP_NAME, owner)
+                    query<RosterGroupStorageItem>("primary = $0", systemGroupPrimary).first().find()?.contacts?.removeAll { it.primary == instance.primary }
+
+                    // Add to specified groups
+                    item.groups.filter { it.isNotEmpty() }.forEach { groupName ->
+                        // Remove from other groups where the contact shouldn't be
+                        query<RosterGroupStorageItem>("owner = $0 AND name != $1", owner, groupName).find().forEach { group ->
+                            group.contacts.removeAll { it.primary == instance.primary }
+                        }
+                        // Add to the specified group
+                        val groupPrimary = RosterGroupStorageItem.genPrimary(groupName, owner)
+                        var group = query<RosterGroupStorageItem>("primary = $0", groupPrimary).first().find()
+                        if (group == null) {
+                            group = RosterGroupStorageItem().apply {
+                                primary = groupPrimary
+                                this.owner = this@RosterManager.owner
+                                name = groupName
+                                contacts = realmListOf()
+                            }
+                            copyToRealm(group)
+                            Log.d(TAG, "Created new group: $groupName")
+                        }
+                        if (!group.contacts.any { it.primary == instance.primary }) {
+                            group.contacts.add(instance)
+                            Log.d(TAG, "Added JID ${instance.jid} to group: $groupName")
+                        }
+                    }
                 }
 
                 Log.d(TAG, """

@@ -22,10 +22,16 @@ data class ContactDto(
     var isHide: Boolean = false
 ) : Parcelable, Comparable<ContactDto> {
     override fun compareTo(other: ContactDto): Int {
-        val name =
-            if (customNickName != null && customNickName.isNotEmpty()) customNickName else nickName
-        val otherName =
-            if (other.customNickName != null && other.customNickName.isNotEmpty()) other.customNickName else other.nickName
-        return name!!.compareTo(otherName!!)
+        val name = when {
+            customNickName?.isNotEmpty() == true -> customNickName
+            nickName?.isNotEmpty() == true -> nickName
+            else -> jid ?: ""
+        }
+        val otherName = when {
+            other.customNickName?.isNotEmpty() == true -> other.customNickName
+            other.nickName?.isNotEmpty() == true -> other.nickName
+            else -> other.jid ?: ""
+        }
+        return name.compareTo(otherName, ignoreCase = true)
     }
 }

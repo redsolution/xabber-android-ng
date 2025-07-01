@@ -31,6 +31,7 @@
 
         </androidx.appcompat.widget.Toolbar>
     </com.google.android.material.appbar.AppBarLayout>
+
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/contacts_filter_layout"
         style="@style/ClickableViewGroupNonWhite"
@@ -59,20 +60,18 @@
             android:text="@string/contacts"
             app:layout_constraintStart_toEndOf="@id/contacts"
             app:layout_constraintTop_toTopOf="parent" />
-
-
     </androidx.constraintlayout.widget.ConstraintLayout>
+
     <androidx.constraintlayout.widget.ConstraintLayout
-        android:id="@+id/groups_filter_layout"
+        android:id="@+id/online_filter_layout"
         style="@style/ClickableViewGroupNonWhite"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/contacts_filter_layout">
-
         <ImageView
-            android:id="@+id/groups"
+            android:id="@+id/online"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:backgroundTint="@color/blue_500"
@@ -82,93 +81,42 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
         <TextView
-            android:id="@+id/groups_filter"
+            android:id="@+id/online_filter"
+            style="@style/AccountSettingsTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/online"
+            app:layout_constraintStart_toEndOf="@id/online"
+            app:layout_constraintTop_toTopOf="parent" />
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/groups_title_layout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/online_filter_layout">
+        <TextView
+            android:id="@+id/groups_title"
             style="@style/AccountSettingsTitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/groups"
-            app:layout_constraintStart_toEndOf="@id/groups"
-            app:layout_constraintTop_toTopOf="parent" />
-
-
-
-    </androidx.constraintlayout.widget.ConstraintLayout>
-    <androidx.constraintlayout.widget.ConstraintLayout
-        android:id="@+id/circles_title_layout"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/groups_filter_layout">
-
-        <TextView
-            android:id="@+id/circle_title"
-            style="@style/AccountSettingsTitle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Circles"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintTop_toBottomOf="parent"
-            app:layout_constraintStart_toStartOf="parent"/>
-    </androidx.constraintlayout.widget.ConstraintLayout>
-    <androidx.constraintlayout.widget.ConstraintLayout
-        android:id="@+id/circle1_layout"
-        style="@style/ClickableViewGroupNonWhite"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/circles_title_layout">
-        <ImageView
-            android:id="@+id/circle1"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:backgroundTint="@color/blue_500"
-            android:src="@drawable/label_outline"
-            android:layout_marginStart="16dp"
-            app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
-        <TextView
-            android:id="@+id/circle1_filter"
-            style="@style/AccountSettingsTitle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="circle_1"
-            app:layout_constraintStart_toEndOf="@id/circle1"
-            app:layout_constraintTop_toTopOf="parent" />
-
-
     </androidx.constraintlayout.widget.ConstraintLayout>
-    <androidx.constraintlayout.widget.ConstraintLayout
-        android:id="@+id/circle2_layout"
-        style="@style/ClickableViewGroupNonWhite"
-        android:layout_width="match_parent"
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/groups_recycler_view"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
+        app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/circle1_layout">
-        <ImageView
-            android:id="@+id/circle2"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:backgroundTint="@color/blue_500"
-            android:src="@drawable/label_outline"
-            android:layout_marginStart="16dp"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
-        <TextView
-            android:id="@+id/circle2_filter"
-            style="@style/AccountSettingsTitle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="circle_2"
-            app:layout_constraintStart_toEndOf="@id/circle2"
-            app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toBottomOf="@id/groups_title_layout" />
 
-
-        <TextView
+    <TextView
         android:id="@+id/tv_advertisement"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
@@ -177,10 +125,10 @@
         android:text="@string/adtn"
         android:textColor="@color/black"
         android:textSize="@dimen/font_size_18"
+        android:visibility="gone"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/declined"
-        android:visibility="gone"
-            tools:ignore="NotSibling" />
-    </androidx.constraintlayout.widget.ConstraintLayout>
+        app:layout_constraintTop_toBottomOf="@id/groups_recycler_view"
+        tools:ignore="NotSibling" />
+
 </androidx.constraintlayout.widget.ConstraintLayout>

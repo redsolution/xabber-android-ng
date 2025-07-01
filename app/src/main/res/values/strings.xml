@@ -180,6 +180,9 @@
     <string name="hint_user_name">User name</string>
     <string name="hint_alias_not_necessary">Alias (not necessary)</string>
     <string name="create_group_button_label">Create group</string>
+    <string name="groupchat_general" translatable="false">groupchat general</string>
+    <string name="groupchat_not_roster" translatable="false">groupchat not roster</string>
+
 
     <!-- CALLS -->
     <string name="calls_toolbar_title">Calls</string>
@@ -193,7 +196,7 @@
     <!-- CONTACTS -->
     <string name="contacts">Contacts</string>
     <string name="groups">Groups</string>
-
+    <string name="online">Online</string>
     <string name="menu_item_edit_contact">Edit</string>
     <string name="menu_item_delete_contact">Delete contact</string>
     <string name="menu_item_block_contact">Block contact</string>
@@ -207,6 +210,8 @@
     <string name="menu_item_edit_contact_account">Edit</string>
     <string name="menu_item_send_contact">Send</string>
     <string name="menu_item_delete_contact_account">Delete contact</string>
+    <string name="show_all_contacts">Show all contacts</string>
+
 
     <!-- Edit Contacts Fragment -->
     <string name="edit_contact_toolbar_title">Edit</string>

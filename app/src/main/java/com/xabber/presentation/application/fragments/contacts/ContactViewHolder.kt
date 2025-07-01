@@ -23,7 +23,8 @@ class ContactViewHolder(
 
             binding.contactName.text =
                 if (contact.customNickName != null && contact.customNickName.isNotEmpty()) contact.customNickName else contact.nickName
-            //  contactSubtitle.text = contact.subtitle
+
+            binding.contactSubtitle.text = contact.jid
 
             val icon = when (contact.entity) {
                 RosterItemEntity.CONTACT -> R.drawable.status_contact
