@@ -12,8 +12,8 @@ import io.realm.kotlin.UpdatePolicy
 import io.realm.kotlin.ext.query
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-@RequiresApi(Build.VERSION_CODES.O)
 
+@RequiresApi(Build.VERSION_CODES.O)
 class Account {
     var jid: String = ""
     override fun toString(): String {
@@ -34,7 +34,6 @@ class Account {
     var stream: Stream? = null
     private var onErrorCallback: ((String) -> Unit)? = null
 
-
     fun setOnErrorCallback(callback: (String) -> Unit) {
         onErrorCallback = callback
         stream?.setOnErrorCallback { error ->
@@ -42,7 +41,6 @@ class Account {
             statusMessage.onNext("Offline")
         }
     }
-
 
     suspend fun loadAccount() = withContext(Dispatchers.IO) {
         try {
@@ -78,7 +76,7 @@ class Account {
                     manuallySetHost = this@Account.manuallySetHost
                     port = this@Account.port
                     username = this@Account.username
-                    createdAt = 0
+                    createdAt = System.currentTimeMillis() // Set createdAt as Long
                     deviceName = this@Account.deviceName
                 }
                 copyToRealm(item, updatePolicy = UpdatePolicy.ALL)
@@ -97,14 +95,14 @@ class Account {
             return exists
         } catch (e: Exception) {
             Log.e("Account", "Error checking account existence for $jid: ${e.message}", e)
-            return false // Assume non-existent on error
+            return false
         }
     }
 
     private suspend fun initializeStream() = withContext(Dispatchers.IO) {
         try {
             if (jid.isNotEmpty()) {
-                stream?.close() // Close existing stream
+                stream?.close()
                 stream = Stream(jid, port).apply {
                     onErrorCallback?.let { setOnErrorCallback(it) }
                 }
@@ -154,8 +152,4 @@ class Account {
         statusMessage.onNext("Offline")
         Log.d("Account", "Stream closed for $jid")
     }
-
-//    fun getStream(): Stream? {
-//        return stream
-//    }
 }

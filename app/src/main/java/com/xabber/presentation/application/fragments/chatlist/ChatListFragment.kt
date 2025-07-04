@@ -3,9 +3,11 @@ package com.xabber.presentation.application.fragments.chatlist
 import android.annotation.SuppressLint
 import android.content.SharedPreferences
 import android.graphics.Color
+import android.os.Build
 import android.os.Bundle
 import android.view.*
 import android.widget.ImageView
+import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import androidx.fragment.app.activityViewModels
@@ -36,6 +38,7 @@ import com.xabber.utils.partSmoothScrollToPosition
 /**
  * This fragment displays the chat list of enabled accounts and allows you to perform actions with chats.
  */
+@RequiresApi(Build.VERSION_CODES.O)
 class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdapter.ChatListener {
     private val binding by viewBinding(FragmentChatListBinding::bind)
     private val chatListViewModel: ChatListViewModel by activityViewModels()
@@ -114,10 +117,10 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
 //            }
 //        })
 
-        binding.chatToolbar.findViewById<ImageView>(R.id.add).setOnClickListener {
-            if (chatListViewModel.chatIsEmpty()) chatListViewModel.addSomeChats()
-            else navigator().showNewChat()
-        }
+//        binding.chatToolbar.findViewById<ImageView>(R.id.add).setOnClickListener {
+//            if (chatListViewModel.chatIsEmpty()) chatListViewModel.addSomeChats()
+//            else navigator().showNewChat()
+//        }
 
 
         binding.chatToolbar.setOnClickListener {
@@ -314,7 +317,7 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
     }
 
     private fun initPullRefreshLayout() {
-        val colorKey = chatListViewModel.getPrimaryAccountColorKey()
+        val colorKey = R.color.amber_200.toString()
         val superLightColor = ColorManager.convertColorSuperLightNameToId(colorKey)
         val lightColor = ColorManager.convertColorLightNameToId(colorKey)
         val standardColor = ColorManager.convertColorMediumNameToId(colorKey)

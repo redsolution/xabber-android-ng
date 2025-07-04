@@ -136,7 +136,6 @@ class ChatListViewHolder(
 //    }
 
     private fun setPin(pinnedDate: Long) {
-        // Remove background setting here; let the adapter handle it
         binding.imChatListPinned.isVisible = pinnedDate > 0
     }
 

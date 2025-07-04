@@ -38,7 +38,7 @@ class NewContactFragment : DetailBaseFragment(R.layout.fragment_new_contact) {
         binding.btnAddContact.setOnClickListener {
             val name = binding.inputName.editText?.text.toString()
             val customName = binding.inputAlias.editText?.text.toString()
-            viewModel.insertContactAndChat(name, customName)
+//            viewModel.insertContactAndChat(name, customName)
          //   val owner = viewModel.getPrimaryAccount()
         //    if (owner != null) navigator().showChat(ChatParams(name, owner, name, null))
         }

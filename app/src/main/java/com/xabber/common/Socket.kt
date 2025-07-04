@@ -595,7 +595,7 @@ class Socket(private val host: String, private val port: Int) {
                     } else {
                         val message = String(bytes, StandardCharsets.UTF_8)
                         Log.d(TAG, "Read chunk: $message")
-                        Log.d(TAG, "Read chunk (bytes): ${bytes.joinToString(", ")}")
+//                        Log.d(TAG, "Read chunk (bytes): ${bytes.joinToString(", ")}")
                         if (message.contains("<proceed") && !proceedChannel.isClosedForSend) {
                             proceedChannel.send(message)
                         }
@@ -709,8 +709,8 @@ class Socket(private val host: String, private val port: Int) {
                             bytesRead > 0 -> {
                                 val chunk = tempBuffer.decodeToString(0, bytesRead)
                                 buffer.append(chunk)
-                                Log.d(TAG, "Read chunk: $chunk")
-                                Log.d(TAG, "Read chunk (bytes): ${tempBuffer.copyOfRange(0, bytesRead).joinToString(", ")}")
+                               /**/ Log.d(TAG, "Read chunk: $chunk")
+                            /**/    Log.d(TAG, "Read chunk (bytes): ${tempBuffer.copyOfRange(0, bytesRead).joinToString(", ")}")
                                 if (buffer.contains("</stream:stream>") ||
                                     buffer.contains("</stream:features>") ||
                                     buffer.contains("</stream:error>") ||

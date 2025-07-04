@@ -1,24 +1,31 @@
 package com.xabber.presentation.application.fragments.chatlist.forward
 
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.widget.SearchView
 import androidx.fragment.app.viewModels
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.xabber.R
 import com.xabber.data_base.defaultRealmConfig
-import com.xabber.dto.ChatListDto
 import com.xabber.data_base.models.last_chats.LastChatsStorageItem
 import com.xabber.data_base.models.messages.MessageSendingState
 import com.xabber.data_base.models.presences.ResourceStatus
 import com.xabber.data_base.models.presences.RosterItemEntity
+import com.xabber.data_base.models.roster.RosterStorageItem
+import com.xabber.data_base.models.sync.ConversationType
+import com.xabber.dto.ChatListDto
 import com.xabber.presentation.AppConstants
 import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.application.fragments.DetailBaseFragment
 import com.xabber.presentation.application.fragments.chatlist.ChatListViewModel
 import com.xabber.utils.showToast
 import io.realm.kotlin.Realm
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class ChatListToForwardFragment : DetailBaseFragment(R.layout.fragment_chat_for_forward),
     ChatListForForwardAdapter.Listener {
@@ -28,40 +35,42 @@ class ChatListToForwardFragment : DetailBaseFragment(R.layout.fragment_chat_for_
     private var layoutManager: LinearLayoutManager? = null
     private lateinit var searchView: SearchView
     lateinit var chatList: RecyclerView
-    private var jid = ""
+    private var ownerJid = ""
+    private val realm: Realm by lazy { Realm.open(defaultRealmConfig()) }
 
     companion object {
-        fun newInstance(textMessage: String, _jid: String) = ChatListToForwardFragment().apply {
+        fun newInstance(textMessage: String, ownerJid: String) = ChatListToForwardFragment().apply {
             arguments = Bundle().apply {
                 putString(AppConstants.CLEAR_HISTORY_NAME_KEY, textMessage)
-                forwardMessage = textMessage
-                jid = _jid
+                putString(AppConstants.OWNER_JID_KEY, ownerJid)
             }
         }
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        arguments?.let {
+            forwardMessage = it.getString(AppConstants.CLEAR_HISTORY_NAME_KEY, "")
+            ownerJid = it.getString(AppConstants.OWNER_JID_KEY, "")
+        }
         searchView = view.findViewById(R.id.forward_search)
         chatList = view.findViewById(R.id.chat_list)
         searchView.maxWidth = Int.MAX_VALUE
-        //    val searchEditText = fowardSearch.findViewById(androidx.appcompat.R.id.search_src_text) as EditText
-        //     searchEditText.setTextColor(resources.getColor(R.color.white))
-//        binding.toolbar.setNavigationIcon(R.drawable.ic_arrow_left_white)
-//        binding.toolbar.setNavigationOnClickListener {
-//            navigator().closeDetail()
-//        }
         chatListAdapter = ChatListForForwardAdapter(this)
         chatList.adapter = chatListAdapter
         layoutManager = chatList.layoutManager as LinearLayoutManager
-        chatListViewModel.chats.observe(viewLifecycleOwner) {
-            val list = it
-            if (!chatListViewModel.isSavedHas(jid)) {
+
+        chatListViewModel.chats.observe(viewLifecycleOwner) { chats ->
+            val list = ArrayList(chats)
+            Log.d("ChatListToForwardFragment", "Received ${list.size} chats from LiveData")
+            list.forEach { Log.d("ChatListToForwardFragment", "Chat: $it") }
+
+            if (!chatListViewModel.isSavedHas(ownerJid)) {
                 list.add(
                     0, ChatListDto(
-                        id = jid,
-                        owner = jid,
-                        opponentJid = jid,
+                        id = LastChatsStorageItem.genPrimary(ownerJid, ownerJid, ConversationType.Regular),
+                        owner = ownerJid,
+                        opponentJid = ownerJid,
                         opponentNickname = "Saved Messages",
                         customNickname = "",
                         lastMessageBody = "",
@@ -80,36 +89,53 @@ class ChatListToForwardFragment : DetailBaseFragment(R.layout.fragment_chat_for_
                         unread = "",
                         lastPosition = "",
                         drawableId = R.drawable.saved_messages_avatar,
-                        isHide = false,
-                        lastMessageIsOutgoing = true
+                        isHide = false
                     )
                 )
+                Log.d("ChatListToForwardFragment", "Added Saved Messages chat for ownerJid $ownerJid")
             }
-            chatListAdapter?.submitList(it)
+            chatListAdapter?.submitList(list)
+            Log.d("ChatListToForwardFragment", "Submitted ${list.size} chats to adapter")
         }
         chatListViewModel.getChatList()
-
     }
 
     override fun onClickItem(id: String) {
-        if (id == jid && !chatListViewModel.isSavedHas(jid)) {
-            var realm = Realm.open(defaultRealmConfig())
-            realm.writeBlocking {
-                this.copyToRealm(LastChatsStorageItem().apply {
-                    primary = jid
-                    muteExpired = -1
-                    owner = jid
-                    jid = "Saved messages"
-                    messageDate = System.currentTimeMillis()
-                    isArchived = false
-                    unread = 0
-                    avatar = R.drawable.saved_messages_avatar
-                })
+        viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+            if (id == LastChatsStorageItem.genPrimary(ownerJid, ownerJid, ConversationType.Regular) && !chatListViewModel.isSavedHas(ownerJid)) {
+                realm.write {
+                    copyToRealm(LastChatsStorageItem().apply {
+                        primary = LastChatsStorageItem.genPrimary(ownerJid, ownerJid, ConversationType.Regular)
+                        muteExpired = -1
+                        owner = ownerJid
+                        jid = ownerJid
+                        conversationType_ = ConversationType.Regular.rawValue
+                        messageDate = System.currentTimeMillis()
+                        isArchived = false
+                        unread = 0
+                        avatar = R.drawable.saved_messages_avatar
+                        rosterItem = copyToRealm(RosterStorageItem().apply {
+                            primary = RosterStorageItem.genPrimary(ownerJid, ownerJid)
+                            owner = this@apply.owner
+                            jid = this@apply.jid
+                            customNickname = "Saved Messages"
+                        })
+                    })
+                    Log.d("ChatListToForwardFragment", "Created Saved Messages chat for ownerJid $ownerJid")
+                }
+            }
+            chatListViewModel.forwardMessage(id, forwardMessage)
+            withContext(Dispatchers.Main) {
+                showToast("Messages have been forwarded")
+                navigator().goBack()
             }
         }
-        chatListViewModel.forwardMessage(id, forwardMessage)
-        showToast("Messages have been forwarded")
-        navigator().goBack()
     }
 
+    override fun onDestroyView() {
+        super.onDestroyView()
+        realm.close()
+        chatListAdapter = null
+        layoutManager = null
+    }
 }

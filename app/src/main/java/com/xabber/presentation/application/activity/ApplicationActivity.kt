@@ -277,7 +277,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         setMask()
         setChatSettings()
         handleUnread()
-        handleContactAddition()
+//        handleContactAddition()
         assist = SoftInputAssist(window)
         subscribeToViewModelData()
 
@@ -379,12 +379,12 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         }
 
     }
-    private fun handleContactAddition() {
-        binding.toolbarNav.findViewById<ImageView>(R.id.add).setOnClickListener {
-            if (chatListViewModel.chatIsEmpty()) chatListViewModel.addSomeChats()
-            else showNewChat()
-        }
-    }
+//    private fun handleContactAddition() {
+//        binding.toolbarNav.findViewById<ImageView>(R.id.add).setOnClickListener {
+//            if (chatListViewModel.chatIsEmpty()) chatListViewModel.addSomeChats()
+//            else showNewChat()
+//        }
+//    }
     private fun handleNotificationsNavigation() {
 
         val widthDp = DisplayManager.getWidthDp()

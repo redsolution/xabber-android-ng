@@ -59,4 +59,23 @@ class LastChatsStorageItem: RealmObject {
     var chatMarkersSupport: Boolean = false
     var lastPosition: String = ""     //
     var avatar: Int = R.drawable.dog
+    var isInitialArchiveLoaded: Boolean = false
+    var fullArchiveLoaded: Boolean = false
+    var lastLoadedMessageHistoryId: String? = null
+    var isBlocked: Boolean = false // TODO: Deprecate as per Swift
+    var isPinned: Boolean = false
+    var afterburnInterval: Double = -1.0
+    var afterburnIntervalLastUpdate: Double = -1.0
+    var isAllHistoryLoaded: Boolean = false
+    var isFreshNotEmptyEncryptedChat: Boolean = false
+    var hasErrorInChat: Boolean = false
+    var updateTS: Double = 0.0
+    var lastChatOffset: Float = 0f
+
+
+    private var chatState_: Int = 0
+
+
 }
+
+

@@ -6,17 +6,16 @@ import androidx.annotation.RequiresApi
 import com.xabber.data_base.defaultRealmConfig
 import com.xabber.data_base.models.account.AccountStorageItem
 import com.xabber.data_base.models.presences.ResourceStorageItem
+import com.xabber.xmpp.XEP_0CCC.ClientSynchronizationManager
 import com.xabber.xmpp.auth.DevicesOCRA
 import com.xabber.xmpp.device.DeviceStorageItem
 import com.xabber.xmpp.dns.DNSResolver
 import com.xabber.xmpp.roster.RosterManager
 import io.realm.kotlin.Realm
-import io.realm.kotlin.RealmConfiguration
 import io.realm.kotlin.ext.query
 import io.ktor.network.sockets.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
-import io.ktor.network.sockets.isClosed
 import io.viascom.nanoid.NanoId
 
 enum class StreamState {
@@ -70,13 +69,12 @@ class Stream {
     private val deviceModel = Build.MODEL
     private var isDeviceRegistered = false
     private var ocraAuth: DevicesOCRA? = null
-    private val realm: Realm by lazy {
-        Realm.open(defaultRealmConfig())
-    }
+    private val realm: Realm by lazy { Realm.open(defaultRealmConfig()) }
     private val rosterManager: RosterManager by lazy { RosterManager(jid, realm) }
+    private val syncManager: ClientSynchronizationManager by lazy { ClientSynchronizationManager(jid) }
     private var onErrorCallback: ((String) -> Unit)? = null
     private val rosterStanzaBuffer = StringBuilder()
-
+    private val syncStanzaBuffer = StringBuilder()
 
     init {
         runBlocking(Dispatchers.IO) {
@@ -165,7 +163,7 @@ class Stream {
                     socket = Socket(remoteAddress, port)
                     socket?.setMessageCallback { message ->
                         CoroutineScope(Dispatchers.IO).launch {
-                            Log.d(TAG, "Received message via callback: $message")
+                            Log.d(TAG, "Received message via callback: ${message.substring(0, minOf(message.length, 200))}...")
                             messageCallbackChannel.send(message)
                             handleIncomingMessage(message)
                         }
@@ -206,64 +204,138 @@ class Stream {
 
     private suspend fun handleIncomingMessage(message: String) {
         try {
-            Log.d(TAG, "Handling incoming message: $message")
+            Log.d(TAG, "Handling incoming message: ${message.substring(0, minOf(message.length, 200))}...")
+            // Handle ping IQ first
+            if (message.contains("<iq") && message.contains("type='get'") && message.contains("urn:xmpp:ping") && state == StreamState.CONNECTED) {
+                Log.d(TAG, "Received server ping request")
+                val idMatch = Regex("""id=['"]([^'"]+)['"]""").find(message)
+                val fromMatch = Regex("""from=['"]([^'"]+)['"]""").find(message)
+                if (idMatch != null && fromMatch != null) {
+                    val pingId = idMatch.groupValues[1]
+                    val fromJid = fromMatch.groupValues[1]
+                    val response = """
+                        <iq type='result' id='$pingId' to='$fromJid'/>
+                    """.trimIndent()
+                    if (socket?.write(response) == true) {
+                        Log.d(TAG, "Sent ping response: $response")
+                    } else {
+                        Log.e(TAG, "Failed to send ping response")
+                        onErrorCallback?.invoke("Failed to send ping response")
+                        state = StreamState.NOT_CONNECTING
+                        reconnect()
+                    }
+                } else {
+                    Log.w(TAG, "Invalid ping stanza, missing id or from: $message")
+                }
+                return
+            }
+
             // Check if the message is roster-related
             if (message.contains("jabber:iq:roster") || message.contains("<item") || message.contains("<group>")) {
                 var completeStanza: String? = null
                 synchronized(rosterStanzaBuffer) {
                     rosterStanzaBuffer.append(message)
-                    Log.d(TAG, "Appended to roster stanza buffer: $message")
-
-                    // Check if the buffer contains a complete IQ stanza
+                    Log.d(TAG, "Appended to roster stanza buffer: ${message.substring(0, minOf(message.length, 200))}...")
                     val bufferedContent = rosterStanzaBuffer.toString()
                     if (!bufferedContent.trim().startsWith("<iq")) {
-                        Log.d(TAG, "Waiting for IQ start, current buffer: $bufferedContent")
+                        Log.d(TAG, "Waiting for IQ start, current buffer: ${bufferedContent.substring(0, minOf(bufferedContent.length, 200))}...")
                         return
                     }
                     if (!bufferedContent.contains("</iq>")) {
-                        Log.d(TAG, "Incomplete roster IQ stanza, waiting for more data. Current buffer: $bufferedContent")
+                        Log.d(TAG, "Incomplete roster IQ stanza, waiting for more data: ${bufferedContent.substring(0, minOf(bufferedContent.length, 200))}...")
                         return
                     }
-
-                    // Complete IQ stanza received, copy and clear buffer
                     completeStanza = bufferedContent
                     rosterStanzaBuffer.clear()
                     Log.d(TAG, "Cleared roster stanza buffer after copying complete stanza")
                 }
-
-                // Process the complete stanza outside the synchronized block
                 completeStanza?.let {
-                    Log.d(TAG, "Processing complete roster IQ stanza: $it")
+                    Log.d(TAG, "Processing complete roster IQ stanza: ${it.substring(0, minOf(it.length, 200))}...")
                     rosterManager.read(it)
                 }
                 return
             }
 
             // Handle sync request response
-            if (message.contains("<iq") && message.contains("https://xabber.com/protocol/synchronization")) {
-                Log.d(TAG, "Received sync request response")
-                if (message.contains("type='result'")) {
-                    Log.d(TAG, "Sync request successful: $message")
-                    // Process the sync response data if needed
-                    // Example: Extract specific data from the <query> element
-                } else if (message.contains("type='error'")) {
-                    Log.e(TAG, "Sync request failed: $message")
-                    val errorTextMatch = Regex("""<text[^>]*>([^<]+)</text>""").find(message)
-                    val errorText = errorTextMatch?.groupValues?.get(1) ?: "Unknown sync error"
-                    onErrorCallback?.invoke("Sync request failed: $errorText")
-                } else {
-                    Log.w(TAG, "Unexpected sync response type: $message")
+            if (message.contains("<query") && message.contains("https://xabber.com/protocol/synchronization")) {
+                var completeStanza: String? = null
+                synchronized(syncStanzaBuffer) {
+                    syncStanzaBuffer.append(message)
+                    Log.d(TAG, "Appended to sync stanza buffer: ${message.substring(0, minOf(message.length, 200))}...")
+                    val bufferedContent = syncStanzaBuffer.toString()
+                    if (!bufferedContent.contains("<query") || !bufferedContent.contains("https://xabber.com/protocol/synchronization")) {
+                        Log.d(TAG, "Waiting for query start, current buffer: ${bufferedContent.substring(0, minOf(bufferedContent.length, 200))}...")
+                        return
+                    }
+                    if (!bufferedContent.contains("</query>")) {
+                        Log.d(TAG, "Incomplete sync query stanza, waiting for more data: ${bufferedContent.substring(0, minOf(bufferedContent.length, 200))}...")
+                        return
+                    }
+                    completeStanza = bufferedContent
+                    syncStanzaBuffer.clear()
+                    Log.d(TAG, "Cleared sync stanza buffer after copying complete stanza")
+                }
+                completeStanza?.let {
+                    Log.d(TAG, "Processing complete sync query stanza: ${it.substring(0, minOf(it.length, 200))}...")
+                    // Extract the full <iq> stanza containing the <query>
+                    val iqStart = it.indexOf("<iq")
+                    val iqEnd = it.lastIndexOf("</iq>") + 5
+                    if (iqStart != -1 && iqEnd != -1 && iqEnd > iqStart) {
+                        val iqStanza = it.substring(iqStart, iqEnd)
+                        // Moved outside synchronized block
+                        syncManager.read(iqStanza)
+                        Log.d(TAG, "Processed sync response with ClientSynchronizationManager for JID: $jid")
+                    } else {
+                        Log.e(TAG, "Failed to extract complete <iq> stanza from: ${it.substring(0, minOf(it.length, 200))}...")
+                    }
+                }
+                return
+            } else if (syncStanzaBuffer.isNotEmpty()) {
+                // Append to sync buffer if it’s a continuation
+                var completeStanza: String? = null
+                synchronized(syncStanzaBuffer) {
+                    syncStanzaBuffer.append(message)
+                    Log.d(TAG, "Appended continuation to sync stanza buffer: ${message.substring(0, minOf(message.length, 200))}...")
+                    val bufferedContent = syncStanzaBuffer.toString()
+                    if (!bufferedContent.contains("</query>")) {
+                        Log.d(TAG, "Incomplete sync query stanza, waiting for more data: ${bufferedContent.substring(0, minOf(bufferedContent.length, 200))}...")
+                        return
+                    }
+                    completeStanza = bufferedContent
+                    syncStanzaBuffer.clear()
+                    Log.d(TAG, "Cleared sync stanza buffer after copying complete stanza")
+                }
+                completeStanza?.let {
+                    Log.d(TAG, "Processing complete sync query stanza: ${it.substring(0, minOf(it.length, 200))}...")
+                    // Extract the full <iq> stanza containing the <query>
+                    val iqStart = it.indexOf("<iq")
+                    val iqEnd = it.lastIndexOf("</iq>") + 5
+                    if (iqStart != -1 && iqEnd != -1 && iqEnd > iqStart) {
+                        val iqStanza = it.substring(iqStart, iqEnd)
+                        // Moved outside synchronized block
+                        syncManager.read(iqStanza)
+                        Log.d(TAG, "Processed sync response with ClientSynchronizationManager for JID: $jid")
+                    } else {
+                        Log.e(TAG, "Failed to extract complete <iq> stanza from: ${it.substring(0, minOf(it.length, 200))}...")
+                    }
                 }
                 return
             }
 
-            // Handle non-roster messages as before
+            // Handle other messages
             when {
                 message.contains("<stream:stream") && !message.contains("<stream:features") -> {
                     Log.d(TAG, "Received stream header, awaiting features")
                 }
                 message.contains("<stream:features>") -> {
-                    Log.d(TAG, "Received stream features")
+                    Log.d(TAG, "Received stream features: $message")
+                    realm.writeBlocking {
+                        val account = query<AccountStorageItem>("jid = $0", jid).first().find()
+                        if (account != null && account.clientSyncSupport != true) {
+                            findLatest(account)?.clientSyncSupport = true
+                            Log.d(TAG, "Updated AccountStorageItem clientSyncSupport to true for JID: $jid")
+                        }
+                    }
                     val response = socket?.parseStreamResponse(message)
                     if (response == null) {
                         Log.e(TAG, "Failed to parse stream features")
@@ -439,12 +511,16 @@ class Stream {
                     }
                 }
                 message.contains("<iq") && state == StreamState.BINDING -> {
-                    Log.d(TAG, "Received IQ stanza for binding")
+                    Log.d(TAG, "Received IQ response for binding")
                     val jidMatch = Regex("""<jid>([^<]+)</jid>""").find(message)
                     if (jidMatch != null) {
                         boundJid = jidMatch.groupValues[1]
                         Log.d(TAG, "Resource binding successful, bound JID: $boundJid")
                         state = StreamState.CONNECTED
+                        CoroutineScope(Dispatchers.IO).launch {
+                            sendSyncRequest()
+                            Log.d(TAG, "Sent initial sync request after binding for JID: $jid")
+                        }
                     } else {
                         Log.e(TAG, "Binding failed, no JID in response: $message")
                         onErrorCallback?.invoke("Resource binding failed")
@@ -452,30 +528,9 @@ class Stream {
                         reconnect()
                     }
                 }
-                message.contains("<iq") && message.contains("type='get'") && message.contains("urn:xmpp:ping") && state == StreamState.CONNECTED -> {
-                    Log.d(TAG, "Received server ping request")
-                    val idMatch = Regex("""id=['"]([^'"]+)['"]""").find(message)
-                    val fromMatch = Regex("""from=['"]([^'"]+)['"]""").find(message)
-                    if (idMatch != null && fromMatch != null) {
-                        val pingId = idMatch.groupValues[1]
-                        val fromJid = fromMatch.groupValues[1]
-                        val response = """
-                        <iq type='result' id='$pingId' to='$fromJid'/>
-                    """.trimIndent()
-                        if (socket?.write(response) == true) {
-                            Log.d(TAG, "Sent ping response: $response")
-                        } else {
-                            Log.e(TAG, "Failed to send ping response")
-                            onErrorCallback?.invoke("Failed to send ping response")
-                            state = StreamState.NOT_CONNECTING
-                            reconnect()
-                        }
-                    } else {
-                        Log.w(TAG, "Invalid ping stanza, missing id or from: $message")
-                    }
-                }
-                message.contains("<message") -> {
+                message.contains("<message") && syncStanzaBuffer.isEmpty() -> {
                     Log.d(TAG, "Received message stanza")
+                    syncManager.receiveClientSyncRaw(message)
                 }
                 message.contains("<presence") -> {
                     Log.d(TAG, "Received presence stanza")
@@ -515,7 +570,8 @@ class Stream {
         Log.d(TAG, "Attempting to reconnect for JID: $jid (attempt $reconnectAttempts/$maxReconnectAttempts)")
         socket?.close()
         socket = null
-        rosterStanzaBuffer.clear() // Clear roster buffer on reconnect
+        rosterStanzaBuffer.clear()
+        syncStanzaBuffer.clear()
         delay(1000)
         val connectError = connect()
         if (connectError == null) {
@@ -534,7 +590,8 @@ class Stream {
             realm.close()
             state = StreamState.NOT_CONNECTING
             messageCallbackChannel.close()
-            rosterStanzaBuffer.clear() // Clear roster buffer on close
+            rosterStanzaBuffer.clear()
+            syncStanzaBuffer.clear()
             reconnectAttempts = 0
             attemptedPreTlsAuth = false
             boundJid = null
@@ -552,7 +609,6 @@ class Stream {
             }
         }
     }
-
 
     suspend fun sendSyncRequest() = withContext(Dispatchers.IO) {
         if (state != StreamState.CONNECTED) {
@@ -851,15 +907,14 @@ class Stream {
     }
 
     open suspend fun onConnected() {
-        Log.d(TAG, "Stream connected for JID: $jid, initiating roster and sync requests")
+        Log.d(TAG, "Stream connected for JID: $jid, initiating roster request")
         try {
             rosterManager.request(this)
             Log.d(TAG, "Roster request sent for JID: $jid")
-            sendSyncRequest()
-            Log.d(TAG, "Sync request sent for JID: $jid")
+            // Sync request moved to onBinding after successful binding
         } catch (e: Exception) {
-            Log.e(TAG, "Error sending roster or sync request for JID: $jid: ${e.message}", e)
-            onErrorCallback?.invoke("Error sending roster or sync request: ${e.message}")
+            Log.e(TAG, "Error sending roster request for JID: $jid: ${e.message}", e)
+            onErrorCallback?.invoke("Error sending roster request: ${e.message}")
         }
         socket?.scope?.launch {
             while (state == StreamState.CONNECTED && socket?.getSocket()?.isClosed == false) {

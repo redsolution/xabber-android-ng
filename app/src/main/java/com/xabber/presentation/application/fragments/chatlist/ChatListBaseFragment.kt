@@ -34,7 +34,6 @@ abstract class ChatListBaseFragment(@LayoutRes contentLayoutId: Int) :
     private var chatList: RecyclerView? = null
     protected var toPin = false
     protected var currentId = ""
-    private val enableNotificationsCode = 0L
     private var snackbar: Snackbar? = null
 
     companion object {
@@ -75,7 +74,7 @@ abstract class ChatListBaseFragment(@LayoutRes contentLayoutId: Int) :
 
         setFragmentResultListener(AppConstants.CLEAR_HISTORY_KEY) { _, bundle ->
             val result = bundle.getBoolean(AppConstants.CLEAR_HISTORY_BUNDLE_KEY)
-         //   if (result) chatListViewModel.clearHistoryChat(currentId)
+            // if (result) chatListViewModel.clearHistoryChat(currentId)
         }
     }
 
@@ -157,7 +156,7 @@ abstract class ChatListBaseFragment(@LayoutRes contentLayoutId: Int) :
     }
 
     override fun enableNotifications(chatId: String) {
-        chatListViewModel.setMute(chatId, enableNotificationsCode)
+        chatListViewModel.setMute(chatId, 0)
     }
 
     override fun onClickItem(chatListDto: ChatListDto) {
@@ -170,32 +169,28 @@ abstract class ChatListBaseFragment(@LayoutRes contentLayoutId: Int) :
     }
 
     private fun showSnackbar(id: String) {
-//          snackbar?.dismiss()
-//          snackbar = Snackbar.make(
-//               binding.root,
-//               R.string.snackbar_title_to_archive,
-//               Snackbar.LENGTH_LONG
-//          )
-//
-//          snackbar?.anchorView = binding.anchor
-//          snackbar?.setAction(
-//               R.string.snackbar_button_cancel
-//          ) {
-//               chatListViewModel.setArchived(id)
-//          }
-//          snackbar?.setActionTextColor(Color.YELLOW)
-//          snackbar?.show()
+        // snackbar?.dismiss()
+        // snackbar = Snackbar.make(
+        //     binding.root,
+        //     R.string.snackbar_title_to_archive,
+        //     Snackbar.LENGTH_LONG
+        // )
+        // snackbar?.anchorView = binding.anchor
+        // snackbar?.setAction(
+        //     R.string.snackbar_button_cancel
+        // ) {
+        //     chatListViewModel.setArchived(id)
+        // }
+        // snackbar?.setActionTextColor(Color.YELLOW)
+        // snackbar?.show()
     }
-
 
     override fun onStop() {
         super.onStop()
         snackbar?.dismiss()
     }
 
-
     enum class ChatListAvatarState {
         NOT_SPECIFIED, SHOW_AVATARS, DO_NOT_SHOW_AVATARS
     }
-
 }

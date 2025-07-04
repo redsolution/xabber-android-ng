@@ -374,52 +374,26 @@ object SettingManager {
 //        }
 //    }
 
-//    fun saveItem(key: String, value: Int) {
-//        sharedPreferences.edit().putInt(key, value).apply()
-//        if (chatSettings.childs.isEmpty()) {
-//            loadSettings()
-//        } else {
-//            updateValue(key, value)
-//        }
-//    }
-//
-//    fun saveItem(key: String, bool: Boolean) {
-//        sharedPreferences.edit().putBoolean(key, bool).apply()
-//        if (chatSettings.childs.isEmpty()) {
-//            loadSettings()
-//        } else {
-//            updateValue(key, bool)
-//        }
-//    }
-//
-//    fun saveItem(key: String, string: String) {
-//        sharedPreferences.edit().putString(key, string).apply()
-//        if (chatSettings.childs.isEmpty()) {
-//            loadSettings()
-//        } else {
-//            updateValue(key, string)
-//        }
-//    }
 
+
+
+    fun saveItem(jid: String, scope: KeyScope, key: String, value: String) {
+        val computedKey = listOf(scope.rawValue, key, jid).prp()
+        saveItem(computedKey, value)
+    }
+
+    fun saveItem(key: String, string: String) {
+        sharedPreferences.edit().putString(key, string).apply()
+    }
+
+    fun saveClientSynchronizationVersion(jid: String, version: String) {
+        saveItem(jid, KeyScope.CLIENT_SYNCHRONIZATION, "version", version)
+    }
     fun removeItem(jid: String, scope: KeyScope, key: String) {
         val computedKey = listOf(scope.rawValue, key, jid).prp()
         sharedPreferences.edit().remove(computedKey).apply()
     }
 
-//    fun saveItem(jid: String, scope: KeyScope, key: String, value: Int) {
-//        val computedKey = listOf(scope.rawValue, key, jid).prp()
-//        saveItem(computedKey, value)
-//    }
-//
-//    fun saveItem(jid: String, scope: KeyScope, key: String, value: String) {
-//        val computedKey = listOf(scope.rawValue, key, jid).prp()
-//        saveItem(computedKey, value)
-//    }
-//
-//    fun saveItem(jid: String, scope: KeyScope, key: String, value: Boolean) {
-//        val computedKey = listOf(scope.rawValue, key, jid).prp()
-//        saveItem(computedKey, value)
-//    }
 
     fun getKey(jid: String, scope: KeyScope, key: String): String? {
         val computedKey = listOf(scope.rawValue, key, jid).prp()

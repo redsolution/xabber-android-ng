@@ -20,18 +20,15 @@ class AccountStorageItem : RealmObject {
     var colorKey: String = ""
     var resource: ResourceStorageItem? = null
     var deviceUuid: String = ""
-
     var isEncryptionEnabled: Boolean = true
     var createdAt: Long = 0
-
     var oldschoolAvatarKey: String? = null
     var avatarMaxUrl: String? = null
     var avatarMinUrl: String? = null
     var avatarUpdatedTs: Double = -1.0
     var updatedTS: Double = -1.0
     var encryptionUpdatedTs: Double = -1.0
-
-
+    var clientSyncSupport: Boolean = false // Added to match Swift's field
     var hasAvatar: Boolean = false
 
 }

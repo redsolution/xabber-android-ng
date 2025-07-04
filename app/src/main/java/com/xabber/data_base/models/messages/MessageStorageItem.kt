@@ -10,33 +10,38 @@ import io.realm.kotlin.types.RealmObject
 import io.realm.kotlin.types.annotations.PrimaryKey
 import org.json.JSONObject
 
+class MessageStorageItem : RealmObject {
+    enum class MessageSendingState(val value: Int) {
+        SENT(0),
+        DELIVERED(1),
+        READ(2),
+        ERROR(3),
+        NONE(4),
+        NOT_SENT(5),
+        SENDING(6),
+        UPLOADING(7)
+    }
 
-class MessageStorageItem: RealmObject {
     companion object {
         private const val TAG = "MessageStorageItem"
 
         const val ADD_CONTACT_LOCAL_ARCHIVED_ID = "add-contact-local-archived-id"
 
-
         fun messageIdForAuthRequest(jid: String): String {
             return listOf("subscribtion", jid).prp()
         }
-
 
         fun messageIdForContact(owner: String, jid: String, ts: String): String {
             return listOf("contact", ts, jid, owner).prp()
         }
 
-
         fun messageIdForVoIPCall(owner: String, jid: String, callId: String): String {
             return listOf("voip", owner, jid, callId).prp()
         }
 
-
         fun messageIdForInitial(jid: String, conversationType: ConversationType): String {
             return listOf(jid, conversationType.rawValue, "initial_message").prp()
         }
-
 
         fun genPrimary(messageId: String, owner: String): String {
             return "${messageId}_$owner"
@@ -45,31 +50,30 @@ class MessageStorageItem: RealmObject {
 
     @PrimaryKey
     var primary: String = ""  // id
-    var owner: String = ""    // наш jid
-    var opponent: String = ""  // jid оппонента
+    var owner: String = ""    // our jid
+    var opponent: String = ""  // opponent's jid
     var body: String = ""
     var legacyBody: String = ""
     var date: Long = 0
     var sentDate: Long = 0
     var editDate: Long = 0
+    var readDate: Long? = null  // New field to store the read timestamp
     var outgoing: Boolean = false
     var isRead: Boolean = outgoing
     var displayAs_: String = ""
     var messageId: String = ""
     var isFromTrustedSource: Boolean = false
-    var oreviousId: String? = null
-    var archivedId: String = "" // мне не нужно
+    var previousId: String? = null
+    var archivedId: String = ""
     var isDeleted: Boolean = false
-    var state_: Int = 0
+    var state_: Int = 4
     var systemMetadata_: String? = null
     var references: RealmList<MessageReferenceStorageItem> = realmListOf()
-    var nessageError: String? = null
+    var messageError: String? = null
     var messageErrorCode: String? = null
     var conversationType_: String = ConversationType.Regular.rawValue
     var inlineForwards: RealmList<MessageForwardsInlineStorageItem> = realmListOf()
     private var errorMetadata_: String? = ""
-
-
 
     var errorMetadata: Map<String, Any>?
         get() = errorMetadata_?.let { raw ->
@@ -91,7 +95,6 @@ class MessageStorageItem: RealmObject {
             }
         }
 
-
     var systemMetadata: Map<String, Any>?
         get() = systemMetadata_?.let { raw ->
             try {
@@ -112,16 +115,9 @@ class MessageStorageItem: RealmObject {
             }
         }
 
-
-//    var conversationType: ConversationType
-//        get() = ConversationType.values().firstOrNull { it.rawValue == conversationType_ } ?: ConversationType.Regular
-//        set(newValue: ConversationType) { conversationType_ = newValue.rawValue }
-//
-//    var displayAs: MessageDisplayType
-//        get() = MessageDisplayType.values().firstOrNull { it.rawValue == displayAs_ } ?: MessageDisplayType.Text
-//        set(newValue: MessageDisplayType) { displayAs_ = newValue.rawValue }
-//
-//    var state: MessageSendingState
-//        get() = MessageSendingState.values().firstOrNull { it.rawValue == state_ } ?: MessageSendingState.Sending
-//        set(newValue: MessageSendingState) { state_ = newValue.rawValue }
+    var state: MessageSendingState
+        get() = MessageSendingState.entries.firstOrNull { it.value == state_ } ?: MessageSendingState.NONE
+        set(newValue) {
+            state_ = newValue.value
+        }
 }

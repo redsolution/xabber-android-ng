@@ -4,6 +4,7 @@ import android.net.Uri
 
 object AppConstants {
 
+    const val OWNER_JID_KEY = "owner jid"
     const val ACCOUNT_COLOR_KEY = "account color key"
     const val ATTACH_BOTTOM_SHEET_TAG = "attach bottom sheet tag"
     const val AVATAR_BOTTOM_SHEET_TAG = "avatar bottom sheet tag"
