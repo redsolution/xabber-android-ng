@@ -68,12 +68,7 @@ class DevicesOCRA(
             Log.d(TAG, "DeviceStorageItem: uid=${device.uid}, secret=${device.secret}, secretBase64Valid=${try { Base64.decode(device.secret, Base64.DEFAULT); true } catch (e: Exception) { false }}, validationKey=${device.validationKey}, authDate=${device.authDate}, authCounter=${device.authCounter}, owner=${device.owner}")
             if (!try { Base64.decode(device.secret, Base64.DEFAULT); true } catch (e: Exception) { false }) {
                 Log.w(TAG, "Invalid secret, triggering re-registration")
-                stream.state = StreamState.DEVICE_REGISTRATION
-                return@withContext false
-            }
-            if (device.secret != secret || device.validationKey != validationKey || device.authCounter != authCounter) {
-                Log.w(TAG, "Mismatch: stored_secret=${device.secret}, input_secret=$secret, stored_validationKey=${device.validationKey}, input_validationKey=$validationKey, stored_authCounter=${device.authCounter}, input_authCounter=$authCounter, triggering re-registration")
-                stream.state = StreamState.DEVICE_REGISTRATION
+
                 return@withContext false
             }
         } ?: run {
@@ -216,7 +211,7 @@ class DevicesOCRA(
             val clientChallengeValid = verifyClientChallenge(srvResponse)
             if (!clientChallengeValid) {
                 Log.e(TAG, "Client challenge verification failed with clientOCRASuit=$clientOCRASuit, triggering re-registration")
-                stream.state = StreamState.DEVICE_REGISTRATION
+
                 return false
             }
 //            srvChallengeQuestion = "EZM4JiZkv8"
@@ -420,7 +415,6 @@ class DevicesOCRA(
             Log.e(TAG, "OCRA error details: $errorText")
             // Уведомление через callback в Stream
             state = OCRAAuthState.FAILED
-            stream.state = StreamState.DEVICE_REGISTRATION
             return@withContext false
         }
     }

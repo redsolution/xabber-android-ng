@@ -196,23 +196,29 @@ class ClientSynchronizationManager(owner: String) {
                                     }
                                 } ?: 0L
 
-                                lastMessage = copyToRealm(MessageStorageItem().apply {
-                                    primary = MessageStorageItem.genPrimary(messageId, owner)
-                                    this.messageId = messageId
-                                    this.owner = owner
-                                    this.opponent = from
-                                    this.body = body
-                                    this.date = timestamp
-                                    this.sentDate = timestamp
-                                    this.editDate = 0L
-                                    this.outgoing = to == owner
-                                    this.conversationType_ = type
-                                    this.isRead = unreadCount == 0L
-                                    this.state = MessageStorageItem.MessageSendingState.SENT
-                                })
+                                val messagePrimary = MessageStorageItem.genPrimary(messageId, owner)
+                                val existingMessage = query<MessageStorageItem>("primary = $0", messagePrimary).first().find()
+                                lastMessage = if (existingMessage == null) {
+                                    copyToRealm(MessageStorageItem().apply {
+                                        primary = messagePrimary
+                                        this.messageId = messageId
+                                        this.owner = owner
+                                        this.opponent = from
+                                        this.body = body
+                                        this.date = timestamp
+                                        this.sentDate = timestamp
+                                        this.editDate = 0L
+                                        this.outgoing = to == owner
+                                        this.conversationType_ = type
+                                        this.isRead = unreadCount == 0L
+                                        this.state = MessageStorageItem.MessageSendingState.SENT
+                                    })
+                                } else {
+                                    existingMessage
+                                }
                                 messageDate = timestamp
                                 lastMessageId = messageId
-                                Log.d("ClientSyncManager", "Saved message $messageId for jid $jid")
+                                Log.d("ClientSyncManager", "Saved or used existing message $messageId for jid $jid")
                             }
                         }
                     }
@@ -312,14 +318,26 @@ class ClientSynchronizationManager(owner: String) {
         }
         try {
             Log.d("ClientSyncManager", "Processing sync IQ stanza: ${iq.substring(0, minOf(iq.length, 200))}...")
+            // Validate that the IQ stanza is well-formed and contains only one root element
+            val cleanedIq = iq.trim()
+            if (!cleanedIq.startsWith("<iq") || !cleanedIq.endsWith("</iq>")) {
+                Log.e("ClientSyncManager", "Invalid IQ stanza: does not start with <iq> or end with </iq>: ${cleanedIq.substring(0, minOf(cleanedIq.length, 200))}...")
+                return
+            }
+            // Check for multiple root elements by ensuring only one <iq> tag
+            val iqTagCount = cleanedIq.split("<iq").size - 1
+            if (iqTagCount > 1) {
+                Log.e("ClientSyncManager", "Invalid IQ stanza: multiple <iq> tags found")
+                return
+            }
             val factory = DocumentBuilderFactory.newInstance()
             factory.isNamespaceAware = true
             val builder = factory.newDocumentBuilder()
-            val document = builder.parse(iq.byteInputStream())
+            val document = builder.parse(cleanedIq.byteInputStream())
             val iqElement = document.documentElement
             val queryElement = iqElement.getElementsByTagNameNS("https://xabber.com/protocol/synchronization", "query").item(0) as? Element
             if (queryElement == null) {
-                Log.w("ClientSyncManager", "Ignoring IQ stanza without synchronization query: ${iq.substring(0, minOf(iq.length, 200))}...")
+                Log.w("ClientSyncManager", "Ignoring IQ stanza without synchronization query: ${cleanedIq.substring(0, minOf(cleanedIq.length, 200))}...")
                 return
             }
             if (iqElement.getAttribute("type") == "result") {
@@ -341,10 +359,22 @@ class ClientSynchronizationManager(owner: String) {
         }
         try {
             Log.d("ClientSyncManager", "Processing message stanza: ${message.substring(0, minOf(message.length, 200))}...")
+            // Validate that the message stanza is well-formed and contains only one root element
+            val cleanedMessage = message.trim()
+            if (!cleanedMessage.startsWith("<message") || !cleanedMessage.endsWith("</message>")) {
+                Log.e("ClientSyncManager", "Invalid message stanza: does not start with <message> or end with </message>: ${cleanedMessage.substring(0, minOf(cleanedMessage.length, 200))}...")
+                return
+            }
+            // Check for multiple root elements by ensuring only one <message> tag
+            val messageTagCount = cleanedMessage.split("<message").size - 1
+            if (messageTagCount > 1) {
+                Log.e("ClientSyncManager", "Invalid message stanza: multiple <message> tags found")
+                return
+            }
             val factory = DocumentBuilderFactory.newInstance()
             factory.isNamespaceAware = true
             val builder = factory.newDocumentBuilder()
-            val document = builder.parse(message.byteInputStream())
+            val document = builder.parse(cleanedMessage.byteInputStream())
             val messageElement = document.documentElement
             val body = messageElement.getElementsByTagName("body").item(0)?.textContent ?: ""
             val from = messageElement.getAttribute("from") ?: ""
