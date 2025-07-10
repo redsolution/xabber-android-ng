@@ -33,7 +33,7 @@ class ChatListForwardHolder(
                 par.height = 72.dp
             }
             // avatar
-binding.shapeView.setDrawable(MaskManager.mask)
+            binding.shapeView.setDrawable(MaskManager.mask)
             Glide.with(itemView).load(chatListDto.drawableId)
                 .into(binding.imChatListItemAvatar)
 
@@ -79,7 +79,7 @@ binding.shapeView.setDrawable(MaskManager.mask)
             // message status
             var image: Int? = null
             var tint: Int? = null
-           imMessageStatus.isVisible =
+            imMessageStatus.isVisible =
                 chatListDto.lastMessageBody != null
 
             when (chatListDto.lastMessageState) {
@@ -165,7 +165,7 @@ binding.shapeView.setDrawable(MaskManager.mask)
                 )
             }
 
-binding.root.setOnClickListener { listener.onClickItem(chatListDto.id) }
+            binding.root.setOnClickListener { listener.onClickItem(chatListDto.id) }
         }
         if (chatListDto.lastMessageState != null) {
             setUpMessageSendingState(chatListDto.lastMessageState)
@@ -217,4 +217,4 @@ binding.root.setOnClickListener { listener.onClickItem(chatListDto.id) }
         }
     }
 
-   }
+}

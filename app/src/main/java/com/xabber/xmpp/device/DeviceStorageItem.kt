@@ -7,7 +7,9 @@ import io.realm.kotlin.types.annotations.Ignore
 import io.realm.kotlin.types.annotations.Index
 import io.realm.kotlin.types.annotations.PrimaryKey
 import java.util.logging.Logger
+import kotlinx.serialization.Serializable
 
+@Serializable
 class DeviceStorageItem : RealmObject {
     companion object {
         private val logger = Logger.getLogger(DeviceStorageItem::class.java.name)
@@ -44,8 +46,8 @@ class DeviceStorageItem : RealmObject {
         device: String,
         expire: Double,
         authDate: Double,
-        descr: String,
         authCounter: Long = this.authCounter, // Preserve existing authCounter if not provided
+        descr: String,
         secret: String = this.secret,
         validationKey: String = this.validationKey
     ) {

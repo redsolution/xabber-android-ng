@@ -30,8 +30,8 @@ import com.xabber.presentation.AppConstants.PAYLOAD_PINNED_POSITION_CHAT
 import com.xabber.presentation.application.dialogs.TimeMute
 import com.xabber.presentation.application.fragments.chat.StatusMaker
 import com.xabber.presentation.application.manage.ColorManager
-import com.xabber.utils.dateFormat
 import com.xabber.presentation.application.manage.MaskManager
+import com.xabber.utils.dateFormat
 import com.xabber.utils.parcelable
 import java.util.*
 
@@ -268,7 +268,7 @@ class ChatListViewHolder(
                     val muteExpired = bundle.getLong(PAYLOAD_MUTE_EXPIRED_CHAT)
                     setMuted(muteExpired)
                     itemView.setOnLongClickListener {
-                      setupAndShowPopupMenu(chatListDto.id, muteExpired, chatListDto.pinnedDate, chatListDto.getChatName(), listener)
+                        setupAndShowPopupMenu(chatListDto.id, muteExpired, chatListDto.pinnedDate, chatListDto.getChatName(), listener)
                         true
                     }
                     setUnreadMessages(

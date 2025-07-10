@@ -10,6 +10,7 @@ import com.xabber.xmpp.XEP_0CCC.ClientSynchronizationManager
 import com.xabber.xmpp.auth.DevicesOCRA
 import com.xabber.xmpp.device.DeviceStorageItem
 import com.xabber.xmpp.dns.DNSResolver
+import com.xabber.xmpp.presence.PresenceManager
 import com.xabber.xmpp.roster.RosterManager
 import io.realm.kotlin.Realm
 import io.realm.kotlin.ext.query
@@ -35,14 +36,13 @@ enum class StreamState {
 @RequiresApi(Build.VERSION_CODES.O)
 class Stream(var jid: String, var port: Int = 5222) {
     @io.realm.kotlin.types.annotations.PrimaryKey
-    // var jid: String = ""  // Removed, now set by primary ctor
-
-    var host: String = extractHostFromJid(jid)  // Moved from ctor to property init
+    var host: String = extractHostFromJid(jid)
     var remoteAddress: String = ""
     private var socket: Socket? = null
     private val connectionLock = Any()
     private var isConnecting = false
     private val messageCallbackChannel = Channel<String>(Channel.UNLIMITED)
+    private val syncCompletionChannel = Channel<Unit>(1)
     var state: StreamState = StreamState.NOT_CONNECTING
         set(value) {
             field = value
@@ -70,6 +70,7 @@ class Stream(var jid: String, var port: Int = 5222) {
     private val realm: Realm by lazy { Realm.open(defaultRealmConfig()) }
     private val rosterManager: RosterManager by lazy { RosterManager(jid, realm) }
     private val syncManager: ClientSynchronizationManager by lazy { ClientSynchronizationManager(jid) }
+    private var presenceManager: PresenceManager? = null // Initialize later to avoid null socket
     private var onErrorCallback: ((String) -> Unit)? = null
     private val rosterStanzaBuffer = StringBuilder()
     private val syncStanzaBuffer = StringBuilder()
@@ -81,32 +82,30 @@ class Stream(var jid: String, var port: Int = 5222) {
         }
     }
 
-//    constructor(jid: String, port: Int? = null) {
-//        this.jid = jid
-//        this.port = port ?: 5222
-//        this.host = extractHostFromJid(jid)
-//        this.state = StreamState.NOT_CONNECTING
-//    }
-
     fun setOnErrorCallback(callback: (String) -> Unit) {
         onErrorCallback = callback
     }
 
     private suspend fun checkExistingDevice() {
         synchronized(connectionLock) {
-            val devices = realm.query<DeviceStorageItem>("owner = $0", jid).find()
-            Log.d(TAG, "Found ${devices.size} devices for JID: $jid")
-            devices.forEach { device ->
-                Log.d(TAG, "Device: uid=${device.uid}, expire=${device.expire}, authCounter=${device.authCounter}, secret=${device.secret.substring(0, 8)}..., validationKey=${device.validationKey.substring(0, 8)}...")
-            }
-            val validDevice = devices.firstOrNull { it.expire > System.currentTimeMillis().toDouble() / 1000 }
-            isDeviceRegistered = validDevice != null
-            if (isDeviceRegistered) {
-                Log.d(TAG, "Valid device found for JID: $jid, uid: ${validDevice?.uid}")
-            } else if (devices.isNotEmpty()) {
-                Log.w(TAG, "Devices found but all expired/invalid for JID: $jid")
-            } else {
-                Log.d(TAG, "No devices found for JID: $jid")
+            try {
+                val devices = realm.query<DeviceStorageItem>("owner = $0", jid).find()
+                Log.d(TAG, "Found ${devices.size} devices for JID: $jid")
+                devices.forEach { device ->
+                    Log.d(TAG, "Device: uid=${device.uid}, expire=${device.expire}, authCounter=${device.authCounter}, secret=${device.secret.substring(0, 8)}..., validationKey=${device.validationKey.substring(0, 8)}...")
+                }
+                val validDevice = devices.firstOrNull { it.expire > System.currentTimeMillis().toDouble() / 1000 }
+                isDeviceRegistered = validDevice != null
+                if (isDeviceRegistered) {
+                    Log.d(TAG, "Valid device found for JID: $jid, uid: ${validDevice?.uid}")
+                } else if (devices.isNotEmpty()) {
+                    Log.w(TAG, "Devices found but all expired/invalid for JID: $jid")
+                } else {
+                    Log.d(TAG, "No devices found for JID: $jid")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error checking existing devices for JID: $jid: ${e.message}", e)
+                isDeviceRegistered = false
             }
         }
     }
@@ -171,6 +170,7 @@ class Stream(var jid: String, var port: Int = 5222) {
                 return@withContext "Socket connection failed"
             }
             Log.d(TAG, "Socket connected successfully for $remoteAddress:$port")
+            presenceManager = PresenceManager(jid, socket!!) // Initialize PresenceManager here
             socket?.initiateXmppStream(socket!!, host, jid)
             Log.d(TAG, "XMPP stream initiation started, waiting for server response")
             attemptedPreTlsAuth = false
@@ -179,6 +179,7 @@ class Stream(var jid: String, var port: Int = 5222) {
             Log.e(TAG, "Error connecting to $host: ${e.message}", e)
             socket?.close()
             socket = null
+            presenceManager = null
             state = StreamState.NOT_CONNECTING
             return@withContext "Connection failed: ${e.message}"
         } finally {
@@ -200,8 +201,8 @@ class Stream(var jid: String, var port: Int = 5222) {
                     val pingId = idMatch.groupValues[1]
                     val fromJid = fromMatch.groupValues[1]
                     val response = """
-            <iq type='result' id='$pingId' to='$fromJid'/>
-        """.trimIndent()
+                        <iq type='result' id='$pingId' to='$fromJid'/>
+                    """.trimIndent()
                     if (socket?.write(response) == true) {
                         Log.d(TAG, "Sent ping response: $response")
                     } else {
@@ -219,6 +220,13 @@ class Stream(var jid: String, var port: Int = 5222) {
                 } else {
                     Log.w(TAG, "Invalid ping stanza, missing id or from: $message")
                 }
+                return
+            }
+
+            // Handle presence stanzas
+            if (message.contains("<presence")) {
+                Log.d(TAG, "Received presence stanza")
+                presenceManager?.processPresence(message) ?: Log.w(TAG, "PresenceManager not initialized, skipping presence processing")
                 return
             }
 
@@ -269,23 +277,21 @@ class Stream(var jid: String, var port: Int = 5222) {
                 }
                 completeStanza?.let {
                     Log.d(TAG, "Processing complete sync query stanza: ${it.substring(0, minOf(it.length, 200))}...")
-                    // Clean out the ping response if present
                     val cleaned = it.replace(Regex("""<iq[^>]*type='result'[^>]*id='ping1'[^>]*/>"""), "")
-                    // Extract the full <iq> stanza containing the <query>
                     val iqStart = cleaned.indexOf("<iq")
                     val iqEnd = cleaned.lastIndexOf("</iq>") + 5
                     if (iqStart != -1 && iqEnd != -1 && iqEnd > iqStart) {
                         val iqStanza = cleaned.substring(iqStart, iqEnd)
-                        // Moved outside synchronized block
                         syncManager.read(iqStanza)
                         Log.d(TAG, "Processed sync response with ClientSynchronizationManager for JID: $jid")
+                        // Signal sync completion
+                        syncCompletionChannel.trySend(Unit)
                     } else {
                         Log.e(TAG, "Failed to extract complete <iq> stanza from: ${cleaned.substring(0, minOf(cleaned.length, 200))}...")
                     }
                 }
                 return
             } else if (syncStanzaBuffer.isNotEmpty()) {
-                // Append to sync buffer if it’s a continuation
                 var completeStanza: String? = null
                 synchronized(syncStanzaBuffer) {
                     syncStanzaBuffer.append(message)
@@ -301,16 +307,15 @@ class Stream(var jid: String, var port: Int = 5222) {
                 }
                 completeStanza?.let {
                     Log.d(TAG, "Processing complete sync query stanza: ${it.substring(0, minOf(it.length, 200))}...")
-                    // Clean out the ping response if present
                     val cleaned = it.replace(Regex("""<iq[^>]*type='result'[^>]*id='ping1'[^>]*/>"""), "")
-                    // Extract the full <iq> stanza containing the <query>
                     val iqStart = cleaned.indexOf("<iq")
                     val iqEnd = cleaned.lastIndexOf("</iq>") + 5
                     if (iqStart != -1 && iqEnd != -1 && iqEnd > iqStart) {
                         val iqStanza = cleaned.substring(iqStart, iqEnd)
-                        // Moved outside synchronized block
                         syncManager.read(iqStanza)
                         Log.d(TAG, "Processed sync response with ClientSynchronizationManager for JID: $jid")
+                        // Signal sync completion
+                        syncCompletionChannel.trySend(Unit)
                     } else {
                         Log.e(TAG, "Failed to extract complete <iq> stanza from: ${cleaned.substring(0, minOf(cleaned.length, 200))}...")
                     }
@@ -432,7 +437,11 @@ class Stream(var jid: String, var port: Int = 5222) {
                         if (uidMatch != null && validationKeyMatch != null && expireMatch != null && secretMatch != null) {
                             val uid = uidMatch.groupValues[1]
                             val validationKey = validationKeyMatch.groupValues[1]
-                            val expireDuration = expireMatch.groupValues[1].toDoubleOrNull() ?: 1.0
+                            var expireDuration = expireMatch.groupValues[1].toDoubleOrNull() ?: 0.0
+                            if (expireDuration <= 0) {
+                                Log.w(TAG, "Invalid expire duration from server: $expireDuration - defaulting to 3600s")
+                                expireDuration = 3600.0
+                            }
                             val secret = secretMatch.groupValues[1]
                             val currentTime = System.currentTimeMillis().toDouble() / 1000
                             val expire = currentTime + expireDuration
@@ -478,7 +487,6 @@ class Stream(var jid: String, var port: Int = 5222) {
                                     Log.d(TAG, "Created new DeviceStorageItem for uid: $uid, owner: $jid")
                                 }
                             }
-
                             // Confirm save
                             val savedDevice = realm.query<DeviceStorageItem>("uid = $0 AND owner = $1", uid, jid).first().find()
                             if (savedDevice != null) {
@@ -490,9 +498,8 @@ class Stream(var jid: String, var port: Int = 5222) {
                             } else {
                                 Log.e(TAG, "Failed to confirm DeviceStorageItem save for uid=$uid, owner=$jid - forcing re-registration")
                                 isDeviceRegistered = false
-                                state = StreamState.DEVICE_REGISTRATION  // Retry or handle error
+                                state = StreamState.DEVICE_REGISTRATION
                             }
-
                             realm.write {
                                 val device = query<DeviceStorageItem>("uid = $0 AND owner = $1", uid, jid).first().find()
                                 if (device != null) {
@@ -526,10 +533,6 @@ class Stream(var jid: String, var port: Int = 5222) {
                         boundJid = jidMatch.groupValues[1]
                         Log.d(TAG, "Resource binding successful, bound JID: $boundJid")
                         state = StreamState.CONNECTED
-                        CoroutineScope(Dispatchers.IO).launch {
-                            sendSyncRequest()
-                            Log.d(TAG, "Sent initial sync request after binding for JID: $jid")
-                        }
                     } else {
                         Log.e(TAG, "Binding failed, no JID in response: $message")
                         onErrorCallback?.invoke("Resource binding failed")
@@ -539,9 +542,6 @@ class Stream(var jid: String, var port: Int = 5222) {
                 message.contains("<message") && syncStanzaBuffer.isEmpty() -> {
                     Log.d(TAG, "Received message stanza")
                     syncManager.receiveClientSyncRaw(message)
-                }
-                message.contains("<presence") -> {
-                    Log.d(TAG, "Received presence stanza")
                 }
                 message.contains("<stream:error") -> {
                     Log.e(TAG, "Received stream error: $message")
@@ -563,22 +563,26 @@ class Stream(var jid: String, var port: Int = 5222) {
             state = StreamState.NOT_CONNECTING
         }
     }
+
     suspend fun refreshDeviceRegistrationStatus() {
         checkExistingDevice()
         Log.d(TAG, "Refreshed device status: isDeviceRegistered=$isDeviceRegistered")
     }
+
     suspend fun close() = withContext(Dispatchers.IO) {
         synchronized(connectionLock) {
             socket = null
             realm.close()
             state = StreamState.NOT_CONNECTING
             messageCallbackChannel.close()
+            syncCompletionChannel.close()
             rosterStanzaBuffer.clear()
             syncStanzaBuffer.clear()
             attemptedPreTlsAuth = false
             boundJid = null
             isDeviceRegistered = false
             ocraAuth = null
+            presenceManager = null
             Log.d(TAG, "Stream closed for $jid")
         }
         socket?.close()
@@ -607,10 +611,10 @@ class Stream(var jid: String, var port: Int = 5222) {
         try {
             val syncId = NanoId.generateOptimized(9, "_-0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", 63, 16)
             val syncRequest = """
-            <iq type='get' id='$syncId' from='$jid' to='$jid'>
-                <query xmlns='https://xabber.com/protocol/synchronization'/>
-            </iq>
-        """.trimIndent()
+                <iq type='get' id='$syncId' from='$jid' to='$jid'>
+                    <query xmlns='https://xabber.com/protocol/synchronization'/>
+                </iq>
+            """.trimIndent()
             if (socket?.write(syncRequest) == true) {
                 Log.d(TAG, "Sent sync request for JID: $jid with id: $syncId")
             } else {
@@ -622,6 +626,37 @@ class Stream(var jid: String, var port: Int = 5222) {
             Log.e(TAG, "Error sending sync request for JID: $jid: ${e.message}", e)
             onErrorCallback?.invoke("Sync request error: ${e.message}")
             state = StreamState.NOT_CONNECTING
+        }
+    }
+
+    suspend fun sendCarbonsEnable() = withContext(Dispatchers.IO) {
+        if (state != StreamState.CONNECTED) {
+            Log.w(TAG, "Cannot send carbons enable: Stream is not in CONNECTED state, current state: $state")
+            onErrorCallback?.invoke("Cannot send carbons enable: Not connected")
+            return@withContext
+        }
+        if (socket == null || socket?.getSocket()?.isClosed == true) {
+            Log.e(TAG, "Cannot send carbons enable: Socket is null or closed")
+            onErrorCallback?.invoke("Cannot send carbons enable: Connection closed")
+            state = StreamState.NOT_CONNECTING
+            return@withContext
+        }
+        try {
+            val id = NanoId.generateOptimized(9, "_-0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", 63, 16)
+            val carbonsStanza = """
+                <iq type="set" to="$jid" id="$id">
+                    <enable xmlns="urn:xmpp:carbons:2"/>
+                </iq>
+            """.trimIndent()
+            if (socket?.write(carbonsStanza) == true) {
+                Log.d(TAG, "Sent carbons enable stanza for JID: $jid with id: $id")
+            } else {
+                Log.e(TAG, "Failed to send carbons enable stanza for JID: $jid")
+                onErrorCallback?.invoke("Failed to send carbons enable stanza")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error sending carbons enable for JID: $jid: ${e.message}", e)
+            onErrorCallback?.invoke("Carbons enable error: ${e.message}")
         }
     }
 
@@ -871,10 +906,38 @@ class Stream(var jid: String, var port: Int = 5222) {
         try {
             rosterManager.request(this)
             Log.d(TAG, "Roster request sent for JID: $jid")
-            // Sync request moved to onBinding after successful binding
         } catch (e: Exception) {
             Log.e(TAG, "Error sending roster request for JID: $jid: ${e.message}", e)
             onErrorCallback?.invoke("Error sending roster request: ${e.message}")
+        }
+        try {
+            sendSyncRequest()
+            Log.d(TAG, "Sync request sent for JID: $jid")
+            withTimeoutOrNull(15000) {
+                syncCompletionChannel.receive()
+                Log.d(TAG, "Sync completed for JID: $jid")
+                if (isDeviceRegistered) {
+                    presenceManager?.sendInitialPresence() ?: Log.w(TAG, "PresenceManager not initialized, skipping presence")
+                    Log.d(TAG, "Initial presence sent for JID: $jid")
+                    sendCarbonsEnable()
+                } else {
+                    Log.w(TAG, "No valid device registered for JID: $jid, skipping presence and carbons")
+                    onErrorCallback?.invoke("No valid device registered, cannot send presence or carbons")
+                }
+            } ?: run {
+                Log.w(TAG, "Sync response timeout after 15 seconds for JID: $jid, checking device registration")
+                if (isDeviceRegistered) {
+                    presenceManager?.sendInitialPresence() ?: Log.w(TAG, "PresenceManager not initialized, skipping presence")
+                    Log.d(TAG, "Initial presence sent for JID: $jid after sync timeout")
+                    sendCarbonsEnable()
+                } else {
+                    Log.w(TAG, "No valid device registered for JID: $jid, skipping presence and carbons")
+                    onErrorCallback?.invoke("No valid device registered, cannot send presence or carbons")
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error during sync or presence or carbons for JID: $jid: ${e.message}", e)
+            onErrorCallback?.invoke("Error during sync or presence or carbons: ${e.message}")
         }
         socket?.scope?.launch {
             while (state == StreamState.CONNECTED && socket?.getSocket()?.isClosed == false) {

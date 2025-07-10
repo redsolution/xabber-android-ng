@@ -13,6 +13,8 @@ import io.ktor.util.logging.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ClosedReceiveChannelException
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
 import nl.adaptivity.xmlutil.serialization.XML
 import nl.adaptivity.xmlutil.serialization.XmlSerialName
@@ -103,6 +105,7 @@ class Socket(private val host: String, private val port: Int) {
     private val TAG = "Socket_nging"
     private val sslContext = SSLContext.getInstance("TLS")
     private lateinit var sslEngine: SSLEngine
+    private val writeMutex = Mutex()
     private lateinit var appBuffer: ByteBuffer
     private lateinit var packetBuffer: ByteBuffer
     private lateinit var accumulatedData: ByteBuffer
@@ -675,7 +678,9 @@ class Socket(private val host: String, private val port: Int) {
                 }
                 val bytes = message.toByteArray(StandardCharsets.UTF_8)
                 Log.d(TAG, "Raw bytes to send: ${bytes.joinToString(", ")}")
-                it.writeFully(bytes, 0, bytes.size)
+                writeMutex.withLock { // Serialize the write operation
+                    it.writeFully(bytes, 0, bytes.size)
+                }
                 Log.d(TAG, "Sent message: $message")
                 true
             } ?: run {

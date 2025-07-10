@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.core.content.ContextCompat
+import androidx.core.view.isVisible
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.ListAdapter
@@ -12,6 +13,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.xabber.R
 import com.xabber.databinding.ItemChatListBinding
 import com.xabber.dto.ChatListDto
+import com.xabber.data_base.models.messages.MessageSendingState
 import com.xabber.presentation.AppConstants
 import com.xabber.utils.custom.SwipeToArchiveCallback
 

@@ -48,17 +48,6 @@ class ChatListViewModel : ViewModel() {
     val selectedChatId: LiveData<String?> = _selectedChatId
     private val _showUnreadOnly = MutableLiveData<Boolean>()
     val showUnreadOnly: LiveData<Boolean> = _showUnreadOnly
-    private val anchorChatList = ChatListDto(
-        "",
-        "",
-        "",
-        "",
-        lastMessageState = MessageSendingState.None,
-        drawableId = R.drawable.angel,
-        entity = RosterItemEntity.CONTACT,
-        status = ResourceStatus.OFFLINE,
-        isHide = true
-    )
 
     init {
         _showUnreadOnly.value = false
@@ -147,9 +136,6 @@ class ChatListViewModel : ViewModel() {
                             }
                         }
                         chatListDto = dataSource
-                        if (dataSource.isNotEmpty()) {
-                            chatListDto.add(0, anchorChatList)
-                        }
                         launch(Dispatchers.Main) {
                             _chats.postValue(chatListDto)
                             Log.d("ChatListViewModel", "Posted ${chatListDto.size} chats to LiveData")
@@ -210,9 +196,6 @@ class ChatListViewModel : ViewModel() {
                 if (ac != null) {
                     chatListDto.colorKey = ac.colorKey
                 }
-            }
-            if (dataSource.isNotEmpty()) {
-                dataSource.add(0, anchorChatList)
             }
             chatListDto = dataSource
             withContext(Dispatchers.Main) {
