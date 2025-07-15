@@ -10,6 +10,7 @@ import com.xabber.data_base.models.roster.Subscription
 import com.xabber.data_base.models.presences.ResourceStorageItem
 import com.xabber.xmpp.device.DeviceStorageItem
 import io.realm.kotlin.Realm
+import io.realm.kotlin.UpdatePolicy
 import io.realm.kotlin.ext.query
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -116,7 +117,7 @@ class PresenceManager(private val owner: String, private val socket: Socket) {
                         this.jid = jid
                         this.ask = Ask.IN
                     }
-                    copyToRealm(newItem)
+                    copyToRealm(newItem, UpdatePolicy.ALL)
                 }
             }
         } catch (e: Exception) {
@@ -184,7 +185,7 @@ class PresenceManager(private val owner: String, private val socket: Socket) {
                         this.priority = priority
                         this.timestamp = System.currentTimeMillis()
                     }
-                    copyToRealm(newItem)
+                    copyToRealm(newItem, UpdatePolicy.ALL)
                 }
             }
         } catch (e: Exception) {

@@ -228,6 +228,14 @@ object AccountManager {
 
         runBlocking(Dispatchers.IO) {
             try {
+                synchronized(users) {
+                    if (users.isNotEmpty()) {
+                        account = users.first()
+                        Log.d("AccountManager", "First account already loaded: ${account?.jid}")
+                        return@runBlocking
+                    }
+                }
+
                 val accountStorageItem = realm.query(AccountStorageItem::class).first().find()
                 if (accountStorageItem == null) {
                     Log.w("AccountManager", "No accounts found in loadFirstAccount")
@@ -248,20 +256,15 @@ object AccountManager {
                 if (!streamConnected) {
                     Log.e("AccountManager", "Failed to connect Stream for jid $jid")
                     realm.write {
-                        val accountToDelete = query(AccountStorageItem::class, "jid = $0", jid).first().find()
-                        accountToDelete?.let { delete(it) }
+                        val account = query(AccountStorageItem::class, "jid = $0", jid).first().find()
+                        account?.let { delete(it) }
                         passwordStorageHelper?.remove(jid)
                     }
                     return@runBlocking
                 }
 
                 synchronized(users) {
-                    if (users.none { it.jid == jid }) {
-                        users.add(newUserAccount)
-                        Log.d("AccountManager", "Added account with jid $jid to users list, new users: ${users.map { it.jid }}")
-                    } else {
-                        Log.d("AccountManager", "Account with jid $jid already in users list")
-                    }
+                    users.add(newUserAccount)
                 }
 
                 account = newUserAccount

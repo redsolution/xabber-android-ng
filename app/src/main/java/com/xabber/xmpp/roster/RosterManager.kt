@@ -4,11 +4,14 @@ import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
 import com.xabber.common.Stream
+import com.xabber.common.XMPPIQ
 import com.xabber.data_base.models.roster.RosterGroupStorageItem
 import com.xabber.data_base.models.roster.RosterStorageItem
 import com.xabber.data_base.models.roster.Subscription
 import com.xabber.data_base.models.roster.Ask
+import com.xabber.data_base.models.presences.ResourceStorageItem
 import io.realm.kotlin.Realm
+import io.realm.kotlin.UpdatePolicy
 import io.realm.kotlin.ext.query
 import io.realm.kotlin.ext.realmListOf
 import io.viascom.nanoid.NanoId
@@ -61,7 +64,7 @@ class RosterManager(private val owner: String, private val realm: Realm) {
             val iq = """
                 <iq type='get' id='$elementId'>$query</iq>
             """.trimIndent()
-            stream.getSocket()?.write(iq)?.also { success ->
+            stream.socket?.write(iq)?.also { success ->
                 if (success) {
                     queryIds.add(elementId)
                     Log.d(TAG, "Sent roster request IQ with id: $elementId")
@@ -76,56 +79,70 @@ class RosterManager(private val owner: String, private val realm: Realm) {
         }
     }
 
-    suspend fun read(iq: String): Boolean {
+    suspend fun read(iq: XMPPIQ): Boolean {
         try {
-            Log.d(TAG, "Processing complete roster IQ: $iq")
+            if (iq.queryNamespace != "jabber:iq:roster") return false  // Quick check
+
+            Log.d(TAG, "Processing complete roster IQ: ${iq.raw}")
             return when {
-                readError(iq) -> true
-                readSuccess(iq) -> true
-                readResponse(iq) -> true
+                iq.error != null -> readError(iq)  // Adapt readError to use iq.error
+                iq.type == "result" -> readSuccess(iq)  // Adapt to use iq
                 else -> {
-                    Log.w(TAG, "Unhandled roster IQ: $iq")
+                    Log.w(TAG, "Unhandled roster IQ type: ${iq.type}")
                     false
                 }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Error reading IQ: ${e.message}, IQ: $iq", e)
+            Log.e(TAG, "Error reading IQ: ${e.message}, IQ: ${iq.raw}", e)
             return false
         }
     }
 
-    private suspend fun readSuccess(iq: String): Boolean {
-        val elementIdMatch = Regex("""id=['"]([^'"]+)['"]""").find(iq)
-        val elementId = elementIdMatch?.groupValues?.get(1) ?: return false
-        if (!queryIds.contains(elementId)) return false
-
-        val queryMatch = Regex("""<query[^>]*xmlns=['"]jabber:iq:roster['"][^>]*>(.*?)</query>""", RegexOption.DOT_MATCHES_ALL).find(iq)
-        val queryContent = queryMatch?.groupValues?.get(1) ?: return false
-
-        queryIds.remove(elementId)
-
+    private suspend fun readSuccess(iq: XMPPIQ): Boolean {
         val rosterQuery = try {
-            xml.decodeFromString<RosterQuery>("<query xmlns='jabber:iq:roster'>$queryContent</query>")
+            xml.decodeFromString<RosterQuery>(iq.queryContent ?: return false)
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to parse roster query: ${e.message}, query: $queryContent", e)
+            Log.e(TAG, "Failed to parse roster query: ${e.message}, content: ${iq.queryContent}", e)
             return false
         }
 
         Log.d(TAG, "Parsed RosterQuery with version: ${rosterQuery.ver}")
         realm.write {
+            // Fetch all groups once and map by name for O(1) lookups
+            val allGroups = query<RosterGroupStorageItem>("owner = $0", owner).find()
+                .associateBy { it.name }.toMutableMap()
+
+            // Get/create system group
+            var systemGroup = allGroups[RosterGroupStorageItem.SYSTEM_GROUP_NAME]
+            if (systemGroup == null) {
+                val systemPrimary = RosterGroupStorageItem.genPrimary(RosterGroupStorageItem.SYSTEM_GROUP_NAME, owner)
+                systemGroup = copyToRealm(RosterGroupStorageItem().apply {
+                    primary = systemPrimary
+                    this.owner = this@RosterManager.owner
+                    name = RosterGroupStorageItem.SYSTEM_GROUP_NAME
+                    isSystemGroup = true
+                    contacts = realmListOf()
+                }, UpdatePolicy.ALL)
+                allGroups[RosterGroupStorageItem.SYSTEM_GROUP_NAME] = systemGroup
+            }
+
             rosterQuery.items.forEach { item ->
-                // Skip the specific JID
+                // Skip self JID
+                if (item.jid == owner) {
+                    Log.d(TAG, "Skipping self JID: ${item.jid}")
+                    return@forEach
+                }
+
+                // Skip specific JID and remove if exists
                 if (item.jid.equals("xabber@xmppdev01.xabber.com", ignoreCase = true)) {
-                    Log.d(TAG, "Skipping JID: ${item.jid}")
-                    // Handle removal if it exists
                     val primaryKey = RosterStorageItem.genPrimary(item.jid, owner)
                     val existingItem = query<RosterStorageItem>("primary = $0", primaryKey).first().find()
                     if (existingItem != null) {
-                        query<RosterGroupStorageItem>("owner = $0", owner).find().forEach { group ->
+                        allGroups.values.forEach { group ->
                             group.contacts.removeAll { it.primary == existingItem.primary }
                         }
                         delete(existingItem)
-                        Log.d(TAG, "Removed existing RosterStorageItem for JID: ${item.jid}")
+                        Log.d(TAG, "Removed skipped RosterStorageItem for JID: ${item.jid}")
                     }
                     return@forEach
                 }
@@ -135,11 +152,9 @@ class RosterManager(private val owner: String, private val realm: Realm) {
                     val primaryKey = RosterStorageItem.genPrimary(item.jid, owner)
                     val existingItem = query<RosterStorageItem>("primary = $0", primaryKey).first().find()
                     if (existingItem != null) {
-                        // Remove from all groups
-                        query<RosterGroupStorageItem>("owner = $0", owner).find().forEach { group ->
+                        allGroups.values.forEach { group ->
                             group.contacts.removeAll { it.primary == existingItem.primary }
                         }
-                        // Delete the RosterStorageItem
                         delete(existingItem)
                         Log.d(TAG, "Deleted RosterStorageItem for JID: ${item.jid} due to subscription='remove'")
                     }
@@ -160,9 +175,9 @@ class RosterManager(private val owner: String, private val realm: Realm) {
                         updatedTS = System.currentTimeMillis().toDouble() / 1000
                     }
                     Log.d(TAG, "Updated RosterStorageItem for JID: ${item.jid}")
-                    existingItem
+                    existingItem!!
                 } else {
-                    val newItem = RosterStorageItem().apply {
+                    copyToRealm(RosterStorageItem().apply {
                         primary = primaryKey
                         this.owner = this@RosterManager.owner
                         jid = item.jid
@@ -172,97 +187,51 @@ class RosterManager(private val owner: String, private val realm: Realm) {
                         approved = item.approved == "true"
                         groups.addAll(item.groups)
                         updatedTS = System.currentTimeMillis().toDouble() / 1000
+                    }, UpdatePolicy.ALL).also {
+                        Log.d(TAG, "Created new RosterStorageItem for JID: ${item.jid}")
                     }
-                    copyToRealm(newItem)
-                    Log.d(TAG, "Created new RosterStorageItem for JID: ${item.jid}")
-                    newItem
                 }
 
-                // Update group assignments
-                // Remove from "Not in roster" group
-                val notInRosterGroup = query<RosterGroupStorageItem>(
-                    "primary = $0",
-                    RosterGroupStorageItem.genPrimary(RosterGroupStorageItem.NOT_IN_ROSTER_GROUP_NAME, owner)
-                ).first().find()
-                notInRosterGroup?.contacts?.removeAll { it.primary == instance.primary }
+                // Remove from all groups first (including system)
+                allGroups.values.forEach { group ->
+                    group.contacts.removeAll { it.primary == instance.primary }
+                }
 
                 if (item.groups.isEmpty()) {
-                    // Remove from all other groups
-                    query<RosterGroupStorageItem>("owner = $0", owner).find().forEach { group ->
-                        group.contacts.removeAll { it.primary == instance.primary }
-                    }
-                    // Add to system group if not already present
-                    val systemGroupPrimary = RosterGroupStorageItem.genPrimary(RosterGroupStorageItem.SYSTEM_GROUP_NAME, owner)
-                    var systemGroup = query<RosterGroupStorageItem>("primary = $0", systemGroupPrimary).first().find()
-                    if (systemGroup == null) {
-                        systemGroup = RosterGroupStorageItem().apply {
-                            primary = systemGroupPrimary
-                            this.owner = this@RosterManager.owner
-                            name = RosterGroupStorageItem.SYSTEM_GROUP_NAME
-                            isSystemGroup = true
-                            contacts = realmListOf()
-                        }
-                        copyToRealm(systemGroup)
-                        Log.d(TAG, "Created new system group: ${RosterGroupStorageItem.SYSTEM_GROUP_NAME}")
-                    }
+                    // Add to system group if not already there
                     if (!systemGroup.contacts.any { it.primary == instance.primary }) {
                         systemGroup.contacts.add(instance)
-                        Log.d(TAG, "Added JID ${instance.jid} to system group")
                     }
+                    Log.d(TAG, "Added JID ${instance.jid} to system group")
                 } else {
-                    // Remove from system group
-                    val systemGroupPrimary = RosterGroupStorageItem.genPrimary(RosterGroupStorageItem.SYSTEM_GROUP_NAME, owner)
-                    query<RosterGroupStorageItem>("primary = $0", systemGroupPrimary).first().find()?.contacts?.removeAll { it.primary == instance.primary }
-
-                    // Add to specified groups
-                    item.groups.filter { it.isNotEmpty() }.forEach { groupName ->
-                        // Remove from other groups where the contact shouldn't be
-                        query<RosterGroupStorageItem>("owner = $0 AND name != $1", owner, groupName).find().forEach { group ->
-                            group.contacts.removeAll { it.primary == instance.primary }
-                        }
-                        // Add to the specified group
-                        val groupPrimary = RosterGroupStorageItem.genPrimary(groupName, owner)
-                        var group = query<RosterGroupStorageItem>("primary = $0", groupPrimary).first().find()
+                    // Add to specified unique groups
+                    item.groups.distinct().filter { it.isNotEmpty() }.forEach { groupName ->
+                        var group = allGroups[groupName]
                         if (group == null) {
-                            group = RosterGroupStorageItem().apply {
+                            val groupPrimary = RosterGroupStorageItem.genPrimary(groupName, owner)
+                            group = copyToRealm(RosterGroupStorageItem().apply {
                                 primary = groupPrimary
                                 this.owner = this@RosterManager.owner
                                 name = groupName
                                 contacts = realmListOf()
-                            }
-                            copyToRealm(group)
+                            }, UpdatePolicy.ALL)
+                            allGroups[groupName] = group
                             Log.d(TAG, "Created new group: $groupName")
                         }
                         if (!group.contacts.any { it.primary == instance.primary }) {
                             group.contacts.add(instance)
-                            Log.d(TAG, "Added JID ${instance.jid} to group: $groupName")
                         }
+                        Log.d(TAG, "Added JID ${instance.jid} to group: $groupName")
                     }
                 }
-
-                Log.d(TAG, """
-                    Roster Item:
-                        JID: ${item.jid}
-                        Name: ${item.name ?: "None"}
-                        Subscription: ${item.subscription ?: "none"}
-                        Ask: ${item.ask ?: "None"}
-                        Approved: ${item.approved ?: "false"}
-                        Groups: ${item.groups.joinToString(", ") { it }}
-                """.trimIndent())
             }
         }
-
         return true
     }
 
-    private fun readError(iq: String): Boolean {
-        val errorMatch = Regex("""<error[^>]*>""").find(iq) ?: return false
-        val elementIdMatch = Regex("""id=['"]([^'"]+)['"]""").find(iq)
-        val elementId = elementIdMatch?.groupValues?.get(1) ?: return false
-        if (!queryIds.contains(elementId)) return false
-
-        queryIds.remove(elementId)
-        Log.e(TAG, "Roster IQ error: $errorMatch")
+    private fun readError(iq: XMPPIQ): Boolean {
+        // Adapt to use iq.error or iq.raw
+        Log.e(TAG, "Roster IQ error: ${iq.error}")
         return true
     }
 

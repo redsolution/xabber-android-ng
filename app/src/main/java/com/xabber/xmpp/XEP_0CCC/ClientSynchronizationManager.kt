@@ -75,7 +75,7 @@ class ClientSynchronizationManager(owner: String) {
         val iq = """
             <iq type='get' id='$syncId' from='$owner' to='$owner'>$query</iq>
         """.trimIndent()
-        val success = stream.getSocket()?.write(iq) == true
+        val success = stream.socket?.write(iq) == true
         Log.d("ClientSyncManager", "Sent sync request for $owner with id $syncId, version: ${customVer ?: version}, after: $after, success: $success")
         return success
     }
@@ -101,7 +101,7 @@ class ClientSynchronizationManager(owner: String) {
         val stanza = "<iq type='set' id='pin_${chatId}' from='$owner'><query xmlns='https://xabber.com/protocol/synchronization'><conversation jid='$chatId' type='${type.rawValue}' pinned='1'/></query></iq>"
         Log.d("ClientSyncManager", "Sending pin request for chat $chatId: $stanza")
         try {
-            if (stream.getSocket()?.write(stanza) == true) {
+            if (stream.socket?.write(stanza) == true) {
                 Log.d("ClientSyncManager", "Pin request sent successfully for chat $chatId")
             } else {
                 Log.e("ClientSyncManager", "Failed to send pin request for chat $chatId")
@@ -121,7 +121,7 @@ class ClientSynchronizationManager(owner: String) {
         val stanza = "<iq type='set' id='update_${chatId}' from='$owner'><query xmlns='https://xabber.com/protocol/synchronization'><conversation jid='$chatId' type='${type.rawValue}' $statusAttr $muteAttr/></query></iq>"
         Log.d("ClientSyncManager", "Sending update request for chat $chatId: $stanza")
         try {
-            if (stream.getSocket()?.write(stanza) == true) {
+            if (stream.socket?.write(stanza) == true) {
                 Log.d("ClientSyncManager", "Update request sent successfully for chat $chatId")
             } else {
                 Log.e("ClientSyncManager", "Failed to send update request for chat $chatId")
@@ -136,21 +136,34 @@ class ClientSynchronizationManager(owner: String) {
         val stamp = query.getAttribute("stamp")?.toLongOrNull() ?: 0L
         Log.d("ClientSyncManager", "Processing ${conversations.length} conversations with stamp $stamp for owner $owner")
 
+        // Define excluded patterns for roster (contacts), but allow in chats
+        val excludedJidsForRoster = setOf(
+            "favorites.redsolution.com",
+            "redmine@redsolution.com",
+            "xabber@xmppdev01.xabber.com"
+        )
+        val excludedTypesForRoster = setOf(
+            "urn:xabber:xen:0",  // Notifications
+            "urn:xabber:favorites:0",
+            "https://xabber.com/protocol/groups"  // Groups
+        )
+
         realm.write {
             val existingChats = query<LastChatsStorageItem>("owner = $0", owner).find()
             Log.d("ClientSyncManager", "Initial LastChatsStorageItem count for owner $owner: ${existingChats.size}")
-            existingChats.forEach { chat ->
-                Log.d("ClientSyncManager", "Chat: jid=${chat.jid}, type=${chat.conversationType_}, isArchived=${chat.isArchived}, unread=${chat.unread}, messageDate=${chat.messageDate}, lastMessageId=${chat.lastMessageId}")
-            }
 
             for (i in 0 until conversations.length) {
                 val conversation = conversations.item(i) as Element
                 val jid = conversation.getAttribute("jid") ?: continue
                 val type = conversation.getAttribute("type") ?: continue
-                val status = conversation.getAttribute("status") ?: "active"
-                val pinned = conversation.getAttribute("pinned")?.toLongOrNull() ?: 0L
-                val conversationStamp = conversation.getAttribute("stamp")?.toLongOrNull() ?: 0L
 
+                // Skip self JID
+                if (jid == owner) {
+                    Log.d("ClientSyncManager", "Skipping self conversation with jid=$jid")
+                    continue
+                }
+
+                // Existing skips (keep for both chats and roster)
                 if (type == "urn:xabber:xen:0") {
                     Log.d("ClientSyncManager", "Skipping notification conversation with jid=$jid, type=$type")
                     continue
@@ -159,6 +172,10 @@ class ClientSynchronizationManager(owner: String) {
                     Log.d("ClientSyncManager", "Skipping server JID conversation for jid=$jid")
                     continue
                 }
+
+                val status = conversation.getAttribute("status") ?: "active"
+                val pinned = conversation.getAttribute("pinned")?.toLongOrNull() ?: 0L
+                val conversationStamp = conversation.getAttribute("stamp")?.toLongOrNull() ?: 0L
 
                 val conversationType = ConversationType.values().firstOrNull { it.rawValue == type } ?: run {
                     Log.w("ClientSyncManager", "Unknown conversation type $type for jid $jid, treating as urn:xabber:chat")
@@ -212,7 +229,7 @@ class ClientSynchronizationManager(owner: String) {
                                         this.conversationType_ = type
                                         this.isRead = unreadCount == 0L
                                         this.state = MessageStorageItem.MessageSendingState.SENT
-                                    })
+                                    }, UpdatePolicy.ALL)
                                 } else {
                                     existingMessage
                                 }
@@ -224,13 +241,21 @@ class ClientSynchronizationManager(owner: String) {
                     }
                 }
 
-                val rosterItem = query<RosterStorageItem>("jid = $0 AND owner = $1", jid, owner).first().find()
-                    ?: copyToRealm(RosterStorageItem().apply {
-                        primary = RosterStorageItem.genPrimary(jid, owner)
-                        this.jid = jid
-                        this.owner = owner
-                        this.customNickname = jid
-                    })
+                // Create rosterItem only if not excluded
+                var rosterItem: RosterStorageItem? = null
+                val isExcludedForRoster = excludedJidsForRoster.contains(jid) || excludedTypesForRoster.contains(type) || jid == owner
+                if (!isExcludedForRoster) {
+                    rosterItem = query<RosterStorageItem>("jid = $0 AND owner = $1", jid, owner).first().find()
+                        ?: copyToRealm(RosterStorageItem().apply {
+                            primary = RosterStorageItem.genPrimary(jid, owner)
+                            this.jid = jid
+                            this.owner = owner
+                            this.customNickname = jid
+                        }, UpdatePolicy.ALL)
+                    Log.d("ClientSyncManager", "Created/Used RosterStorageItem for jid $jid")
+                } else {
+                    Log.d("ClientSyncManager", "Skipping RosterStorageItem creation for excluded jid=$jid, type=$type")
+                }
 
                 val existingChat = query<LastChatsStorageItem>("jid = $0 AND owner = $1 AND conversationType_ = $2", jid, owner, type).first().find()
                 if (existingChat == null) {
@@ -245,9 +270,9 @@ class ClientSynchronizationManager(owner: String) {
                         this.lastMessageId = lastMessageId
                         this.pinnedPosition = pinned
                         this.muteExpired = -1
-                        this.rosterItem = rosterItem
+                        this.rosterItem = rosterItem  // Null for excluded
                         this.lastMessage = lastMessage
-                    })
+                    }, UpdatePolicy.ALL)
                     Log.d("ClientSyncManager", "Created new LastChatsStorageItem for jid $jid, type $type, owner $owner")
                 } else {
                     findLatest(existingChat)?.apply {
@@ -256,7 +281,7 @@ class ClientSynchronizationManager(owner: String) {
                         this.messageDate = messageDate
                         this.lastMessageId = lastMessageId
                         this.pinnedPosition = pinned
-                        this.rosterItem = rosterItem
+                        this.rosterItem = rosterItem  // Update to null if excluded, but since existing might have one, decide if to nullify
                         this.lastMessage = lastMessage
                     }
                     Log.d("ClientSyncManager", "Updated existing LastChatsStorageItem for jid $jid, type $type, owner $owner")
@@ -265,9 +290,7 @@ class ClientSynchronizationManager(owner: String) {
 
             val updatedChats = query<LastChatsStorageItem>("owner = $0", owner).find()
             Log.d("ClientSyncManager", "LastChatsStorageItem count after readConversationMetadata for owner $owner: ${updatedChats.size}")
-            updatedChats.forEach { chat ->
-                Log.d("ClientSyncManager", "Chat after update: jid=${chat.jid}, type=${chat.conversationType_}, isArchived=${chat.isArchived}, unread=${chat.unread}, messageDate=${chat.messageDate}, lastMessageId=${chat.lastMessageId}")
-            }
+            // Removed redundant per-chat logs to reduce repetition; enable if needed for debugging
         }
     }
 
@@ -400,7 +423,7 @@ class ClientSynchronizationManager(owner: String) {
                         this.jid = from
                         this.owner = owner
                         this.customNickname = from
-                    })
+                    }, UpdatePolicy.ALL)
 
                 val chat = query<LastChatsStorageItem>("jid = $0 AND owner = $1 AND conversationType_ = $2", from, owner, "urn:xabber:chat").first().find()
                 val message = copyToRealm(MessageStorageItem().apply {
@@ -416,7 +439,7 @@ class ClientSynchronizationManager(owner: String) {
                     this.conversationType_ = "urn:xabber:chat"
                     this.isRead = false
                     this.state = MessageStorageItem.MessageSendingState.SENT
-                })
+                }, UpdatePolicy.ALL)
 
                 if (chat == null) {
                     copyToRealm(LastChatsStorageItem().apply {
@@ -432,7 +455,7 @@ class ClientSynchronizationManager(owner: String) {
                         this.muteExpired = -1
                         this.rosterItem = rosterItem
                         this.lastMessage = message
-                    })
+                    }, UpdatePolicy.ALL)
                     Log.d("ClientSyncManager", "Created new LastChatsStorageItem for jid $from in receiveClientSyncRaw")
                 } else {
                     findLatest(chat)?.apply {

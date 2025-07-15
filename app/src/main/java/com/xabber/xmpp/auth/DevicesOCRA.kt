@@ -82,7 +82,7 @@ class DevicesOCRA(
             <auth xmlns='urn:ietf:params:xml:ns:xmpp-sasl' mechanism='$MECHANISM_NAME'>$base64</auth>
         """.trimIndent()
         state = OCRAAuthState.CHALLENGE
-        if (stream.getSocket()?.write(authMessage) == true) {
+        if (stream.socket?.write(authMessage) == true) {
             Log.d(TAG, "Sent OCRA auth request: $authMessage")
             true
         } else {
@@ -225,7 +225,7 @@ class DevicesOCRA(
                 <response xmlns='urn:ietf:params:xml:ns:xmpp-sasl'>$response</response>
             """.trimIndent()
             state = OCRAAuthState.END
-            if (stream.getSocket()?.write(responseMessage) == true) {
+            if (stream.socket?.write(responseMessage) == true) {
                 Log.d(TAG, "Sent OCRA response: $responseMessage")
                 return true
             } else {
