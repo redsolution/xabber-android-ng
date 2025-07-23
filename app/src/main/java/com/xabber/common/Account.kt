@@ -1,10 +1,13 @@
 package com.xabber.common
 
+import android.icu.text.SimpleDateFormat
+import android.icu.util.TimeZone
 import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
 import com.xabber.data_base.defaultRealmConfig
 import com.xabber.data_base.models.account.AccountStorageItem
+import com.xabber.data_base.models.last_chats.LastChatsStorageItem
 import com.xabber.data_base.models.presences.ResourceStorageItem
 import com.xabber.utils.custom.NickGenerator
 import com.xabber.xmpp.XEP_0CCC.ClientSynchronizationManager
@@ -13,6 +16,13 @@ import com.xabber.xmpp.device.DeviceStorageItem
 import com.xabber.xmpp.dns.DNSResolver
 import com.xabber.xmpp.presence.PresenceManager
 import com.xabber.xmpp.roster.RosterManager
+import com.xabber.xmpp.messages.messages_manager.MessageManager
+import com.xabber.xmpp.messages.messages_manager.ChatMarkersManager
+import com.xabber.xmpp.messages.messages_manager.MessageCommonReceiver
+import com.xabber.data_base.models.messages.MessageStorageItem
+import com.xabber.xmpp.jid.XMPPJID
+import com.xabber.xmpp.messages.XMPPMessage
+import com.xabber.xmpp.messages.message.TemporaryMessageStanzaStorageItem
 import io.ktor.network.sockets.isClosed
 import io.reactivex.subjects.BehaviorSubject
 import io.realm.kotlin.Realm
@@ -27,14 +37,33 @@ import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.channels.Channel
 import io.viascom.nanoid.NanoId
 import kotlinx.coroutines.CoroutineScope
+import nl.adaptivity.xmlutil.core.impl.multiplatform.StringReader
+import org.w3c.dom.Element
+import org.w3c.dom.Node
+import org.xmlpull.v1.XmlPullParser
+import org.xmlpull.v1.XmlPullParserFactory
+import java.io.StringWriter
+import java.util.Date
+import java.util.Locale
+import javax.xml.parsers.DocumentBuilderFactory
+import javax.xml.transform.OutputKeys
+import javax.xml.transform.TransformerFactory
+import javax.xml.transform.dom.DOMSource
+import javax.xml.transform.stream.StreamResult
 
 @RequiresApi(Build.VERSION_CODES.O)
-class Account: XMPPStreamDelegate {
-    var jid: String = ""
+class Account : XMPPStreamDelegate {
+    constructor()
 
-    override fun toString(): String {
-        return "Account $jid"
+    constructor(jid: String) {
+        this.jid = jid
     }
+
+    companion object {
+        private const val TAG = "Account"
+    }
+
+    var jid: String = ""
     var host: String = ""
     var port: Int = 5222
     var username: String = ""
@@ -63,11 +92,18 @@ class Account: XMPPStreamDelegate {
     private val syncCompletionChannel = Channel<Unit>(1)
     private var supportedFeatures: String = ""
     private var rosterRequested = false
+    val chatMarkers: ChatMarkersManager by lazy { ChatMarkersManager(jid) }
+    val messages: MessageManager by lazy { MessageManager(jid, activeStream = stream != null) }
+    val messageReceiver: MessageCommonReceiver by lazy { MessageCommonReceiver(jid) }
 
     init {
         if (deviceName.isEmpty()) {
             deviceName = NickGenerator.genRandomNick()
         }
+    }
+
+    override fun toString(): String {
+        return "Account $jid"
     }
 
     fun setOnErrorCallback(callback: (String) -> Unit) {
@@ -170,6 +206,7 @@ class Account: XMPPStreamDelegate {
                     delegate = this@Account
                 }
                 Log.d("Account", "Stream initialized for $jid with port $port")
+                messageReceiver.subscribeReceiver() // Subscribe to message receiver
             } else {
                 Log.w("Account", "Cannot initialize Stream: JID is empty")
                 onErrorCallback?.invoke("Cannot initialize connection: Invalid JID")
@@ -214,6 +251,7 @@ class Account: XMPPStreamDelegate {
         stream?.close()
         stream = null
         presenceManager = null
+        messageReceiver.unsubscribeReceiver() // Unsubscribe when closing stream
         statusMessage.onNext("Offline")
         rosterRequested = false
         Log.d("Account", "Stream closed for $jid")
@@ -506,11 +544,10 @@ class Account: XMPPStreamDelegate {
 
     override fun didReceivePresence(presence: String, stream: Stream): Boolean {
         Log.d("Account", "Received presence stanza")
-        presenceManager?.processPresence(presence) ?: run {
+        return presenceManager?.processPresence(presence) ?: run {
             Log.w("Account", "PresenceManager not initialized, skipping presence processing")
-            return false
+            false
         }
-        return true
     }
 
     override fun didReceiveStreamHeader(header: String, stream: Stream): Boolean {
@@ -666,19 +703,297 @@ class Account: XMPPStreamDelegate {
         return true
     }
 
-    override suspend fun didReceiveMessage(message: String, stream: Stream): Boolean {
+
+    @RequiresApi(Build.VERSION_CODES.O)
+    fun logMessageStorageItems(owner: String, messageIds: List<String>? = null) {
+        Log.d("Account", "Logging MessageStorageItem entries for owner: $owner")
         try {
-            if (syncStanzaBuffer.isEmpty()) {
-                Log.d("Account", "Received message stanza")
-                syncManager.receiveClientSyncRaw(message)
+            realm.query<MessageStorageItem>(
+                query = if (messageIds.isNullOrEmpty()) {
+                    "owner = $0"
+                } else {
+                    "owner = $0 AND messageId IN $1"
+                },
+                owner, messageIds
+            ).find().forEach { item ->
+                Log.d(
+                    "Account",
+                    "MessageStorageItem: primary=${item.primary}, messageId=${item.messageId}, owner=${item.owner}, " +
+                            "opponent=${item.opponent}, body=${item.body}, date=${item.date}, sentDate=${item.sentDate}, " +
+                            "editDate=${item.editDate}, outgoing=${item.outgoing}, conversationType_=${item.conversationType_}, " +
+                            "isRead=${item.isRead}, state=${item.state}"
+                )
+            }
+            Log.d("Account", "Finished logging MessageStorageItem entries")
+        } catch (e: Exception) {
+            Log.e("Account", "Error querying MessageStorageItem: ${e.message}", e)
+        }
+    }
+
+
+    @RequiresApi(Build.VERSION_CODES.O)
+    override suspend fun didReceiveMessage(message: String, stream: Stream): Boolean {
+        Log.d(TAG, "Received message stanza: ${message.substring(0, minOf(message.length, 200))}...")
+        try {
+            val xmppMessage = XMPPMessage(message)
+            var messageId = xmppMessage.id
+            var isChatState = false
+            var innerMessageId: String? = null
+            var innerFrom: String? = null
+            var innerTo: String? = null
+            var innerBody: String? = null
+            var innerType: String? = null
+            var innerLang: String? = null
+
+            // Parse to find inner message ID and check for chat state
+            val factory = XmlPullParserFactory.newInstance()
+            factory.isNamespaceAware = true
+            val parser = factory.newPullParser()
+            parser.setInput(StringReader(message))
+            var eventType = parser.eventType
+            var inForwarded = false
+            var innerRaw = StringBuilder()
+
+            while (eventType != XmlPullParser.END_DOCUMENT) {
+                if (eventType == XmlPullParser.START_TAG) {
+                    val tagName = parser.name
+                    val namespace = parser.namespace
+                    if (tagName == "forwarded" && namespace == "urn:xmpp:forward:0") {
+                        inForwarded = true
+                    } else if (inForwarded && tagName == "message" && namespace == "jabber:client") {
+                        innerMessageId = parser.getAttributeValue(null, "id") ?: "unknown_${System.currentTimeMillis()}"
+                        innerFrom = parser.getAttributeValue(null, "from") ?: jid
+                        innerTo = parser.getAttributeValue(null, "to") ?: jid
+                        innerType = parser.getAttributeValue(null, "type")
+                        innerLang = parser.getAttributeValue(null, "xml:lang")
+                        innerRaw.append("<message")
+                        for (i in 0 until parser.attributeCount) {
+                            innerRaw.append(" ${parser.getAttributeName(i)}='${parser.getAttributeValue(i)}'")
+                        }
+                        innerRaw.append(">")
+                    } else if (tagName in listOf("active", "composing", "inactive") && namespace == "http://jabber.org/protocol/chatstates") {
+                        isChatState = true
+                        innerRaw.append("<$tagName xmlns='$namespace'/>")
+                    } else if (tagName == "body" && inForwarded) {
+                        parser.next()
+                        if (parser.eventType == XmlPullParser.TEXT) {
+                            innerBody = parser.text.trim()
+                            innerRaw.append("<body>${parser.text}</body>")
+                        }
+                    } else if (inForwarded && namespace != "jabber:client") {
+                        innerRaw.append("<${tagName} xmlns='${namespace}'")
+                        for (i in 0 until parser.attributeCount) {
+                            innerRaw.append(" ${parser.getAttributeName(i)}='${parser.getAttributeValue(i)}'")
+                        }
+                        innerRaw.append("/>")
+                    }
+                } else if (eventType == XmlPullParser.END_TAG) {
+                    val tagName = parser.name
+                    if (tagName == "forwarded" && parser.namespace == "urn:xmpp:forward:0") {
+                        inForwarded = false
+                    } else if (inForwarded && tagName == "message" && parser.namespace == "jabber:client") {
+                        innerRaw.append("</message>")
+                    }
+                } else if (eventType == XmlPullParser.TEXT && inForwarded) {
+                    innerRaw.append(parser.text)
+                }
+                eventType = parser.next()
+            }
+
+            // Use inner message ID for forwarded messages
+            messageId = innerMessageId ?: messageId ?: Regex("""\bid=['"]([^'"]+)['"]""").find(message)?.groupValues?.get(1) ?: "unknown_${System.currentTimeMillis()}"
+            Log.d(TAG, "Processing message: id=$messageId, isChatState=$isChatState, innerFrom=$innerFrom, innerTo=$innerTo")
+
+            // Retrieve the corresponding TemporaryMessageStanzaStorageItem
+            val realm = Realm.open(defaultRealmConfig())
+            val primary = TemporaryMessageStanzaStorageItem.genPrimary(messageId, jid)
+            val tempStanza = realm.query<TemporaryMessageStanzaStorageItem>(
+                "primary = $0 AND isProcessed = false", primary
+            ).first().find()
+
+            // Log storage details
+            if (tempStanza == null && !isChatState) {
+                Log.w(TAG, "No unprocessed TemporaryMessageStanzaStorageItem found for messageId=$messageId, primary=$primary, owner=$jid. Processing directly.")
+            } else if (tempStanza != null) {
+                Log.d(TAG, "Found TemporaryMessageStanzaStorageItem: messageId=$messageId, primary=$primary, owner=${tempStanza.owner}, isProcessed=${tempStanza.isProcessed}")
+            }
+
+            // Parse timestamp
+            val timestamp = tempStanza?.date?.takeIf { it > 0 } ?: parseTimestamp(xmppMessage) ?: System.currentTimeMillis()
+            val date = Date(timestamp)
+            val isOutgoing = xmppMessage.from?.bare() == jid || innerFrom?.startsWith(jid) == true
+            val state = if (isOutgoing) {
+                MessageStorageItem.MessageSendingState.DELIVERED
+            } else {
+                MessageStorageItem.MessageSendingState.SENT
+            }
+
+            // Create inner message for forwarded container
+            var containerType: String? = null
+            var innerMessage: XMPPMessage? = xmppMessage
+            if (inForwarded) {
+                containerType = "forwarded"
+                Log.d(TAG, "Detected forwarded container for messageId=$messageId")
+                innerMessage = XMPPMessage(
+                    raw = innerRaw.toString(),
+                    type = innerType,
+                    id = innerMessageId,
+                    from = innerFrom?.let { XMPPJID(fullJID = it) } ?: XMPPJID(fullJID = jid),
+                    to = innerTo?.let { XMPPJID(fullJID = it) } ?: XMPPJID(fullJID = jid),
+                    lang = innerLang,
+                    body = innerBody
+                )
+                Log.d(TAG, "Extracted inner message for forwarded container: id=${innerMessage.id}, raw=${innerRaw.substring(0, minOf(innerRaw.length, 200))}...")
+            } else if (xmppMessage.element("last-message") != null) {
+                containerType = "last-message"
+                Log.d(TAG, "Detected last-message container for messageId=$messageId")
+            } else if (xmppMessage.element("archived", namespace = "urn:xmpp:mam:tmp") != null) {
+                containerType = "archived"
+                Log.d(TAG, "Detected archived container for messageId=$messageId")
+            } else {
+                containerType = "runtime"
+                Log.d(TAG, "No specific container found, treating as runtime for messageId=$messageId")
+            }
+
+            // Handle chat state notifications
+            if (isChatState && innerBody.isNullOrEmpty()) {
+                Log.d(TAG, "Skipping chat state notification: id=$messageId, container=$containerType")
+                if (tempStanza != null) {
+                    realm.write {
+                        val latest = findLatest(tempStanza)
+                        if (latest != null) {
+                            latest.isProcessed = true
+                            Log.d(TAG, "Marked TemporaryMessageStanzaStorageItem as processed for chat state: id=$messageId, primary=$primary")
+                        }
+                    }
+                }
+                realm.close()
                 return true
             }
-            return false
+
+            // Direct to MessageCommonReceiver based on container type
+            when (containerType) {
+                "archived" -> {
+                    Log.d(TAG, "Directing archived message to receiveArchived: id=$messageId")
+                    messageReceiver.receiveArchived(xmppMessage)
+                }
+                "forwarded" -> {
+                    Log.d(TAG, "Directing forwarded message to receiveCarbonForwarded: id=$messageId")
+                    innerMessage?.let {
+                        if (it.id != null && it.body != null && it.from != null && it.to != null && it.to.bare() != jid) {
+                            messageReceiver.receiveCarbonForwarded(it)
+                            Log.d(TAG, "Called receiveCarbonForwarded for messageId=${it.id}, body=${it.body?.take(100)}")
+                        } else {
+                            Log.w(TAG, "Skipping forwarded message with invalid id, body, from, or to (self-directed): id=${it.id}, body=${it.body}, from=${it.from?.bare()}, to=${it.to?.bare()}, raw=${it.raw.substring(0, minOf(it.raw.length, 200))}...")
+                        }
+                    } ?: Log.w(TAG, "No inner message for forwarded container, skipping: id=$messageId")
+                }
+                "last-message" -> {
+                    Log.d(TAG, "Directing last-message to receiveClientSync: id=$messageId")
+                    innerMessage?.let {
+                        if (it.id != null && it.body != null && it.from != null && it.to != null && it.to.bare() != jid) {
+                            messageReceiver.receiveClientSync(
+                                message = it,
+                                isRead = isOutgoing,
+                                state = state,
+                                date = date
+                            )
+                            Log.d(TAG, "Called receiveClientSync for messageId=${it.id}, body=${it.body?.take(100)}")
+                        } else {
+                            Log.w(TAG, "Skipping last-message with invalid id, body, from, or to (self-directed): id=${it.id}, body=${it.body}, from=${it.from?.bare()}, to=${it.to?.bare()}, raw=${it.raw.substring(0, minOf(it.raw.length, 200))}...")
+                        }
+                    } ?: Log.w(TAG, "No inner message for last-message container, skipping: id=$messageId")
+                }
+                else -> {
+                    Log.d(TAG, "Directing runtime message to receiveRuntime: id=$messageId")
+                    if (xmppMessage.body != null && xmppMessage.from != null && xmppMessage.to != null && xmppMessage.to.bare() != jid) {
+                        messageReceiver.receiveRuntime(xmppMessage)
+                        Log.d(TAG, "Called receiveRuntime for messageId=$messageId, body=${xmppMessage.body?.take(100)}")
+                    } else {
+                        Log.w(TAG, "Skipping runtime message with no body, from, or to (self-directed): id=$messageId, body=${xmppMessage.body}, from=${xmppMessage.from?.bare()}, to=${xmppMessage.to?.bare()}")
+                    }
+                }
+            }
+
+            // Mark the stanza as processed if found
+            if (tempStanza != null) {
+                realm.write {
+                    val latest = findLatest(tempStanza)
+                    if (latest != null) {
+                        latest.isProcessed = true
+                        Log.d(TAG, "Marked TemporaryMessageStanzaStorageItem as processed: id=$messageId, primary=$primary")
+                    }
+                }
+            }
+            realm.close()
+
+            // Log the processed message for verification
+            Log.d(TAG, "Processed message successfully: id=$messageId, container=$containerType")
+            return true
         } catch (e: Exception) {
-            Log.e("Account", "Error handling message: ${e.message}", e)
-            onErrorCallback?.invoke("Error processing message: ${e.message}")
+            Log.e(TAG, "Error handling message: ${e.message}, stanza: $message", e)
             stream.state = StreamState.NOT_CONNECTING
             return false
+        }
+    }
+
+    private fun parseTimestamp(message: XMPPMessage): Long? {
+        val timeElement = message.element("time", namespace = "https://xabber.com/protocol/delivery")
+        val stamp = timeElement?.getAttribute("stamp")
+        return stamp?.let {
+            try {
+                val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'", Locale.US)
+                sdf.timeZone = TimeZone.getTimeZone("UTC")
+                sdf.parse(it)?.time
+            } catch (e: Exception) {
+                Log.e("Account", "Failed to parse timestamp: ${e.message}")
+                null
+            }
+        }
+    }
+
+    private fun parserToDom(parser: XmlPullParser): Node {
+        val factory = DocumentBuilderFactory.newInstance()
+        factory.isNamespaceAware = true
+        val builder = factory.newDocumentBuilder()
+        val document = builder.newDocument()
+        val stack = mutableListOf<Node>(document)
+        var eventType = parser.eventType
+        while (eventType != XmlPullParser.END_DOCUMENT) {
+            when (eventType) {
+                XmlPullParser.START_TAG -> {
+                    val element = document.createElementNS(parser.namespace, parser.name)
+                    for (i in 0 until parser.attributeCount) {
+                        element.setAttribute(parser.getAttributeName(i), parser.getAttributeValue(i))
+                    }
+                    stack.last().appendChild(element)
+                    stack.add(element)
+                }
+                XmlPullParser.END_TAG -> {
+                    stack.removeLast()
+                }
+                XmlPullParser.TEXT -> {
+                    stack.last().appendChild(document.createTextNode(parser.text))
+                }
+            }
+            eventType = parser.next()
+        }
+        return stack.first().firstChild ?: document
+    }
+
+
+
+    private fun getDeliveryTime(message: XMPPMessage): Date? {
+        val time = message.element("time", namespace = "https://xabber.com/protocol/delivery")?.getAttribute("stamp")
+        return time?.let {
+            try {
+                val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'", Locale.US)
+                sdf.timeZone = TimeZone.getTimeZone("UTC")
+                sdf.parse(it)
+            } catch (e: Exception) {
+                Log.e("Account", "Failed to parse delivery timestamp: ${e.message}")
+                null
+            }
         }
     }
 
@@ -694,6 +1009,7 @@ class Account: XMPPStreamDelegate {
         }
         return true
     }
+
     override suspend fun streamBinding(stream: Stream): Boolean {
         try {
             val bindId = NanoId.generateOptimized(9, "_-0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", 63, 16)
@@ -705,16 +1021,15 @@ class Account: XMPPStreamDelegate {
                     </bind>
                 </iq>
             """.trimIndent()
-            runBlocking(Dispatchers.IO) {
-                if (stream.socket?.write(bindRequest) == true) {
-                    Log.d("Account", "Sent bind request for JID: $jid")
-                } else {
-                    Log.e("Account", "Failed to send bind request for JID: $jid")
-                    onErrorCallback?.invoke("Failed to send resource binding request")
-                    stream.state = StreamState.NOT_CONNECTING
-                }
+            if (runBlocking { stream.socket?.write(bindRequest) } == true) {
+                Log.d("Account", "Sent bind request for JID: $jid")
+                return true
+            } else {
+                Log.e("Account", "Failed to send bind request for JID: $jid")
+                onErrorCallback?.invoke("Failed to send resource binding request")
+                stream.state = StreamState.NOT_CONNECTING
+                return false
             }
-            return true
         } catch (e: Exception) {
             Log.e("Account", "Error during resource binding for JID: $jid: ${e.message}", e)
             onErrorCallback?.invoke("Resource binding error: ${e.message}")
@@ -744,16 +1059,15 @@ class Account: XMPPStreamDelegate {
                     </register>
                 </iq>
             """.trimIndent()
-            runBlocking(Dispatchers.IO) {
-                if (stream.socket?.write(deviceRequest) == true) {
-                    Log.d("Account", "Sent device registration request for JID: $jid")
-                } else {
-                    Log.e("Account", "Failed to send device registration request for JID: $jid")
-                    onErrorCallback?.invoke("Failed to send device registration request")
-                    stream.state = StreamState.NOT_CONNECTING
-                }
+            if (runBlocking { stream.socket?.write(deviceRequest) } == true) {
+                Log.d("Account", "Sent device registration request for JID: $jid")
+                return true
+            } else {
+                Log.e("Account", "Failed to send device registration request for JID: $jid")
+                onErrorCallback?.invoke("Failed to send device registration request")
+                stream.state = StreamState.NOT_CONNECTING
+                return false
             }
-            return true
         } catch (e: Exception) {
             Log.e("Account", "Error during device registration for JID: $jid: ${e.message}", e)
             onErrorCallback?.invoke("Device registration error: ${e.message}")
@@ -799,17 +1113,16 @@ class Account: XMPPStreamDelegate {
             val authMessage = """
                 <auth xmlns='urn:ietf:params:xml:ns:xmpp-sasl' mechanism='PLAIN'>$authData</auth>
             """.trimIndent()
-            runBlocking(Dispatchers.IO) {
-                if (stream.socket?.write(authMessage) == true) {
-                    Log.d("Account", "Sent SASL PLAIN auth request for JID: $jid")
-                    stream.state = StreamState.PROCESS_AUTH
-                } else {
-                    Log.e("Account", "Failed to send SASL PLAIN auth request for JID: $jid")
-                    onErrorCallback?.invoke("Failed to send PLAIN authentication request")
-                    stream.state = StreamState.AUTH_FAILED
-                }
+            if (runBlocking { stream.socket?.write(authMessage) } == true) {
+                Log.d("Account", "Sent SASL PLAIN auth request for JID: $jid")
+                stream.state = StreamState.PROCESS_AUTH
+                return true
+            } else {
+                Log.e("Account", "Failed to send SASL PLAIN auth request for JID: $jid")
+                onErrorCallback?.invoke("Failed to send PLAIN authentication request")
+                stream.state = StreamState.AUTH_FAILED
+                return false
             }
-            return true
         } catch (e: IllegalStateException) {
             Log.e("Account", "SASL PLAIN authentication failed for JID: $jid: ${e.message}", e)
             onErrorCallback?.invoke("PLAIN authentication failed: ${e.message}")
@@ -931,33 +1244,32 @@ class Account: XMPPStreamDelegate {
 
     override suspend fun streamSyncRequest(stream: Stream): Boolean {
         try {
-            runBlocking(Dispatchers.IO) {
-                if (stream.state != StreamState.CONNECTED) {
-                    Log.w("Account", "Cannot send sync request: Stream is not in CONNECTED state, current state: ${stream.state}")
-                    onErrorCallback?.invoke("Cannot send sync request: Not connected")
-                    return@runBlocking
-                }
-                if (stream.socket == null || stream.socket?.getSocket()?.isClosed == true) {
-                    Log.e("Account", "Cannot send sync request: Socket is null or closed")
-                    onErrorCallback?.invoke("Cannot send sync request: Connection closed")
-                    stream.state = StreamState.NOT_CONNECTING
-                    return@runBlocking
-                }
-                val syncId = NanoId.generateOptimized(9, "_-0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", 63, 16)
-                val syncRequest = """
-                    <iq type='get' id='$syncId' from='$jid' to='$jid'>
-                        <query xmlns='https://xabber.com/protocol/synchronization'/>
-                    </iq>
-                """.trimIndent()
-                if (stream.socket?.write(syncRequest) == true) {
-                    Log.d("Account", "Sent sync request for JID: $jid with id: $syncId")
-                } else {
-                    Log.e("Account", "Failed to send sync request for JID: $jid")
-                    onErrorCallback?.invoke("Failed to send sync request")
-                    stream.state = StreamState.NOT_CONNECTING
-                }
+            if (stream.state != StreamState.CONNECTED) {
+                Log.w("Account", "Cannot send sync request: Stream is not in CONNECTED state, current state: ${stream.state}")
+                onErrorCallback?.invoke("Cannot send sync request: Not connected")
+                return false
             }
-            return true
+            if (stream.socket == null || stream.socket?.getSocket()?.isClosed == true) {
+                Log.e("Account", "Cannot send sync request: Socket is null or closed")
+                onErrorCallback?.invoke("Cannot send sync request: Connection closed")
+                stream.state = StreamState.NOT_CONNECTING
+                return false
+            }
+            val syncId = NanoId.generateOptimized(9, "_-0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", 63, 16)
+            val syncRequest = """
+                <iq type='get' id='$syncId' from='$jid' to='$jid'>
+                    <query xmlns='https://xabber.com/protocol/synchronization'/>
+                </iq>
+            """.trimIndent()
+            if (stream.socket?.write(syncRequest) == true) {
+                Log.d("Account", "Sent sync request for JID: $jid with id: $syncId")
+                return true
+            } else {
+                Log.e("Account", "Failed to send sync request for JID: $jid")
+                onErrorCallback?.invoke("Failed to send sync request")
+                stream.state = StreamState.NOT_CONNECTING
+                return false
+            }
         } catch (e: Exception) {
             Log.e("Account", "Error sending sync request for JID: $jid: ${e.message}", e)
             onErrorCallback?.invoke("Sync request error: ${e.message}")
@@ -1012,5 +1324,19 @@ class Account: XMPPStreamDelegate {
             Log.e("Account", "Error extracting host from JID: ${e.message}", e)
             return jid
         }
+    }
+
+    fun unsafeAction(action: (Account, Stream) -> Unit) {
+        action(this, stream!!)
+    }
+
+    suspend fun action(action: suspend (Account, Stream) -> Unit) {
+        stream?.let { stream ->
+            if (stream.state == StreamState.CONNECTED && stream.socket?.getSocket()?.isClosed == false) {
+                action(this, stream)
+            } else {
+                Log.w("Account", "Cannot execute action: Stream is not connected or socket is closed")
+            }
+        } ?: Log.w("Account", "Cannot execute action: Stream is null")
     }
 }

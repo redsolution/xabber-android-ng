@@ -3,6 +3,7 @@ package com.xabber.presentation.application.fragments.chat.message
 import android.view.LayoutInflater
 import android.view.View
 import com.xabber.dto.MessageDto
+import com.xabber.presentation.application.fragments.chat.MessageAdapter
 import com.xabber.presentation.application.fragments.chat.MessageVhExtraData
 
 class IncomingMessageVH internal constructor(

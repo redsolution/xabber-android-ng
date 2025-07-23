@@ -20,6 +20,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import org.w3c.dom.Element
+import org.xmlpull.v1.XmlPullParser
+import org.xmlpull.v1.XmlPullParserFactory
+import java.io.StringReader
 import java.text.SimpleDateFormat
 import java.util.*
 import javax.xml.parsers.DocumentBuilderFactory
@@ -341,16 +344,9 @@ class ClientSynchronizationManager(owner: String) {
         }
         try {
             Log.d("ClientSyncManager", "Processing sync IQ stanza: ${iq.substring(0, minOf(iq.length, 200))}...")
-            // Validate that the IQ stanza is well-formed and contains only one root element
             val cleanedIq = iq.trim()
             if (!cleanedIq.startsWith("<iq") || !cleanedIq.endsWith("</iq>")) {
-                Log.e("ClientSyncManager", "Invalid IQ stanza: does not start with <iq> or end with </iq>: ${cleanedIq.substring(0, minOf(cleanedIq.length, 200))}...")
-                return
-            }
-            // Check for multiple root elements by ensuring only one <iq> tag
-            val iqTagCount = cleanedIq.split("<iq").size - 1
-            if (iqTagCount > 1) {
-                Log.e("ClientSyncManager", "Invalid IQ stanza: multiple <iq> tags found")
+                Log.e("ClientSyncManager", "Invalid IQ stanza: does not start with <iq> or end with </iq>")
                 return
             }
             val factory = DocumentBuilderFactory.newInstance()
@@ -360,7 +356,7 @@ class ClientSynchronizationManager(owner: String) {
             val iqElement = document.documentElement
             val queryElement = iqElement.getElementsByTagNameNS("https://xabber.com/protocol/synchronization", "query").item(0) as? Element
             if (queryElement == null) {
-                Log.w("ClientSyncManager", "Ignoring IQ stanza without synchronization query: ${cleanedIq.substring(0, minOf(cleanedIq.length, 200))}...")
+                Log.w("ClientSyncManager", "Ignoring IQ stanza without synchronization query")
                 return
             }
             if (iqElement.getAttribute("type") == "result") {
@@ -371,10 +367,11 @@ class ClientSynchronizationManager(owner: String) {
                 Log.w("ClientSyncManager", "Ignoring sync IQ with type: ${iqElement.getAttribute("type")}")
             }
         } catch (e: Exception) {
-            Log.e("ClientSyncManager", "Failed to parse IQ stanza: ${e.message}")
+            Log.e("ClientSyncManager", "Failed to parse IQ stanza: ${e.message}", e)
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     suspend fun receiveClientSyncRaw(message: String) {
         if (owner.isBlank()) {
             Log.e("ClientSyncManager", "Cannot process message: invalid owner")
@@ -382,39 +379,97 @@ class ClientSynchronizationManager(owner: String) {
         }
         try {
             Log.d("ClientSyncManager", "Processing message stanza: ${message.substring(0, minOf(message.length, 200))}...")
-            // Validate that the message stanza is well-formed and contains only one root element
             val cleanedMessage = message.trim()
             if (!cleanedMessage.startsWith("<message") || !cleanedMessage.endsWith("</message>")) {
-                Log.e("ClientSyncManager", "Invalid message stanza: does not start with <message> or end with </message>: ${cleanedMessage.substring(0, minOf(cleanedMessage.length, 200))}...")
+                Log.e("ClientSyncManager", "Invalid message stanza: does not start with <message> or end with </message>")
                 return
             }
-            // Check for multiple root elements by ensuring only one <message> tag
-            val messageTagCount = cleanedMessage.split("<message").size - 1
-            if (messageTagCount > 1) {
-                Log.e("ClientSyncManager", "Invalid message stanza: multiple <message> tags found")
-                return
-            }
-            val factory = DocumentBuilderFactory.newInstance()
+
+            val factory = XmlPullParserFactory.newInstance()
             factory.isNamespaceAware = true
-            val builder = factory.newDocumentBuilder()
-            val document = builder.parse(cleanedMessage.byteInputStream())
-            val messageElement = document.documentElement
-            val body = messageElement.getElementsByTagName("body").item(0)?.textContent ?: ""
-            val from = messageElement.getAttribute("from") ?: ""
-            val to = messageElement.getAttribute("to") ?: owner
-            val id = messageElement.getAttribute("id") ?: ""
-            val type = messageElement.getAttribute("type") ?: "chat"
-            val timeElement = messageElement.getElementsByTagName("time").item(0) as? Element
-            val timestamp = timeElement?.getAttribute("stamp")?.let {
-                try {
-                    val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'", Locale.US)
-                    sdf.timeZone = TimeZone.getTimeZone("UTC")
-                    sdf.parse(it)?.time ?: System.currentTimeMillis()
-                } catch (e: Exception) {
-                    Log.e("ClientSyncManager", "Failed to parse message timestamp: ${e.message}")
-                    System.currentTimeMillis()
+            val parser = factory.newPullParser()
+            parser.setInput(StringReader(cleanedMessage))
+
+            var eventType = parser.eventType
+            var messageId: String? = null
+            var from: String? = null
+            var to: String? = null
+            var type: String? = null
+            var body: String? = null
+            var timestamp: Long = System.currentTimeMillis()
+            var inForwarded = false
+            var inInnerMessage = false
+            var conversationType: String = "urn:xabber:chat" // Default to regular chat
+
+            while (eventType != XmlPullParser.END_DOCUMENT) {
+                when (eventType) {
+                    XmlPullParser.START_TAG -> {
+                        val tagName = parser.name
+                        when {
+                            tagName == "message" && !inForwarded -> {
+                                messageId = parser.getAttributeValue(null, "id") ?: ""
+                                from = parser.getAttributeValue(null, "from") ?: ""
+                                to = parser.getAttributeValue(null, "to") ?: owner
+                                type = parser.getAttributeValue(null, "type") ?: "chat"
+                                Log.d("ClientSyncManager", "Message attributes: id=$messageId, from=$from, to=$to, type=$type")
+                            }
+                            tagName == "forwarded" && parser.getAttributeValue(null, "xmlns") == "urn:xmpp:forward:0" -> {
+                                inForwarded = true
+                            }
+                            tagName == "message" && inForwarded -> {
+                                inInnerMessage = true
+                                messageId = parser.getAttributeValue(null, "id") ?: messageId
+                                from = parser.getAttributeValue(null, "from")?.split("/")?.get(0) ?: from
+                                to = parser.getAttributeValue(null, "to") ?: to
+                                type = parser.getAttributeValue(null, "type") ?: type
+                                Log.d("ClientSyncManager", "Inner message attributes: id=$messageId, from=$from, to=$to, type=$type")
+                            }
+                            tagName == "body" && inInnerMessage -> {
+                                parser.next()
+                                if (parser.eventType == XmlPullParser.TEXT) {
+                                    body = parser.text.trim()
+                                    Log.d("ClientSyncManager", "Body: $body")
+                                }
+                            }
+                            tagName == "time" && inInnerMessage && parser.getAttributeValue(null, "xmlns") == "https://xabber.com/protocol/delivery" -> {
+                                val stamp = parser.getAttributeValue(null, "stamp")
+                                if (stamp != null) {
+                                    try {
+                                        val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'", Locale.US)
+                                        sdf.timeZone = TimeZone.getTimeZone("UTC")
+                                        timestamp = sdf.parse(stamp)?.time ?: System.currentTimeMillis()
+                                        Log.d("ClientSyncManager", "Parsed timestamp: $timestamp")
+                                    } catch (e: Exception) {
+                                        Log.e("ClientSyncManager", "Failed to parse message timestamp: ${e.message}")
+                                        timestamp = System.currentTimeMillis()
+                                    }
+                                }
+                            }
+                            tagName == "x" && parser.getAttributeValue(null, "xmlns") == "https://xabber.com/protocol/groups" -> {
+                                conversationType = "https://xabber.com/protocol/groups"
+                                Log.d("ClientSyncManager", "Detected group chat: conversationType=$conversationType")
+                            }
+                        }
+                    }
+                    XmlPullParser.END_TAG -> {
+                        when (parser.name) {
+                            "forwarded" -> inForwarded = false
+                            "message" -> if (inForwarded) inInnerMessage = false
+                        }
+                    }
                 }
-            } ?: System.currentTimeMillis()
+                eventType = parser.next()
+            }
+
+            if (messageId.isNullOrEmpty() || from.isNullOrEmpty() || to.isNullOrEmpty()) {
+                Log.e("ClientSyncManager", "Invalid message: missing id, from, or to attribute")
+                return
+            }
+
+            // Determine conversation type based on JID or type
+            if (to == "favorites.redsolution.com") {
+                conversationType = "urn:xabber:favorites:0"
+            }
 
             realm.write {
                 val rosterItem = query<RosterStorageItem>("jid = $0 AND owner = $1", from, owner).first().find()
@@ -424,56 +479,104 @@ class ClientSynchronizationManager(owner: String) {
                         this.owner = owner
                         this.customNickname = from
                     }, UpdatePolicy.ALL)
+                Log.d("ClientSyncManager", "Created/Used RosterStorageItem for jid=$from")
 
-                val chat = query<LastChatsStorageItem>("jid = $0 AND owner = $1 AND conversationType_ = $2", from, owner, "urn:xabber:chat").first().find()
+                val chat = query<LastChatsStorageItem>("jid = $0 AND owner = $1 AND conversationType_ = $2", to, owner, conversationType).first().find()
                 val message = copyToRealm(MessageStorageItem().apply {
-                    primary = MessageStorageItem.genPrimary(id, owner)
-                    this.messageId = id
-                    this.owner = owner
-                    this.opponent = from
-                    this.body = body
+                    primary = MessageStorageItem.genPrimary(messageId, owner)
+                    this.messageId = messageId
+                    this.owner = owner // Set owner explicitly
+                    this.opponent = to // Use 'to' for carbon messages (destination chat)
+                    this.body = body ?: "" // Ensure body is set
                     this.date = timestamp
                     this.sentDate = timestamp
                     this.editDate = 0L
-                    this.outgoing = to == owner
-                    this.conversationType_ = "urn:xabber:chat"
-                    this.isRead = false
-                    this.state = MessageStorageItem.MessageSendingState.SENT
+                    this.outgoing = from == owner // Set outgoing based on from
+                    this.conversationType_ = conversationType
+                    this.isRead = from == owner // Outgoing messages are read
+                    this.state = if (from == owner) MessageStorageItem.MessageSendingState.DELIVERED else MessageStorageItem.MessageSendingState.SENT
                 }, UpdatePolicy.ALL)
+                Log.d("ClientSyncManager", "Saved message $messageId for jid=$to in receiveClientSyncRaw")
 
                 if (chat == null) {
                     copyToRealm(LastChatsStorageItem().apply {
-                        primary = LastChatsStorageItem.genPrimary(from, owner, ConversationType.Regular)
-                        this.jid = from
+                        primary = LastChatsStorageItem.genPrimary(to, owner, ConversationType.fromRaw(conversationType))
+                        this.jid = to
                         this.owner = owner
-                        this.conversationType_ = "urn:xabber:chat"
+                        this.conversationType_ = conversationType
                         this.isArchived = false
-                        this.unread = 1
+                        this.unread = if (from == owner) 0 else 1
                         this.messageDate = timestamp
-                        this.lastMessageId = id
+                        this.lastMessageId = messageId
                         this.pinnedPosition = 0
                         this.muteExpired = -1
                         this.rosterItem = rosterItem
                         this.lastMessage = message
                     }, UpdatePolicy.ALL)
-                    Log.d("ClientSyncManager", "Created new LastChatsStorageItem for jid $from in receiveClientSyncRaw")
+                    Log.d("ClientSyncManager", "Created new LastChatsStorageItem for jid=$to in receiveClientSyncRaw")
                 } else {
                     findLatest(chat)?.apply {
-                        this.unread += 1
+                        this.unread = if (from == owner) this.unread else this.unread + 1
                         this.messageDate = timestamp
-                        this.lastMessageId = id
+                        this.lastMessageId = messageId
                         this.lastMessage = message
                         this.isArchived = false
                     }
-                    Log.d("ClientSyncManager", "Updated LastChatsStorageItem for jid $from in receiveClientSyncRaw")
+                    Log.d("ClientSyncManager", "Updated LastChatsStorageItem for jid=$to in receiveClientSyncRaw")
                 }
-                Log.d("ClientSyncManager", "Saved message $id for jid $from in receiveClientSyncRaw")
+                // Log MessageStorageItem entries
+                query<MessageStorageItem>("messageId = $0", messageId).find().forEach { item ->
+                    Log.d(
+                        "ClientSyncManager",
+                        "MessageStorageItem: primary=${item.primary}, messageId=${item.messageId}, owner=${item.owner}, " +
+                                "opponent=${item.opponent}, body=${item.body}, date=${item.date}, sentDate=${item.sentDate}, " +
+                                "editDate=${item.editDate}, outgoing=${item.outgoing}, conversationType_=${item.conversationType_}, " +
+                                "isRead=${item.isRead}, state=${item.state}"
+                    )
+                }
+                // Log LastChatsStorageItem
+                query<LastChatsStorageItem>("jid = $0 AND owner = $1", to, owner).find().forEach { item ->
+                    Log.d(
+                        "ClientSyncManager",
+                        "LastChatsStorageItem: primary=${item.primary}, jid=${item.jid}, owner=${item.owner}, " +
+                                "conversationType_=${item.conversationType_}, isArchived=${item.isArchived}, unread=${item.unread}, " +
+                                "messageDate=${item.messageDate}, lastMessageId=${item.lastMessageId}"
+                    )
+                }
             }
             checkLastChats()
         } catch (e: Exception) {
-            Log.e("ClientSyncManager", "Failed to parse message in receiveClientSyncRaw: ${e.message}")
+            Log.e("ClientSyncManager", "Failed to parse message in receiveClientSyncRaw: ${e.message}", e)
         }
     }
+
+
+    @RequiresApi(Build.VERSION_CODES.O)
+    fun logLastChatsStorageItems(owner: String, jid: String? = null) {
+        Log.d("Account", "Logging LastChatsStorageItem entries for owner: $owner")
+        try {
+            realm.query<LastChatsStorageItem>(
+                query = if (jid.isNullOrEmpty()) {
+                    "owner = $0"
+                } else {
+                    "owner = $0 AND jid = $1"
+                },
+                owner, jid
+            ).find().forEach { item ->
+                Log.d(
+                    "Account",
+                    "LastChatsStorageItem: primary=${item.primary}, jid=${item.jid}, owner=${item.owner}, " +
+                            "conversationType_=${item.conversationType_}, isArchived=${item.isArchived}, unread=${item.unread}, " +
+                            "messageDate=${item.messageDate}, lastMessageId=${item.lastMessageId}, pinnedPosition=${item.pinnedPosition}, " +
+                            "muteExpired=${item.muteExpired}"
+                )
+            }
+            Log.d("Account", "Finished logging LastChatsStorageItem entries")
+        } catch (e: Exception) {
+            Log.e("Account", "Error querying LastChatsStorageItem: ${e.message}", e)
+        }
+    }
+
 
     private suspend fun checkLastChats() {
         if (owner.isBlank()) {

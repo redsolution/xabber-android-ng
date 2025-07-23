@@ -81,7 +81,7 @@ class PresenceManager(private val owner: String, private val socket: Socket) {
         }
     }
 
-    fun processPresence(presenceXml: String) {
+    fun processPresence(presenceXml: String): Boolean {
         try {
             val presence = xml.decodeFromString<Presence>(presenceXml)
             when (presence.type) {
@@ -91,8 +91,10 @@ class PresenceManager(private val owner: String, private val socket: Socket) {
                 null -> didReceiveContactPresence(presence)
                 else -> Log.d("PresenceManager", "Unhandled presence type: ${presence.type}")
             }
+            return true
         } catch (e: Exception) {
-            Log.e("PresenceManager", "Failed to parse/process presence: ${e.message}", e)
+            Log.e("PresenceManager", "Failed to parse/process presence: ${e.message}, stanza: ${presenceXml.take(200)}", e)
+            return false
         }
     }
 

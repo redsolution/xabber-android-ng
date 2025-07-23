@@ -62,7 +62,7 @@ class ChatListViewModel : ViewModel() {
         withContext(Dispatchers.IO) {
             realm.write {
                 val chats = query<LastChatsStorageItem>(
-                    "conversationType_ IN {'${ConversationType.Regular.rawValue}', '${ConversationType.Group.rawValue}', '${ConversationType.Channel.rawValue}', '${ConversationType.Saved.rawValue}'}"
+                    "conversationType_ IN {'${ConversationType.Regular.rawValue}', '${ConversationType.Group.rawValue}', '${ConversationType.Channel.rawValue}', '${ConversationType.Favorites.rawValue}'}"
                 ).find()
                 Log.d("ChatListViewModel", "LastChatsStorageItem count: ${chats.size}")
                 chats.forEach { chat ->
@@ -79,7 +79,7 @@ class ChatListViewModel : ViewModel() {
                 LastChatsStorageItem::class,
                 "jid = $0 AND conversationType_ = $1",
                 jid,
-                ConversationType.Saved.rawValue
+                ConversationType.Favorites.rawValue
             ).first().find() != null
         }
         Log.d("ChatListViewModel", "isSavedHas for jid $jid: $exists")
@@ -110,9 +110,9 @@ class ChatListViewModel : ViewModel() {
         job?.cancel()
         val accounts = getEnableAccountList()
         val query = if (showUnreadOnly.value == true) {
-            "owner IN {${accounts.joinToString { "'$it'" }}} AND isArchived = false AND unread > 0 AND conversationType_ IN {'${ConversationType.Regular.rawValue}', '${ConversationType.Group.rawValue}', '${ConversationType.Channel.rawValue}', '${ConversationType.Saved.rawValue}'}"
+            "owner IN {${accounts.joinToString { "'$it'" }}} AND isArchived = false AND unread > 0 AND conversationType_ IN {'${ConversationType.Regular.rawValue}', '${ConversationType.Group.rawValue}', '${ConversationType.Channel.rawValue}', '${ConversationType.Favorites.rawValue}'}"
         } else {
-            "owner IN {${accounts.joinToString { "'$it'" }}} AND isArchived = false AND conversationType_ IN {'${ConversationType.Regular.rawValue}', '${ConversationType.Group.rawValue}', '${ConversationType.Channel.rawValue}', '${ConversationType.Saved.rawValue}'}"
+            "owner IN {${accounts.joinToString { "'$it'" }}} AND isArchived = false AND conversationType_ IN {'${ConversationType.Regular.rawValue}', '${ConversationType.Group.rawValue}', '${ConversationType.Channel.rawValue}', '${ConversationType.Favorites.rawValue}'}"
         }
         Log.d("ChatListViewModel", "Querying chats with: $query")
         job = viewModelScope.launch(Dispatchers.IO) {
@@ -173,9 +173,9 @@ class ChatListViewModel : ViewModel() {
     fun getChatList() {
         val accounts = getEnableAccountList()
         val query = if (showUnreadOnly.value == true) {
-            "owner IN {${accounts.joinToString { "'$it'" }}} AND isArchived = false AND unread > 0 AND conversationType_ IN {'${ConversationType.Regular.rawValue}', '${ConversationType.Group.rawValue}', '${ConversationType.Channel.rawValue}', '${ConversationType.Saved.rawValue}'}"
+            "owner IN {${accounts.joinToString { "'$it'" }}} AND isArchived = false AND unread > 0 AND conversationType_ IN {'${ConversationType.Regular.rawValue}', '${ConversationType.Group.rawValue}', '${ConversationType.Channel.rawValue}', '${ConversationType.Favorites.rawValue}'}"
         } else {
-            "owner IN {${accounts.joinToString { "'$it'" }}} AND isArchived = false AND conversationType_ IN {'${ConversationType.Regular.rawValue}', '${ConversationType.Group.rawValue}', '${ConversationType.Channel.rawValue}', '${ConversationType.Saved.rawValue}'}"
+            "owner IN {${accounts.joinToString { "'$it'" }}} AND isArchived = false AND conversationType_ IN {'${ConversationType.Regular.rawValue}', '${ConversationType.Group.rawValue}', '${ConversationType.Channel.rawValue}', '${ConversationType.Favorites.rawValue}'}"
         }
         Log.d("ChatListViewModel", "Fetching chats with query: $query")
         viewModelScope.launch(Dispatchers.IO) {
@@ -240,12 +240,12 @@ class ChatListViewModel : ViewModel() {
             realm.writeBlocking {
                 val items = this.query(
                     LastChatsStorageItem::class,
-                    "conversationType_ IN {'${ConversationType.Regular.rawValue}', '${ConversationType.Group.rawValue}', '${ConversationType.Channel.rawValue}', '${ConversationType.Saved.rawValue}'}"
+                    "conversationType_ IN {'${ConversationType.Regular.rawValue}', '${ConversationType.Group.rawValue}', '${ConversationType.Channel.rawValue}', '${ConversationType.Favorites.rawValue}'}"
                 ).find()
                 items.forEach { findLatest(it)?.unread = 0 }
                 val messages = this.query(
                     MessageStorageItem::class,
-                    "conversationType_ IN {'${ConversationType.Regular.rawValue}', '${ConversationType.Group.rawValue}', '${ConversationType.Channel.rawValue}', '${ConversationType.Saved.rawValue}'}"
+                    "conversationType_ IN {'${ConversationType.Regular.rawValue}', '${ConversationType.Group.rawValue}', '${ConversationType.Channel.rawValue}', '${ConversationType.Favorites.rawValue}'}"
                 ).find()
                 messages.forEach { findLatest(it)?.isRead = true }
             }
@@ -287,7 +287,7 @@ class ChatListViewModel : ViewModel() {
         realm.writeBlocking {
             val lastChats = this.query(
                 LastChatsStorageItem::class,
-                "conversationType_ IN {'${ConversationType.Regular.rawValue}', '${ConversationType.Group.rawValue}', '${ConversationType.Channel.rawValue}', '${ConversationType.Saved.rawValue}'}"
+                "conversationType_ IN {'${ConversationType.Regular.rawValue}', '${ConversationType.Group.rawValue}', '${ConversationType.Channel.rawValue}', '${ConversationType.Favorites.rawValue}'}"
             ).find()
             if (lastChats.isNotEmpty()) result = false
             Log.d("ChatListViewModel", "chatIsEmpty: ${lastChats.size} regular chats found")

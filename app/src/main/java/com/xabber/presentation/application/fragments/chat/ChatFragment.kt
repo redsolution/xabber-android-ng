@@ -1,6 +1,5 @@
 package com.xabber.presentation.application.fragments.chat
 
-
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.ClipData
@@ -24,6 +23,7 @@ import android.widget.PopupMenu
 import android.widget.PopupWindow
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AlertDialog
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.ContextCompat
@@ -40,10 +40,12 @@ import com.aghajari.emojiview.AXEmojiManager
 import com.aghajari.emojiview.googleprovider.AXGoogleEmojiProvider
 import com.aghajari.emojiview.view.AXSingleEmojiView
 import com.xabber.R
+import com.xabber.common.AccountManager
 import com.xabber.data_base.defaultRealmConfig
 import com.xabber.data_base.models.last_chats.LastChatsStorageItem
 import com.xabber.data_base.models.messages.MessageDisplayType
 import com.xabber.data_base.models.messages.MessageSendingState
+import com.xabber.data_base.models.messages.MessageStorageItem
 import com.xabber.data_base.models.presences.ResourceStatus
 import com.xabber.data_base.models.presences.RosterItemEntity
 import com.xabber.databinding.FragmentChatBinding
@@ -59,7 +61,6 @@ import com.xabber.presentation.AppConstants.DELETING_MESSAGE_FOR_ALL_BUNDLE_KEY
 import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.application.dialogs.*
 import com.xabber.presentation.application.fragments.DetailBaseFragment
-
 import com.xabber.presentation.application.fragments.chat.audio.AudioRecorder
 import com.xabber.presentation.application.fragments.chat.audio.PublishAudioProgress
 import com.xabber.presentation.application.fragments.chat.audio.VoiceMessagePresenterManager
@@ -80,16 +81,13 @@ import java.io.File
 import java.io.FileInputStream
 import java.io.IOException
 import java.io.InputStream
-import java.lang.Runnable
 import java.util.*
 import java.util.concurrent.TimeUnit
 import kotlin.collections.ArrayList
 import kotlin.experimental.and
 
-
 class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.MenuItemListener,
-    MessageAdapter.OnViewClickListener,
-    ReplySwipeCallback.SwipeAction {
+    MessageAdapter.OnViewClickListener, ReplySwipeCallback.SwipeAction {
     private val binding by viewBinding(FragmentChatBinding::bind)
     private val handler = Handler(Looper.getMainLooper())
     private var messageAdapter: MessageAdapter? = null
@@ -116,7 +114,6 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
 
     val realm = Realm.open(defaultRealmConfig())
 
-
     private val requestAudioPermissionResult = registerForActivityResult(
         ActivityResultContracts.RequestPermission(),
         ::onGotAudioPermissionResult
@@ -133,10 +130,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     }
 
     private val reply = Runnable {
-        if (replyingMessage != null)
-            replyMessage(
-                replyingMessage!!
-            )
+        if (replyingMessage != null) replyMessage(replyingMessage!!)
     }
 
     private val unreadShower = {
@@ -162,8 +156,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     }
 
     private val record = Runnable {
-        val outputDir =
-            context?.getExternalFilesDir(null) // Получаем директорию, где будет сохраняться файл
+        val outputDir = context?.getExternalFilesDir(null)
         val fileName = "${System.currentTimeMillis()} audio_file.mp4"
         val outputPath = File(outputDir, fileName).absolutePath
         audioRecorder.startRecord(outputPath)
@@ -182,9 +175,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         val bot = TranslateAnimation(0f, 0f, 0f, 40f)
         bot.duration = 200L
         bot.setAnimationListener(object : Animation.AnimationListener {
-            override fun onAnimationStart(p0: Animation?) {
-            }
-
+            override fun onAnimationStart(p0: Animation?) {}
             override fun onAnimationEnd(p0: Animation?) {
                 binding.linRecordLock.isVisible = false
                 binding.frameStop.isVisible = true
@@ -194,9 +185,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
                 binding.record.cancelRecordLayout.isVisible = true
                 currentVoiceRecordingState = VoiceRecordState.StoppedRecording
             }
-
-            override fun onAnimationRepeat(p0: Animation?) {
-            }
+            override fun onAnimationRepeat(p0: Animation?) {}
         })
         binding.imLockBar.animate().y(0f).translationY(25f).setDuration(200).start()
         binding.imLockBar.isVisible = false
@@ -212,13 +201,11 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         }
     }
 
-    private fun getParams(): ChatParams =
-        requireArguments().parcelable(AppConstants.CHAT_PARAMS)!!
+    private fun getParams(): ChatParams = requireArguments().parcelable(AppConstants.CHAT_PARAMS)!!
 
+    @RequiresApi(Build.VERSION_CODES.O)
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-
-
         val chat = viewModel.loadChat(getParams().id)
         if (chat == null) navigator().closeDetail()
         else {
@@ -232,7 +219,11 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
             viewModel.initChatDataListener(getParams().id)
             viewModel.initMessagesListener(chat.owner, chat.opponentJid)
             viewModel.loadChat(getParams().id)
+            viewModel.queryRecentMessages(chat.opponentJid)
+            AccountManager.registerChatViewModel(getParams().id, viewModel)
             activity?.onBackPressedDispatcher?.addCallback(onBackPressedCallback)
+            // Log chat details for debugging
+            Log.d("ChatFragment", "Opening chat: id=${getParams().id}, owner=${chat.owner}, opponentJid=${chat.opponentJid}")
         }
         if (savedInstanceState != null) restoreState(savedInstanceState)
         else {
@@ -249,28 +240,28 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         setupMuteIcon(chat.muteExpired)
     }
 
+    private fun onOrientationChange() {
+        updateToolbarNavigation()
+    }
 
     private fun updateToolbarNavigation() {
         when (resources.configuration.orientation) {
             Configuration.ORIENTATION_PORTRAIT -> {
                 binding.toolbar.setNavigationIcon(R.drawable.ic_arrow_left_white)
-                binding.toolbar.setNavigationOnClickListener {
-                    navigator().closeDetail()
-                }
+                binding.toolbar.setNavigationOnClickListener { navigator().closeDetail() }
             }
             Configuration.ORIENTATION_LANDSCAPE -> {
-                binding.toolbar.setNavigationIcon(null) // Remove the back button
-                binding.toolbar.setNavigationOnClickListener(null) // Clear the listener
+                binding.toolbar.setNavigationIcon(null)
+                binding.toolbar.setNavigationOnClickListener(null)
             }
         }
     }
-    private fun onOrientationChange() {
-        updateToolbarNavigation()
-    }
+
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
-        updateToolbarNavigation() // Update toolbar when orientation changes
+        updateToolbarNavigation()
     }
+
     private fun loadContactAvatar() {
         binding.avatar.setImageResource(getParams().avatar!!)
     }
@@ -284,28 +275,21 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         val statusTint = StatusMaker.statusTint(ResourceStatus.DND)
         if (statusIcon != null) {
             binding.avatarStatus.isVisible = true
-//            binding.avatarStatus.setImageResource(statusIcon)
-//            binding.avatarStatus.setColorFilter(
-//                ContextCompat.getColor(requireContext(), statusTint),
-//                PorterDuff.Mode.SRC_IN
-//            )
-        } else binding.avatarStatus.isVisible = false
+            // binding.avatarStatus.setImageResource(statusIcon)
+            // binding.avatarStatus.setColorFilter(ContextCompat.getColor(requireContext(), statusTint), PorterDuff.Mode.SRC_IN)
+        } else {
+            binding.avatarStatus.isVisible = false
+        }
     }
 
     private fun setupMuteIcon(muteExpired: Long) {
-        val imageResource =
-            if (muteExpired - System.currentTimeMillis() <= 0) null else if (
-                (muteExpired - System.currentTimeMillis()) > TimeMute.DAY1.time)
-                R.drawable.ic_bell_off_light_grey_mini else R.drawable.ic_bell_sleep_light_grey_mini
+        val imageResource = if (muteExpired - System.currentTimeMillis() <= 0) null
+        else if ((muteExpired - System.currentTimeMillis()) > TimeMute.DAY1.time) R.drawable.ic_bell_off_light_grey_mini
+        else R.drawable.ic_bell_sleep_light_grey_mini
         var drawable: Drawable? = null
-        if (imageResource != null) drawable =
-            ContextCompat.getDrawable(requireContext(), imageResource)
-        binding.tvChatTitle.setCompoundDrawablesWithIntrinsicBounds(
-            null, null, drawable, null
-        )
+        if (imageResource != null) drawable = ContextCompat.getDrawable(requireContext(), imageResource)
+        binding.tvChatTitle.setCompoundDrawablesWithIntrinsicBounds(null, null, drawable, null)
     }
-
-//upper border
 
     private fun initializeToolbarActions(chat: ChatListDto) {
         binding.avatar.setOnClickListener { anchor ->
@@ -322,21 +306,16 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
                 }
             }
         }
-        initToolbarMenu(chat) // Just call this
+        initToolbarMenu(chat)
     }
-
 
     private fun initToolbarMenu(chat: ChatListDto) {
         binding.menu.setOnClickListener {
             val popup = PopupMenu(binding.menu.context, binding.menu)
             popup.menuInflater.inflate(R.menu.menu_toolbar_chat, popup.menu)
-
-            // Set initial visibility based on mute status
             val muteExpired = chat.muteExpired - System.currentTimeMillis()
             popup.menu.findItem(R.id.enable_notifications).isVisible = muteExpired > 0
             popup.menu.findItem(R.id.disable_notifications).isVisible = muteExpired <= 0
-
-            // Handle menu item clicks
             popup.setOnMenuItemClickListener { menuItem ->
                 when (menuItem.itemId) {
                     R.id.call_out -> sendIncomingMessages(chat.owner, chat.opponentJid)
@@ -347,7 +326,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
                 }
                 true
             }
-            popup.show() // Show the popup
+            popup.show()
         }
     }
 
@@ -362,7 +341,6 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         binding.chatInput.setText(messageText)
         isSelectedMode = savedInstanceState.getBoolean(AppConstants.CHAT_SELECTION_MODE_KEY)
         enableSelectionMode(isSelectedMode)
-
         if (savedInstanceState != null) {
             val voiceRecordPath = savedInstanceState.getString("VOICE_MESSAGE")
             ignoreReceiver = savedInstanceState.getBoolean("VOICE_MESSAGE_RECEIVER_IGNORE")
@@ -384,10 +362,8 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
 
     private fun scrollToLastPosition() {
         val lastPosition = viewModel.loadChat(getParams().id)?.lastPosition
-
         if (!lastPosition.isNullOrEmpty()) {
-            val messagePosition =
-                viewModel.getPositionMessage(lastPosition)
+            val messagePosition = viewModel.getPositionMessage(lastPosition)
             binding.messageList.post { layoutManager?.scrollToPosition(messagePosition) }
             viewModel.saveLastPosition(getParams().id, "")
         }
@@ -396,8 +372,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     private fun setupInputButtons() {
         binding.btnRecord.isVisible = binding.chatInput.text.toString().trimEnd().isEmpty()
         binding.buttonAttach.isVisible = binding.chatInput.text.toString().trimEnd().isEmpty()
-        binding.buttonSendMessage.isVisible =
-            binding.chatInput.text.toString().trimEnd().isNotEmpty()
+        binding.buttonSendMessage.isVisible = binding.chatInput.text.toString().trimEnd().isNotEmpty()
     }
 
     private fun disableNotifications() {
@@ -407,7 +382,6 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
 
     private fun enableNotifications() {
         viewModel.setMute(getParams().id, enableNotificationsCode)
-        // No need to manipulate menu visibility here; it will update on next PopupMenu creation
     }
 
     private fun clearHistory(chat: ChatListDto) {
@@ -422,20 +396,23 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
 
     private fun initializeRecyclerView() {
         val isGroup = viewModel.loadChat(getParams().id)!!.isGroup
-        messageAdapter = MessageAdapter(layoutInflater,
+        messageAdapter = MessageAdapter(
+            layoutInflater,
             this,
             onViewClickListener = this,
-            messages = ArrayList<MessageDto>(), isGroup = isGroup
+            messages = ArrayList<MessageDto>(),
+            isGroup = isGroup,
+            onBindListener = { message -> onBind(message) } // Pass onBind callback
         )
         binding.messageList.adapter = messageAdapter
         layoutManager = LinearLayoutManager(context)
         layoutManager?.stackFromEnd = true
         binding.messageList.layoutManager = layoutManager
-        addSwipeCallback()
-        addMessageHeaderViewDecoration()
-        addScrollListener()
-        fillChat()
-        binding.messageList.itemAnimator = null
+                addSwipeCallback()
+                addMessageHeaderViewDecoration()
+                addScrollListener()
+                fillChat()
+                binding.messageList.itemAnimator = null
     }
 
     private fun addSwipeCallback() {
@@ -446,19 +423,12 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
                 handler.postDelayed(reply, 200)
             }
         }
-
         ItemTouchHelper(replySwipeCallback as ReplySwipeCallback).attachToRecyclerView(binding.messageList)
-
-        binding.messageList.addItemDecoration(
-            object : RecyclerView.ItemDecoration() {
-                override fun onDraw(
-                    c: Canvas,
-                    parent: RecyclerView,
-                    state: RecyclerView.State
-                ) {
-                    replySwipeCallback?.onDraw(c)
-                }
-            })
+        binding.messageList.addItemDecoration(object : RecyclerView.ItemDecoration() {
+            override fun onDraw(c: Canvas, parent: RecyclerView, state: RecyclerView.State) {
+                replySwipeCallback?.onDraw(c)
+            }
+        })
     }
 
     private fun addMessageHeaderViewDecoration() {
@@ -470,11 +440,13 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
             override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
                 if (layoutManager != null) {
                     if (layoutManager!!.findLastVisibleItemPosition() >= messageAdapter!!.itemCount - 1) {
-                        binding.downScroller.isVisible =
-                            binding.tvNewReceivedCount.text.isNotEmpty()
+                        binding.downScroller.isVisible = binding.tvNewReceivedCount.text.isNotEmpty()
                     } else {
-                        if (currentVoiceRecordingState != VoiceRecordState.TouchRecording && currentVoiceRecordingState != VoiceRecordState.InitiatedRecording && currentVoiceRecordingState != VoiceRecordState.NoTouchRecording)
-                            binding.downScroller.isVisible = true
+                        if (currentVoiceRecordingState != VoiceRecordState.TouchRecording &&
+                            currentVoiceRecordingState != VoiceRecordState.InitiatedRecording &&
+                            currentVoiceRecordingState != VoiceRecordState.NoTouchRecording) {
+                            binding.downScroller.isVisible = viewModel.unreadCount.value ?: 0 > 0
+                        }
                     }
                 }
             }
@@ -482,18 +454,26 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
 
         binding.btnDownward.setOnClickListener {
             val lastVisiblePosition = layoutManager!!.findLastVisibleItemPosition()
-            if (viewModel.unreadCount.value == 0 || viewModel.unreadCount.value == null || lastVisiblePosition + 2 >= messageAdapter!!.itemCount - viewModel.unreadCount.value!!) {
+            if (viewModel.unreadCount.value == 0 || viewModel.unreadCount.value == null ||
+                lastVisiblePosition + 2 >= messageAdapter!!.itemCount - viewModel.unreadCount.value!!) {
                 scrollDown()
                 binding.tvNewReceivedCount.text = ""
                 binding.tvNewReceivedCount.isVisible = false
-            } else scrollToFirstUnread()
+            } else {
+                scrollToFirstUnread()
+            }
         }
     }
 
     private fun scrollToFirstUnread() {
-        layoutManager?.scrollToPositionWithOffset(
-            messageAdapter!!.itemCount - viewModel.unreadCount.value!!, 200
-        )
+        val unreadCount = viewModel.unreadCount.value ?: 0
+        if (unreadCount > 0 && messageAdapter != null && messageAdapter!!.itemCount > 0) {
+            val position = maxOf(0, messageAdapter!!.itemCount - unreadCount)
+            Log.d("ChatFragment", "Scrolling to first unread message at position $position")
+            layoutManager?.scrollToPositionWithOffset(position, 200)
+            binding.tvNewReceivedCount.text = unreadCount.toString()
+            binding.tvNewReceivedCount.isVisible = true
+        }
     }
 
     private fun fillChat() {
@@ -510,12 +490,8 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
 
     private fun chatInputAddListener() {
         binding.chatInput.addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {
-            }
-
-            override fun onTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {
-            }
-
+            override fun beforeTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {}
+            override fun onTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {}
             override fun afterTextChanged(p0: Editable?) {
                 setupInputButtons()
             }
@@ -525,21 +501,9 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     private fun initializeButtonEmoji() {
         AXEmojiManager.install(requireContext(), AXGoogleEmojiProvider(requireContext()))
         val emojiView = AXSingleEmojiView(requireContext())
-
         emojiView.editText = binding.chatInput
         binding.emojiPopupLayout.initPopupView(emojiView)
-//        binding.buttonEmoticon.setOnClickListener {
-//            if (binding.emojiPopupLayout.isShowing) {
-//                binding.buttonEmoticon.setImageResource(R.drawable.ic_emoticon_outline)
-//                binding.emojiPopupLayout.hideAndOpenKeyboard()
-//                binding.emojiPopupLayout.hidePopupView()
-//            } else {
-//                binding.buttonEmoticon.setImageResource(R.drawable.ic_keyboard)
-//
-//                binding.emojiPopupLayout.toggle()
-//                binding.chatInput.showSoftInputOnFocus = false
-//            }
-//        }
+        // binding.buttonEmoticon.setOnClickListener { ... } // Commented out as per original
     }
 
     private fun initializeButtonAttach() {
@@ -568,7 +532,6 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
                         binding.replyMessageContent.text.toString()
                     )
                 }
-
                 val text = binding.chatInput.text.toString().trim()
                 binding.chatInput.text?.clear()
                 val chat = viewModel.loadChat(getParams().id)
@@ -578,19 +541,22 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
                     MessageDto(
                         "$timeStamp",
                         true,
-                        viewModel.loadChat(getParams().id)!!.owner,
-                        viewModel.loadChat(getParams().id)!!.opponentJid,
+                        chat!!.owner,
+                        chat.opponentJid,
                         text,
                         MessageSendingState.Deliver,
                         timeStamp,
                         0,
                         MessageDisplayType.Text,
-                        false,
-                        false,
+                        true,
+                        true,
                         null,
                         isSelected = false,
-                        isUnread = true,
-                        isGroup = false
+                        isUnread = false,
+                        isGroup = chat.isGroup,
+                        kind = messageKindDto,
+                        references = ArrayList(),
+                        isChecked = false
                     )
                 )
                 binding.answer.isVisible = false
@@ -601,13 +567,10 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
 
     @SuppressLint("ClickableViewAccessibility")
     private fun initializeButtonRecord() {
-        binding.btnRecord.setOnTouchListener { _: View?, motionEvent: MotionEvent ->
+        binding.btnRecord.setOnTouchListener { _, motionEvent ->
             when (motionEvent.action and MotionEvent.ACTION_MASK) {
                 MotionEvent.ACTION_DOWN -> {
-                    if (isPermissionGranted(
-                            Manifest.permission.RECORD_AUDIO
-                        )
-                    ) {
+                    if (isPermissionGranted(Manifest.permission.RECORD_AUDIO)) {
                         if (currentVoiceRecordingState == VoiceRecordState.NotRecording)
                             startAudioRecord()
                         recordSaveAllowed = false
@@ -649,9 +612,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
                         }
                         else -> {
                             binding.record.chrRecordingTimer.stop()
-
-                            val animRight =
-                                AnimationUtils.loadAnimation(context, R.anim.slide_to_right)
+                            val animRight = AnimationUtils.loadAnimation(context, R.anim.slide_to_right)
                             binding.record.recordLayout.startAnimation(animRight)
                             binding.record.recordLayout.isVisible = false
                             binding.linRecordLock.isVisible = false
@@ -660,9 +621,8 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
                             handler.removeCallbacks(timer)
                             stopTypingTimer?.cancel()
                             navigator().lockScreen(false)
-                            if (saveAudioMessage && isPermissionGranted(Manifest.permission.RECORD_AUDIO)) sendVoiceMessage(
-                                audioRecorder.getRecordedFilePath()!!
-                            )
+                            if (saveAudioMessage && isPermissionGranted(Manifest.permission.RECORD_AUDIO))
+                                sendVoiceMessage(audioRecorder.getRecordedFilePath()!!)
                             hideRecordPanel()
                             currentVoiceRecordingState = VoiceRecordState.NotRecording
                         }
@@ -671,8 +631,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
                 MotionEvent.ACTION_MOVE -> {
                     when {
                         motionEvent.y < -55 -> {
-                            val params =
-                                binding.imLockBar.layoutParams as ConstraintLayout.LayoutParams
+                            val params = binding.imLockBar.layoutParams as ConstraintLayout.LayoutParams
                             params.bottomMargin = 0
                             binding.imLockBar.layoutParams = params
                             if (!isVibrate) shortVibrate()
@@ -682,32 +641,26 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
                             handler.post(shake)
                         }
                         motionEvent.y < 0 -> {
-
                             isVibrate = false
                             binding.imLock.clearAnimation()
                             binding.imLockBar.clearAnimation()
                             binding.spaceLock.animate().y(motionEvent.y).start()
-                            val params =
-                                binding.imLockBar.layoutParams as ConstraintLayout.LayoutParams
+                            val params = binding.imLockBar.layoutParams as ConstraintLayout.LayoutParams
                             params.bottomMargin = -motionEvent.y.toInt() / 4
-                            if (params.bottomMargin in 2..11) binding.imLockBar.layoutParams =
-                                params
+                            if (params.bottomMargin in 2..11) binding.imLockBar.layoutParams = params
                             currentVoiceRecordingState = VoiceRecordState.TouchRecording
                         }
                     }
                     val alpha = 1f + motionEvent.x / 400f
-                    // Если идет запись
                     if (motionEvent.x < 0) {
                         binding.record.slideLayout.animate().x(motionEvent.x).start()
-                    } else binding.record.slideLayout.animate().x(0f).start()
-
+                    } else {
+                        binding.record.slideLayout.animate().x(0f).start()
+                    }
                     binding.record.slideLayout.alpha = alpha
-
                     if (alpha <= 0) {
-
                         saveAudioMessage = false
-                        val animRight =
-                            AnimationUtils.loadAnimation(context, R.anim.slide_to_right)
+                        val animRight = AnimationUtils.loadAnimation(context, R.anim.slide_to_right)
                         binding.record.recordLayout.startAnimation(animRight)
                         binding.record.recordLayout.isVisible = false
                         hideRecordPanel()
@@ -715,9 +668,9 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
                         currentVoiceRecordingState = VoiceRecordState.NotRecording
                     }
                 }
-            }; true
+            }
+            true
         }
-
 
         binding.frameStop.setOnClickListener {
             binding.frameStop.isVisible = false
@@ -754,7 +707,6 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
                 clearVoiceMessage()
             }
         }
-
     }
 
     private fun subscribeToChatData(chat: ChatListDto) {
@@ -770,16 +722,18 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
 
         viewModel.muteExpired.observe(viewLifecycleOwner) {
             if (it != null) setupMuteIcon(it)
-            // No need to call setupToolbarMenu(it) here; visibility is handled in initToolbarMenu
         }
 
-        viewModel.messages.observe(viewLifecycleOwner) {
-            messageAdapter?.updateAdapter(it)
+        viewModel.messages.observe(viewLifecycleOwner) { messages ->
+            messageAdapter?.updateAdapter(messages)
             messageAdapter?.notifyDataSetChanged()
-            if (layoutManager != null && messageAdapter != null) {
-                if (layoutManager!!.findLastVisibleItemPosition() >= messageAdapter!!.itemCount - 2 && !isSelectedMode) scrollDown()
-                if (it.isNotEmpty()) isNeedScrollDown = it[it.size - 1].isOutgoing
-                if (isNeedScrollDown) {
+            Log.d("ChatFragment", "Messages updated: ${messages.size} messages, messages=${messages.map { it.primary to it.messageBody.take(50) }}")
+            if (layoutManager != null && messageAdapter != null && messages.isNotEmpty()) {
+                if (layoutManager!!.findLastVisibleItemPosition() >= messageAdapter!!.itemCount - 2 && !isSelectedMode) {
+                    scrollDown()
+                }
+                if (messages[messages.size - 1].isOutgoing) {
+                    isNeedScrollDown = true
                     scrollDown()
                     isNeedScrollDown = false
                 }
@@ -788,33 +742,29 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
 
         viewModel.unreadCount.observe(viewLifecycleOwner) { unread ->
             if (!isAdded || !lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
-                return@observe // Skip if fragment is not attached or not started
+                return@observe
             }
-
-            val chatId = getParams().id
-            try {
-                lifecycleScope.launch(Dispatchers.Main) {
-                    realm.writeBlocking {
-                        val chat = this.query(LastChatsStorageItem::class, "primary = '$chatId'").first().find()
-                        if (chat != null) {
-                            findLatest(chat)?.unread = unread
-                        }
+            Log.d("ChatFragment", "Unread count updated: $unread")
+            lifecycleScope.launch(Dispatchers.Main) {
+                realm.writeBlocking {
+                    val chat = query(LastChatsStorageItem::class, "primary = '${getParams().id}'").first().find()
+                    if (chat != null) {
+                        findLatest(chat)?.unread = unread
                     }
-                    handler.postDelayed(unreadShower, 10)
                 }
-            } catch (e: CancellationException) {
-                Log.w("ChatFragment", "Realm write canceled due to lifecycle change: ${e.message}")
-                // Handle cancellation gracefully; no need to crash
-            } catch (e: Exception) {
-                Log.e("ChatFragment", "Error updating unread count: ${e.message}", e)
+                showUnreadBadge(unread)
+                if (unread > 0 && layoutManager != null && messageAdapter != null) {
+                    binding.downScroller.isVisible = true
+                } else {
+                    binding.downScroller.isVisible = false
+                }
             }
         }
 
         viewModel.selectedCount.observe(viewLifecycleOwner) {
             if (it > 0) {
                 binding.selectMessagesToolbar.tvMessagesCount.text = it.toString()
-                binding.selectMessagesToolbar.toolbarSelectedMessages.menu.findItem(R.id.edit_message).isVisible =
-                    it == 1 && viewModel.isOutgoing()
+                binding.selectMessagesToolbar.toolbarSelectedMessages.menu.findItem(R.id.edit_message).isVisible = it == 1 && viewModel.isOutgoing()
                 binding.interaction.linReply.isVisible = it == 1
             } else {
                 enableSelectionMode(false)
@@ -843,7 +793,8 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
                 R.id.delete_message -> {
                     delete()
                 }
-            }; true
+            }
+            true
         }
     }
 
@@ -861,60 +812,52 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
                 delay(300)
                 navigator().showForwardFragment(text, viewModel.getAccount(chat!!.owner)?.jid ?: "")
             }
-
         }
     }
 
     private fun sendIncomingMessages(owner: String, opponentJid: String) {
         var a = 0
-        var textRandom = arrayListOf<String>(
+        val textRandom = arrayListOf(
             "Привет",
             "Компания «Ростелеком» открыла новый сезон строительства оптических линий связи на Южном Урале. Первым объектом для подключения стал жилой дом Челябинска в ЖК «Ньютон» на Комсомольском проспекте, 141. После его сдачи жители 132 квартир смогут пользоваться интернетом на скорости до 1 Гбит/с.",
             "Да",
             "В торжественной презентации старта нового сезона стройки приняли участие хоккеисты"
         )
-        val references1 = ArrayList<MessageReferenceDto>()
-        references1.add(MessageReferenceDto("$a 1 ${System.currentTimeMillis()}", isGeo = true, latitude = 56.98, longitude = 67.09, size = 0L))
-
-
-
-
-        val mes = ArrayList<MessageDto>()
-      lifecycleScope.launch() {
-            for (i in 0 until 1000) {
+        val references = ArrayList<MessageReferenceDto>()
+        references.add(MessageReferenceDto("$a 1 ${System.currentTimeMillis()}", isGeo = true, latitude = 56.98, longitude = 67.09, size = 0L))
+        lifecycleScope.launch {
+            for (i in 0 until 10) { // Reduced for testing
                 delay(1000)
                 a++
-               val m =
-                    MessageDto(
-                        "$a ${opponentJid} ${System.currentTimeMillis()}",
-                        false,
-                        owner,
-                        opponentJid,
-                        "$a " + textRandom.random(),
-                        MessageSendingState.Deliver,
-                        System.currentTimeMillis(),
-                        0,
-                        MessageDisplayType.System,
-                        false,
-                        false,
-                        null,
-                        isUnread = true,
-                        isGroup = false
-                    )
+                val m = MessageDto(
+                    "$a $opponentJid ${System.currentTimeMillis()}",
+                    false,
+                    owner,
+                    opponentJid,
+                    "$a ${textRandom.random()}",
+                    MessageSendingState.Sent,
+                    System.currentTimeMillis(),
+                    0,
+                    MessageDisplayType.Text,
+                    false,
+                    false,
+                    null,
+                    isUnread = true,
+                    isGroup = false,
+                    kind = null,
+                    isSelected = false,
+                    references = references,
+                    isChecked = false
+                )
                 viewModel.insertMessage(getParams().id, m)
-//mes.add(m)
             }
-
-      }
-        isNeedScrollDown =
-            layoutManager!!.findFirstVisibleItemPosition() + 2 >= (messageAdapter!!.itemCount - viewModel.unreadCount.value!!)
+        }
+        isNeedScrollDown = layoutManager!!.findFirstVisibleItemPosition() + 2 >= (messageAdapter!!.itemCount - viewModel.unreadCount.value!!)
     }
 
     private fun onGotGalleryPermissionResult(grantResults: Map<String, Boolean>) {
-        if (grantResults.entries.all { it.value })
-            showAttachBottomSheet()
-        else
-            askUserForOpeningAppSettings()
+        if (grantResults.entries.all { it.value }) showAttachBottomSheet()
+        else askUserForOpeningAppSettings()
     }
 
     private fun showAttachBottomSheet() {
@@ -954,9 +897,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
             val result = bundle.getBoolean(DELETING_MESSAGE_BUNDLE_KEY)
             val forAll = bundle.getBoolean(DELETING_MESSAGE_FOR_ALL_BUNDLE_KEY)
             if (result) {
-                if (id != null) viewModel.deleteMessage(id, forAll) else viewModel.deleteMessages(
-                    forAll
-                )
+                if (id != null) viewModel.deleteMessage(id, forAll) else viewModel.deleteMessages(forAll)
                 enableSelectionMode(false)
             }
         }
@@ -966,27 +907,10 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         if (count > 0) {
             binding.tvNewReceivedCount.text = if (count < 100) count.toString() else "99+"
             binding.tvNewReceivedCount.isVisible = true
-        } else binding.tvNewReceivedCount.isVisible = false
-//        val badgeDrawable = BadgeDrawable.create(requireContext())
-//        badgeDrawable.backgroundColor =
-//            ResourcesCompat.getColor(binding.tvNewReceivedCount.resources, R.color.green_500, null)
-//        badgeDrawable.horizontalOffset = 10.dp
-
-//        badgeDrawable.verticalOffset = 6.dp
-//        badgeDrawable.badgeGravity = BadgeDrawable.BOTTOM_END
-////        binding.tvNewReceivedCount.viewTreeObserver.addOnGlobalLayoutListener(object :
-////            ViewTreeObserver.OnGlobalLayoutListener {
-////            override fun onGlobalLay
-        // out() {
-//                if (count > 0) {
-//                    BadgeUtils.attachBadgeDrawable(badgeDrawable, binding.btnDownward)
-//                    badgeDrawable.number = count
-//                } else BadgeUtils.detachBadgeDrawable(badgeDrawable, binding.tvNewReceivedCount)
-////              binding.tvNewReceivedCount.viewTreeObserver.removeOnGlobalLayoutListener(this)
-////            }
-//      //  })
+        } else {
+            binding.tvNewReceivedCount.isVisible = false
+        }
     }
-
 
     private fun scrollDown() {
         if (messageAdapter != null) binding.messageList.scrollToPosition(messageAdapter?.itemCount!! - 1)
@@ -1005,7 +929,6 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
 
     private fun enableStandardPanelButtons(enable: Boolean) {
         binding.buttonEmoticon.isEnabled = enable
-        //   binding.btnRecord.isEnabled = enable
         binding.buttonAttach.isEnabled = enable
         binding.buttonSendMessage.isEnabled = enable
     }
@@ -1020,8 +943,6 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         binding.linRecordLock.isVisible = true
         shortVibrate()
         binding.btnRecordExpanded.show()
-        //    binding.record.slideLayout.x = 0f
-        //    binding.record.cancelRecordLayout.isVisible = false
     }
 
     private fun manageScreenSleep(keepScreenOn: Boolean) {
@@ -1037,9 +958,8 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         binding.linRecordLock.invalidate()
         enableStandardPanelButtons(true)
         beginTimer(false)
-
         val reference = MessageReferenceDto(
-            "a ${System.currentTimeMillis()},",
+            "a ${System.currentTimeMillis()}",
             uri = path,
             size = 0L,
             isVoiceMessage = true
@@ -1057,13 +977,17 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
                 System.currentTimeMillis(),
                 0,
                 MessageDisplayType.Text,
-                false,
-                false,
+                true,
+                true,
                 null,
-                false, null, false, isUnread = true, references = list
+                isSelected = false,
+                isUnread = false,
+                isGroup = viewModel.loadChat(getParams().id)!!.isGroup,
+                kind = null,
+                references = list,
+                isChecked = false
             )
         )
-
         manageVoiceMessage(recordSaveAllowed)
         hideRecordPanel()
         scrollDown()
@@ -1135,8 +1059,8 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         stopRecordingAndSend(saveMessage)
     }
 
-    private fun stopRecordingAndSend(send: Boolean) {
-        if (send) {
+    private fun stopRecordingAndSend(save: Boolean) {
+        if (save) {
             sendVoiceMessage(audioRecorder.getRecordedFilePath()!!)
             currentVoiceRecordingState = VoiceRecordState.NotRecording
         } else {
@@ -1144,12 +1068,10 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         }
     }
 
-
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putBoolean(AppConstants.CHAT_SELECTION_MODE_KEY, isSelectedMode)
     }
-
 
     override fun copyText(text: String) {
         copyTextMessage(text)
@@ -1157,38 +1079,29 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
 
     override fun pinMessage(messageDto: MessageDto) {
         binding.pinPanel.isVisible = true
-        binding.tvPinOwner.text =
-            if (messageDto.isOutgoing) messageDto.owner else binding.tvChatTitle.text.toString()
+        binding.tvPinOwner.text = if (messageDto.isOutgoing) messageDto.owner else binding.tvChatTitle.text.toString()
         binding.tvPinContent.text = messageDto.messageBody
-
-
         binding.pinPanel.setOnClickListener {
-
-            val position =
-                viewModel.getPositionMessage(viewModel.lastPositionPrimary(messageDto.primary))
+            val position = viewModel.getPositionMessage(viewModel.lastPositionPrimary(messageDto.primary))
             binding.messageList.scrollToPosition(position)
             viewModel.selectMessage(messageDto.primary, true)
             viewModel.getMessageList(getParams().id)
             handler.postDelayed(cancelSelected, 1000)
         }
-
         binding.imPinClose.setOnClickListener {
             binding.pinPanel.isVisible = false
         }
-
     }
 
-
     override fun forwardMessage(messageDto: MessageDto) {
-        val text = "${messageDto.owner} \n ${messageDto.messageBody}"
+        val text = "${messageDto.owner}\n${messageDto.messageBody}"
         val chat = viewModel.loadChat(getParams().id)
         navigator().showForwardFragment(text, viewModel.getAccount(chat!!.owner)?.jid ?: "")
     }
 
     override fun replyMessage(messageDto: MessageDto) {
         binding.answer.isVisible = true
-        binding.replyMessageTitle.text =
-            if (messageDto.isOutgoing) messageDto.owner else binding.tvChatTitle.text.toString()
+        binding.replyMessageTitle.text = if (messageDto.isOutgoing) messageDto.owner else binding.tvChatTitle.text.toString()
         binding.replyMessageContent.text = messageDto.messageBody
         binding.close.setOnClickListener {
             binding.replyMessageTitle.text = ""
@@ -1241,14 +1154,11 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
             binding.toolbar.isVisible = false
             binding.selectMessagesToolbar.toolbarSelectedMessages.isVisible = true
             saveDraft()
-            //  binding.chatPanelGroup.isVisible = false
             binding.interaction.interactionView.isVisible = true
-            //  chatAdapter?.setSelectedMode(true)
             replySwipeCallback?.setSwipeEnabled(false)
             isSelectedMode = true
             Check.setSelectedMode(true)
             viewModel.getMessageList(getParams().id)
-
             binding.buttonEmoticon.isEnabled = false
             binding.buttonAttach.isEnabled = false
             binding.btnRecord.isEnabled = false
@@ -1257,15 +1167,11 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
             val color = baseViewModel.getPrimaryAccount()?.colorKey
             val c = ColorManager.convertColorNameToId(color ?: resources.getString(R.string.blue))
             binding.appbar.setBackgroundResource(c)
-            //   chatAdapter?.setSelectedMode(false)
-            //  binding.chatPanelGroup.isVisible = true
             binding.selectMessagesToolbar.toolbarSelectedMessages.isVisible = false
             binding.interaction.interactionView.isVisible = false
             binding.toolbar.isVisible = true
             val textMessage = binding.chatInput.text.toString().trim()
             if (textMessage.isNotEmpty()) {
-                //   binding.buttonSendMessage.isVisible = true
-                //    binding.buttonAttach.isVisible = false
                 binding.btnRecord.isVisible = false
             }
             Check.setSelectedMode(false)
@@ -1280,7 +1186,6 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         }
     }
 
-
     fun sendMessage(textMessage: String, imagePaths: HashSet<String>?) {
         var messageKindDto: MessageKind? = null
         if (binding.answer.isVisible) {
@@ -1291,66 +1196,47 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
             )
         }
         val imageList = ArrayList<String>()
-        if (imagePaths != null) {
-            imagePaths.forEach {
-
-                imageList.add(it)
-
-            }
-        }
+        imagePaths?.forEach { imageList.add(it) }
         val timeStamp = System.currentTimeMillis()
-        var c = System.currentTimeMillis()
         val chat = viewModel.loadChat(getParams().id)
         viewModel.insertMessage(
             getParams().id,
             MessageDto(
-                "$c",
+                "$timeStamp",
                 true,
-                viewModel.loadChat(getParams().id)!!.owner,
-                viewModel.loadChat(getParams().id)!!.opponentJid,
+                chat!!.owner,
+                chat.opponentJid,
                 textMessage,
                 MessageSendingState.Deliver,
                 timeStamp,
                 0,
                 MessageDisplayType.Text,
-                false,
-                false,
+                true,
+                true,
                 null,
-                false, messageKindDto, false, isUnread = true
+                isSelected = false,
+                isUnread = false,
+                isGroup = chat.isGroup,
+                kind = messageKindDto,
+                references = ArrayList(),
+                isChecked = false
             )
         )
         binding.answer.isVisible = false
         isNeedScrollDown = true
     }
 
-//     private fun scrollToFirstUnread(unreadCount: Int) {
-//        layoutManager.scrollToPositionWithOffset(
-//            chatMessageAdapter.itemCount - unreadCount,
-//            200
-//        )
-//    }
-//
-//      private fun saveState() {
-//        layoutManager.findLastCompletelyVisibleItemPosition()
-//            .takeIf { it != -1 }
-//            ?.let {
-//                chat.saveLastPosition(if (it == chatMessageAdapter.itemCount - 1) 0 else it)
-//            }
-//    }
-
-
+    @RequiresApi(Build.VERSION_CODES.O)
     override fun onDestroyView() {
         super.onDestroyView()
         saveLastPosition()
         saveDraft()
-//        chatListViewModel.selectedChatId = ""
-        val realm = Realm.open(defaultRealmConfig())
+        AccountManager.unregisterChatViewModel(getParams().id) // Unregister ChatViewModel
         onBackPressedCallback.remove()
     }
 
     override fun onDestroy() {
         super.onDestroy()
-
         messageAdapter = null
     }
 
@@ -1368,27 +1254,23 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         }
     }
 
-    private enum class VoiceRecordState {
-        NotRecording, InitiatedRecording, TouchRecording, NoTouchRecording, StoppedRecording
+    fun onBind(message: MessageDto?) {
+        if (message != null && message.isUnread && !message.isOutgoing) {
+            Log.d("ChatFragment", "Marking message as read: primary=${message.primary}")
+            lifecycleScope.launch(Dispatchers.IO) {
+                realm.writeBlocking {
+                    val msg = query(MessageStorageItem::class, "primary = '${message.primary}'").first().find()
+                    if (msg != null && !msg.isRead) {
+                        findLatest(msg)?.isRead = true
+                        val chat = query(LastChatsStorageItem::class, "primary = '${getParams().id}'").first().find()
+                        if (chat != null) {
+                            findLatest(chat)?.unread = maxOf(0, (chat.unread ?: 0) - 1)
+                        }
+                    }
+                }
+            }
+        }
     }
-
-//    override fun onBind(message: MessageDto?) {
-//        if (message != null) {
-//            val id = message.primary
-//            if (message.isUnread) {
-//                realm.writeBlocking {
-//                    val m = this.query(MessageStorageItem::class, "primary = '$id'").first().find()
-//                    if (m != null) {
-//                        findLatest(m).also {
-//                            if (!it!!.isRead) {
-//                                it.isRead = true
-//                            }
-//                        }
-//                    }
-//                }
-//            }
-//        }
-//    }
 
     override fun onImageOrVideoClick(startPosition: Int, messageId: String) {
         val intent = Intent(requireContext(), MediaDetailsActivity::class.java)
@@ -1409,57 +1291,40 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     private val VALID_IMAGE_EXTENSIONS = arrayOf("webp", "jpeg", "jpg", "png", "jpe", "gif")
 
     fun fileIsImage(file: File): Boolean {
-        return extensionIsImage((file.path))
+        return extensionIsImage(file.path)
     }
 
     fun extensionIsImage(path: String?): Boolean {
         if (path == null) return false
         else if (path.isEmpty()) return false
-        else return VALID_IMAGE_EXTENSIONS.contains(path)
+        else return VALID_IMAGE_EXTENSIONS.contains(path.substringAfterLast("."))
     }
 
-
     private fun createWaveformFromAudioData(audioData: ByteArray): ArrayList<Int> {
-        // Здесь следует реализовать логику создания волны из аудио данных
-        // Приведенный здесь код является примером и может потребоваться более сложная логика для создания волны
         val waveform: ArrayList<Int> = ArrayList()
-
-        // Цикл обработки аудио данных
         for (i in audioData.indices) {
-            // Пример: преобразование байта в целое число и добавление в волну
-            val value: Byte =
-                audioData[i] and 0xFF.toByte() // Преобразование байта в беззнаковое целое число
+            val value: Byte = audioData[i] and 0xFF.toByte()
             waveform.add(value.toInt())
         }
         return waveform
     }
 
-
     private fun createWaveform(filePath: String, view: PlayerVisualizerView) {
-        // Получение файла из пути
         val file = File(filePath)
-
-        // Проверка наличия файла
         if (!file.exists()) {
-            // Обработка ошибки - файл не найден
             return
         }
         try {
-            // Чтение аудио данных из файла
             val inputStream: InputStream = FileInputStream(file)
             val audioData = ByteArray(file.length().toInt())
             inputStream.read(audioData)
             inputStream.close()
-
-            // Создание волны из аудио данных
             val waveform = createWaveformFromAudioData(audioData)
             view.updateVisualizer(waveform)
-            // Обновление визуализатора с волной
         } catch (e: IOException) {
             e.printStackTrace()
         }
     }
-
 
     fun setUpVoiceMessagePresenter(path: String) {
         Log.d("iii", "presenter $path")
@@ -1467,21 +1332,14 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         binding.audioPresenter.tvDuration.text = String.format(
             Locale.getDefault(), "%02d:%02d",
             TimeUnit.SECONDS.toMinutes(time),
-            TimeUnit.SECONDS.toSeconds(time)
+            time % 60
         )
         subscribeForRecordedAudioProgress()
-        //    binding.record.recordingPresenterLayout.visibility = View.VISIBLE
-        //  createWaveform(path,  binding.record.voicePresenterVisualizer)
         VoiceMessagePresenterManager.getInstance()
             .sendWaveDataIfSaved(path, binding.audioPresenter.playerVisualizer)
-        //  recordingPresenter.updateVisualizerFromFile();
-//        VoiceMessagePresenterManager.getInstance()
-//            .sendWaveDataIfSaved(path, binding.record.voicePresenterVisualizer)
-        // binding.record.voicePresenterVisualizer.refreshVisualizer()
         binding.audioPresenter.playerVisualizer.updatePlayerPercent(0f, false)
 
-        binding.audioPresenter.playerVisualizer.setOnTouchListener(object :
-            PlayerVisualizerView.onProgressTouch() {
+        binding.audioPresenter.playerVisualizer.setOnTouchListener(object : PlayerVisualizerView.onProgressTouch() {
             override fun onTouch(view: View, motionEvent: MotionEvent): Boolean {
                 when (motionEvent.action) {
                     MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE ->
@@ -1508,16 +1366,14 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
             binding.linRecordLock.animate().y(911f).translationY(0f).start()
             binding.record.recordLayout.invalidate()
             clearVoiceMessage()
-
         }
+
         binding.audioPresenter.btnSendAudioMessage.setOnClickListener {
             sendStoppedVoiceMessage(path)
             scrollDown()
-            //   setFirstUnreadMessageId(null)
             finishVoiceRecordLayout()
             recordingPath = null
             audioProgressSubscription?.dispose()
-
             binding.audioPresenter.recordingPresenterLayout.isVisible = false
             enableStandardPanelButtons(true)
             clearVoiceMessage()
@@ -1529,11 +1385,11 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     }
 
     private fun sendStoppedVoiceMessage(filePath: String?, forwardIDs: List<String?>?) {
-        sendVoiceMessage(filePath!!)
+        if (filePath != null) sendVoiceMessage(filePath)
     }
 
     private fun uploadVoiceFile(path: String) {
-        // отправляем на сервер
+        // TODO: Implement server upload logic
     }
 
     private fun releaseRecordedVoicePlayback(filePath: String?): Boolean {
@@ -1550,7 +1406,6 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         val mediaPlayer = MediaPlayer()
         mediaPlayer.setDataSource(audioRecorder.getRecordedFilePath())
         mediaPlayer.prepare()
-
         binding.audioPresenter.btnPlay.setOnClickListener {
             if (isPlaying) {
                 mediaPlayer.pause()
@@ -1571,13 +1426,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         currentVoiceRecordingState = VoiceRecordState.NotRecording
     }
 
-
-//    fun setVoicePresenterData(tempFilePath: String?) {
-//        recordingPath = tempFilePath
-//        if (recordingPath != null) {
-//            setUpVoiceMessagePresenter()
-//
-//        }
-//    }
-
+    private enum class VoiceRecordState {
+        NotRecording, InitiatedRecording, TouchRecording, NoTouchRecording, StoppedRecording
+    }
 }

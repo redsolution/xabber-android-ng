@@ -25,6 +25,7 @@ import com.xabber.presentation.XabberApplication
 import com.xabber.presentation.application.fragments.chat.ChatSettingsManager
 import com.xabber.presentation.application.fragments.chat.Check
 import com.xabber.presentation.application.fragments.chat.HttpFileUploadManager
+import com.xabber.presentation.application.fragments.chat.MessageAdapter
 import com.xabber.presentation.application.fragments.chat.MessageVhExtraData
 import com.xabber.presentation.application.fragments.chat.audio.VoiceMessagePresenterManager
 import com.xabber.utils.StringUtils

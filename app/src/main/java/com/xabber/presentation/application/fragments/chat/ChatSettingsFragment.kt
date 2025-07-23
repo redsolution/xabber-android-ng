@@ -13,7 +13,6 @@ import com.xabber.dto.MessageDto
 import com.xabber.presentation.AppConstants
 import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.application.fragments.DetailBaseFragment
-import com.xabber.presentation.application.fragments.chat.message.MessageAdapter
 
 class ChatSettingsFragment : DetailBaseFragment(R.layout.fragment_chat_settings),
     GradientAdapter.TryOnWallpaper {

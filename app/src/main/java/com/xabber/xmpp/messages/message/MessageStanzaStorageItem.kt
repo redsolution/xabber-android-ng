@@ -23,10 +23,11 @@ open class MessageStanzaStorageItem : RealmObject {
     var owner: String = ""
     var messageId: String = ""
     var stanza: String = ""
-    var timestamp: Long = 0
+    @Ignore
+    var timestamp: Date = Date()
 
 
-    fun set(id: String, owner: String, stanza: String, date: Long, primary: String) {
+    fun set(id: String, owner: String, stanza: String, date: Date, primary: String) {
         this.primary = listOf(primary, "_stanza").joinToString("")
         this.owner = owner
         this.messageId = id

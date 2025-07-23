@@ -14,8 +14,11 @@ import com.xabber.data_base.models.messages.MessageStorageItem
 import com.xabber.data_base.models.roster.BlockStorageItem
 import com.xabber.data_base.models.roster.RosterGroupStorageItem
 import com.xabber.data_base.models.roster.RosterStorageItem
+import com.xabber.data_base.models.sync.ConversationType
 import com.xabber.presentation.XabberApplication
+import com.xabber.presentation.application.fragments.chat.ChatViewModel
 import com.xabber.presentation.onboarding.util.PasswordStorageHelper
+import com.xabber.xmpp.XEP_0CCC.ClientSynchronizationManager
 import com.xabber.xmpp.device.DeviceStorageItem
 import com.xabber.xmpp.groupchat.GroupChatStorageItem
 import com.xabber.xmpp.groupchat.GroupchatInvitesStorageItem
@@ -32,7 +35,6 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import kotlin.reflect.KClass
 
-
 @RequiresApi(Build.VERSION_CODES.O)
 object AccountManager {
 
@@ -40,6 +42,8 @@ object AccountManager {
     var users: MutableList<Account> = mutableListOf()
     private var isLoggingOut: Boolean = false
     private var passwordStorageHelper: PasswordStorageHelper? = null
+    private val chatViewModels = mutableMapOf<String, ChatViewModel>()
+    private val streams = mutableMapOf<String, Stream>()
 
     // Initialize PasswordStorageHelper with application context
     fun initialize(context: Context) {
@@ -51,6 +55,71 @@ object AccountManager {
         }
     }
 
+    fun registerStream(owner: String, stream: Stream) {
+        streams[owner] = stream
+        Log.d("AccountManager", "Registered stream for owner=$owner")
+    }
+
+    fun getStream(owner: String): Stream? {
+        return streams[owner].also {
+            if (it == null) Log.w("AccountManager", "No stream found for owner=$owner")
+        }
+    }
+
+    fun registerChatViewModel(chatId: String, chatViewModel: ChatViewModel) {
+        chatViewModels[chatId] = chatViewModel
+        Log.d("AccountManager", "Registered ChatViewModel for chatId=$chatId")
+    }
+
+    fun getChatViewModel(chatId: String): ChatViewModel? {
+        var viewModel = chatViewModels[chatId]
+        if (viewModel == null) {
+            val parts = chatId.split("_")
+            if (parts.size == 3) {
+                val opponent = parts[0]
+                val owner = parts[1]
+                val conversationType = ConversationType.fromRaw(parts[2])
+                viewModel = ChatViewModel(chatId, owner, opponent, conversationType)
+                chatViewModels[chatId] = viewModel
+                Log.d("AccountManager", "Initialized and registered ChatViewModel for chatId=$chatId, opponent=$opponent, conversationType=${conversationType.rawValue}")
+            } else {
+                Log.e("AccountManager", "Invalid chatId format: $chatId")
+            }
+        } else {
+            Log.d("AccountManager", "Returning existing ChatViewModel for chatId=$chatId")
+        }
+        return viewModel
+    }
+    fun createChatViewModel(owner: String, opponent: String, conversationType: ConversationType) {
+        val chatId = LastChatsStorageItem.genPrimary(opponent, owner, conversationType)
+        if (!chatViewModels.containsKey(chatId)) {
+            val viewModel = ChatViewModel(chatId, owner, opponent, conversationType)
+            chatViewModels[chatId] = viewModel
+            Log.d("AccountManager", "Created ChatViewModel for chatId=$chatId, opponent=$opponent, conversationType=${conversationType.rawValue}")
+            // Ensure LastChatsStorageItem exists
+            realm.writeBlocking {
+                val existingChat = query<LastChatsStorageItem>("primary = $0", chatId).first().find()
+                if (existingChat == null) {
+                    copyToRealm(LastChatsStorageItem().apply {
+                        primary = chatId
+                        this.owner = owner
+                        jid = opponent
+                        this.conversationType_ = conversationType.rawValue
+                    })
+                    Log.d("AccountManager", "Created LastChatsStorageItem for chatId=$chatId")
+                }
+            }
+        } else {
+            Log.d("AccountManager", "ChatViewModel already exists for chatId=$chatId")
+        }
+    }
+
+    fun unregisterChatViewModel(chatId: String) {
+        chatViewModels.remove(chatId)
+        Log.d("AccountManager", "Unregistered ChatViewModel for chatId=$chatId")
+    }
+
+    var clientSynchronizationManager: ClientSynchronizationManager? = null
 
     suspend fun login(jid: String, username: String, password: String): Boolean = withContext(Dispatchers.IO) {
         try {
@@ -145,7 +214,9 @@ object AccountManager {
     }
 
     fun find(jid: String): Account? {
-        return users.firstOrNull { it.jid == jid }
+        return users.firstOrNull { it.jid == jid }.also {
+            if (it == null) Log.w("AccountManager", "No account found for jid=$jid")
+        }
     }
 
     fun deleteAccount(jid: String): Boolean {
@@ -225,7 +296,6 @@ object AccountManager {
 
     fun loadFirstAccount(): Account? {
         var account: Account? = null
-
         runBlocking(Dispatchers.IO) {
             try {
                 synchronized(users) {
@@ -280,7 +350,6 @@ object AccountManager {
                 }
             }
         }
-
         return account
     }
 

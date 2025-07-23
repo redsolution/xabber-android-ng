@@ -18,6 +18,7 @@ import androidx.appcompat.widget.LinearLayoutCompat
 import com.xabber.R
 import com.xabber.dto.MessageDto
 import com.xabber.presentation.application.fragments.chat.ChatSettingsManager
+import com.xabber.presentation.application.fragments.chat.MessageAdapter
 import com.xabber.utils.StringUtils
 import com.xabber.utils.custom.ShapeOfView
 import com.xabber.utils.dp

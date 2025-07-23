@@ -20,7 +20,7 @@ import com.xabber.presentation.application.fragments.DetailBaseFragment
 import com.xabber.presentation.application.fragments.chat.ChatSettingsManager
 import com.xabber.presentation.application.fragments.chat.Gradient
 import com.xabber.presentation.application.fragments.chat.GradientAdapter
-import com.xabber.presentation.application.fragments.chat.message.MessageAdapter
+import com.xabber.presentation.application.fragments.chat.MessageAdapter
 
 class ChatSettingsDialog : DialogFragment(R.layout.fragment_chat_settings),
     GradientAdapter.TryOnWallpaper {

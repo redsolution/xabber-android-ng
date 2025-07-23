@@ -8,7 +8,15 @@ enum class ConversationType(val rawValue: String) {
         Omemo1("urn:xmpp:omemo:1"),
         Axolotl("eu.siacs.conversations.axolotl"),
         Notifications("urn:xabber:xen:0"),
-        Saved("urn:xabber:favorites:0")
+        Favorites("urn:xabber:favorites:0");
+
+        companion object {
+                fun fromRaw(value: String): ConversationType {
+                        return values().firstOrNull { it.rawValue == value } ?: Regular
+                }
+        }
+
     }
+
 
 
