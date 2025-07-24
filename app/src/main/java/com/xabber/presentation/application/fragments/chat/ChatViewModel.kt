@@ -29,6 +29,8 @@ import io.realm.kotlin.ext.realmListOf
 import io.realm.kotlin.notifications.ResultsChange
 import io.realm.kotlin.notifications.UpdatedResults
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
 import java.util.UUID
 
 @RequiresApi(Build.VERSION_CODES.O)
@@ -59,13 +61,10 @@ class ChatViewModel(
 
     private var messageList = ArrayList<MessageDto>()
     var a = 11
-
     private val _selectedCount = MutableLiveData<Int>()
     val selectedCount: LiveData<Int> = _selectedCount
     private val selectedItems = HashSet<String>()
-
     private var test = 0
-
     private var count = 0
 
     init {
@@ -76,52 +75,60 @@ class ChatViewModel(
 
     fun initMessagesListener(owner: String, opponentJid: String) {
         val request = realm.query(MessageStorageItem::class, "owner = '$owner' AND opponent = '$opponentJid'")
-        val lastChatsFlow = request.asFlow()
+        val lastChatsFlow = request.asFlow().debounce(100).distinctUntilChanged() // Debounce and prevent duplicate emissions
         viewModelScope.launch(Dispatchers.IO) {
             lastChatsFlow.collect { changes: ResultsChange<MessageStorageItem> ->
                 when (changes) {
                     is UpdatedResults -> {
-                        val list = ArrayList<MessageDto>()
-                        realm.write {
-                            list.addAll(changes.list.map { item ->
-                                MessageDto(
-                                    primary = item.primary,
-                                    isOutgoing = item.outgoing,
-                                    owner = item.owner,
-                                    opponentJid = item.opponent,
-                                    messageBody = item.body,
-                                    messageSendingState = when {
-                                        item.isRead -> MessageSendingState.Read
-                                        item.outgoing -> MessageSendingState.Deliver
-                                        else -> MessageSendingState.Sent
-                                    },
-                                    sentTimestamp = item.sentDate,
-                                    editTimestamp = item.editDate,
-                                    displayType = MessageDisplayType.Text,
-                                    canEditMessage = item.outgoing,
-                                    canDeleteMessage = item.outgoing,
-                                    urlAvatar = null,
-                                    isGroup = item.conversationType_ == "https://xabber.com/protocol/groups",
-                                    kind = null,
-                                    isSelected = selectedItems.contains(item.primary),
-                                    references = item.references.map { it.toMessageReferenceDto() } as ArrayList<MessageReferenceDto>,
-                                    isUnread = !item.isRead,
-                                    isChecked = selectedItems.contains(item.primary)
-                                )
-                            })
-                        }
-                        count = list.count { it.isUnread }
-                        messageList = list
-                        messageList.sortBy { it.sentTimestamp }
-                        Log.d("ChatViewModel", "Updating messages LiveData: ${list.size} messages, $count unread, messages=${list.map { it.primary to it.messageBody.take(50) }}")
-                        withContext(Dispatchers.Main) {
-                            _messages.value = messageList
-                            _unreadCount.value = count
-                        }
+                        updateMessageList(changes.list)
                     }
                     else -> {}
                 }
             }
+        }
+    }
+
+    private suspend fun updateMessageList(messages: List<MessageStorageItem>) {
+        val list = ArrayList<MessageDto>()
+        realm.write {
+            list.addAll(messages.map { item ->
+                MessageDto(
+                    primary = item.primary,
+                    isOutgoing = item.outgoing,
+                    owner = item.owner,
+                    opponentJid = item.opponent,
+                    messageBody = item.body,
+                    messageSendingState = when {
+                        item.isRead -> MessageSendingState.Read
+                        item.outgoing -> MessageSendingState.Deliver
+                        else -> MessageSendingState.Sent
+                    },
+                    sentTimestamp = item.sentDate,
+                    editTimestamp = item.editDate,
+                    displayType = MessageDisplayType.Text,
+                    canEditMessage = item.outgoing,
+                    canDeleteMessage = item.outgoing,
+                    urlAvatar = null,
+                    isGroup = item.conversationType_ == "https://xabber.com/protocol/groups",
+                    kind = null,
+                    isSelected = selectedItems.contains(item.primary),
+                    references = item.references.map { it.toMessageReferenceDto() } as ArrayList<MessageReferenceDto>,
+                    isUnread = !item.isRead,
+                    isChecked = selectedItems.contains(item.primary)
+                )
+            })
+        }
+        count = list.count { it.isUnread }
+        if (list != messageList) {
+            messageList = list
+            messageList.sortBy { it.sentTimestamp }
+            Log.d("ChatViewModel", "Updating messages LiveData: ${list.size} messages, $count unread, messageListSize=${messageList.size}")
+            viewModelScope.launch(Dispatchers.Main) {
+                _messages.value = messageList
+                _unreadCount.value = count
+            }
+        } else {
+            Log.d("ChatViewModel", "No change in messages, skipping LiveData update, messageListSize=${messageList.size}")
         }
     }
 
@@ -184,43 +191,7 @@ class ChatViewModel(
         val opponent = lastChatsStorageItem?.jid
         viewModelScope.launch(Dispatchers.IO) {
             val realmList = realm.query(MessageStorageItem::class, "owner = '$owner' AND opponent = '$opponent'").find()
-            val list = ArrayList<MessageDto>()
-            realm.write {
-                list.addAll(realmList.map { item ->
-                    MessageDto(
-                        primary = item.primary,
-                        isOutgoing = item.outgoing,
-                        owner = item.owner,
-                        opponentJid = item.opponent,
-                        messageBody = item.body,
-                        messageSendingState = when {
-                            item.isRead -> MessageSendingState.Read
-                            item.outgoing -> MessageSendingState.Deliver
-                            else -> MessageSendingState.Sent
-                        },
-                        sentTimestamp = item.sentDate,
-                        editTimestamp = item.editDate,
-                        displayType = MessageDisplayType.Text,
-                        canEditMessage = item.outgoing,
-                        canDeleteMessage = item.outgoing,
-                        urlAvatar = null,
-                        isGroup = item.conversationType_ == "https://xabber.com/protocol/groups",
-                        kind = null,
-                        isSelected = selectedItems.contains(item.primary),
-                        references = item.references.map { it.toMessageReferenceDto() } as ArrayList<MessageReferenceDto>,
-                        isUnread = !item.isRead,
-                        isChecked = selectedItems.contains(item.primary)
-                    )
-                })
-            }
-            count = list.count { it.isUnread }
-            messageList = list
-            messageList.sortBy { it.sentTimestamp }
-            Log.d("ChatViewModel", "getMessageList: ${list.size} messages, $count unread, messages=${list.map { it.primary to it.messageBody.take(50) }}")
-            withContext(Dispatchers.Main) {
-                _messages.value = messageList
-                _unreadCount.value = count
-            }
+            updateMessageList(realmList)
         }
     }
 
@@ -277,14 +248,15 @@ class ChatViewModel(
     }
 
     fun insertMessagesFromReceiver(messages: List<MessageDto>) {
-        Log.d("ChatViewModel", "insertMessagesFromReceiver called with ${messages.size} messages for chatId=$chatId")
+        Log.d("ChatViewModel", "insertMessagesFromReceiver called with ${messages.size} messages for chatId=$chatId, current messageListSize=${messageList.size}")
         viewModelScope.launch(Dispatchers.IO) {
             val list = messageList.toMutableList()
             list.addAll(messages)
             count = list.count { it.isUnread }
             messageList = list as ArrayList<MessageDto>
             messageList.sortBy { it.sentTimestamp }
-            withContext(Dispatchers.Main) {
+            Log.d("ChatViewModel", "After insertMessagesFromReceiver, messageListSize=${messageList.size}")
+            viewModelScope.launch(Dispatchers.Main) {
                 _messages.value = messageList
                 _unreadCount.value = count
             }
@@ -374,12 +346,35 @@ class ChatViewModel(
         } else {
             selectedItems.remove(primary)
         }
-        _selectedCount.value = selectedItems.size
+        val position = messageList.indexOfFirst { it.primary == primary }
+        if (position != -1) {
+            val updatedMessage = messageList[position].copy(isSelected = checked, isChecked = checked)
+            messageList[position] = updatedMessage
+            Log.d("ChatViewModel", "Selected message: primary=$primary, checked=$checked, selectedItems=$selectedItems, messageListSize=${messageList.size}")
+            viewModelScope.launch(Dispatchers.Main) {
+                _selectedCount.value = selectedItems.size
+                _messages.value = messageList // Trigger adapter update
+            }
+        }
     }
 
     fun clearAllSelected() {
-        selectedItems.clear()
-        _selectedCount.value = 0
+        if (selectedItems.isNotEmpty()) {
+            val updatedList = messageList.map { message ->
+                if (selectedItems.contains(message.primary)) {
+                    message.copy(isSelected = false, isChecked = false)
+                } else {
+                    message
+                }
+            }
+            selectedItems.clear()
+            messageList = ArrayList(updatedList)
+            Log.d("ChatViewModel", "Cleared selection, messageListSize=${messageList.size}")
+            viewModelScope.launch(Dispatchers.Main) {
+                _selectedCount.value = 0
+                _messages.value = messageList
+            }
+        }
     }
 
     fun isOutgoing(): Boolean {
@@ -559,6 +554,10 @@ class ChatViewModel(
         return text
     }
 
+    fun getMessagePosition(primary: String): Int {
+        return messageList.indexOfFirst { it.primary == primary }
+    }
+
     fun getMessageId(): String {
         val selected = ArrayList(selectedItems)
         return if (selected.isNotEmpty()) selected[0] else ""
@@ -616,9 +615,13 @@ class ChatViewModel(
                     val owner = chat.owner
                     val opponent = chat.jid
                     val unreadMessages = query(MessageStorageItem::class, "isRead = false AND owner = '$owner' AND opponent = '$opponent'").find()
-                    unreadMessages.forEach { it.isRead = true }
-                    chat.unread = 0
-                    Log.d("ChatViewModel", "Marked all messages as read for chatId=$chatId, owner=$owner, opponent=$opponent, updated ${unreadMessages.size} messages")
+                    if (unreadMessages.isNotEmpty()) { // Only mark if there are unread messages
+                        unreadMessages.forEach { it.isRead = true }
+                        chat.unread = 0
+                        Log.d("ChatViewModel", "Marked all messages as read for chatId=$chatId, owner=$owner, opponent=$opponent, updated ${unreadMessages.size} messages")
+                    } else {
+                        Log.d("ChatViewModel", "No unread messages to mark for chatId=$chatId")
+                    }
                 } else {
                     Log.w("ChatViewModel", "No chat found for chatId=$chatId")
                 }

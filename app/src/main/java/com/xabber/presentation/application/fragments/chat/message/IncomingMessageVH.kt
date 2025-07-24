@@ -2,11 +2,15 @@ package com.xabber.presentation.application.fragments.chat.message
 
 import android.view.LayoutInflater
 import android.view.View
+import android.widget.LinearLayout
+import android.widget.TextView
+import androidx.core.view.isVisible
+import com.xabber.R
 import com.xabber.dto.MessageDto
 import com.xabber.presentation.application.fragments.chat.MessageAdapter
 import com.xabber.presentation.application.fragments.chat.MessageVhExtraData
 
-class IncomingMessageVH internal constructor(
+class IncomingMessageVH(
     itemView: View, inflater: LayoutInflater,
     menuItemListener: MessageAdapter.MenuItemListener?,
     onViewClickListener: MessageAdapter.OnViewClickListener?
@@ -14,21 +18,11 @@ class IncomingMessageVH internal constructor(
 
     override fun bind(message: MessageDto, vhExtraData: MessageVhExtraData) {
         super.bind(message, vhExtraData)
-//        val tvName = itemView.findViewById<TextView>(R.id.tv_message_username)
-//        tvName.isVisible = vhExtraData.isNeedName && message.isGroup
-
-//        itemView.addOnAttachStateChangeListener(object : OnAttachStateChangeListener {
-//
-//            override fun onViewAttachedToWindow(view: View) {
-//                if (message.isUnread)
-//                    listen?.onBind(message)
-//            }
-//
-//            override fun onViewDetachedFromWindow(v: View) {
-//
-//            }
-//        })
-
+        val tvName = itemView.findViewById<TextView>(R.id.tv_message_username)
+        if (tvName != null) {
+            tvName.isVisible = vhExtraData.isNeedName && message.isGroup
+            // Ensure tvName has fixed height or overlaps to avoid expansion
+            tvName.layoutParams?.height = LinearLayout.LayoutParams.WRAP_CONTENT
+        }
     }
 }
-

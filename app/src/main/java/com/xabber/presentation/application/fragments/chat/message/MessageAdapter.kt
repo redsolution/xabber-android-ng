@@ -45,16 +45,15 @@ class MessageAdapter(
         fun onLocationClick(latitude: Double, longitude: Double)
     }
 
+
+
     override fun getItemCount(): Int = messages.size
 
     fun updateAdapter(messageDtoList: List<MessageDto>) {
-        Log.d("MessageAdapter", "Updating adapter with ${messageDtoList.size} messages: ${messageDtoList.map { it.primary to it.messageBody.take(50) }}")
+        Log.d("MessageAdapter", "Updating adapter with ${messageDtoList.size} messages")
         messages.clear()
         messages.addAll(messageDtoList)
-        submitList(messages.toList()) {
-            Log.d("MessageAdapter", "Submitted new list to DiffUtil, notifying adapter")
-            notifyDataSetChanged() // Ensure UI is refreshed
-        }
+        submitList(messages.toList())
     }
 
     override fun getItemViewType(position: Int): Int {
@@ -115,12 +114,12 @@ class MessageAdapter(
 
     override fun onBindViewHolder(holder: MessageViewHolder, position: Int) {
         val message = getMessageItem(position) ?: return
-        Log.d("MessageAdapter", "Binding message: primary=${message.primary}, body=${message.messageBody.take(50)}, isOutgoing=${message.isOutgoing}, isUnread=${message.isUnread}")
-        holder.setIsRecyclable(false)
+        Log.d("MessageAdapter", "Binding message: primary=${message.primary}, body=${message.messageBody.take(50)}, isOutgoing=${message.isOutgoing}, isUnread=${message.isUnread}, isChecked=${message.isChecked}")
+        holder.setIsRecyclable(true)
         holder.messageId = message.primary
         val extraData = MessageVhExtraData(
             isUnread = message.isUnread && message.primary == firstUnreadMessageID,
-            isChecked = checkedItemIds.contains(message.primary),
+            isChecked = message.isChecked,
             isNeedTail = isMessageNeedTail(position),
             isNeedDate = isMessageNeedDate(position),
             isNeedName = isMessageNeedName(position),
@@ -131,7 +130,6 @@ class MessageAdapter(
             OUTGOING_MESSAGE -> (holder as? OutgoingMessageVH)?.bind(message, extraData)
             SYSTEM_MESSAGE -> (holder as? SystemMessageVH)?.bind(message, extraData)
         }
-        // Call ChatFragment's onBind to mark message as read
         onBindListener?.invoke(message)
     }
 
@@ -151,7 +149,7 @@ class MessageAdapter(
             oldItem.primary == newItem.primary
 
         override fun areContentsTheSame(oldItem: MessageDto, newItem: MessageDto) =
-            oldItem == newItem
+            oldItem == newItem && oldItem.isSelected == newItem.isSelected && oldItem.isChecked == newItem.isChecked
     }
 
     companion object {

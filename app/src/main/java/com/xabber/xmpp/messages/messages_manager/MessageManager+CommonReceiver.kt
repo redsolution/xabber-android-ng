@@ -342,7 +342,7 @@ class MessageCommonReceiver(private val owner: String) {
         clearQueue()
     }
 
-    private suspend fun processQueue(items: Set<MessageQueueItem>, callback: suspend (List<MessageDto>?) -> Unit) {
+    suspend fun processQueue(items: Set<MessageQueueItem>, callback: suspend (List<MessageDto>?) -> Unit) {
         if (items.isEmpty()) {
             Log.d(TAG, "No items in queue to process")
             callback(null)

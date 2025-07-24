@@ -85,7 +85,7 @@ import java.util.*
 import java.util.concurrent.TimeUnit
 import kotlin.collections.ArrayList
 import kotlin.experimental.and
-
+@RequiresApi(Build.VERSION_CODES.O)
 class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.MenuItemListener,
     MessageAdapter.OnViewClickListener, ReplySwipeCallback.SwipeAction {
     private val binding by viewBinding(FragmentChatBinding::bind)
@@ -725,9 +725,8 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         }
 
         viewModel.messages.observe(viewLifecycleOwner) { messages ->
+            Log.d("ChatFragment", "Messages LiveData updated: ${messages.size} messages")
             messageAdapter?.updateAdapter(messages)
-            messageAdapter?.notifyDataSetChanged()
-            Log.d("ChatFragment", "Messages updated: ${messages.size} messages, messages=${messages.map { it.primary to it.messageBody.take(50) }}")
             if (layoutManager != null && messageAdapter != null && messages.isNotEmpty()) {
                 if (layoutManager!!.findLastVisibleItemPosition() >= messageAdapter!!.itemCount - 2 && !isSelectedMode) {
                     scrollDown()
@@ -762,6 +761,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         }
 
         viewModel.selectedCount.observe(viewLifecycleOwner) {
+            Log.d("ChatFragment", "Selected count updated: $it")
             if (it > 0) {
                 binding.selectMessagesToolbar.tvMessagesCount.text = it.toString()
                 binding.selectMessagesToolbar.toolbarSelectedMessages.menu.findItem(R.id.edit_message).isVisible = it == 1 && viewModel.isOutgoing()
@@ -1119,17 +1119,17 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     }
 
     override fun onLongClick(primary: String) {
+        Log.d("ChatFragment", "onLongClick: primary=$primary")
         enableSelectionMode(true)
         Check.setSelectedMode(true)
         viewModel.selectMessage(primary, true)
-        viewModel.getMessageList(getParams().id)
+        val position = viewModel.getMessagePosition(primary)
+        if (position != -1) {
+            messageAdapter?.notifyItemChanged(position)
+        }
     }
 
-    override fun checkItem(isChecked: Boolean, primary: String) {
-        viewModel.selectMessage(primary, isChecked)
-        viewModel.getMessageList(getParams().id)
-        messageAdapter?.notifyDataSetChanged()
-    }
+
 
     override fun onFullSwipe(position: Int) {
         handler.postDelayed(reply, 1500)
@@ -1158,7 +1158,6 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
             replySwipeCallback?.setSwipeEnabled(false)
             isSelectedMode = true
             Check.setSelectedMode(true)
-            viewModel.getMessageList(getParams().id)
             binding.buttonEmoticon.isEnabled = false
             binding.buttonAttach.isEnabled = false
             binding.btnRecord.isEnabled = false
@@ -1176,13 +1175,21 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
             }
             Check.setSelectedMode(false)
             viewModel.clearAllSelected()
-            viewModel.getMessageList(getParams().id)
             replySwipeCallback?.setSwipeEnabled(true)
             isSelectedMode = false
             binding.buttonEmoticon.isEnabled = true
             binding.buttonAttach.isEnabled = true
             binding.btnRecord.isEnabled = true
             binding.chatInput.isEnabled = true
+        }
+    }
+
+    override fun checkItem(isChecked: Boolean, primary: String) {
+        Log.d("ChatFragment", "checkItem: primary=$primary, isChecked=$isChecked")
+        viewModel.selectMessage(primary, isChecked)
+        val position = viewModel.getMessagePosition(primary)
+        if (position != -1) {
+            messageAdapter?.notifyItemChanged(position)
         }
     }
 

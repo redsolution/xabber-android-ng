@@ -5,6 +5,8 @@ import android.content.Intent
 import android.graphics.PorterDuff
 import android.graphics.PorterDuffColorFilter
 import android.media.MediaPlayer
+import android.text.TextUtils
+import android.util.Log
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
@@ -36,7 +38,7 @@ import java.util.*
 import java.util.concurrent.TimeUnit
 
 abstract class MessageViewHolder(
-    itemView: View, private  val inflater: LayoutInflater,
+    itemView: View, private val inflater: LayoutInflater,
     private val menuItemListener: MessageAdapter.MenuItemListener?,
     private val onViewClickListener: MessageAdapter.OnViewClickListener?
 ) : RecyclerView.ViewHolder(itemView), FilesAdapter.OnFileClickListener {
@@ -63,6 +65,7 @@ abstract class MessageViewHolder(
     }
 
     open fun bind(message: MessageDto, vhExtraData: MessageVhExtraData) {
+        messageContainer?.removeAllViews() // Clear previous views
         balloon?.removeAllViews()
 
         val images = ArrayList<MessageReferenceDto>()
@@ -86,7 +89,7 @@ abstract class MessageViewHolder(
         if (message.displayType != MessageDisplayType.System) {
             if (message.references.size > 0) {
                 if (message.references[0].isGeo) addGeoLocationBox(
-                   message,
+                    message,
                     message.references[0].latitude,
                     message.references[0].longitude
                 )
@@ -95,9 +98,7 @@ abstract class MessageViewHolder(
                 )
                 else {
                     if (images.isNotEmpty()) addImageAndVideoBox(message, images)
-                    if (otherFiles.isNotEmpty()) {
-                        addFilesBox(message, otherFiles)
-                    }
+                    if (otherFiles.isNotEmpty()) addFilesBox(message, otherFiles)
                 }
             }
             if (message.messageBody.isNotEmpty()) addTextBox(message)
@@ -109,35 +110,29 @@ abstract class MessageViewHolder(
         }
         needDate = vhExtraData.isNeedDate
         date = getDateStringForMessage(message.sentTimestamp)
+
+        // Log layout details for debugging
+        itemView.post {
+            Log.d("MessageViewHolder", "Binding: primary=${message.primary}, isChecked=${message.isChecked}, textLines=${tvMessageText?.lineCount ?: 0}, itemHeight=${itemView.height}, containerHeight=${messageContainer?.height ?: 0}")
+        }
     }
 
     private fun setBalloonBackground(isOutgoing: Boolean, needTail: Boolean) {
         val balloonBackground = ContextCompat.getDrawable(
             context,
-            if (needTail) ChatSettingsManager.tail else
-                ChatSettingsManager.simple
+            if (needTail) ChatSettingsManager.tail else ChatSettingsManager.simple
         )
-
-        val tailBackground = ContextCompat.getDrawable(
-            context, ChatSettingsManager.tailDrawable
-        )
-
-        val colorBackground =
-            ContextCompat.getColor(context, if (isOutgoing) R.color.white else R.color.blue_100)
-        val colorFilter = PorterDuffColorFilter(
-            colorBackground,
-            PorterDuff.Mode.SRC_IN
-        )
+        val tailBackground = ContextCompat.getDrawable(context, ChatSettingsManager.tailDrawable)
+        val colorBackground = ContextCompat.getColor(context, if (isOutgoing) R.color.white else R.color.blue_100)
+        val colorFilter = PorterDuffColorFilter(colorBackground, PorterDuff.Mode.SRC_IN)
         balloonBackground?.colorFilter = colorFilter
         tailBackground?.colorFilter = colorFilter
 
         balloon?.background = balloonBackground
         tail?.background = tailBackground
-
         tail?.isInvisible = !needTail || ChatSettingsManager.messageTypeValue?.rawValue == 2
 
-        if (tail != null)
-            if (tail!!.isVisible && !ChatSettingsManager.bottom) turnOverTail()
+        if (tail != null && tail!!.isVisible && !ChatSettingsManager.bottom) turnOverTail()
     }
 
     private fun turnOverTail() {
@@ -149,42 +144,33 @@ abstract class MessageViewHolder(
     private fun setAlign() {
         val layoutParams = tail?.layoutParams as RelativeLayout.LayoutParams
         layoutParams.removeRule(RelativeLayout.ALIGN_BOTTOM)
-        layoutParams.addRule(
-            RelativeLayout.ALIGN_TOP,
-            R.id.message_container
-        )
+        layoutParams.addRule(RelativeLayout.ALIGN_TOP, R.id.message_container)
         tail?.layoutParams = layoutParams
     }
 
     private fun setItemCheckedBackground(isChecked: Boolean) {
-        if (isChecked) itemView.setBackgroundResource(R.color.selected) else itemView.setBackgroundResource(
-            R.color.transparent
-        )
+        // Use a plain color to avoid padding/margins
+        itemView.setBackgroundColor(ContextCompat.getColor(context, if (isChecked) R.color.selected else R.color.transparent))
     }
 
-    private fun addGeoLocationBox(
-       message: MessageDto,
-        latitude: Double,
-        longitude: Double
-    ) {
+    private fun addGeoLocationBox(message: MessageDto, latitude: Double, longitude: Double) {
         val geoLocationBox = GeoLocationBuilder()
-        val geoLocationView: View =
-           geoLocationBox.inflateView(messageContainer!!)
+        val geoLocationView: View = geoLocationBox.inflateView(messageContainer!!)
         geoLocationBox.addGeoLocationBox(geoLocationView, message, latitude, longitude, onViewClickListener)
         messageContainer?.addView(geoLocationView)
     }
 
     private fun addVoiceMessageBox(path: String, message: MessageDto) {
-        val voiceMessageBox = inflater.inflate(
-            R.layout.voice_message_box,
-            messageContainer,
-            false
-        )
+        val voiceMessageBox = inflater.inflate(R.layout.voice_message_box, messageContainer, false)
+        voiceMessageBox.layoutParams = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        ) // Ensure fixed layout params
         messageContainer?.addView(voiceMessageBox)
-        val presenter = voiceMessageBox?.findViewById<PlayerVisualizerView>(R.id.player_visualizer)
-        val button = voiceMessageBox?.findViewById<ImageButton>(R.id.btn_play)
+        val presenter = voiceMessageBox.findViewById<PlayerVisualizerView>(R.id.player_visualizer)
+        val button = voiceMessageBox.findViewById<ImageButton>(R.id.btn_play)
         val tvDuration = voiceMessageBox.findViewById<TextView>(R.id.tv_duration)
-       setMessageInfo(message)
+        setMessageInfo(message)
         val time = HttpFileUploadManager.getVoiceLength(path)
         tvDuration.text = String.format(
             Locale.getDefault(), "%02d:%02d",
@@ -211,17 +197,16 @@ abstract class MessageViewHolder(
         }
     }
 
-    private fun addImageAndVideoBox(
-        message: MessageDto,
-        images: ArrayList<MessageReferenceDto>
-    ) {
+    private fun addImageAndVideoBox(message: MessageDto, images: ArrayList<MessageReferenceDto>) {
         val builder = ImageGridBuilder()
-        val imageGridView: View =
-            builder.inflateView(messageContainer!!, images.size)
+        val imageGridView: View = builder.inflateView(messageContainer!!, images.size)
+        imageGridView.layoutParams = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        )
         builder.bindView(imageGridView, message, images)
         messageContainer?.addView(imageGridView)
-        val infoStamp =
-            imageGridView.findViewById<LinearLayoutCompat>(R.id.message_info)
+        val infoStamp = imageGridView.findViewById<LinearLayoutCompat>(R.id.message_info)
         val imageTime = imageGridView.findViewById<TextView>(R.id.tv_image_sending_time)
         val status = imageGridView.findViewById<ImageView>(R.id.iv_image_message_status)
         infoStamp.isVisible = message.messageBody.isEmpty() && message.references.size == images.size
@@ -256,14 +241,11 @@ abstract class MessageViewHolder(
         image5?.setOnClickListener(onClickListener)
     }
 
-    private fun addFilesBox(
-        message: MessageDto,
-        files: ArrayList<MessageReferenceDto>
-    ) {
-        val filesBox = inflater.inflate(
-            R.layout.files_box,
-            messageContainer,
-            false
+    private fun addFilesBox(message: MessageDto, files: ArrayList<MessageReferenceDto>) {
+        val filesBox = inflater.inflate(R.layout.files_box, messageContainer, false)
+        filesBox.layoutParams = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
         )
         messageContainer?.addView(filesBox)
         val adapter = FilesAdapter(files, message.sentTimestamp, this)
@@ -274,10 +256,10 @@ abstract class MessageViewHolder(
     }
 
     private fun addTextBox(message: MessageDto) {
-        val textBox = inflater.inflate(
-            R.layout.text_box,
-            messageContainer,
-            false
+        val textBox = inflater.inflate(R.layout.text_box, messageContainer, false)
+        textBox.layoutParams = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
         )
         messageContainer?.addView(textBox)
         setMessageText(message.messageBody)
@@ -288,6 +270,10 @@ abstract class MessageViewHolder(
         tvMessageText = itemView.findViewById(R.id.message_text)
         tvMessageText?.text = text
         tvMessageText?.movementMethod = CorrectlyTouchEventTextView.LocalLinkMovementMethod
+        // Remove maxLines to allow natural wrapping
+        tvMessageText?.post {
+            Log.d("MessageViewHolder", "setMessageText: primary=$messageId, textLines=${tvMessageText?.lineCount}, textHeight=${tvMessageText?.height}")
+        }
     }
 
     private fun setMessageInfo(message: MessageDto) {
@@ -308,12 +294,7 @@ abstract class MessageViewHolder(
         if (messageDto.messageSendingState === MessageSendingState.Uploading) {
             statusIcon.isVisible = false
         } else {
-            MessageDeliveryStatusHelper.setupStatusImageView(
-                messageDto, statusIcon
-            )
-            MessageDeliveryStatusHelper.setupStatusImageView(
-                messageDto, statusIcon
-            )
+            MessageDeliveryStatusHelper.setupStatusImageView(messageDto, statusIcon)
         }
     }
 
@@ -329,25 +310,12 @@ abstract class MessageViewHolder(
 
                     popup.setOnMenuItemClickListener { menuItem ->
                         when (menuItem.itemId) {
-                            R.id.copy -> {
-                                val text = message.messageBody
-                                menuItemListener.copyText(text)
-                            }
-                            R.id.pin -> {
-                                menuItemListener.pinMessage(message)
-                            }
-                            R.id.forward -> {
-                                menuItemListener.forwardMessage(message)
-                            }
-                            R.id.reply -> {
-                                menuItemListener.replyMessage(message)
-                            }
-                            R.id.delete_message -> {
-                                menuItemListener.deleteMessage(message.primary)
-                            }
-                            R.id.edit -> {
-                                menuItemListener.editMessage(message.primary, message.messageBody)
-                            }
+                            R.id.copy -> menuItemListener.copyText(message.messageBody)
+                            R.id.pin -> menuItemListener.pinMessage(message)
+                            R.id.forward -> menuItemListener.forwardMessage(message)
+                            R.id.reply -> menuItemListener.replyMessage(message)
+                            R.id.delete_message -> menuItemListener.deleteMessage(message.primary)
+                            R.id.edit -> menuItemListener.editMessage(message.primary, message.messageBody)
                         }
                         true
                     }
@@ -360,9 +328,7 @@ abstract class MessageViewHolder(
     private fun setupOnLongClick(messagePrimary: String, isChecked: Boolean) {
         itemView.setOnLongClickListener {
             if (!Check.getSelectedMode()) onViewClickListener?.onLongClick(messagePrimary)
-            else {
-                onViewClickListener?.checkItem(!isChecked, messagePrimary)
-            }
+            else onViewClickListener?.checkItem(!isChecked, messagePrimary)
             true
         }
     }
@@ -378,5 +344,4 @@ abstract class MessageViewHolder(
             Toast.makeText(context, context.resources.getString(R.string.unable_to_open_file), Toast.LENGTH_SHORT).show()
         }
     }
-
 }

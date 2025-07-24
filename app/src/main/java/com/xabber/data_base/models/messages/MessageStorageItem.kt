@@ -12,8 +12,8 @@ import io.realm.kotlin.ext.realmListOf
 import io.realm.kotlin.types.RealmList
 import io.realm.kotlin.types.RealmObject
 import io.realm.kotlin.types.annotations.PrimaryKey
-import java.util.Date
 import org.json.JSONObject
+import java.util.Date
 
 class MessageStorageItem : RealmObject {
     enum class MessageSendingState(val value: Int) {
@@ -78,7 +78,7 @@ class MessageStorageItem : RealmObject {
     var messageErrorCode: String? = null
     var conversationType_: String = ConversationType.Regular.rawValue
     var inlineForwards: RealmList<MessageForwardsInlineStorageItem> = realmListOf()
-    var errorMetadata_: String? = null // Changed from "" to null
+    var errorMetadata_: String? = null
     var afterburnInterval: Double = -1.0
     var burnDate: Double = -1.0
     var forceUnreadState: Boolean? = null
@@ -152,6 +152,8 @@ class MessageStorageItem : RealmObject {
         this.conversationType = conversationTypeByMessage(message)
         this.messageId = message.id ?: ""
         this.archivedId = message.element("archived", namespace = "urn:xmpp:mam:tmp")?.getAttribute("id") ?: ""
+        this.displayAs = "system"
+        this.state = MessageSendingState.NONE
     }
 
     fun configureIncomingMessage(
@@ -174,15 +176,56 @@ class MessageStorageItem : RealmObject {
         this.messageId = message.id ?: ""
         this.conversationType = conversationTypeByMessage(message)
         this.archivedId = message.element("archived", namespace = "urn:xmpp:mam:tmp")?.getAttribute("id") ?: ""
+        if (isEncrypted) {
+            this.body = "Processing encrypted message..."
+            this.legacyBody = this.body
+            this.conversationType = ConversationType.Omemo
+        }
+        updatePrimary()
+    }
+
+    fun configureOutgoingMessage(
+        body: String,
+        legacyBody: String,
+        messageId: String,
+        owner: String,
+        opponent: String,
+        references: RealmList<MessageReferenceStorageItem>,
+        inlineForwards: RealmList<MessageForwardsInlineStorageItem>
+    ) {
+        this.body = body
+        this.legacyBody = legacyBody
+        this.messageId = messageId
+        this.owner = owner
+        this.opponent = opponent
+        this.outgoing = true
+        this.isRead = true
+        this.date = System.currentTimeMillis()
+        this.sentDate = this.date
+        this.state = MessageSendingState.NOT_SENT
+        this.conversationType = ConversationType.Regular // Default; updated by caller if needed
+        this.references = references
+        this.inlineForwards = inlineForwards
+        this.queryIds = "runtime_send"
+        updatePrimary()
+
+        // Update references with messageId and sentDate
+        references.forEach {
+            it.messageId = this.primary
+            it.sentDate = this.date.toDouble()
+            // Encryption metadata skipped (not implemented in Kotlin codebase)
+        }
+
+        Log.d(TAG, "Configured outgoing message: primary=$primary, messageId=$messageId, body=$body, opponent=$opponent")
     }
 
     fun save(realm: MutableRealm, silentNotifications: Boolean): Boolean {
         return try {
             realm.copyToRealm(this, UpdatePolicy.ALL)
-            Log.d(TAG, "Successfully saved message: primary=${this.primary}, messageId=${this.messageId}, owner=${this.owner}, opponent=${this.opponent}, body=${this.body}, state=${this.state}, isRead=${this.isRead}")
+            Log.d(TAG, "Successfully saved message: primary=$primary, messageId=$messageId, owner=$owner, opponent=$opponent, body=$body, state=$state, isRead=$isRead")
             true
         } catch (e: Exception) {
-            Log.e(TAG, "Error saving message ${this.primary}: ${e.message}", e)
+            Log.e(TAG, "Error saving message $primary: ${e.message}", e)
             false
         }
     }
@@ -199,9 +242,9 @@ class MessageStorageItem : RealmObject {
                 )
             }
             realm.copyToRealm(stanza, UpdatePolicy.ALL)
-            Log.d(TAG, "Successfully stored stanza for message: primary=${this.primary}, messageId=${this.messageId}")
+            Log.d(TAG, "Successfully stored stanza for message: primary=$primary, messageId=$messageId")
         } catch (e: Exception) {
-            Log.e(TAG, "Error storing stanza for message ${this.primary}: ${e.message}")
+            Log.e(TAG, "Error storing stanza for message $primary: ${e.message}")
         }
     }
 
@@ -221,7 +264,7 @@ class MessageStorageItem : RealmObject {
             message.element("xen", namespace = "urn:xabber:xen:0") != null -> ConversationType.Notifications
             else -> ConversationType.Regular
         }.also {
-            Log.d("MessageCommonReceiver", "Determined conversationType=${it.rawValue} for messageId=${message.id}, to=$to")
+            Log.d(TAG, "Determined conversationType=${it.rawValue} for messageId=${message.id}, to=$to")
         }
     }
 }

@@ -4,7 +4,7 @@ import android.view.LayoutInflater
 import android.view.View
 import com.xabber.presentation.application.fragments.chat.MessageAdapter
 
-class OutgoingMessageVH internal constructor(
+class OutgoingMessageVH(
     itemView: View, inflater: LayoutInflater,
     menuItemListener: MessageAdapter.MenuItemListener?,
     onViewClickListener: MessageAdapter.OnViewClickListener?

@@ -24,6 +24,7 @@ import com.xabber.xmpp.groupchat.GroupChatStorageItem
 import com.xabber.xmpp.groupchat.GroupchatInvitesStorageItem
 import com.xabber.xmpp.messages.message.MessageStanzaStorageItem
 import com.xabber.xmpp.messages.message.TemporaryMessageStanzaStorageItem
+import com.xabber.xmpp.messages.messages_manager.MessageCommonSender
 import com.xabber.xmpp.notifications.NotificationStorageItem
 import com.xabber.xmpp.notifications.XMPPNotificationsManagerStorageItem
 import com.xabber.xmpp.voip.voIPManager.CallMetadataStorageItem
@@ -44,6 +45,7 @@ object AccountManager {
     private var passwordStorageHelper: PasswordStorageHelper? = null
     private val chatViewModels = mutableMapOf<String, ChatViewModel>()
     private val streams = mutableMapOf<String, Stream>()
+    private val messageSenders: MutableMap<String, MessageCommonSender> = mutableMapOf()
 
     // Initialize PasswordStorageHelper with application context
     fun initialize(context: Context) {
@@ -64,6 +66,20 @@ object AccountManager {
         return streams[owner].also {
             if (it == null) Log.w("AccountManager", "No stream found for owner=$owner")
         }
+    }
+
+    fun registerMessageSender(owner: String, sender: MessageCommonSender) {
+        messageSenders[owner] = sender
+    }
+
+    fun unregisterMessageSender(owner: String) {
+        messageSenders.remove(owner)
+    }
+
+    fun createMessageSender(owner: String): MessageCommonSender {
+        val sender = messageSenders[owner] ?: MessageCommonSender(owner)
+        registerMessageSender(owner, sender)
+        return sender
     }
 
     fun registerChatViewModel(chatId: String, chatViewModel: ChatViewModel) {
