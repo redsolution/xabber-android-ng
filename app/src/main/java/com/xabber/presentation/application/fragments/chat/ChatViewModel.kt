@@ -263,50 +263,7 @@ class ChatViewModel(
         }
     }
 
-    fun insertMessageList(messages: List<MessageDto>) {
-        viewModelScope.launch(Dispatchers.IO) {
-            realm.writeBlocking {
-                messages.forEach { messageDto ->
-                    val rreferences = realmListOf<MessageReferenceStorageItem>()
-                    for (i in 0 until messageDto.references.size) {
-                        val ref = this.copyToRealm(MessageReferenceStorageItem().apply {
-                            primary = messageDto.references[i].id + "${System.currentTimeMillis()}"
-                            uri = messageDto.references[i].uri
-                            mimeType = messageDto.references[i].mimeType
-                            isGeo = messageDto.references[i].isGeo
-                            latitude = messageDto.references[i].latitude
-                            longitude = messageDto.references[i].longitude
-                            isAudioMessage = messageDto.references[i].isVoiceMessage
-                            fileName = messageDto.references[i].fileName
-                            fileSize = messageDto.references[i].size
-                        })
-                        rreferences.add(ref)
-                    }
-                    val message = this.copyToRealm(MessageStorageItem().apply {
-                        primary = messageDto.primary
-                        owner = messageDto.owner
-                        opponent = messageDto.opponentJid
-                        body = messageDto.messageBody
-                        date = messageDto.sentTimestamp
-                        sentDate = messageDto.sentTimestamp
-                        editDate = messageDto.editTimestamp
-                        outgoing = messageDto.isOutgoing
-                        isRead = !messageDto.isUnread
-                        references = rreferences
-                        conversationType_ = if (messageDto.isGroup) "https://xabber.com/protocol/groups" else "urn:xabber:chat"
-                    })
-                    val item = this.query(LastChatsStorageItem::class, "primary = '$chatId'").first().find()
-                    item?.lastMessage = message
-                    item?.messageDate = message.date
-                    if (!messageDto.isOutgoing && item?.muteExpired ?: 0 <= 0) {
-                        item?.isArchived = false
-                        item?.unread = (item?.unread ?: 0) + 1
-                    }
-                    Log.d("ChatViewModel", "Inserted message: primary=${message.primary}, body=${message.body.take(50)}, isRead=${message.isRead}, opponent=${message.opponent}")
-                }
-            }
-        }
-    }
+
 
     @RequiresApi(Build.VERSION_CODES.O)
     fun queryRecentMessages(opponentJid: String) {

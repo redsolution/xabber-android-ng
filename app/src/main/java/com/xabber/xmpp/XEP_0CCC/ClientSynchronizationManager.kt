@@ -51,10 +51,6 @@ class ClientSynchronizationManager(owner: String) {
         }
     }
 
-    fun checkAvailability(features: String) {
-        isAvailable = features.contains("synchronization xmlns='https://xabber.com/protocol/synchronization'")
-        Log.d("ClientSyncManager", "Synchronization available: $isAvailable")
-    }
 
     @RequiresApi(Build.VERSION_CODES.O)
     suspend fun sync(stream: Stream, customVer: String? = null, after: String? = null): Boolean {
@@ -549,34 +545,6 @@ class ClientSynchronizationManager(owner: String) {
             Log.e("ClientSyncManager", "Failed to parse message in receiveClientSyncRaw: ${e.message}", e)
         }
     }
-
-
-    @RequiresApi(Build.VERSION_CODES.O)
-    fun logLastChatsStorageItems(owner: String, jid: String? = null) {
-        Log.d("Account", "Logging LastChatsStorageItem entries for owner: $owner")
-        try {
-            realm.query<LastChatsStorageItem>(
-                query = if (jid.isNullOrEmpty()) {
-                    "owner = $0"
-                } else {
-                    "owner = $0 AND jid = $1"
-                },
-                owner, jid
-            ).find().forEach { item ->
-                Log.d(
-                    "Account",
-                    "LastChatsStorageItem: primary=${item.primary}, jid=${item.jid}, owner=${item.owner}, " +
-                            "conversationType_=${item.conversationType_}, isArchived=${item.isArchived}, unread=${item.unread}, " +
-                            "messageDate=${item.messageDate}, lastMessageId=${item.lastMessageId}, pinnedPosition=${item.pinnedPosition}, " +
-                            "muteExpired=${item.muteExpired}"
-                )
-            }
-            Log.d("Account", "Finished logging LastChatsStorageItem entries")
-        } catch (e: Exception) {
-            Log.e("Account", "Error querying LastChatsStorageItem: ${e.message}", e)
-        }
-    }
-
 
     private suspend fun checkLastChats() {
         if (owner.isBlank()) {

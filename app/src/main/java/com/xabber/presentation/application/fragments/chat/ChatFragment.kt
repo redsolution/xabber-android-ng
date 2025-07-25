@@ -277,8 +277,6 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         val statusTint = StatusMaker.statusTint(ResourceStatus.DND)
         if (statusIcon != null) {
             binding.avatarStatus.isVisible = true
-            // binding.avatarStatus.setImageResource(statusIcon)
-            // binding.avatarStatus.setColorFilter(ContextCompat.getColor(requireContext(), statusTint), PorterDuff.Mode.SRC_IN)
         } else {
             binding.avatarStatus.isVisible = false
         }
@@ -1184,34 +1182,6 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         }
     }
 
-    fun sendMessage(textMessage: String, imagePaths: HashSet<String>?) {
-        val chat = viewModel.loadChat(getParams().id)!!
-        val conversationType = if (chat.isGroup) ConversationType.Group else ConversationType.Regular
-        val forwarded = if (replyingMessage != null) listOf(replyingMessage!!.primary) else emptyList()
-        lifecycleScope.launch {
-            if (imagePaths != null && imagePaths.isNotEmpty()) {
-                // Handle media messages later when implementing sendMediaMessage
-                Log.w("ChatFragment", "Image paths provided but sendMediaMessage is not implemented yet")
-            } else {
-                val sentId = messageSender?.sendSimpleMessage(
-                    body = textMessage,
-                    recipientJid = chat.opponentJid,
-                    forwarded = forwarded,
-                    conversationType = conversationType
-                )
-                if (sentId.isNullOrEmpty()) {
-                    Log.w("ChatFragment", "Failed to send message: MessageSender not initialized or error occurred")
-                    // Optional: Show toast or error message to user
-                } else {
-                    Log.d("ChatFragment", "Sent message via MessageCommonSender: body=$textMessage, to=${chat.opponentJid}, forwarded=$forwarded")
-                }
-            }
-        }
-        binding.answer.isVisible = false
-        replyingMessage = null
-        isNeedScrollDown = true
-        scrollDown()
-    }
 
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onDestroyView() {
