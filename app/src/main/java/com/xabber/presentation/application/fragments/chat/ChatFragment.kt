@@ -48,6 +48,7 @@ import com.xabber.data_base.models.messages.MessageSendingState
 import com.xabber.data_base.models.messages.MessageStorageItem
 import com.xabber.data_base.models.presences.ResourceStatus
 import com.xabber.data_base.models.presences.RosterItemEntity
+import com.xabber.data_base.models.sync.ConversationType
 import com.xabber.databinding.FragmentChatBinding
 import com.xabber.dto.ChatListDto
 import com.xabber.dto.MessageDto
@@ -72,6 +73,7 @@ import com.xabber.presentation.application.manage.ColorManager
 import com.xabber.presentation.application.manage.DisplayManager
 import com.xabber.utils.*
 import com.xabber.utils.custom.PlayerVisualizerView
+import com.xabber.xmpp.messages.messages_manager.MessageCommonSender
 import io.reactivex.rxjava3.disposables.Disposable
 import io.realm.kotlin.Realm
 import kotlinx.coroutines.*
@@ -109,8 +111,8 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     private var lockIsClosed = false
     private var isVibrate = false
     private var ignoreReceiver = true
-
-    var isPlaying = false
+    private var isPlaying = false
+    private var messageSender: MessageCommonSender? = null // Made nullable
 
     val realm = Realm.open(defaultRealmConfig())
 
@@ -209,6 +211,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         val chat = viewModel.loadChat(getParams().id)
         if (chat == null) navigator().closeDetail()
         else {
+            messageSender = MessageCommonSender(chat.owner) // Initialize with chat.owner
             prepareUi(chat)
             initializeToolbarActions(chat)
             initializeRecyclerView()
@@ -222,7 +225,6 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
             viewModel.queryRecentMessages(chat.opponentJid)
             AccountManager.registerChatViewModel(getParams().id, viewModel)
             activity?.onBackPressedDispatcher?.addCallback(onBackPressedCallback)
-            // Log chat details for debugging
             Log.d("ChatFragment", "Opening chat: id=${getParams().id}, owner=${chat.owner}, opponentJid=${chat.opponentJid}")
         }
         if (savedInstanceState != null) restoreState(savedInstanceState)
@@ -524,43 +526,30 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
                 binding.chatInput.text?.clear()
                 editMessageId = null
             } else {
-                var messageKindDto: MessageKind? = null
-                if (binding.answer.isVisible) {
-                    messageKindDto = MessageKind(
-                        "id",
-                        binding.replyMessageTitle.text.toString(),
-                        binding.replyMessageContent.text.toString()
-                    )
-                }
                 val text = binding.chatInput.text.toString().trim()
+                if (text.isEmpty() && replyingMessage == null) return@setOnClickListener
                 binding.chatInput.text?.clear()
-                val chat = viewModel.loadChat(getParams().id)
-                val timeStamp = System.currentTimeMillis()
-                viewModel.insertMessage(
-                    getParams().id,
-                    MessageDto(
-                        "$timeStamp",
-                        true,
-                        chat!!.owner,
-                        chat.opponentJid,
-                        text,
-                        MessageSendingState.Deliver,
-                        timeStamp,
-                        0,
-                        MessageDisplayType.Text,
-                        true,
-                        true,
-                        null,
-                        isSelected = false,
-                        isUnread = false,
-                        isGroup = chat.isGroup,
-                        kind = messageKindDto,
-                        references = ArrayList(),
-                        isChecked = false
+                val chat = viewModel.loadChat(getParams().id)!!
+                val conversationType = if (chat.isGroup) ConversationType.Group else ConversationType.Regular
+                val forwarded = if (replyingMessage != null) listOf(replyingMessage!!.primary) else emptyList()
+                lifecycleScope.launch {
+                    val sentId = messageSender?.sendSimpleMessage(
+                        body = text,
+                        recipientJid = chat.opponentJid, // Fixed: Changed 'to' to 'recipientJid'
+                        forwarded = forwarded,
+                        conversationType = conversationType
                     )
-                )
+                    if (sentId.isNullOrEmpty()) {
+                        Log.w("ChatFragment", "Failed to send message: MessageSender not initialized or error occurred")
+                        // Optional: Show toast or error message to user
+                    } else {
+                        Log.d("ChatFragment", "Sent message via MessageCommonSender: body=$text, recipientJid=${chat.opponentJid}, forwarded=$forwarded")
+                    }
+                }
                 binding.answer.isVisible = false
+                replyingMessage = null
                 isNeedScrollDown = true
+                scrollDown()
             }
         }
     }
@@ -905,13 +894,15 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
 
     private fun showUnreadBadge(count: Int) {
         if (count > 0) {
-            binding.tvNewReceivedCount.text = if (count < 100) count.toString() else "99+"
-            binding.tvNewReceivedCount.isVisible = true
+            // Delay show to avoid flicker if marking read happens quickly
+            handler.removeCallbacks(unreadShower)  // Cancel prior
+            handler.postDelayed(unreadShower, 150)  // 150ms delay; adjust as needed
         } else {
-            binding.tvNewReceivedCount.isVisible = false
+            // Hide instantly
+            handler.removeCallbacks(unreadShower)
+            unreadShower.invoke()
         }
     }
-
     private fun scrollDown() {
         if (messageAdapter != null) binding.messageList.scrollToPosition(messageAdapter?.itemCount!! - 1)
         binding.tvNewReceivedCount.isVisible = false
@@ -1194,43 +1185,32 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     }
 
     fun sendMessage(textMessage: String, imagePaths: HashSet<String>?) {
-        var messageKindDto: MessageKind? = null
-        if (binding.answer.isVisible) {
-            messageKindDto = MessageKind(
-                "id",
-                binding.replyMessageTitle.text.toString(),
-                binding.replyMessageContent.text.toString()
-            )
+        val chat = viewModel.loadChat(getParams().id)!!
+        val conversationType = if (chat.isGroup) ConversationType.Group else ConversationType.Regular
+        val forwarded = if (replyingMessage != null) listOf(replyingMessage!!.primary) else emptyList()
+        lifecycleScope.launch {
+            if (imagePaths != null && imagePaths.isNotEmpty()) {
+                // Handle media messages later when implementing sendMediaMessage
+                Log.w("ChatFragment", "Image paths provided but sendMediaMessage is not implemented yet")
+            } else {
+                val sentId = messageSender?.sendSimpleMessage(
+                    body = textMessage,
+                    recipientJid = chat.opponentJid,
+                    forwarded = forwarded,
+                    conversationType = conversationType
+                )
+                if (sentId.isNullOrEmpty()) {
+                    Log.w("ChatFragment", "Failed to send message: MessageSender not initialized or error occurred")
+                    // Optional: Show toast or error message to user
+                } else {
+                    Log.d("ChatFragment", "Sent message via MessageCommonSender: body=$textMessage, to=${chat.opponentJid}, forwarded=$forwarded")
+                }
+            }
         }
-        val imageList = ArrayList<String>()
-        imagePaths?.forEach { imageList.add(it) }
-        val timeStamp = System.currentTimeMillis()
-        val chat = viewModel.loadChat(getParams().id)
-        viewModel.insertMessage(
-            getParams().id,
-            MessageDto(
-                "$timeStamp",
-                true,
-                chat!!.owner,
-                chat.opponentJid,
-                textMessage,
-                MessageSendingState.Deliver,
-                timeStamp,
-                0,
-                MessageDisplayType.Text,
-                true,
-                true,
-                null,
-                isSelected = false,
-                isUnread = false,
-                isGroup = chat.isGroup,
-                kind = messageKindDto,
-                references = ArrayList(),
-                isChecked = false
-            )
-        )
         binding.answer.isVisible = false
+        replyingMessage = null
         isNeedScrollDown = true
+        scrollDown()
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
@@ -1238,7 +1218,8 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         super.onDestroyView()
         saveLastPosition()
         saveDraft()
-        AccountManager.unregisterChatViewModel(getParams().id) // Unregister ChatViewModel
+        AccountManager.unregisterChatViewModel(getParams().id)
+        messageSender?.unsubscribeSender() // Unsubscribe MessageCommonSender
         onBackPressedCallback.remove()
     }
 

@@ -26,6 +26,14 @@ class MessageAdapter(
     private val onBindListener: ((MessageDto?) -> Unit)? = null // Added to call ChatFragment's onBind
 ) : ListAdapter<MessageDto, MessageViewHolder>(DiffUtilCallback) {
 
+    init {
+        setHasStableIds(true)  // Add this
+    }
+
+    override fun getItemId(position: Int): Long {
+        return getMessageItem(position)?.primary?.hashCode()?.toLong() ?: RecyclerView.NO_ID
+    }
+
     private var firstUnreadMessageID: String? = null
     private val checkedItemIds: MutableList<String> = ArrayList()
 

@@ -39,7 +39,6 @@ import java.util.UUID
 
 @RequiresApi(Build.VERSION_CODES.O)
 class MessageCommonSender(private val owner: String) {
-    private val realm: Realm by lazy { Realm.open(defaultRealmConfig()) }
     private val queue: String = "com.xabber.messages.sender.$owner.${UUID.randomUUID()}"
     private val messagesQueue = MutableStateFlow<Set<MessageQueueItem>>(HashSet())
     private val scope = CoroutineScope(Dispatchers.IO)
@@ -51,7 +50,7 @@ class MessageCommonSender(private val owner: String) {
     data class MessageQueueItem(
         val message: XMPPMessage,
         val messageId: String,
-        val to: String,
+        val recipientJid: String,
         val conversationType: ConversationType,
         val forwardedMessages: List<ForwardedMessageItem> = emptyList(),
         val references: List<MessageReferenceStorageItem> = emptyList(),
@@ -94,7 +93,7 @@ class MessageCommonSender(private val owner: String) {
 
     suspend fun sendSimpleMessage(
         body: String,
-        to: String,
+        recipientJid: String,
         forwarded: List<String> = emptyList(),
         conversationType: ConversationType = ConversationType.Regular
     ): String {
@@ -102,141 +101,191 @@ class MessageCommonSender(private val owner: String) {
             Log.w(TAG, "sendSimpleMessage: Empty body and no forwarded messages, skipping")
             return ""
         }
-        val messageId = NanoId.generate(8)
-        Log.d(TAG, "sendSimpleMessage: messageId=$messageId, to=$to, body=$body, forwarded=$forwarded")
+        var messageId = NanoId.generate(8)  // Changed to var
+        Log.d(TAG, "sendSimpleMessage: messageId=$messageId, recipientJid=$recipientJid, body=$body, forwarded=$forwarded")
         val forwardedMessages = formForwardedMessages(forwarded)
         val legacyBody = forwardedMessages.joinToString("\n") { it.body } + (if (forwardedMessages.isNotEmpty()) "\n" else "") + body
+        val realm = Realm.open(defaultRealmConfig())
         val instance = MessageStorageItem().apply {
             configureOutgoingMessage(
                 body = body,
                 legacyBody = legacyBody,
                 messageId = messageId,
                 owner = this@MessageCommonSender.owner,
-                opponent = to,
+                opponent = recipientJid,
                 references = realmListOf(),
-                inlineForwards = prepareForwards(forwarded, primary, owner, to)
+                inlineForwards = prepareForwards(forwarded, primary, owner, recipientJid)
             )
             conversationType_ = conversationType.rawValue
             state = MessageStorageItem.MessageSendingState.SENDING
         }
-
-        realm.writeBlocking {
-            val existing = query<MessageStorageItem>("owner = $0 AND messageId = $1", owner, messageId).first().find()
-            if (existing != null) {
-                Log.w(TAG, "Duplicate messageId=$messageId found, generating new ID")
-                instance.messageId = UUID.randomUUID().toString()
-                instance.updatePrimary()
+        try {
+            realm.writeBlocking {
+                val existing = query<MessageStorageItem>("owner = $0 AND messageId = $1", owner, messageId).first().find()
+                if (existing != null) {
+                    Log.w(TAG, "Duplicate messageId=$messageId found, generating new ID")
+                    messageId = UUID.randomUUID().toString()  // Update the local messageId var
+                    instance.messageId = messageId
+                    instance.updatePrimary()
+                }
+                copyToRealm(instance, UpdatePolicy.ALL)
+                Log.d(TAG, "Saved MessageStorageItem: primary=${instance.primary}, messageId=$messageId, body=$body")
+                val chat = query<LastChatsStorageItem>(
+                    "primary = $0",
+                    LastChatsStorageItem.genPrimary(recipientJid, owner, conversationType)
+                ).first().find() ?: copyToRealm(LastChatsStorageItem().apply {
+                    primary = LastChatsStorageItem.genPrimary(recipientJid, owner, conversationType)
+                    jid = recipientJid
+                    this.owner = this@MessageCommonSender.owner
+                    conversationType_ = conversationType.rawValue
+                    isArchived = false
+                    unread = 0
+                    messageDate = Date().time
+                    lastMessage = instance
+                    lastMessageId = messageId
+                }, UpdatePolicy.ALL)
+                chat.apply {
+                    lastReadId = null
+                    draftMessage = null
+                    lastMessage = instance
+                    messageDate = Date().time
+                }
             }
-            copyToRealm(instance, UpdatePolicy.ALL)
-            Log.d(TAG, "Saved MessageStorageItem: primary=${instance.primary}, messageId=$messageId, body=$body")
-            val chat = query<LastChatsStorageItem>(
-                "primary = $0",
-                LastChatsStorageItem.genPrimary(to, owner, conversationType)
-            ).first().find() ?: copyToRealm(LastChatsStorageItem().apply {
-                primary = LastChatsStorageItem.genPrimary(to, owner, conversationType)
-                jid = to
-                this.owner = this@MessageCommonSender.owner
-                conversationType_ = conversationType.rawValue
-                isArchived = false
-                unread = 0
-                messageDate = Date().time
-                lastMessage = instance
-                lastMessageId = messageId
-            }, UpdatePolicy.ALL)
-            chat.apply {
-                lastReadId = null
-                draftMessage = null
-                lastMessage = instance
-                messageDate = Date().time
-            }
+        } finally {
+            realm.close()
         }
-
         processSender(instance.primary, forwardedMessages)
-        return messageId
+        return messageId  // Now returns the final (possibly updated) messageId
     }
 
-    private suspend fun processSender(primary: String, forwardedMessages: List<ForwardedMessageItem> = emptyList(), retry: Boolean = false) {
-        realm.writeBlocking {
-            val instance = query<MessageStorageItem>("primary = $0", primary).first().find()
-            if (instance == null) {
+    private suspend fun processSender(
+        primary: String,
+        forwardedMessages: List<ForwardedMessageItem> = emptyList(),
+        retry: Boolean = false
+    ) {
+        val realm = Realm.open(defaultRealmConfig())
+        try {
+            val (messageId, opponent, conversationTypeRaw) = realm.query<MessageStorageItem>("primary = $0", primary).first().find()?.let {
+                Triple(it.messageId, it.opponent, it.conversationType_)
+            } ?: Triple("", "", ConversationType.Regular.rawValue)
+
+            if (messageId.isEmpty()) {
                 Log.w(TAG, "processSender: No message found for primary=$primary")
-                return@writeBlocking
+                return
             }
-            val resource = query<RosterStorageItem>(
+
+            val conversationType = ConversationType.fromRaw(conversationTypeRaw)
+
+            val resource = realm.query<RosterStorageItem>(
                 "jid = $0 AND owner = $1",
-                instance.opponent, instance.owner
-            ).first().find()?.getPrimaryResource()?.resource // Fixed to use getPrimaryResource()
-            val stanzaBody = instance.legacyBody.replace("<", "&lt;").replace(">", "&gt;") // Proper XML escaping
-            val forwardedElements = forwardedMessages.joinToString("") { it.referenceElement }
-            val references = instance.references.joinToString("") { createReferenceElement(it) }
+                opponent, owner
+            ).first().find()?.getPrimaryResource()
+
+            val stanzaBody = realm.query<MessageStorageItem>("primary = $0", primary).first().find()?.legacyBody?.replace("<", "<")?.replace(">", ">") ?: ""
+
+            val referencesXml = realm.query<MessageStorageItem>("primary = $0", primary).first().find()?.references?.joinToString("") { createReferenceElement(it) } ?: ""
+
             val rawStanza = """
-                <message type='chat' id='${instance.messageId}' from='$owner' to='${instance.opponent}${resource?.let { "/$resource" } ?: ""}'>
+                <message type='chat' id='$messageId' from='$owner' to='$opponent${resource?.let { "/$it" } ?: ""}'>
                     <body>$stanzaBody</body>
-                    <origin-id xmlns='urn:xmpp:sid:0' id='${instance.messageId}'/>
-                    $forwardedElements
-                    $references
+                    <origin-id xmlns='urn:xmpp:sid:0' id='$messageId'/>
+                    ${forwardedMessages.joinToString("") { it.referenceElement }}
+                    $referencesXml
                 </message>
             """.trimIndent()
+
             val stanza = XMPPMessage(
                 raw = rawStanza,
                 type = "chat",
-                id = instance.messageId,
+                id = messageId,
                 from = XMPPJID(fullJID = owner),
-                to = XMPPJID(fullJID = instance.opponent + (resource?.let { "/$resource" } ?: "")),
-                body = instance.legacyBody
+                to = XMPPJID(fullJID = opponent + (resource?.let { "/$it" } ?: "")),
+                body = stanzaBody
             )
 
-            instance.state = MessageStorageItem.MessageSendingState.SENDING
-            instance.trustedSource = query<LastChatsStorageItem>(
-                "primary = $0",
-                LastChatsStorageItem.genPrimary(instance.opponent, instance.owner, instance.conversationType)
-            ).first().find()?.isSynced ?: false
-
-            val stanzaToSave = stanza.copy()
-            instance.storeStanza(this)
+            realm.writeBlocking {
+                val instance = query<MessageStorageItem>("primary = $0", primary).first().find()
+                instance?.apply {
+                    state = MessageStorageItem.MessageSendingState.SENDING
+                    trustedSource = query<LastChatsStorageItem>(
+                        "primary = $0",
+                        LastChatsStorageItem.genPrimary(opponent, owner, conversationType)
+                    ).first().find()?.isSynced ?: false
+                    val stanzaToSave = stanza.copy()
+                    storeStanza(this@writeBlocking)
+                }
+            }
 
             scope.launch {
                 AccountManager.find(owner)?.action { user, stream ->
                     if (stream.state != StreamState.CONNECTED || stream.socket?.getSocket()?.isClosed == true) {
-                        Log.e(TAG, "Cannot send message: primary=$primary, stream not connected or socket closed")
-                        realm.writeBlocking {
-                            instance.state = MessageStorageItem.MessageSendingState.ERROR
-                            instance.messageError = "Stream not connected"
-                            query<LastChatsStorageItem>(
-                                "primary = $0",
-                                LastChatsStorageItem.genPrimary(instance.opponent, instance.owner, instance.conversationType)
-                            ).first().find()?.hasErrorInChat = true
+                        Log.e(TAG, "Cannot send message: primary=$primary, messageId=$messageId, stream not connected or socket closed or self-directed")
+                        val localRealm = Realm.open(defaultRealmConfig())
+                        try {
+                            localRealm.writeBlocking {
+                                val msg = query<MessageStorageItem>("primary = $0", primary).first().find()
+                                msg?.apply {
+                                    state = MessageStorageItem.MessageSendingState.ERROR
+                                    messageError = "Stream not connected"
+                                }
+                                query<LastChatsStorageItem>(
+                                    "primary = $0",
+                                    LastChatsStorageItem.genPrimary(msg?.opponent ?: "", msg?.owner ?: "", msg?.conversationType ?: ConversationType.Regular)
+                                ).first().find()?.hasErrorInChat = true
+                            }
+                        } finally {
+                            localRealm.close()
                         }
                         return@action
                     }
                     if (stream.socket?.write(stanza.raw) == true) {
-                        Log.d(TAG, "Sent message: primary=$primary, messageId=${instance.messageId}, stanza=${stanza.raw}")
-                        realm.writeBlocking {
-                            instance.state = MessageStorageItem.MessageSendingState.DELIVERED
-                            val chat = query<LastChatsStorageItem>(
-                                "primary = $0",
-                                LastChatsStorageItem.genPrimary(instance.opponent, instance.owner, instance.conversationType)
-                            ).first().find()
-                            chat?.apply {
-                                lastMessage = instance
-                                messageDate = Date().time
+                        Log.d(TAG, "Sent message: primary=$primary, messageId=$messageId, stanza=${stanza.raw}")
+                        val localRealm = Realm.open(defaultRealmConfig())
+                        try {
+                            localRealm.writeBlocking {
+                                val msg = query<MessageStorageItem>("primary = $0", primary).first().find()
+                                msg?.apply {
+                                    state = MessageStorageItem.MessageSendingState.DELIVERED
+                                }
+                                query<LastChatsStorageItem>(
+                                    "primary = $0",
+                                    LastChatsStorageItem.genPrimary(msg?.opponent ?: "", msg?.owner ?: "", msg?.conversationType ?: ConversationType.Regular)
+                                ).first().find()?.apply {
+                                    lastMessage = msg
+                                    messageDate = Date().time
+                                }
                             }
+                            val msg = localRealm.query<MessageStorageItem>("primary = $0", primary).first().find()
+                            if (msg != null) {
+                                notifyChatViewModel(msg)
+                            }
+                        } finally {
+                            localRealm.close()
                         }
-                        notifyChatViewModel(instance)
                     } else {
-                        Log.e(TAG, "Failed to send message: primary=$primary, messageId=${instance.messageId}")
-                        realm.writeBlocking {
-                            instance.state = MessageStorageItem.MessageSendingState.ERROR
-                            instance.messageError = "Failed to send message"
-                            instance.references.forEach { it.hasError = true }
-                            query<LastChatsStorageItem>(
-                                "primary = $0",
-                                LastChatsStorageItem.genPrimary(instance.opponent, instance.owner, instance.conversationType)
-                            ).first().find()?.hasErrorInChat = true
+                        Log.e(TAG, "Failed to send message: primary=$primary, messageId=$messageId")
+                        val localRealm = Realm.open(defaultRealmConfig())
+                        try {
+                            localRealm.writeBlocking {
+                                val msg = query<MessageStorageItem>("primary = $0", primary).first().find()
+                                msg?.apply {
+                                    state = MessageStorageItem.MessageSendingState.ERROR
+                                    messageError = "Failed to send message"
+                                    references.forEach { it.hasError = true }
+                                }
+                                query<LastChatsStorageItem>(
+                                    "primary = $0",
+                                    LastChatsStorageItem.genPrimary(msg?.opponent ?: "", msg?.owner ?: "", msg?.conversationType ?: ConversationType.Regular)
+                                ).first().find()?.hasErrorInChat = true
+                            }
+                        } finally {
+                            localRealm.close()
                         }
                     }
                 } ?: Log.w(TAG, "No account found for owner=$owner")
             }
+        } finally {
+            realm.close()
         }
     }
 
@@ -245,9 +294,10 @@ class MessageCommonSender(private val owner: String) {
         val dateFormatter = SimpleDateFormat("EEEE, MMMM d, yyyy", Locale.US)
         val timeFormatter = SimpleDateFormat("[HH:mm:ss]", Locale.US)
 
-        forwarded.forEach { primary ->
-            realm.writeBlocking {
-                val instance = query<MessageStorageItem>("primary = $0", primary).first().find()
+        val realm = Realm.open(defaultRealmConfig())
+        try {
+            forwarded.forEach { primary ->
+                val instance = realm.query<MessageStorageItem>("primary = $0", primary).first().find()
                 if (instance != null) {
                     val body = "> ${dateFormatter.format(Date(instance.date))} ${timeFormatter.format(Date(instance.date))} ${instance.opponent}\n${instance.body}"
                     val refElement = """
@@ -255,7 +305,7 @@ class MessageCommonSender(private val owner: String) {
                             <forwarded xmlns='urn:xmpp:forward:0'>
                                 <delay xmlns='urn:xmpp:delay' stamp='${formatXMPPDate(Date(instance.date))}'/>
                                 <message xmlns='jabber:client' id='${instance.messageId}' from='${instance.opponent}' to='$owner'>
-                                    <body>${instance.body.replace("<", "&lt;").replace(">", "&gt;")}</body>
+                                    <body>${instance.body.replace("<", "<").replace(">", ">")}</body>
                                 </message>
                             </forwarded>
                         </reference>
@@ -270,6 +320,8 @@ class MessageCommonSender(private val owner: String) {
                     )
                 }
             }
+        } finally {
+            realm.close()
         }
         return out.sortedByDescending { it.date }
     }
@@ -278,31 +330,36 @@ class MessageCommonSender(private val owner: String) {
         forwarded: List<String>,
         primary: String,
         owner: String,
-        jid: String
+        recipientJid: String
     ): RealmList<MessageForwardsInlineStorageItem> {
         val out = realmListOf<MessageForwardsInlineStorageItem>()
-        realm.writeBlocking {
-            forwarded.forEach { forwardedPrimary ->
-                val instance = query<MessageStorageItem>("primary = $0", forwardedPrimary).first().find()
-                if (instance != null) {
-                    val item = MessageForwardsInlineStorageItem().apply {
-                        this.owner = owner
-                        this.jid = jid
-                        this.forwardJid = if (instance.outgoing) instance.owner else instance.opponent
-                        val rosterPrimary = RosterStorageItem.genPrimary(instance.opponent, instance.owner)
-                        this.forwardNickname = query<RosterStorageItem>("primary = $0", rosterPrimary).first().find()?.displayName ?: ""
-                        this.rosterItem = query<RosterStorageItem>("primary = $0", rosterPrimary).first().find()
-                        this.body = instance.body
-                        this.references.addAll(instance.references)
-                        this.subforwards.addAll(instance.inlineForwards)
-                        this.messageId = instance.primary
-                        this.parentId = primary
-                        this.originalDate = instance.date // Fixed to use Long
-                        this.isOutgoing = instance.outgoing
+        val realm = Realm.open(defaultRealmConfig())
+        try {
+            realm.writeBlocking {
+                forwarded.forEach { forwardedPrimary ->
+                    val instance = query<MessageStorageItem>("primary = $0", forwardedPrimary).first().find()
+                    if (instance != null) {
+                        val item = MessageForwardsInlineStorageItem().apply {
+                            this.owner = owner
+                            this.jid = recipientJid
+                            this.forwardJid = if (instance.outgoing) instance.owner else instance.opponent
+                            val rosterPrimary = RosterStorageItem.genPrimary(instance.opponent, instance.owner)
+                            this.forwardNickname = query<RosterStorageItem>("primary = $0", rosterPrimary).first().find()?.displayName ?: ""
+                            this.rosterItem = query<RosterStorageItem>("primary = $0", rosterPrimary).first().find()
+                            this.body = instance.body
+                            this.references.addAll(instance.references)
+                            this.subforwards.addAll(instance.inlineForwards)
+                            this.messageId = instance.primary
+                            this.parentId = primary
+                            this.originalDate = instance.date
+                            this.isOutgoing = instance.outgoing
+                        }
+                        out.add(copyToRealm(item, UpdatePolicy.ALL))
                     }
-                    out.add(copyToRealm(item, UpdatePolicy.ALL))
                 }
             }
+        } finally {
+            realm.close()
         }
         return out
     }
@@ -349,56 +406,78 @@ class MessageCommonSender(private val owner: String) {
         Log.d(TAG, "Notified ChatViewModel: chatId=$chatId, messageId=${instance.messageId}")
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     private suspend fun processQueue(items: Set<MessageQueueItem>) {
         items.forEach { item ->
-            Log.d(TAG, "Processing queue item: messageId=${item.messageId}, to=${item.to}")
+            Log.d(TAG, "Processing queue item: messageId=${item.messageId}, recipientJid=${item.recipientJid}")
             scope.launch {
                 AccountManager.find(owner)?.action { user, stream ->
                     if (stream.state != StreamState.CONNECTED || stream.socket?.getSocket()?.isClosed == true) {
                         Log.e(TAG, "Cannot send queue item: messageId=${item.messageId}, stream not connected")
-                        realm.writeBlocking {
-                            val instance = query<MessageStorageItem>("primary = $0", MessageStorageItem.genPrimary(item.messageId, owner)).first().find()
-                            if (instance != null) {
-                                instance.state = MessageStorageItem.MessageSendingState.ERROR
-                                instance.messageError = "Stream not connected"
-                                query<LastChatsStorageItem>(
-                                    "primary = $0",
-                                    LastChatsStorageItem.genPrimary(instance.opponent, instance.owner, instance.conversationType)
-                                ).first().find()?.hasErrorInChat = true
+                        val realm = Realm.open(defaultRealmConfig())
+                        try {
+                            realm.writeBlocking {
+                                val instance = query<MessageStorageItem>("primary = $0", MessageStorageItem.genPrimary(item.messageId, owner)).first().find()
+                                if (instance != null) {
+                                    findLatest(instance)?.apply {
+                                        state = MessageStorageItem.MessageSendingState.ERROR
+                                        messageError = "Stream not connected"
+                                    }
+                                    query<LastChatsStorageItem>(
+                                        "primary = $0",
+                                        LastChatsStorageItem.genPrimary(instance.opponent, instance.owner, instance.conversationType)
+                                    ).first().find()?.hasErrorInChat = true
+                                }
                             }
+                        } finally {
+                            realm.close()
                         }
                         return@action
                     }
                     if (stream.socket?.write(item.message.raw) == true) {
                         Log.d(TAG, "Sent queue item: messageId=${item.messageId}, stanza=${item.message.raw}")
-                        realm.writeBlocking {
-                            val instance = query<MessageStorageItem>("primary = $0", MessageStorageItem.genPrimary(item.messageId, owner)).first().find()
-                            if (instance != null) {
-                                instance.state = MessageStorageItem.MessageSendingState.DELIVERED
-                                val chat = query<LastChatsStorageItem>(
-                                    "primary = $0",
-                                    LastChatsStorageItem.genPrimary(instance.opponent, instance.owner, instance.conversationType)
-                                ).first().find()
-                                chat?.apply {
-                                    lastMessage = instance
-                                    messageDate = Date().time
+                        val realm = Realm.open(defaultRealmConfig())
+                        try {
+                            realm.writeBlocking {
+                                val instance = query<MessageStorageItem>("primary = $0", MessageStorageItem.genPrimary(item.messageId, owner)).first().find()
+                                if (instance != null) {
+                                    findLatest(instance)?.state = MessageStorageItem.MessageSendingState.DELIVERED
+                                    val chat = query<LastChatsStorageItem>(
+                                        "primary = $0",
+                                        LastChatsStorageItem.genPrimary(instance.opponent, instance.owner, instance.conversationType)
+                                    ).first().find()
+                                    chat?.apply {
+                                        findLatest(this)?.apply {
+                                            lastMessage = instance
+                                            messageDate = Date().time
+                                        }
+                                    }
+                                    notifyChatViewModel(instance)
                                 }
-                                notifyChatViewModel(instance)
                             }
+                        } finally {
+                            realm.close()
                         }
                     } else {
                         Log.e(TAG, "Failed to send queue item: messageId=${item.messageId}")
-                        realm.writeBlocking {
-                            val instance = query<MessageStorageItem>("primary = $0", MessageStorageItem.genPrimary(item.messageId, owner)).first().find()
-                            if (instance != null) {
-                                instance.state = MessageStorageItem.MessageSendingState.ERROR
-                                instance.messageError = "Failed to send message"
-                                instance.references.forEach { it.hasError = true }
-                                query<LastChatsStorageItem>(
-                                    "primary = $0",
-                                    LastChatsStorageItem.genPrimary(instance.opponent, instance.owner, instance.conversationType)
-                                ).first().find()?.hasErrorInChat = true
+                        val realm = Realm.open(defaultRealmConfig())
+                        try {
+                            realm.writeBlocking {
+                                val instance = query<MessageStorageItem>("primary = $0", MessageStorageItem.genPrimary(item.messageId, owner)).first().find()
+                                if (instance != null) {
+                                    findLatest(instance)?.apply {
+                                        state = MessageStorageItem.MessageSendingState.ERROR
+                                        messageError = "Failed to send message"
+                                        references.forEach { it.hasError = true }
+                                    }
+                                    query<LastChatsStorageItem>(
+                                        "primary = $0",
+                                        LastChatsStorageItem.genPrimary(instance.opponent, instance.owner, instance.conversationType)
+                                    ).first().find()?.hasErrorInChat = true
+                                }
                             }
+                        } finally {
+                            realm.close()
                         }
                     }
                 } ?: Log.w(TAG, "No account found for owner=$owner")

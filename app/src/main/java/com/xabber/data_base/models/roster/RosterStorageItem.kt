@@ -10,9 +10,9 @@ import com.xabber.presentation.XabberApplication
 import io.realm.kotlin.ext.realmListOf
 import io.realm.kotlin.types.RealmList
 import io.realm.kotlin.types.RealmObject
-import io.realm.kotlin.types.annotations.PrimaryKey
 import com.xabber.utils.prp
 import io.realm.kotlin.Realm
+import io.realm.kotlin.types.annotations.PrimaryKey
 import io.realm.kotlin.ext.query
 import io.realm.kotlin.query.Sort
 
@@ -74,7 +74,7 @@ class RosterStorageItem : RealmObject {
         }
     }
 
-    fun getPrimaryResource(): ResourceStorageItem? {
+    fun getPrimaryResource(): String? {
         return try {
             val realm = Realm.open(defaultRealmConfig())
             val resource = realm.query<ResourceStorageItem>("owner = $0 AND jid = $1", owner, jid)
@@ -82,7 +82,7 @@ class RosterStorageItem : RealmObject {
                     "timestamp" to Sort.DESCENDING,
                     "priority" to Sort.DESCENDING
                 )
-                .first().find()
+                .first().find()?.resource
             realm.close()
             resource
         } catch (e: Exception) {
@@ -121,4 +121,4 @@ enum class Ask(val rawValue: String) {
         fun fromRaw(raw: String): Ask =
             values().find { it.rawValue == raw } ?: NONE
     }
-    }
+}
