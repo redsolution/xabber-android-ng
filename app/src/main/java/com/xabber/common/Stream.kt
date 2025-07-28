@@ -275,6 +275,7 @@ class Stream(var jid: String, var port: Int = 5222) {
                 var innerLang: String? = null
                 var inForwarded = false
                 val innerRaw = StringBuilder()
+                var isMAM = false
 
                 while (eventType != XmlPullParser.END_DOCUMENT) {
                     when (eventType) {
@@ -303,6 +304,8 @@ class Stream(var jid: String, var port: Int = 5222) {
                                     }
                                     innerRaw.append(">")
                                 }
+                            } else if (tagName == "result" && namespace == "urn:xmpp:mam:2") {
+                                isMAM = true
                             } else if (tagName == "forwarded" && namespace == "urn:xmpp:forward:0") {
                                 inForwarded = true
                             } else if (tagName in listOf("active", "composing", "inactive", "received", "displayed") && (namespace == "http://jabber.org/protocol/chatstates" || namespace == "urn:xmpp:chat-markers:0")) {
@@ -347,17 +350,13 @@ class Stream(var jid: String, var port: Int = 5222) {
                 messageId = innerMessageId ?: messageId ?: "unknown_${System.currentTimeMillis()}"
                 Log.d(TAG, "Received message stanza: id=$messageId, isChatState=$isChatState, from=$from, to=$to, innerFrom=$innerFrom, innerTo=$innerTo, body=$body, innerBody=$innerBody")
 
-                // Skip chat state or marker messages without a body
                 if (isChatState && (innerBody.isNullOrEmpty() && body.isNullOrEmpty())) {
                     Log.d(TAG, "Skipping storage for chat state or marker message: id=$messageId")
                     if (delegate != null) {
                         withContext(Dispatchers.IO) {
-                            Log.d(TAG, "Dispatching chat state to delegate: id=$messageId, delegate=${delegate?.javaClass?.name}")
+                            Log.d(TAG, "Dispatching chat state to delegate: id=$messageId")
                             delegate?.didReceiveMessage(stanza, this@Stream)
-                            Log.d(TAG, "Dispatched chat state notification to delegate: id=$messageId")
                         }
-                    } else {
-                        Log.e(TAG, "Delegate is null, cannot dispatch chat state notification: id=$messageId")
                     }
                     return
                 }
@@ -377,11 +376,14 @@ class Stream(var jid: String, var port: Int = 5222) {
 
                 val realm = Realm.open(defaultRealmConfig())
                 val primary = TemporaryMessageStanzaStorageItem.genPrimary(messageId, jid)
-                val existing = realm.query<TemporaryMessageStanzaStorageItem>("primary = $0", primary).first().find()
-                if (existing != null && existing.isProcessed) {
-                    Log.d(TAG, "Skipping duplicate message: id=$messageId, primary=$primary, stanza=$stanza")
-                    realm.close()
-                    return
+                // Skip deduplication for MAM messages
+                if (!isMAM) {
+                    val existing = realm.query<TemporaryMessageStanzaStorageItem>("primary = $0", primary).first().find()
+                    if (existing != null && existing.isProcessed) {
+                        Log.d(TAG, "Skipping duplicate message: id=$messageId, primary=$primary, stanza=$stanza")
+                        realm.close()
+                        return
+                    }
                 }
 
                 val xmppMessage = XMPPMessage(
@@ -394,7 +396,11 @@ class Stream(var jid: String, var port: Int = 5222) {
                     body = innerBody ?: body
                 )
 
-                val timestamp = parseTimestamp(xmppMessage) ?: System.currentTimeMillis()
+                val timestamp = parseTimestamp(xmppMessage) ?: run {
+                    Log.e(TAG, "No valid timestamp for messageId=$messageId, skipping")
+                    realm.close()
+                    return
+                }
 
                 realm.write {
                     val tempStanza = TemporaryMessageStanzaStorageItem().apply {
@@ -407,12 +413,10 @@ class Stream(var jid: String, var port: Int = 5222) {
                         isProcessed = false
                     }
                     copyToRealm(tempStanza, UpdatePolicy.ALL)
-                    Log.d(TAG, "Stored TemporaryMessageStanzaStorageItem: messageId=$messageId, primary=$primary, opponent=$opponent, stanza=$stanza")
+                    Log.d(TAG, "Stored TemporaryMessageStanzaStorageItem: messageId=$messageId, primary=$primary, opponent=$opponent, date=$timestamp, stanza=$stanza")
                 }
 
-                val storedStanza = realm.query<TemporaryMessageStanzaStorageItem>(
-                    "primary = $0", primary
-                ).first().find()
+                val storedStanza = realm.query<TemporaryMessageStanzaStorageItem>("primary = $0", primary).first().find()
                 if (storedStanza != null) {
                     Log.d(TAG, "Verified storage: messageId=$messageId, primary=$primary, owner=${storedStanza.owner}, isProcessed=${storedStanza.isProcessed}, stanza=${storedStanza.stanza}")
                 } else {
@@ -422,9 +426,8 @@ class Stream(var jid: String, var port: Int = 5222) {
 
                 if (delegate != null) {
                     withContext(Dispatchers.IO) {
-                        Log.d(TAG, "Delegate state before dispatch: id=$messageId, delegate=${delegate?.javaClass?.name ?: "null"}")
+                        Log.d(TAG, "Dispatching message to delegate: id=$messageId")
                         delegate?.didReceiveMessage(stanza, this@Stream)
-                        Log.d(TAG, "Dispatched message to delegate: id=$messageId, stanza=$stanza")
                     }
                 } else {
                     Log.e(TAG, "Delegate is null, cannot dispatch message: id=$messageId, stanza=$stanza")
@@ -671,19 +674,76 @@ class Stream(var jid: String, var port: Int = 5222) {
     }
 
     private fun parseTimestamp(message: XMPPMessage): Long? {
-        val timeElement = message.element("time", namespace = "https://xabber.com/protocol/delivery")
-        val stamp = timeElement?.getAttribute("stamp")
-        return stamp?.let {
-            try {
-                val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'", Locale.US)
-                sdf.timeZone = TimeZone.getTimeZone("UTC")
-                sdf.parse(it)?.time
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to parse timestamp: ${e.message}")
+        fun tryParse(stamp: String, messageId: String?): Long? {
+            val formats = listOf(
+                "yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'", // Microsecond precision
+                "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",   // Millisecond precision
+                "yyyy-MM-dd'T'HH:mm:ss'Z'"        // No fractional seconds
+            )
+            for (format in formats) {
+                try {
+                    val sdf = SimpleDateFormat(format, Locale.US)
+                    sdf.timeZone = TimeZone.getTimeZone("UTC")
+                    sdf.isLenient = false
+                    return sdf.parse(stamp)?.time?.also {
+                        Log.d(TAG, "Parsed timestamp for messageId=$messageId: $stamp -> $it ($format)")
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to parse timestamp for messageId=$messageId with format $format: $stamp, error=${e.message}")
+                }
+            }
+            Log.e(TAG, "All timestamp formats failed for messageId=$messageId: $stamp")
+            return null
+        }
+
+        // First, check MAM forwarded message
+        val resultElement = message.element("result", namespace = "urn:xmpp:mam:2")
+        if (resultElement != null) {
+            val forwarded = resultElement.element("forwarded", namespace = "urn:xmpp:forward:0")
+            val innerMessage = forwarded?.element("message", namespace = "jabber:client")
+            if (innerMessage != null) {
+                // Try <time> in inner message
+                val innerTime = innerMessage.element("time", namespace = "https://xabber.com/protocol/delivery")?.getAttribute("stamp")
+                if (innerTime != null) {
+                    return tryParse(innerTime, message.id) ?: run {
+                        Log.w(TAG, "Failed to parse inner <time> for messageId=${message.id}: $innerTime")
+                        null
+                    }
+                }
+                // Try <delay> in inner message
+                val innerDelay = innerMessage.element("delay", namespace = "urn:xmpp:delay")?.getAttribute("stamp")
+                if (innerDelay != null) {
+                    return tryParse(innerDelay, message.id) ?: run {
+                        Log.w(TAG, "Failed to parse inner <delay> for messageId=${message.id}: $innerDelay")
+                        null
+                    }
+                }
+                Log.w(TAG, "No <time> or <delay> found in inner message for messageId=${message.id}")
+            } else {
+                Log.w(TAG, "No inner <message> found in MAM <forwarded> for messageId=${message.id}")
+            }
+        }
+
+        // Fallback to outer message
+        val timeElement = message.element("time", namespace = "https://xabber.com/protocol/delivery")?.getAttribute("stamp")
+        if (timeElement != null) {
+            return tryParse(timeElement, message.id) ?: run {
+                Log.w(TAG, "Failed to parse outer <time> for messageId=${message.id}: $timeElement")
                 null
             }
         }
+        val delayElement = message.element("delay", namespace = "urn:xmpp:delay")?.getAttribute("stamp")
+        if (delayElement != null) {
+            return tryParse(delayElement, message.id) ?: run {
+                Log.w(TAG, "Failed to parse outer <delay> for messageId=${message.id}: $delayElement")
+                null
+            }
+        }
+
+        Log.w(TAG, "No valid timestamp found for messageId=${message.id}, using fallback")
+        return null // Explicitly return null instead of System.currentTimeMillis()
     }
+
 
     private fun parseIQ(stanza: String): XMPPIQ? {
         try {

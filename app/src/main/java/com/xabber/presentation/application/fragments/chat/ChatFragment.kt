@@ -20,7 +20,6 @@ import android.view.animation.Animation
 import android.view.animation.AnimationUtils
 import android.view.animation.TranslateAnimation
 import android.widget.PopupMenu
-import android.widget.PopupWindow
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
@@ -73,6 +72,7 @@ import com.xabber.presentation.application.manage.ColorManager
 import com.xabber.presentation.application.manage.DisplayManager
 import com.xabber.utils.*
 import com.xabber.utils.custom.PlayerVisualizerView
+import com.xabber.xmpp.messages.message_archive.MessageArchiveManager
 import com.xabber.xmpp.messages.messages_manager.MessageCommonSender
 import io.reactivex.rxjava3.disposables.Disposable
 import io.realm.kotlin.Realm
@@ -87,6 +87,7 @@ import java.util.*
 import java.util.concurrent.TimeUnit
 import kotlin.collections.ArrayList
 import kotlin.experimental.and
+
 @RequiresApi(Build.VERSION_CODES.O)
 class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.MenuItemListener,
     MessageAdapter.OnViewClickListener, ReplySwipeCallback.SwipeAction {
@@ -112,7 +113,8 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     private var isVibrate = false
     private var ignoreReceiver = true
     private var isPlaying = false
-    private var messageSender: MessageCommonSender? = null // Made nullable
+    private var messageSender: MessageCommonSender? = null
+    private var messageArchiveManager: MessageArchiveManager? = null // Added for MAM
 
     val realm = Realm.open(defaultRealmConfig())
 
@@ -209,9 +211,11 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         val chat = viewModel.loadChat(getParams().id)
-        if (chat == null) navigator().closeDetail()
-        else {
-            messageSender = MessageCommonSender(chat.owner) // Initialize with chat.owner
+        if (chat == null) {
+            navigator().closeDetail()
+        } else {
+            messageSender = MessageCommonSender(chat.owner)
+            messageArchiveManager = MessageArchiveManager(chat.owner) // Initialize MAM
             prepareUi(chat)
             initializeToolbarActions(chat)
             initializeRecyclerView()
@@ -225,12 +229,45 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
             viewModel.queryRecentMessages(chat.opponentJid)
             AccountManager.registerChatViewModel(getParams().id, viewModel)
             activity?.onBackPressedDispatcher?.addCallback(onBackPressedCallback)
+            // Sync chat history
+            syncChatHistory(chat)
             Log.d("ChatFragment", "Opening chat: id=${getParams().id}, owner=${chat.owner}, opponentJid=${chat.opponentJid}")
         }
         if (savedInstanceState != null) restoreState(savedInstanceState)
         else {
             restoreDraft()
             scrollToLastPosition()
+        }
+    }
+
+    private fun syncChatHistory(chat: ChatListDto) {
+        lifecycleScope.launch(Dispatchers.IO) {
+            val account = AccountManager.find(chat.owner)
+            if (account == null) {
+                Log.e("ChatFragment", "No account found for owner ${chat.owner}")
+                return@launch
+            }
+            val stream = account.stream
+            if (stream == null) {
+                Log.e("ChatFragment", "No stream available for account ${chat.owner}")
+                return@launch
+            }
+            val conversationType = if (chat.isGroup) ConversationType.Group else ConversationType.Regular
+            try {
+                messageArchiveManager?.syncChat(
+                    stream = stream,
+                    jid = chat.opponentJid,
+                    conversationType = conversationType,
+                    callback = {
+                        Log.d("ChatFragment", "Chat history sync completed for jid=${chat.opponentJid}")
+                        // Optionally refresh UI or notify user
+                        viewModel.getMessageList(getParams().id)
+                    }
+                )
+                Log.d("ChatFragment", "Initiated chat history sync for jid=${chat.opponentJid}")
+            } catch (e: Exception) {
+                Log.e("ChatFragment", "Failed to sync chat history for jid=${chat.opponentJid}: ${e.message}", e)
+            }
         }
     }
 
@@ -402,17 +439,17 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
             onViewClickListener = this,
             messages = ArrayList<MessageDto>(),
             isGroup = isGroup,
-            onBindListener = { message -> onBind(message) } // Pass onBind callback
+            onBindListener = { message -> onBind(message) }
         )
         binding.messageList.adapter = messageAdapter
         layoutManager = LinearLayoutManager(context)
         layoutManager?.stackFromEnd = true
         binding.messageList.layoutManager = layoutManager
-                addSwipeCallback()
-                addMessageHeaderViewDecoration()
-                addScrollListener()
-                fillChat()
-                binding.messageList.itemAnimator = null
+        addSwipeCallback()
+        addMessageHeaderViewDecoration()
+        addScrollListener()
+        fillChat()
+        binding.messageList.itemAnimator = null
     }
 
     private fun addSwipeCallback() {
@@ -503,7 +540,6 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         val emojiView = AXSingleEmojiView(requireContext())
         emojiView.editText = binding.chatInput
         binding.emojiPopupLayout.initPopupView(emojiView)
-        // binding.buttonEmoticon.setOnClickListener { ... } // Commented out as per original
     }
 
     private fun initializeButtonAttach() {
@@ -533,13 +569,12 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
                 lifecycleScope.launch {
                     val sentId = messageSender?.sendSimpleMessage(
                         body = text,
-                        recipientJid = chat.opponentJid, // Fixed: Changed 'to' to 'recipientJid'
+                        recipientJid = chat.opponentJid,
                         forwarded = forwarded,
                         conversationType = conversationType
                     )
                     if (sentId.isNullOrEmpty()) {
                         Log.w("ChatFragment", "Failed to send message: MessageSender not initialized or error occurred")
-                        // Optional: Show toast or error message to user
                     } else {
                         Log.d("ChatFragment", "Sent message via MessageCommonSender: body=$text, recipientJid=${chat.opponentJid}, forwarded=$forwarded")
                     }
@@ -813,7 +848,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         val references = ArrayList<MessageReferenceDto>()
         references.add(MessageReferenceDto("$a 1 ${System.currentTimeMillis()}", isGeo = true, latitude = 56.98, longitude = 67.09, size = 0L))
         lifecycleScope.launch {
-            for (i in 0 until 10) { // Reduced for testing
+            for (i in 0 until 10) {
                 delay(1000)
                 a++
                 val m = MessageDto(
@@ -892,15 +927,14 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
 
     private fun showUnreadBadge(count: Int) {
         if (count > 0) {
-            // Delay show to avoid flicker if marking read happens quickly
-            handler.removeCallbacks(unreadShower)  // Cancel prior
-            handler.postDelayed(unreadShower, 150)  // 150ms delay; adjust as needed
+            handler.removeCallbacks(unreadShower)
+            handler.postDelayed(unreadShower, 150)
         } else {
-            // Hide instantly
             handler.removeCallbacks(unreadShower)
             unreadShower.invoke()
         }
     }
+
     private fun scrollDown() {
         if (messageAdapter != null) binding.messageList.scrollToPosition(messageAdapter?.itemCount!! - 1)
         binding.tvNewReceivedCount.isVisible = false
@@ -1118,8 +1152,6 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         }
     }
 
-
-
     override fun onFullSwipe(position: Int) {
         handler.postDelayed(reply, 1500)
     }
@@ -1182,14 +1214,14 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         }
     }
 
-
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onDestroyView() {
         super.onDestroyView()
         saveLastPosition()
         saveDraft()
         AccountManager.unregisterChatViewModel(getParams().id)
-        messageSender?.unsubscribeSender() // Unsubscribe MessageCommonSender
+        messageSender?.unsubscribeSender()
+        messageArchiveManager = null // Clean up MAM
         onBackPressedCallback.remove()
     }
 

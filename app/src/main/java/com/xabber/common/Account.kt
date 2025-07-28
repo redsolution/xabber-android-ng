@@ -20,9 +20,11 @@ import com.xabber.xmpp.messages.messages_manager.MessageManager
 import com.xabber.xmpp.messages.messages_manager.ChatMarkersManager
 import com.xabber.xmpp.messages.messages_manager.MessageCommonReceiver
 import com.xabber.data_base.models.messages.MessageStorageItem
+import com.xabber.data_base.models.sync.ConversationType
 import com.xabber.xmpp.jid.XMPPJID
 import com.xabber.xmpp.messages.XMPPMessage
 import com.xabber.xmpp.messages.message.TemporaryMessageStanzaStorageItem
+import com.xabber.xmpp.messages.message_archive.MessageArchiveManager
 import io.ktor.network.sockets.isClosed
 import io.reactivex.subjects.BehaviorSubject
 import io.realm.kotlin.Realm
@@ -81,6 +83,7 @@ class Account : XMPPStreamDelegate {
     private val realm: Realm by lazy { Realm.open(defaultRealmConfig()) }
     private val rosterManager: RosterManager by lazy { RosterManager(jid, realm) }
     private val syncManager: ClientSynchronizationManager by lazy { ClientSynchronizationManager(jid) }
+    private val messageArchiveManager: MessageArchiveManager by lazy { MessageArchiveManager(jid) } // Initialize MAM
     private var presenceManager: PresenceManager? = null
     private val deviceModel = Build.MODEL
     private var isDeviceRegistered = false
@@ -226,6 +229,8 @@ class Account : XMPPStreamDelegate {
                     presenceManager = PresenceManager(jid, it.socket!!)
                     statusMessage.onNext("Online")
                     Log.d("Account", "Stream connected for $jid")
+                    // Sync all chats after successful connection
+                    syncAllChats(it)
                     true
                 } else {
                     statusMessage.onNext("Offline")
@@ -246,6 +251,40 @@ class Account : XMPPStreamDelegate {
         }
     }
 
+    private suspend fun syncAllChats(stream: Stream) = withContext(Dispatchers.IO) {
+        val realm = Realm.open(defaultRealmConfig())
+        try {
+            // Fetch chats synchronously within writeBlocking
+            val chats = realm.writeBlocking {
+                query<LastChatsStorageItem>("owner = $0", jid).find()
+            }
+            Log.d("Account", "Found ${chats.size} chats to sync for $jid")
+
+            // Launch coroutines for each chat sync
+            chats.forEach { chat ->
+                launch {
+                    val conversationType = ConversationType.fromRaw(chat.conversationType_)
+                    try {
+                        messageArchiveManager.syncChat(
+                            stream = stream,
+                            jid = chat.jid,
+                            conversationType = conversationType,
+                            callback = {
+                                Log.d("Account", "Chat history sync completed for jid=${chat.jid}, type=${chat.conversationType_}")
+                            }
+                        )
+                        Log.d("Account", "Initiated sync for chat jid=${chat.jid}, type=${chat.conversationType_}")
+                    } catch (e: Exception) {
+                        Log.e("Account", "Failed to sync chat jid=${chat.jid}, type=${chat.conversationType_}: ${e.message}", e)
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("Account", "Error syncing chats for $jid: ${e.message}", e)
+        } finally {
+            realm.close()
+        }
+    }
     @RequiresApi(Build.VERSION_CODES.O)
     suspend fun closeStream() = withContext(Dispatchers.IO) {
         stream?.close()

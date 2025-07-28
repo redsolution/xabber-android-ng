@@ -99,6 +99,7 @@ class MessageCommonReceiver(private val owner: String) {
         return queueItem
     }
 
+
     suspend fun receiveClientSync(message: XMPPMessage, isRead: Boolean, state: MessageStorageItem.MessageSendingState, date: Date) {
         val messageId = getOriginId(message) ?: message.id
         Log.d("MessageCommonReceiver", "receiveClientSync called for messageId=$messageId")
@@ -127,42 +128,57 @@ class MessageCommonReceiver(private val owner: String) {
     }
 
     suspend fun receiveArchived(message: XMPPMessage) {
-        val date = getDelayedDate(message) ?: return.also {
-            Log.w("MessageCommonReceiver", "receiveArchived failed: no delayed date for messageId=${getOriginId(message) ?: message.id}")
+        if (!isValidMessage(message)) {
+            Log.w(TAG, "Skipping incomplete archived message: messageId=${message.id}")
+            return
         }
         val messageBare = getArchivedMessageContainer(message) ?: return.also {
-            Log.w("MessageCommonReceiver", "receiveArchived failed: no archived message container for messageId=${getOriginId(message) ?: message.id}")
+            Log.w(TAG, "receiveArchived failed: no archived message container for messageId=${getOriginId(message) ?: message.id}")
         }
-        val messageId = getOriginId(messageBare) ?: messageBare.id
-        Log.d("MessageCommonReceiver", "receiveArchived called for messageId=$messageId")
+        val messageId = getOriginId(messageBare) ?: messageBare.id ?: run {
+            Log.w(TAG, "Skipping archived message with no valid ID: raw=${message.raw.substring(0, minOf(message.raw.length, 200))}...")
+            return
+        }
+        val primary = MessageStorageItem.genPrimary(messageId, owner)
+        val existing = realm.query<MessageStorageItem>("primary = $0", primary).first().find()
+        if (existing != null) {
+            Log.d(TAG, "Skipping duplicate archived message: messageId=$messageId, primary=$primary, body=${existing.body.take(100)}")
+            return
+        }
+        val innerDate = parseTimestamp(messageBare, owner) ?: parseTimestamp(message, owner) ?: run {
+            Log.e(TAG, "No valid timestamp for messageId=$messageId, using current time as fallback")
+            Date()
+        }
+        Log.d(TAG, "receiveArchived: messageId=$messageId, timestamp=$innerDate, body=${messageBare.body?.take(100)}")
         enqueue(
             MessageQueueItem(
                 message = messageBare,
                 messageId = messageId,
                 archivedFrom = message.from?.bare(),
                 isRead = true,
-                date = getDeliveryTime(messageBare, owner) ?: date,
+                date = innerDate,
                 state = MessageStorageItem.MessageSendingState.DELIVERED,
                 queryId = getMAMQueryId(message)
             )
         )
     }
 
+
     @RequiresApi(Build.VERSION_CODES.O)
     suspend fun receiveCarbon(message: XMPPMessage) {
         val messageBare = getCarbonCopyMessageContainer(message) ?: return.also {
-            Log.w("MessageCommonReceiver", "receiveCarbon failed: no carbon copy message container for messageId=${getOriginId(message) ?: message.id}")
+            Log.w(TAG, "receiveCarbon failed: no carbon copy message container for messageId=${getOriginId(message) ?: message.id}")
         }
         val messageId = getOriginId(messageBare) ?: messageBare.id
-        Log.d("MessageCommonReceiver", "receiveCarbon called for messageId=$messageId, from=${messageBare.from?.bare()}, to=${messageBare.to?.bare()}, body=${messageBare.body}, raw=${messageBare.raw}")
         val primary = messageId?.let { MessageStorageItem.genPrimary(it, owner) }
-        Log.d("MessageCommonReceiver", "Generated primary key: $primary for messageId=$messageId")
         if (primary != null && realm.query<MessageStorageItem>("primary = $0", primary).first().find() != null) {
-            Log.d("MessageCommonReceiver", "Skipping duplicate carbon message: messageId=$messageId, primary=$primary")
+            Log.d(TAG, "Skipping duplicate carbon message: messageId=$messageId, primary=$primary")
             return
         }
-        val deliveryTime = getDeliveryTime(messageBare, owner) ?: Date()
-        Log.d("MessageCommonReceiver", "Delivery time for messageId=$messageId: $deliveryTime")
+        val deliveryTime = parseTimestamp(messageBare, owner) ?: return.also {
+            Log.w(TAG, "receiveCarbon failed: no valid timestamp for messageId=$messageId")
+        }
+        Log.d(TAG, "receiveCarbon called for messageId=$messageId, timestamp=$deliveryTime")
         val queueItem = MessageQueueItem(
             message = messageBare,
             messageId = messageId,
@@ -172,23 +188,7 @@ class MessageCommonReceiver(private val owner: String) {
             state = MessageStorageItem.MessageSendingState.SENT,
             queryId = getMAMQueryId(message)
         )
-        Log.d("MessageCommonReceiver", "Enqueuing carbon message: messageId=$messageId, primary=$primary, date=$deliveryTime, state=${queueItem.state}")
-        try {
-            enqueue(queueItem)
-            Log.d("MessageCommonReceiver", "Successfully enqueued carbon message: messageId=$messageId")
-            // Log MessageStorageItem entries
-            realm.query<MessageStorageItem>("messageId = $0", messageId).find().forEach { item ->
-                Log.d(
-                    "MessageCommonReceiver",
-                    "MessageStorageItem: primary=${item.primary}, messageId=${item.messageId}, owner=${item.owner}, " +
-                            "opponent=${item.opponent}, body=${item.body}, date=${item.date}, sentDate=${item.sentDate}, " +
-                            "editDate=${item.editDate}, outgoing=${item.outgoing}, conversationType_=${item.conversationType_}, " +
-                            "isRead=${item.isRead}, state=${item.state}"
-                )
-            }
-        } catch (e: Exception) {
-            Log.e("MessageCommonReceiver", "Failed to enqueue carbon message: messageId=$messageId, error=${e.message}", e)
-        }
+        enqueue(queueItem)
     }
 
     suspend fun receiveCarbonForwarded(message: XMPPMessage) {
@@ -200,10 +200,8 @@ class MessageCommonReceiver(private val owner: String) {
             Log.d(TAG, "Skipping carbon forwarded message with no body: messageId=$messageId")
             return
         }
-        Log.d(TAG, "receiveCarbonForwarded called for messageId=$messageId, body=${message.body?.take(100)}")
         val primary = MessageStorageItem.genPrimary(messageId, owner)
-        val existing = realm.query<MessageStorageItem>("primary = $0", primary).first().find()
-        if (existing != null) {
+        if (realm.query<MessageStorageItem>("primary = $0", primary).first().find() != null) {
             Log.d(TAG, "Skipping duplicate carbon forwarded message: messageId=$messageId, primary=$primary")
             return
         }
@@ -214,23 +212,40 @@ class MessageCommonReceiver(private val owner: String) {
             Log.w(TAG, "Skipping self-directed message: messageId=$messageId, from=$from, to=$to")
             return
         }
+        val deliveryTime = parseTimestamp(message, owner) ?: return.also {
+            Log.w(TAG, "receiveCarbonForwarded failed: no valid timestamp for messageId=$messageId")
+        }
+        Log.d(TAG, "receiveCarbonForwarded called for messageId=$messageId, timestamp=$deliveryTime")
         val queueItem = MessageQueueItem(
             message = message,
             messageId = messageId,
             archivedFrom = from,
-            isRead = from == owner, // Outgoing messages are read
-            date = getDeliveryTime(message, owner) ?: Date(),
+            isRead = from == owner,
+            date = deliveryTime,
             state = if (from == owner) MessageStorageItem.MessageSendingState.DELIVERED else MessageStorageItem.MessageSendingState.SENT,
             queryId = getMAMQueryId(message),
             originalFrom = from,
             originalOutgoing = from == owner
         )
-        Log.d(TAG, "Enqueuing carbon forwarded message: messageId=$messageId, opponent=$opponent, isOutgoing=${from == owner}")
         enqueue(queueItem)
     }
 
+    private fun isValidMessage(message: XMPPMessage): Boolean {
+        return try {
+            message.raw.contains("</message>").also {
+                if (!it) Log.w(TAG, "Invalid message (incomplete): messageId=${message.id}, raw=${message.raw.take(200)}")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to validate message: ${e.message}")
+            false
+        }
+    }
 
     suspend fun receiveRuntime(message: XMPPMessage) {
+        if (!isValidMessage(message)) {
+            Log.w(TAG, "Skipping incomplete runtime message: messageId=${message.id}")
+            return
+        }
         val messageId = getOriginId(message) ?: message.id
         Log.d("MessageCommonReceiver", "receiveRuntime called for messageId=$messageId, body=${message.body?.take(100)}")
         val primary = messageId?.let { MessageStorageItem.genPrimary(it, owner) }
@@ -352,10 +367,9 @@ class MessageCommonReceiver(private val owner: String) {
         items.forEach { item ->
             Log.d(
                 TAG,
-                "Queue item: messageId=${item.messageId}, from=${item.message.from?.bare()}, to=${item.message.to?.bare()}, body=${item.message.body?.take(100)}, state=${item.state}, isRead=${item.isRead}, date=${item.date}"
+                "Queue item: messageId=${item.messageId}, from=${item.message.from?.bare()}, to=${item.message.to?.bare()}, body=${item.message.body?.take(100)}, state=${item.state}, isRead=${item.isRead}, date=${Date(item.date.time)}, queryId=${item.queryId}"
             )
         }
-
         val messageQueryIds = mutableSetOf<String>()
         val out = mutableListOf<MessageDto>()
         val sortedItems = items.sortedBy { it.date.time }
@@ -736,31 +750,81 @@ class MessageCommonReceiver(private val owner: String) {
     }
 
     private fun getDelayedDate(message: XMPPMessage): Date? {
-        val delay = message.element("delay", namespace = "urn:xmpp:delay")?.getAttribute("stamp")
-        return delay?.let {
-            try {
-                val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US)
-                sdf.timeZone = TimeZone.getTimeZone("UTC")
-                sdf.parse(it)
-            } catch (e: Exception) {
-                Log.e("MessageCommonReceiver", "Failed to parse delay timestamp: ${e.message}")
-                null
-            }
-        }
+        return parseTimestamp(message, owner)
+    }
+    private fun getDeliveryTime(message: XMPPMessage, owner: String): Date? {
+        return parseTimestamp(message, owner)
     }
 
-    private fun getDeliveryTime(message: XMPPMessage, owner: String): Date? {
-        val time = message.element("time", namespace = "https://xabber.com/protocol/delivery")?.getAttribute("stamp")
-        return time?.let {
-            try {
-                val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'", Locale.US)
-                sdf.timeZone = TimeZone.getTimeZone("UTC")
-                sdf.parse(it)
-            } catch (e: Exception) {
-                Log.e("MessageCommonReceiver", "Failed to parse delivery timestamp: ${e.message}")
+    private fun parseTimestamp(message: XMPPMessage, owner: String): Date? {
+        fun tryParse(stamp: String, messageId: String?): Date? {
+            val formats = listOf(
+                "yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'", // Microsecond precision
+                "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",   // Millisecond precision
+                "yyyy-MM-dd'T'HH:mm:ss'Z'"        // No fractional seconds
+            )
+            for (format in formats) {
+                try {
+                    val sdf = SimpleDateFormat(format, Locale.US)
+                    sdf.timeZone = TimeZone.getTimeZone("UTC")
+                    sdf.isLenient = false
+                    return sdf.parse(stamp)?.also {
+                        Log.d(TAG, "Parsed timestamp for messageId=$messageId: $stamp -> $it ($format)")
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to parse timestamp for messageId=$messageId with format $format: $stamp, error=${e.message}")
+                }
+            }
+            Log.e(TAG, "All timestamp formats failed for messageId=$messageId: $stamp")
+            return null
+        }
+
+        // Check MAM forwarded message
+        val resultElement = message.element("result", namespace = "urn:xmpp:mam:2")
+        if (resultElement != null) {
+            val forwarded = resultElement.element("forwarded", namespace = "urn:xmpp:forward:0")
+            val innerMessage = forwarded?.element("message", namespace = "jabber:client")
+            if (innerMessage != null) {
+                // Try <time> in inner message
+                val innerTime = innerMessage.element("time", namespace = "https://xabber.com/protocol/delivery")?.getAttribute("stamp")
+                if (innerTime != null) {
+                    return tryParse(innerTime, message.id) ?: run {
+                        Log.w(TAG, "Failed to parse inner <time> for messageId=${message.id}: $innerTime")
+                        null
+                    }
+                }
+                // Try <delay> in inner message
+                val innerDelay = innerMessage.element("delay", namespace = "urn:xmpp:delay")?.getAttribute("stamp")
+                if (innerDelay != null) {
+                    return tryParse(innerDelay, message.id) ?: run {
+                        Log.w(TAG, "Failed to parse inner <delay> for messageId=${message.id}: $innerDelay")
+                        null
+                    }
+                }
+                Log.w(TAG, "No <time> or <delay> found in inner message for messageId=${message.id}")
+            } else {
+                Log.w(TAG, "No inner <message> found in MAM <forwarded> for messageId=${message.id}")
+            }
+        }
+
+        // Fallback to outer message
+        val delay = message.element("delay", namespace = "urn:xmpp:delay")?.getAttribute("stamp")
+        if (delay != null) {
+            return tryParse(delay, message.id) ?: run {
+                Log.e(TAG, "Failed to parse <delay> for messageId=${message.id}: $delay")
                 null
             }
         }
+        val time = message.element("time", namespace = "https://xabber.com/protocol/delivery")?.getAttribute("stamp")
+        if (time != null) {
+            return tryParse(time, message.id) ?: run {
+                Log.e(TAG, "Failed to parse <time> for messageId=${message.id}: $time")
+                null
+            }
+        }
+
+        Log.w(TAG, "No valid timestamp found for messageId=${message.id}, using fallback")
+        return null // Explicitly return null
     }
 
     private fun getArchivedMessageContainer(message: XMPPMessage): XMPPMessage? {

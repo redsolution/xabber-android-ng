@@ -459,5 +459,8 @@
     <string name="dialog_chat_negative_button">Cancel</string>
 
     <string name="feature_not_implemented">This feature is not implemented</string>
+    <string name="empty_message">empty message</string>
+    <string name="unable_to_play_audio">unable to play audio</string>
+    <string name="invalid_timestamp">invalid timestamp\n</string>
 
 </resources>

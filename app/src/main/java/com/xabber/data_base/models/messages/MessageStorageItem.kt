@@ -182,8 +182,8 @@ class MessageStorageItem : RealmObject {
             this.conversationType = ConversationType.Omemo
         }
         updatePrimary()
+        Log.d(TAG, "Configured incoming message: primary=$primary, messageId=$messageId, sentDate=$sentDate, date=${Date(sentDate)}")
     }
-
     fun configureOutgoingMessage(
         body: String,
         legacyBody: String,

@@ -25,12 +25,14 @@ import com.xabber.utils.toAccountDto
 import com.xabber.utils.toChatListDto
 import com.xabber.utils.toMessageReferenceDto
 import io.realm.kotlin.Realm
+import io.realm.kotlin.ext.query
 import io.realm.kotlin.ext.realmListOf
 import io.realm.kotlin.notifications.ResultsChange
 import io.realm.kotlin.notifications.UpdatedResults
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
+import java.util.Date
 import java.util.UUID
 
 @RequiresApi(Build.VERSION_CODES.O)
@@ -58,7 +60,7 @@ class ChatViewModel(
 
     private val _muteExpired = MutableLiveData<Long>()
     val muteExpired: LiveData<Long> = _muteExpired
-
+    val TAG = "ChatViewModel"
     private var messageList = ArrayList<MessageDto>()
     var a = 11
     private val _selectedCount = MutableLiveData<Int>()
@@ -115,20 +117,25 @@ class ChatViewModel(
                     references = item.references.map { it.toMessageReferenceDto() } as ArrayList<MessageReferenceDto>,
                     isUnread = !item.isRead,
                     isChecked = selectedItems.contains(item.primary)
-                )
+                ).also {
+                    Log.d(
+                        TAG,
+                        "Mapped MessageStorageItem to MessageDto: primary=${it.primary}, sentTimestamp=${it.sentTimestamp}, date=${Date(it.sentTimestamp)}, body=${it.messageBody.take(50)}, isUnread=${it.isUnread}"
+                    )
+                }
             })
         }
         count = list.count { it.isUnread }
         if (list != messageList) {
-            messageList = list
+            messageList = ArrayList(list.distinctBy { it.primary })
             messageList.sortBy { it.sentTimestamp }
-            Log.d("ChatViewModel", "Updating messages LiveData: ${list.size} messages, $count unread, messageListSize=${messageList.size}")
+            Log.d(TAG, "Updating messages LiveData: ${list.size} messages, $count unread, messageListSize=${messageList.size}")
             viewModelScope.launch(Dispatchers.Main) {
                 _messages.value = messageList
                 _unreadCount.value = count
             }
         } else {
-            Log.d("ChatViewModel", "No change in messages, skipping LiveData update, messageListSize=${messageList.size}")
+            Log.d(TAG, "No change in messages, skipping LiveData update, messageListSize=${messageList.size}")
         }
     }
 
@@ -206,10 +213,19 @@ class ChatViewModel(
 
     fun insertMessage(chatId: String, messageDto: MessageDto) {
         viewModelScope.launch(Dispatchers.IO) {
-            val rreferences = realmListOf<MessageReferenceStorageItem>()
             realm.writeBlocking {
+                val existing =
+                    query<MessageStorageItem>("primary = $0", messageDto.primary).first().find()
+                if (existing != null) {
+                    Log.d(
+                        "ChatViewModel",
+                        "Skipping duplicate message insertion: primary=${messageDto.primary}, sentDate=${existing.sentDate}"
+                    )
+                    return@writeBlocking
+                }
+                val rreferences = realmListOf<MessageReferenceStorageItem>()
                 for (i in 0 until messageDto.references.size) {
-                    val ref = this.copyToRealm(MessageReferenceStorageItem().apply {
+                    val ref = copyToRealm(MessageReferenceStorageItem().apply {
                         primary = messageDto.references[i].id + "${System.currentTimeMillis()}"
                         uri = messageDto.references[i].uri
                         mimeType = messageDto.references[i].mimeType
@@ -222,7 +238,7 @@ class ChatViewModel(
                     })
                     rreferences.add(ref)
                 }
-                val message = this.copyToRealm(MessageStorageItem().apply {
+                val message = copyToRealm(MessageStorageItem().apply {
                     primary = messageDto.primary
                     owner = messageDto.owner
                     opponent = messageDto.opponentJid
@@ -233,37 +249,97 @@ class ChatViewModel(
                     outgoing = messageDto.isOutgoing
                     isRead = !messageDto.isUnread
                     references = rreferences
-                    conversationType_ = if (messageDto.isGroup) "https://xabber.com/protocol/groups" else "urn:xabber:chat"
+                    conversationType_ =
+                        if (messageDto.isGroup) "https://xabber.com/protocol/groups" else "urn:xabber:chat"
                 })
-                val item = this.query(LastChatsStorageItem::class, "primary = '$chatId'").first().find()
-                item?.lastMessage = message
-                item?.messageDate = message.date
-                if (!messageDto.isOutgoing && item?.muteExpired ?: 0 <= 0) {
-                    item?.isArchived = false
-                    item?.unread = (item?.unread ?: 0) + 1
+                val item = query<LastChatsStorageItem>("primary = $0", chatId).first().find()
+                if (item != null) {
+                    findLatest(item)?.apply {
+                        lastMessage = message
+                        messageDate = message.date
+                        if (!messageDto.isOutgoing && muteExpired <= 0) {
+                            isArchived = false
+                            unread = (unread ?: 0) + 1
+                        }
+                    }
                 }
-                Log.d("ChatViewModel", "Inserted message: primary=${message.primary}, body=${message.body.take(50)}, isRead=${message.isRead}, opponent=${message.opponent}")
+                Log.d(
+                    "ChatViewModel",
+                    "Inserted message: primary=${message.primary}, sentDate=${message.sentDate}, body=${
+                        message.body.take(50)
+                    }, isRead=${message.isRead}, opponent=${message.opponent}"
+                )
             }
         }
     }
 
     fun insertMessagesFromReceiver(messages: List<MessageDto>) {
-        Log.d("ChatViewModel", "insertMessagesFromReceiver called with ${messages.size} messages for chatId=$chatId, current messageListSize=${messageList.size}")
+        Log.d(TAG, "insertMessagesFromReceiver called with ${messages.size} messages for chatId=$chatId")
         viewModelScope.launch(Dispatchers.IO) {
+            realm.writeBlocking {
+                val insertedMessages = mutableListOf<MessageDto>()
+                messages.forEach { messageDto ->
+                    val existing = query<MessageStorageItem>("primary = $0", messageDto.primary).first().find()
+                    if (existing != null) {
+                        Log.d(TAG, "Skipping duplicate message from receiver: primary=${messageDto.primary}, sentDate=${existing.sentDate}, body=${messageDto.messageBody.take(50)}")
+                        return@forEach
+                    }
+                    val rreferences = realmListOf<MessageReferenceStorageItem>()
+                    for (i in 0 until messageDto.references.size) {
+                        val ref = copyToRealm(MessageReferenceStorageItem().apply {
+                            primary = messageDto.references[i].id + "${System.currentTimeMillis()}"
+                            uri = messageDto.references[i].uri
+                            mimeType = messageDto.references[i].mimeType
+                            isGeo = messageDto.references[i].isGeo
+                            latitude = messageDto.references[i].latitude
+                            longitude = messageDto.references[i].longitude
+                            isAudioMessage = messageDto.references[i].isVoiceMessage
+                            fileName = messageDto.references[i].fileName
+                            fileSize = messageDto.references[i].size
+                        })
+                        rreferences.add(ref)
+                    }
+                    val message = copyToRealm(MessageStorageItem().apply {
+                        primary = messageDto.primary
+                        owner = messageDto.owner
+                        opponent = messageDto.opponentJid
+                        body = messageDto.messageBody
+                        date = messageDto.sentTimestamp
+                        sentDate = messageDto.sentTimestamp
+                        editDate = messageDto.editTimestamp
+                        outgoing = messageDto.isOutgoing
+                        isRead = !messageDto.isUnread
+                        references = rreferences
+                        conversationType_ = if (messageDto.isGroup) "https://xabber.com/protocol/groups" else "urn:xabber:chat"
+                    })
+                    insertedMessages.add(messageDto)
+                    Log.d(TAG, "Inserted message from receiver: primary=${message.primary}, sentDate=${message.sentDate}, date=${Date(message.sentDate)}, body=${message.body.take(50)}, isRead=${message.isRead}, opponent=${message.opponent}")
+                }
+                val item = query<LastChatsStorageItem>("primary = $0", chatId).first().find()
+                if (item != null && insertedMessages.isNotEmpty()) {
+                    findLatest(item)?.apply {
+                        lastMessage = query<MessageStorageItem>("primary = $0", insertedMessages.last().primary).first().find()
+                        messageDate = lastMessage?.date ?: messageDate
+                        if (insertedMessages.any { !it.isOutgoing } && muteExpired <= 0) {
+                            isArchived = false
+                            unread = (unread ?: 0) + insertedMessages.count { !it.isOutgoing && it.isUnread }
+                        }
+                    }
+                    Log.d(TAG, "Updated LastChatsStorageItem for chatId=$chatId: lastMessageId=${insertedMessages.last().primary}, unread=${item?.unread}")
+                }
+            }
             val list = messageList.toMutableList()
-            list.addAll(messages)
+            list.addAll(messages.filter { m -> !messageList.any { it.primary == m.primary } })
             count = list.count { it.isUnread }
-            messageList = list as ArrayList<MessageDto>
+            messageList = ArrayList(list.distinctBy { it.primary })
             messageList.sortBy { it.sentTimestamp }
-            Log.d("ChatViewModel", "After insertMessagesFromReceiver, messageListSize=${messageList.size}")
-            viewModelScope.launch(Dispatchers.Main) {
+            Log.d(TAG, "After insertMessagesFromReceiver, messageListSize=${messageList.size}, unreadCount=$count, messages=${messages.map { "${it.primary}: ${Date(it.sentTimestamp)}" }}")
+            withContext(Dispatchers.Main) {
                 _messages.value = messageList
                 _unreadCount.value = count
             }
         }
     }
-
-
 
     @RequiresApi(Build.VERSION_CODES.O)
     fun queryRecentMessages(opponentJid: String) {
