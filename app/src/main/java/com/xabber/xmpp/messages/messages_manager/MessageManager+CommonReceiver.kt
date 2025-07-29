@@ -13,6 +13,7 @@ import com.xabber.data_base.models.messages.MessageStorageItem
 import com.xabber.data_base.models.sync.ConversationType
 import com.xabber.dto.MessageDto
 import com.xabber.dto.MessageReferenceDto
+import com.xabber.utils.parseTimestamp
 import com.xabber.utils.toMessageReferenceDto
 import com.xabber.xmpp.groupchat.GroupChatStorageItem
 import com.xabber.xmpp.messages.XMLElement
@@ -25,10 +26,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
 import java.util.Date
-import java.util.Locale
-import java.util.TimeZone
 import java.util.UUID
 import kotlin.collections.HashSet
 
@@ -68,7 +66,6 @@ class MessageCommonReceiver(private val owner: String) {
         }
     }
 
-
     fun receiveClientSyncRaw(
         message: XMPPMessage,
         groupchatUserCard: String? = null,
@@ -79,7 +76,7 @@ class MessageCommonReceiver(private val owner: String) {
     ): MessageQueueItem? {
         val messageId = getOriginId(message) ?: message.id
         Log.d(
-            "MessageCommonReceiver",
+            TAG,
             "receiveClientSyncRaw called: messageId=$messageId, from=${message.from?.bare()}, to=${message.to?.bare()}, body=${message.body?.take(100)}, isRead=$isRead, state=$state, date=$date"
         )
         val queueItem = MessageQueueItem(
@@ -95,26 +92,25 @@ class MessageCommonReceiver(private val owner: String) {
             groupchatUserCard = groupchatUserCard,
             readDate = readDate
         )
-        Log.d("MessageCommonReceiver", "Created MessageQueueItem: messageId=${queueItem.messageId}, clientSyncMessage=${queueItem.clientSyncMessage}")
+        Log.d(TAG, "Created MessageQueueItem: messageId=${queueItem.messageId}, clientSyncMessage=${queueItem.clientSyncMessage}")
         return queueItem
     }
 
-
     suspend fun receiveClientSync(message: XMPPMessage, isRead: Boolean, state: MessageStorageItem.MessageSendingState, date: Date) {
         val messageId = getOriginId(message) ?: message.id
-        Log.d("MessageCommonReceiver", "receiveClientSync called for messageId=$messageId")
+        Log.d(TAG, "receiveClientSync called for messageId=$messageId")
         receiveClientSyncRaw(message, null, isRead, state, date)?.let { enqueue(it) }
     }
 
     fun receiveTemporary(message: XMPPMessage): MessageQueueItem? {
         val date = getDelayedDate(message) ?: return null.also {
-            Log.w("MessageCommonReceiver", "receiveTemporary failed: no delayed date for messageId=${getOriginId(message) ?: message.id}")
+            Log.w(TAG, "receiveTemporary failed: no delayed date for messageId=${getOriginId(message) ?: message.id}")
         }
         val messageBare = getArchivedMessageContainer(message) ?: return null.also {
-            Log.w("MessageCommonReceiver", "receiveTemporary failed: no archived message container for messageId=${getOriginId(message) ?: message.id}")
+            Log.w(TAG, "receiveTemporary failed: no archived message container for messageId=${getOriginId(message) ?: message.id}")
         }
         val messageId = getOriginId(messageBare) ?: messageBare.id
-        Log.d("MessageCommonReceiver", "receiveTemporary called for messageId=$messageId")
+        Log.d(TAG, "receiveTemporary called for messageId=$messageId")
         return MessageQueueItem(
             message = messageBare,
             messageId = messageId,
@@ -145,26 +141,26 @@ class MessageCommonReceiver(private val owner: String) {
             Log.d(TAG, "Skipping duplicate archived message: messageId=$messageId, primary=$primary, body=${existing.body.take(100)}")
             return
         }
-        val innerDate = parseTimestamp(messageBare, owner) ?: parseTimestamp(message, owner) ?: run {
+        val innerTimestamp = parseTimestamp(messageBare, TAG)?.let { Date(it) } ?: parseTimestamp(message, TAG)?.let { Date(it) } ?: run {
             Log.e(TAG, "No valid timestamp for messageId=$messageId, using current time as fallback")
             Date()
         }
-        Log.d(TAG, "receiveArchived: messageId=$messageId, timestamp=$innerDate, body=${messageBare.body?.take(100)}")
+        Log.d(TAG, "receiveArchived: messageId=$messageId, timestamp=$innerTimestamp, body=${messageBare.body?.take(100)}")
         enqueue(
             MessageQueueItem(
                 message = messageBare,
                 messageId = messageId,
-                archivedFrom = message.from?.bare(),
-                isRead = true,
-                date = innerDate,
+                archivedFrom = messageBare.from?.bare(),
+                isRead = messageBare.from?.bare() == owner,
+                date = innerTimestamp,
                 state = MessageStorageItem.MessageSendingState.DELIVERED,
-                queryId = getMAMQueryId(message)
+                queryId = getMAMQueryId(message),
+                originalFrom = messageBare.from?.bare() ?: "",
+                originalOutgoing = messageBare.from?.bare() == owner
             )
         )
     }
 
-
-    @RequiresApi(Build.VERSION_CODES.O)
     suspend fun receiveCarbon(message: XMPPMessage) {
         val messageBare = getCarbonCopyMessageContainer(message) ?: return.also {
             Log.w(TAG, "receiveCarbon failed: no carbon copy message container for messageId=${getOriginId(message) ?: message.id}")
@@ -175,7 +171,7 @@ class MessageCommonReceiver(private val owner: String) {
             Log.d(TAG, "Skipping duplicate carbon message: messageId=$messageId, primary=$primary")
             return
         }
-        val deliveryTime = parseTimestamp(messageBare, owner) ?: return.also {
+        val deliveryTime = parseTimestamp(messageBare, TAG)?.let { Date(it) } ?: return.also {
             Log.w(TAG, "receiveCarbon failed: no valid timestamp for messageId=$messageId")
         }
         Log.d(TAG, "receiveCarbon called for messageId=$messageId, timestamp=$deliveryTime")
@@ -186,7 +182,9 @@ class MessageCommonReceiver(private val owner: String) {
             isRead = false,
             date = deliveryTime,
             state = MessageStorageItem.MessageSendingState.SENT,
-            queryId = getMAMQueryId(message)
+            queryId = getMAMQueryId(message),
+            originalFrom = messageBare.from?.bare() ?: "",
+            originalOutgoing = messageBare.from?.bare() == owner
         )
         enqueue(queueItem)
     }
@@ -205,14 +203,18 @@ class MessageCommonReceiver(private val owner: String) {
             Log.d(TAG, "Skipping duplicate carbon forwarded message: messageId=$messageId, primary=$primary")
             return
         }
-        val from = message.from?.bare() ?: return
-        val to = message.to?.bare() ?: return
+        val from = message.from?.bare() ?: return.also {
+            Log.w(TAG, "receiveCarbonForwarded failed: no from JID for messageId=$messageId")
+        }
+        val to = message.to?.bare() ?: return.also {
+            Log.w(TAG, "receiveCarbonForwarded failed: no to JID for messageId=$messageId")
+        }
         val opponent = if (to != owner) to else from
         if (opponent == owner) {
             Log.w(TAG, "Skipping self-directed message: messageId=$messageId, from=$from, to=$to")
             return
         }
-        val deliveryTime = parseTimestamp(message, owner) ?: return.also {
+        val deliveryTime = parseTimestamp(message, TAG)?.let { Date(it) } ?: return.also {
             Log.w(TAG, "receiveCarbonForwarded failed: no valid timestamp for messageId=$messageId")
         }
         Log.d(TAG, "receiveCarbonForwarded called for messageId=$messageId, timestamp=$deliveryTime")
@@ -246,41 +248,56 @@ class MessageCommonReceiver(private val owner: String) {
             Log.w(TAG, "Skipping incomplete runtime message: messageId=${message.id}")
             return
         }
+        // Check if the message is a MAM archived message
+        if (message.element("result", namespace = "urn:xmpp:mam:2") != null || message.raw.contains("urn:xmpp:mam:2")) {
+            Log.d(TAG, "Detected MAM message in receiveRuntime, redirecting to receiveArchived: messageId=${getOriginId(message) ?: message.id}")
+            receiveArchived(message)
+            return
+        }
         val messageId = getOriginId(message) ?: message.id
-        Log.d("MessageCommonReceiver", "receiveRuntime called for messageId=$messageId, body=${message.body?.take(100)}")
+        Log.d(TAG, "receiveRuntime called for messageId=$messageId, body=${message.body?.take(100)}")
         val primary = messageId?.let { MessageStorageItem.genPrimary(it, owner) }
         if (primary != null) {
             val existing = realm.query<MessageStorageItem>("primary = $0", primary).first().find()
             if (existing != null) {
-                Log.d("MessageCommonReceiver", "Skipping duplicate runtime message: messageId=$messageId, primary=$primary, existing body=${existing.body.take(100)}")
+                Log.d(TAG, "Skipping duplicate runtime message: messageId=$messageId, primary=$primary, existing body=${existing.body.take(100)}")
                 return
             }
         } else {
-            Log.w("MessageCommonReceiver", "Skipping message without ID: body=${message.body?.take(100)}")
+            Log.w(TAG, "Skipping message without ID: body=${message.body?.take(100)}")
             return
         }
-        val from = message.from?.bare() ?: return
-        val to = message.to?.bare() ?: return
+        val from = message.from?.bare()
+        val to = message.to?.bare()
+        if (from == null || to == null) {
+            Log.w(TAG, "Skipping runtime message with missing from/to: messageId=$messageId, from=$from, to=$to, body=${message.body?.take(100)}")
+            return
+        }
         val opponent = if (to != owner) to else from
+        if (opponent == owner) {
+            Log.w(TAG, "Skipping self-directed runtime message: messageId=$messageId, from=$from, to=$to")
+            return
+        }
         val isOutgoing = from == owner
+        val deliveryTime = parseTimestamp(message, TAG)?.let { Date(it) } ?: Date()
         enqueue(
             MessageQueueItem(
                 message = message,
                 messageId = messageId,
                 archivedFrom = from,
-                isRead = isOutgoing, // Outgoing messages are read, incoming are unread
-                date = getDeliveryTime(message, owner) ?: Date(),
+                isRead = isOutgoing,
+                date = deliveryTime,
                 state = if (isOutgoing) MessageStorageItem.MessageSendingState.DELIVERED else MessageStorageItem.MessageSendingState.SENT,
                 queryId = getMAMQueryId(message),
                 originalFrom = from,
                 originalOutgoing = isOutgoing
             )
         )
-        Log.d("MessageCommonReceiver", "Enqueued runtime message: messageId=$messageId, opponent=$opponent, isOutgoing=$isOutgoing")
+        Log.d(TAG, "Enqueued runtime message: messageId=$messageId, opponent=$opponent, isOutgoing=$isOutgoing, timestamp=$deliveryTime")
     }
 
     fun updateReadDate(messageId: String, stanzaId: String, jid: String, date: Date) {
-        Log.d("MessageCommonReceiver", "updateReadDate called: messageId=$messageId, stanzaId=$stanzaId, jid=$jid, date=$date")
+        Log.d(TAG, "updateReadDate called: messageId=$messageId, stanzaId=$stanzaId, jid=$jid, date=$date")
         prereadedMessages.add(PrereadedMessagesItem(messageId, stanzaId, date, jid))
     }
 
@@ -334,9 +351,9 @@ class MessageCommonReceiver(private val owner: String) {
     }
 
     private fun clearQueue() {
-        Log.d("MessageCommonReceiver", "Clearing entire message queue")
+        Log.d(TAG, "Clearing entire message queue")
         messagesQueue.value = HashSet()
-        Log.d("MessageCommonReceiver", "Queue cleared: size=${messagesQueue.value.size}")
+        Log.d(TAG, "Queue cleared: size=${messagesQueue.value.size}")
     }
 
     fun subscribeReceiver() {
@@ -353,7 +370,7 @@ class MessageCommonReceiver(private val owner: String) {
     }
 
     fun unsubscribeReceiver() {
-        Log.d("MessageCommonReceiver", "Unsubscribing receiver for owner $owner")
+        Log.d(TAG, "Unsubscribing receiver for owner $owner")
         clearQueue()
     }
 
@@ -589,7 +606,6 @@ class MessageCommonReceiver(private val owner: String) {
         Log.d(TAG, "Queue updated: size=${messagesQueue.value.size}, items=${messagesQueue.value.map { it.messageId }}")
     }
 
-
     private suspend fun save(messages: List<MessageDto>) {
         Log.d(TAG, "save called with ${messages.size} messages")
         try {
@@ -648,16 +664,15 @@ class MessageCommonReceiver(private val owner: String) {
         }
     }
 
-
     suspend fun unsafeSave(messages: List<MessageStorageItem>) {
-        Log.d("MessageCommonReceiver", "unsafeSave called with ${messages.size} messages")
+        Log.d(TAG, "unsafeSave called with ${messages.size} messages")
         try {
             realm.write {
                 messages.forEach { message ->
                     if (message.save(this, false)) {
                         message.storeStanza(this)
                         Log.d(
-                            "MessageCommonReceiver",
+                            TAG,
                             "Unsafe Saved MessageStorageItem: " +
                                     "primary=${message.primary}, " +
                                     "messageId=${message.messageId}, " +
@@ -682,7 +697,7 @@ class MessageCommonReceiver(private val owner: String) {
                         message.references.forEach { reference ->
                             reference.prepare()
                             Log.d(
-                                "MessageCommonReceiver",
+                                TAG,
                                 "  Reference for message ${message.primary}: " +
                                         "primary=${reference.primary}, " +
                                         "messageId=${reference.messageId}, " +
@@ -699,17 +714,17 @@ class MessageCommonReceiver(private val owner: String) {
                             )
                         }
                     } else {
-                        Log.w("MessageCommonReceiver", "Failed to unsafe save MessageStorageItem: primary=${message.primary}, messageId=${message.messageId}")
+                        Log.w(TAG, "Failed to unsafe save MessageStorageItem: primary=${message.primary}, messageId=${message.messageId}")
                     }
                 }
             }
             realm.write {
                 val savedMessages = query<MessageStorageItem>("primary IN $0", messages.map { it.primary }.toList()).find()
                 if (savedMessages.isNotEmpty()) {
-                    Log.d("MessageCommonReceiver", "Verified ${savedMessages.size} messages unsafe saved for owner $owner")
+                    Log.d(TAG, "Verified ${savedMessages.size} messages unsafe saved for owner $owner")
                     savedMessages.forEach { savedMessage ->
                         Log.d(
-                            "MessageCommonReceiver",
+                            TAG,
                             "Verified Unsafe Saved MessageStorageItem: " +
                                     "primary=${savedMessage.primary}, " +
                                     "messageId=${savedMessage.messageId}, " +
@@ -720,19 +735,19 @@ class MessageCommonReceiver(private val owner: String) {
                         )
                     }
                 } else {
-                    Log.w("MessageCommonReceiver", "No messages found after unsafe saving for owner $owner")
+                    Log.w(TAG, "No messages found after unsafe saving for owner $owner")
                 }
             }
         } catch (e: Exception) {
-            Log.e("MessageCommonReceiver", "Cannot unsafe save messages collection: ${e.message}", e)
+            Log.e(TAG, "Cannot unsafe save messages collection: ${e.message}", e)
         }
     }
 
     fun storeMessagesNow() {
-        Log.d("MessageCommonReceiver", "storeMessagesNow called for owner $owner")
+        Log.d(TAG, "storeMessagesNow called for owner $owner")
         val results = messagesQueue.value
         messagesQueue.value = HashSet()
-        Log.d("MessageCommonReceiver", "storeMessagesNow: Processing ${results.size} queued items: ${results.map { it.messageId }}")
+        Log.d(TAG, "storeMessagesNow: Processing ${results.size} queued items: ${results.map { it.messageId }}")
         CoroutineScope(Dispatchers.IO).launch {
             processQueue(results) { messages ->
                 messages?.let { save(it) }
@@ -746,95 +761,25 @@ class MessageCommonReceiver(private val owner: String) {
     }
 
     private fun getMAMQueryId(message: XMPPMessage): String? {
-        return message.element("archived", namespace = "urn:xmpp:mam:tmp")?.getAttribute("id")
+        return message.element("result", namespace = "urn:xmpp:mam:2")?.getAttribute("queryid")
     }
 
     private fun getDelayedDate(message: XMPPMessage): Date? {
-        return parseTimestamp(message, owner)
+        return parseTimestamp(message, TAG)?.let { Date(it) }
     }
+
     private fun getDeliveryTime(message: XMPPMessage, owner: String): Date? {
-        return parseTimestamp(message, owner)
-    }
-
-    private fun parseTimestamp(message: XMPPMessage, owner: String): Date? {
-        fun tryParse(stamp: String, messageId: String?): Date? {
-            val formats = listOf(
-                "yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'", // Microsecond precision
-                "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",   // Millisecond precision
-                "yyyy-MM-dd'T'HH:mm:ss'Z'"        // No fractional seconds
-            )
-            for (format in formats) {
-                try {
-                    val sdf = SimpleDateFormat(format, Locale.US)
-                    sdf.timeZone = TimeZone.getTimeZone("UTC")
-                    sdf.isLenient = false
-                    return sdf.parse(stamp)?.also {
-                        Log.d(TAG, "Parsed timestamp for messageId=$messageId: $stamp -> $it ($format)")
-                    }
-                } catch (e: Exception) {
-                    Log.w(TAG, "Failed to parse timestamp for messageId=$messageId with format $format: $stamp, error=${e.message}")
-                }
-            }
-            Log.e(TAG, "All timestamp formats failed for messageId=$messageId: $stamp")
-            return null
-        }
-
-        // Check MAM forwarded message
-        val resultElement = message.element("result", namespace = "urn:xmpp:mam:2")
-        if (resultElement != null) {
-            val forwarded = resultElement.element("forwarded", namespace = "urn:xmpp:forward:0")
-            val innerMessage = forwarded?.element("message", namespace = "jabber:client")
-            if (innerMessage != null) {
-                // Try <time> in inner message
-                val innerTime = innerMessage.element("time", namespace = "https://xabber.com/protocol/delivery")?.getAttribute("stamp")
-                if (innerTime != null) {
-                    return tryParse(innerTime, message.id) ?: run {
-                        Log.w(TAG, "Failed to parse inner <time> for messageId=${message.id}: $innerTime")
-                        null
-                    }
-                }
-                // Try <delay> in inner message
-                val innerDelay = innerMessage.element("delay", namespace = "urn:xmpp:delay")?.getAttribute("stamp")
-                if (innerDelay != null) {
-                    return tryParse(innerDelay, message.id) ?: run {
-                        Log.w(TAG, "Failed to parse inner <delay> for messageId=${message.id}: $innerDelay")
-                        null
-                    }
-                }
-                Log.w(TAG, "No <time> or <delay> found in inner message for messageId=${message.id}")
-            } else {
-                Log.w(TAG, "No inner <message> found in MAM <forwarded> for messageId=${message.id}")
-            }
-        }
-
-        // Fallback to outer message
-        val delay = message.element("delay", namespace = "urn:xmpp:delay")?.getAttribute("stamp")
-        if (delay != null) {
-            return tryParse(delay, message.id) ?: run {
-                Log.e(TAG, "Failed to parse <delay> for messageId=${message.id}: $delay")
-                null
-            }
-        }
-        val time = message.element("time", namespace = "https://xabber.com/protocol/delivery")?.getAttribute("stamp")
-        if (time != null) {
-            return tryParse(time, message.id) ?: run {
-                Log.e(TAG, "Failed to parse <time> for messageId=${message.id}: $time")
-                null
-            }
-        }
-
-        Log.w(TAG, "No valid timestamp found for messageId=${message.id}, using fallback")
-        return null // Explicitly return null
+        return parseTimestamp(message, TAG)?.let { Date(it) }
     }
 
     private fun getArchivedMessageContainer(message: XMPPMessage): XMPPMessage? {
         val forwarded = message.element("forwarded", namespace = "urn:xmpp:forward:0")
-        return forwarded?.element("message", namespace = "jabber:client")?.let { XMPPMessage(it.raw) }
+        return forwarded?.element("message", namespace = "jabber:client")?.let { XMPPMessage(it.raw, children = message.children) }
     }
 
     private fun getCarbonCopyMessageContainer(message: XMPPMessage): XMPPMessage? {
         val sent = message.element("sent", namespace = "urn:xmpp:carbons:2")
-        return sent?.element("forwarded", namespace = "urn:xmpp:forward:0")?.element("message", namespace = "jabber:client")?.let { XMPPMessage(it.raw) }
+        return sent?.element("forwarded", namespace = "urn:xmpp:forward:0")?.element("message", namespace = "jabber:client")?.let { XMPPMessage(it.raw, children = message.children) }
     }
 
     private fun getCarbonForwardedMessageContainer(message: XMPPMessage): XMPPMessage? {
@@ -862,7 +807,7 @@ class MessageCommonReceiver(private val owner: String) {
             message.element("xen", namespace = "urn:xabber:xen:0") != null -> ConversationType.Notifications
             else -> ConversationType.Regular
         }.also {
-            Log.d("MessageCommonReceiver", "Determined conversationType=${it.rawValue} for messageId=${message.id}, to=$to")
+            Log.d(TAG, "Determined conversationType=${it.rawValue} for messageId=${message.id}, to=$to")
         }
     }
 

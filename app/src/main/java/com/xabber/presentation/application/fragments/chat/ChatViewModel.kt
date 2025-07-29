@@ -640,6 +640,8 @@ class ChatViewModel(
         return message
     }
 
+
+
     fun markAllMessageUnread(chatId: String) {
         viewModelScope.launch(Dispatchers.IO) {
             realm.write {

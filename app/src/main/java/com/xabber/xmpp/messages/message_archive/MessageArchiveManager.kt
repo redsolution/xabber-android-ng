@@ -12,10 +12,13 @@ import com.xabber.data_base.models.roster.RosterStorageItem
 import com.xabber.data_base.models.sync.ConversationType
 import com.xabber.utils.prp
 import io.realm.kotlin.Realm
+import io.realm.kotlin.UpdatePolicy
 import io.realm.kotlin.ext.query
 import io.realm.kotlin.ext.realmListOf
 import io.viascom.nanoid.NanoId
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.w3c.dom.Element
 import java.text.SimpleDateFormat
@@ -28,12 +31,12 @@ import javax.xml.parsers.DocumentBuilderFactory
 class MessageArchiveManager(private val owner: String) {
 
     private val namespace = "urn:xmpp:mam:2"
-    private val pageSize = 50
+    private val pageSize = 20
     private val callbacksQueue = mutableSetOf<CallbackQueueItem>()
     private val nanoIdAlphabet = "_-0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
     private val nanoIdMask = 63
     private val nanoIdStep = 16
-    private val TAG = "Message Receiver"
+    private val TAG = "MessageArchiveManager"
 
     data class MAMRequestItem(
         val jid: String?,
@@ -82,7 +85,7 @@ class MessageArchiveManager(private val owner: String) {
         nextPage: String? = null,
         prevPage: String? = null,
         max: Int? = null,
-        withCounter: Boolean = false,
+        withCounter: Boolean = true,
         isNormalSynchronousTask: Boolean = false,
         callback: (() -> Unit)? = null
     ) = withContext(Dispatchers.IO) {
@@ -117,7 +120,7 @@ class MessageArchiveManager(private val owner: String) {
                         isContinues = isContinues,
                         maxDate = start,
                         searchText = searchText,
-                        queryId = queryId,
+                        queryId = elementId,
                         afterId = afterId,
                         max = max ?: pageSize,
                         start = start,
@@ -127,15 +130,13 @@ class MessageArchiveManager(private val owner: String) {
                     callback = callback
                 )
             )
-            Log.d("MessageArchiveManager", "Sent MAM query: $iqXml")
+            Log.d(TAG, "Sent MAM query: id=$elementId, jid=$jid, conversationType=${conversationType.rawValue}")
         } else {
-            Log.e("MessageArchiveManager", "Failed to send MAM query: $iqXml")
+            Log.e(TAG, "Failed to send MAM query: $iqXml")
         }
     }
 
     suspend fun syncChat(stream: Stream, jid: String, conversationType: ConversationType, callback: (() -> Unit)?) = withContext(Dispatchers.IO) {
-        // Collect data needed for archive requests
-        data class GapInfo(val queryId: String, val start: Date, val end: Date)
         val realm = Realm.open(defaultRealmConfig())
         var isInitialArchiveLoaded = false
         var isSynced = false
@@ -147,11 +148,10 @@ class MessageArchiveManager(private val owner: String) {
                 if (chat != null) {
                     isInitialArchiveLoaded = chat.isInitialArchiveLoaded
                     isSynced = chat.isSynced
-                    if (isInitialArchiveLoaded && isSynced) {
-                        // Handle history gaps
-                        val messages = query<MessageStorageItem>("owner = $0 AND opponent = $1 AND conversationType_ = $2 AND isDeleted = false", owner, jid, conversationType.rawValue)
-                            .find()
-                            .sortedByDescending { it.date }
+                    val messages = query<MessageStorageItem>("owner = $0 AND opponent = $1 AND conversationType_ = $2 AND isDeleted = false", owner, jid, conversationType.rawValue)
+                        .find()
+                        .sortedByDescending { it.date }
+                    if (messages.isNotEmpty()) {
                         val tempGaps = mutableListOf<HistoryGap>()
                         for (i in 0 until messages.size - 1) {
                             val current = messages[i]
@@ -169,7 +169,6 @@ class MessageArchiveManager(private val owner: String) {
                                 )
                             }
                         }
-                        // Optimize gaps (merge adjacent gaps)
                         var optimizedGaps = tempGaps
                         var optimizationDone = false
                         while (!optimizationDone) {
@@ -195,21 +194,21 @@ class MessageArchiveManager(private val owner: String) {
                             optimizationDone = newGaps.size == optimizedGaps.size
                             optimizedGaps = newGaps
                         }
-                        // Convert gaps to GapInfo for archive requests
                         optimizedGaps.forEachIndexed { index, gap ->
                             gaps.add(
                                 GapInfo(
-                                    queryId = "MAM fix history $index: ${NanoId.generateOptimized(6, nanoIdAlphabet, nanoIdMask, nanoIdStep)}",
+                                    queryId = "MAM gap $index: ${NanoId.generateOptimized(6, nanoIdAlphabet, nanoIdMask, nanoIdStep)}",
                                     start = gap.endDate,
                                     end = gap.startDate
                                 )
                             )
                         }
-                    } else if (listOf(ConversationType.Omemo, ConversationType.Omemo1, ConversationType.Axolotl).contains(conversationType)) {
-                        val account = query<AccountStorageItem>("jid = $0", owner).first().find()
-                        archiveStart = account?.createdAt?.let { Date(it) }
-                    } else {
-                        Log.d(TAG, "HA, DUMBASS")
+                    }
+                    if (gaps.isEmpty()) {
+                        val oldestMessage = messages.lastOrNull()
+                        if (oldestMessage != null) {
+                            archiveStart = Date(oldestMessage.date - 600_000) // 10 minutes before oldest
+                        }
                     }
                 } else {
                     val instance = LastChatsStorageItem().apply {
@@ -236,18 +235,23 @@ class MessageArchiveManager(private val owner: String) {
                     }
                     copyToRealm(instance)
                 }
+                if (listOf(ConversationType.Omemo, ConversationType.Omemo1, ConversationType.Axolotl).contains(conversationType)) {
+                    val account = query<AccountStorageItem>("jid = $0", owner).first().find()
+                    archiveStart = account?.createdAt?.let { Date(it) } ?: Date(0)
+                }
             }
 
             val queryId = "MAM: ${NanoId.generateOptimized(8, nanoIdAlphabet, nanoIdMask, nanoIdStep)}"
-            Log.d(TAG, "Registering MAM query with queryId=$queryId for jid=$jid")
+            Log.d(TAG, "Registering initial MAM query with queryId=$queryId for jid=$jid, start=$archiveStart")
             requestArchive(
                 stream = stream,
                 jid = jid,
-                isContinues = false,
+                isContinues = true,
                 conversationType = conversationType,
                 queryId = queryId,
                 start = archiveStart,
-                nextPage = "",
+                max = pageSize,
+                withCounter = true,
                 isNormalSynchronousTask = true,
                 callback = {
                     val callbackRealm = Realm.open(defaultRealmConfig())
@@ -262,11 +266,30 @@ class MessageArchiveManager(private val owner: String) {
                                 Log.d(TAG, "Updated LastChatsStorageItem for jid=$jid: isSynced=true, isInitialArchiveLoaded=true")
                             }
                         }
-                        callback?.invoke()
-                        Log.d(TAG, "Executed callback for queryId=$queryId")
                     } finally {
                         callbackRealm.close()
                     }
+                    // Launch coroutine for gap queries
+                    CoroutineScope(Dispatchers.IO).launch {
+                        gaps.forEach { gap ->
+                            requestArchive(
+                                stream = stream,
+                                jid = jid,
+                                isContinues = true,
+                                conversationType = conversationType,
+                                queryId = gap.queryId,
+                                start = gap.start,
+                                end = gap.end,
+                                max = pageSize,
+                                withCounter = true,
+                                callback = {
+                                    Log.d(TAG, "Completed gap query for jid=$jid, queryId=${gap.queryId}, start=${gap.start}, end=${gap.end}")
+                                }
+                            )
+                        }
+                    }
+                    callback?.invoke()
+                    Log.d(TAG, "Executed callback for queryId=$queryId")
                 }
             )
         } finally {
@@ -283,7 +306,7 @@ class MessageArchiveManager(private val owner: String) {
             val document = builder.parse(iq.byteInputStream())
             val iqElement = document.documentElement
             if (iqElement.getAttribute("type") != "result") {
-                Log.w("MessageArchiveManager", "Ignoring non-result IQ: $iq")
+                Log.w(TAG, "Ignoring non-result IQ: $iq")
                 return@withContext false
             }
             val finElement = iqElement.getElementsByTagNameNS(namespace, "fin").item(0) as? Element
@@ -296,7 +319,7 @@ class MessageArchiveManager(private val owner: String) {
 
             val callbackItem = callbacksQueue.find { it.elementId == iqElement.getAttribute("id") }
             if (callbackItem == null) {
-                Log.w("MessageArchiveManager", "No callback found for queryId: $queryId")
+                Log.w(TAG, "No callback found for queryId: $queryId")
                 return@withContext false
             }
 
@@ -308,22 +331,25 @@ class MessageArchiveManager(private val owner: String) {
                             fullArchiveLoaded = complete
                         }
                         lastLoadedMessageHistoryId = last
+                        Log.d(TAG, "Updated LastChatsStorageItem for jid=${callbackItem.jid}: fullArchiveLoaded=$complete, lastLoadedMessageHistoryId=$last")
                     }
                 }
             }
 
             temporaryMessageReceiver?.didReceiveEndPage(queryId, complete, first, last, count)
 
-            if (callbackItem.task.isContinues && !complete && last.isNotEmpty()) {
+            if (callbackItem.task.isContinues && count > 0) {
                 continueLoadHistory(stream, callbackItem.task, last)
+                Log.d(TAG, "Continuing MAM pagination for queryId=$queryId, last=$last, count=$count")
             } else {
                 callbackItem.callback?.invoke()
                 callbacksQueue.remove(callbackItem)
+                Log.d(TAG, "Completed MAM query for queryId=$queryId, no further pagination needed")
             }
 
             true
         } catch (e: Exception) {
-            Log.e("MessageArchiveManager", "Failed to parse IQ: ${e.message}", e)
+            Log.e(TAG, "Failed to parse IQ: ${e.message}", e)
             return@withContext false
         } finally {
             realm.close()
@@ -339,12 +365,13 @@ class MessageArchiveManager(private val owner: String) {
             queryId = task.queryId,
             searchText = task.searchText,
             before = task.messageId,
-            afterId = task.afterId,
+            afterId = nextPage,
             start = task.start,
             end = task.end,
-            nextPage = nextPage,
-            max = task.max
+            max = task.max,
+            withCounter = true
         )
+        Log.d(TAG, "Requested next MAM page for queryId=${task.queryId}, jid=${task.jid}, afterId=$nextPage")
     }
 
     private fun buildX(
@@ -411,6 +438,8 @@ class MessageArchiveManager(private val owner: String) {
         return sdf.format(date)
     }
 
+    data class GapInfo(val queryId: String, val start: Date, val end: Date)
+
     data class HistoryGap(
         val newestMessageId: String,
         val oldestMessageId: String,
@@ -418,7 +447,6 @@ class MessageArchiveManager(private val owner: String) {
         val endDate: Date
     ) {
         init {
-            // Adjust dates to avoid overlap (as in Swift)
             val adjustedStart = Date(startDate.time + 600_000) // +10 minutes
             val adjustedEnd = Date(endDate.time - 600_000) // -10 minutes
         }
@@ -427,6 +455,6 @@ class MessageArchiveManager(private val owner: String) {
     fun reset() {
         callbacksQueue.forEach { it.callback?.invoke() }
         callbacksQueue.clear()
-        Log.d("MessageArchiveManager", "Reset and cleared callbacks for owner $owner")
+        Log.d(TAG, "Reset and cleared callbacks for owner $owner")
     }
 }

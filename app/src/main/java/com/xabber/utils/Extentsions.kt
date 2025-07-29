@@ -17,6 +17,7 @@ import android.os.Build.VERSION.SDK_INT
 import android.os.Bundle
 import android.os.Parcelable
 import android.provider.Settings
+import android.util.Log
 import android.util.TypedValue
 import android.view.Display
 import android.view.Surface
@@ -41,8 +42,18 @@ import com.xabber.dto.AvatarDto
 import com.xabber.dto.ChatListDto
 import com.xabber.dto.MessageReferenceDto
 import com.xabber.presentation.onboarding.fragments.signup.emoji.EmojiTypeDto
+import com.xabber.xmpp.messages.XMPPMessage
+import com.xabber.xmpp.messages.XMLElement
+import nl.adaptivity.xmlutil.core.impl.multiplatform.StringReader
 import org.json.JSONObject
-
+import org.xmlpull.v1.XmlPullParser
+import org.xmlpull.v1.XmlPullParserFactory
+import java.time.DateTimeException
+import java.time.Instant
+import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeFormatterBuilder
+import java.time.temporal.ChronoField
 
 fun Fragment.showToast(message: String) {
     Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
@@ -95,12 +106,8 @@ fun Fragment.setFragmentResult(
     result: Bundle
 ) = parentFragmentManager.setFragmentResult(requestKey, result)
 
-
 fun List<EmojiTypeDto>.toMap(): Map<String, List<List<String>>> {
-    val map = this.associate {
-        it.name to it.list
-    }
-    return map
+    return associate { it.name to it.list }
 }
 
 fun AppCompatActivity.showToast(message: String) {
@@ -183,7 +190,7 @@ fun RecyclerView.partSmoothScrollToPosition(targetItem: Int) {
     }
 }
 
- inline fun <reified T : Parcelable> Bundle.parcelable(key: String): T? = when {
+inline fun <reified T : Parcelable> Bundle.parcelable(key: String): T? = when {
     SDK_INT >= 33 -> getParcelable(key, T::class.java)
     else -> @Suppress("DEPRECATION") getParcelable(key) as? T
 }
@@ -195,8 +202,17 @@ fun LastChatsStorageItem.toChatListDto(): ChatListDto =
         owner = owner,
         opponentJid = jid,
         opponentNickname = "",
-        customNickname = if (rosterItem != null) rosterItem!!.customNickname else "",
-        lastMessageBody = if (lastMessage == null) "" else if (lastMessage!!.body.isNotEmpty()) lastMessage!!.body else if (lastMessage!!.references.isNotEmpty()) { if (lastMessage!!.references[0].isAudioMessage) "Voice message" else if (lastMessage!!.references[0].isGeo) "Location" else "${lastMessage!!.references[0].fileName}" }else "",
+        customNickname = rosterItem?.customNickname ?: "",
+        lastMessageBody = when {
+            lastMessage == null -> ""
+            lastMessage!!.body.isNotEmpty() -> lastMessage!!.body
+            lastMessage!!.references.isNotEmpty() -> when {
+                lastMessage!!.references[0].isAudioMessage -> "Voice message"
+                lastMessage!!.references[0].isGeo -> "Location"
+                else -> "${lastMessage!!.references[0].fileName}"
+            }
+            else -> ""
+        },
         lastMessageDate = if (lastMessage == null || draftMessage != null) messageDate else lastMessage!!.date,
         lastMessageState = if (lastMessage?.state_ == 5 || lastMessage == null) MessageSendingState.None else MessageSendingState.Read,
         isArchived = isArchived,
@@ -213,7 +229,7 @@ fun LastChatsStorageItem.toChatListDto(): ChatListDto =
         lastPosition = lastPosition,
         drawableId = avatar,
         isHide = false,
-        lastMessageIsOutgoing = if (lastMessage != null) lastMessage!!.outgoing else false,
+        lastMessageIsOutgoing = lastMessage?.outgoing ?: false,
         isGroup = conversationType_ == ConversationType.Group.rawValue
     )
 
@@ -224,7 +240,6 @@ fun com.xabber.data_base.models.account.AccountStorageItem.toAccountDto() =
         order = order,
         nickname = username,
         enabled = enabled,
-      //  statusMessage = statusMessage,
         colorKey = colorKey,
         hasAvatar = hasAvatar
     )
@@ -256,16 +271,13 @@ fun MessageReferenceStorageItem.toMessageReferenceDto() =
         isVoiceMessage = isAudioMessage
     )
 
-
 fun List<String>.prp(): String {
     return joinToString(separator = "_")
 }
 
-
 fun Array<String>.prp(): String {
     return joinToString(separator = "_")
 }
-
 
 fun <T> List<T>.chunked(size: Int): List<List<T>> {
     require(size > 0) { "Chunk size must be positive, was $size" }
@@ -273,7 +285,6 @@ fun <T> List<T>.chunked(size: Int): List<List<T>> {
         subList(start, minOf(start + size, this.size))
     }
 }
-
 
 fun <T> Array<T>.chunked(size: Int): List<Array<T>> {
     require(size > 0) { "Chunk size must be positive, was $size" }
@@ -290,3 +301,160 @@ fun JSONObject.toMap(): Map<String, Any> {
     return map
 }
 
+/**
+ * Parses a timestamp from an XMPP message, prioritizing the inner <time> or <delay> elements for MAM messages.
+ * Returns the timestamp as milliseconds since epoch (Long) or null if no valid timestamp is found.
+ * @param message The XMPPMessage to parse.
+ * @param tag A logging tag for identifying the source of the parse call.
+ * @return Long? The parsed timestamp in milliseconds, or null if parsing fails or the message is a chat state.
+ */
+fun parseTimestamp(message: XMPPMessage, tag: String = "TimestampParser"): Long? {
+    fun tryParse(stamp: String, messageId: String?, source: String): Long? {
+        try {
+            val formatter = DateTimeFormatterBuilder()
+                .parseCaseInsensitive()
+                .append(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+                .optionalStart()
+                .appendFraction(ChronoField.NANO_OF_SECOND, 0, 9, true)
+                .optionalEnd()
+                .appendOffsetId()
+                .toFormatter()
+            val zdt = ZonedDateTime.parse(stamp, formatter)
+            return zdt.toInstant().toEpochMilli().also {
+                Log.d(tag, "Parsed timestamp ($source) for messageId=$messageId: $stamp -> $it")
+            }
+        } catch (e: DateTimeException) {
+            Log.w(tag, "Failed to parse flexible ISO ($source) for messageId=$messageId: $stamp, error=${e.message}")
+        }
+        try {
+            val formatter = DateTimeFormatter.ISO_OFFSET_DATE_TIME
+            val zdt = ZonedDateTime.parse(stamp, formatter)
+            return zdt.toInstant().toEpochMilli().also {
+                Log.d(tag, "Parsed ISO_OFFSET_DATE_TIME ($source) for messageId=$messageId: $stamp -> $it")
+            }
+        } catch (e: DateTimeException) {
+            Log.w(tag, "Failed to parse ISO_OFFSET_DATE_TIME ($source) for messageId=$messageId: $stamp, error=${e.message}")
+        }
+        try {
+            val formatter = DateTimeFormatter.ISO_INSTANT
+            val instant = Instant.parse(stamp)
+            return instant.toEpochMilli().also {
+                Log.d(tag, "Parsed ISO_INSTANT ($source) for messageId=$messageId: $stamp -> $it")
+            }
+        } catch (e: DateTimeException) {
+            Log.w(tag, "Failed to parse ISO_INSTANT ($source) for messageId=$messageId: $stamp, error=${e.message}")
+        }
+        Log.w(tag, "All parsers failed ($source) for messageId=$messageId: $stamp")
+        return null
+    }
+
+    val messageId = message.element("origin-id", namespace = "urn:xmpp:sid:0")?.getAttribute("id") ?: message.id ?: "unknown"
+
+    // Check MAM forwarded message
+    val resultElement = message.element("result", namespace = "urn:xmpp:mam:2")
+    if (resultElement != null) {
+        val forwarded = resultElement.element("forwarded", namespace = "urn:xmpp:forward:0")
+        if (forwarded != null) {
+            val innerMessage = forwarded.element("message", namespace = "jabber:client")
+            if (innerMessage != null) {
+                // Priority 1: <time> in inner message
+                val innerTime = innerMessage.element("time", namespace = "https://xabber.com/protocol/delivery")?.getAttribute("stamp")
+                if (innerTime != null) {
+                    return tryParse(innerTime, messageId, "inner <time>") ?: run {
+                        Log.w(tag, "Failed to parse inner <time> for messageId=$messageId: $innerTime")
+                        null
+                    }
+                }
+                // Priority 2: <delay> in inner message
+                val innerDelay = innerMessage.element("delay", namespace = "urn:xmpp:delay")?.getAttribute("stamp")
+                if (innerDelay != null) {
+                    return tryParse(innerDelay, messageId, "inner <delay>") ?: run {
+                        Log.w(tag, "Failed to parse inner <delay> for messageId=$messageId: $innerDelay")
+                        null
+                    }
+                }
+                // Priority 3: <delay> under forwarded (outside inner message)
+                val forwardedDelay = forwarded.element("delay", namespace = "urn:xmpp:delay")?.getAttribute("stamp")
+                if (forwardedDelay != null) {
+                    return tryParse(forwardedDelay, messageId, "forwarded <delay>") ?: run {
+                        Log.w(tag, "Failed to parse forwarded <delay> for messageId=$messageId: $forwardedDelay")
+                        null
+                    }
+                }
+                Log.d(tag, "No <time> or <delay> found in inner message for messageId=$messageId")
+            } else {
+                Log.w(tag, "No <forwarded> found in MAM <result> for messageId=$messageId")
+            }
+        }
+    }
+
+    // Fallback to outer message
+    // Priority 4: <time> in outer message
+    val outerTime = message.element("time", namespace = "https://xabber.com/protocol/delivery")?.getAttribute("stamp")
+    if (outerTime != null) {
+        return tryParse(outerTime, messageId, "outer <time>") ?: run {
+            Log.w(tag, "Failed to parse outer <time> for messageId=$messageId: $outerTime")
+            null
+        }
+    }
+    // Priority 5: <delay> in outer message
+    val outerDelay = message.element("delay", namespace = "urn:xmpp:delay")?.getAttribute("stamp")
+    if (outerDelay != null) {
+        return tryParse(outerDelay, messageId, "outer <delay>") ?: run {
+            Log.w(tag, "Failed to parse outer <delay> for messageId=$messageId: $outerDelay")
+            null
+        }
+    }
+
+    // Parse raw XML as a fallback if children list is empty
+    try {
+        val factory = XmlPullParserFactory.newInstance()
+        factory.isNamespaceAware = true
+        val parser = factory.newPullParser()
+        parser.setInput(StringReader(message.raw))
+        var eventType = parser.eventType
+        while (eventType != XmlPullParser.END_DOCUMENT) {
+            if (eventType == XmlPullParser.START_TAG) {
+                val tagName = parser.name
+                val namespace = parser.namespace
+                if (tagName == "time" && namespace == "https://xabber.com/protocol/delivery") {
+                    val stamp = parser.getAttributeValue(null, "stamp")
+                    if (stamp != null) {
+                        return tryParse(stamp, messageId, "raw <time>") ?: run {
+                            Log.w(tag, "Failed to parse raw <time> for messageId=$messageId: $stamp")
+                            null
+                        }
+                    }
+                } else if (tagName == "delay" && namespace == "urn:xmpp:delay") {
+                    val stamp = parser.getAttributeValue(null, "stamp")
+                    if (stamp != null) {
+                        return tryParse(stamp, messageId, "raw <delay>") ?: run {
+                            Log.w(tag, "Failed to parse raw <delay> for messageId=$messageId: $stamp")
+                            null
+                        }
+                    }
+                }
+            }
+            eventType = parser.next()
+        }
+    } catch (e: Exception) {
+        Log.e(tag, "Error parsing raw XML for messageId=$messageId: ${e.message}", e)
+    }
+
+    // Check if the message is a chat state or marker
+    val isChatState = message.element("active", namespace = "http://jabber.org/protocol/chatstates") != null ||
+            message.element("composing", namespace = "http://jabber.org/protocol/chatstates") != null ||
+            message.element("inactive", namespace = "http://jabber.org/protocol/chatstates") != null ||
+            message.element("received", namespace = "urn:xmpp:chat-markers:0") != null ||
+            message.element("displayed", namespace = "urn:xmpp:chat-markers:0") != null
+
+    if (isChatState) {
+        Log.d(tag, "Chat state message detected, no timestamp required: messageId=$messageId")
+        return null
+    }
+
+    Log.w(tag, "No valid timestamp found for messageId=$messageId. Message details: " +
+            "from=${message.from?.bare()}, to=${message.to?.bare()}, body=${message.body?.take(100)}, " +
+            "raw=${message.raw.substring(0, minOf(message.raw.length, 200))}...")
+    return null
+}

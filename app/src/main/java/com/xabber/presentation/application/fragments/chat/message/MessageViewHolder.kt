@@ -5,7 +5,6 @@ import android.content.Intent
 import android.graphics.PorterDuff
 import android.graphics.PorterDuffColorFilter
 import android.media.MediaPlayer
-import android.text.TextUtils
 import android.util.Log
 import android.view.Gravity
 import android.view.LayoutInflater
@@ -34,7 +33,6 @@ import com.xabber.utils.StringUtils
 import com.xabber.utils.StringUtils.getDateStringForMessage
 import com.xabber.utils.custom.CorrectlyTouchEventTextView
 import com.xabber.utils.custom.PlayerVisualizerView
-import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.TimeUnit
 
@@ -56,7 +54,7 @@ abstract class MessageViewHolder(
     protected var tvMessageText: CorrectlyTouchEventTextView? = null
     private var statusIcon: ImageView? = null
     private var tvTime: TextView? = null
-    private val TAG = "ChatviewHolder"
+    private val TAG = "MessageViewHolder"
 
     init {
         balloon = itemView.findViewById(R.id.balloon)
@@ -65,12 +63,14 @@ abstract class MessageViewHolder(
         tvMessageText = itemView.findViewById(R.id.message_text)
         statusIcon = itemView.findViewById(R.id.message_status_icon)
         tvTime = itemView.findViewById(R.id.message_time)
-        // Ensure RecyclerView doesn't recycle prematurely
+        // Ensure recyclability is reset
         setIsRecyclable(true)
     }
 
     open fun bind(message: MessageDto, vhExtraData: MessageVhExtraData) {
-        messageContainer?.removeAllViews() // Clear previous views
+        // Reset recyclability state
+        setIsRecyclable(true)
+        messageContainer?.removeAllViews()
         balloon?.removeAllViews()
 
         val images = ArrayList<MessageReferenceDto>()
@@ -118,13 +118,11 @@ abstract class MessageViewHolder(
         messageId = message.primary
         date = getDateStringForMessage(message.sentTimestamp)
 
-        // Validate timestamp
         validateTimestamp(message)
 
-        // Log layout details for debugging
         itemView.post {
             Log.d(
-                "MessageViewHolder",
+                TAG,
                 "Binding: primary=${message.primary}, isChecked=${message.isChecked}, " +
                         "textLines=${tvMessageText?.lineCount ?: 0}, itemHeight=${itemView.height}, " +
                         "containerHeight=${messageContainer?.height ?: 0}, sentTimestamp=${message.sentTimestamp}, " +
@@ -136,26 +134,30 @@ abstract class MessageViewHolder(
     private fun validateTimestamp(message: MessageDto) {
         val currentTime = System.currentTimeMillis()
         val sentTime = message.sentTimestamp
-        // Check if timestamp is suspiciously close to current time (within 1 minute)
-        // and not a valid past timestamp
-        val isSuspicious = Math.abs(currentTime - sentTime) < 60_000 && sentTime > currentTime - 60_000
+        // Allow timestamps up to 1 hour in the future and 365 days in the past for MAM messages
+        val isSuspicious = sentTime > currentTime + 3_600_000 || sentTime < currentTime - 365L * 24 * 60 * 60 * 1000
         if (isSuspicious) {
             Log.w(
-                "MessageViewHolder",
+                TAG,
                 "Suspicious timestamp for messageId=${message.primary}: sentTimestamp=$sentTime, " +
                         "currentTime=$currentTime, date=${Date(sentTime)}, body=${message.messageBody.take(50)}"
             )
-            tvTime?.setTextColor(ContextCompat.getColor(context, R.color.red_500)) // Highlight invalid timestamp
+            tvTime?.setTextColor(ContextCompat.getColor(context, R.color.red_500))
             tvTime?.text = context.getString(R.string.invalid_timestamp)
         } else {
-            tvTime?.setTextColor(ContextCompat.getColor(context, R.color.black)) // Reset to default color
-            val displayTime = StringUtils.getTimeText(context, Date(sentTime))
-            tvTime?.text = if (message.editTimestamp > 0) context.getString(R.string.edit) + " $displayTime" else displayTime
-            Log.d(
-                "MessageViewHolder",
-                "Valid timestamp for messageId=${message.primary}: sentTimestamp=$sentTime, date=${Date(sentTime)}, displayed=$displayTime"
-            )
+            setTime(message.sentTimestamp, message.editTimestamp)
         }
+    }
+
+    private fun setTime(sentTime: Long, editTime: Long) {
+        val date = Date(if (editTime > 0) editTime else sentTime)
+        val time = StringUtils.getTimeText(context, date)
+        tvTime?.text = if (editTime > 0) context.getString(R.string.edit) + " $time" else time
+        tvTime?.setTextColor(ContextCompat.getColor(context, R.color.black))
+        Log.d(
+            TAG,
+            "Setting time for messageId=$messageId: sentTime=$sentTime, editTime=$editTime, date=$date, displayed=$time"
+        )
     }
 
     private fun setBalloonBackground(isOutgoing: Boolean, needTail: Boolean) {
@@ -225,7 +227,7 @@ abstract class MessageViewHolder(
             mediaPlayer.setDataSource(path)
             mediaPlayer.prepare()
         } catch (e: Exception) {
-            Log.e("MessageViewHolder", "Failed to prepare media player for voice message: ${e.message}")
+            Log.e(TAG, "Failed to prepare media player for voice message: ${e.message}")
             Toast.makeText(context, R.string.unable_to_play_audio, Toast.LENGTH_SHORT).show()
         }
 
@@ -241,7 +243,7 @@ abstract class MessageViewHolder(
                     button.setImageResource(R.drawable.ic_pause)
                 }
             } catch (e: Exception) {
-                Log.e("MessageViewHolder", "Error playing/pausing voice message: ${e.message}")
+                Log.e(TAG, "Error playing/pausing voice message: ${e.message}")
                 Toast.makeText(context, R.string.unable_to_play_audio, Toast.LENGTH_SHORT).show()
             }
         }
@@ -293,12 +295,26 @@ abstract class MessageViewHolder(
         val date = Date(if (message.editTimestamp > 0) message.editTimestamp else message.sentTimestamp)
         val time = StringUtils.getTimeText(context, date)
         imageTime.text = if (message.editTimestamp > 0) "edit $time" else time
-        validateTimestamp(message) // Reuse validation for image timestamp
-        Log.d(
-            "MessageViewHolder",
-            "Setting image time for messageId=$messageId: sentTimestamp=${message.sentTimestamp}, " +
-                    "editTimestamp=${message.editTimestamp}, displayed=$time"
-        )
+        // Reuse validation for image timestamp
+        val currentTime = System.currentTimeMillis()
+        val sentTime = message.sentTimestamp
+        val isSuspicious = sentTime > currentTime + 3_600_000 || sentTime < currentTime - 365L * 24 * 60 * 60 * 1000
+        if (isSuspicious) {
+            Log.w(
+                TAG,
+                "Suspicious image timestamp for messageId=${message.primary}: sentTimestamp=$sentTime, " +
+                        "currentTime=$currentTime, date=$date, displayed=$time"
+            )
+            imageTime.setTextColor(ContextCompat.getColor(context, R.color.red_500))
+            imageTime.text = context.getString(R.string.invalid_timestamp)
+        } else {
+            imageTime.setTextColor(ContextCompat.getColor(context, R.color.black))
+            Log.d(
+                TAG,
+                "Setting image time for messageId=$messageId: sentTimestamp=${message.sentTimestamp}, " +
+                        "editTimestamp=${message.editTimestamp}, date=$date, displayed=$time"
+            )
+        }
     }
 
     private fun addFilesBox(message: MessageDto, files: ArrayList<MessageReferenceDto>) {
@@ -332,7 +348,7 @@ abstract class MessageViewHolder(
         tvMessageText?.movementMethod = CorrectlyTouchEventTextView.LocalLinkMovementMethod
         tvMessageText?.post {
             Log.d(
-                "MessageViewHolder",
+                TAG,
                 "setMessageText: primary=$messageId, textLines=${tvMessageText?.lineCount}, " +
                         "textHeight=${tvMessageText?.height}, text=${text.take(50)}"
             )
@@ -346,27 +362,12 @@ abstract class MessageViewHolder(
         if (statusIcon != null) setStatusIcon(statusIcon!!, message)
     }
 
-    private fun setTime(sentTime: Long, editTime: Long) {
-        val currentTime = System.currentTimeMillis()
-        val isFallback = Math.abs(currentTime - sentTime) < 60_000 && sentTime > 0
-        val date = Date(if (editTime > 0) editTime else sentTime)
-        val time = StringUtils.getTimeText(itemView.context, date)
-        tvTime?.text = if (editTime > 0) context.getString(R.string.edit) + " $time" else time
-        if (isFallback) {
-            tvTime?.setTextColor(ContextCompat.getColor(context, R.color.red_500))
-            Log.w(TAG, "Using fallback timestamp for messageId=$messageId: sentTime=$sentTime, date=$date, displayed=$time")
-        } else {
-            tvTime?.setTextColor(ContextCompat.getColor(context, R.color.black))
-            Log.d(TAG, "Setting time for messageId=$messageId: sentTime=$sentTime, editTime=$editTime, date=$date, displayed=$time")
-        }
-    }
-
     private fun setStatusIcon(statusIcon: ImageView, messageDto: MessageDto) {
         statusIcon.isVisible = messageDto.isOutgoing && messageDto.messageSendingState != MessageSendingState.Uploading
         if (statusIcon.isVisible) {
             MessageDeliveryStatusHelper.setupStatusImageView(messageDto, statusIcon)
             Log.d(
-                "MessageViewHolder",
+                TAG,
                 "Set status icon for messageId=$messageId: state=${messageDto.messageSendingState}"
             )
         }
@@ -414,7 +415,7 @@ abstract class MessageViewHolder(
         try {
             context.startActivity(intent)
         } catch (e: Exception) {
-            Log.e("MessageViewHolder", "Failed to open file: ${e.message}")
+            Log.e(TAG, "Failed to open file: ${e.message}")
             Toast.makeText(context, context.resources.getString(R.string.unable_to_open_file), Toast.LENGTH_SHORT).show()
         }
     }

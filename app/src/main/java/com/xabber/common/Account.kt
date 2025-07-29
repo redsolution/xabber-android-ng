@@ -858,11 +858,12 @@ class Account : XMPPStreamDelegate {
                 return true
             }
 
-            val fromJid = innerFrom ?: xmppMessage.from?.bare() ?: return false.also {
-                Log.w(TAG, "No valid fromJid found: id=$messageId, innerFrom=$innerFrom, xmppMessage.from=${xmppMessage.from?.bare()}, stanza=$message")
-            }
-            val toJid = innerTo ?: xmppMessage.to?.bare() ?: return false.also {
-                Log.w(TAG, "No valid toJid found: id=$messageId, innerTo=$innerTo, xmppMessage.to=${xmppMessage.to?.bare()}, stanza=$message")
+            // Prioritize inner message attributes for MAM forwarded messages
+            val fromJid = innerFrom ?: xmppMessage.from?.bare()
+            val toJid = innerTo ?: xmppMessage.to?.bare()
+            if (fromJid == null || toJid == null) {
+                Log.w(TAG, "Skipping message with missing from/to: id=$messageId, innerFrom=$innerFrom, innerTo=$innerTo, from=${xmppMessage.from?.bare()}, to=${xmppMessage.to?.bare()}, stanza=$message")
+                return false
             }
 
             val opponent = if (toJid != jid) toJid else fromJid
@@ -926,7 +927,7 @@ class Account : XMPPStreamDelegate {
                             messageReceiver.receiveCarbonForwarded(it)
                             Log.d(TAG, "Called receiveCarbonForwarded for messageId=${it.id}, body=${it.body}")
                         } else {
-                            Log.w(TAG, "Skipping forwarded message with invalid id, body, or self-directed: id=${it.id}, body=${it.body}, from=${it.from?.bare()}, to=${it.to?.bare()}")
+                            Log.w(TAG, "Skipping forwarded message with invalid attributes: id=${it.id}, body=${it.body}, from=${it.from?.bare()}, to=${it.to?.bare()}")
                         }
                     } ?: Log.w(TAG, "No inner message for forwarded container, skipping: id=$messageId")
                 }
@@ -942,17 +943,17 @@ class Account : XMPPStreamDelegate {
                             )
                             Log.d(TAG, "Called receiveClientSync for messageId=${it.id}, body=${it.body}")
                         } else {
-                            Log.w(TAG, "Skipping last-message with invalid id, body, or self-directed: id=${it.id}, body=${it.body}, from=${it.from?.bare()}, to=${it.to?.bare()}")
+                            Log.w(TAG, "Skipping last-message with invalid attributes: id=${it.id}, body=${it.body}, from=${it.from?.bare()}, to=${it.to?.bare()}")
                         }
                     } ?: Log.w(TAG, "No inner message for last-message container, skipping: id=$messageId")
                 }
                 else -> {
                     Log.d(TAG, "Directing runtime message to receiveRuntime: id=$messageId")
-                    if (xmppMessage.body != null && xmppMessage.from != null && xmppMessage.to != null && xmppMessage.to.bare() != jid) {
-                        messageReceiver.receiveRuntime(xmppMessage)
-                        Log.d(TAG, "Called receiveRuntime for messageId=$messageId, body=${xmppMessage.body}")
+                    if (innerMessage != null && innerMessage.body != null && innerMessage.from != null && innerMessage.to != null && innerMessage.to!!.bare() != jid) {
+                        messageReceiver.receiveRuntime(innerMessage)
+                        Log.d(TAG, "Called receiveRuntime for messageId=$messageId, body=${innerMessage.body}")
                     } else {
-                        Log.w(TAG, "Skipping runtime message with invalid id, body, or self-directed: id=$messageId, body=${xmppMessage.body}, from=${xmppMessage.from?.bare()}, to=${xmppMessage.to?.bare()}")
+                        Log.w(TAG, "Skipping runtime message with invalid attributes: id=$messageId, body=${innerMessage?.body}, from=${innerMessage?.from?.bare()}, to=${innerMessage?.to?.bare()}")
                     }
                 }
             }
