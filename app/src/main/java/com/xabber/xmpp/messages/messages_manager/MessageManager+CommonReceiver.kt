@@ -46,7 +46,7 @@ class MessageCommonReceiver(private val owner: String) {
         val archivedFrom: String?,
         var isRead: Boolean,
         val date: Date,
-        val state: MessageStorageItem.MessageSendingState,
+        val state: MessageSendingState,
         val forceUnreadState: Boolean? = null,
         val clientSyncMessage: Boolean = false,
         val queryId: String? = null,
@@ -70,7 +70,7 @@ class MessageCommonReceiver(private val owner: String) {
         message: XMPPMessage,
         groupchatUserCard: String? = null,
         isRead: Boolean,
-        state: MessageStorageItem.MessageSendingState,
+        state: MessageSendingState,
         date: Date,
         readDate: Date? = null
     ): MessageQueueItem? {
@@ -96,7 +96,7 @@ class MessageCommonReceiver(private val owner: String) {
         return queueItem
     }
 
-    suspend fun receiveClientSync(message: XMPPMessage, isRead: Boolean, state: MessageStorageItem.MessageSendingState, date: Date) {
+    suspend fun receiveClientSync(message: XMPPMessage, isRead: Boolean, state: MessageSendingState, date: Date) {
         val messageId = getOriginId(message) ?: message.id
         Log.d(TAG, "receiveClientSync called for messageId=$messageId")
         receiveClientSyncRaw(message, null, isRead, state, date)?.let { enqueue(it) }
@@ -117,7 +117,7 @@ class MessageCommonReceiver(private val owner: String) {
             archivedFrom = message.from?.bare(),
             isRead = (message.from?.bare() == owner),
             date = getDeliveryTime(messageBare, owner) ?: date,
-            state = MessageStorageItem.MessageSendingState.DELIVERED,
+            state = MessageSendingState.Deliver,
             clientSyncMessage = true,
             queryId = getMAMQueryId(message)
         )
@@ -153,7 +153,7 @@ class MessageCommonReceiver(private val owner: String) {
                 archivedFrom = messageBare.from?.bare(),
                 isRead = messageBare.from?.bare() == owner,
                 date = innerTimestamp,
-                state = MessageStorageItem.MessageSendingState.DELIVERED,
+                state = MessageSendingState.Deliver,
                 queryId = getMAMQueryId(message),
                 originalFrom = messageBare.from?.bare() ?: "",
                 originalOutgoing = messageBare.from?.bare() == owner
@@ -181,7 +181,7 @@ class MessageCommonReceiver(private val owner: String) {
             archivedFrom = messageBare.from?.bare(),
             isRead = false,
             date = deliveryTime,
-            state = MessageStorageItem.MessageSendingState.SENT,
+            state = MessageSendingState.Sent,
             queryId = getMAMQueryId(message),
             originalFrom = messageBare.from?.bare() ?: "",
             originalOutgoing = messageBare.from?.bare() == owner
@@ -224,7 +224,7 @@ class MessageCommonReceiver(private val owner: String) {
             archivedFrom = from,
             isRead = from == owner,
             date = deliveryTime,
-            state = if (from == owner) MessageStorageItem.MessageSendingState.DELIVERED else MessageStorageItem.MessageSendingState.SENT,
+            state = if (from == owner) MessageSendingState.Deliver else MessageSendingState.Sent,
             queryId = getMAMQueryId(message),
             originalFrom = from,
             originalOutgoing = from == owner
@@ -287,7 +287,7 @@ class MessageCommonReceiver(private val owner: String) {
                 archivedFrom = from,
                 isRead = isOutgoing,
                 date = deliveryTime,
-                state = if (isOutgoing) MessageStorageItem.MessageSendingState.DELIVERED else MessageStorageItem.MessageSendingState.SENT,
+                state = if (isOutgoing) MessageSendingState.Deliver else MessageSendingState.Sent,
                 queryId = getMAMQueryId(message),
                 originalFrom = from,
                 originalOutgoing = isOutgoing
@@ -481,13 +481,13 @@ class MessageCommonReceiver(private val owner: String) {
                 item.isRead = true
                 Log.d(TAG, "Message ${item.messageId} marked as read due to readDate=$readDate")
             } else {
-                item.isRead = item.state == MessageStorageItem.MessageSendingState.READ
+                item.isRead = item.state == MessageSendingState.Read
                 Log.d(TAG, "Message ${item.messageId} isRead=${item.isRead} based on state=${item.state}")
             }
 
             if (parseSystemMessageMetadata(item.message) != null) {
                 instance.configureSystemMessage(item.message, owner, opponent, item.date)
-                instance.state = MessageStorageItem.MessageSendingState.NONE
+                instance.state = MessageSendingState.None
                 instance.isRead = item.forceUnreadState ?: item.isRead
                 Log.d(TAG, "Configured system message ${item.messageId}: state=${instance.state}, isRead=${instance.isRead}")
             } else {
@@ -539,7 +539,7 @@ class MessageCommonReceiver(private val owner: String) {
             if (readDate != null && afterburnInterval > 0) {
                 instance.isRead = true
                 if (!item.originalOutgoing) {
-                    instance.state = MessageStorageItem.MessageSendingState.READ
+                    instance.state = MessageSendingState.Read
                 }
                 instance.readDate = (readDate.time / 1000).toDouble()
                 instance.burnDate = (readDate.time / 1000).toDouble() + afterburnInterval

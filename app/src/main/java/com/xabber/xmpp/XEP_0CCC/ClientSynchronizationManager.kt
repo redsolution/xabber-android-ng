@@ -9,6 +9,7 @@ import com.xabber.common.Stream
 import com.xabber.data_base.defaultRealmConfig
 import com.xabber.data_base.models.account.AccountStorageItem
 import com.xabber.data_base.models.last_chats.LastChatsStorageItem
+import com.xabber.data_base.models.messages.MessageSendingState
 import com.xabber.data_base.models.messages.MessageStorageItem
 import com.xabber.data_base.models.roster.RosterStorageItem
 import com.xabber.data_base.models.sync.ConversationType
@@ -227,7 +228,7 @@ class ClientSynchronizationManager(owner: String) {
                                         this.outgoing = to == owner
                                         this.conversationType_ = type
                                         this.isRead = unreadCount == 0L
-                                        this.state = MessageStorageItem.MessageSendingState.SENT
+                                        this.state = MessageSendingState.Sent
                                     }, UpdatePolicy.ALL)
                                 } else {
                                     existingMessage
@@ -490,7 +491,7 @@ class ClientSynchronizationManager(owner: String) {
                     this.outgoing = from == owner // Set outgoing based on from
                     this.conversationType_ = conversationType
                     this.isRead = from == owner // Outgoing messages are read
-                    this.state = if (from == owner) MessageStorageItem.MessageSendingState.DELIVERED else MessageStorageItem.MessageSendingState.SENT
+                    this.state = if (from == owner) MessageSendingState.Deliver else MessageSendingState.Sent
                 }, UpdatePolicy.ALL)
                 Log.d("ClientSyncManager", "Saved message $messageId for jid=$to in receiveClientSyncRaw")
 

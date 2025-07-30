@@ -1,3 +1,4 @@
+// MessageStorageItem.kt
 package com.xabber.data_base.models.messages
 
 import android.util.Log
@@ -16,43 +17,6 @@ import org.json.JSONObject
 import java.util.Date
 
 class MessageStorageItem : RealmObject {
-    enum class MessageSendingState(val value: Int) {
-        SENT(0),
-        DELIVERED(1),
-        READ(2),
-        ERROR(3),
-        NONE(4),
-        NOT_SENT(5),
-        SENDING(6),
-        UPLOADING(7)
-    }
-
-    companion object {
-        private const val TAG = "MessageStorageItem"
-
-        const val ADD_CONTACT_LOCAL_ARCHIVED_ID = "add-contact-local-archived-id"
-
-        fun messageIdForAuthRequest(jid: String): String {
-            return listOf("subscribtion", jid).prp()
-        }
-
-        fun messageIdForContact(owner: String, jid: String, ts: String): String {
-            return listOf("contact", ts, jid, owner).prp()
-        }
-
-        fun messageIdForVoIPCall(owner: String, jid: String, callId: String): String {
-            return listOf("voip", owner, jid, callId).prp()
-        }
-
-        fun messageIdForInitial(jid: String, conversationType: ConversationType): String {
-            return listOf(jid, conversationType.rawValue, "initial_message").prp()
-        }
-
-        fun genPrimary(messageId: String, owner: String): String {
-            return "${messageId}_$owner"
-        }
-    }
-
     @PrimaryKey
     var primary: String = ""
     var owner: String = ""
@@ -71,7 +35,7 @@ class MessageStorageItem : RealmObject {
     var previousId: String? = null
     var archivedId: String = ""
     var isDeleted: Boolean = false
-    var state_: Int = MessageSendingState.NONE.value
+    var state_: Int = MessageSendingState.None.rawValue
     var systemMetadata_: String? = null
     var references: RealmList<MessageReferenceStorageItem> = realmListOf()
     var messageError: String? = null
@@ -126,9 +90,9 @@ class MessageStorageItem : RealmObject {
         }
 
     var state: MessageSendingState
-        get() = MessageSendingState.entries.firstOrNull { it.value == state_ } ?: MessageSendingState.NONE
+        get() = MessageSendingState.entries.firstOrNull { it.rawValue == state_ } ?: MessageSendingState.None
         set(newValue) {
-            state_ = newValue.value
+            state_ = newValue.rawValue
         }
 
     var conversationType: ConversationType
@@ -153,7 +117,7 @@ class MessageStorageItem : RealmObject {
         this.messageId = message.id ?: ""
         this.archivedId = message.element("archived", namespace = "urn:xmpp:mam:tmp")?.getAttribute("id") ?: ""
         this.displayAs = "system"
-        this.state = MessageSendingState.NONE
+        this.state = MessageSendingState.None
     }
 
     fun configureIncomingMessage(
@@ -184,6 +148,7 @@ class MessageStorageItem : RealmObject {
         updatePrimary()
         Log.d(TAG, "Configured incoming message: primary=$primary, messageId=$messageId, sentDate=$sentDate, date=${Date(sentDate)}")
     }
+
     fun configureOutgoingMessage(
         body: String,
         legacyBody: String,
@@ -202,20 +167,17 @@ class MessageStorageItem : RealmObject {
         this.isRead = true
         this.date = System.currentTimeMillis()
         this.sentDate = this.date
-        this.state = MessageSendingState.NOT_SENT
-        this.conversationType = ConversationType.Regular // Default; updated by caller if needed
+        this.state = MessageSendingState.NotSent
+        this.conversationType = ConversationType.Regular
         this.references = references
         this.inlineForwards = inlineForwards
         this.queryIds = "runtime_send"
         updatePrimary()
 
-        // Update references with messageId and sentDate
         references.forEach {
             it.messageId = this.primary
             it.sentDate = this.date.toDouble()
-            // Encryption metadata skipped (not implemented in Kotlin codebase)
         }
-
         Log.d(TAG, "Configured outgoing message: primary=$primary, messageId=$messageId, body=$body, opponent=$opponent")
     }
 
@@ -236,7 +198,7 @@ class MessageStorageItem : RealmObject {
                 set(
                     id = messageId,
                     owner = owner,
-                    stanza = body, // Using body as stanza; adjust if raw XML is needed
+                    stanza = body,
                     date = Date(date),
                     primary = primary
                 )
@@ -265,6 +227,32 @@ class MessageStorageItem : RealmObject {
             else -> ConversationType.Regular
         }.also {
             Log.d(TAG, "Determined conversationType=${it.rawValue} for messageId=${message.id}, to=$to")
+        }
+    }
+
+    companion object {
+        private const val TAG = "MessageStorageItem"
+
+        const val ADD_CONTACT_LOCAL_ARCHIVED_ID = "add-contact-local-archived-id"
+
+        fun messageIdForAuthRequest(jid: String): String {
+            return listOf("subscribtion", jid).prp()
+        }
+
+        fun messageIdForContact(owner: String, jid: String, ts: String): String {
+            return listOf("contact", ts, jid, owner).prp()
+        }
+
+        fun messageIdForVoIPCall(owner: String, jid: String, callId: String): String {
+            return listOf("voip", owner, jid, callId).prp()
+        }
+
+        fun messageIdForInitial(jid: String, conversationType: ConversationType): String {
+            return listOf(jid, conversationType.rawValue, "initial_message").prp()
+        }
+
+        fun genPrimary(messageId: String, owner: String): String {
+            return "${messageId}_$owner"
         }
     }
 }

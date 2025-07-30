@@ -23,7 +23,9 @@ data class MessageDto(
     var isSelected: Boolean = false,
     var references: ArrayList<MessageReferenceDto> = ArrayList(),
     val isUnread: Boolean = true,
-    var isChecked: Boolean = false
+    var isChecked: Boolean = false,
+    var archivedId: String = ""
+
 ) : Comparable<MessageDto> {
     override fun compareTo(other: MessageDto): Int =
         this.sentTimestamp.compareTo(other.sentTimestamp)

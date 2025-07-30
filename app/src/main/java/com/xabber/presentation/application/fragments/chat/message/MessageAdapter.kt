@@ -21,13 +21,13 @@ class MessageAdapter(
     private val layoutInflater: LayoutInflater,
     private val listener: MenuItemListener? = null,
     private val onViewClickListener: OnViewClickListener? = null,
-    private val messages: ArrayList<MessageDto>,
+    private val messages: ArrayList<MessageDto> = ArrayList(),
     private val isGroup: Boolean,
-    private val onBindListener: ((MessageDto?) -> Unit)? = null // Added to call ChatFragment's onBind
+    private val onBindListener: ((MessageDto?) -> Unit)? = null
 ) : ListAdapter<MessageDto, MessageViewHolder>(DiffUtilCallback) {
 
     init {
-        setHasStableIds(true)  // Add this
+        setHasStableIds(true)
     }
 
     override fun getItemId(position: Int): Long {
@@ -36,6 +36,7 @@ class MessageAdapter(
 
     private var firstUnreadMessageID: String? = null
     private val checkedItemIds: MutableList<String> = ArrayList()
+    private val TAG = "MessageAdapter"
 
     interface MenuItemListener {
         fun copyText(text: String)
@@ -53,21 +54,21 @@ class MessageAdapter(
         fun onLocationClick(latitude: Double, longitude: Double)
     }
 
-
-
     override fun getItemCount(): Int = messages.size
 
     fun updateAdapter(messageDtoList: List<MessageDto>) {
-        Log.d("MessageAdapter", "Updating adapter with ${messageDtoList.size} messages")
+        Log.v(TAG, "Updating adapter with ${messageDtoList.size} messages")
+        val newList = messageDtoList.distinctBy { it.primary }.sortedBy { it.sentTimestamp }
         messages.clear()
-        messages.addAll(messageDtoList)
-        submitList(messages.toList())
+        messages.addAll(newList)
+        submitList(messages.toList()) { notifyUnreadState() }
     }
 
     override fun getItemViewType(position: Int): Int {
+        val message = getMessageItem(position) ?: return INCOMING_MESSAGE
         return when {
-            messages[position].displayType == MessageDisplayType.System -> SYSTEM_MESSAGE
-            messages[position].isOutgoing -> OUTGOING_MESSAGE
+            message.displayType == MessageDisplayType.System -> SYSTEM_MESSAGE
+            message.isOutgoing -> OUTGOING_MESSAGE
             else -> INCOMING_MESSAGE
         }
     }
@@ -89,8 +90,29 @@ class MessageAdapter(
                     R.layout.item_message_system, parent, false
                 ), layoutInflater, listener, onViewClickListener
             )
-            else -> throw IllegalStateException("Unsupported view type!")
+            else -> throw IllegalStateException("Unsupported view type: $viewType")
         }
+    }
+
+    override fun onBindViewHolder(holder: MessageViewHolder, position: Int) {
+        val message = getMessageItem(position) ?: return
+        Log.v(TAG, "Binding message: primary=${message.primary}, body=${message.messageBody.take(50)}, isOutgoing=${message.isOutgoing}, isUnread=${message.isUnread}, isChecked=${message.isChecked}")
+        holder.setIsRecyclable(true)
+        holder.messageId = message.primary
+        val extraData = MessageVhExtraData(
+            isUnread = message.isUnread && (firstUnreadMessageID == null || message.primary == firstUnreadMessageID),
+            isChecked = checkedItemIds.contains(message.primary),
+            isNeedTail = isMessageNeedTail(position),
+            isNeedDate = isMessageNeedDate(position),
+            isNeedName = isMessageNeedName(position),
+            isGroup = isGroup
+        )
+        when (holder) {
+            is IncomingMessageVH -> holder.bind(message, extraData)
+            is OutgoingMessageVH -> holder.bind(message, extraData)
+            is SystemMessageVH -> holder.bind(message, extraData)
+        }
+        onBindListener?.invoke(message)
     }
 
     private fun isMessageNeedDate(position: Int): Boolean {
@@ -120,44 +142,47 @@ class MessageAdapter(
         return message.isOutgoing != preMessage.isOutgoing || message.opponentJid != preMessage.opponentJid
     }
 
-    override fun onBindViewHolder(holder: MessageViewHolder, position: Int) {
-        val message = getMessageItem(position) ?: return
-        Log.d("MessageAdapter", "Binding message: primary=${message.primary}, body=${message.messageBody.take(50)}, isOutgoing=${message.isOutgoing}, isUnread=${message.isUnread}, isChecked=${message.isChecked}")
-        holder.setIsRecyclable(true)
-        holder.messageId = message.primary
-        val extraData = MessageVhExtraData(
-            isUnread = message.isUnread && message.primary == firstUnreadMessageID,
-            isChecked = message.isChecked,
-            isNeedTail = isMessageNeedTail(position),
-            isNeedDate = isMessageNeedDate(position),
-            isNeedName = isMessageNeedName(position),
-            isGroup = isGroup
-        )
-        when (getItemViewType(position)) {
-            INCOMING_MESSAGE -> (holder as? IncomingMessageVH)?.bind(message, extraData)
-            OUTGOING_MESSAGE -> (holder as? OutgoingMessageVH)?.bind(message, extraData)
-            SYSTEM_MESSAGE -> (holder as? SystemMessageVH)?.bind(message, extraData)
-        }
-        onBindListener?.invoke(message)
-    }
-
     fun getMessageItem(position: Int): MessageDto? =
-        when {
-            position == RecyclerView.NO_POSITION -> null
-            position < messages.size -> messages[position]
-            else -> null
-        }
+        if (position in 0 until messages.size) messages[position] else null
 
     fun setFirstUnreadMessageId(id: String?) {
         firstUnreadMessageID = id
+        notifyUnreadState()
+    }
+
+    fun updateCheckedItems(primary: String, isChecked: Boolean) {
+        if (isChecked) {
+            checkedItemIds.add(primary)
+        } else {
+            checkedItemIds.remove(primary)
+        }
+        val position = messages.indexOfFirst { it.primary == primary }
+        if (position != -1) {
+            messages[position] = messages[position].copy(isChecked = isChecked, isSelected = isChecked)
+            notifyItemChanged(position)
+        }
+    }
+
+    private fun notifyUnreadState() {
+        messages.forEachIndexed { index, message ->
+            if (message.isUnread && (firstUnreadMessageID == null || message.primary == firstUnreadMessageID)) {
+                notifyItemChanged(index)
+            }
+        }
     }
 
     private object DiffUtilCallback : DiffUtil.ItemCallback<MessageDto>() {
-        override fun areItemsTheSame(oldItem: MessageDto, newItem: MessageDto) =
-            oldItem.primary == newItem.primary
+        override fun areItemsTheSame(oldItem: MessageDto, newItem: MessageDto): Boolean {
+            return oldItem.primary == newItem.primary && oldItem.archivedId == newItem.archivedId
+        }
 
-        override fun areContentsTheSame(oldItem: MessageDto, newItem: MessageDto) =
-            oldItem == newItem && oldItem.isSelected == newItem.isSelected && oldItem.isChecked == newItem.isChecked
+        override fun areContentsTheSame(oldItem: MessageDto, newItem: MessageDto): Boolean {
+            return oldItem == newItem &&
+                    oldItem.isSelected == newItem.isSelected &&
+                    oldItem.isChecked == newItem.isChecked &&
+                    oldItem.isUnread == newItem.isUnread &&
+                    oldItem.messageSendingState == newItem.messageSendingState
+        }
     }
 
     companion object {

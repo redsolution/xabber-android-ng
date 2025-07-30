@@ -10,6 +10,7 @@ import com.xabber.data_base.defaultRealmConfig
 import com.xabber.data_base.models.last_chats.LastChatsStorageItem
 import com.xabber.data_base.models.messages.MessageForwardsInlineStorageItem
 import com.xabber.data_base.models.messages.MessageReferenceStorageItem
+import com.xabber.data_base.models.messages.MessageSendingState
 import com.xabber.data_base.models.messages.MessageStorageItem
 import com.xabber.data_base.models.sync.ConversationType
 import com.xabber.xmpp.XEP_0CCC.ClientSynchronizationManager
@@ -60,14 +61,14 @@ class MessageManager(private val owner: String, activeStream: Boolean) {
 
                     realm.write {
                         val states = listOf(
-                            MessageStorageItem.MessageSendingState.SENDING.value,
-                            MessageStorageItem.MessageSendingState.UPLOADING.value
+                            MessageSendingState.Sending,
+                            MessageSendingState.Uploading
                         )
                         val collection = query<MessageStorageItem>(
                             "owner = $0 AND state_ IN $1", owner, states
                         ).find()
                         collection.forEach { message ->
-                            message.state = MessageStorageItem.MessageSendingState.ERROR
+                            message.state = MessageSendingState.Error
                             message.messageError = "Internal error"
                             message.references.forEach { it.hasError = true }
                             query<LastChatsStorageItem>(
@@ -97,8 +98,8 @@ class MessageManager(private val owner: String, activeStream: Boolean) {
                                     "owner = $0 AND state_ IN $1",
                                     owner,
                                     listOf(
-                                        MessageStorageItem.MessageSendingState.SENDING.value,
-                                        MessageStorageItem.MessageSendingState.UPLOADING.value
+                                        MessageSendingState.Sending,
+                                        MessageSendingState.Uploading
                                     )
                                 ).find()
                                 val toEdit = mutableSetOf<String>()
@@ -129,7 +130,7 @@ class MessageManager(private val owner: String, activeStream: Boolean) {
                                 if (toEdit.isNotEmpty()) {
                                     val collection = query<MessageStorageItem>("primary IN $0", toEdit.toList()).find()
                                     collection.forEach { message ->
-                                        message.state = MessageStorageItem.MessageSendingState.ERROR
+                                        message.state = MessageSendingState.Error
                                         message.messageError = "Stream was disconnected"
                                         query<LastChatsStorageItem>(
                                             "primary = $0",
@@ -221,14 +222,14 @@ class MessageManager(private val owner: String, activeStream: Boolean) {
                 }
 
                 val messagesToMark = query<MessageStorageItem>(
-                    "owner = $0 AND opponent = $1 AND conversationType_ = $2 AND date <= $3 AND state_ <= ${MessageStorageItem.MessageSendingState.READ.value}",
+                    "owner = $0 AND opponent = $1 AND conversationType_ = $2 AND date <= $3 AND state_ <= ${MessageSendingState.Error}",
                     owner, opponent, conversationType, message.date
                 ).find()
 
                 messagesToMark.forEach { msg ->
                     val latestMsg = findLatest(msg) ?: return@forEach
                     latestMsg.isRead = true
-                    latestMsg.state = MessageStorageItem.MessageSendingState.READ
+                    latestMsg.state = MessageSendingState.Read
                     if (latestMsg.readDate!! <= 1) {
                         latestMsg.readDate = System.currentTimeMillis() / 1000.0
                     }
@@ -239,7 +240,7 @@ class MessageManager(private val owner: String, activeStream: Boolean) {
 
                 findLatest(message)?.let {
                     it.isRead = true
-                    it.state = MessageStorageItem.MessageSendingState.READ
+                    it.state = MessageSendingState.Read
                 }
             }
 
@@ -264,7 +265,7 @@ class MessageManager(private val owner: String, activeStream: Boolean) {
 
                 findLatest(instance)?.let {
                     it.messageError = "Connection error"
-                    it.state = MessageStorageItem.MessageSendingState.ERROR
+                    it.state = MessageSendingState.Error
                     it.references.forEach { ref ->
                         ref.hasError = true
                     }
@@ -316,7 +317,7 @@ class MessageManager(private val owner: String, activeStream: Boolean) {
 
                 findLatest(instance)?.let {
                     it.messageError = errorMessage
-                    it.state = MessageStorageItem.MessageSendingState.ERROR
+                    it.state = MessageSendingState.Error
                     it.references.forEach { ref ->
                         ref.hasError = true
                     }
