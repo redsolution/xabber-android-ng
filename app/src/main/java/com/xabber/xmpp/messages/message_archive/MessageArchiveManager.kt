@@ -35,7 +35,7 @@ import javax.xml.parsers.DocumentBuilderFactory
 class MessageArchiveManager(private val owner: String) {
 
     private val namespace = "urn:xmpp:mam:2"
-    private val pageSize = 50
+    private val pageSize = 250
     private val callbacksQueue = mutableSetOf<CallbackQueueItem>()
     private val searchResultsQueries = mutableSetOf<String>()
     private val interactiveQueue = mutableListOf<String>()

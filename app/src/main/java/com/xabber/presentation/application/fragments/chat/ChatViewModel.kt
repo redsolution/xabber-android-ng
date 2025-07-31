@@ -8,7 +8,6 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.recyclerview.widget.DiffUtil
-import com.xabber.common.Account
 import com.xabber.common.AccountManager
 import com.xabber.data_base.defaultRealmConfig
 import com.xabber.data_base.models.account.AccountStorageItem
@@ -22,11 +21,11 @@ import com.xabber.dto.AccountDto
 import com.xabber.dto.ChatListDto
 import com.xabber.dto.MessageDto
 import com.xabber.dto.MessageReferenceDto
-import com.xabber.presentation.application.fragments.chat.audio.PublishAudioProgress
 import com.xabber.utils.toAccountDto
 import com.xabber.utils.toChatListDto
 import com.xabber.utils.toMessageReferenceDto
 import com.xabber.xmpp.messages.message_archive.MessageArchiveManager
+import com.xabber.xmpp.messages.message_archive.Page
 import io.realm.kotlin.Realm
 import io.realm.kotlin.ext.query
 import io.realm.kotlin.ext.realmListOf
@@ -74,7 +73,7 @@ class ChatViewModel(
     private var test = 0
     private var count = 0
     private val datasourcePageSize = 50
-    private var messagesObserver: RealmResults<MessageStorageItem> ?= null
+    private var messagesObserver: RealmResults<MessageStorageItem>? = null
     private val _showSkeletonObserver = MutableLiveData<Boolean>()
     val showSkeletonObserver: LiveData<Boolean> = _showSkeletonObserver
     private val _searchTextObserver = MutableLiveData<String>()
@@ -200,150 +199,6 @@ class ChatViewModel(
             Log.d(TAG, "No change in messages, skipping LiveData update, messageListSize=${messageList.size}")
         }
     }
-
-
-    fun loadInitialDatasource(callback: (List<MessageStorageItem>) -> Unit) {
-        realm.writeBlocking {
-            val chatInstance = query<LastChatsStorageItem>(
-                "primary = $0",
-                LastChatsStorageItem.genPrimary(opponent, owner, conversationType)
-            ).first().find()
-            val isSynced = chatInstance?.isSynced ?: false
-            if (!isSynced) {
-                _showSkeletonObserver.postValue(true)
-                getHistoryByDate(
-                    stream = getStream(),
-                    jid = opponent,
-                    conversationType = conversationType,
-                    start = getArchiveStart(),
-                    reversed = true
-                ) {
-                    _showSkeletonObserver.postValue(false)
-                    callback(emptyList()) // Update with actual logic
-                }
-            } else {
-                val minIndex = 0
-                val maxIndex = minOf(datasourcePageSize, messagesObserver?.size ?: 0)
-                currentPage.minIndex = minIndex
-                currentPage.maxIndex = maxIndex
-                val slice = messagesObserver?.subList(minIndex, maxIndex) ?: emptyList()
-                callback(slice)
-            }
-        }
-    }
-    fun loadDatasource(direction: ChatDirection, first: Boolean = false, ignoreGaps: Boolean = false, samePage: Boolean = false, callback: (List<MessageStorageItem>) -> Unit) {
-        val messagesObserver = realm.query<MessageStorageItem>(
-            "owner = '$owner' AND opponent = '$opponent' AND conversationType_ = '${conversationType.rawValue}'"
-        ).find()
-        if (messagesObserver.isEmpty()) {
-            callback(emptyList())
-            return
-        }
-
-        val (minIndex, maxIndex) = getIndexes(direction, samePage)
-        var hasGap = false
-        var archivedId = ""
-        var isArchiveEnded = false
-        realm.writeBlocking {
-            val chat = query<LastChatsStorageItem>(
-                "primary = $0",
-                LastChatsStorageItem.genPrimary(opponent, owner, conversationType)
-            ).first().find()
-            isArchiveEnded = chat?.fullArchiveLoaded ?: false
-        }
-
-        if (minIndex >= messagesObserver.size && isArchiveEnded) {
-            callback(emptyList())
-            return
-        } else if (maxIndex > messagesObserver.size) {
-            maxIndex = messagesObserver.size
-            if (!isArchiveEnded) {
-                hasGap = !ignoreGaps
-                archivedId = messagesObserver.lastOrNull()?.archivedId ?: ""
-            }
-        }
-
-        if (!hasGap) {
-            if (maxIndex > messagesObserver.size) {
-                maxIndex = messagesObserver.size - 1
-            }
-            if (minIndex < 0) {
-                minIndex = 0
-            }
-            val slice = messagesObserver.subList(minIndex, maxIndex)
-            slice.forEachIndexed { index, item ->
-                if (index + 1 < slice.size) {
-                    val currentQueryIds = item.queryIds?.split(",")?.toSet() ?: emptySet()
-                    val nextQueryIds = slice[index + 1].queryIds?.split(",")?.toSet() ?: emptySet()
-                    if (currentQueryIds.intersect(nextQueryIds).isEmpty) {
-                        hasGap = !ignoreGaps
-                    }
-                }
-            }
-            if (!hasGap) {
-                if (direction == ChatDirection.DOWN) {
-                    currentPage.minIndex = minIndex
-                } else {
-                    currentPage.maxIndex = maxIndex
-                }
-                callback(slice)
-                return
-            }
-            archivedId = if (direction == ChatDirection.DOWN) slice.firstOrNull()?.archivedId ?: "" else slice.lastOrNull()?.archivedId ?: ""
-        }
-
-        if (hasGap) {
-            val account = AccountManager.find(owner)
-            val stream = account?.stream ?: return
-            if (direction == ChatDirection.UP) {
-                getNextHistory(stream, jid = opponent, conversationType = conversationType, messageId = archivedId) {
-                    callback(messagesObserver.subList(minIndex, maxIndex))
-                }
-            } else {
-                getPrevHistory(stream, jid = opponent, conversationType = conversationType, messageId = archivedId) {
-                    callback(messagesObserver.subList(minIndex, maxIndex))
-                }
-            }
-        }
-    }
-
-    fun isDateChange(from: Long, to: Long): Boolean {
-        val calendarFrom = Calendar.getInstance().apply { timeInMillis = from }
-        val calendarTo = Calendar.getInstance().apply { timeInMillis = to }
-        return calendarFrom.get(Calendar.DAY_OF_YEAR) != calendarTo.get(Calendar.DAY_OF_YEAR) || calendarFrom.get(Calendar.YEAR) != calendarTo.get(Calendar.YEAR)
-    }
-
-    fun convertChangeset(oldList: List<MessageDto>, newList: List<MessageDto>): DiffUtil.DiffResult {
-        return DiffUtil.calculateDiff(object : DiffUtil.Callback() {
-            override fun getOldListSize() = oldList.size
-            override fun getNewListSize() = newList.size
-            override fun areItemsTheSame(oldPos: Int, newPos: Int) = oldList[oldPos].primary == newList[newPos].primary
-            override fun areContentsTheSame(oldPos: Int, newPos: Int) = oldList[oldPos] == newList[newPos]
-        })
-    }
-
-    fun scrollToLastOrUnreadItem() {
-        // Implement logic to scroll to unread position or last message
-        // If currentPage.minIndex > 0, reset to 0 and reload data
-        // Use unreadMessagePositionId to scroll to specific position
-    }
-
-    fun updateFloatingDate() {
-        // Calculate top visible message index
-        // Set pinned date view text to date of top message
-    }
-
-    fun didReceiveChangeset() {
-        val maxPrimary = messageList.filter { !it.isFakeMessage }.lastOrNull()?.primary ?: return
-        val maxIndex = messageList.indexOfFirst { it.primary == maxPrimary } + 1
-        val newDatasource = mapDataset(messageList.subList(0, maxIndex))
-        val diffResult = convertChangeset(messageList, newDatasource)
-        messageList = ArrayList(newDatasource)
-        diffResult.dispatchUpdatesTo(messageAdapter)
-    }
-
-
-
 
     fun initChatDataListener(chatId: String) {
         val request = realm.query(LastChatsStorageItem::class, "primary = '$chatId'").find()
@@ -878,4 +733,3 @@ class ChatViewModel(
         return lastPosition
     }
 }
-

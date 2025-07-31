@@ -29,10 +29,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.FragmentTransaction
-import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -79,8 +76,9 @@ import com.xabber.xmpp.messages.message_archive.MessageArchiveManager
 import com.xabber.xmpp.messages.messages_manager.MessageCommonSender
 import io.reactivex.rxjava3.disposables.Disposable
 import io.realm.kotlin.Realm
-import io.realm.kotlin.ext.query
 import kotlinx.coroutines.*
+import org.koin.androidx.viewmodel.ext.android.viewModel
+import org.koin.core.parameter.parametersOf
 import java.io.File
 import java.io.FileInputStream
 import java.io.IOException
@@ -97,9 +95,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     private val handler = Handler(Looper.getMainLooper())
     private var messageAdapter: MessageAdapter? = null
     private var layoutManager: LinearLayoutManager? = null
-    private val viewModel: ChatViewModel by viewModels {
-        ChatViewModelFactory(getParams().id)
-    }
+    private val viewModel: ChatViewModel by viewModel { parametersOf(getParams().id) }
     private val audioRecorder = AudioRecorder()
     private var replySwipeCallback: ReplySwipeCallback? = null
     private var isNeedScrollDown = false
@@ -199,24 +195,6 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         binding.imLockBar.isVisible = false
         binding.imLock.setImageResource(R.drawable.grey_square)
         binding.linRecordLock.startAnimation(bot)
-    }
-
-    // Custom ViewModel Factory
-    private inner class ChatViewModelFactory(private val chatId: String) : ViewModelProvider.Factory {
-        override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            if (modelClass.isAssignableFrom(ChatViewModel::class.java)) {
-                val chat = realm.query<LastChatsStorageItem>("primary = $0", chatId).first().find()
-                    ?: throw IllegalArgumentException("Chat not found for ID: $chatId")
-                @Suppress("UNCHECKED_CAST")
-                return ChatViewModel(
-                    chatId = chatId,
-                    owner = chat.owner,
-                    opponent = chat.jid,
-                    conversationType = ConversationType.entries.first { it.rawValue == chat.conversationType_ }
-                ) as T
-            }
-            throw IllegalArgumentException("Unknown ViewModel class")
-        }
     }
 
     companion object {
@@ -1168,7 +1146,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         enableSelectionMode(true)
         Check.setSelectedMode(true)
         viewModel.selectMessage(primary, true)
-        val position = viewModel.getPositionMessage(primary)
+        val position = viewModel.getMessagePosition(primary)
         if (position != -1) {
             messageAdapter?.notifyItemChanged(position)
         }
@@ -1230,7 +1208,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     override fun checkItem(isChecked: Boolean, primary: String) {
         Log.d("ChatFragment", "checkItem: primary=$primary, isChecked=$isChecked")
         viewModel.selectMessage(primary, isChecked)
-        val position = viewModel.getPositionMessage(primary)
+        val position = viewModel.getMessagePosition(primary)
         if (position != -1) {
             messageAdapter?.notifyItemChanged(position)
         }
