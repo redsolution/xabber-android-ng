@@ -191,7 +191,7 @@ class ChatMarkersManager(private val owner: String, withoutAfterburnTimer: Boole
         try {
             realm.write {
                 val instance = query<MessageStorageItem>(
-                    "owner = $0 AND opponent = $1 AND messageId = $2 AND state_ < ${MessageStorageItem.MessageSendingState.DELIVERED.value}",
+                    "owner = $0 AND opponent = $1 AND messageId = $2 AND state_ < ${MessageSendingState.Deliver}",
                     owner, jid, messageId
                 ).first().find() ?: return@write
 
@@ -230,7 +230,7 @@ class ChatMarkersManager(private val owner: String, withoutAfterburnTimer: Boole
                 ).first().find() ?: return@write
 
                 val collection = query<MessageStorageItem>(
-                    "owner = $0 AND opponent = $1 AND date <= $2 AND burnDate < 1 AND state_ != ${MessageStorageItem.MessageSendingState.ERROR.value}",
+                    "owner = $0 AND opponent = $1 AND date <= $2 AND burnDate < 1 AND state_ != ${MessageSendingState.Error}",
                     owner, jid, instance.date
                 ).find()
 

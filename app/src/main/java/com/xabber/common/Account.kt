@@ -14,7 +14,6 @@ import com.xabber.utils.custom.NickGenerator
 import com.xabber.xmpp.XEP_0CCC.ClientSynchronizationManager
 import com.xabber.xmpp.auth.DevicesOCRA
 import com.xabber.xmpp.device.DeviceStorageItem
-import com.xabber.xmpp.dns.DNSResolver
 import com.xabber.xmpp.presence.PresenceManager
 import com.xabber.xmpp.roster.RosterManager
 import com.xabber.xmpp.messages.messages_manager.MessageManager
@@ -36,7 +35,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.channels.Channel
 import io.viascom.nanoid.NanoId
 import kotlinx.coroutines.CoroutineScope
@@ -84,7 +82,7 @@ class Account : XMPPStreamDelegate {
     private val realm: Realm by lazy { Realm.open(defaultRealmConfig()) }
     private val rosterManager: RosterManager by lazy { RosterManager(jid, realm) }
     private val syncManager: ClientSynchronizationManager by lazy { ClientSynchronizationManager(jid) }
-    private val messageArchiveManager: MessageArchiveManager by lazy { MessageArchiveManager(jid) } // Initialize MAM
+    private val messageArchiveManager: MessageArchiveManager by lazy { MessageArchiveManager(jid) }
     private var presenceManager: PresenceManager? = null
     private val deviceModel = Build.MODEL
     private var isDeviceRegistered = false
@@ -156,7 +154,7 @@ class Account : XMPPStreamDelegate {
                     manuallySetHost = this@Account.manuallySetHost
                     port = this@Account.port
                     username = this@Account.username
-                    createdAt = System.currentTimeMillis() // Set createdAt as Long
+                    createdAt = System.currentTimeMillis()
                     deviceName = this@Account.deviceName
                 }
                 copyToRealm(item, updatePolicy = UpdatePolicy.ALL)
@@ -210,7 +208,7 @@ class Account : XMPPStreamDelegate {
                     delegate = this@Account
                 }
                 Log.d("Account", "Stream initialized for $jid with port $port")
-                messageReceiver.subscribeReceiver() // Subscribe to message receiver
+                messageReceiver.subscribeReceiver()
             } else {
                 Log.w("Account", "Cannot initialize Stream: JID is empty")
                 onErrorCallback?.invoke("Cannot initialize connection: Invalid JID")
@@ -230,7 +228,6 @@ class Account : XMPPStreamDelegate {
                     presenceManager = PresenceManager(jid, it.socket!!)
                     statusMessage.onNext("Online")
                     Log.d("Account", "Stream connected for $jid")
-                    // Sync all chats after successful connection
                     syncAllChats(it)
                     true
                 } else {
@@ -255,13 +252,10 @@ class Account : XMPPStreamDelegate {
     private suspend fun syncAllChats(stream: Stream) = withContext(Dispatchers.IO) {
         val realm = Realm.open(defaultRealmConfig())
         try {
-            // Fetch chats synchronously within writeBlocking
             val chats = realm.writeBlocking {
                 query<LastChatsStorageItem>("owner = $0", jid).find()
             }
             Log.d("Account", "Found ${chats.size} chats to sync for $jid")
-
-            // Launch coroutines for each chat sync
             chats.forEach { chat ->
                 launch {
                     val conversationType = ConversationType.fromRaw(chat.conversationType_)
@@ -286,20 +280,21 @@ class Account : XMPPStreamDelegate {
             realm.close()
         }
     }
+
     @RequiresApi(Build.VERSION_CODES.O)
     suspend fun closeStream() = withContext(Dispatchers.IO) {
         stream?.close()
         stream = null
         presenceManager = null
-        messageReceiver.unsubscribeReceiver() // Unsubscribe when closing stream
+        messageReceiver.unsubscribeReceiver()
         statusMessage.onNext("Offline")
         rosterRequested = false
         Log.d("Account", "Stream closed for $jid")
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     override suspend fun didReceiveIQ(iq: XMPPIQ, stream: Stream): Boolean {
         try {
-            // Handle ping IQ
             if (iq.type == "get" && iq.queryNamespace == "urn:xmpp:ping" && stream.state == StreamState.CONNECTED) {
                 Log.d("Account", "Received server ping request")
                 val pingId = iq.id ?: return false
@@ -318,7 +313,6 @@ class Account : XMPPStreamDelegate {
                 }
             }
 
-            // Handle disco#info query
             if (iq.type == "get" && iq.queryNamespace == "http://jabber.org/protocol/disco#info") {
                 Log.d("Account", "Received disco#info query from ${iq.from}")
                 val discoId = iq.id ?: return false
@@ -334,7 +328,6 @@ class Account : XMPPStreamDelegate {
                 }
             }
 
-            // Check if the message is roster-related
             if (iq.queryNamespace == "jabber:iq:roster" || iq.queryContent?.contains("<item") == true || iq.queryContent?.contains("<group>") == true) {
                 var completeStanza: String? = null
                 synchronized(rosterStanzaBuffer) {
@@ -361,7 +354,6 @@ class Account : XMPPStreamDelegate {
                 return false
             }
 
-            // Handle sync request response
             if (iq.queryNamespace == "https://xabber.com/protocol/synchronization") {
                 var completeStanza: String? = null
                 synchronized(syncStanzaBuffer) {
@@ -382,48 +374,20 @@ class Account : XMPPStreamDelegate {
                 }
                 completeStanza?.let {
                     Log.d("Account", "Processing complete sync query stanza: ${it.substring(0, minOf(it.length, 200))}...")
-                    val cleaned = it.replace(Regex("""<iq[^>]*type='result'[^>]*id='ping1'[^>]*/>"""), "")
+                    val cleaned = it.replace(Regex("""<iq[^>]*type='result'[^>]*id='ping1'[^>]*/>"""), "").replace(Regex("r\\.boldin='modify'"), "")
                     val iqStart = cleaned.indexOf("<iq")
                     val iqEnd = cleaned.lastIndexOf("</iq>") + 5
                     if (iqStart != -1 && iqEnd != -1 && iqEnd > iqStart) {
                         val iqStanza = cleaned.substring(iqStart, iqEnd)
-                        syncManager.read(iqStanza)
-                        Log.d("Account", "Processed sync response with ClientSynchronizationManager for JID: $jid")
-                        // Signal sync completion
-                        syncCompletionChannel.trySend(Unit)
-                        return true
-                    } else {
-                        Log.e("Account", "Failed to extract complete <iq> stanza from: ${cleaned.substring(0, minOf(cleaned.length, 200))}...")
-                        return false
-                    }
-                }
-                return false
-            } else if (syncStanzaBuffer.isNotEmpty()) {
-                var completeStanza: String? = null
-                synchronized(syncStanzaBuffer) {
-                    syncStanzaBuffer.append(iq.raw)
-                    Log.d("Account", "Appended continuation to sync stanza buffer: ${iq.raw.substring(0, minOf(iq.raw.length, 200))}...")
-                    val bufferedContent = syncStanzaBuffer.toString()
-                    if (!bufferedContent.contains("</query>")) {
-                        Log.d("Account", "Incomplete sync query stanza, waiting for more data: ${bufferedContent.substring(0, minOf(bufferedContent.length, 200))}...")
-                        return false
-                    }
-                    completeStanza = bufferedContent
-                    syncStanzaBuffer.clear()
-                    Log.d("Account", "Cleared sync stanza buffer after copying complete stanza")
-                }
-                completeStanza?.let {
-                    Log.d("Account", "Processing complete sync query stanza: ${it.substring(0, minOf(it.length, 200))}...")
-                    val cleaned = it.replace(Regex("""<iq[^>]*type='result'[^>]*id='ping1'[^>]*/>"""), "")
-                    val iqStart = cleaned.indexOf("<iq")
-                    val iqEnd = cleaned.lastIndexOf("</iq>") + 5
-                    if (iqStart != -1 && iqEnd != -1 && iqEnd > iqStart) {
-                        val iqStanza = cleaned.substring(iqStart, iqEnd)
-                        syncManager.read(iqStanza)
-                        Log.d("Account", "Processed sync response with ClientSynchronizationManager for JID: $jid")
-                        // Signal sync completion
-                        syncCompletionChannel.trySend(Unit)
-                        return true
+                        try {
+                            syncManager.read(iqStanza)
+                            Log.d("Account", "Processed sync response with ClientSynchronizationManager for JID: $jid")
+                            syncCompletionChannel.trySend(Unit)
+                            return true
+                        } catch (e: Exception) {
+                            Log.e("Account", "Error parsing sync IQ stanza: ${e.message}", e)
+                            return false
+                        }
                     } else {
                         Log.e("Account", "Failed to extract complete <iq> stanza from: ${cleaned.substring(0, minOf(cleaned.length, 200))}...")
                         return false
@@ -432,7 +396,11 @@ class Account : XMPPStreamDelegate {
                 return false
             }
 
-            // Handle device registration IQ
+            if (iq.queryNamespace == "urn:xmpp:mam:2") {
+                Log.d("Account", "Received MAM IQ response: ${iq.raw.substring(0, minOf(iq.raw.length, 200))}...")
+                return messageArchiveManager.read(iq.raw, stream)
+            }
+
             if (stream.state == StreamState.DEVICE_REGISTRATION) {
                 Log.d("Account", "Received IQ response for device registration")
                 if (iq.type == "result") {
@@ -492,7 +460,6 @@ class Account : XMPPStreamDelegate {
                                 Log.d("Account", "Created new DeviceStorageItem for uid: $uid, owner: $jid")
                             }
                         }
-                        // Confirm save
                         val savedDevice = realm.query<DeviceStorageItem>("uid = $0 AND owner = $1", uid, jid).first().find()
                         if (savedDevice != null) {
                             Log.d("Account", "Confirmed DeviceStorageItem saved: uid=$uid, expire=${savedDevice.expire}, authCounter=${savedDevice.authCounter}")
@@ -532,7 +499,6 @@ class Account : XMPPStreamDelegate {
                 }
             }
 
-            // Handle binding IQ
             if (stream.state == StreamState.BINDING) {
                 Log.d("Account", "Received IQ response for binding")
                 val jidMatch = Regex("""<jid>([^<]+)</jid>""").find(iq.queryContent ?: "")
@@ -569,7 +535,7 @@ class Account : XMPPStreamDelegate {
             "urn:ietf:params:xml:ns:xmpp-bind",
             "urn:ietf:params:xml:ns:xmpp-sasl",
             "urn:ietf:params:xml:ns:xmpp-tls",
-            // Add more features as per your client's capabilities, e.g., "urn:xmpp:avatar:metadata+notify"
+            "urn:xmpp:mam:2"
         )
         val featureVars = features.joinToString("") { "<feature var='$it'/>" }
         return """
@@ -743,34 +709,6 @@ class Account : XMPPStreamDelegate {
         return true
     }
 
-
-    @RequiresApi(Build.VERSION_CODES.O)
-    fun logMessageStorageItems(owner: String, messageIds: List<String>? = null) {
-        Log.d("Account", "Logging MessageStorageItem entries for owner: $owner")
-        try {
-            realm.query<MessageStorageItem>(
-                query = if (messageIds.isNullOrEmpty()) {
-                    "owner = $0"
-                } else {
-                    "owner = $0 AND messageId IN $1"
-                },
-                owner, messageIds
-            ).find().forEach { item ->
-                Log.d(
-                    "Account",
-                    "MessageStorageItem: primary=${item.primary}, messageId=${item.messageId}, owner=${item.owner}, " +
-                            "opponent=${item.opponent}, body=${item.body}, date=${item.date}, sentDate=${item.sentDate}, " +
-                            "editDate=${item.editDate}, outgoing=${item.outgoing}, conversationType_=${item.conversationType_}, " +
-                            "isRead=${item.isRead}, state=${item.state}"
-                )
-            }
-            Log.d("Account", "Finished logging MessageStorageItem entries")
-        } catch (e: Exception) {
-            Log.e("Account", "Error querying MessageStorageItem: ${e.message}", e)
-        }
-    }
-
-
     @RequiresApi(Build.VERSION_CODES.O)
     override suspend fun didReceiveMessage(message: String, stream: Stream): Boolean {
         Log.d(TAG, "Received message stanza: $message")
@@ -802,6 +740,11 @@ class Account : XMPPStreamDelegate {
                         if (tagName == "message" && (namespace == "jabber:client" || namespace.isEmpty())) {
                             if (!inForwarded) {
                                 messageId = parser.getAttributeValue(null, "id") ?: "unknown_${System.currentTimeMillis()}"
+                                innerRaw.append("<message")
+                                for (i in 0 until parser.attributeCount) {
+                                    innerRaw.append(" ${parser.getAttributeName(i)}='${parser.getAttributeValue(i)}'")
+                                }
+                                innerRaw.append(">")
                             } else {
                                 innerMessageId = parser.getAttributeValue(null, "id") ?: "unknown_${System.currentTimeMillis()}"
                                 innerFrom = parser.getAttributeValue(null, "from")?.trim()
@@ -859,11 +802,11 @@ class Account : XMPPStreamDelegate {
                 return true
             }
 
-            // Prioritize inner message attributes for MAM forwarded messages
             val fromJid = innerFrom ?: xmppMessage.from?.bare()
             val toJid = innerTo ?: xmppMessage.to?.bare()
-            if (fromJid == null || toJid == null) {
-                Log.w(TAG, "Skipping message with missing from/to: id=$messageId, innerFrom=$innerFrom, innerTo=$innerTo, from=${xmppMessage.from?.bare()}, to=${xmppMessage.to?.bare()}, stanza=$message")
+            val body = innerBody ?: xmppMessage.body
+            if (fromJid == null || toJid == null || body == null) {
+                Log.w(TAG, "Skipping message with missing attributes: id=$messageId, innerFrom=$innerFrom, innerTo=$innerTo, innerBody=$innerBody, from=${xmppMessage.from?.bare()}, to=${xmppMessage.to?.bare()}, body=${xmppMessage.body}")
                 return false
             }
 
@@ -875,12 +818,31 @@ class Account : XMPPStreamDelegate {
 
             val realm = Realm.open(defaultRealmConfig())
             val primary = TemporaryMessageStanzaStorageItem.genPrimary(messageId, jid)
+            val existingMessage = realm.query<MessageStorageItem>("primary = $0", "${messageId}_$jid").first().find()
+            if (existingMessage != null) {
+                Log.d(TAG, "Skipping duplicate message: id=$messageId, primary=${messageId}_$jid")
+                realm.close()
+                return true
+            }
+
             val tempStanza = realm.query<TemporaryMessageStanzaStorageItem>(
                 "primary = $0 AND isProcessed = false", primary
             ).first().find()
 
             if (tempStanza == null && !isChatState) {
-                Log.w(TAG, "No unprocessed TemporaryMessageStanzaStorageItem found for messageId=$messageId, primary=$primary, owner=$jid. Processing directly.")
+                Log.d(TAG, "Creating new TemporaryMessageStanzaStorageItem for messageId=$messageId, primary=$primary")
+                realm.write {
+                    val newTempStanza = TemporaryMessageStanzaStorageItem().apply {
+                        this.messageId = messageId
+                        this.primary = primary
+                        this.owner = jid
+                        this.jid = opponent
+                        this.isProcessed = false
+                        this.date = parseTimestamp(xmppMessage) ?: System.currentTimeMillis()
+                        this.stanza = message
+                    }
+                    copyToRealm(newTempStanza, UpdatePolicy.ALL)
+                }
             } else if (tempStanza != null) {
                 Log.d(TAG, "Found TemporaryMessageStanzaStorageItem: messageId=$messageId, primary=$primary, owner=${tempStanza.owner}, isProcessed=${tempStanza.isProcessed}")
             }
@@ -950,12 +912,14 @@ class Account : XMPPStreamDelegate {
                 }
                 else -> {
                     Log.d(TAG, "Directing runtime message to receiveRuntime: id=$messageId")
-                    if (innerMessage != null && innerMessage.body != null && innerMessage.from != null && innerMessage.to != null && innerMessage.to!!.bare() != jid) {
-                        messageReceiver.receiveRuntime(innerMessage)
-                        Log.d(TAG, "Called receiveRuntime for messageId=$messageId, body=${innerMessage.body}")
-                    } else {
-                        Log.w(TAG, "Skipping runtime message with invalid attributes: id=$messageId, body=${innerMessage?.body}, from=${innerMessage?.from?.bare()}, to=${innerMessage?.to?.bare()}")
-                    }
+                    innerMessage?.let {
+                        if (it.id != null && it.body != null && it.from != null && it.to != null && it.to.bare() != jid) {
+                            messageReceiver.receiveRuntime(it)
+                            Log.d(TAG, "Called receiveRuntime for messageId=$messageId, body=${it.body}")
+                        } else {
+                            Log.w(TAG, "Skipping runtime message with invalid attributes: id=$messageId, body=${it.body}, from=${it.from?.bare()}, to=${it.to?.bare()}")
+                        }
+                    } ?: Log.w(TAG, "No inner message for runtime container, skipping: id=$messageId")
                 }
             }
 
@@ -1022,8 +986,6 @@ class Account : XMPPStreamDelegate {
         }
         return stack.first().firstChild ?: document
     }
-
-
 
     private fun getDeliveryTime(message: XMPPMessage): Date? {
         val time = message.element("time", namespace = "https://xabber.com/protocol/delivery")?.getAttribute("stamp")
@@ -1380,5 +1342,31 @@ class Account : XMPPStreamDelegate {
                 Log.w("Account", "Cannot execute action: Stream is not connected or socket is closed")
             }
         } ?: Log.w("Account", "Cannot execute action: Stream is null")
+    }
+
+    @RequiresApi(Build.VERSION_CODES.O)
+    fun logMessageStorageItems(owner: String, messageIds: List<String>? = null) {
+        Log.d("Account", "Logging MessageStorageItem entries for owner: $owner")
+        try {
+            realm.query<MessageStorageItem>(
+                query = if (messageIds.isNullOrEmpty()) {
+                    "owner = $0"
+                } else {
+                    "owner = $0 AND messageId IN $1"
+                },
+                owner, messageIds
+            ).find().forEach { item ->
+                Log.d(
+                    "Account",
+                    "MessageStorageItem: primary=${item.primary}, messageId=${item.messageId}, owner=${item.owner}, " +
+                            "opponent=${item.opponent}, body=${item.body}, date=${item.date}, sentDate=${item.sentDate}, " +
+                            "editDate=${item.editDate}, outgoing=${item.outgoing}, conversationType_=${item.conversationType_}, " +
+                            "isRead=${item.isRead}, state=${item.state}"
+                )
+            }
+            Log.d("Account", "Finished logging MessageStorageItem entries")
+        } catch (e: Exception) {
+            Log.e("Account", "Error querying MessageStorageItem: ${e.message}", e)
+        }
     }
 }

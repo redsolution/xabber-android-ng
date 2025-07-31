@@ -61,8 +61,8 @@ class MessageManager(private val owner: String, activeStream: Boolean) {
 
                     realm.write {
                         val states = listOf(
-                            MessageStorageItem.MessageSendingState.SENDING.value,
-                            MessageStorageItem.MessageSendingState.UPLOADING.value
+                            MessageSendingState.Sending,
+                            MessageSendingState.Uploading
                         )
                         val collection = query<MessageStorageItem>(
                             "owner = $0 AND state_ IN $1", owner, states
@@ -98,8 +98,8 @@ class MessageManager(private val owner: String, activeStream: Boolean) {
                                     "owner = $0 AND state_ IN $1",
                                     owner,
                                     listOf(
-                                        MessageStorageItem.MessageSendingState.SENDING.value,
-                                        MessageStorageItem.MessageSendingState.UPLOADING.value
+                                        MessageSendingState.Sending,
+                                        MessageSendingState.Uploading
                                     )
                                 ).find()
                                 val toEdit = mutableSetOf<String>()
@@ -222,7 +222,7 @@ class MessageManager(private val owner: String, activeStream: Boolean) {
                 }
 
                 val messagesToMark = query<MessageStorageItem>(
-                    "owner = $0 AND opponent = $1 AND conversationType_ = $2 AND date <= $3 AND state_ <= ${MessageStorageItem.MessageSendingState.READ.value}",
+                    "owner = $0 AND opponent = $1 AND conversationType_ = $2 AND date <= $3 AND state_ <= ${MessageSendingState.Error}",
                     owner, opponent, conversationType, message.date
                 ).find()
 
