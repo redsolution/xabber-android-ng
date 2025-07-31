@@ -8,6 +8,7 @@ import androidx.annotation.RequiresApi
 import com.xabber.data_base.defaultRealmConfig
 import com.xabber.data_base.models.account.AccountStorageItem
 import com.xabber.data_base.models.last_chats.LastChatsStorageItem
+import com.xabber.data_base.models.messages.MessageSendingState
 import com.xabber.data_base.models.presences.ResourceStorageItem
 import com.xabber.utils.custom.NickGenerator
 import com.xabber.xmpp.XEP_0CCC.ClientSynchronizationManager
@@ -887,7 +888,7 @@ class Account : XMPPStreamDelegate {
             val timestamp = tempStanza?.date?.takeIf { it > 0 } ?: parseTimestamp(xmppMessage) ?: System.currentTimeMillis()
             val date = Date(timestamp)
             val isOutgoing = fromJid == jid
-            val state = if (isOutgoing) MessageStorageItem.MessageSendingState.DELIVERED else MessageStorageItem.MessageSendingState.SENT
+            val state = if (isOutgoing) MessageSendingState.Deliver else MessageSendingState.Sent
 
             var containerType: String? = null
             var innerMessage: XMPPMessage? = xmppMessage

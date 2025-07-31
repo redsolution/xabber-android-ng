@@ -117,7 +117,7 @@ class MessageCommonSender(private val owner: String) {
                 inlineForwards = prepareForwards(forwarded, primary, owner, recipientJid)
             )
             conversationType_ = conversationType.rawValue
-            state = MessageStorageItem.MessageSendingState.SENDING
+            state = MessageSendingState.Sending
         }
         try {
             realm.writeBlocking {
@@ -206,7 +206,7 @@ class MessageCommonSender(private val owner: String) {
             realm.writeBlocking {
                 val instance = query<MessageStorageItem>("primary = $0", primary).first().find()
                 instance?.apply {
-                    state = MessageStorageItem.MessageSendingState.SENDING
+                    state = MessageSendingState.Sending
                     trustedSource = query<LastChatsStorageItem>(
                         "primary = $0",
                         LastChatsStorageItem.genPrimary(opponent, owner, conversationType)
@@ -225,7 +225,7 @@ class MessageCommonSender(private val owner: String) {
                             localRealm.writeBlocking {
                                 val msg = query<MessageStorageItem>("primary = $0", primary).first().find()
                                 msg?.apply {
-                                    state = MessageStorageItem.MessageSendingState.ERROR
+                                    state = MessageSendingState.Error
                                     messageError = "Stream not connected"
                                 }
                                 query<LastChatsStorageItem>(
@@ -245,7 +245,7 @@ class MessageCommonSender(private val owner: String) {
                             localRealm.writeBlocking {
                                 val msg = query<MessageStorageItem>("primary = $0", primary).first().find()
                                 msg?.apply {
-                                    state = MessageStorageItem.MessageSendingState.DELIVERED
+                                    state = MessageSendingState.Deliver
                                 }
                                 query<LastChatsStorageItem>(
                                     "primary = $0",
@@ -269,7 +269,7 @@ class MessageCommonSender(private val owner: String) {
                             localRealm.writeBlocking {
                                 val msg = query<MessageStorageItem>("primary = $0", primary).first().find()
                                 msg?.apply {
-                                    state = MessageStorageItem.MessageSendingState.ERROR
+                                    state = MessageSendingState.Error
                                     messageError = "Failed to send message"
                                     references.forEach { it.hasError = true }
                                 }
@@ -420,7 +420,7 @@ class MessageCommonSender(private val owner: String) {
                                 val instance = query<MessageStorageItem>("primary = $0", MessageStorageItem.genPrimary(item.messageId, owner)).first().find()
                                 if (instance != null) {
                                     findLatest(instance)?.apply {
-                                        state = MessageStorageItem.MessageSendingState.ERROR
+                                        state = MessageSendingState.Error
                                         messageError = "Stream not connected"
                                     }
                                     query<LastChatsStorageItem>(
@@ -441,7 +441,7 @@ class MessageCommonSender(private val owner: String) {
                             realm.writeBlocking {
                                 val instance = query<MessageStorageItem>("primary = $0", MessageStorageItem.genPrimary(item.messageId, owner)).first().find()
                                 if (instance != null) {
-                                    findLatest(instance)?.state = MessageStorageItem.MessageSendingState.DELIVERED
+                                    findLatest(instance)?.state = MessageSendingState.Deliver
                                     val chat = query<LastChatsStorageItem>(
                                         "primary = $0",
                                         LastChatsStorageItem.genPrimary(instance.opponent, instance.owner, instance.conversationType)
@@ -466,7 +466,7 @@ class MessageCommonSender(private val owner: String) {
                                 val instance = query<MessageStorageItem>("primary = $0", MessageStorageItem.genPrimary(item.messageId, owner)).first().find()
                                 if (instance != null) {
                                     findLatest(instance)?.apply {
-                                        state = MessageStorageItem.MessageSendingState.ERROR
+                                        state = MessageSendingState.Error
                                         messageError = "Failed to send message"
                                         references.forEach { it.hasError = true }
                                     }

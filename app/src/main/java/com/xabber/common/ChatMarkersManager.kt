@@ -7,6 +7,7 @@ import com.xabber.common.AccountManager
 import com.xabber.common.Stream
 import com.xabber.data_base.defaultRealmConfig
 import com.xabber.data_base.models.last_chats.LastChatsStorageItem
+import com.xabber.data_base.models.messages.MessageSendingState
 import com.xabber.data_base.models.messages.MessageStorageItem
 import com.xabber.data_base.models.sync.ConversationType
 import com.xabber.xmpp.jid.XMPPJID
@@ -194,7 +195,7 @@ class ChatMarkersManager(private val owner: String, withoutAfterburnTimer: Boole
                     owner, jid, messageId
                 ).first().find() ?: return@write
 
-                findLatest(instance)?.state = MessageStorageItem.MessageSendingState.DELIVERED
+                findLatest(instance)?.state = MessageSendingState.Deliver
             }
             return true
         } catch (e: Exception) {
@@ -248,7 +249,7 @@ class ChatMarkersManager(private val owner: String, withoutAfterburnTimer: Boole
                     if (msg.afterburnInterval > 0 && msg.burnDate < 1) {
                         msg.burnDate = (date.time / 1000.0) + msg.afterburnInterval
                     }
-                    msg.state = MessageStorageItem.MessageSendingState.READ
+                    msg.state = MessageSendingState.Read
                     msg.isRead = true
                 }
 
@@ -259,7 +260,7 @@ class ChatMarkersManager(private val owner: String, withoutAfterburnTimer: Boole
                     if (msg.afterburnInterval > 0 && msg.burnDate < 1) {
                         msg.burnDate = (date.time / 1000.0) + msg.afterburnInterval
                     }
-                    msg.state = MessageStorageItem.MessageSendingState.READ
+                    msg.state = MessageSendingState.Read
                     msg.isRead = true
                 }
             }

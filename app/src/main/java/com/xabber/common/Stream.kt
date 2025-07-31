@@ -586,7 +586,7 @@ class Stream(var jid: String, var port: Int = 5222) {
                             else -> "urn:xabber:chat"
                         }
                         this.isRead = from == jid || item.isArchived
-                        this.state = if (from == jid) MessageStorageItem.MessageSendingState.DELIVERED else MessageStorageItem.MessageSendingState.SENT
+                        this.state = if (from == jid) MessageSendingState.Deliver else MessageSendingState.Sent
                         this.queryIds = item.queryId // Store queryId for gap detection
                     }, UpdatePolicy.ALL)
 

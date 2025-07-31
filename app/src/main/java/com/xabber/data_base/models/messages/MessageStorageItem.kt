@@ -125,10 +125,10 @@ class MessageStorageItem : RealmObject {
             }
         }
 
-    var state: MessageSendingState
-        get() = MessageSendingState.entries.firstOrNull { it.value == state_ } ?: MessageSendingState.NONE
+    var state: com.xabber.data_base.models.messages.MessageSendingState
+        get() = com.xabber.data_base.models.messages.MessageSendingState.entries.firstOrNull { it.rawValue == state_ } ?: com.xabber.data_base.models.messages.MessageSendingState.None
         set(newValue) {
-            state_ = newValue.value
+            state_ = newValue.rawValue
         }
 
     var conversationType: ConversationType
@@ -153,7 +153,7 @@ class MessageStorageItem : RealmObject {
         this.messageId = message.id ?: ""
         this.archivedId = message.element("archived", namespace = "urn:xmpp:mam:tmp")?.getAttribute("id") ?: ""
         this.displayAs = "system"
-        this.state = MessageSendingState.NONE
+        this.state = com.xabber.data_base.models.messages.MessageSendingState.None
     }
 
     fun configureIncomingMessage(
@@ -202,7 +202,7 @@ class MessageStorageItem : RealmObject {
         this.isRead = true
         this.date = System.currentTimeMillis()
         this.sentDate = this.date
-        this.state = MessageSendingState.NOT_SENT
+        this.state = com.xabber.data_base.models.messages.MessageSendingState.NotSent
         this.conversationType = ConversationType.Regular // Default; updated by caller if needed
         this.references = references
         this.inlineForwards = inlineForwards
