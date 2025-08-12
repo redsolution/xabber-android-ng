@@ -97,7 +97,6 @@ class MessageAdapter(
     override fun onBindViewHolder(holder: MessageViewHolder, position: Int) {
         val message = getMessageItem(position) ?: return
         Log.v(TAG, "Binding message: primary=${message.primary}, body=${message.messageBody.take(50)}, isOutgoing=${message.isOutgoing}, isUnread=${message.isUnread}, isChecked=${message.isChecked}")
-        holder.setIsRecyclable(true)
         holder.messageId = message.primary
         val extraData = MessageVhExtraData(
             isUnread = message.isUnread && (firstUnreadMessageID == null || message.primary == firstUnreadMessageID),
@@ -113,6 +112,14 @@ class MessageAdapter(
             is SystemMessageVH -> holder.bind(message, extraData)
         }
         onBindListener?.invoke(message)
+    }
+
+    override fun onViewRecycled(holder: MessageViewHolder) {
+        super.onViewRecycled(holder)
+        if (!holder.isRecyclable) {
+            holder.setIsRecyclable(true)
+        }
+        Log.d(TAG, "Recycled view holder: ${holder.javaClass.simpleName}, position=${holder.bindingAdapterPosition}")
     }
 
     private fun isMessageNeedDate(position: Int): Boolean {

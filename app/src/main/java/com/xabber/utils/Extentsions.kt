@@ -24,6 +24,7 @@ import android.view.Surface
 import android.view.View
 import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
+import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
@@ -309,6 +310,7 @@ fun JSONObject.toMap(): Map<String, Any> {
  * @return Long? The parsed timestamp in milliseconds, or null if parsing fails or the message is a chat state.
  */
 fun parseTimestamp(message: XMPPMessage, tag: String = "TimestampParser"): Long? {
+    @RequiresApi(Build.VERSION_CODES.O)
     fun tryParse(stamp: String, messageId: String?, source: String): Long? {
         try {
             val formatter = DateTimeFormatterBuilder()

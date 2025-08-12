@@ -7,7 +7,6 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.recyclerview.widget.DiffUtil
 import com.xabber.common.AccountManager
 import com.xabber.data_base.defaultRealmConfig
 import com.xabber.data_base.models.account.AccountStorageItem
@@ -25,19 +24,16 @@ import com.xabber.utils.toAccountDto
 import com.xabber.utils.toChatListDto
 import com.xabber.utils.toMessageReferenceDto
 import com.xabber.xmpp.messages.message_archive.MessageArchiveManager
-import com.xabber.xmpp.messages.message_archive.Page
 import io.realm.kotlin.Realm
 import io.realm.kotlin.ext.query
 import io.realm.kotlin.ext.realmListOf
 import io.realm.kotlin.notifications.ResultsChange
 import io.realm.kotlin.notifications.UpdatedResults
-import io.realm.kotlin.query.RealmResults
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
-import java.util.Calendar
-import java.util.Date
-import java.util.UUID
+import java.util.*
+import java.util.concurrent.ConcurrentHashMap
 
 @RequiresApi(Build.VERSION_CODES.O)
 class ChatViewModel(
@@ -54,8 +50,12 @@ class ChatViewModel(
     private val _messages = MutableLiveData<List<MessageDto>>()
     val messages: LiveData<List<MessageDto>> = _messages
 
-    private var job: Job? = null
+    private val _isLoading = MutableLiveData<Boolean>(false)
+    val isLoading: LiveData<Boolean> = _isLoading
 
+    private var job: Job? = null
+    private var isFetchingOlder = false
+    private var isFetchingNewer = false
     private val _opponentName = MutableLiveData<String>()
     val opponentName: LiveData<String> = _opponentName
 
@@ -64,53 +64,95 @@ class ChatViewModel(
 
     private val _muteExpired = MutableLiveData<Long>()
     val muteExpired: LiveData<Long> = _muteExpired
-    val TAG = "ChatViewModel"
-    private var messageList = ArrayList<MessageDto>()
-    var a = 11
+
+    private val TAG = "ChatViewModel"
+    private val messageBuffer = Collections.synchronizedList(mutableListOf<MessageDto>())
     private val _selectedCount = MutableLiveData<Int>()
     val selectedCount: LiveData<Int> = _selectedCount
-    private val selectedItems = HashSet<String>()
-    private var test = 0
+    private val selectedItems = ConcurrentHashMap.newKeySet<String>()
     private var count = 0
-    private val datasourcePageSize = 50
-    private var messagesObserver: RealmResults<MessageStorageItem>? = null
-    private val _showSkeletonObserver = MutableLiveData<Boolean>()
-    val showSkeletonObserver: LiveData<Boolean> = _showSkeletonObserver
-    private val _searchTextObserver = MutableLiveData<String>()
-    val searchTextObserver: LiveData<String> = _searchTextObserver
-    private val _inSearchMode = MutableLiveData<Boolean>()
-    val inSearchMode: LiveData<Boolean> = _inSearchMode
-    private var unreadMessagePositionId: Int? = null
-    private val currentPage = Page(minIndex = 0, maxIndex = datasourcePageSize)
-    private val _canUnpinMessage = MutableLiveData<Boolean>()
-    val canUnpinMessage: LiveData<Boolean> = _canUnpinMessage
-
     private val pageSize = 50
-    private var currentPageMinIndex = 0
-    private var currentPageMaxIndex = pageSize
-
     private var messageArchiveManager: MessageArchiveManager? = null
+    private var fullArchiveLoaded = false
 
     init {
         messageArchiveManager = MessageArchiveManager(owner)
+        messageArchiveManager?.temporaryMessageReceiver = object : MessageArchiveManager.TemporaryMessageReceiver {
+            override suspend fun didReceiveMessage(item: MessageStorageItem, queryId: String) {
+                viewModelScope.launch(Dispatchers.IO) {
+                    updateMessageList(realm.query<MessageStorageItem>("owner = '$owner' AND opponent = '$opponent'").find())
+                }
+            }
+
+            override fun didReceiveEndPage(queryId: String, complete: Boolean, first: String, last: String, count: Int) {
+                Log.d(TAG, "Received MAM page: queryId=$queryId, complete=$complete, first=$first, last=$last, count=$count")
+                if (complete || count == 0) {
+                    fullArchiveLoaded = true
+                    realm.writeBlocking {
+                        val chat = query<LastChatsStorageItem>("primary = $0", chatId).first().find()
+                        if (chat != null) {
+                            findLatest(chat)?.fullArchiveLoaded = true
+                        }
+                    }
+                }
+                viewModelScope.launch(Dispatchers.IO) {
+                    updateMessageList(realm.query<MessageStorageItem>("owner = '$owner' AND opponent = '$opponent'").find())
+                }
+                viewModelScope.launch(Dispatchers.Main) {
+                    _isLoading.value = false
+                    isFetchingOlder = false
+                    isFetchingNewer = false
+                }
+            }
+
+            fun onError(queryId: String, error: String) {
+                Log.e(TAG, "MAM error for queryId=$queryId: $error")
+                viewModelScope.launch(Dispatchers.Main) {
+                    _isLoading.value = false
+                    isFetchingOlder = false
+                    isFetchingNewer = false
+                }
+            }
+        }
         initChatDataListener(chatId)
         initMessagesListener(owner, opponent)
-        markAllMessageUnread(chatId)
         loadInitialData()
+        viewModelScope.launch {
+            if (messageArchiveManager?.checkShouldLoadFullHistory(opponent, conversationType) == true) {
+                val account = AccountManager.find(owner)
+                val stream = account?.stream ?: return@launch
+                messageArchiveManager?.startLoadHistory(stream, opponent, conversationType)
+                Log.d(TAG, "Started loading full history for opponent=$opponent")
+            }
+            loadNewerMessages()
+        }
+        isFetchingOlder = false
+        isFetchingNewer = false
+        _isLoading.value = false
     }
 
     private fun loadInitialData() {
         realm.writeBlocking {
             val chat = query<LastChatsStorageItem>("primary = $0", chatId).first().find()
             val isSynced = chat?.isSynced ?: false
+            fullArchiveLoaded = chat?.fullArchiveLoaded ?: false
             if (!isSynced) {
                 getStreamAndSyncHistory(chatId)
+            } else {
+                loadLocalMessages()
             }
         }
     }
 
+    private fun loadLocalMessages() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val realmList = realm.query<MessageStorageItem>("owner = '$owner' AND opponent = '$opponent'").find()
+            updateMessageList(realmList)
+        }
+    }
+
     private fun getStreamAndSyncHistory(chatId: String) {
-        val account = AccountManager.find(AccountStorageItem().jid)
+        val account = AccountManager.find(owner)
         if (account != null) {
             val stream = account.stream
             if (stream != null) {
@@ -121,24 +163,94 @@ class ChatViewModel(
                         conversationType = conversationType,
                         callback = {
                             Log.d(TAG, "Initial sync completed for chatId=$chatId")
-                            updateMessages()
+                            loadInitialMessages()
                         }
                     )
                 }
+            } else {
+                Log.e(TAG, "No stream available for account $owner")
             }
+        } else {
+            Log.e(TAG, "No account found for owner $owner")
         }
     }
 
-    private fun updateMessages() {
+    private fun loadInitialMessages() {
         viewModelScope.launch(Dispatchers.IO) {
-            val realmList = realm.query<MessageStorageItem>("owner = '$owner' AND opponent = '$opponent'").find()
-            updateMessageList(realmList)
+            _isLoading.postValue(true)
+            val account = AccountManager.find(owner)
+            val stream = account?.stream ?: return@launch
+            messageArchiveManager?.requestArchive(
+                stream = stream,
+                jid = opponent,
+                isContinues = true,
+                conversationType = conversationType,
+                max = pageSize,
+                callback = {
+                    Log.d(TAG, "Initial messages loaded")
+                    viewModelScope.launch(Dispatchers.IO) {
+                        updateMessageList(realm.query<MessageStorageItem>("owner = '$owner' AND opponent = '$opponent'").find())
+                    }
+                }
+            )
+        }
+    }
+
+    fun loadOlderMessages() {
+        if (isFetchingOlder || fullArchiveLoaded) {
+            Log.d(TAG, "Skipping load older: fetching=$isFetchingOlder, fullLoaded=$fullArchiveLoaded")
+            return
+        }
+        viewModelScope.launch(Dispatchers.IO) {
+            _isLoading.postValue(true)
+            val account = AccountManager.find(owner)
+            val stream = account?.stream ?: return@launch
+            isFetchingOlder = true
+            val oldestMessageId = getOldestMessageId() ?: run { isFetchingOlder = false; return@launch }
+            messageArchiveManager?.getPrevHistory(
+                stream = stream,
+                jid = opponent,
+                conversationType = conversationType,
+                messageId = oldestMessageId,
+                callback = {
+                    Log.d(TAG, "Older messages loaded before messageId=$oldestMessageId")
+                    viewModelScope.launch(Dispatchers.IO) {
+                        updateMessageList(realm.query<MessageStorageItem>("owner = '$owner' AND opponent = '$opponent'").find())
+                    }
+                    isFetchingOlder = false
+                }
+            )
+        }
+    }
+
+    private fun loadNewerMessages() {
+        viewModelScope.launch(Dispatchers.IO) {
+            if (isFetchingNewer) return@launch
+            isFetchingNewer = true
+            _isLoading.postValue(true)
+            val account = AccountManager.find(owner)
+            val stream = account?.stream ?: run { isFetchingNewer = false; return@launch }
+            val lastMessageId = synchronized(messageBuffer) { messageBuffer.maxByOrNull { it.sentTimestamp }?.archivedId }
+
+            messageArchiveManager?.getNextHistory(
+                stream = stream,
+                jid = opponent,
+                conversationType = conversationType,
+                messageId = lastMessageId,
+                callback = {
+                    Log.d(TAG, "Newer messages loaded after messageId=$lastMessageId")
+                    viewModelScope.launch(Dispatchers.IO) {
+                        updateMessageList(realm.query<MessageStorageItem>("owner = '$owner' AND opponent = '$opponent'").find())
+                    }
+                    isFetchingNewer = false
+                }
+            )
         }
     }
 
     fun initMessagesListener(owner: String, opponentJid: String) {
         val request = realm.query(MessageStorageItem::class, "owner = '$owner' AND opponent = '$opponentJid'")
-        val lastChatsFlow = request.asFlow().debounce(100).distinctUntilChanged() // Debounce and prevent duplicate emissions
+        val lastChatsFlow = request.asFlow().debounce(500).distinctUntilChanged() // Increased debounce to reduce UI updates
         viewModelScope.launch(Dispatchers.IO) {
             lastChatsFlow.collect { changes: ResultsChange<MessageStorageItem> ->
                 when (changes) {
@@ -153,50 +265,71 @@ class ChatViewModel(
 
     private suspend fun updateMessageList(messages: List<MessageStorageItem>) {
         val list = ArrayList<MessageDto>()
-        realm.write {
-            list.addAll(messages.map { item ->
-                MessageDto(
-                    primary = item.primary,
-                    isOutgoing = item.outgoing,
-                    owner = item.owner,
-                    opponentJid = item.opponent,
-                    messageBody = item.body,
-                    messageSendingState = when {
-                        item.isRead -> MessageSendingState.Read
-                        item.outgoing -> MessageSendingState.Deliver
-                        else -> MessageSendingState.Sent
-                    },
-                    sentTimestamp = item.sentDate,
-                    editTimestamp = item.editDate,
-                    displayType = MessageDisplayType.Text,
-                    canEditMessage = item.outgoing,
-                    canDeleteMessage = item.outgoing,
-                    urlAvatar = null,
-                    isGroup = item.conversationType_ == "https://xabber.com/protocol/groups",
-                    kind = null,
-                    isSelected = selectedItems.contains(item.primary),
-                    references = item.references.map { it.toMessageReferenceDto() } as ArrayList<MessageReferenceDto>,
-                    isUnread = !item.isRead,
-                    isChecked = selectedItems.contains(item.primary)
-                ).also {
-                    Log.d(
-                        TAG,
-                        "Mapped MessageStorageItem to MessageDto: primary=${it.primary}, sentTimestamp=${it.sentTimestamp}, date=${Date(it.sentTimestamp)}, body=${it.messageBody.take(50)}, isUnread=${it.isUnread}"
+        list.addAll(messages.map { item ->
+            MessageDto(
+                primary = item.primary,
+                isOutgoing = item.outgoing,
+                owner = item.owner,
+                opponentJid = item.opponent,
+                messageBody = item.body,
+                messageSendingState = when {
+                    item.isRead -> MessageSendingState.Read
+                    item.outgoing -> MessageSendingState.Deliver
+                    else -> MessageSendingState.Sent
+                },
+                sentTimestamp = item.sentDate,
+                editTimestamp = item.editDate,
+                displayType = MessageDisplayType.Text,
+                canEditMessage = item.outgoing,
+                canDeleteMessage = item.outgoing,
+                urlAvatar = null,
+                isGroup = item.conversationType_ == "https://xabber.com/protocol/groups",
+                kind = null,
+                isSelected = selectedItems.contains(item.primary),
+                references = item.references.map { it.toMessageReferenceDto() } as ArrayList<MessageReferenceDto>,
+                isUnread = !item.isRead,
+                isChecked = selectedItems.contains(item.primary),
+                archivedId = item.archivedId
+            ).also {
+                Log.d(
+                    TAG,
+                    "Mapped MessageStorageItem to MessageDto: primary=${it.primary}, sentTimestamp=${it.sentTimestamp}, date=${Date(it.sentTimestamp)}, body=${it.messageBody.take(50)}, isUnread=${it.isUnread}"
+                )
+            }
+        })
+        count = list.count { it.isUnread }
+        for (i in 0 until list.size - 1) {
+            val gapMs = list[i+1].sentTimestamp - list[i].sentTimestamp
+            if (gapMs > 86_400_000) {  // >1 day
+                viewModelScope.launch(Dispatchers.IO) {
+                    val account = AccountManager.find(owner)
+                    val stream = account?.stream ?: return@launch
+                    messageArchiveManager?.requestArchive(
+                        stream = stream,
+                        jid = opponent,
+                        isContinues = false,
+                        conversationType = conversationType,
+                        start = Date(list[i].sentTimestamp + 1),
+                        end = Date(list[i+1].sentTimestamp - 1),
+                        max = pageSize
                     )
                 }
-            })
-        }
-        count = list.count { it.isUnread }
-        if (list != messageList) {
-            messageList = ArrayList(list.distinctBy { it.primary })
-            messageList.sortBy { it.sentTimestamp }
-            Log.d(TAG, "Updating messages LiveData: ${list.size} messages, $count unread, messageListSize=${messageList.size}")
-            viewModelScope.launch(Dispatchers.Main) {
-                _messages.value = messageList
-                _unreadCount.value = count
+                break  // Fetch one gap at a time
             }
-        } else {
-            Log.d(TAG, "No change in messages, skipping LiveData update, messageListSize=${messageList.size}")
+        }
+        synchronized(messageBuffer) {
+            val currentBuffer = ArrayList(messageBuffer)
+            if (list != currentBuffer) {
+                messageBuffer.clear()
+                messageBuffer.addAll(list.distinctBy { it.primary }.sortedBy { it.sentTimestamp })
+                Log.d(TAG, "Updating messages LiveData: ${list.size} messages, $count unread, messageBufferSize=${messageBuffer.size}")
+                viewModelScope.launch(Dispatchers.Main) {
+                    _messages.value = messageBuffer
+                    _unreadCount.value = count
+                }
+            } else {
+                Log.d(TAG, "No change in messages, skipping LiveData update, messageBufferSize=${messageBuffer.size}")
+            }
         }
     }
 
@@ -208,6 +341,7 @@ class ChatViewModel(
                 when (changes) {
                     is UpdatedResults -> {
                         val chat = if (changes.list.isNotEmpty()) changes.list.first() else null
+                        fullArchiveLoaded = chat?.fullArchiveLoaded ?: false
                         withContext(Dispatchers.Main) {
                             _chat.value = chat?.toChatListDto()
                             if (chat != null) {
@@ -248,15 +382,15 @@ class ChatViewModel(
         var chatListDto: ChatListDto? = null
         realm.writeBlocking {
             val chat = this.query(LastChatsStorageItem::class, "primary = '$chatId'").first().find()
-            if (chat != null) chatListDto = chat.toChatListDto()
+            if (chat != null) {
+                chatListDto = chat.toChatListDto()
+                fullArchiveLoaded = chat.fullArchiveLoaded
+            }
         }
         return chatListDto
     }
 
     fun getMessageList(chatId: String) {
-        val lastChatsStorageItem = realm.query(LastChatsStorageItem::class, "primary = '$chatId'").first().find()
-        val owner = lastChatsStorageItem?.owner
-        val opponent = lastChatsStorageItem?.jid
         viewModelScope.launch(Dispatchers.IO) {
             val realmList = realm.query<MessageStorageItem>("owner = '$owner' AND opponent = '$opponent'").find()
             updateMessageList(realmList)
@@ -275,11 +409,10 @@ class ChatViewModel(
     fun insertMessage(chatId: String, messageDto: MessageDto) {
         viewModelScope.launch(Dispatchers.IO) {
             realm.writeBlocking {
-                val existing =
-                    query<MessageStorageItem>("primary = $0", messageDto.primary).first().find()
+                val existing = query<MessageStorageItem>("primary = $0", messageDto.primary).first().find()
                 if (existing != null) {
                     Log.d(
-                        "ChatViewModel",
+                        TAG,
                         "Skipping duplicate message insertion: primary=${messageDto.primary}, sentDate=${existing.sentDate}"
                     )
                     return@writeBlocking
@@ -310,8 +443,8 @@ class ChatViewModel(
                     outgoing = messageDto.isOutgoing
                     isRead = !messageDto.isUnread
                     references = rreferences
-                    conversationType_ =
-                        if (messageDto.isGroup) "https://xabber.com/protocol/groups" else "urn:xabber:chat"
+                    archivedId = messageDto.archivedId ?: UUID.randomUUID().toString()
+                    conversationType_ = if (messageDto.isGroup) "https://xabber.com/protocol/groups" else "urn:xabber:chat"
                 })
                 val item = query<LastChatsStorageItem>("primary = $0", chatId).first().find()
                 if (item != null) {
@@ -320,17 +453,53 @@ class ChatViewModel(
                         messageDate = message.date
                         if (!messageDto.isOutgoing && muteExpired <= 0) {
                             isArchived = false
-                            unread = (unread ?: 0) + 1
+                            unread = (unread ?: 0) + if (messageDto.isUnread) 1 else 0
                         }
                     }
                 }
                 Log.d(
-                    "ChatViewModel",
+                    TAG,
                     "Inserted message: primary=${message.primary}, sentDate=${message.sentDate}, body=${
                         message.body.take(50)
                     }, isRead=${message.isRead}, opponent=${message.opponent}"
                 )
             }
+            synchronized(messageBuffer) {
+                messageBuffer.add(messageDto)
+                messageBuffer.sortBy { it.sentTimestamp }
+            }
+            viewModelScope.launch(Dispatchers.Main) {
+                _messages.value = messageBuffer
+                _unreadCount.value = messageBuffer.count { it.isUnread }
+            }
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.O)
+    fun queryRecentMessages(opponentJid: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            _isLoading.postValue(true)
+            val account = AccountManager.find(owner)
+            val stream = account?.stream ?: return@launch
+            messageArchiveManager?.requestArchive(
+                stream = stream,
+                jid = opponentJid,
+                isContinues = true,
+                conversationType = conversationType,
+                max = pageSize,
+                callback = {
+                    Log.d(TAG, "Recent messages queried")
+                    viewModelScope.launch(Dispatchers.IO) {
+                        updateMessageList(realm.query<MessageStorageItem>("owner = '$owner' AND opponent = '$opponentJid'").find())
+                    }
+                }
+            )
+        }
+    }
+
+    fun getOldestMessageId(): String? {
+        synchronized(messageBuffer) {
+            return messageBuffer.firstOrNull()?.archivedId
         }
     }
 
@@ -340,9 +509,9 @@ class ChatViewModel(
             realm.writeBlocking {
                 val insertedMessages = mutableListOf<MessageDto>()
                 messages.forEach { messageDto ->
-                    val existing = query<MessageStorageItem>("primary = $0", messageDto.primary).first().find()
+                    val existing = query<MessageStorageItem>("archivedId = $0", messageDto.archivedId).first().find()
                     if (existing != null) {
-                        Log.d(TAG, "Skipping duplicate message from receiver: primary=${messageDto.primary}, sentDate=${existing.sentDate}, body=${messageDto.messageBody.take(50)}")
+                        Log.d(TAG, "Skipping duplicate message from receiver: archivedId=${messageDto.archivedId}, primary=${existing.primary}, body=${messageDto.messageBody.take(50)}")
                         return@forEach
                     }
                     val rreferences = realmListOf<MessageReferenceStorageItem>()
@@ -371,10 +540,11 @@ class ChatViewModel(
                         outgoing = messageDto.isOutgoing
                         isRead = !messageDto.isUnread
                         references = rreferences
+                        archivedId = messageDto.archivedId ?: UUID.randomUUID().toString()
                         conversationType_ = if (messageDto.isGroup) "https://xabber.com/protocol/groups" else "urn:xabber:chat"
                     })
                     insertedMessages.add(messageDto)
-                    Log.d(TAG, "Inserted message from receiver: primary=${message.primary}, sentDate=${message.sentDate}, date=${Date(message.sentDate)}, body=${message.body.take(50)}, isRead=${message.isRead}, opponent=${message.opponent}")
+                    Log.d(TAG, "Inserted message from receiver: primary=${message.primary}, sentDate=${message.sentDate}, date=${Date(message.sentDate)}, body=${message.body.take(50)}, isRead=${message.isRead}, opponent=${message.opponent}, archivedId=${message.archivedId}")
                 }
                 val item = query<LastChatsStorageItem>("primary = $0", chatId).first().find()
                 if (item != null && insertedMessages.isNotEmpty()) {
@@ -389,47 +559,14 @@ class ChatViewModel(
                     Log.d(TAG, "Updated LastChatsStorageItem for chatId=$chatId: lastMessageId=${insertedMessages.last().primary}, unread=${item?.unread}")
                 }
             }
-            val list = messageList.toMutableList()
-            list.addAll(messages.filter { m -> !messageList.any { it.primary == m.primary } })
-            count = list.count { it.isUnread }
-            messageList = ArrayList(list.distinctBy { it.primary })
-            messageList.sortBy { it.sentTimestamp }
-            Log.d(TAG, "After insertMessagesFromReceiver, messageListSize=${messageList.size}, unreadCount=$count, messages=${messages.map { "${it.primary}: ${Date(it.sentTimestamp)}" }}")
-            withContext(Dispatchers.Main) {
-                _messages.value = messageList
-                _unreadCount.value = count
+            synchronized(messageBuffer) {
+                val newMessages = messages.filter { m -> !messageBuffer.any { it.archivedId == m.archivedId } }
+                messageBuffer.addAll(0, newMessages)
+                messageBuffer.sortBy { it.sentTimestamp }
             }
-        }
-    }
-
-    @RequiresApi(Build.VERSION_CODES.O)
-    fun queryRecentMessages(opponentJid: String) {
-        viewModelScope.launch(Dispatchers.IO) {
-            val queryId = UUID.randomUUID().toString()
-            val mamQuery = """
-                <iq type='set' id='$queryId'>
-                    <query xmlns='urn:xmpp:mam:2'>
-                        <x xmlns='jabber:x:data' type='submit'>
-                            <field var='FORM_TYPE' type='hidden'>
-                                <value>urn:xmpp:mam:2</value>
-                            </field>
-                            <field var='with'>
-                                <value>$opponentJid</value>
-                            </field>
-                        </x>
-                        <set xmlns='http://jabber.org/protocol/rsm'>
-                            <max>50</max>
-                        </set>
-                    </query>
-                </iq>
-            """.trimIndent()
-            Log.d("ChatViewModel", "Sending MAM query for JID: $opponentJid, queryId: $queryId")
-            AccountManager.find(AccountStorageItem().jid)?.stream?.socket?.write(mamQuery)?.also { success ->
-                if (success) {
-                    Log.d("ChatViewModel", "MAM query sent successfully")
-                } else {
-                    Log.e("ChatViewModel", "Failed to send MAM query")
-                }
+            viewModelScope.launch(Dispatchers.Main) {
+                _messages.value = messageBuffer
+                _unreadCount.value = messageBuffer.count { it.isUnread }
             }
         }
     }
@@ -440,33 +577,38 @@ class ChatViewModel(
         } else {
             selectedItems.remove(primary)
         }
-        val position = messageList.indexOfFirst { it.primary == primary }
-        if (position != -1) {
-            val updatedMessage = messageList[position].copy(isSelected = checked, isChecked = checked)
-            messageList[position] = updatedMessage
-            Log.d("ChatViewModel", "Selected message: primary=$primary, checked=$checked, selectedItems=$selectedItems, messageListSize=${messageList.size}")
-            viewModelScope.launch(Dispatchers.Main) {
-                _selectedCount.value = selectedItems.size
-                _messages.value = messageList // Trigger adapter update
+        synchronized(messageBuffer) {
+            val position = messageBuffer.indexOfFirst { it.primary == primary }
+            if (position != -1) {
+                val updatedMessage = messageBuffer[position].copy(isSelected = checked, isChecked = checked)
+                messageBuffer[position] = updatedMessage
+                Log.d(TAG, "Selected message: primary=$primary, checked=$checked, selectedItems=$selectedItems, messageBufferSize=${messageBuffer.size}")
+                viewModelScope.launch(Dispatchers.Main) {
+                    _selectedCount.value = selectedItems.size
+                    _messages.value = messageBuffer
+                }
             }
         }
     }
 
     fun clearAllSelected() {
-        if (selectedItems.isNotEmpty()) {
-            val updatedList = messageList.map { message ->
-                if (selectedItems.contains(message.primary)) {
-                    message.copy(isSelected = false, isChecked = false)
-                } else {
-                    message
+        synchronized(messageBuffer) {
+            if (selectedItems.isNotEmpty()) {
+                val updatedList = messageBuffer.map { message ->
+                    if (selectedItems.contains(message.primary)) {
+                        message.copy(isSelected = false, isChecked = false)
+                    } else {
+                        message
+                    }
                 }
-            }
-            selectedItems.clear()
-            messageList = ArrayList(updatedList)
-            Log.d("ChatViewModel", "Cleared selection, messageListSize=${messageList.size}")
-            viewModelScope.launch(Dispatchers.Main) {
-                _selectedCount.value = 0
-                _messages.value = messageList
+                selectedItems.clear()
+                messageBuffer.clear()
+                messageBuffer.addAll(updatedList)
+                Log.d(TAG, "Cleared selection, messageBufferSize=${messageBuffer.size}")
+                viewModelScope.launch(Dispatchers.Main) {
+                    _selectedCount.value = 0
+                    _messages.value = messageBuffer
+                }
             }
         }
     }
@@ -483,16 +625,34 @@ class ChatViewModel(
     }
 
     fun deleteMessage(primary: String, forAll: Boolean) {
-        test++
-        Log.d("iii", "test = $test")
         viewModelScope.launch(Dispatchers.IO) {
             realm.writeBlocking {
-                val deletedMessage = query(MessageStorageItem::class, "primary = '$primary'").first().find()
-                if (deletedMessage != null) findLatest(deletedMessage)?.let { delete(it) }
+                val deletedMessage = query<MessageStorageItem>("primary = '$primary'").first().find()
+                if (deletedMessage != null) {
+                    delete(deletedMessage)
+                    val item = query<LastChatsStorageItem>("primary = $0", chatId).first().find()
+                    if (item != null) {
+                        val newLastMessage = query<MessageStorageItem>("owner = '$owner' AND opponent = '$opponent'").find().sortedByDescending { it.sentDate }.firstOrNull()
+                        findLatest(item)?.apply {
+                            lastMessage = newLastMessage
+                            messageDate = newLastMessage?.sentDate ?: 0
+                            if (newLastMessage == null) {
+                                unread = 0
+                            }
+                        }
+                        Log.d(TAG, "Updated LastChatsStorageItem after deleting message: newLastMessageId=${newLastMessage?.primary}")
+                    }
+                }
             }
-        }
-        if (forAll) {
-            // TODO: Implement server request to delete message
+            synchronized(messageBuffer) {
+                messageBuffer.removeAll { it.primary == primary }
+            }
+            viewModelScope.launch(Dispatchers.Main) {
+                _messages.value = messageBuffer
+            }
+            if (forAll) {
+                // TODO: Implement server request to delete message
+            }
         }
     }
 
@@ -521,19 +681,18 @@ class ChatViewModel(
     }
 
     fun getMessagePosition(primary: String): Int {
-        return messageList.indexOfFirst { it.primary == primary }
+        synchronized(messageBuffer) {
+            return messageBuffer.indexOfFirst { it.primary == primary }
+        }
     }
 
     fun setUnread(id: String) {
-        // Uncomment if needed to mark a specific message as read
-        /*
         viewModelScope.launch(Dispatchers.IO) {
             realm.writeBlocking {
                 val mes = query(MessageStorageItem::class, "primary = '$id'").first().find()
                 mes?.isRead = true
             }
         }
-        */
     }
 
     fun getMessage(primary: String? = null): MessageDto? {
@@ -543,26 +702,27 @@ class ChatViewModel(
         realm.writeBlocking {
             val item = query(MessageStorageItem::class, "primary = '$id'").first().find()
             if (item != null) message = MessageDto(
-                item.primary,
-                item.outgoing,
-                item.owner,
-                item.opponent,
-                item.body,
-                when {
+                primary = item.primary,
+                isOutgoing = item.outgoing,
+                owner = item.owner,
+                opponentJid = item.opponent,
+                messageBody = item.body,
+                messageSendingState = when {
                     item.isRead -> MessageSendingState.Read
                     item.outgoing -> MessageSendingState.Deliver
                     else -> MessageSendingState.Sent
                 },
-                item.sentDate,
+                sentTimestamp = item.sentDate,
                 editTimestamp = item.editDate,
-                MessageDisplayType.Text,
-                item.outgoing,
-                item.outgoing,
-                null,
+                displayType = MessageDisplayType.Text,
+                canEditMessage = item.outgoing,
+                canDeleteMessage = item.outgoing,
+                urlAvatar = null,
                 isUnread = !item.isRead,
                 isGroup = item.conversationType_ == "https://xabber.com/protocol/groups",
                 references = item.references.map { it.toMessageReferenceDto() } as ArrayList<MessageReferenceDto>,
-                isChecked = selectedItems.contains(item.primary)
+                isChecked = selectedItems.contains(item.primary),
+                archivedId = item.archivedId
             )
         }
         return message
@@ -570,22 +730,33 @@ class ChatViewModel(
 
     fun markAllMessageUnread(chatId: String) {
         viewModelScope.launch(Dispatchers.IO) {
-            realm.write {
+            realm.writeBlocking {
                 val chat = query(LastChatsStorageItem::class, "primary = '$chatId'").first().find()
                 if (chat != null) {
                     val owner = chat.owner
                     val opponent = chat.jid
                     val unreadMessages = query(MessageStorageItem::class, "isRead = false AND owner = '$owner' AND opponent = '$opponent'").find()
-                    if (unreadMessages.isNotEmpty()) { // Only mark if there are unread messages
+                    if (unreadMessages.isNotEmpty()) {
                         unreadMessages.forEach { it.isRead = true }
                         chat.unread = 0
-                        Log.d("ChatViewModel", "Marked all messages as read for chatId=$chatId, owner=$owner, opponent=$opponent, updated ${unreadMessages.size} messages")
+                        Log.d(TAG, "Marked all messages as read for chatId=$chatId, owner=$owner, opponent=$opponent, updated ${unreadMessages.size} messages")
                     } else {
-                        Log.d("ChatViewModel", "No unread messages to mark for chatId=$chatId")
+                        Log.d(TAG, "No unread messages to mark for chatId=$chatId")
                     }
                 } else {
-                    Log.w("ChatViewModel", "No chat found for chatId=$chatId")
+                    Log.w(TAG, "No chat found for chatId=$chatId")
                 }
+            }
+            synchronized(messageBuffer) {
+                messageBuffer.forEachIndexed { index, message ->
+                    if (message.isUnread) {
+                        messageBuffer[index] = message.copy(isUnread = false)
+                    }
+                }
+            }
+            viewModelScope.launch(Dispatchers.Main) {
+                _messages.value = messageBuffer
+                _unreadCount.value = 0
             }
         }
     }
@@ -613,29 +784,61 @@ class ChatViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             realm.writeBlocking {
                 selected.forEach { primary ->
-                    val deletedMessage = query(MessageStorageItem::class, "primary = '$primary'").first().find()
-                    if (deletedMessage != null) findLatest(deletedMessage)?.let { delete(it) }
+                    val deletedMessage = query<MessageStorageItem>("primary = '$primary'").first().find()
+                    if (deletedMessage != null) {
+                        delete(deletedMessage)
+                    }
+                }
+                val item = query<LastChatsStorageItem>("primary = $0", chatId).first().find()
+                if (item != null) {
+                    val newLastMessage = query<MessageStorageItem>("owner = '$owner' AND opponent = '$opponent'").find().sortedByDescending { it.sentDate }.firstOrNull()
+                    findLatest(item)?.apply {
+                        lastMessage = newLastMessage
+                        messageDate = newLastMessage?.sentDate ?: 0
+                        if (newLastMessage == null) {
+                            unread = 0
+                        }
+                    }
+                    Log.d(TAG, "Updated LastChatsStorageItem after deleting messages: newLastMessageId=${newLastMessage?.primary}")
                 }
             }
-        }
-        if (forAll) {
-            // TODO: Implement server request to delete messages
+            synchronized(messageBuffer) {
+                messageBuffer.removeAll { selected.contains(it.primary) }
+            }
+            viewModelScope.launch(Dispatchers.Main) {
+                _messages.value = messageBuffer
+            }
+            if (forAll) {
+                // TODO: Implement server request to delete messages
+            }
         }
     }
 
     fun editMessage(primary: String, newBody: String) {
         viewModelScope.launch(Dispatchers.IO) {
             realm.writeBlocking {
-                val editableMessage = query(MessageStorageItem::class, "primary = '$primary'").first().find()
+                val editableMessage = query<MessageStorageItem>("primary = '$primary'").first().find()
                 editableMessage?.body = newBody
                 editableMessage?.editDate = System.currentTimeMillis()
+            }
+            synchronized(messageBuffer) {
+                val index = messageBuffer.indexOfFirst { it.primary == primary }
+                if (index != -1) {
+                    messageBuffer[index] = messageBuffer[index].copy(
+                        messageBody = newBody,
+                        editTimestamp = System.currentTimeMillis()
+                    )
+                    viewModelScope.launch(Dispatchers.Main) {
+                        _messages.value = messageBuffer
+                    }
+                }
             }
         }
     }
 
     fun clearHistory(chatId: String, opponentJid: String) {
         viewModelScope.launch(Dispatchers.IO) {
-            realm.write {
+            realm.writeBlocking {
                 val messages = query(MessageStorageItem::class, "opponent = '$opponentJid'").find()
                 delete(messages)
                 val chat = query(LastChatsStorageItem::class, "primary = '$chatId'").first().find()
@@ -643,22 +846,35 @@ class ChatViewModel(
                 chat?.lastPosition = ""
                 chat?.unread = 0
             }
+            synchronized(messageBuffer) {
+                messageBuffer.clear()
+            }
+            viewModelScope.launch(Dispatchers.Main) {
+                _messages.value = messageBuffer
+                _unreadCount.value = 0
+            }
         }
     }
 
     fun deleteChat(id: String) {
         job?.cancel()
         viewModelScope.launch(Dispatchers.IO) {
-            realm.write {
+            realm.writeBlocking {
                 val item = query(LastChatsStorageItem::class, "primary = '$id'").first().find()
                 if (item != null) findLatest(item)?.let { delete(it) }
+            }
+            synchronized(messageBuffer) {
+                messageBuffer.clear()
+            }
+            viewModelScope.launch(Dispatchers.Main) {
+                _messages.value = messageBuffer
             }
         }
     }
 
     fun insertChat(id: String) {
         viewModelScope.launch(Dispatchers.IO) {
-            realm.write {
+            realm.writeBlocking {
                 copyToRealm(LastChatsStorageItem().apply {
                     primary = id
                     owner = this@ChatViewModel.owner
@@ -690,9 +906,8 @@ class ChatViewModel(
 
     fun setMute(id: String, mute: Long) {
         viewModelScope.launch(Dispatchers.IO) {
-            realm.write {
+            realm.writeBlocking {
                 val item = query(LastChatsStorageItem::class, "primary = '$id'").first().find()
-                Log.d("item", "$item")
                 item?.muteExpired = mute
             }
         }
@@ -700,7 +915,10 @@ class ChatViewModel(
 
     override fun onCleared() {
         super.onCleared()
-        // realm.close()
+        messageArchiveManager?.reset()
+        job?.cancel()
+        viewModelScope.cancel()
+        realm.close()  // Close Realm instance
     }
 
     fun saveLastPosition(id: String, savedPosition: String) {
@@ -715,13 +933,9 @@ class ChatViewModel(
     }
 
     fun getPositionMessage(lastPosition: String): Int {
-        Log.d("mmm", "messageList = $messageList")
-        messageList.sortBy { it.sentTimestamp }
-        var pos = 0
-        for (i in 0 until messageList.size) {
-            if (messageList[i].primary == lastPosition) pos = i
+        synchronized(messageBuffer) {
+            return messageBuffer.indexOfFirst { it.primary == lastPosition }
         }
-        return pos
     }
 
     fun lastPositionPrimary(id: String): String {

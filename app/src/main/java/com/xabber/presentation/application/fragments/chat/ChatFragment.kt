@@ -260,13 +260,13 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
                     conversationType = conversationType,
                     callback = {
                         Log.d("ChatFragment", "Chat history sync completed for jid=${chat.opponentJid}")
-                        // Optionally refresh UI or notify user
                         viewModel.getMessageList(getParams().id)
                     }
                 )
                 Log.d("ChatFragment", "Initiated chat history sync for jid=${chat.opponentJid}")
             } catch (e: Exception) {
                 Log.e("ChatFragment", "Failed to sync chat history for jid=${chat.opponentJid}: ${e.message}", e)
+                showToast(R.string.error_unexpected)
             }
         }
     }
@@ -392,13 +392,13 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     }
 
     private fun restoreDraft() {
-        val draft = viewModel.loadChat(getParams().id)?.draftMessage
+        val draft = viewModel.getDraft(getParams().id)
         if (draft != null) binding.chatInput.setText(draft)
         setupInputButtons()
     }
 
     private fun scrollToLastPosition() {
-        val lastPosition = viewModel.loadChat(getParams().id)?.lastPosition
+        val lastPosition = viewModel.lastPositionPrimary(getParams().id)
         if (!lastPosition.isNullOrEmpty()) {
             val messagePosition = viewModel.getPositionMessage(lastPosition)
             binding.messageList.post { layoutManager?.scrollToPosition(messagePosition) }
@@ -476,7 +476,15 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         binding.messageList.addOnScrollListener(object : RecyclerView.OnScrollListener() {
             override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
                 if (layoutManager != null) {
-                    if (layoutManager!!.findLastVisibleItemPosition() >= messageAdapter!!.itemCount - 1) {
+                    val firstVisiblePosition = layoutManager!!.findFirstVisibleItemPosition()
+                    val lastVisiblePosition = layoutManager!!.findLastVisibleItemPosition()
+                    // Load older messages when near the top
+                    if (firstVisiblePosition <= 5 && dy < 0) { // Scrolling up
+                        viewModel.loadOlderMessages()
+                        Log.d("ChatFragment", "Triggered loadOlderMessages at position $firstVisiblePosition")
+                    }
+                    // Handle unread badge visibility
+                    if (lastVisiblePosition >= messageAdapter!!.itemCount - 1) {
                         binding.downScroller.isVisible = binding.tvNewReceivedCount.text.isNotEmpty()
                     } else {
                         if (currentVoiceRecordingState != VoiceRecordState.TouchRecording &&
@@ -830,7 +838,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         binding.interaction.linForward.setOnClickListener {
             val text = viewModel.getForwardMessagesText()
             enableSelectionMode(false)
-            GlobalScope.launch {
+            lifecycleScope.launch {
                 delay(300)
                 navigator().showForwardFragment(text, viewModel.getAccount(chat!!.owner)?.jid ?: "")
             }
