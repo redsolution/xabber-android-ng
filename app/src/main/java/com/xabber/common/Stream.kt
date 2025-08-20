@@ -14,7 +14,6 @@ import com.xabber.dto.MessageDto
 import com.xabber.dto.MessageReferenceDto
 import com.xabber.utils.parseTimestamp
 import com.xabber.utils.toMessageReferenceDto
-import com.xabber.xmpp.XEP_0CCC.ClientSynchronizationManager
 import com.xabber.xmpp.dns.DNSResolver
 import com.xabber.xmpp.jid.XMPPJID
 import com.xabber.xmpp.messages.XMPPMessage
@@ -23,15 +22,36 @@ import com.xabber.xmpp.messages.message.TemporaryMessageStanzaStorageItem
 import io.realm.kotlin.Realm
 import io.realm.kotlin.UpdatePolicy
 import io.realm.kotlin.ext.query
+import io.realm.kotlin.types.RealmObject
+import io.realm.kotlin.types.annotations.PrimaryKey
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.CoroutineScope
 import nl.adaptivity.xmlutil.core.impl.multiplatform.StringReader
 import org.xmlpull.v1.XmlPullParser
+import org.xmlpull.v1.XmlPullParserException
 import org.xmlpull.v1.XmlPullParserFactory
+
+// Define ProcessedMessageId as a regular class
+class ProcessedMessageId : RealmObject {
+    @PrimaryKey
+    var messageId: String = ""
+    var owner: String = ""
+    var timestamp: Long = 0
+
+    companion object {
+        private const val TAG = "ProcessedMessageid"
+
+        fun genPrimary(messageId: String, owner: String): String {
+            return "${messageId}_$owner"
+        }
+    }
+}
 
 enum class StreamState {
     NOT_CONNECTING,
@@ -57,8 +77,10 @@ class Stream(var jid: String, var port: Int = 5222) {
     private val connectionLock = Any()
     private var isConnecting = false
     private val streamBuffer = StringBuilder()
+    private val bufferMutex = Mutex()
     val messageCallbackChannel = Channel<String>(Channel.UNLIMITED)
     val messageQueue = Channel<MessageQueueItem>(Channel.UNLIMITED)
+    private val queueMutex = Mutex()
     var state: StreamState = StreamState.NOT_CONNECTING
         set(value) {
             field = value
@@ -94,11 +116,23 @@ class Stream(var jid: String, var port: Int = 5222) {
 
     init {
         CoroutineScope(Dispatchers.IO).launch {
+            clearStaleProcessedMessages() // Add this to clear stale entries on initialization
             processMessageQueue()
+
         }
         deleteSelfChats()
-    }
 
+    }
+    suspend fun clearStaleProcessedMessages() {
+        val realm = Realm.open(defaultRealmConfig())
+        realm.write {
+            val threshold = System.currentTimeMillis() - 24 * 60 * 60 * 1000 // 24 hours
+            val stale = query<ProcessedMessageId>("owner = $0 AND timestamp < $1", jid, threshold).find()
+            delete(stale)
+            Log.d(TAG, "Cleared ${stale.size} stale ProcessedMessageId entries for owner=$jid")
+        }
+        realm.close()
+    }
     fun setOnErrorCallback(callback: (String) -> Unit) {
         onErrorCallback = callback
     }
@@ -141,7 +175,7 @@ class Stream(var jid: String, var port: Int = 5222) {
             socket = Socket(remoteAddress, port)
             socket?.setMessageCallback { message ->
                 CoroutineScope(Dispatchers.IO).launch {
-                    Log.d(TAG, "Received message via callback: $message")
+                    Log.d(TAG, "Received message via callback: ${message.take(200)}")
                     messageCallbackChannel.send(message)
                     handleIncomingMessage(message)
                 }
@@ -155,8 +189,10 @@ class Stream(var jid: String, var port: Int = 5222) {
             Log.d(TAG, "Socket connected successfully for $remoteAddress:$port")
             socket?.initiateXmppStream(socket!!, host, jid)
             Log.d(TAG, "XMPP stream initiation started, waiting for server response")
+            clearStaleTemporaryMessages()
             logUnprocessedMessages(jid)
             retryUnprocessedMessages()
+            debugDatabaseState()
             return@withContext null
         } catch (e: Exception) {
             Log.e(TAG, "Error connecting to $host: ${e.message}", e)
@@ -172,36 +208,59 @@ class Stream(var jid: String, var port: Int = 5222) {
     }
 
     private suspend fun handleIncomingMessage(chunk: String) {
-        Log.d(TAG, "Handling incoming message: $chunk")
-        try {
+        bufferMutex.withLock {
             streamBuffer.append(chunk)
             var content = streamBuffer.toString()
+            var processedStanzas = 0
+            Log.d(TAG, "Current streamBuffer before processing: ${content.take(1000)}")
             while (content.isNotEmpty()) {
                 val start = content.indexOf("<")
-                if (start == -1) break
-                if (content.startsWith("<?xml") || content.indexOf("<stream:stream", start) == start || content.indexOf("<stream:error", start) == start || content.indexOf("<stream:features", start) == start) {
+                if (start == -1) {
+                    Log.w(TAG, "No XML start tag found in buffer, waiting for more data: $content")
+                    break
+                }
+
+                if (content.startsWith("<?xml", start) || content.indexOf("<stream:stream", start) == start ||
+                    content.indexOf("<stream:error", start) == start || content.indexOf("<stream:features", start) == start) {
                     var end = content.indexOf(">", start)
-                    if (end == -1) break
+                    if (end == -1) {
+                        Log.w(TAG, "Incomplete stream header, buffering: $content")
+                        break
+                    }
                     if (content.indexOf("<stream:features>", start) != -1) {
                         end = content.indexOf("</stream:features>", end)
-                        if (end == -1) break
+                        if (end == -1) {
+                            Log.w(TAG, "Incomplete stream:features, buffering: $content")
+                            break
+                        }
                         end += "</stream:features>".length
                     } else if (content.indexOf("</stream:stream>", start) != -1) {
                         end = content.indexOf("</stream:stream>", end)
-                        if (end == -1) break
+                        if (end == -1) {
+                            Log.w(TAG, "Incomplete stream:stream, buffering: $content")
+                            break
+                        }
                         end += "</stream:stream>".length
                     } else if (content.indexOf("</stream:error>", start) != -1) {
                         end = content.indexOf("</stream:error>", end)
-                        if (end == -1) break
+                        if (end == -1) {
+                            Log.w(TAG, "Incomplete stream:error, buffering: $content")
+                            break
+                        }
                         end += "</stream:error>".length
                     }
                     val header = content.substring(start, end)
                     processStanza(header)
-                    content = content.substring(end)
+                    content = content.substring(end).trimStart()
+                    processedStanzas++
                     continue
                 }
+
                 val tagEnd = content.indexOf(">", start)
-                if (tagEnd == -1) break
+                if (tagEnd == -1) {
+                    Log.w(TAG, "Incomplete stanza tag, buffering: $content")
+                    break
+                }
                 val fullTag = content.substring(start + 1, tagEnd)
                 val tagName = fullTag.split(Regex("\\s+"))[0]
                 val isSelfClosing = fullTag.endsWith("/")
@@ -213,21 +272,18 @@ class Stream(var jid: String, var port: Int = 5222) {
                 } else {
                     var openTags = 1
                     var currentIndex = tagEnd + 1
-                    var depth = 1
                     while (openTags > 0 && currentIndex < content.length) {
                         val nextOpen = content.indexOf("<$tagName", currentIndex)
                         val nextClose = content.indexOf("</$tagName>", currentIndex)
                         if (nextClose == -1) {
-                            Log.w(TAG, "No closing tag found for $tagName, buffering: $content")
-                            return // Buffer incomplete stanza
+                            Log.w(TAG, "No closing tag for $tagName, buffering: $content")
+                            break
                         }
                         if (nextOpen != -1 && nextOpen < nextClose) {
                             openTags++
-                            depth++
                             currentIndex = content.indexOf(">", nextOpen) + 1
                         } else {
                             openTags--
-                            depth--
                             currentIndex = nextClose + "</$tagName>".length
                             if (openTags == 0) break
                         }
@@ -237,25 +293,433 @@ class Stream(var jid: String, var port: Int = 5222) {
                         fullEnd = currentIndex
                     } else {
                         Log.w(TAG, "Incomplete stanza for $tagName, buffering: $content")
-                        return // Buffer incomplete stanza
+                        break
                     }
                 }
                 val stanza = content.substring(start, fullEnd)
-                processStanza(stanza)
-                Log.d(TAG, "Dispatched stanza: $stanza")
-                content = content.substring(fullEnd)
+                if (tagName == "message" && (content.contains("urn:xmpp:mam:2") || content.contains("urn:xmpp:mam:tmp") || content.contains("urn:xmpp:last-message"))) {
+                    processMAMStanza(stanza)
+                } else {
+                    processStanza(stanza)
+                }
+                Log.d(TAG, "Dispatched stanza: tag=$tagName, messageId=${stanza.substringBefore(">").substringAfter("id='")?.substringBefore("'") ?: "unknown"}, content=${stanza.take(200)}, thread=${Thread.currentThread().id}")
+                content = content.substring(fullEnd).trimStart()
+                processedStanzas++
             }
             streamBuffer.clear()
             streamBuffer.append(content)
+            Log.d(TAG, "Processed $processedStanzas stanzas, remaining buffer: ${content.take(200)}")
+        }
+    }
+
+    private suspend fun processMAMStanza(stanza: String) {
+        try {
+            val factory = XmlPullParserFactory.newInstance()
+            factory.isNamespaceAware = true
+            val parser = factory.newPullParser()
+            parser.setInput(StringReader(stanza))
+            var eventType = parser.eventType
+            var messageId: String? = null
+            var queryId: String? = null
+
+            // Early check for message ID to avoid redundant processing
+            while (eventType != XmlPullParser.END_DOCUMENT) {
+                if (eventType == XmlPullParser.START_TAG && parser.name == "result" && parser.namespace == "urn:xmpp:mam:2") {
+                    queryId = parser.getAttributeValue(null, "queryid")
+                    messageId = parser.getAttributeValue(null, "id")
+                    break
+                }
+                eventType = parser.next()
+            }
+
+            if (messageId != null) {
+                val primary = ProcessedMessageId.genPrimary(messageId, jid)
+                val realm = Realm.open(defaultRealmConfig())
+                val existing = realm.query<ProcessedMessageId>("messageId = $0 AND owner = $1", messageId, jid).first().find()
+                if (existing != null) {
+                    Log.d(TAG, "Skipping duplicate MAM stanza: id=$messageId, primary=$primary, thread=${Thread.currentThread().id}")
+                    realm.close()
+                    return
+                }
+                val msgPrimary = MessageStorageItem.genPrimary(messageId, jid)
+                val existingMsg = realm.query<MessageStorageItem>("primary = $0", msgPrimary).first().find()
+                if (existingMsg != null) {
+                    Log.d(TAG, "Skipping duplicate MAM message in MessageStorageItem: id=$messageId, primary=$msgPrimary, body=${existingMsg.body.take(50)}")
+                    realm.write {
+                        copyToRealm(ProcessedMessageId().apply {
+                            this.messageId = messageId as String
+                            this.owner = jid
+                            this.timestamp = System.currentTimeMillis()
+                        }, UpdatePolicy.ALL)
+                    }
+                    realm.close()
+                    return
+                }
+                realm.close()
+            }
+
+            // Reset parser for full processing
+            parser.setInput(StringReader(stanza))
+            eventType = parser.eventType
+
+            var from: String? = null
+            var to: String? = null
+            var type: String? = null
+            var lang: String? = null
+            var body: String? = null
+            var isChatState = false
+            var innerMessageId: String? = null
+            var innerFrom: String? = null
+            var innerTo: String? = null
+            var innerBody: String? = null
+            var innerType: String? = null
+            var innerLang: String? = null
+            var inForwarded = false
+            var inResult = false
+            val innerRaw = StringBuilder()
+            val elements = mutableListOf<XMLElement>()
+
+            while (eventType != XmlPullParser.END_DOCUMENT) {
+                when (eventType) {
+                    XmlPullParser.START_TAG -> {
+                        val tagName = parser.name
+                        val namespace = parser.namespace
+                        val attributes = mutableMapOf<String, String>()
+                        try {
+                            for (i in 0 until parser.attributeCount) {
+                                val attrName = parser.getAttributeName(i)
+                                val attrValue = parser.getAttributeValue(i)
+                                if (attrName != null && attrValue != null && !attrName.contains("xmlns=")) {
+                                    attributes[attrName] = attrValue
+                                } else {
+                                    Log.w(TAG, "Skipping malformed attribute in tag $tagName: name=$attrName, value=$attrValue")
+                                }
+                            }
+                        } catch (e: XmlPullParserException) {
+                            Log.w(TAG, "Skipping malformed attribute in tag $tagName: ${e.message}")
+                            continue
+                        }
+                        if (tagName == "result" && namespace == "urn:xmpp:mam:2") {
+                            inResult = true
+                            queryId = attributes["queryid"]
+                            elements.add(XMLElement(tagName, namespace, "", attributes))
+                        } else if (tagName == "forwarded" && namespace == "urn:xmpp:forward:0") {
+                            inForwarded = true
+                            elements.add(XMLElement(tagName, namespace, "", attributes))
+                        } else if (tagName == "message" && (namespace == "jabber:client" || namespace.isEmpty())) {
+                            if (!inForwarded) {
+                                messageId = attributes["id"] ?: "unknown_${System.currentTimeMillis()}"
+                                from = attributes["from"]?.trim()
+                                to = attributes["to"]?.trim()
+                                type = attributes["type"]
+                                lang = attributes["xml:lang"]
+                                Log.d(TAG, "Outer message attributes: id=$messageId, from=$from, to=$to, type=$type, lang=$lang")
+                            } else {
+                                innerMessageId = attributes["id"] ?: "unknown_${System.currentTimeMillis()}"
+                                innerFrom = attributes["from"]?.trim() ?: jid
+                                innerTo = attributes["to"]?.trim()
+                                innerType = attributes["type"]
+                                innerLang = attributes["xml:lang"]
+                                Log.d(TAG, "Inner message attributes: id=$innerMessageId, from=$innerFrom, to=$innerTo, type=$innerType, lang=$innerLang")
+                                innerRaw.append("<message")
+                                for ((key, value) in attributes) {
+                                    innerRaw.append(" $key='$value'")
+                                }
+                                innerRaw.append(">")
+                            }
+                        } else if (tagName in listOf("active", "composing", "inactive", "received", "displayed") &&
+                            (namespace == "http://jabber.org/protocol/chatstates" || namespace == "urn:xmpp:chat-markers:0")) {
+                            isChatState = true
+                            innerRaw.append("<$tagName xmlns='$namespace'/>")
+                            elements.add(XMLElement(tagName, namespace, "", attributes))
+                        } else if (tagName == "body" && (inForwarded || !inForwarded)) {
+                            parser.next()
+                            if (parser.eventType == XmlPullParser.TEXT) {
+                                if (inForwarded) {
+                                    innerBody = parser.text.trim()
+                                    innerRaw.append("<body>${parser.text}</body>")
+                                } else {
+                                    body = parser.text.trim()
+                                }
+                                Log.d(TAG, "Body parsed: inForwarded=$inForwarded, body=${if (inForwarded) innerBody else body}")
+                                elements.add(XMLElement(tagName, namespace, parser.text, attributes))
+                            }
+                        } else if (inForwarded && namespace != "jabber:client") {
+                            innerRaw.append("<${tagName} xmlns='${namespace}'")
+                            for ((key, value) in attributes) {
+                                innerRaw.append(" $key='$value'")
+                            }
+                            innerRaw.append(">")
+                            if (tagName == "time" || tagName == "delay") {
+                                innerRaw.append("</$tagName>")
+                            }
+                            elements.add(XMLElement(tagName, namespace, "", attributes))
+                        }
+                    }
+                    XmlPullParser.END_TAG -> {
+                        val tagName = parser.name
+                        if (tagName == "forwarded" && parser.namespace == "urn:xmpp:forward:0") {
+                            inForwarded = false
+                        } else if (inForwarded && tagName == "message" && (parser.namespace == "jabber:client" || parser.namespace.isEmpty())) {
+                            innerRaw.append("</message>")
+                        } else if (tagName == "result" && parser.namespace == "urn:xmpp:mam:2") {
+                            inResult = false
+                            val finalMessageId = innerMessageId ?: messageId ?: "unknown_${System.currentTimeMillis()}"
+                            val fromJid = innerFrom ?: from ?: jid
+                            val toJid = innerTo ?: to
+                            if (fromJid == null || toJid == null) {
+                                Log.w(TAG, "Skipping MAM message with missing from/to: id=$finalMessageId, from=$fromJid, to=$toJid")
+                                return
+                            }
+                            val opponent = if (toJid != jid) toJid else fromJid
+                            val messageRaw = innerRaw.toString()
+                            val xmppMessage = XMPPMessage(
+                                raw = messageRaw,
+                                type = innerType ?: type,
+                                id = finalMessageId,
+                                from = fromJid.let { XMPPJID(fullJID = it) },
+                                to = toJid.let { XMPPJID(fullJID = it) },
+                                lang = innerLang ?: lang,
+                                body = innerBody ?: body,
+                                children = elements.filter { it.namespace != "urn:xmpp:mam:2" && it.namespace != "urn:xmpp:forward:0" }
+                            )
+
+                            val timestamp = parseTimestamp(xmppMessage, TAG) ?: run {
+                                if (!isChatState) {
+                                    Log.w(TAG, "Using fallback timestamp for non-chat-state MAM messageId=$finalMessageId")
+                                    System.currentTimeMillis()
+                                } else {
+                                    Log.d(TAG, "No timestamp required for chat state MAM messageId=$finalMessageId")
+                                    null
+                                }
+                            }
+
+                            if (timestamp == null && isChatState) {
+                                Log.d(TAG, "Skipping storage for chat state MAM message with no timestamp: id=$finalMessageId")
+                                return
+                            }
+
+                            val realm = Realm.open(defaultRealmConfig())
+                            val primary = TemporaryMessageStanzaStorageItem.genPrimary(finalMessageId, jid)
+                            realm.write {
+                                val tempStanza = TemporaryMessageStanzaStorageItem().apply {
+                                    this.primary = primary
+                                    owner = jid
+                                    jid = opponent
+                                    this.messageId = finalMessageId
+                                    date = timestamp ?: System.currentTimeMillis()
+                                    this.stanza = messageRaw
+                                    isProcessed = false
+                                }
+                                copyToRealm(tempStanza, UpdatePolicy.ALL)
+                                Log.d(TAG, "Stored TemporaryMessageStanzaStorageItem for MAM: messageId=$finalMessageId, primary=$primary, opponent=$opponent, date=$timestamp, queryId=$queryId, thread=${Thread.currentThread().id}")
+                            }
+                            realm.close()
+
+                            val queueItem = MessageQueueItem(
+                                stanza = messageRaw,
+                                message = xmppMessage,
+                                isCarbon = false,
+                                isArchived = true,
+                                isClientSync = false,
+                                timestamp = timestamp ?: System.currentTimeMillis(),
+                                queryId = queryId
+                            )
+                            messageQueue.send(queueItem)
+                            Log.d(TAG, "Enqueued MAM message: id=$finalMessageId, queryId=$queryId, opponent=$opponent, thread=${Thread.currentThread().id}")
+                        }
+                    }
+                    XmlPullParser.TEXT -> {
+                        if (inForwarded) {
+                            innerRaw.append(parser.text)
+                        }
+                    }
+                }
+                eventType = parser.next()
+            }
+        } catch (e: XmlPullParserException) {
+            Log.e(TAG, "Error processing MAM stanza: ${e.message}, stanza=$stanza", e)
+            onErrorCallback?.invoke("Error processing MAM stanza: ${e.message}")
         } catch (e: Exception) {
-            Log.e(TAG, "Error handling message: ${e.message}, chunk: $chunk", e)
-            onErrorCallback?.invoke("Error processing server response: ${e.message}")
-            state = StreamState.NOT_CONNECTING
+            Log.e(TAG, "Unexpected error processing MAM stanza: ${e.message}, stanza=$stanza", e)
+            onErrorCallback?.invoke("Unexpected error processing MAM stanza: ${e.message}")
+        }
+    }
+
+    private suspend fun processMessageQueue() {
+        val processedIds = mutableSetOf<String>()
+        val realm = Realm.open(defaultRealmConfig())
+        realm.write {
+            val storedIds = query<ProcessedMessageId>("owner = $0", jid).find().map { it.messageId }
+            processedIds.addAll(storedIds)
+            Log.d(TAG, "Loaded ${storedIds.size} processed message IDs for owner=$jid")
+        }
+        realm.close()
+
+        while (true) {
+            val item = messageQueue.receiveCatching().getOrNull() ?: break
+            queueMutex.withLock {
+                if (item.message.id == null || item.message.from == null || item.message.to == null) {
+                    Log.w(TAG, "Skipping invalid queue item: id=${item.message.id}, from=${item.message.from?.bare()}, to=${item.message.to?.bare()}, stanza=${item.stanza}")
+                    return@withLock
+                }
+                val messageId = item.message.id!!
+                if (messageId in processedIds) {
+                    Log.d(TAG, "Already processed messageId=$messageId, checking if in MessageStorageItem")
+                    val realm = Realm.open(defaultRealmConfig())
+                    val msgPrimary = MessageStorageItem.genPrimary(messageId, jid)
+                    val existingMessage = realm.query<MessageStorageItem>("primary = $0", msgPrimary).first().find()
+                    if (existingMessage == null) {
+                        Log.w(TAG, "MessageId=$messageId marked as processed but not in MessageStorageItem, reprocessing")
+                    } else {
+                        Log.d(TAG, "Confirmed messageId=$messageId in MessageStorageItem, skipping")
+                        realm.close()
+                        return@withLock
+                    }
+                    realm.close()
+                }
+                val from = item.message.from?.bare() ?: return@withLock
+                val to = item.message.to?.bare() ?: jid
+                val opponent = if (to != jid) to else from
+                if (item.message.body.isNullOrEmpty()) {
+                    Log.d(TAG, "Skipping message with no body: id=$messageId, stanza=${item.stanza}")
+                    return@withLock
+                }
+                Log.d(TAG, "Processing queued message: id=$messageId, from=$from, to=$to, body=${item.message.body.take(50)}, thread=${Thread.currentThread().id}")
+                try {
+                    val realm = Realm.open(defaultRealmConfig())
+                    realm.write {
+                        val msgPrimary = MessageStorageItem.genPrimary(messageId, jid)
+                        val existingMessage = query<MessageStorageItem>("primary = $0", msgPrimary).first().find()
+                        if (existingMessage != null) {
+                            Log.d(TAG, "Skipping duplicate message in MessageStorageItem: id=$messageId, primary=$msgPrimary, body=${existingMessage.body.take(50)}")
+                            return@write
+                        }
+
+                        val rosterItem = query<RosterStorageItem>("jid = $0 AND owner = $1", opponent, jid).first().find()
+                            ?: copyToRealm(RosterStorageItem().apply {
+                                primary = RosterStorageItem.genPrimary(opponent, jid)
+                                this.jid = opponent
+                                this.owner = jid
+                                this.customNickname = opponent
+                            }, UpdatePolicy.ALL)
+
+                        val isGroupChat = item.message.element("x", namespace = "https://xabber.com/protocol/groups") != null
+                        var isOutgoing = from == jid
+                        if (isGroupChat) {
+                            val userId = item.message.element("x", namespace = "https://xabber.com/protocol/groups")
+                                ?.element("reference", namespace = "https://xabber.com/protocol/groups")
+                                ?.element("user", namespace = "https://xabber.com/protocol/groups")?.getAttribute("id")
+                            isOutgoing = userId == jid
+                            Log.d(TAG, "Group chat message: userId=$userId, jid=$jid, isOutgoing=$isOutgoing")
+                        }
+
+                        val message = copyToRealm(MessageStorageItem().apply {
+                            primary = msgPrimary
+                            this.messageId = messageId
+                            this.owner = jid
+                            this.opponent = opponent
+                            this.body = item.message.body ?: ""
+                            this.date = item.timestamp
+                            this.sentDate = item.timestamp
+                            this.editDate = 0L
+                            this.outgoing = isOutgoing
+                            this.conversationType_ = when {
+                                item.isClientSync && to == "favorites.redsolution.com" -> "urn:xabber:favorites:0"
+                                isGroupChat -> "https://xabber.com/protocol/groups"
+                                else -> "urn:xabber:chat"
+                            }
+                            this.isRead = isOutgoing || item.isArchived
+                            this.state = if (isOutgoing) MessageSendingState.Deliver else MessageSendingState.Sent
+                            this.queryIds = item.queryId
+                            this.archivedId = item.message.element("archived", namespace = "urn:xmpp:mam:tmp")?.getAttribute("id") ?: ""
+                        }, UpdatePolicy.ALL)
+
+                        val conversationType = ConversationType.fromRaw(message.conversationType_)
+                        val chatPrimary = LastChatsStorageItem.genPrimary(opponent, jid, conversationType)
+                        val chat = query<LastChatsStorageItem>("primary = $0", chatPrimary).first().find()
+                        if (chat == null) {
+                            copyToRealm(LastChatsStorageItem().apply {
+                                primary = chatPrimary
+                                this.jid = opponent
+                                this.owner = jid
+                                this.conversationType_ = conversationType.rawValue
+                                this.isArchived = false
+                                this.unread = if (isOutgoing || item.isArchived) 0 else 1
+                                this.messageDate = item.timestamp
+                                this.lastMessageId = messageId
+                                this.pinnedPosition = 0
+                                this.muteExpired = -1
+                                this.rosterItem = rosterItem
+                                this.lastMessage = message
+                            }, UpdatePolicy.ALL)
+                            Log.d(TAG, "Created new LastChatsStorageItem for jid=$opponent, type=${conversationType.rawValue}, messageId=$messageId, timestamp=${item.timestamp}, isOutgoing=$isOutgoing")
+                        } else {
+                            findLatest(chat)?.apply {
+                                if (item.timestamp > this.messageDate) {
+                                    this.unread = if (isOutgoing || item.isArchived) this.unread else this.unread + 1
+                                    this.messageDate = item.timestamp
+                                    this.lastMessageId = messageId
+                                    this.lastMessage = message
+                                    this.isArchived = false
+                                    Log.d(TAG, "Updated LastChatsStorageItem to latest: jid=$opponent, type=${conversationType.rawValue}, messageId=$messageId, timestamp=${item.timestamp}, isOutgoing=$isOutgoing")
+                                } else {
+                                    Log.d(TAG, "Skipped LastChatsStorageItem update, older timestamp: jid=$opponent, messageId=$messageId, timestamp=${item.timestamp}, current=${this.messageDate}")
+                                }
+                            }
+                        }
+
+                        val messageDto = MessageDto(
+                            primary = message.primary,
+                            isOutgoing = message.outgoing,
+                            owner = message.owner,
+                            opponentJid = message.opponent,
+                            messageBody = message.body,
+                            messageSendingState = when {
+                                message.isRead -> MessageSendingState.Read
+                                message.outgoing -> MessageSendingState.Deliver
+                                else -> MessageSendingState.Sent
+                            },
+                            sentTimestamp = message.sentDate,
+                            editTimestamp = message.editDate,
+                            displayType = if (message.displayAs == "system") MessageDisplayType.System else MessageDisplayType.Text,
+                            canEditMessage = message.outgoing,
+                            canDeleteMessage = message.outgoing,
+                            urlAvatar = null,
+                            isGroup = message.conversationType_ == "https://xabber.com/protocol/groups",
+                            kind = null,
+                            isSelected = false,
+                            references = message.references.map { it.toMessageReferenceDto() } as ArrayList<MessageReferenceDto>,
+                            isUnread = !message.isRead,
+                            isChecked = false,
+                            archivedId = message.archivedId
+                        )
+
+                        val chatViewModel = AccountManager.getChatViewModel(chatPrimary)
+                        if (chatViewModel != null) {
+                            chatViewModel.insertMessagesFromReceiver(listOf(messageDto))
+                            Log.d(TAG, "Notified ChatViewModel for chatId=$chatPrimary with message $messageId, body=${message.body.take(50)}, timestamp=${item.timestamp}, isOutgoing=$isOutgoing, thread=${Thread.currentThread().id}")
+                        } else {
+                            Log.w(TAG, "ChatViewModel not found for chatId=$chatPrimary, messageId=$messageId")
+                        }
+
+                        processedIds.add(messageId)
+                        copyToRealm(ProcessedMessageId().apply {
+                            this.messageId = messageId
+                            this.owner = jid
+                            this.timestamp = System.currentTimeMillis()
+                        }, UpdatePolicy.ALL)
+                    }
+                    realm.close()
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error processing queued message: ${e.message}, id=$messageId, stanza=${item.stanza}", e)
+                }
+            }
         }
     }
 
     private suspend fun processStanza(stanza: String) {
-        Log.d(TAG, "Received stanza: $stanza")
+        Log.d(TAG, "Received stanza: ${stanza.take(200)}")
         try {
             if (stanza.startsWith("<message")) {
                 val factory = XmlPullParserFactory.newInstance()
@@ -277,8 +741,8 @@ class Stream(var jid: String, var port: Int = 5222) {
                 var innerType: String? = null
                 var innerLang: String? = null
                 var inForwarded = false
-                val innerRaw = StringBuilder()
                 var isMAM = false
+                val innerRaw = StringBuilder()
                 val elements = mutableListOf<XMLElement>()
 
                 while (eventType != XmlPullParser.END_DOCUMENT) {
@@ -286,7 +750,6 @@ class Stream(var jid: String, var port: Int = 5222) {
                         XmlPullParser.START_TAG -> {
                             val tagName = parser.name
                             val namespace = parser.namespace
-                            Log.d(TAG, "Parsing tag: name=$tagName, namespace=$namespace, depth=${parser.depth}")
                             val attributes = mutableMapOf<String, String>()
                             for (i in 0 until parser.attributeCount) {
                                 attributes[parser.getAttributeName(i)] = parser.getAttributeValue(i)
@@ -312,7 +775,7 @@ class Stream(var jid: String, var port: Int = 5222) {
                                     }
                                     innerRaw.append(">")
                                 }
-                            } else if (tagName == "result" && namespace == "urn:xmpp:mam:2") {
+                            } else if (tagName == "archived" && namespace == "urn:xmpp:mam:tmp") {
                                 isMAM = true
                                 elements.add(XMLElement(tagName, namespace, "", attributes))
                             } else if (tagName == "forwarded" && namespace == "urn:xmpp:forward:0") {
@@ -364,9 +827,8 @@ class Stream(var jid: String, var port: Int = 5222) {
                 }
 
                 messageId = innerMessageId ?: messageId ?: "unknown_${System.currentTimeMillis()}"
-                Log.d(TAG, "Received message stanza: id=$messageId, isChatState=$isChatState, from=$from, to=$to, innerFrom=$innerFrom, innerTo=$innerTo, body=$body, innerBody=$innerBody")
+                Log.d(TAG, "Received message stanza: id=$messageId, isChatState=$isChatState, from=$from, to=$to, innerFrom=$innerFrom, innerTo=$innerTo, body=$body, innerBody=$innerBody, isMAM=$isMAM")
 
-                // Skip storage for chat state messages with no body
                 if (isChatState && (innerBody.isNullOrEmpty() && body.isNullOrEmpty())) {
                     Log.d(TAG, "Skipping storage for chat state or marker message: id=$messageId")
                     if (delegate != null) {
@@ -386,24 +848,33 @@ class Stream(var jid: String, var port: Int = 5222) {
                 }
 
                 val opponent = if (toJid != jid) toJid else fromJid
-                if (opponent == jid) {
-                    Log.w(TAG, "Skipping self-directed message: id=$messageId, from=$fromJid, to=$toJid, stanza=$stanza")
-                    return
-                }
-
                 val realm = Realm.open(defaultRealmConfig())
-                val primary = TemporaryMessageStanzaStorageItem.genPrimary(messageId, jid)
-                // Skip deduplication for MAM messages to ensure all messages are processed
-                if (!isMAM) {
-                    val existing = realm.query<TemporaryMessageStanzaStorageItem>("primary = $0", primary).first().find()
-                    if (existing != null && existing.isProcessed) {
-                        Log.d(TAG, "Skipping duplicate message: id=$messageId, primary=$primary, stanza=$stanza")
+                val primary = ProcessedMessageId.genPrimary(messageId, jid)
+
+                if (isMAM) {
+                    val msgPrimary = MessageStorageItem.genPrimary(messageId, jid)
+                    val existingMsg = realm.query<MessageStorageItem>("primary = $0", msgPrimary).first().find()
+                    if (existingMsg != null) {
+                        Log.d(TAG, "Skipping duplicate MAM message in MessageStorageItem: id=$messageId, primary=$msgPrimary, body=${existingMsg.body.take(50)}")
+                        realm.write {
+                            copyToRealm(ProcessedMessageId().apply {
+                                this.messageId = messageId
+                                this.owner = jid
+                                this.timestamp = System.currentTimeMillis()
+                            }, UpdatePolicy.ALL)
+                        }
+                        realm.close()
+                        return
+                    }
+                } else {
+                    val existing = realm.query<ProcessedMessageId>("messageId = $0 AND owner = $1", messageId, jid).first().find()
+                    if (existing != null) {
+                        Log.d(TAG, "Skipping duplicate non-MAM message: id=$messageId, primary=$primary, body=$body")
                         realm.close()
                         return
                     }
                 }
 
-                // For MAM messages, use inner message attributes
                 val messageRaw = if (isMAM) innerRaw.toString() else stanza
                 val xmppMessage = XMPPMessage(
                     raw = messageRaw,
@@ -413,7 +884,7 @@ class Stream(var jid: String, var port: Int = 5222) {
                     to = (innerTo ?: to)?.let { XMPPJID(fullJID = it) },
                     lang = innerLang ?: lang,
                     body = innerBody ?: body,
-                    children = elements.filter { it.namespace != "urn:xmpp:mam:2" && it.namespace != "urn:xmpp:forward:0" }
+                    children = elements.filter { it.namespace != "urn:xmpp:mam:tmp" && it.namespace != "urn:xmpp:forward:0" }
                 )
 
                 val timestamp = parseTimestamp(xmppMessage, TAG) ?: run {
@@ -426,7 +897,6 @@ class Stream(var jid: String, var port: Int = 5222) {
                     }
                 }
 
-                // Skip processing if timestamp is null and message is a chat state
                 if (timestamp == null && isChatState) {
                     Log.d(TAG, "Skipping storage for chat state message with no timestamp: id=$messageId")
                     realm.close()
@@ -435,23 +905,23 @@ class Stream(var jid: String, var port: Int = 5222) {
 
                 realm.write {
                     val tempStanza = TemporaryMessageStanzaStorageItem().apply {
-                        this.primary = primary
+                        this.primary = TemporaryMessageStanzaStorageItem.genPrimary(messageId, jid)
                         owner = jid
                         jid = opponent
                         this.messageId = messageId
-                        date = timestamp ?: System.currentTimeMillis() // Fallback for non-chat-state messages
+                        date = timestamp ?: System.currentTimeMillis()
                         this.stanza = stanza
                         isProcessed = false
                     }
                     copyToRealm(tempStanza, UpdatePolicy.ALL)
-                    Log.d(TAG, "Stored TemporaryMessageStanzaStorageItem: messageId=$messageId, primary=$primary, opponent=$opponent, date=$timestamp, stanza=$stanza")
+                    Log.d(TAG, "Stored TemporaryMessageStanzaStorageItem: messageId=$messageId, primary=${tempStanza.primary}, opponent=$opponent, date=$timestamp, body=${xmppMessage.body?.take(50)}")
                 }
 
-                val storedStanza = realm.query<TemporaryMessageStanzaStorageItem>("primary = $0", primary).first().find()
+                val storedStanza = realm.query<TemporaryMessageStanzaStorageItem>("primary = $0", TemporaryMessageStanzaStorageItem.genPrimary(messageId, jid)).first().find()
                 if (storedStanza != null) {
-                    Log.d(TAG, "Verified storage: messageId=$messageId, primary=$primary, owner=${storedStanza.owner}, isProcessed=${storedStanza.isProcessed}, stanza=${storedStanza.stanza}")
+                    Log.d(TAG, "Verified storage: messageId=$messageId, primary=${storedStanza.primary}, owner=${storedStanza.owner}, isProcessed=${storedStanza.isProcessed}, body=${xmppMessage.body?.take(50)}")
                 } else {
-                    Log.e(TAG, "Failed to verify storage for messageId=$messageId, primary=$primary")
+                    Log.e(TAG, "Failed to verify storage for messageId=$messageId, primary=${TemporaryMessageStanzaStorageItem.genPrimary(messageId, jid)}")
                 }
                 realm.close()
 
@@ -480,16 +950,12 @@ class Stream(var jid: String, var port: Int = 5222) {
                 )
                 if (queueItem.message.id != null && queueItem.message.from != null && queueItem.message.to != null) {
                     messageQueue.send(queueItem)
-                    Log.d(TAG, "Enqueued message: id=$messageId, isCarbon=$isCarbon, isArchived=$isArchived, isClientSync=$isClientSync, stanza=$stanza")
+                    Log.d(TAG, "Enqueued message: id=$messageId, isCarbon=$isCarbon, isArchived=$isArchived, isClientSync=$isClientSync, body=${xmppMessage.body?.take(50)}, thread=${Thread.currentThread().id}")
                 } else {
                     Log.w(TAG, "Skipping enqueue for invalid message: id=$messageId, from=${xmppMessage.from?.bare()}, to=${xmppMessage.to?.bare()}, stanza=$stanza")
                 }
-            } else if (stanza.contains("urn:xmpp:mam:tmp") || stanza.contains("urnlabels")) {
-                Log.d(TAG, "Received MAM response: $stanza")
-                ClientSynchronizationManager(jid).read(stanza)
             } else if (stanza.startsWith("<iq")) {
                 val iq = parseIQ(stanza)
-
                 if (iq != null) {
                     Log.d(TAG, "Parsed IQ stanza: id=${iq.id}, stanza=$stanza")
                     delegate?.didReceiveIQ(iq, this)
@@ -534,134 +1000,37 @@ class Stream(var jid: String, var port: Int = 5222) {
         }
     }
 
-    private suspend fun processMessageQueue() {
-        for (item in messageQueue) {
-            if (item.message.id == null || item.message.from == null || item.message.to == null) {
-                Log.w(TAG, "Skipping invalid queue item: id=${item.message.id}, from=${item.message.from?.bare()}, to=${item.message.to?.bare()}, stanza=${item.stanza}")
-                continue
+    suspend fun debugDatabaseState() {
+        val realm = Realm.open(defaultRealmConfig())
+        realm.write {
+            val messages = query<MessageStorageItem>("owner = $0 AND opponent = $1", jid, "igor.boldin@redsolution.com").find()
+            messages.forEach { msg ->
+                Log.d(TAG, "MessageStorageItem: primary=${msg.primary}, messageId=${msg.messageId}, body=${msg.body.take(50)}, sentDate=${msg.sentDate}, isDeleted=${msg.isDeleted}, isRead=${msg.isRead}")
             }
-            val messageId = item.message.id!!
-            val from = item.message.from?.bare() ?: continue
-            val to = item.message.to?.bare() ?: jid
-            val opponent = if (to != jid) to else from
-            if (opponent == jid) {
-                Log.w(TAG, "Skipping self-directed message in processQueue: id=$messageId, from=$from, to=$to, stanza=${item.stanza}")
-                continue
+            val tempStanzas = query<TemporaryMessageStanzaStorageItem>("owner = $0 AND jid = $1", jid, "igor.boldin@redsolution.com").find()
+            tempStanzas.forEach { stanza ->
+                Log.d(TAG, "TemporaryMessageStanzaStorageItem: primary=${stanza.primary}, messageId=${stanza.messageId}, isProcessed=${stanza.isProcessed}, body=${stanza.stanza.substringAfter("<body>").substringBefore("</body>").take(50)}")
             }
-            if (item.message.body.isNullOrEmpty()) {
-                Log.d(TAG, "Skipping message with no body: id=$messageId, stanza=${item.stanza}")
-                continue
+            val processedIds = query<ProcessedMessageId>("owner = $0", jid).find()
+            processedIds.forEach { id ->
+                Log.d(TAG, "ProcessedMessageId: messageId=${id.messageId}, owner=${id.owner}, timestamp=${id.timestamp}")
             }
-            Log.d(TAG, "Processing queued message: id=$messageId, from=$from, to=$to, stanza=${item.stanza}")
-            try {
-                val realm = Realm.open(defaultRealmConfig())
-                realm.write {
-                    val existingMessage = query<MessageStorageItem>("primary = $0", MessageStorageItem.genPrimary(messageId, jid)).first().find()
-                    if (existingMessage != null) {
-                        Log.d(TAG, "Skipping duplicate message: id=$messageId, primary=${existingMessage.primary}, stanza=${item.stanza}")
-                        return@write
-                    }
-
-                    val rosterItem = query<RosterStorageItem>("jid = $0 AND owner = $1", opponent, jid).first().find()
-                        ?: copyToRealm(RosterStorageItem().apply {
-                            primary = RosterStorageItem.genPrimary(opponent, jid)
-                            this.jid = opponent
-                            this.owner = jid
-                            this.customNickname = opponent
-                        }, UpdatePolicy.ALL)
-
-                    val message = copyToRealm(MessageStorageItem().apply {
-                        primary = MessageStorageItem.genPrimary(messageId, jid)
-                        this.messageId = messageId
-                        this.owner = jid
-                        this.opponent = opponent
-                        this.body = item.message.body ?: ""
-                        this.date = item.timestamp
-                        this.sentDate = item.timestamp
-                        this.editDate = 0L
-                        this.outgoing = from == jid
-                        this.conversationType_ = when {
-                            item.isClientSync && to == "favorites.redsolution.com" -> "urn:xabber:favorites:0"
-                            item.message.element("x", namespace = "https://xabber.com/protocol/groups") != null -> "https://xabber.com/protocol/groups"
-                            else -> "urn:xabber:chat"
-                        }
-                        this.isRead = from == jid || item.isArchived
-                        this.state = if (from == jid) MessageSendingState.Deliver else MessageSendingState.Sent
-                        this.queryIds = item.queryId // Store queryId for gap detection
-                    }, UpdatePolicy.ALL)
-
-                    val conversationType = ConversationType.fromRaw(message.conversationType_)
-                    val chatPrimary = LastChatsStorageItem.genPrimary(opponent, jid, conversationType)
-                    val chat = query<LastChatsStorageItem>("primary = $0", chatPrimary).first().find()
-                    if (chat == null) {
-                        copyToRealm(LastChatsStorageItem().apply {
-                            primary = chatPrimary
-                            this.jid = opponent
-                            this.owner = jid
-                            this.conversationType_ = conversationType.rawValue
-                            this.isArchived = false
-                            this.unread = if (from == jid || item.isArchived) 0 else 1
-                            this.messageDate = item.timestamp
-                            this.lastMessageId = messageId
-                            this.pinnedPosition = 0
-                            this.muteExpired = -1
-                            this.rosterItem = rosterItem
-                            this.lastMessage = message
-                        }, UpdatePolicy.ALL)
-                        Log.d(TAG, "Created new LastChatsStorageItem for jid=$opponent, type=${conversationType.rawValue}, messageId=$messageId")
-                    } else {
-                        findLatest(chat)?.apply {
-                            this.unread = if (from == jid || item.isArchived) this.unread else this.unread + 1
-                            this.messageDate = item.timestamp
-                            this.lastMessageId = messageId
-                            this.lastMessage = message
-                            this.isArchived = false
-                        }
-                        Log.d(TAG, "Updated LastChatsStorageItem for jid=$opponent, type=${conversationType.rawValue}, messageId=$messageId")
-                    }
-
-                    val messageDto = MessageDto(
-                        primary = message.primary,
-                        isOutgoing = message.outgoing,
-                        owner = message.owner,
-                        opponentJid = message.opponent,
-                        messageBody = message.body,
-                        messageSendingState = when {
-                            message.isRead -> MessageSendingState.Read
-                            message.outgoing -> MessageSendingState.Deliver
-                            else -> MessageSendingState.Sent
-                        },
-                        sentTimestamp = message.sentDate,
-                        editTimestamp = message.editDate,
-                        displayType = MessageDisplayType.Text,
-                        canEditMessage = message.outgoing,
-                        canDeleteMessage = message.outgoing,
-                        urlAvatar = null,
-                        isGroup = message.conversationType_ == "https://xabber.com/protocol/groups",
-                        kind = null,
-                        isSelected = false,
-                        references = message.references.map { it.toMessageReferenceDto() } as ArrayList<MessageReferenceDto>,
-                        isUnread = !message.isRead,
-                        isChecked = false
-                    )
-                    if (messageDto.primary.isEmpty()) {
-                        Log.e(TAG, "Invalid MessageDto created with empty primary key: messageId=$messageId")
-                        return@write
-                    }
-
-                    val chatViewModel = AccountManager.getChatViewModel(chatPrimary)
-                    if (chatViewModel != null) {
-                        chatViewModel.insertMessagesFromReceiver(listOf(messageDto))
-                        Log.d(TAG, "Notified ChatViewModel for chatId=$chatPrimary with message $messageId")
-                    } else {
-                        Log.w(TAG, "ChatViewModel not found for chatId=$chatPrimary, messageId=$messageId")
-                    }
-                }
-                realm.close()
-            } catch (e: Exception) {
-                Log.e(TAG, "Error processing queued message: ${e.message}, id=$messageId, stanza=${item.stanza}", e)
+            val chat = query<LastChatsStorageItem>("primary = $0", "igor.boldin@redsolution.com_aleksey.boldin@redsolution.com_urn:xabber:chat").first().find()
+            if (chat != null) {
+                Log.d(TAG, "LastChatsStorageItem: primary=${chat.primary}, lastMessageId=${chat.lastMessageId}, lastMessageBody=${chat.lastMessage?.body?.take(50)}, lastMessageDate=${chat.lastMessage?.sentDate}")
             }
         }
+        realm.close()
+    }
+
+    suspend fun clearStaleTemporaryMessages() {
+        val realm = Realm.open(defaultRealmConfig())
+        realm.write {
+            val stale = query<TemporaryMessageStanzaStorageItem>("owner = $0", jid).find()
+            delete(stale)
+            Log.d(TAG, "Cleared ${stale.size} stale TemporaryMessageStanzaStorageItem entries for owner=$jid")
+        }
+        realm.close()
     }
 
     suspend fun retryUnprocessedMessages() {

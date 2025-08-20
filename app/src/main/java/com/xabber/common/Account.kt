@@ -397,7 +397,7 @@ class Account : XMPPStreamDelegate {
             }
 
             if (iq.queryNamespace == "urn:xmpp:mam:2") {
-                Log.d("Account", "Received MAM IQ response: ${iq.raw.substring(0, minOf(iq.raw.length, 200))}...")
+                Log.d("Account", "Received MAM IQ response: ${iq.raw}...")
                 return messageArchiveManager.read(iq.raw, stream)
             }
 
@@ -811,10 +811,10 @@ class Account : XMPPStreamDelegate {
             }
 
             val opponent = if (toJid != jid) toJid else fromJid
-            if (opponent == jid) {
-                Log.w(TAG, "Skipping self-directed message: id=$messageId, from=$fromJid, to=$toJid, stanza=$message")
-                return false
-            }
+//            if (opponent == jid) {
+//                Log.w(TAG, "Skipping self-directed message: id=$messageId, from=$fromJid, to=$toJid, stanza=$message")
+//                return false
+//            }
 
             val realm = Realm.open(defaultRealmConfig())
             val primary = TemporaryMessageStanzaStorageItem.genPrimary(messageId, jid)

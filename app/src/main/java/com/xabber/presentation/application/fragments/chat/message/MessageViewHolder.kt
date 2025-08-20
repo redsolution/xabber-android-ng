@@ -63,9 +63,13 @@ abstract class MessageViewHolder(
         tvMessageText = itemView.findViewById(R.id.message_text)
         statusIcon = itemView.findViewById(R.id.message_status_icon)
         tvTime = itemView.findViewById(R.id.message_time)
+        // Ensure recyclability is reset
+        setIsRecyclable(true)
     }
 
     open fun bind(message: MessageDto, vhExtraData: MessageVhExtraData) {
+        // Reset recyclability state
+        setIsRecyclable(true)
         messageContainer?.removeAllViews()
         balloon?.removeAllViews()
 
@@ -130,6 +134,7 @@ abstract class MessageViewHolder(
     private fun validateTimestamp(message: MessageDto) {
         val currentTime = System.currentTimeMillis()
         val sentTime = message.sentTimestamp
+        // Allow timestamps up to 1 hour in the future and 365 days in the past for MAM messages
         val isSuspicious = sentTime > currentTime + 3_600_000 || sentTime < currentTime - 365L * 24 * 60 * 60 * 1000
         if (isSuspicious) {
             Log.w(
@@ -224,7 +229,6 @@ abstract class MessageViewHolder(
         } catch (e: Exception) {
             Log.e(TAG, "Failed to prepare media player for voice message: ${e.message}")
             Toast.makeText(context, R.string.unable_to_play_audio, Toast.LENGTH_SHORT).show()
-            return
         }
 
         button?.setOnClickListener {
@@ -233,9 +237,7 @@ abstract class MessageViewHolder(
                     mediaPlayer.pause()
                     button.setImageResource(R.drawable.ic_play)
                     isPlaying = false
-                    setIsRecyclable(true)  // Allow recycling when paused
                 } else {
-                    setIsRecyclable(false)  // Prevent recycling during playback
                     mediaPlayer.start()
                     isPlaying = true
                     button.setImageResource(R.drawable.ic_pause)
@@ -243,14 +245,7 @@ abstract class MessageViewHolder(
             } catch (e: Exception) {
                 Log.e(TAG, "Error playing/pausing voice message: ${e.message}")
                 Toast.makeText(context, R.string.unable_to_play_audio, Toast.LENGTH_SHORT).show()
-                setIsRecyclable(true)  // Reset on error
             }
-        }
-
-        mediaPlayer.setOnCompletionListener {
-            isPlaying = false
-            button.setImageResource(R.drawable.ic_play)
-            setIsRecyclable(true)  // Allow recycling on completion
         }
     }
 
@@ -300,6 +295,7 @@ abstract class MessageViewHolder(
         val date = Date(if (message.editTimestamp > 0) message.editTimestamp else message.sentTimestamp)
         val time = StringUtils.getTimeText(context, date)
         imageTime.text = if (message.editTimestamp > 0) "edit $time" else time
+        // Reuse validation for image timestamp
         val currentTime = System.currentTimeMillis()
         val sentTime = message.sentTimestamp
         val isSuspicious = sentTime > currentTime + 3_600_000 || sentTime < currentTime - 365L * 24 * 60 * 60 * 1000

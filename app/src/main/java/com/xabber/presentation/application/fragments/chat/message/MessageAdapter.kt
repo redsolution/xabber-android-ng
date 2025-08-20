@@ -21,7 +21,7 @@ class MessageAdapter(
     private val layoutInflater: LayoutInflater,
     private val listener: MenuItemListener? = null,
     private val onViewClickListener: OnViewClickListener? = null,
-    private val messages: ArrayList<MessageDto> = ArrayList(),
+    val messages: ArrayList<MessageDto> = ArrayList(),
     private val isGroup: Boolean,
     private val onBindListener: ((MessageDto?) -> Unit)? = null
 ) : ListAdapter<MessageDto, MessageViewHolder>(DiffUtilCallback) {
@@ -58,10 +58,31 @@ class MessageAdapter(
 
     fun updateAdapter(messageDtoList: List<MessageDto>) {
         Log.v(TAG, "Updating adapter with ${messageDtoList.size} messages")
+        Log.d(TAG, "Incoming list size: ${messageDtoList.size}")
         val newList = messageDtoList.distinctBy { it.primary }.sortedBy { it.sentTimestamp }
+        if (newList == messages) {
+            Log.d(TAG, "No changes in message list, skipping update")
+            return
+        }
         messages.clear()
         messages.addAll(newList)
         submitList(messages.toList()) { notifyUnreadState() }
+        Log.d(TAG, "Adapter updated with ${messages.size} messages, first=${messages.firstOrNull()?.primary}, last=${messages.lastOrNull()?.primary}")
+    }
+
+
+    fun insertOlderMessages(newMessages: List<MessageDto>) {
+        Log.v(TAG, "Inserting ${newMessages.size} older messages")
+        val filteredMessages = newMessages.filter { m -> !messages.any { it.primary == m.primary } }
+        if (filteredMessages.isEmpty()) {
+            Log.d(TAG, "No new messages to insert")
+            return
+        }
+        val oldSize = messages.size
+        messages.addAll(0, filteredMessages) // Prepend older messages
+        messages.sortBy { it.sentTimestamp } // Ascending for oldest at start
+        submitList(messages.toList()) { notifyUnreadState() }
+        Log.d(TAG, "Inserted ${filteredMessages.size} older messages, new list size: ${messages.size}, first=${messages.firstOrNull()?.primary}, last=${messages.lastOrNull()?.primary}")
     }
 
     override fun getItemViewType(position: Int): Int {
@@ -95,8 +116,10 @@ class MessageAdapter(
     }
 
     override fun onBindViewHolder(holder: MessageViewHolder, position: Int) {
+        Log.d(TAG, "Binding position $position of ${itemCount} (message primary: ${getMessageItem(position)?.primary})")
         val message = getMessageItem(position) ?: return
         Log.v(TAG, "Binding message: primary=${message.primary}, body=${message.messageBody.take(50)}, isOutgoing=${message.isOutgoing}, isUnread=${message.isUnread}, isChecked=${message.isChecked}")
+        holder.setIsRecyclable(true)
         holder.messageId = message.primary
         val extraData = MessageVhExtraData(
             isUnread = message.isUnread && (firstUnreadMessageID == null || message.primary == firstUnreadMessageID),
@@ -112,14 +135,6 @@ class MessageAdapter(
             is SystemMessageVH -> holder.bind(message, extraData)
         }
         onBindListener?.invoke(message)
-    }
-
-    override fun onViewRecycled(holder: MessageViewHolder) {
-        super.onViewRecycled(holder)
-        if (!holder.isRecyclable) {
-            holder.setIsRecyclable(true)
-        }
-        Log.d(TAG, "Recycled view holder: ${holder.javaClass.simpleName}, position=${holder.bindingAdapterPosition}")
     }
 
     private fun isMessageNeedDate(position: Int): Boolean {
@@ -180,7 +195,7 @@ class MessageAdapter(
 
     private object DiffUtilCallback : DiffUtil.ItemCallback<MessageDto>() {
         override fun areItemsTheSame(oldItem: MessageDto, newItem: MessageDto): Boolean {
-            return oldItem.primary == newItem.primary && oldItem.archivedId == newItem.archivedId
+            return oldItem.primary == newItem.primary
         }
 
         override fun areContentsTheSame(oldItem: MessageDto, newItem: MessageDto): Boolean {

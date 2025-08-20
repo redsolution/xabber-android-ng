@@ -2,7 +2,6 @@ package com.xabber.dto
 
 import com.xabber.data_base.models.messages.MessageDisplayType
 import com.xabber.data_base.models.messages.MessageSendingState
-import com.xabber.presentation.application.fragments.chat.geo.Location
 import retrofit2.http.Url
 
 data class MessageDto(
@@ -24,8 +23,7 @@ data class MessageDto(
     var references: ArrayList<MessageReferenceDto> = ArrayList(),
     val isUnread: Boolean = true,
     var isChecked: Boolean = false,
-    var archivedId: String = ""
-
+    var archivedId: String = "",
 ) : Comparable<MessageDto> {
     override fun compareTo(other: MessageDto): Int =
         this.sentTimestamp.compareTo(other.sentTimestamp)

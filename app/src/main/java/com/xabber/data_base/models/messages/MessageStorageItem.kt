@@ -16,16 +16,6 @@ import org.json.JSONObject
 import java.util.Date
 
 class MessageStorageItem : RealmObject {
-    enum class MessageSendingState(val value: Int) {
-        SENT(0),
-        DELIVERED(1),
-        READ(2),
-        ERROR(3),
-        NONE(4),
-        NOT_SENT(5),
-        SENDING(6),
-        UPLOADING(7)
-    }
 
     companion object {
         private const val TAG = "MessageStorageItem"
@@ -71,7 +61,7 @@ class MessageStorageItem : RealmObject {
     var previousId: String? = null
     var archivedId: String = ""
     var isDeleted: Boolean = false
-    var state_: Int = MessageSendingState.NONE.value
+    var state_: Int = MessageSendingState.None.rawValue
     var systemMetadata_: String? = null
     var references: RealmList<MessageReferenceStorageItem> = realmListOf()
     var messageError: String? = null
@@ -153,7 +143,9 @@ class MessageStorageItem : RealmObject {
         this.messageId = message.id ?: ""
         this.archivedId = message.element("archived", namespace = "urn:xmpp:mam:tmp")?.getAttribute("id") ?: ""
         this.displayAs = "system"
-        this.state = com.xabber.data_base.models.messages.MessageSendingState.None
+        this.state = MessageSendingState.None
+        updatePrimary()
+        Log.d(TAG, "Configured system message: primary=$primary, messageId=$messageId")
     }
 
     fun configureIncomingMessage(
@@ -184,6 +176,7 @@ class MessageStorageItem : RealmObject {
         updatePrimary()
         Log.d(TAG, "Configured incoming message: primary=$primary, messageId=$messageId, sentDate=$sentDate, date=${Date(sentDate)}")
     }
+
     fun configureOutgoingMessage(
         body: String,
         legacyBody: String,

@@ -1,5 +1,6 @@
 package com.xabber.data_base
 
+import com.xabber.common.ProcessedMessageId
 import com.xabber.data_base.models.account.AccountStorageItem
 import com.xabber.data_base.models.avatar.AvatarStorageItem
 import com.xabber.data_base.models.last_chats.LastChatsStorageItem
@@ -49,7 +50,8 @@ fun defaultRealmConfig(): RealmConfiguration {
             NotificationStorageItem::class,
             CallMetadataStorageItem::class,
             X509StorageItem::class,
-            RosterDisplayNameStorageItem::class
+            RosterDisplayNameStorageItem::class,
+            ProcessedMessageId::class
 
         )
     ).build()

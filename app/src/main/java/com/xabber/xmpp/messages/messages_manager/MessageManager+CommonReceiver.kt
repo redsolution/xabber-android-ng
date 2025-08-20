@@ -16,9 +16,10 @@ import com.xabber.dto.MessageReferenceDto
 import com.xabber.utils.parseTimestamp
 import com.xabber.utils.toMessageReferenceDto
 import com.xabber.xmpp.groupchat.GroupChatStorageItem
-import com.xabber.xmpp.messages.XMLElement
 import com.xabber.xmpp.messages.XMPPMessage
+import com.xabber.xmpp.messages.XMLElement
 import io.realm.kotlin.Realm
+import io.realm.kotlin.UpdatePolicy
 import io.realm.kotlin.ext.query
 import io.realm.kotlin.ext.realmListOf
 import kotlinx.coroutines.CoroutineScope
@@ -36,6 +37,7 @@ class MessageCommonReceiver(private val owner: String) {
     private val queue: String = "com.xabber.messages.transmitter.$owner.${UUID.randomUUID()}"
     private val messagesQueue = MutableStateFlow<Set<MessageQueueItem>>(HashSet())
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val processedMessageIds = mutableSetOf<String>() // Track processed message IDs
     companion object {
         private const val TAG = "MessageCommonReceiver"
     }
@@ -135,30 +137,61 @@ class MessageCommonReceiver(private val owner: String) {
             Log.w(TAG, "Skipping archived message with no valid ID: raw=${message.raw.substring(0, minOf(message.raw.length, 200))}...")
             return
         }
-        val primary = MessageStorageItem.genPrimary(messageId, owner)
-        val existing = realm.query<MessageStorageItem>("primary = $0", primary).first().find()
-        if (existing != null) {
-            Log.d(TAG, "Skipping duplicate archived message: messageId=$messageId, primary=$primary, body=${existing.body.take(100)}")
+
+        // Check for duplicates based on messageId
+        if (processedMessageIds.contains(messageId)) {
+            Log.d(TAG, "Skipping duplicate archived message based on messageId=$messageId")
             return
         }
+
+        // Check for nested forwarded messages in references
+        val forwardedReferences = messageBare.children.filter {
+            it.name == "reference" && it.namespace == "https://xabber.com/protocol/references" &&
+                    it.element("forwarded", namespace = "urn:xmpp:forward:0") != null
+        }
+        if (forwardedReferences.isNotEmpty()) {
+            forwardedReferences.forEach { reference ->
+                val forwardedMessage = reference.element("forwarded", namespace = "urn:xmpp:forward:0")
+                    ?.element("message", namespace = "jabber:client")
+                if (forwardedMessage != null) {
+                    val forwardedMessageId = forwardedMessage.attributes["id"] ?: return@forEach
+                    if (processedMessageIds.contains(forwardedMessageId)) {
+                        Log.d(TAG, "Skipping nested forwarded message with messageId=$forwardedMessageId as it was already processed")
+                        return
+                    }
+                }
+            }
+        }
+
+        val primary = MessageStorageItem.genPrimary(messageId, owner)
         val innerTimestamp = parseTimestamp(messageBare, TAG)?.let { Date(it) } ?: parseTimestamp(message, TAG)?.let { Date(it) } ?: run {
             Log.e(TAG, "No valid timestamp for messageId=$messageId, using current time as fallback")
             Date()
         }
-        Log.d(TAG, "receiveArchived: messageId=$messageId, timestamp=$innerTimestamp, body=${messageBare.body?.take(100)}")
-        enqueue(
-            MessageQueueItem(
-                message = messageBare,
-                messageId = messageId,
-                archivedFrom = messageBare.from?.bare(),
-                isRead = messageBare.from?.bare() == owner,
-                date = innerTimestamp,
-                state = MessageSendingState.Deliver,
-                queryId = getMAMQueryId(message),
-                originalFrom = messageBare.from?.bare() ?: "",
-                originalOutgoing = messageBare.from?.bare() == owner
-            )
+        val queryId = getMAMQueryId(message)
+        val existing = realm.query<MessageStorageItem>("primary = $0", primary).first().find()
+        if (existing != null && existing.sentDate >= innerTimestamp.time && queryId?.let {
+                existing.queryIds?.contains(
+                    it
+                )
+            } == true) {
+            Log.d(TAG, "Skipping duplicate archived message: messageId=$messageId, primary=$primary, existing sentDate=${existing.sentDate}, new sentDate=${innerTimestamp.time}, body=${existing.body.take(100)}, queryId=$queryId")
+            return
+        }
+        Log.d(TAG, "receiveArchived: messageId=$messageId, timestamp=$innerTimestamp, body=${messageBare.body?.take(100)}, queryId=$queryId")
+        val queueItem = MessageQueueItem(
+            message = messageBare,
+            messageId = messageId,
+            archivedFrom = messageBare.from?.bare(),
+            isRead = messageBare.from?.bare() == owner,
+            date = innerTimestamp,
+            state = MessageSendingState.Deliver,
+            queryId = queryId,
+            originalFrom = messageBare.from?.bare() ?: "",
+            originalOutgoing = messageBare.from?.bare() == owner
         )
+        processedMessageIds.add(messageId) // Mark message as processed
+        enqueue(queueItem)
     }
 
     suspend fun receiveCarbon(message: XMPPMessage) {
@@ -166,6 +199,10 @@ class MessageCommonReceiver(private val owner: String) {
             Log.w(TAG, "receiveCarbon failed: no carbon copy message container for messageId=${getOriginId(message) ?: message.id}")
         }
         val messageId = getOriginId(messageBare) ?: messageBare.id
+        if (processedMessageIds.contains(messageId)) {
+            Log.d(TAG, "Skipping duplicate carbon message based on messageId=$messageId")
+            return
+        }
         val primary = messageId?.let { MessageStorageItem.genPrimary(it, owner) }
         if (primary != null && realm.query<MessageStorageItem>("primary = $0", primary).first().find() != null) {
             Log.d(TAG, "Skipping duplicate carbon message: messageId=$messageId, primary=$primary")
@@ -186,12 +223,19 @@ class MessageCommonReceiver(private val owner: String) {
             originalFrom = messageBare.from?.bare() ?: "",
             originalOutgoing = messageBare.from?.bare() == owner
         )
+        if (messageId != null) {
+            processedMessageIds.add(messageId)
+        } // Mark message as processed
         enqueue(queueItem)
     }
 
     suspend fun receiveCarbonForwarded(message: XMPPMessage) {
         val messageId = getOriginId(message) ?: message.id ?: run {
             Log.w(TAG, "Skipping carbon forwarded message with no valid ID: raw=${message.raw.substring(0, minOf(message.raw.length, 200))}...")
+            return
+        }
+        if (processedMessageIds.contains(messageId)) {
+            Log.d(TAG, "Skipping duplicate carbon forwarded message based on messageId=$messageId")
             return
         }
         if (message.body.isNullOrEmpty()) {
@@ -210,10 +254,6 @@ class MessageCommonReceiver(private val owner: String) {
             Log.w(TAG, "receiveCarbonForwarded failed: no to JID for messageId=$messageId")
         }
         val opponent = if (to != owner) to else from
-        if (opponent == owner) {
-            Log.w(TAG, "Skipping self-directed message: messageId=$messageId, from=$from, to=$to")
-            return
-        }
         val deliveryTime = parseTimestamp(message, TAG)?.let { Date(it) } ?: return.also {
             Log.w(TAG, "receiveCarbonForwarded failed: no valid timestamp for messageId=$messageId")
         }
@@ -229,6 +269,7 @@ class MessageCommonReceiver(private val owner: String) {
             originalFrom = from,
             originalOutgoing = from == owner
         )
+        processedMessageIds.add(messageId) // Mark message as processed
         enqueue(queueItem)
     }
 
@@ -248,19 +289,23 @@ class MessageCommonReceiver(private val owner: String) {
             Log.w(TAG, "Skipping incomplete runtime message: messageId=${message.id}")
             return
         }
-        // Check if the message is a MAM archived message
         if (message.element("result", namespace = "urn:xmpp:mam:2") != null || message.raw.contains("urn:xmpp:mam:2")) {
             Log.d(TAG, "Detected MAM message in receiveRuntime, redirecting to receiveArchived: messageId=${getOriginId(message) ?: message.id}")
             receiveArchived(message)
             return
         }
         val messageId = getOriginId(message) ?: message.id
+        if (processedMessageIds.contains(messageId)) {
+            Log.d(TAG, "Skipping duplicate runtime message based on messageId=$messageId")
+            return
+        }
         Log.d(TAG, "receiveRuntime called for messageId=$messageId, body=${message.body?.take(100)}")
         val primary = messageId?.let { MessageStorageItem.genPrimary(it, owner) }
         if (primary != null) {
+            val deliveryTime = parseTimestamp(message, TAG)?.let { Date(it) } ?: Date()
             val existing = realm.query<MessageStorageItem>("primary = $0", primary).first().find()
-            if (existing != null) {
-                Log.d(TAG, "Skipping duplicate runtime message: messageId=$messageId, primary=$primary, existing body=${existing.body.take(100)}")
+            if (existing != null && existing.sentDate >= deliveryTime.time) {
+                Log.d(TAG, "Skipping duplicate runtime message: messageId=$messageId, primary=$primary, existing sentDate=${existing.sentDate}, new sentDate=${deliveryTime.time}, body=${existing.body.take(100)}")
                 return
             }
         } else {
@@ -274,25 +319,21 @@ class MessageCommonReceiver(private val owner: String) {
             return
         }
         val opponent = if (to != owner) to else from
-        if (opponent == owner) {
-            Log.w(TAG, "Skipping self-directed runtime message: messageId=$messageId, from=$from, to=$to")
-            return
-        }
         val isOutgoing = from == owner
         val deliveryTime = parseTimestamp(message, TAG)?.let { Date(it) } ?: Date()
-        enqueue(
-            MessageQueueItem(
-                message = message,
-                messageId = messageId,
-                archivedFrom = from,
-                isRead = isOutgoing,
-                date = deliveryTime,
-                state = if (isOutgoing) MessageSendingState.Deliver else MessageSendingState.Sent,
-                queryId = getMAMQueryId(message),
-                originalFrom = from,
-                originalOutgoing = isOutgoing
-            )
+        val queueItem = MessageQueueItem(
+            message = message,
+            messageId = messageId,
+            archivedFrom = from,
+            isRead = isOutgoing,
+            date = deliveryTime,
+            state = if (isOutgoing) MessageSendingState.Deliver else MessageSendingState.Sent,
+            queryId = getMAMQueryId(message),
+            originalFrom = from,
+            originalOutgoing = isOutgoing
         )
+        processedMessageIds.add(messageId) // Mark message as processed
+        enqueue(queueItem)
         Log.d(TAG, "Enqueued runtime message: messageId=$messageId, opponent=$opponent, isOutgoing=$isOutgoing, timestamp=$deliveryTime")
     }
 
@@ -354,6 +395,7 @@ class MessageCommonReceiver(private val owner: String) {
         Log.d(TAG, "Clearing entire message queue")
         messagesQueue.value = HashSet()
         Log.d(TAG, "Queue cleared: size=${messagesQueue.value.size}")
+        processedMessageIds.clear() // Clear processed message IDs on queue clear
     }
 
     fun subscribeReceiver() {
@@ -389,212 +431,89 @@ class MessageCommonReceiver(private val owner: String) {
         }
         val messageQueryIds = mutableSetOf<String>()
         val out = mutableListOf<MessageDto>()
-        val sortedItems = items.sortedBy { it.date.time }
+        val sortedItems = items.sortedBy { it.date.time } // Ascending for oldest first
 
-        sortedItems.forEach { item ->
-            if (isVoIPMessage(item.message)) {
-                Log.d(TAG, "Skipping VoIP message: messageId=${item.messageId}")
-                return@forEach
-            }
-
-            val primary = item.messageId?.let { MessageStorageItem.genPrimary(it, owner) } ?: return@forEach.also {
-                Log.w(TAG, "Skipping message without ID: body=${item.message.body?.take(100)}")
-            }
-            val existing = realm.query<MessageStorageItem>("primary = $0", primary).first().find()
-            if (existing != null) {
-                Log.d(TAG, "Skipping duplicate message already in DB: messageId=${item.messageId}, primary=$primary")
-                return@forEach
-            }
-
-            val instance = MessageStorageItem()
-            val from = item.message.from?.bare() ?: item.archivedFrom ?: item.originalFrom
-            val to = item.message.to?.bare() ?: return@forEach.also {
-                Log.w(TAG, "Skipping message ${item.messageId}: no valid 'to' JID")
-            }
-            val opponent = if (to != owner) to else from
-            if (opponent == owner) {
-                Log.w(TAG, "Skipping self-directed message in processQueue: messageId=${item.messageId}, from=$from, to=$to")
-                return@forEach
-            }
-            var isEncryptedMessage = false
-            val isOutgoing = item.originalOutgoing || from == owner
-            instance.configureIncomingMessage(
-                message = item.message,
-                owner = owner,
-                opponent = opponent,
-                outgoing = isOutgoing,
-                isRead = if (isOutgoing) true else item.isRead,
-                date = item.date,
-                isEncrypted = isEncryptedMessage
-            )
-            Log.d(TAG, "Configured message ${item.messageId}: outgoing=$isOutgoing, isRead=${instance.isRead}, state=${instance.state}")
-
-            val conversationType = conversationTypeByMessage(item.message)
-            instance.conversationType_ = conversationType.rawValue
-            Log.d(TAG, "Set conversationType=${conversationType.rawValue} for messageId=${item.messageId}")
-
-            // Initialize ChatViewModel proactively
-            AccountManager.createChatViewModel(owner, opponent, conversationType)
-
-            var errorMetadata: Map<String, Any> = emptyMap()
-            val afterburnInterval = item.message.element("ephemeral", namespace = "urn:xmpp:ephemeral:0")
-                ?.getAttribute("timer")?.toDoubleOrNull() ?: 0.0
-
-            var hasSignElement = false
-            var envelopeContainer: String? = null
-            if (item.message.hasElement("time-signature", namespace = "some_signature_namespace")) {
-                hasSignElement = true
-                envelopeContainer = item.message.element("time-signature", namespace = "some_signature_namespace")?.raw
-                Log.d(TAG, "Message ${item.messageId} has time-signature: envelopeContainer=${envelopeContainer?.take(100)}")
-            }
-
-            item.message.element("x", namespace = "https://xabber.com/protocol/groups")?.let { groupElement ->
-                groupElement.element("reference")?.element("user", namespace = "https://xabber.com/protocol/groups")?.let { userElement ->
-                    val userId = userElement.getAttribute("id")
-                    if (userId != null) {
-                        if (item.groupchatUserCard != null && item.groupchatUserCard.contains("id=\"$userId\"")) {
-                            item.originalOutgoing = true
-                            Log.d(TAG, "Message ${item.messageId} marked as outgoing (groupchatUserCard match)")
-                        } else {
-                            realm.query<GroupChatStorageItem>("primary = $0", GroupChatStorageItem.genPrimary(opponent, owner))
-                                .first().find()?.let { groupChat ->
-                                    item.originalOutgoing = groupChat.contacts.contains(userId)
-                                    Log.d(TAG, "Message ${item.messageId} outgoing=${item.originalOutgoing} (groupChat.contacts check)")
-                                }
+        realm.write {
+            sortedItems.forEach { item ->
+                val messageId = item.messageId ?: return@forEach
+                var primary = MessageStorageItem.genPrimary(messageId, owner)
+                val existing = query<MessageStorageItem>("primary = $0", primary).first().find()
+                if (existing != null && existing.sentDate >= item.date.time && item.queryId?.let {
+                        existing.queryIds?.contains(
+                            it
+                        )
+                    } == true) {
+                    Log.d(TAG, "Skipping duplicate in processQueue: messageId=$messageId, primary=$primary, sentDate=${existing.sentDate}, body=${existing.body.take(100)}, queryId=${item.queryId}")
+                    return@forEach
+                }
+                val references = realmListOf<MessageReferenceStorageItem>()
+                item.message.children.forEach { child ->
+                    if (child.name == "reference" && child.namespace == "https://xabber.com/protocol/references") {
+                        val forwardedMessage = child.element("forwarded", namespace = "urn:xmpp:forward:0")
+                            ?.element("message", namespace = "jabber:client")
+                        if (forwardedMessage != null) {
+                            val forwardedMessageId = forwardedMessage.attributes["id"] ?: return@forEach
+                            if (processedMessageIds.contains(forwardedMessageId)) {
+                                Log.d(TAG, "Skipping reference with forwarded messageId=$forwardedMessageId as it was already processed")
+                                return@forEach
+                            }
                         }
-                    }
-                } ?: run {
-                    getMessageAuthorGroupchat(groupElement.elements("reference"), opponent)?.let { groupchatAuthor ->
-                        item.originalOutgoing = groupchatAuthor == owner
-                        Log.d(TAG, "Message ${item.messageId} outgoing=${item.originalOutgoing} (groupchatAuthor check)")
+                        val ref = copyToRealm(MessageReferenceStorageItem().apply {
+                            primary = "${child.attributes["id"]}_${System.currentTimeMillis()}"
+                            uri = child.attributes["uri"]
+                            mimeType = child.attributes["type"].toString()
+                            isGeo = child.attributes["type"] == "geo"
+                            latitude = child.attributes["latitude"]?.toDoubleOrNull() ?: 0.0
+                            longitude = child.attributes["longitude"]?.toDoubleOrNull() ?: 0.0
+                            isAudioMessage = child.attributes["type"]?.contains("audio") == true
+                            fileName = child.attributes["name"].toString()
+                            fileSize = child.attributes["size"]?.toLongOrNull() ?: 0L
+                        })
+                        references.add(ref)
                     }
                 }
-            } ?: run {
-                item.originalOutgoing = from == owner
-                Log.d(TAG, "Message ${item.messageId} outgoing=${item.originalOutgoing} (default from check)")
-            }
-
-            val readDate = if (item.isRead) {
-                item.readDate ?: prereadedMessages.firstOrNull { it.messageId == item.messageId }?.date
-            } else null
-            if (readDate != null && item.date.time < readDate.time) {
-                item.isRead = true
-                Log.d(TAG, "Message ${item.messageId} marked as read due to readDate=$readDate")
-            } else {
-                item.isRead = item.state == MessageSendingState.Read
-                Log.d(TAG, "Message ${item.messageId} isRead=${item.isRead} based on state=${item.state}")
-            }
-
-            if (parseSystemMessageMetadata(item.message) != null) {
-                instance.configureSystemMessage(item.message, owner, opponent, item.date)
-                instance.state = MessageSendingState.None
-                instance.isRead = item.forceUnreadState ?: item.isRead
-                Log.d(TAG, "Configured system message ${item.messageId}: state=${instance.state}, isRead=${instance.isRead}")
-            } else {
-                instance.configureIncomingMessage(
-                    message = item.message,
-                    owner = owner,
-                    opponent = opponent,
-                    outgoing = item.originalOutgoing,
-                    isRead = item.forceUnreadState ?: item.isRead,
-                    date = item.date,
-                    isEncrypted = isEncryptedMessage
+                val message = copyToRealm(MessageStorageItem().apply {
+                    this.primary = primary
+                    owner = this@MessageCommonReceiver.owner
+                    opponent = item.originalFrom
+                    body = item.message.body ?: ""
+                    date = item.date.time
+                    sentDate = item.date.time
+                    outgoing = item.originalOutgoing
+                    isRead = item.isRead
+                    conversationType_ = if (item.groupchatUserCard != null) "https://xabber.com/protocol/groups" else "urn:xabber:chat"
+                    this.references = references
+                    queryIds = item.queryId
+                })
+                out.add(
+                    MessageDto(
+                        primary = message.primary,
+                        isOutgoing = message.outgoing,
+                        owner = message.owner,
+                        opponentJid = message.opponent,
+                        messageBody = message.body,
+                        messageSendingState = item.state,
+                        sentTimestamp = message.sentDate,
+                        editTimestamp = message.editDate,
+                        displayType = MessageDisplayType.Text,
+                        canEditMessage = message.outgoing,
+                        canDeleteMessage = message.outgoing,
+                        urlAvatar = null,
+                        isGroup = message.conversationType_ == "https://xabber.com/protocol/groups",
+                        kind = null,
+                        isSelected = false,
+                        references = message.references.map { it.toMessageReferenceDto() } as ArrayList<MessageReferenceDto>,
+                        isUnread = !message.isRead,
+                        isChecked = false,
+                        archivedId = messageId
+                    )
                 )
-                instance.forceUnreadState = item.forceUnreadState
-                instance.state = item.state
-                Log.d(TAG, "Configured incoming message ${item.messageId}: outgoing=${item.originalOutgoing}, isRead=${instance.isRead}, state=${instance.state}")
+                Log.d(TAG, "Processed queue item to MessageDto: primary=$primary, sentTimestamp=${message.sentDate}, body=${message.body.take(50)}, queryId=${item.queryId}")
             }
-            instance.envelopeContainer = envelopeContainer
-            instance.updatePrimary()
-            instance.afterburnInterval = afterburnInterval
-
-            if (hasSignElement) {
-                instance.errorMetadata = errorMetadata
-                Log.d(TAG, "Message ${item.messageId} has errorMetadata=$errorMetadata, raw errorMetadata_=${instance.errorMetadata_}")
-            }
-
-            instance.trustedSource = if (item.clientSyncMessage) {
-                false
-            } else {
-                item.queryId?.let { queryId ->
-                    messageQueryIds.contains(queryId).also { if (!it) messageQueryIds.add(queryId) }
-                } ?: false
-            }
-            Log.d(TAG, "Message ${item.messageId} trustedSource=${instance.trustedSource}")
-
-            instance.previousId = getPreviousId(item.message)
-
-            if (isEncryptedMessage && errorMetadata.isNotEmpty()) {
-                instance.messageError = "cert_error"
-                Log.d(TAG, "Message ${item.messageId} has cert_error")
-            }
-
-            if (afterburnInterval > 0) {
-                if (isEncryptedMessage && errorMetadata.isNotEmpty()) {
-                    instance.isDeleted = true
-                    Log.d(TAG, "Message ${item.messageId} marked as deleted due to encryption error")
-                }
-            }
-
-            if (readDate != null && afterburnInterval > 0) {
-                instance.isRead = true
-                if (!item.originalOutgoing) {
-                    instance.state = MessageSendingState.Read
-                }
-                instance.readDate = (readDate.time / 1000).toDouble()
-                instance.burnDate = (readDate.time / 1000).toDouble() + afterburnInterval
-                Log.d(TAG, "Message ${item.messageId} updated: readDate=${instance.readDate}, burnDate=${instance.burnDate}")
-
-                val existingConversation = prereadedConversation.firstOrNull { it.jid == opponent && it.conversationType == conversationType }
-                if (existingConversation != null) {
-                    if (existingConversation.date.time < readDate.time) {
-                        prereadedConversation.remove(existingConversation)
-                        prereadedConversation.add(PrereadedConversationItem(conversationType, readDate, opponent))
-                        Log.d(TAG, "Updated PrereadedConversationItem for jid=$opponent, conversationType=${conversationType.rawValue}")
-                    }
-                } else {
-                    prereadedConversation.add(PrereadedConversationItem(conversationType, readDate, opponent))
-                    Log.d(TAG, "Added PrereadedConversationItem for jid=$opponent, conversationType=${conversationType.rawValue}")
-                }
-
-                if (instance.burnDate <= System.currentTimeMillis() / 1000) {
-                    instance.isDeleted = true
-                    instance.body = ""
-                    instance.legacyBody = ""
-                    Log.d(TAG, "Message ${item.messageId} marked as deleted due to burnDate expiration")
-                }
-            }
-
-            // Convert to MessageDto
-            val messageDto = MessageDto(
-                primary = instance.primary,
-                isOutgoing = instance.outgoing,
-                owner = instance.owner,
-                opponentJid = instance.opponent,
-                messageBody = instance.body,
-                messageSendingState = when {
-                    instance.isRead -> MessageSendingState.Read
-                    instance.outgoing -> MessageSendingState.Deliver
-                    else -> MessageSendingState.Sent
-                },
-                sentTimestamp = instance.sentDate,
-                editTimestamp = instance.editDate,
-                displayType = MessageDisplayType.Text,
-                canEditMessage = instance.outgoing,
-                canDeleteMessage = instance.outgoing,
-                urlAvatar = null,
-                isGroup = instance.conversationType_ == "https://xabber.com/protocol/groups",
-                kind = null,
-                isSelected = false,
-                references = instance.references.map { it.toMessageReferenceDto() } as ArrayList<MessageReferenceDto>,
-                isUnread = !instance.isRead,
-                isChecked = false
-            )
-            out.add(messageDto)
         }
 
         Log.d(TAG, "Prepared ${out.size} MessageDTOs for saving")
-        callback(out.sortedBy { it.sentTimestamp })
+        callback(out.sortedBy { it.sentTimestamp }) // Ascending for oldest first
         items.forEach { clearQueue(it) }
     }
 
@@ -609,46 +528,8 @@ class MessageCommonReceiver(private val owner: String) {
     private suspend fun save(messages: List<MessageDto>) {
         Log.d(TAG, "save called with ${messages.size} messages")
         try {
-            realm.write {
-                messages.forEach { messageDto ->
-                    var primary = messageDto.primary
-                    val existing = query<MessageStorageItem>("primary = $0", primary).first().find()
-                    if (existing != null) {
-                        Log.d(TAG, "Skipping duplicate MessageStorageItem: primary=$primary, messageId=${messageDto.primary.split("_")[0]}")
-                        return@forEach
-                    }
-                    val rreferences = realmListOf<MessageReferenceStorageItem>()
-                    for (i in 0 until messageDto.references.size) {
-                        val ref = copyToRealm(MessageReferenceStorageItem().apply {
-                            primary = messageDto.references[i].id + "${System.currentTimeMillis()}"
-                            uri = messageDto.references[i].uri
-                            mimeType = messageDto.references[i].mimeType
-                            isGeo = messageDto.references[i].isGeo
-                            latitude = messageDto.references[i].latitude
-                            longitude = messageDto.references[i].longitude
-                            isAudioMessage = messageDto.references[i].isVoiceMessage
-                            fileName = messageDto.references[i].fileName
-                            fileSize = messageDto.references[i].size
-                        })
-                        rreferences.add(ref)
-                    }
-                    val message = copyToRealm(MessageStorageItem().apply {
-                        primary = messageDto.primary
-                        owner = messageDto.owner
-                        opponent = messageDto.opponentJid
-                        body = messageDto.messageBody
-                        date = messageDto.sentTimestamp
-                        sentDate = messageDto.sentTimestamp
-                        editDate = messageDto.editTimestamp
-                        outgoing = messageDto.isOutgoing
-                        isRead = !messageDto.isUnread
-                        references = rreferences
-                        conversationType_ = if (messageDto.isGroup) "https://xabber.com/protocol/groups" else "urn:xabber:chat"
-                    })
-                    Log.d(TAG, "Saved MessageStorageItem: primary=${message.primary}, messageId=${message.messageId}, owner=${message.owner}, opponent=${message.opponent}, body=${message.body}, state=${message.state}, isRead=${message.isRead}")
-                }
-            }
             messages.forEach { message ->
+                Log.d(TAG, "Saving MessageDto: primary=${message.primary}, sentTimestamp=${message.sentTimestamp}, body=${message.messageBody.take(50)}")
                 val conversationType = ConversationType.fromRaw(if (message.isGroup) "https://xabber.com/protocol/groups" else "urn:xabber:chat")
                 val chatId = LastChatsStorageItem.genPrimary(message.opponentJid, message.owner, conversationType)
                 val chatViewModel = AccountManager.getChatViewModel(chatId)
@@ -665,82 +546,12 @@ class MessageCommonReceiver(private val owner: String) {
     }
 
     suspend fun unsafeSave(messages: List<MessageStorageItem>) {
-        Log.d(TAG, "unsafeSave called with ${messages.size} messages")
-        try {
-            realm.write {
-                messages.forEach { message ->
-                    if (message.save(this, false)) {
-                        message.storeStanza(this)
-                        Log.d(
-                            TAG,
-                            "Unsafe Saved MessageStorageItem: " +
-                                    "primary=${message.primary}, " +
-                                    "messageId=${message.messageId}, " +
-                                    "owner=${message.owner}, " +
-                                    "opponent=${message.opponent}, " +
-                                    "body=${message.body}, " +
-                                    "state=${message.state}, " +
-                                    "isRead=${message.isRead}, " +
-                                    "date=${message.date}, " +
-                                    "readDate=${message.readDate}, " +
-                                    "burnDate=${message.burnDate}, " +
-                                    "afterburnInterval=${message.afterburnInterval}, " +
-                                    "isDeleted=${message.isDeleted}, " +
-                                    "conversationType=${message.conversationType}, " +
-                                    "referencesCount=${message.references.size}, " +
-                                    "errorMetadata=${message.errorMetadata}, " +
-                                    "messageError=${message.messageError}, " +
-                                    "trustedSource=${message.trustedSource}, " +
-                                    "previousId=${message.previousId}, " +
-                                    "envelopeContainer=${message.envelopeContainer?.take(100) ?: "null"}"
-                        )
-                        message.references.forEach { reference ->
-                            reference.prepare()
-                            Log.d(
-                                TAG,
-                                "  Reference for message ${message.primary}: " +
-                                        "primary=${reference.primary}, " +
-                                        "messageId=${reference.messageId}, " +
-                                        "kind=${reference.kind}, " +
-                                        "mimeType=${reference.mimeType}, " +
-                                        "isDownloaded=${reference.isDownloaded}, " +
-                                        "isUploaded=${reference.isUploaded}, " +
-                                        "isMissed=${reference.isMissed}, " +
-                                        "hasError=${reference.hasError}, " +
-                                        "fileName=${reference.fileName}, " +
-                                        "fileSize=${reference.fileSize}, " +
-                                        "uri=${reference.uri}, " +
-                                        "metadata=${reference.metadata}"
-                            )
-                        }
-                    } else {
-                        Log.w(TAG, "Failed to unsafe save MessageStorageItem: primary=${message.primary}, messageId=${message.messageId}")
-                    }
-                }
+        realm.write {
+            messages.forEach { message ->
+                copyToRealm(message, UpdatePolicy.ALL)
             }
-            realm.write {
-                val savedMessages = query<MessageStorageItem>("primary IN $0", messages.map { it.primary }.toList()).find()
-                if (savedMessages.isNotEmpty()) {
-                    Log.d(TAG, "Verified ${savedMessages.size} messages unsafe saved for owner $owner")
-                    savedMessages.forEach { savedMessage ->
-                        Log.d(
-                            TAG,
-                            "Verified Unsafe Saved MessageStorageItem: " +
-                                    "primary=${savedMessage.primary}, " +
-                                    "messageId=${savedMessage.messageId}, " +
-                                    "owner=${savedMessage.owner}, " +
-                                    "opponent=${savedMessage.opponent}, " +
-                                    "body=${savedMessage.body}, " +
-                                    "state=${savedMessage.state}"
-                        )
-                    }
-                } else {
-                    Log.w(TAG, "No messages found after unsafe saving for owner $owner")
-                }
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Cannot unsafe save messages collection: ${e.message}", e)
         }
+        Log.d(TAG, "Unsafe saved ${messages.size} MessageStorageItems")
     }
 
     fun storeMessagesNow() {

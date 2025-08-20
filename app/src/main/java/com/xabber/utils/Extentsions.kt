@@ -24,7 +24,6 @@ import android.view.Surface
 import android.view.View
 import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
-import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
@@ -32,19 +31,30 @@ import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.xabber.R
+import com.xabber.data_base.defaultRealmConfig
 import com.xabber.data_base.models.last_chats.LastChatsStorageItem
 import com.xabber.data_base.models.messages.MessageReferenceStorageItem
 import com.xabber.data_base.models.messages.MessageSendingState
+import com.xabber.data_base.models.messages.MessageStorageItem
 import com.xabber.data_base.models.presences.ResourceStatus
 import com.xabber.data_base.models.presences.RosterItemEntity
 import com.xabber.data_base.models.sync.ConversationType
 import com.xabber.dto.AccountDto
 import com.xabber.dto.AvatarDto
 import com.xabber.dto.ChatListDto
+import com.xabber.dto.MessageDto
 import com.xabber.dto.MessageReferenceDto
 import com.xabber.presentation.onboarding.fragments.signup.emoji.EmojiTypeDto
 import com.xabber.xmpp.messages.XMPPMessage
 import com.xabber.xmpp.messages.XMLElement
+import io.realm.kotlin.Realm
+import io.realm.kotlin.ext.query
+import io.realm.kotlin.mongodb.User
+import io.realm.kotlin.notifications.ResultsChange
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.flow
 import nl.adaptivity.xmlutil.core.impl.multiplatform.StringReader
 import org.json.JSONObject
 import org.xmlpull.v1.XmlPullParser
@@ -310,7 +320,6 @@ fun JSONObject.toMap(): Map<String, Any> {
  * @return Long? The parsed timestamp in milliseconds, or null if parsing fails or the message is a chat state.
  */
 fun parseTimestamp(message: XMPPMessage, tag: String = "TimestampParser"): Long? {
-    @RequiresApi(Build.VERSION_CODES.O)
     fun tryParse(stamp: String, messageId: String?, source: String): Long? {
         try {
             val formatter = DateTimeFormatterBuilder()
@@ -459,4 +468,63 @@ fun parseTimestamp(message: XMPPMessage, tag: String = "TimestampParser"): Long?
             "from=${message.from?.bare()}, to=${message.to?.bare()}, body=${message.body?.take(100)}, " +
             "raw=${message.raw.substring(0, minOf(message.raw.length, 200))}...")
     return null
+}
+
+fun observeMessages(
+    owner: String,
+    opponent: String,
+    conversationType: ConversationType
+): Flow<List<MessageDto>> {
+    return callbackFlow {
+        val realm = Realm.open(defaultRealmConfig())
+        val query = realm.query<MessageStorageItem>(
+            "owner = $0 AND opponent = $1 AND isDeleted = false AND conversationType_ = $2",
+            owner, opponent, conversationType.rawValue
+        ).sort("date", io.realm.kotlin.query.Sort.ASCENDING)
+        val results = query.find()
+
+        // Listen for changes and emit them
+        val listener: (ResultsChange<MessageStorageItem>) -> Unit = { change ->
+            val messages = change.list.mapNotNull { item ->
+                MessageDto(
+                    primary = item.primary,
+                    isOutgoing = item.outgoing,
+                    owner = item.owner,
+                    opponentJid = item.opponent,
+                    messageBody = item.body,
+                    messageSendingState = when {
+                        item.isRead -> MessageSendingState.Read
+                        item.outgoing -> MessageSendingState.Deliver
+                        else -> MessageSendingState.Sent
+                    },
+                    sentTimestamp = item.sentDate,
+                    editTimestamp = item.editDate,
+                    displayType = com.xabber.data_base.models.messages.MessageDisplayType.Text,
+                    canEditMessage = item.outgoing,
+                    canDeleteMessage = item.outgoing,
+                    urlAvatar = null,
+                    isGroup = item.conversationType_ == "https://xabber.com/protocol/groups",
+                    kind = null,
+                    isSelected = false,
+                    references = item.references.map { it.toMessageReferenceDto() } as ArrayList<MessageReferenceDto>,
+                    isUnread = !item.isRead,
+                    isChecked = false,
+                    archivedId = item.archivedId
+                ).also {
+                    Log.d("observeMessages", "Emitted message: primary=${it.primary}, sentTimestamp=${it.sentTimestamp}, body=${it.messageBody.take(50)}, isUnread=${it.isUnread}")
+                }
+            }
+            trySend(messages).isSuccess // Emit the mapped list
+        }
+
+        results.asFlow().collect { change ->
+            listener(change)
+        }
+
+        // Ensure Realm is closed when the Flow is cancelled
+        awaitClose {
+            realm.close()
+            Log.d("observeMessages", "Realm closed for owner=$owner, opponent=$opponent")
+        }
+    }
 }

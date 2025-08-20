@@ -76,6 +76,7 @@ import com.xabber.xmpp.messages.message_archive.MessageArchiveManager
 import com.xabber.xmpp.messages.messages_manager.MessageCommonSender
 import io.reactivex.rxjava3.disposables.Disposable
 import io.realm.kotlin.Realm
+import io.realm.kotlin.ext.query
 import kotlinx.coroutines.*
 import org.koin.androidx.viewmodel.ext.android.viewModel
 import org.koin.core.parameter.parametersOf
@@ -221,12 +222,11 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
             initializeRecyclerView()
             initializeStandardInputLayoutActions()
             subscribeToChatData(chat)
-            initializeSelectMessageToolbarActions()
-            initializeSelectedMessagePanel()
             viewModel.initChatDataListener(getParams().id)
             viewModel.initMessagesListener(chat.owner, chat.opponentJid)
-            viewModel.loadChat(getParams().id)
-            viewModel.queryRecentMessages(chat.opponentJid)
+            lifecycleScope.launch(Dispatchers.IO) {
+                viewModel.loadInitialData()
+            }
             AccountManager.registerChatViewModel(getParams().id, viewModel)
             activity?.onBackPressedDispatcher?.addCallback(onBackPressedCallback)
             // Sync chat history
@@ -242,31 +242,37 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
 
     private fun syncChatHistory(chat: ChatListDto) {
         lifecycleScope.launch(Dispatchers.IO) {
-            val account = AccountManager.find(chat.owner)
-            if (account == null) {
+            val account = AccountManager.find(chat.owner) ?: run {
                 Log.e("ChatFragment", "No account found for owner ${chat.owner}")
                 return@launch
             }
-            val stream = account.stream
-            if (stream == null) {
+            val stream = account.stream ?: run {
                 Log.e("ChatFragment", "No stream available for account ${chat.owner}")
                 return@launch
             }
+            if (!messageArchiveManager?.checkShouldLoadFullHistory(chat.opponentJid, if (chat.isGroup) ConversationType.Group else ConversationType.Regular)!!) {
+                Log.d("ChatFragment", "History already synced for jid=${chat.opponentJid}, skipping")
+                viewModel.getMessageList(getParams().id)
+                return@launch
+            }
+            stream.clearStaleTemporaryMessages()
             val conversationType = if (chat.isGroup) ConversationType.Group else ConversationType.Regular
             try {
-                messageArchiveManager?.syncChat(
+                messageArchiveManager?.requestArchive(
                     stream = stream,
                     jid = chat.opponentJid,
+                    isContinues = false,
                     conversationType = conversationType,
+                    max = 100,
+                    backward = true,
                     callback = {
-                        Log.d("ChatFragment", "Chat history sync completed for jid=${chat.opponentJid}")
+                        Log.d("ChatFragment", "MAM sync completed for jid=${chat.opponentJid}")
                         viewModel.getMessageList(getParams().id)
                     }
                 )
-                Log.d("ChatFragment", "Initiated chat history sync for jid=${chat.opponentJid}")
+                Log.d("ChatFragment", "Initiated full MAM sync for jid=${chat.opponentJid}, conversationType=$conversationType")
             } catch (e: Exception) {
                 Log.e("ChatFragment", "Failed to sync chat history for jid=${chat.opponentJid}: ${e.message}", e)
-                showToast(R.string.error_unexpected)
             }
         }
     }
@@ -392,13 +398,13 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     }
 
     private fun restoreDraft() {
-        val draft = viewModel.getDraft(getParams().id)
+        val draft = viewModel.loadChat(getParams().id)?.draftMessage
         if (draft != null) binding.chatInput.setText(draft)
         setupInputButtons()
     }
 
     private fun scrollToLastPosition() {
-        val lastPosition = viewModel.lastPositionPrimary(getParams().id)
+        val lastPosition = viewModel.loadChat(getParams().id)?.lastPosition
         if (!lastPosition.isNullOrEmpty()) {
             val messagePosition = viewModel.getPositionMessage(lastPosition)
             binding.messageList.post { layoutManager?.scrollToPosition(messagePosition) }
@@ -476,15 +482,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         binding.messageList.addOnScrollListener(object : RecyclerView.OnScrollListener() {
             override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
                 if (layoutManager != null) {
-                    val firstVisiblePosition = layoutManager!!.findFirstVisibleItemPosition()
-                    val lastVisiblePosition = layoutManager!!.findLastVisibleItemPosition()
-                    // Load older messages when near the top
-                    if (firstVisiblePosition <= 5 && dy < 0) { // Scrolling up
-                        viewModel.loadOlderMessages()
-                        Log.d("ChatFragment", "Triggered loadOlderMessages at position $firstVisiblePosition")
-                    }
-                    // Handle unread badge visibility
-                    if (lastVisiblePosition >= messageAdapter!!.itemCount - 1) {
+                    if (layoutManager!!.findLastVisibleItemPosition() >= messageAdapter!!.itemCount - 1) {
                         binding.downScroller.isVisible = binding.tvNewReceivedCount.text.isNotEmpty()
                     } else {
                         if (currentVoiceRecordingState != VoiceRecordState.TouchRecording &&
@@ -755,16 +753,49 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         }
 
         viewModel.messages.observe(viewLifecycleOwner) { messages ->
-            Log.d("ChatFragment", "Messages LiveData updated: ${messages.size} messages")
-            messageAdapter?.updateAdapter(messages)
-            if (layoutManager != null && messageAdapter != null && messages.isNotEmpty()) {
-                if (layoutManager!!.findLastVisibleItemPosition() >= messageAdapter!!.itemCount - 2 && !isSelectedMode) {
-                    scrollDown()
+            Log.d("ChatFragment", "Messages LiveData updated: ${messages.size} messages, first=${messages.firstOrNull()?.primary}, last=${messages.lastOrNull()?.primary}, lastBody=${messages.lastOrNull()?.messageBody}")
+            val firstVisiblePosition = layoutManager?.findFirstVisibleItemPosition() ?: 0
+            val firstVisibleItemId = if (firstVisiblePosition >= 0 && firstVisiblePosition < messageAdapter!!.itemCount) {
+                messageAdapter?.getMessageItem(firstVisiblePosition)?.primary
+            } else null
+            if (firstVisiblePosition <= 5) { // Near the top
+                val newOlderMessages = messages.filter { m -> !messageAdapter!!.messages.any { it.primary == m.primary } }
+                if (newOlderMessages.isNotEmpty()) {
+                    messageAdapter?.insertOlderMessages(newOlderMessages)
+                    // Maintain scroll position by finding the previous first visible item
+                    if (firstVisibleItemId != null) {
+                        val newPosition = messageAdapter!!.messages.indexOfFirst { it.primary == firstVisibleItemId }
+                        if (newPosition >= 0) {
+                            layoutManager?.scrollToPosition(newPosition)
+                            Log.d("ChatFragment", "Inserted ${newOlderMessages.size} older messages, maintaining scroll position at $newPosition")
+                        } else {
+                            layoutManager?.scrollToPosition(newOlderMessages.size)
+                            Log.d("ChatFragment", "Inserted ${newOlderMessages.size} older messages, fallback scroll position at ${newOlderMessages.size}")
+                        }
+                    } else {
+                        layoutManager?.scrollToPosition(newOlderMessages.size)
+                        Log.d("ChatFragment", "Inserted ${newOlderMessages.size} older messages, scroll position at ${newOlderMessages.size}")
+                    }
+                    viewModel.loadOlderMessages() // Trigger loading older messages
+                } else {
+                    messageAdapter?.updateAdapter(messages)
+                    Log.d("ChatFragment", "No new older messages, updated adapter with ${messages.size} messages")
                 }
-                if (messages[messages.size - 1].isOutgoing) {
-                    isNeedScrollDown = true
-                    scrollDown()
-                    isNeedScrollDown = false
+            } else {
+                messageAdapter?.updateAdapter(messages)
+                Log.d("ChatFragment", "Updated adapter with ${messages.size} messages")
+            }
+            if (layoutManager != null && messageAdapter != null && messages.isNotEmpty()) {
+                val lastMessage = messages.maxByOrNull { it.sentTimestamp }
+                if (lastMessage != null) {
+                    val lastVisiblePosition = layoutManager!!.findLastVisibleItemPosition()
+                    if (isNeedScrollDown || lastVisiblePosition >= messageAdapter!!.itemCount - 2 || lastMessage.isOutgoing) {
+                        scrollDown()
+                        isNeedScrollDown = false
+                        Log.d("ChatFragment", "Scrolled to last message: primary=${lastMessage.primary}, body=${lastMessage.messageBody.take(50)}")
+                    } else {
+                        Log.d("ChatFragment", "Not scrolling: lastVisiblePosition=$lastVisiblePosition, itemCount=${messageAdapter!!.itemCount}, isOutgoing=${lastMessage.isOutgoing}")
+                    }
                 }
             }
         }
@@ -775,12 +806,6 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
             }
             Log.d("ChatFragment", "Unread count updated: $unread")
             lifecycleScope.launch(Dispatchers.Main) {
-                realm.writeBlocking {
-                    val chat = query(LastChatsStorageItem::class, "primary = '${getParams().id}'").first().find()
-                    if (chat != null) {
-                        findLatest(chat)?.unread = unread
-                    }
-                }
                 showUnreadBadge(unread)
                 if (unread > 0 && layoutManager != null && messageAdapter != null) {
                     binding.downScroller.isVisible = true
@@ -801,6 +826,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
             }
         }
     }
+
 
     private fun setupOpponentName(opponentName: String?) {
         binding.tvChatTitle.text = opponentName ?: "Saved messages"
@@ -838,7 +864,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         binding.interaction.linForward.setOnClickListener {
             val text = viewModel.getForwardMessagesText()
             enableSelectionMode(false)
-            lifecycleScope.launch {
+            GlobalScope.launch {
                 delay(300)
                 navigator().showForwardFragment(text, viewModel.getAccount(chat!!.owner)?.jid ?: "")
             }
@@ -944,12 +970,18 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     }
 
     private fun scrollDown() {
-        if (messageAdapter != null) binding.messageList.scrollToPosition(messageAdapter?.itemCount!! - 1)
-        binding.tvNewReceivedCount.isVisible = false
-        binding.tvNewReceivedCount.text = ""
-        messageAdapter?.setFirstUnreadMessageId(null)
-        viewModel.markAllMessageUnread(getParams().id)
+        if (messageAdapter != null && messageAdapter!!.itemCount > 0) {
+            binding.messageList.post {
+                layoutManager?.scrollToPosition(messageAdapter!!.itemCount - 1)
+                Log.d("ChatFragment", "Scrolled to last message, itemCount=${messageAdapter!!.itemCount}")
+            }
+            binding.tvNewReceivedCount.isVisible = false
+            binding.tvNewReceivedCount.text = ""
+            messageAdapter?.setFirstUnreadMessageId(null)
+            viewModel.markAllMessageUnread(getParams().id)
+        }
     }
+
 
     private fun startAudioRecord() {
         handler.postDelayed(timer, 500)
