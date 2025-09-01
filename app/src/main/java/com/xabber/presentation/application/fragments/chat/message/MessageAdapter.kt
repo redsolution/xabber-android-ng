@@ -9,8 +9,6 @@ import androidx.recyclerview.widget.RecyclerView
 import com.xabber.R
 import com.xabber.data_base.models.messages.MessageDisplayType
 import com.xabber.dto.MessageDto
-import com.xabber.presentation.application.fragments.chat.ChatSettingsManager
-import com.xabber.presentation.application.fragments.chat.MessageVhExtraData
 import com.xabber.presentation.application.fragments.chat.message.IncomingMessageVH
 import com.xabber.presentation.application.fragments.chat.message.MessageViewHolder
 import com.xabber.presentation.application.fragments.chat.message.OutgoingMessageVH
@@ -58,8 +56,7 @@ class MessageAdapter(
 
     fun updateAdapter(messageDtoList: List<MessageDto>) {
         Log.v(TAG, "Updating adapter with ${messageDtoList.size} messages")
-        Log.d(TAG, "Incoming list size: ${messageDtoList.size}")
-        val newList = messageDtoList.distinctBy { it.primary }.sortedBy { it.sentTimestamp }
+        val newList = messageDtoList.distinctBy { it.primary }.sortedBy { it.sentTimestamp } // Restored to sortedBy
         if (newList == messages) {
             Log.d(TAG, "No changes in message list, skipping update")
             return
@@ -70,7 +67,6 @@ class MessageAdapter(
         Log.d(TAG, "Adapter updated with ${messages.size} messages, first=${messages.firstOrNull()?.primary}, last=${messages.lastOrNull()?.primary}")
     }
 
-
     fun insertOlderMessages(newMessages: List<MessageDto>) {
         Log.v(TAG, "Inserting ${newMessages.size} older messages")
         val filteredMessages = newMessages.filter { m -> !messages.any { it.primary == m.primary } }
@@ -80,7 +76,7 @@ class MessageAdapter(
         }
         val oldSize = messages.size
         messages.addAll(0, filteredMessages) // Prepend older messages
-        messages.sortBy { it.sentTimestamp } // Ascending for oldest at start
+        messages.sortBy { it.sentTimestamp } // Restored to sortBy
         submitList(messages.toList()) { notifyUnreadState() }
         Log.d(TAG, "Inserted ${filteredMessages.size} older messages, new list size: ${messages.size}, first=${messages.firstOrNull()?.primary}, last=${messages.lastOrNull()?.primary}")
     }

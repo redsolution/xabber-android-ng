@@ -54,22 +54,23 @@ class ChatViewModel(
     val messages: LiveData<List<MessageDto>> = _messages
 
     private var job: Job? = null
+    private var test = 0
 
     private val _opponentName = MutableLiveData<String>()
     val opponentName: LiveData<String> = _opponentName
 
     private val _unreadCount = MutableLiveData<Int>()
     val unreadCount: LiveData<Int> = _unreadCount
-
+    private val _isLoading = MutableLiveData<Boolean>() // New LiveData for loading state
+    val isLoading: LiveData<Boolean> = _isLoading
+    private var isLoadingHistory = false // New flag to prevent redundant queries
     private val _muteExpired = MutableLiveData<Long>()
     val muteExpired: LiveData<Long> = _muteExpired
     val TAG = "ChatViewModel"
     private var messageList = ArrayList<MessageDto>()
-    var a = 11
     private val _selectedCount = MutableLiveData<Int>()
     val selectedCount: LiveData<Int> = _selectedCount
     private val selectedItems = HashSet<String>()
-    private var test = 0
     private var count = 0
     private val datasourcePageSize = 50
     private var messagesObserver: RealmResults<MessageStorageItem>? = null
@@ -84,7 +85,7 @@ class ChatViewModel(
     private val _canUnpinMessage = MutableLiveData<Boolean>()
     val canUnpinMessage: LiveData<Boolean> = _canUnpinMessage
 
-    private val pageSize = 50
+    private val pageSize = 100
     private var currentPageMinIndex = 0
     private var currentPageMaxIndex = pageSize
     private var isInitialDataLoaded = false
@@ -162,15 +163,14 @@ class ChatViewModel(
         null
     }
 
-
     suspend fun mapAllMessages(): List<MessageDto> = withContext(Dispatchers.IO) {
         val realmList = realm.query<MessageStorageItem>(
             "owner = '$owner' AND opponent = '$opponent' AND isDeleted = false AND conversationType_ = '${conversationType.rawValue}'"
-        ).sort("date", Sort.ASCENDING).find()
+        ).sort("date", Sort.ASCENDING).find() // Restored to ASCENDING
 
         val messageDtos = realmList.mapNotNull { item ->
             mapMessageStorageItemToDto(item)
-        }.distinctBy { it.primary }.sortedBy { it.sentTimestamp }
+        }.distinctBy { it.primary }.sortedBy { it.sentTimestamp } // Restored to sortedBy
 
         Log.d(TAG, "Mapped ${messageDtos.size} messages, first=${messageDtos.firstOrNull()?.primary}, last=${messageDtos.lastOrNull()?.primary}, lastMessageId=${messageDtos.lastOrNull()?.archivedId}")
         messageDtos
@@ -182,7 +182,7 @@ class ChatViewModel(
             return
         }
         isInitialDataLoaded = true
-        _showSkeletonObserver.postValue(true)        // Display last message immediately
+        _showSkeletonObserver.postValue(true)
         val initialMessages = loadLastMessage()
         if (initialMessages.isNotEmpty()) {
             messageList.clear()
@@ -194,7 +194,6 @@ class ChatViewModel(
             }
         }
 
-        // Fetch full archive in the background
         val chat = realm.query<LastChatsStorageItem>("primary = $0", chatId).first().find()
         val shouldLoadHistory = chat?.let {
             messageArchiveManager?.checkShouldLoadFullHistory(opponent, conversationType) ?: true
@@ -210,26 +209,41 @@ class ChatViewModel(
 
     fun loadOlderMessages() {
         viewModelScope.launch(Dispatchers.IO) {
+            if (isLoadingHistory) {
+                Log.d(TAG, "Skipping loadOlderMessages: history loading already in progress")
+                return@launch
+            }
             val oldestMessage = messageList.minByOrNull { it.sentTimestamp }
             val oldestTimestamp = oldestMessage?.sentTimestamp?.let { Date(it) }
             val account = AccountManager.find(owner)
             if (account != null && account.stream != null) {
-                messageArchiveManager?.getHistoryByDate(
-                    stream = account.stream!!,
-                    jid = opponent,
-                    conversationType = conversationType,
-                    start = null,
-                    end = oldestTimestamp,
-                    reversed = true,
-                    callback = {
-                        Log.d(TAG, "Loaded older messages for chatId=$chatId, end=$oldestTimestamp")
-                        viewModelScope.launch(Dispatchers.IO) {
-                            updateMessages()
+                val isFullyLoaded = realm.query<LastChatsStorageItem>("primary = $0", chatId)
+                    .first().find()?.fullArchiveLoaded ?: false
+                if (!isFullyLoaded) {
+                    isLoadingHistory = true
+                    _isLoading.postValue(true)
+                    messageArchiveManager?.getHistoryByDate(
+                        stream = account.stream!!,
+                        jid = opponent,
+                        conversationType = conversationType,
+                        start = null,
+                        end = oldestTimestamp,
+                        reversed = true,
+                        callback = {
+                            Log.d(TAG, "Loaded older messages for chatId=$chatId, end=$oldestTimestamp")
+                            viewModelScope.launch(Dispatchers.IO) {
+                                updateMessages()
+                                isLoadingHistory = false
+                            }
                         }
-                    }
-                )
+                    )
+                } else {
+                    Log.d(TAG, "Archive fully loaded for chatId=$chatId, no more messages to load")
+                    _isLoading.postValue(false) // Hide ProgressBar if no more messages
+                }
             } else {
                 Log.e(TAG, "Cannot load older messages: account or stream is null for owner=$owner")
+                _isLoading.postValue(false) // Hide ProgressBar on error
             }
         }
     }
@@ -239,6 +253,12 @@ class ChatViewModel(
         if (account != null) {
             val stream = account.stream
             if (stream != null) {
+                if (isLoadingHistory) {
+                    Log.d(TAG, "Skipping getStreamAndSyncHistory: history loading already in progress")
+                    return
+                }
+                isLoadingHistory = true
+                _isLoading.postValue(true)
                 messageArchiveManager?.getHistoryByDate(
                     stream = stream,
                     jid = opponent,
@@ -250,20 +270,22 @@ class ChatViewModel(
                         Log.d(TAG, "Initiated history sync for chatId=$chatId, jid=$opponent, conversationType=$conversationType")
                         viewModelScope.launch(Dispatchers.IO) {
                             updateMessages()
+                            isLoadingHistory = false
                         }
                     }
                 )
             } else {
                 Log.e(TAG, "Stream is null for account ${account.jid}")
+                _isLoading.postValue(false)
             }
         } else {
             Log.e(TAG, "Account not found for JID $owner")
+            _isLoading.postValue(false)
         }
     }
 
     suspend fun updateMessages() {
         val messageDtos = mapAllMessages()
-        // Preserve existing messages, including the last message, unless updated
         val currentMessages = messageList.associateBy { it.primary }.toMutableMap()
         messageDtos.forEach { newMessage ->
             currentMessages[newMessage.primary] = newMessage
@@ -276,6 +298,7 @@ class ChatViewModel(
         withContext(Dispatchers.Main) {
             _messages.value = messageList
             _unreadCount.value = unreadCount
+            _isLoading.value = false // Hide ProgressBar
         }
     }
 

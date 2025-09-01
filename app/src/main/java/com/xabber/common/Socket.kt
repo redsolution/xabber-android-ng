@@ -17,8 +17,8 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
 import nl.adaptivity.xmlutil.serialization.XML
-import nl.adaptivity.xmlutil.serialization.XmlSerialName
 import nl.adaptivity.xmlutil.serialization.XmlElement
+import nl.adaptivity.xmlutil.serialization.XmlSerialName
 import java.io.IOException
 import java.nio.BufferOverflowException
 import java.nio.ByteBuffer
@@ -124,42 +124,59 @@ class Socket(private val host: String, private val port: Int) {
         this.domain = domain
     }
 
-    suspend fun connect(host: String, port: Int): Boolean = withContext(Dispatchers.IO) {
-        var attempts = 0
-        val maxAttempts = 3
-        while (attempts < maxAttempts) {
-            attempts++
-            Log.d(TAG, "Connection attempt $attempts of $maxAttempts")
-            try {
-                val tcp = aSocket(selectorManager).tcp()
-                socket = tcp.connect(host, port) {
-                    noDelay = true
-                    keepAlive = true
-                }
-                writer = socket?.openWriteChannel(autoFlush = true)
-                reader = socket?.openReadChannel()
+    suspend fun connect(host: String, port: Int, alternateEndpoints: List<Pair<String, Int>> = emptyList()): Boolean = withContext(Dispatchers.IO) {
+        val endpoints = listOf(Pair(host, port)) + alternateEndpoints
+        val maxAttemptsPerEndpoint = 3
+        val connectTimeoutMs = 10000L
+        val retryDelayMs = 500L // 500ms delay between retries
 
-                if (reader == null || writer == null) {
-                    Log.e(TAG, "Failed to initialize reader or writer channels")
-                    closeInternal()
-                    return@withContext false
+        coroutineScope {
+            endpoints.map { (targetHost, targetPort) ->
+                async {
+                    var attempts = 0
+                    while (attempts < maxAttemptsPerEndpoint) {
+                        attempts++
+                        Log.d(TAG, "Connection attempt $attempts of $maxAttemptsPerEndpoint to $targetHost:$targetPort")
+                        try {
+                            val tcp = aSocket(selectorManager).tcp()
+                            val connection = withTimeout(connectTimeoutMs) {
+                                tcp.connect(targetHost, targetPort) {
+                                    noDelay = true
+                                    keepAlive = true
+                                }
+                            }
+                            socket = connection
+                            writer = socket?.openWriteChannel(autoFlush = true)
+                            reader = socket?.openReadChannel()
+                            if (reader == null || writer == null) {
+                                Log.e(TAG, "Failed to initialize reader or writer channels for $targetHost:$targetPort")
+                                closeInternal()
+                                return@async false
+                            }
+                            startReadingLoop()
+                            Log.d(TAG, "TCP connection established for $targetHost:$targetPort")
+                            return@async true
+                        } catch (e: TimeoutCancellationException) {
+                            Log.e(TAG, "Connection attempt $attempts to $targetHost:$targetPort timed out after ${connectTimeoutMs}ms")
+                            closeInternal()
+                            if (attempts < maxAttemptsPerEndpoint) {
+                                Log.d(TAG, "Retrying after ${retryDelayMs}ms")
+                                delay(retryDelayMs)
+                            }
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error during connection attempt $attempts to $targetHost:$targetPort: ${e.message}", e)
+                            closeInternal()
+                            if (attempts < maxAttemptsPerEndpoint) {
+                                Log.d(TAG, "Retrying after ${retryDelayMs}ms")
+                                delay(retryDelayMs)
+                            }
+                        }
+                    }
+                    Log.e(TAG, "All $maxAttemptsPerEndpoint attempts failed for $targetHost:$targetPort")
+                    false
                 }
-
-                startReadingLoop()
-                Log.d(TAG, "TCP connection established and read loop started")
-                return@withContext true
-            } catch (e: Exception) {
-                Log.e(TAG, "Error during connection attempt $attempts: ${e.message}", e)
-                closeInternal()
-                if (attempts < maxAttempts) {
-                    delay(1000)
-                    continue
-                }
-                return@withContext false
-            }
+            }.firstOrNull { it.await() } != null
         }
-        Log.e(TAG, "All connection attempts failed")
-        return@withContext false
     }
 
     private fun startReadingLoop() {
@@ -193,11 +210,11 @@ class Socket(private val host: String, private val port: Int) {
             writer?.flush()
             Log.d(TAG, "Sent STARTTLS command")
 
-            val proceed = withTimeoutOrNull(30000) {
+            val proceed = withTimeoutOrNull(10000) {
                 proceedChannel.receive()
             }
             if (proceed == null || !proceed.contains("<proceed")) {
-                Log.e(TAG, "Failed to receive <proceed> within 30 seconds or invalid response: $proceed")
+                Log.e(TAG, "Failed to receive <proceed> within 10 seconds or invalid response: $proceed")
                 closeInternal()
                 return@withContext false
             }
@@ -222,7 +239,6 @@ class Socket(private val host: String, private val port: Int) {
                 proceedChannel = Channel<String?>(1)
             }
 
-            val expectedFingerprint = "dab1d6bc9c8c825aa9fd266aee12ea562de40817a75fb81b79b50ad939a21f28"
             val trustManager = object : X509TrustManager {
                 override fun checkClientTrusted(chain: Array<out X509Certificate>?, authType: String?) {}
                 override fun checkServerTrusted(chain: Array<out X509Certificate>?, authType: String?) {
@@ -246,12 +262,7 @@ class Socket(private val host: String, private val port: Int) {
             sslEngine.enabledProtocols = arrayOf("TLSv1.2", "TLSv1.3")
             val preferredCipherSuites = listOf(
                 "TLS_AES_128_GCM_SHA256",
-                "TLS_AES_256_GCM_SHA384",
-                "TLS_CHACHA20_POLY1305_SHA256",
-                "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
-                "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384",
-                "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256",
-                "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384"
+                "TLS_AES_256_GCM_SHA384"
             )
             val supportedCipherSuites = sslEngine.supportedCipherSuites.toList()
             val enabledCipherSuites = preferredCipherSuites.filter { it in supportedCipherSuites }.toTypedArray()
@@ -267,7 +278,7 @@ class Socket(private val host: String, private val port: Int) {
             sslEngine.beginHandshake()
             Log.d(TAG, "TLS initialization completed")
 
-            val handshakeTimeoutMs = 10000L
+            val handshakeTimeoutMs = 8000L
             var lastStatus: SSLEngineResult.Status? = null
             var accumulatedBytes = 0
             var readRetries = 0
@@ -334,7 +345,7 @@ class Socket(private val host: String, private val port: Int) {
                         }
                         SSLEngineResult.HandshakeStatus.NEED_UNWRAP -> {
                             var unwrapAttempts = 0
-                            val maxUnwrapAttempts = 200
+                            val maxUnwrapAttempts = 100
                             while (accumulatedData.position() > 0 && unwrapAttempts < maxUnwrapAttempts) {
                                 accumulatedData.flip()
                                 appBuffer.clear()
@@ -371,7 +382,7 @@ class Socket(private val host: String, private val port: Int) {
                             if (sslEngine.handshakeStatus == SSLEngineResult.HandshakeStatus.NEED_UNWRAP &&
                                 accumulatedData.position() == 0) {
                                 Log.d(TAG, "Waiting for TLS data from channel, retry=$readRetries")
-                                val bytes = withTimeoutOrNull(2000) {
+                                val bytes = withTimeoutOrNull(1000) {
                                     tlsDataChannel.receive()
                                 }
                                 Log.d(TAG, "Read attempt: bytesRead=${bytes?.size ?: -1}, retry=$readRetries, reader closed=${reader?.isClosedForRead}")
@@ -493,7 +504,7 @@ class Socket(private val host: String, private val port: Int) {
                 return@withContext false
             }
 
-            delay(200)
+            delay(100)
             val restartedStream = """
                 <stream:stream xmlns='jabber:client' xmlns:stream='http://etherx.jabber.org/streams' version='1.0' to='$domain'>
             """.trimIndent()
@@ -519,7 +530,7 @@ class Socket(private val host: String, private val port: Int) {
 
             packetBuffer.clear()
             Log.d(TAG, "Waiting for TLS stream response")
-            val bytes = withTimeoutOrNull(15000) {
+            val bytes = withTimeoutOrNull(10000) {
                 tlsDataChannel.receive()
             }
             if (bytes != null) {
@@ -542,7 +553,7 @@ class Socket(private val host: String, private val port: Int) {
                     return@withContext false
                 }
             } else {
-                Log.e(TAG, "No TLS response received within 15 seconds")
+                Log.e(TAG, "No TLS response received within 10 seconds")
                 closeInternal()
                 return@withContext false
             }
@@ -598,7 +609,6 @@ class Socket(private val host: String, private val port: Int) {
                     } else {
                         val message = String(bytes, StandardCharsets.UTF_8)
                         Log.d(TAG, "Read chunk: $message")
-//                        Log.d(TAG, "Read chunk (bytes): ${bytes.joinToString(", ")}")
                         if (message.contains("<proceed") && !proceedChannel.isClosedForSend) {
                             proceedChannel.send(message)
                         }
@@ -624,7 +634,7 @@ class Socket(private val host: String, private val port: Int) {
                     Log.w(TAG, "Socket or reader closed, terminating read loop")
                     break
                 }
-                delay(1000)
+                delay(500)
             }
         }
         Log.w(TAG, "Read loop terminated: scope active=${scope.isActive}, socket closed=${socket?.isClosed}, reader closed=${reader?.isClosedForRead}")
@@ -678,7 +688,7 @@ class Socket(private val host: String, private val port: Int) {
                 }
                 val bytes = message.toByteArray(StandardCharsets.UTF_8)
                 Log.d(TAG, "Raw bytes to send: ${bytes.joinToString(", ")}")
-                writeMutex.withLock { // Serialize the write operation
+                writeMutex.withLock {
                     it.writeFully(bytes, 0, bytes.size)
                 }
                 Log.d(TAG, "Sent message: $message")
@@ -693,12 +703,12 @@ class Socket(private val host: String, private val port: Int) {
         }
     }
 
-    suspend fun read(timeoutMs: Long = 30000): String? = withContext(Dispatchers.IO) {
+    suspend fun read(timeoutMs: Long = 10000): Boolean = withContext(Dispatchers.IO) {
         try {
             reader?.let { channel ->
                 if (channel.isClosedForRead) {
                     Log.w(TAG, "Reader channel is closed before read attempt")
-                    return@withContext null
+                    return@withContext false
                 }
                 val buffer = StringBuilder()
                 val tempBuffer = ByteArray(1024)
@@ -709,13 +719,12 @@ class Socket(private val host: String, private val port: Int) {
                         when {
                             bytesRead == -1 -> {
                                 Log.w(TAG, "Socket closed by remote peer after ${System.currentTimeMillis() - startTime}ms")
-                                return@withContext null
+                                return@withContext false
                             }
                             bytesRead > 0 -> {
                                 val chunk = tempBuffer.decodeToString(0, bytesRead)
                                 buffer.append(chunk)
-                               /**/ Log.d(TAG, "Read chunk: $chunk")
-                            /**/    Log.d(TAG, "Read chunk (bytes): ${tempBuffer.copyOfRange(0, bytesRead).joinToString(", ")}")
+                                Log.d(TAG, "Read chunk: $chunk")
                                 if (buffer.contains("</stream:stream>") ||
                                     buffer.contains("</stream:features>") ||
                                     buffer.contains("</stream:error>") ||
@@ -725,37 +734,39 @@ class Socket(private val host: String, private val port: Int) {
                                     buffer.contains("</presence>") ||
                                     buffer.contains("<success") ||
                                     buffer.contains("<failure>")) {
-                                    return@withContext buffer.toString()
+                                    messageCallback?.invoke(buffer.toString())
+                                    return@withContext true
                                 }
                             }
                             else -> {
                                 Log.d(TAG, "No data available after ${System.currentTimeMillis() - startTime}ms, continuing")
                             }
                         }
-                        delay(10)
+                        delay(5)
                     } catch (e: IOException) {
                         Log.w(TAG, "Read error after ${System.currentTimeMillis() - startTime}ms: ${e.message}", e)
-                        return@withContext null
+                        return@withContext false
                     } catch (e: ClosedReceiveChannelException) {
                         Log.w(TAG, "Reader channel closed during read: ${e.message}", e)
-                        return@withContext null
+                        return@withContext false
                     }
                 }
                 val message = buffer.toString()
                 if (message.isNotEmpty()) {
                     Log.d(TAG, "Accumulated partial message: $message")
-                    message
+                    messageCallback?.invoke(message)
+                    return@withContext true
                 } else {
                     Log.d(TAG, "No data received within $timeoutMs ms")
-                    null
+                    return@withContext false
                 }
             } ?: run {
                 Log.e(TAG, "Socket reader is null")
-                null
+                false
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error reading from socket: ${e.message}", e)
-            null
+            false
         }
     }
 
@@ -771,7 +782,7 @@ class Socket(private val host: String, private val port: Int) {
 
     suspend fun readServerResponse(socket: Socket): StreamResponse? {
         val response = socket.read() ?: return null
-        return parseStreamResponse(response)
+        return parseStreamResponse(response.toString())
     }
 
     fun parseStreamResponse(response: String): StreamResponse? {

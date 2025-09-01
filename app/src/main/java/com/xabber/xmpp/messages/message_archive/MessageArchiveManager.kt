@@ -36,7 +36,7 @@ import javax.xml.parsers.DocumentBuilderFactory
 
 class MessageArchiveManager(private val owner: String) {
     private val namespace = "urn:xmpp:mam:2"
-    private val pageSize = 250
+    private val pageSize = 100
     private val callbacksQueue = mutableSetOf<CallbackQueueItem>()
     private val searchResultsQueries = mutableSetOf<String>()
     private val interactiveQueue = mutableListOf<String>()
@@ -129,6 +129,7 @@ class MessageArchiveManager(private val owner: String) {
             append("<query xmlns='$namespace' queryid='$elementId'>")
             append(buildX(searchText, start, end, withCounter, jid, conversationType, isGroupchat))
             append(buildSet(max ?: pageSize, rsmBefore, rsmAfter))
+            if (flipPage) append("<flip-page/>")  // Key addition: Include <flip-page/> to reverse order within the page
             append("</query>")
         }
 
@@ -164,7 +165,7 @@ class MessageArchiveManager(private val owner: String) {
                 )
             )
             interactiveQueue.add(elementId)
-            Log.d(TAG, "Sent MAM query: id=$elementId, jid=$jid, conversationType=${conversationType.rawValue}, isContinues=$isContinues, queryIds=$queryIds")
+            Log.d(TAG, "Sent MAM query: id=$elementId, jid=$jid, conversationType=${conversationType.rawValue}, isContinues=$isContinues, flipPage=$flipPage, queryIds=$queryIds")
         } else {
             queryIdsMutex.withLock {
                 queryIds.remove(elementId)
@@ -370,7 +371,7 @@ class MessageArchiveManager(private val owner: String) {
             start = start,
             end = end,
             rsmBefore = if (reversed) "" else null,
-            max = 250,
+            max = 100,
             isNormalSynchronousTask = true,
             callback = callback
         )
@@ -738,7 +739,7 @@ class MessageArchiveManager(private val owner: String) {
 
             queryToReceivedCount[queryId] = (queryToReceivedCount[queryId] ?: 0) + count
 
-            // Collect and sort messages by timestamp
+            // Collect messages without reordering
             val messages = mutableListOf<Pair<String, Long>>()
             val resultElements = iqElement.getElementsByTagNameNS(namespace, "result")
             for (i in 0 until resultElements.length) {
@@ -752,7 +753,8 @@ class MessageArchiveManager(private val owner: String) {
                 }
             }
 
-            messages.sortedBy { it.second }.forEach { (message, timestamp) ->
+            // Process messages in the order received from the server (newest-to-oldest with flip-page)
+            messages.forEach { (message, timestamp) ->
                 Log.d(TAG, "Processing MAM message: queryId=$queryId, timestamp=$timestamp")
                 readMessage(message)
             }
@@ -760,6 +762,11 @@ class MessageArchiveManager(private val owner: String) {
             val callbackItem = callbacksQueue.find { it.elementId == queryId }
             if (callbackItem == null) {
                 Log.w(TAG, "No callback found for queryId: $queryId")
+                // Still remove queryId to prevent leaks
+                queryIdsMutex.withLock {
+                    queryIds.remove(queryId)
+                    Log.d(TAG, "Removed queryId=$queryId due to missing callback, current queryIds=$queryIds")
+                }
                 return@withContext false
             }
 
@@ -790,7 +797,7 @@ class MessageArchiveManager(private val owner: String) {
                 if (task.isContinues && count == 0) {
                     makeInitialMessageVisible(jid = task.jid ?: owner, conversationType = task.conversationType, queryId = queryId)
                 }
-                callbackItem.callback?.invoke()
+                callbackItem.callback?.invoke() // Always invoke callback to ensure updateMessages is called
                 callbacksQueue.remove(callbackItem)
                 interactiveQueue.remove(queryId)
                 queryIdsMutex.withLock {
@@ -807,6 +814,7 @@ class MessageArchiveManager(private val owner: String) {
             realm.close()
         }
     }
+
 
     suspend fun clearStaleChatData(jid: String, conversationType: ConversationType) = withContext(Dispatchers.IO) {
         val realm = Realm.open(defaultRealmConfig())
