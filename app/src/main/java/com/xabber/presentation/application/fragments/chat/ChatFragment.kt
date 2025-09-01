@@ -72,7 +72,6 @@ import com.xabber.presentation.application.manage.ColorManager
 import com.xabber.presentation.application.manage.DisplayManager
 import com.xabber.utils.*
 import com.xabber.utils.custom.PlayerVisualizerView
-import com.xabber.xmpp.messages.message_archive.MessageArchiveManager
 import com.xabber.xmpp.messages.messages_manager.MessageCommonSender
 import io.reactivex.rxjava3.disposables.Disposable
 import io.realm.kotlin.Realm
@@ -112,13 +111,10 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     private var audioProgressSubscription: Disposable? = null
     private var lockIsClosed = false
     private var isVibrate = false
-    private var ignoreReceiver = true
     private var isPlaying = false
     private var messageSender: MessageCommonSender? = null
-    private var messageArchiveManager: MessageArchiveManager? = null
-    private var lastLoadOlderMessagesTime = 0L // For debouncing
-    private val debounceInterval = 500L // 500ms debounce
-
+    private var lastLoadOlderMessagesTime = 0L
+    private val debounceInterval = 500L
 
     val realm = Realm.open(defaultRealmConfig())
 
@@ -218,64 +214,23 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
             navigator().closeDetail()
         } else {
             messageSender = MessageCommonSender(chat.owner)
-            messageArchiveManager = MessageArchiveManager(chat.owner)
             prepareUi(chat)
             initializeToolbarActions(chat)
             initializeRecyclerView()
             initializeStandardInputLayoutActions()
+            initializeSelectMessageToolbarActions()
+            initializeSelectedMessagePanel()
             subscribeToChatData(chat)
             viewModel.initChatDataListener(getParams().id)
             viewModel.initMessagesListener(chat.owner, chat.opponentJid)
-            lifecycleScope.launch(Dispatchers.IO) {
-                viewModel.loadInitialData()
-            }
             AccountManager.registerChatViewModel(getParams().id, viewModel)
             activity?.onBackPressedDispatcher?.addCallback(onBackPressedCallback)
-            syncChatHistory(chat)
+            if (savedInstanceState != null) restoreState(savedInstanceState)
+            else {
+                restoreDraft()
+                scrollToLastPosition()
+            }
             Log.d("ChatFragment", "Opening chat: id=${getParams().id}, owner=${chat.owner}, opponentJid=${chat.opponentJid}")
-        }
-        if (savedInstanceState != null) restoreState(savedInstanceState)
-        else {
-            restoreDraft()
-            scrollToLastPosition()
-        }
-    }
-
-    private fun syncChatHistory(chat: ChatListDto) {
-        lifecycleScope.launch(Dispatchers.IO) {
-            val account = AccountManager.find(chat.owner) ?: return@launch
-            val stream = account.stream ?: return@launch
-            if (!messageArchiveManager?.checkShouldLoadFullHistory(chat.opponentJid, if (chat.isGroup) ConversationType.Group else ConversationType.Regular)!!) {
-                viewModel.getMessageList(getParams().id)
-                return@launch
-            }
-            stream.clearStaleTemporaryMessages()
-            val conversationType = if (chat.isGroup) ConversationType.Group else ConversationType.Regular
-            try {
-                messageArchiveManager?.requestArchive(
-                    stream = stream,
-                    jid = chat.opponentJid,
-                    isContinues = true,
-                    conversationType = conversationType,
-                    queryId = null,
-                    searchText = null,
-                    flipPage = true,
-                    start = null,
-                    end = null,
-                    rsmBefore = "",
-                    rsmAfter = null,
-                    max = 100,
-                    withCounter = true,
-                    isNormalSynchronousTask = false,
-                    backward = true,
-                    callback = {
-                        Log.d("ChatFragment", "MAM sync completed for jid=${chat.opponentJid}")
-                        viewModel.getMessageList(getParams().id)
-                    }
-                )
-            } catch (e: Exception) {
-                Log.e("ChatFragment", "Failed to sync chat history: ${e.message}", e)
-            }
         }
     }
 
@@ -388,7 +343,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         enableSelectionMode(isSelectedMode)
         if (savedInstanceState != null) {
             val voiceRecordPath = savedInstanceState.getString("VOICE_MESSAGE")
-            ignoreReceiver = savedInstanceState.getBoolean("VOICE_MESSAGE_RECEIVER_IGNORE")
+            val ignoreReceiver = savedInstanceState.getBoolean("VOICE_MESSAGE_RECEIVER_IGNORE")
             if (voiceRecordPath != null) {
                 recordingPath = voiceRecordPath
                 currentVoiceRecordingState = VoiceRecordState.StoppedRecording
@@ -493,6 +448,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
                                 .first().find()?.fullArchiveLoaded ?: false
                             if (!isFullyLoaded) {
                                 viewModel.loadOlderMessages()
+                                Log.d("ChatFragment", "Triggered loadOlderMessages, firstVisiblePosition=$firstVisiblePosition")
                             }
                         }
                     }
@@ -812,6 +768,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
                     }
                 }
             }
+            viewModel.markAllMessageUnread(getParams().id)
         }
 
         viewModel.unreadCount.observe(viewLifecycleOwner) { unread ->
@@ -829,6 +786,11 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
             }
         }
 
+        viewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
+            binding.progressBar.isVisible = isLoading
+            Log.d("ChatFragment", "ProgressBar visibility updated: $isLoading")
+        }
+
         viewModel.selectedCount.observe(viewLifecycleOwner) {
             Log.d("ChatFragment", "Selected count updated: $it")
             if (it > 0) {
@@ -838,11 +800,6 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
             } else {
                 enableSelectionMode(false)
             }
-        }
-
-        viewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
-            binding.progressBar.isVisible = isLoading
-            Log.d("ChatFragment", "ProgressBar visibility updated: $isLoading")
         }
     }
 
@@ -999,7 +956,6 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
             viewModel.markAllMessageUnread(getParams().id)
         }
     }
-
 
     private fun startAudioRecord() {
         handler.postDelayed(timer, 500)
@@ -1279,7 +1235,6 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         saveDraft()
         AccountManager.unregisterChatViewModel(getParams().id)
         messageSender?.unsubscribeSender()
-        messageArchiveManager = null // Clean up MAM
         onBackPressedCallback.remove()
     }
 
@@ -1375,7 +1330,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     }
 
     fun setUpVoiceMessagePresenter(path: String) {
-        Log.d("iii", "presenter $path")
+        Log.d("ChatFragment", "Setting up voice message presenter for path=$path")
         val time = HttpFileUploadManager.getVoiceLength(path)
         binding.audioPresenter.tvDuration.text = String.format(
             Locale.getDefault(), "%02d:%02d",

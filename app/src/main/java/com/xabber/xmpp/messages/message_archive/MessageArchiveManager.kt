@@ -129,7 +129,7 @@ class MessageArchiveManager(private val owner: String) {
             append("<query xmlns='$namespace' queryid='$elementId'>")
             append(buildX(searchText, start, end, withCounter, jid, conversationType, isGroupchat))
             append(buildSet(max ?: pageSize, rsmBefore, rsmAfter))
-            if (flipPage) append("<flip-page/>")  // Key addition: Include <flip-page/> to reverse order within the page
+            if (flipPage) append("<flip-page/>")
             append("</query>")
         }
 
@@ -165,7 +165,7 @@ class MessageArchiveManager(private val owner: String) {
                 )
             )
             interactiveQueue.add(elementId)
-            Log.d(TAG, "Sent MAM query: id=$elementId, jid=$jid, conversationType=${conversationType.rawValue}, isContinues=$isContinues, flipPage=$flipPage, queryIds=$queryIds")
+            Log.d(TAG, "Sent MAM query: id=$elementId, jid=$jid, conversationType=${conversationType.rawValue}, isContinues=$isContinues, queryIds=$queryIds")
         } else {
             queryIdsMutex.withLock {
                 queryIds.remove(elementId)
@@ -725,10 +725,8 @@ class MessageArchiveManager(private val owner: String) {
 
             queryIdsMutex.withLock {
                 if (!queryIds.contains(queryId)) {
-                    Log.w(TAG, "Unknown MAM query ID $queryId - skipping. Registered queryIds=$queryIds")
-                    return@withContext false
+                    Log.w(TAG, "Unknown MAM query ID $queryId - processing anyway to ensure callback. Registered queryIds=$queryIds")
                 }
-                Log.d(TAG, "Processing MAM response for queryId=$queryId")
             }
 
             val complete = finElement.getAttribute("complete")?.toBooleanStrictOrNull() ?: false
@@ -739,7 +737,7 @@ class MessageArchiveManager(private val owner: String) {
 
             queryToReceivedCount[queryId] = (queryToReceivedCount[queryId] ?: 0) + count
 
-            // Collect messages without reordering
+            // Collect and sort messages by timestamp
             val messages = mutableListOf<Pair<String, Long>>()
             val resultElements = iqElement.getElementsByTagNameNS(namespace, "result")
             for (i in 0 until resultElements.length) {
@@ -753,68 +751,58 @@ class MessageArchiveManager(private val owner: String) {
                 }
             }
 
-            // Process messages in the order received from the server (newest-to-oldest with flip-page)
-            messages.forEach { (message, timestamp) ->
+            messages.sortedBy { it.second }.forEach { (message, timestamp) ->
                 Log.d(TAG, "Processing MAM message: queryId=$queryId, timestamp=$timestamp")
                 readMessage(message)
             }
 
             val callbackItem = callbacksQueue.find { it.elementId == queryId }
-            if (callbackItem == null) {
-                Log.w(TAG, "No callback found for queryId: $queryId")
-                // Still remove queryId to prevent leaks
-                queryIdsMutex.withLock {
-                    queryIds.remove(queryId)
-                    Log.d(TAG, "Removed queryId=$queryId due to missing callback, current queryIds=$queryIds")
-                }
-                return@withContext false
-            }
-
-            val task = callbackItem.task
-            realm.write {
-                val chat = query<LastChatsStorageItem>(
-                    "primary = $0",
-                    LastChatsStorageItem.genPrimary(task.jid ?: owner, owner, task.conversationType)
-                ).first().find()
-                if (chat != null) {
-                    findLatest(chat)?.apply {
-                        if (task.isNormalSynchronousTask || (task.isContinues && complete)) {
-                            fullArchiveLoaded = complete
+            if (callbackItem != null) {
+                val task = callbackItem.task
+                realm.write {
+                    val chat = query<LastChatsStorageItem>(
+                        "primary = $0",
+                        LastChatsStorageItem.genPrimary(task.jid ?: owner, owner, task.conversationType)
+                    ).first().find()
+                    if (chat != null) {
+                        findLatest(chat)?.apply {
+                            if (task.isNormalSynchronousTask || (task.isContinues && complete)) {
+                                fullArchiveLoaded = complete
+                            }
+                            lastLoadedMessageHistoryId = last
+                            Log.d(TAG, "Updated LastChatsStorageItem for jid=${task.jid}: fullArchiveLoaded=$complete, lastLoadedMessageHistoryId=$last, queryId=$queryId")
                         }
-                        lastLoadedMessageHistoryId = last
-                        Log.d(TAG, "Updated LastChatsStorageItem for jid=${task.jid}: fullArchiveLoaded=$complete, lastLoadedMessageHistoryId=$last, queryId=$queryId")
                     }
                 }
-            }
-
-            temporaryMessageReceiver?.didReceiveEndPage(queryId, complete, first, last, count)
-
-            if (task.isContinues && !complete && count > 0) {
-                val continueUid = if (task.backward) first else last
-                continueLoadHistory(stream, task, continueUid)
-                Log.d(TAG, "Continuing MAM pagination for queryId=$queryId, continueUid=$continueUid, count=$count")
+                if (task.isContinues && !complete && count > 0) {
+                    val continueUid = if (task.backward) first else last
+                    continueLoadHistory(stream, task, continueUid)
+                    Log.d(TAG, "Continuing MAM pagination for queryId=$queryId, continueUid=$continueUid, count=$count")
+                } else {
+                    callbackItem.callback?.invoke()
+                    callbacksQueue.remove(callbackItem)
+                    interactiveQueue.remove(queryId)
+                    queryIdsMutex.withLock {
+                        queryIds.remove(queryId)
+                        Log.d(TAG, "Removed queryId=$queryId, current queryIds=$queryIds")
+                    }
+                    temporaryMessageReceiver?.didReceiveEndPage(queryId, complete, first, last, count)
+                    Log.d(TAG, "Completed MAM query for queryId=$queryId, no further pagination needed")
+                }
             } else {
-                if (task.isContinues && count == 0) {
-                    makeInitialMessageVisible(jid = task.jid ?: owner, conversationType = task.conversationType, queryId = queryId)
-                }
-                callbackItem.callback?.invoke() // Always invoke callback to ensure updateMessages is called
-                callbacksQueue.remove(callbackItem)
-                interactiveQueue.remove(queryId)
-                queryIdsMutex.withLock {
-                    queryIds.remove(queryId)
-                    Log.d(TAG, "Removed queryId=$queryId, current queryIds=$queryIds")
-                }
-                Log.d(TAG, "Completed MAM query for queryId=$queryId, no further pagination needed")
+                Log.w(TAG, "No callback found for queryId=$queryId, still notifying didReceiveEndPage")
+                temporaryMessageReceiver?.didReceiveEndPage(queryId, complete, first, last, count)
             }
+
             true
         } catch (e: Exception) {
             Log.e(TAG, "Failed to parse IQ: ${e.message}", e)
+            temporaryMessageReceiver?.didReceiveEndPage("", false, "", "", 0)
             return@withContext false
         } finally {
             realm.close()
         }
     }
-
 
     suspend fun clearStaleChatData(jid: String, conversationType: ConversationType) = withContext(Dispatchers.IO) {
         val realm = Realm.open(defaultRealmConfig())
@@ -982,23 +970,30 @@ class MessageArchiveManager(private val owner: String) {
         }
     }
 
-    fun reset() {
+    suspend fun reset() {
         callbacksQueue.forEach { it.callback?.invoke() }
         callbacksQueue.clear()
         searchResultsQueries.clear()
         interactiveQueue.clear()
         continuesTaskID = null
-        Log.d(TAG, "Reset callbacks for owner $owner, preserving queryIds=$queryIds")
+        queryIdsMutex.withLock {
+            queryIds.clear()
+            Log.d(TAG, "Reset all state for owner $owner, cleared queryIds")
+        }
     }
 
-    fun didResetState() {
+    suspend fun didResetState() {
         callbacksQueue.forEach { it.callback?.invoke() }
         callbacksQueue.clear()
         searchResultsQueries.clear()
         interactiveQueue.clear()
         continuesTaskID = null
-        Log.d(TAG, "Reset state for owner $owner")
+        queryIdsMutex.withLock {
+            queryIds.clear()
+            Log.d(TAG, "Reset state for owner $owner, cleared queryIds")
+        }
     }
+
 
     fun incrementReceived(queryId: String) {
         queryToReceivedCount[queryId] = (queryToReceivedCount[queryId] ?: 0) + 1
