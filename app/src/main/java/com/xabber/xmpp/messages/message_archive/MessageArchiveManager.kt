@@ -46,7 +46,7 @@ class MessageArchiveManager(private val owner: String) {
     private val nanoIdStep = 16
     private val TAG = "MessageArchiveManager"
     private val queryToReceivedCount = mutableMapOf<String, Int>()
-    private val queryIds = mutableSetOf<String>()
+    private val queryIds = mutableMapOf<String, CallbackQueueItem>() // Changed to Map
     private val queryIdsMutex = Mutex()
 
     data class MAMRequestItem(
@@ -95,6 +95,7 @@ class MessageArchiveManager(private val owner: String) {
 
     var temporaryMessageReceiver: TemporaryMessageReceiver? = null
 
+    @RequiresApi(Build.VERSION_CODES.O)
     suspend fun requestArchive(
         stream: Stream,
         jid: String?,
@@ -115,14 +116,13 @@ class MessageArchiveManager(private val owner: String) {
     ) = withContext(Dispatchers.IO) {
         val isGroupchat = listOf(ConversationType.Group, ConversationType.Channel).contains(conversationType)
         val elementId = queryId ?: "MAM:${NanoId.generateOptimized(8, nanoIdAlphabet, nanoIdMask, nanoIdStep)}"
-        val taskId = listOf(jid ?: "global_search", conversationType.rawValue).prp()
+        val taskId = listOf(jid ?: "global_search", conversationType.rawValue).joinToString("_")
 
         queryIdsMutex.withLock {
-            if (!queryIds.add(elementId)) {
+            if (queryIds.containsKey(elementId)) {
                 Log.w(TAG, "Query ID $elementId already exists, skipping request")
                 return@withContext
             }
-            Log.d(TAG, "Registered queryId=$elementId, current queryIds=$queryIds")
         }
 
         val queryXml = buildString {
@@ -138,43 +138,42 @@ class MessageArchiveManager(private val owner: String) {
 
         val success = stream.socket?.write(iqXml) == true
         if (success) {
-            if (searchText != null) searchResultsQueries.add(elementId)
-            callbacksQueue.add(
-                CallbackQueueItem(
-                    jid = jid ?: "",
-                    elementId = elementId,
-                    task = MAMRequestItem(
-                        jid = jid,
-                        taskId = taskId,
-                        isGroupchat = isGroupchat,
-                        messageId = null,
-                        backward = backward,
-                        conversationType = conversationType,
-                        isContinues = isContinues,
-                        maxDate = start,
-                        searchText = searchText,
-                        queryId = elementId,
-                        rsmBefore = rsmBefore,
-                        rsmAfter = rsmAfter,
-                        max = max ?: pageSize,
-                        start = start,
-                        end = end,
-                        isNormalSynchronousTask = isNormalSynchronousTask
-                    ),
-                    callback = callback
-                )
+            val callbackItem = CallbackQueueItem(
+                jid = jid ?: "",
+                elementId = elementId,
+                task = MAMRequestItem(
+                    jid = jid,
+                    taskId = taskId,
+                    isGroupchat = isGroupchat,
+                    messageId = null,
+                    backward = backward,
+                    conversationType = conversationType,
+                    isContinues = isContinues,
+                    maxDate = start,
+                    searchText = searchText,
+                    queryId = elementId,
+                    rsmBefore = rsmBefore,
+                    rsmAfter = rsmAfter,
+                    max = max ?: pageSize,
+                    start = start,
+                    end = end,
+                    isNormalSynchronousTask = isNormalSynchronousTask
+                ),
+                callback = callback
             )
-            interactiveQueue.add(elementId)
-            Log.d(TAG, "Sent MAM query: id=$elementId, jid=$jid, conversationType=${conversationType.rawValue}, isContinues=$isContinues, queryIds=$queryIds")
-        } else {
             queryIdsMutex.withLock {
-                queryIds.remove(elementId)
-                Log.w(TAG, "Failed to send MAM query, removed queryId=$elementId")
+                queryIds[elementId] = callbackItem
+                Log.d(TAG, "Registered queryId=$elementId, current queryIds=${queryIds.keys}")
             }
+            callbacksQueue.add(callbackItem)
+            interactiveQueue.add(elementId)
+            Log.d(TAG, "Sent MAM query: id=$elementId, jid=$jid, conversationType=${conversationType.rawValue}, isContinues=$isContinues, flipPage=$flipPage")
+        } else {
             Log.e(TAG, "Failed to send MAM query: $iqXml")
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     suspend fun syncChat(
         stream: Stream,
         jid: String,
@@ -255,50 +254,62 @@ class MessageArchiveManager(private val owner: String) {
                                 )
                             )
                         }
-                    }
-                    if (gaps.isEmpty()) {
-                        val oldestMessage = messages.lastOrNull()
-                        if (oldestMessage != null) {
-                            archiveStart = Date(oldestMessage.date - 600_000)
-                        }
-                    }
-                } else {
-                    val instance = LastChatsStorageItem().apply {
-                        owner = this@MessageArchiveManager.owner
-                        this.jid = jid
-                        conversationType_ = conversationType.rawValue
-                        messageDate = System.currentTimeMillis()
-                        primary = LastChatsStorageItem.genPrimary(jid, owner, conversationType)
-                        isSynced = false
-                        isInitialArchiveLoaded = false
-                        val roster = query<RosterStorageItem>("jid = $0 AND owner = $1", jid, owner).first().find()
-                        if (roster == null) {
-                            val newRoster = RosterStorageItem().apply {
-                                this.jid = jid
-                                this.owner = this@MessageArchiveManager.owner
-                                primary = RosterStorageItem.genPrimary(jid, owner)
-                                groups = realmListOf("ungrouped")
+                        if (gaps.isEmpty()) {
+                            val oldestMessage = messages.lastOrNull()
+                            if (oldestMessage != null) {
+                                archiveStart = Date(oldestMessage.date - 600_000)
                             }
-                            copyToRealm(newRoster)
-                            rosterItem = newRoster
-                        } else {
-                            rosterItem = roster
                         }
+                    } else {
+                        val instance = LastChatsStorageItem().apply {
+                            owner = this@MessageArchiveManager.owner
+                            this.jid = jid
+                            conversationType_ = conversationType.rawValue
+                            messageDate = System.currentTimeMillis()
+                            primary = LastChatsStorageItem.genPrimary(jid, owner, conversationType)
+                            isSynced = false
+                            isInitialArchiveLoaded = false
+                            val roster = query<RosterStorageItem>("jid = $0 AND owner = $1", jid, owner).first().find()
+                            if (roster == null) {
+                                val newRoster = RosterStorageItem().apply {
+                                    this.jid = jid
+                                    this.owner = this@MessageArchiveManager.owner
+                                    primary = RosterStorageItem.genPrimary(jid, owner)
+                                    groups = realmListOf("ungrouped")
+                                }
+                                copyToRealm(newRoster)
+                                rosterItem = newRoster
+                            } else {
+                                rosterItem = roster
+                            }
+                        }
+                        copyToRealm(instance)
+                        chat = instance
                     }
-                    copyToRealm(instance)
-                    chat = instance
+                    if (listOf(ConversationType.Omemo, ConversationType.Omemo1, ConversationType.Axolotl).contains(conversationType)) {
+                        archiveStart = query<AccountStorageItem>("jid = $0", owner).first().find()?.createdAt?.let { Date(it) }
+                    }
+                    messageId = query<MessageStorageItem>(
+                        "opponent = $0 AND owner = $1 AND conversationType_ = $2",
+                        jid, owner, conversationType.rawValue
+                    ).find().sortedByDescending { it.date }.lastOrNull()?.archivedId
                 }
-                if (listOf(ConversationType.Omemo, ConversationType.Omemo1, ConversationType.Axolotl).contains(conversationType)) {
-                    archiveStart = query<AccountStorageItem>("jid = $0", owner).first().find()?.createdAt?.let { Date(it) }
+            }
+
+            // Notify ChatViewModel to show ProgressBar before starting archive request
+            val chatViewModel = AccountManager.getChatViewModel(
+                LastChatsStorageItem.genPrimary(jid, owner, conversationType)
+            )
+            withContext(Dispatchers.Main) {
+                chatViewModel?.apply {
+                    _isLoading.value = true
+                    Log.d(TAG, "Showing ProgressBar before syncChat archive request for jid=$jid, chatId=${LastChatsStorageItem.genPrimary(jid, owner, conversationType)}")
                 }
-                messageId = query<MessageStorageItem>(
-                    "opponent = $0 AND owner = $1 AND conversationType_ = $2",
-                    jid, owner, conversationType.rawValue
-                ).find().sortedByDescending { it.date }.lastOrNull()?.archivedId
             }
 
             val queryId = "MAM:${NanoId.generateOptimized(8, nanoIdAlphabet, nanoIdMask, nanoIdStep)}"
             Log.d(TAG, "Registering syncChat MAM query with queryId=$queryId for jid=$jid, start=$archiveStart")
+            // Call requestArchive within the coroutine scope
             requestArchive(
                 stream = stream,
                 jid = jid,
@@ -312,45 +323,82 @@ class MessageArchiveManager(private val owner: String) {
                 withCounter = true,
                 isNormalSynchronousTask = false,
                 callback = {
-                    // Fetch the most recent message and fill gaps
                     CoroutineScope(Dispatchers.IO).launch {
-                        getLastMessage(stream, jid, conversationType)
-                        Log.d(TAG, "Requested last message for jid=$jid, conversationType=${conversationType.rawValue}")
-                        gaps.forEach { gap ->
-                            requestArchive(
-                                stream = stream,
-                                jid = jid,
-                                isContinues = true,
-                                conversationType = conversationType,
-                                queryId = gap.queryId,
-                                start = gap.start,
-                                end = gap.end,
-                                max = pageSize,
-                                withCounter = true
-                            )
-                        }
-                        realm.write {
-                            val instance = query<LastChatsStorageItem>(
-                                "primary = $0",
-                                LastChatsStorageItem.genPrimary(jid, owner, conversationType)
-                            ).first().find()
-                            if (instance != null) {
-                                findLatest(instance)?.apply {
-                                    isSynced = true
-                                    isInitialArchiveLoaded = true
-                                    Log.d(TAG, "Marked syncChat complete for jid=$jid, conversationType=${conversationType.rawValue}")
+                        try {
+                            getLastMessage(stream, jid, conversationType)
+                            Log.d(TAG, "Requested last message for jid=$jid, conversationType=${conversationType.rawValue}")
+                            // Process gaps within coroutine scope
+                            gaps.forEach { gap ->
+                                requestArchive(
+                                    stream = stream,
+                                    jid = jid,
+                                    isContinues = true,
+                                    conversationType = conversationType,
+                                    queryId = gap.queryId,
+                                    start = gap.start,
+                                    end = gap.end,
+                                    max = pageSize,
+                                    withCounter = true
+                                )
+                            }
+                            val localRealm = Realm.open(defaultRealmConfig())
+                            try {
+                                localRealm.write {
+                                    val instance = query<LastChatsStorageItem>(
+                                        "primary = $0",
+                                        LastChatsStorageItem.genPrimary(jid, owner, conversationType)
+                                    ).first().find()
+                                    if (instance != null) {
+                                        findLatest(instance)?.apply {
+                                            isSynced = true
+                                            isInitialArchiveLoaded = true
+                                            Log.d(TAG, "Marked syncChat complete: isSynced=true, isInitialArchiveLoaded=true for jid=$jid, conversationType=${conversationType.rawValue}, chatId=${instance.primary}")
+                                        }
+                                    }
+                                }
+                                // Notify ChatViewModel to update messages and hide ProgressBar
+                                chatViewModel?.updateMessages()
+                                withContext(Dispatchers.Main) {
+                                    chatViewModel?.apply {
+                                        _isLoading.value = false
+                                        Log.d(TAG, "Hiding ProgressBar after syncChat for jid=$jid, chatId=${LastChatsStorageItem.genPrimary(jid, owner, conversationType)}")
+                                    }
+                                }
+                            } finally {
+                                localRealm.close()
+                            }
+                            callback?.invoke()
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error in syncChat callback: ${e.message}", e)
+                            // Ensure ProgressBar is hidden on error
+                            withContext(Dispatchers.Main) {
+                                chatViewModel?.apply {
+                                    _isLoading.value = false
+                                    Log.d(TAG, "Hiding ProgressBar due to error in syncChat callback for jid=$jid, chatId=${LastChatsStorageItem.genPrimary(jid, owner, conversationType)}")
                                 }
                             }
                         }
-                        callback?.invoke()
                     }
                 }
             )
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in syncChat: ${e.message}", e)
+            // Ensure ProgressBar is hidden on error
+            val chatViewModel = AccountManager.getChatViewModel(
+                LastChatsStorageItem.genPrimary(jid, owner, conversationType)
+            )
+            withContext(Dispatchers.Main) {
+                chatViewModel?.apply {
+                    _isLoading.value = false
+                    Log.d(TAG, "Hiding ProgressBar due to error in syncChat for jid=$jid, chatId=${LastChatsStorageItem.genPrimary(jid, owner, conversationType)}")
+                }
+            }
         } finally {
             realm.close()
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     suspend fun getHistoryByDate(
         stream: Stream,
         jid: String,
@@ -711,8 +759,9 @@ class MessageArchiveManager(private val owner: String) {
     }
 
     suspend fun read(iq: String, stream: Stream): Boolean = withContext(Dispatchers.IO) {
-        val realm = Realm.open(defaultRealmConfig())
+        var realm: Realm? = null
         try {
+            realm = Realm.open(defaultRealmConfig())
             val factory = DocumentBuilderFactory.newInstance().apply { isNamespaceAware = true }
             val document = factory.newDocumentBuilder().parse(iq.byteInputStream())
             val iqElement = document.documentElement
@@ -723,9 +772,13 @@ class MessageArchiveManager(private val owner: String) {
             val finElement = iqElement.getElementsByTagNameNS(namespace, "fin").item(0) as? Element
             val queryId = finElement?.getAttribute("queryid") ?: return@withContext false
 
-            queryIdsMutex.withLock {
-                if (!queryIds.contains(queryId)) {
-                    Log.w(TAG, "Unknown MAM query ID $queryId - processing anyway to ensure callback. Registered queryIds=$queryIds")
+            val callbackItem = queryIdsMutex.withLock {
+                queryIds[queryId].also {
+                    if (it == null) {
+                        Log.w(TAG, "Unknown MAM query ID $queryId - processing anyway to ensure callback")
+                    } else {
+                        Log.d(TAG, "Processing MAM response for queryId=$queryId")
+                    }
                 }
             }
 
@@ -737,7 +790,7 @@ class MessageArchiveManager(private val owner: String) {
 
             queryToReceivedCount[queryId] = (queryToReceivedCount[queryId] ?: 0) + count
 
-            // Collect and sort messages by timestamp
+            // Process messages
             val messages = mutableListOf<Pair<String, Long>>()
             val resultElements = iqElement.getElementsByTagNameNS(namespace, "result")
             for (i in 0 until resultElements.length) {
@@ -751,12 +804,13 @@ class MessageArchiveManager(private val owner: String) {
                 }
             }
 
-            messages.sortedBy { it.second }.forEach { (message, timestamp) ->
+            messages.forEach { (message, timestamp) ->
                 Log.d(TAG, "Processing MAM message: queryId=$queryId, timestamp=$timestamp")
                 readMessage(message)
             }
 
-            val callbackItem = callbacksQueue.find { it.elementId == queryId }
+            temporaryMessageReceiver?.didReceiveEndPage(queryId, complete, first, last, count)
+
             if (callbackItem != null) {
                 val task = callbackItem.task
                 realm.write {
@@ -774,33 +828,133 @@ class MessageArchiveManager(private val owner: String) {
                         }
                     }
                 }
+
                 if (task.isContinues && !complete && count > 0) {
                     val continueUid = if (task.backward) first else last
                     continueLoadHistory(stream, task, continueUid)
                     Log.d(TAG, "Continuing MAM pagination for queryId=$queryId, continueUid=$continueUid, count=$count")
                 } else {
+                    if (task.isContinues && count == 0) {
+                        makeInitialMessageVisible(jid = task.jid ?: owner, conversationType = task.conversationType, queryId = queryId)
+                    }
                     callbackItem.callback?.invoke()
                     callbacksQueue.remove(callbackItem)
                     interactiveQueue.remove(queryId)
                     queryIdsMutex.withLock {
                         queryIds.remove(queryId)
-                        Log.d(TAG, "Removed queryId=$queryId, current queryIds=$queryIds")
+                        Log.d(TAG, "Removed queryId=$queryId, current queryIds=${queryIds.keys}")
                     }
-                    temporaryMessageReceiver?.didReceiveEndPage(queryId, complete, first, last, count)
                     Log.d(TAG, "Completed MAM query for queryId=$queryId, no further pagination needed")
+                    // Notify ChatViewModel to update messages and hide ProgressBar
+                    CoroutineScope(Dispatchers.IO).launch {
+                        try {
+                            val chatViewModel = AccountManager.getChatViewModel(
+                                LastChatsStorageItem.genPrimary(task.jid ?: owner, owner, task.conversationType)
+                            )
+                            chatViewModel?.updateMessages()
+                            withContext(Dispatchers.Main) {
+                                chatViewModel?.apply {
+                                    _isLoading.value = false
+                                    Log.d(TAG, "Hiding ProgressBar for queryId=$queryId in ChatViewModel, chatId=${task.jid ?: owner}")
+                                }
+                            }
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error notifying ChatViewModel for queryId=$queryId: ${e.message}", e)
+                        }
+                    }
                 }
             } else {
-                Log.w(TAG, "No callback found for queryId=$queryId, still notifying didReceiveEndPage")
-                temporaryMessageReceiver?.didReceiveEndPage(queryId, complete, first, last, count)
+                // Handle unknown queryId
+                callbacksQueue.find { it.elementId == queryId }?.callback?.invoke()
+                callbacksQueue.removeAll { it.elementId == queryId }
+                interactiveQueue.remove(queryId)
+                queryIdsMutex.withLock {
+                    queryIds.remove(queryId)
+                    Log.d(TAG, "Removed queryId=$queryId due to missing callback, current queryIds=${queryIds.keys}")
+                }
+                // Notify ChatViewModel to update messages and hide ProgressBar
+                CoroutineScope(Dispatchers.IO).launch {
+                    val localRealm = Realm.open(defaultRealmConfig())
+                    try {
+                        // Try to infer opponentJid from the last processed message
+                        val lastMessage = localRealm.query<MessageStorageItem>(
+                            "owner = $0 AND queryIds CONTAINS $1",
+                            owner, queryId
+                        ).first().find()
+                        val opponentJid = lastMessage?.opponent ?: owner
+                        val chat = localRealm.query<LastChatsStorageItem>(
+                            "owner = $0 AND jid = $1 AND conversationType_ = $2",
+                            owner, opponentJid, ConversationType.Regular.rawValue
+                        ).first().find()
+                        val chatId = chat?.primary ?: LastChatsStorageItem.genPrimary(opponentJid, owner, ConversationType.Regular)
+                        val chatViewModel = AccountManager.getChatViewModel(chatId)
+                        chatViewModel?.updateMessages()
+                        withContext(Dispatchers.Main) {
+                            chatViewModel?.apply {
+                                _isLoading.value = false
+                                Log.d(TAG, "Hiding ProgressBar for queryId=$queryId due to missing callbackItem, chatId=$chatId, opponentJid=$opponentJid")
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error notifying ChatViewModel for queryId=$queryId: ${e.message}", e)
+                    } finally {
+                        localRealm.close()
+                    }
+                }
             }
-
             true
         } catch (e: Exception) {
             Log.e(TAG, "Failed to parse IQ: ${e.message}", e)
-            temporaryMessageReceiver?.didReceiveEndPage("", false, "", "", 0)
+            // Handle error case
+            val queryId = try {
+                val document = DocumentBuilderFactory.newInstance().apply { isNamespaceAware = true }
+                    .newDocumentBuilder().parse(iq.byteInputStream())
+                document.documentElement.getElementsByTagNameNS(namespace, "fin")
+                    .item(0)?.let { it as Element }?.getAttribute("queryid")
+            } catch (e: Exception) {
+                null
+            }
+            if (queryId != null) {
+                callbacksQueue.find { it.elementId == queryId }?.callback?.invoke()
+                callbacksQueue.removeAll { it.elementId == queryId }
+                interactiveQueue.remove(queryId)
+                queryIdsMutex.withLock {
+                    queryIds.remove(queryId)
+                    Log.d(TAG, "Removed queryId=$queryId due to error, current queryIds=${queryIds.keys}")
+                }
+                // Notify ChatViewModel to update messages and hide ProgressBar
+                CoroutineScope(Dispatchers.IO).launch {
+                    val localRealm = Realm.open(defaultRealmConfig())
+                    try {
+                        // Try to infer opponentJid from the last processed message
+                        val lastMessage = localRealm.query<MessageStorageItem>(
+                            "owner = $0 AND queryIds CONTAINS $1",
+                            owner, queryId
+                        ).first().find()
+                        val opponentJid = lastMessage?.opponent ?: owner
+                        val chat = localRealm.query<LastChatsStorageItem>(
+                            "owner = $0 AND jid = $1 AND conversationType_ = $2",
+                            owner, opponentJid, ConversationType.Regular.rawValue
+                        ).first().find()
+                        val chatId = chat?.primary ?: LastChatsStorageItem.genPrimary(opponentJid, owner, ConversationType.Regular)
+                        val chatViewModel = AccountManager.getChatViewModel(chatId)
+                        chatViewModel?.updateMessages()
+                        withContext(Dispatchers.Main) {
+                            chatViewModel?.apply {
+                                _isLoading.value = false
+                                Log.d(TAG, "Hiding ProgressBar for queryId=$queryId due to error, chatId=$chatId, opponentJid=$opponentJid")
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error notifying ChatViewModel for queryId=$queryId: ${e.message}", e)
+                    } finally {
+                        localRealm.close()
+                    }
+                }
+            }
             return@withContext false
         } finally {
-            realm.close()
+            realm?.close()
         }
     }
 
@@ -970,30 +1124,23 @@ class MessageArchiveManager(private val owner: String) {
         }
     }
 
-    suspend fun reset() {
+    fun reset() {
         callbacksQueue.forEach { it.callback?.invoke() }
         callbacksQueue.clear()
         searchResultsQueries.clear()
         interactiveQueue.clear()
         continuesTaskID = null
-        queryIdsMutex.withLock {
-            queryIds.clear()
-            Log.d(TAG, "Reset all state for owner $owner, cleared queryIds")
-        }
+        Log.d(TAG, "Reset callbacks for owner $owner, preserving queryIds=$queryIds")
     }
 
-    suspend fun didResetState() {
+    fun didResetState() {
         callbacksQueue.forEach { it.callback?.invoke() }
         callbacksQueue.clear()
         searchResultsQueries.clear()
         interactiveQueue.clear()
         continuesTaskID = null
-        queryIdsMutex.withLock {
-            queryIds.clear()
-            Log.d(TAG, "Reset state for owner $owner, cleared queryIds")
-        }
+        Log.d(TAG, "Reset state for owner $owner")
     }
-
 
     fun incrementReceived(queryId: String) {
         queryToReceivedCount[queryId] = (queryToReceivedCount[queryId] ?: 0) + 1

@@ -213,10 +213,10 @@ class Stream(var jid: String, var port: Int = 5222) {
             var content = streamBuffer.toString()
             var processedStanzas = 0
             Log.d(TAG, "Current streamBuffer before processing: ${content.take(1000)}")
-            while (content.isNotEmpty()) {
+            while (content.isNotEmpty() && processedStanzas < 10) { // Limit to 10 stanzas per call
                 val start = content.indexOf("<")
                 if (start == -1) {
-                    Log.w(TAG, "No XML start tag found in buffer, waiting for more data: $content")
+                    Log.w(TAG, "No XML start tag found in buffer, waiting for more data: ${content.take(200)}")
                     break
                 }
 
@@ -224,27 +224,27 @@ class Stream(var jid: String, var port: Int = 5222) {
                     content.indexOf("<stream:error", start) == start || content.indexOf("<stream:features", start) == start) {
                     var end = content.indexOf(">", start)
                     if (end == -1) {
-                        Log.w(TAG, "Incomplete stream header, buffering: $content")
+                        Log.w(TAG, "Incomplete stream header, buffering: ${content.take(200)}")
                         break
                     }
                     if (content.indexOf("<stream:features>", start) != -1) {
                         end = content.indexOf("</stream:features>", end)
                         if (end == -1) {
-                            Log.w(TAG, "Incomplete stream:features, buffering: $content")
+                            Log.w(TAG, "Incomplete stream:features, buffering: ${content.take(200)}")
                             break
                         }
                         end += "</stream:features>".length
                     } else if (content.indexOf("</stream:stream>", start) != -1) {
                         end = content.indexOf("</stream:stream>", end)
                         if (end == -1) {
-                            Log.w(TAG, "Incomplete stream:stream, buffering: $content")
+                            Log.w(TAG, "Incomplete stream:stream, buffering: ${content.take(200)}")
                             break
                         }
                         end += "</stream:stream>".length
                     } else if (content.indexOf("</stream:error>", start) != -1) {
                         end = content.indexOf("</stream:error>", end)
                         if (end == -1) {
-                            Log.w(TAG, "Incomplete stream:error, buffering: $content")
+                            Log.w(TAG, "Incomplete stream:error, buffering: ${content.take(200)}")
                             break
                         }
                         end += "</stream:error>".length
@@ -258,7 +258,7 @@ class Stream(var jid: String, var port: Int = 5222) {
 
                 val tagEnd = content.indexOf(">", start)
                 if (tagEnd == -1) {
-                    Log.w(TAG, "Incomplete stanza tag, buffering: $content")
+                    Log.w(TAG, "Incomplete stanza tag, buffering: ${content.take(200)}")
                     break
                 }
                 val fullTag = content.substring(start + 1, tagEnd)
@@ -276,7 +276,7 @@ class Stream(var jid: String, var port: Int = 5222) {
                         val nextOpen = content.indexOf("<$tagName", currentIndex)
                         val nextClose = content.indexOf("</$tagName>", currentIndex)
                         if (nextClose == -1) {
-                            Log.w(TAG, "No closing tag for $tagName, buffering: $content")
+                            Log.w(TAG, "No closing tag for $tagName, buffering: ${content.take(200)}")
                             break
                         }
                         if (nextOpen != -1 && nextOpen < nextClose) {
@@ -292,7 +292,7 @@ class Stream(var jid: String, var port: Int = 5222) {
                         stanzaEnd = currentIndex - "</$tagName>".length
                         fullEnd = currentIndex
                     } else {
-                        Log.w(TAG, "Incomplete stanza for $tagName, buffering: $content")
+                        Log.w(TAG, "Incomplete stanza for $tagName, buffering: ${content.take(200)}")
                         break
                     }
                 }
@@ -306,8 +306,14 @@ class Stream(var jid: String, var port: Int = 5222) {
                 content = content.substring(fullEnd).trimStart()
                 processedStanzas++
             }
-            streamBuffer.clear()
-            streamBuffer.append(content)
+            // Limit buffer size to prevent memory issues
+            if (streamBuffer.length > 1024 * 1024) { // 1MB limit
+                Log.w(TAG, "Stream buffer size exceeded 1MB, clearing older data")
+                streamBuffer.delete(0, streamBuffer.length - 1024 * 1024)
+            } else {
+                streamBuffer.clear()
+                streamBuffer.append(content)
+            }
             Log.d(TAG, "Processed $processedStanzas stanzas, remaining buffer: ${content.take(200)}")
         }
     }

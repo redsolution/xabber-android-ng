@@ -39,7 +39,7 @@ class LastChatsStorageItem: RealmObject {
     var rosterItem: RosterStorageItem? = null   // данные собеседника
     var lastMessage: MessageStorageItem? = null  // последнее собщение
     var lastMessageId: String = "" // id последнего сообщения (мне не нужно)
-    var isSynced: Boolean = true  // синхронизировано
+    var isSynced: Boolean = false  // синхронизировано (changed to false)
     var isHistoryGapFixedForSession: Boolean = false
     var isArchived: Boolean = false  // архив
     var messagesCount: Int = -1

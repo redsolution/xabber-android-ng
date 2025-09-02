@@ -42,6 +42,10 @@ class MessageCommonReceiver(private val owner: String) {
         private const val TAG = "MessageCommonReceiver"
     }
 
+    init {
+        subscribeReceiver()
+    }
+
     data class MessageQueueItem(
         val message: XMPPMessage,
         val messageId: String?,
@@ -475,7 +479,7 @@ class MessageCommonReceiver(private val owner: String) {
                 val message = copyToRealm(MessageStorageItem().apply {
                     this.primary = primary
                     owner = this@MessageCommonReceiver.owner
-                    opponent = item.originalFrom
+                    opponent = item.originalFrom.removeSuffix("/${item.message.from?.resource}")
                     body = item.message.body ?: ""
                     date = item.date.time
                     sentDate = item.date.time
@@ -484,6 +488,7 @@ class MessageCommonReceiver(private val owner: String) {
                     conversationType_ = if (item.groupchatUserCard != null) "https://xabber.com/protocol/groups" else "urn:xabber:chat"
                     this.references = references
                     queryIds = item.queryId
+                    archivedId = messageId
                 })
                 out.add(
                     MessageDto(
@@ -508,7 +513,7 @@ class MessageCommonReceiver(private val owner: String) {
                         archivedId = messageId
                     )
                 )
-                Log.d(TAG, "Processed queue item to MessageDto: primary=$primary, sentTimestamp=${message.sentDate}, body=${message.body.take(50)}, queryId=${item.queryId}")
+                Log.d(TAG, "Processed queue item to MessageDto: primary=$primary, sentTimestamp=${message.sentDate}, body=${message.body.take(50)}, queryId=${item.queryId}, opponent=${message.opponent}")
             }
         }
 
@@ -529,7 +534,7 @@ class MessageCommonReceiver(private val owner: String) {
         Log.d(TAG, "save called with ${messages.size} messages")
         try {
             messages.forEach { message ->
-                Log.d(TAG, "Saving MessageDto: primary=${message.primary}, sentTimestamp=${message.sentTimestamp}, body=${message.messageBody.take(50)}")
+                Log.d(TAG, "Saving MessageDto: primary=${message.primary}, sentTimestamp=${message.sentTimestamp}, body=${message.messageBody.take(50)}, opponentJid=${message.opponentJid}")
                 val conversationType = ConversationType.fromRaw(if (message.isGroup) "https://xabber.com/protocol/groups" else "urn:xabber:chat")
                 val chatId = LastChatsStorageItem.genPrimary(message.opponentJid, message.owner, conversationType)
                 val chatViewModel = AccountManager.getChatViewModel(chatId)
