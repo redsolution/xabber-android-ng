@@ -51,6 +51,7 @@ import io.realm.kotlin.Realm
 import io.realm.kotlin.ext.query
 import io.realm.kotlin.mongodb.User
 import io.realm.kotlin.notifications.ResultsChange
+import io.realm.kotlin.notifications.UpdatedResults
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -470,11 +471,69 @@ fun parseTimestamp(message: XMPPMessage, tag: String = "TimestampParser"): Long?
     return null
 }
 
+//fun observeMessages(
+//    owner: String,
+//    opponent: String,
+//    conversationType: ConversationType
+//): Flow<List<MessageDto>> {
+//    return callbackFlow {
+//        val realm = Realm.open(defaultRealmConfig())
+//        val query = realm.query<MessageStorageItem>(
+//            "owner = $0 AND opponent = $1 AND isDeleted = false AND conversationType_ = $2",
+//            owner, opponent, conversationType.rawValue
+//        ).sort("date", io.realm.kotlin.query.Sort.ASCENDING)
+//        val results = query.find()
+//
+//        // Listen for changes and emit them
+//        val listener: (ResultsChange<MessageStorageItem>) -> Unit = { change ->
+//            val messages = change.list.mapNotNull { item ->
+//                MessageDto(
+//                    primary = item.primary,
+//                    isOutgoing = item.outgoing,
+//                    owner = item.owner,
+//                    opponentJid = item.opponent,
+//                    messageBody = item.body,
+//                    messageSendingState = when {
+//                        item.isRead -> MessageSendingState.Read
+//                        item.outgoing -> MessageSendingState.Deliver
+//                        else -> MessageSendingState.Sent
+//                    },
+//                    sentTimestamp = item.sentDate,
+//                    editTimestamp = item.editDate,
+//                    displayType = com.xabber.data_base.models.messages.MessageDisplayType.Text,
+//                    canEditMessage = item.outgoing,
+//                    canDeleteMessage = item.outgoing,
+//                    urlAvatar = null,
+//                    isGroup = item.conversationType_ == "https://xabber.com/protocol/groups",
+//                    kind = null,
+//                    isSelected = false,
+//                    references = item.references.map { it.toMessageReferenceDto() } as ArrayList<MessageReferenceDto>,
+//                    isUnread = !item.isRead,
+//                    isChecked = false,
+//                    archivedId = item.archivedId
+//                ).also {
+//                    Log.d("observeMessages", "Emitted message: primary=${it.primary}, sentTimestamp=${it.sentTimestamp}, body=${it.messageBody.take(50)}, isUnread=${it.isUnread}")
+//                }
+//            }
+//            trySend(messages).isSuccess // Emit the mapped list
+//        }
+//
+//        results.asFlow().collect { change ->
+//            listener(change)
+//        }
+//
+//        // Ensure Realm is closed when the Flow is cancelled
+//        awaitClose {
+//            realm.close()
+//            Log.d("observeMessages", "Realm closed for owner=$owner, opponent=$opponent")
+//        }
+//    }
+//}
 fun observeMessages(
     owner: String,
     opponent: String,
     conversationType: ConversationType
-): Flow<List<MessageDto>> {
+): Flow<ResultsChange<MessageStorageItem>> {
     return callbackFlow {
         val realm = Realm.open(defaultRealmConfig())
         val query = realm.query<MessageStorageItem>(
@@ -483,42 +542,10 @@ fun observeMessages(
         ).sort("date", io.realm.kotlin.query.Sort.ASCENDING)
         val results = query.find()
 
-        // Listen for changes and emit them
-        val listener: (ResultsChange<MessageStorageItem>) -> Unit = { change ->
-            val messages = change.list.mapNotNull { item ->
-                MessageDto(
-                    primary = item.primary,
-                    isOutgoing = item.outgoing,
-                    owner = item.owner,
-                    opponentJid = item.opponent,
-                    messageBody = item.body,
-                    messageSendingState = when {
-                        item.isRead -> MessageSendingState.Read
-                        item.outgoing -> MessageSendingState.Deliver
-                        else -> MessageSendingState.Sent
-                    },
-                    sentTimestamp = item.sentDate,
-                    editTimestamp = item.editDate,
-                    displayType = com.xabber.data_base.models.messages.MessageDisplayType.Text,
-                    canEditMessage = item.outgoing,
-                    canDeleteMessage = item.outgoing,
-                    urlAvatar = null,
-                    isGroup = item.conversationType_ == "https://xabber.com/protocol/groups",
-                    kind = null,
-                    isSelected = false,
-                    references = item.references.map { it.toMessageReferenceDto() } as ArrayList<MessageReferenceDto>,
-                    isUnread = !item.isRead,
-                    isChecked = false,
-                    archivedId = item.archivedId
-                ).also {
-                    Log.d("observeMessages", "Emitted message: primary=${it.primary}, sentTimestamp=${it.sentTimestamp}, body=${it.messageBody.take(50)}, isUnread=${it.isUnread}")
-                }
-            }
-            trySend(messages).isSuccess // Emit the mapped list
-        }
-
+        // Emit changes directly from Realm
         results.asFlow().collect { change ->
-            listener(change)
+            trySend(change).isSuccess
+            Log.d("observeMessages", "Emitted ResultsChange: ${change::class.simpleName}, size=${if (change is UpdatedResults) change.list.size else 0}, owner=$owner, opponent=$opponent")
         }
 
         // Ensure Realm is closed when the Flow is cancelled

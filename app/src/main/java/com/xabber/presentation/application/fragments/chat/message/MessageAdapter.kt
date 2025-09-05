@@ -56,14 +56,37 @@ class MessageAdapter(
 
     fun updateAdapter(messageDtoList: List<MessageDto>) {
         Log.v(TAG, "Updating adapter with ${messageDtoList.size} messages")
-        val newList = messageDtoList.distinctBy { it.primary }.sortedBy { it.sentTimestamp } // Restored to sortedBy
-        if (newList == messages) {
-            Log.d(TAG, "No changes in message list, skipping update")
-            return
-        }
+        val newList = messageDtoList.distinctBy { it.primary }.sortedBy { it.sentTimestamp }
+        val oldList = messages.toList()
         messages.clear()
         messages.addAll(newList)
-        submitList(messages.toList()) { notifyUnreadState() }
+        val diffResult = DiffUtil.calculateDiff(object : DiffUtil.Callback() {
+            override fun getOldListSize() = oldList.size
+            override fun getNewListSize() = newList.size
+            override fun areItemsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
+                return oldList[oldItemPosition].primary == newList[newItemPosition].primary
+            }
+            override fun areContentsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
+                // Be more permissive to ensure updates for state changes
+                val oldItem = oldList[oldItemPosition]
+                val newItem = newList[newItemPosition]
+                val isSame = oldItem.messageBody == newItem.messageBody &&
+                        oldItem.sentTimestamp == newItem.sentTimestamp &&
+                        oldItem.isOutgoing == newItem.isOutgoing &&
+                        oldItem.isUnread == newItem.isUnread &&
+                        oldItem.messageSendingState == newItem.messageSendingState &&
+                        oldItem.isSelected == newItem.isSelected &&
+                        oldItem.isChecked == newItem.isChecked &&
+                        oldItem.references == newItem.references &&
+                        oldItem.archivedId == newItem.archivedId
+                if (!isSame) {
+                    Log.d(TAG, "Content changed for primary=${oldItem.primary}: oldBody=${oldItem.messageBody.take(50)}, newBody=${newItem.messageBody.take(50)}, oldUnread=${oldItem.isUnread}, newUnread=${newItem.isUnread}")
+                }
+                return isSame
+            }
+        })
+        diffResult.dispatchUpdatesTo(this)
+        notifyUnreadState()
         Log.d(TAG, "Adapter updated with ${messages.size} messages, first=${messages.firstOrNull()?.primary}, last=${messages.lastOrNull()?.primary}")
     }
 

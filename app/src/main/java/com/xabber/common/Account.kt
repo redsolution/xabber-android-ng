@@ -8,6 +8,7 @@ import androidx.annotation.RequiresApi
 import com.xabber.data_base.defaultRealmConfig
 import com.xabber.data_base.models.account.AccountStorageItem
 import com.xabber.data_base.models.last_chats.LastChatsStorageItem
+import com.xabber.data_base.models.messages.MessageDisplayType
 import com.xabber.data_base.models.messages.MessageSendingState
 import com.xabber.data_base.models.presences.ResourceStorageItem
 import com.xabber.utils.custom.NickGenerator
@@ -21,6 +22,7 @@ import com.xabber.xmpp.messages.messages_manager.ChatMarkersManager
 import com.xabber.xmpp.messages.messages_manager.MessageCommonReceiver
 import com.xabber.data_base.models.messages.MessageStorageItem
 import com.xabber.data_base.models.sync.ConversationType
+import com.xabber.dto.MessageDto
 import com.xabber.xmpp.jid.XMPPJID
 import com.xabber.xmpp.messages.XMPPMessage
 import com.xabber.xmpp.messages.message.TemporaryMessageStanzaStorageItem
@@ -709,7 +711,6 @@ class Account : XMPPStreamDelegate {
         return true
     }
 
-    @RequiresApi(Build.VERSION_CODES.O)
     override suspend fun didReceiveMessage(message: String, stream: Stream): Boolean {
         Log.d(TAG, "Received message stanza: $message")
         try {
@@ -722,21 +723,20 @@ class Account : XMPPStreamDelegate {
             var innerBody: String? = null
             var innerType: String? = null
             var innerLang: String? = null
+            var inForwarded = false
+            val innerRaw = StringBuilder()
 
             val factory = XmlPullParserFactory.newInstance()
             factory.isNamespaceAware = true
             val parser = factory.newPullParser()
             parser.setInput(StringReader(message))
             var eventType = parser.eventType
-            var inForwarded = false
-            var innerRaw = StringBuilder()
 
             while (eventType != XmlPullParser.END_DOCUMENT) {
                 when (eventType) {
                     XmlPullParser.START_TAG -> {
                         val tagName = parser.name
                         val namespace = parser.namespace
-                        Log.d(TAG, "Parsing tag: name=$tagName, namespace=$namespace, depth=${parser.depth}")
                         if (tagName == "message" && (namespace == "jabber:client" || namespace.isEmpty())) {
                             if (!inForwarded) {
                                 messageId = parser.getAttributeValue(null, "id") ?: "unknown_${System.currentTimeMillis()}"
@@ -811,22 +811,22 @@ class Account : XMPPStreamDelegate {
             }
 
             val opponent = if (toJid != jid) toJid else fromJid
-//            if (opponent == jid) {
-//                Log.w(TAG, "Skipping self-directed message: id=$messageId, from=$fromJid, to=$toJid, stanza=$message")
-//                return false
-//            }
+            if (opponent == jid) {
+                Log.w(TAG, "Skipping self-directed message: id=$messageId, from=$fromJid, to=$toJid, stanza=$message")
+                return false
+            }
 
             val realm = Realm.open(defaultRealmConfig())
-            val primary = TemporaryMessageStanzaStorageItem.genPrimary(messageId, jid)
-            val existingMessage = realm.query<MessageStorageItem>("primary = $0", "${messageId}_$jid").first().find()
+            val primary = "${messageId}_$jid"
+            val existingMessage = realm.query<MessageStorageItem>("primary = $0", primary).first().find()
             if (existingMessage != null) {
-                Log.d(TAG, "Skipping duplicate message: id=$messageId, primary=${messageId}_$jid")
+                Log.d(TAG, "Skipping duplicate message: id=$messageId, primary=$primary")
                 realm.close()
                 return true
             }
 
             val tempStanza = realm.query<TemporaryMessageStanzaStorageItem>(
-                "primary = $0 AND isProcessed = false", primary
+                "primary = $0 AND isProcessed = false", TemporaryMessageStanzaStorageItem.genPrimary(messageId, jid)
             ).first().find()
 
             if (tempStanza == null && !isChatState) {
@@ -843,8 +843,6 @@ class Account : XMPPStreamDelegate {
                     }
                     copyToRealm(newTempStanza, UpdatePolicy.ALL)
                 }
-            } else if (tempStanza != null) {
-                Log.d(TAG, "Found TemporaryMessageStanzaStorageItem: messageId=$messageId, primary=$primary, owner=${tempStanza.owner}, isProcessed=${tempStanza.isProcessed}")
             }
 
             val timestamp = tempStanza?.date?.takeIf { it > 0 } ?: parseTimestamp(xmppMessage) ?: System.currentTimeMillis()
@@ -880,46 +878,52 @@ class Account : XMPPStreamDelegate {
 
             when (containerType) {
                 "archived" -> {
-                    Log.d(TAG, "Directing archived message to receiveArchived: id=$messageId")
-                    messageReceiver.receiveArchived(xmppMessage)
+                    Log.d(TAG, "Directing archived message to MessageArchiveManager: id=$messageId")
+                    messageArchiveManager.readMessage(message)
                 }
-                "forwarded" -> {
-                    Log.d(TAG, "Directing forwarded message to receiveCarbonForwarded: id=$messageId")
-                    innerMessage?.let {
-                        if (it.id != null && it.body != null && it.from != null && it.to != null && it.to.bare() != jid) {
-                            messageReceiver.receiveCarbonForwarded(it)
-                            Log.d(TAG, "Called receiveCarbonForwarded for messageId=${it.id}, body=${it.body}")
-                        } else {
-                            Log.w(TAG, "Skipping forwarded message with invalid attributes: id=${it.id}, body=${it.body}, from=${it.from?.bare()}, to=${it.to?.bare()}")
+                "forwarded", "last-message", "runtime" -> {
+                    Log.d(TAG, "Directing message to ChatViewModel: id=$messageId, container=$containerType")
+                    val chatId = LastChatsStorageItem.genPrimary(opponent, jid, ConversationType.Regular)
+                    val chatViewModel = AccountManager.getChatViewModel(chatId)
+                    if (chatViewModel != null) {
+                        val messageDto = MessageDto(
+                            primary = primary,
+                            isOutgoing = isOutgoing,
+                            owner = jid,
+                            opponentJid = opponent,
+                            messageBody = body,
+                            messageSendingState = state,
+                            sentTimestamp = timestamp,
+                            editTimestamp = 0,
+                            displayType = MessageDisplayType.Text,
+                            canEditMessage = isOutgoing,
+                            canDeleteMessage = isOutgoing,
+                            urlAvatar = null,
+                            isUnread = !isOutgoing,
+                            isGroup = false,
+                            kind = null,
+                            isSelected = false,
+                            references = arrayListOf(),
+                            isChecked = false,
+                            archivedId = messageId
+                        )
+                        chatViewModel.insertMessagesFromReceiver(listOf(messageDto))
+                        Log.d(TAG, "Notified ChatViewModel for message: id=$messageId, chatId=$chatId, body=$body")
+                    } else {
+                        Log.w(TAG, "No ChatViewModel found for chatId=$chatId, storing in temporary stanza")
+                        realm.write {
+                            val newTempStanza = TemporaryMessageStanzaStorageItem().apply {
+                                this.messageId = messageId
+                                this.primary = TemporaryMessageStanzaStorageItem.genPrimary(messageId, jid)
+                                this.owner = jid
+                                this.jid = opponent
+                                this.isProcessed = false
+                                this.date = timestamp
+                                this.stanza = message
+                            }
+                            copyToRealm(newTempStanza, UpdatePolicy.ALL)
                         }
-                    } ?: Log.w(TAG, "No inner message for forwarded container, skipping: id=$messageId")
-                }
-                "last-message" -> {
-                    Log.d(TAG, "Directing last-message to receiveClientSync: id=$messageId")
-                    innerMessage?.let {
-                        if (it.id != null && it.body != null && it.from != null && it.to != null && it.to.bare() != jid) {
-                            messageReceiver.receiveClientSync(
-                                message = it,
-                                isRead = isOutgoing,
-                                state = state,
-                                date = date
-                            )
-                            Log.d(TAG, "Called receiveClientSync for messageId=${it.id}, body=${it.body}")
-                        } else {
-                            Log.w(TAG, "Skipping last-message with invalid attributes: id=${it.id}, body=${it.body}, from=${it.from?.bare()}, to=${it.to?.bare()}")
-                        }
-                    } ?: Log.w(TAG, "No inner message for last-message container, skipping: id=$messageId")
-                }
-                else -> {
-                    Log.d(TAG, "Directing runtime message to receiveRuntime: id=$messageId")
-                    innerMessage?.let {
-                        if (it.id != null && it.body != null && it.from != null && it.to != null && it.to.bare() != jid) {
-                            messageReceiver.receiveRuntime(it)
-                            Log.d(TAG, "Called receiveRuntime for messageId=$messageId, body=${it.body}")
-                        } else {
-                            Log.w(TAG, "Skipping runtime message with invalid attributes: id=$messageId, body=${it.body}, from=${it.from?.bare()}, to=${it.to?.bare()}")
-                        }
-                    } ?: Log.w(TAG, "No inner message for runtime container, skipping: id=$messageId")
+                    }
                 }
             }
 
@@ -942,7 +946,7 @@ class Account : XMPPStreamDelegate {
             return false
         }
     }
-
+    
     private fun parseTimestamp(message: XMPPMessage): Long? {
         val timeElement = message.element("time", namespace = "https://xabber.com/protocol/delivery")
         val stamp = timeElement?.getAttribute("stamp")

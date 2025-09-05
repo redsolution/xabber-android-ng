@@ -215,6 +215,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         super.onViewCreated(view, savedInstanceState)
         val params = getParams()
         val chat = viewModel.loadChat(params.id)
+        messageArchiveManager?.temporaryMessageReceiver = viewModel
         Log.d("ChatFragment", "Initializing with ChatParams: id=${params.id}, opponentJid=${chat?.opponentJid ?: "unknown"}")
         if (chat == null) {
             Log.w("ChatFragment", "Chat not found for id=${params.id}, closing")
@@ -757,24 +758,6 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     }
 
     private fun subscribeToChatData(chat: ChatListDto) {
-        // Check isInitialArchiveLoaded and isSynced initially
-        var isInitialArchiveLoaded = false
-        var isSynced = false
-        realm.query<LastChatsStorageItem>("primary = $0", getParams().id).first().find()?.let { item ->
-            isInitialArchiveLoaded = item.isInitialArchiveLoaded
-            isSynced = item.isSynced
-        }
-        Log.d("ChatFragment", "Initial state: isInitialArchiveLoaded=$isInitialArchiveLoaded, isSynced=$isSynced, chatId=${getParams().id}")
-
-        // Show ProgressBar initially if archive is not loaded
-        if (!isInitialArchiveLoaded) {
-            binding.progressBar.isVisible = true
-            Log.d("ChatFragment", "Showing ProgressBar initially: isInitialArchiveLoaded=$isInitialArchiveLoaded, chatId=${getParams().id}")
-        } else {
-            binding.progressBar.isVisible = false
-            Log.d("ChatFragment", "Hiding ProgressBar initially: isInitialArchiveLoaded=$isInitialArchiveLoaded, chatId=${getParams().id}")
-        }
-
         viewModel.chat.observe(viewLifecycleOwner) {
             if (it == null) navigator().closeDetail()
         }
@@ -790,50 +773,23 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         }
 
         viewModel.messages.observe(viewLifecycleOwner) { messages ->
-            Log.d("ChatFragment", "Messages LiveData updated: ${messages.size} messages, first=${messages.firstOrNull()?.primary}, last=${messages.lastOrNull()?.primary}, lastBody=${messages.lastOrNull()?.messageBody}, chatId=${getParams().id}")
+            Log.d("ChatFragment", "Messages LiveData updated: ${messages.size} messages")
             messages.forEach { msg ->
-                Log.d("ChatFragment", "Message: primary=${msg.primary}, archivedId=${msg.archivedId}, body=${msg.messageBody.take(50)}, isOutgoing=${msg.isOutgoing}, sentTimestamp=${msg.sentTimestamp}")
-            }
-            val firstVisiblePosition = layoutManager?.findFirstVisibleItemPosition() ?: 0
-            val firstVisibleItemId = if (firstVisiblePosition >= 0 && firstVisiblePosition < messageAdapter!!.itemCount) {
-                messageAdapter?.getMessageItem(firstVisiblePosition)?.primary
-            } else null
-            if (firstVisiblePosition <= 5) {
-                val newOlderMessages = messages.filter { m -> !messageAdapter!!.messages.any { it.primary == m.primary } }
-                if (newOlderMessages.isNotEmpty()) {
-                    messageAdapter?.insertOlderMessages(newOlderMessages)
-                    if (firstVisibleItemId != null) {
-                        val newPosition = messageAdapter!!.messages.indexOfFirst { it.primary == firstVisibleItemId }
-                        if (newPosition >= 0) {
-                            layoutManager?.scrollToPosition(newPosition)
-                            Log.d("ChatFragment", "Inserted ${newOlderMessages.size} older messages, maintaining scroll position at $newPosition")
-                        } else {
-                            layoutManager?.scrollToPosition(newOlderMessages.size)
-                            Log.d("ChatFragment", "Inserted ${newOlderMessages.size} older messages, fallback scroll position at ${newOlderMessages.size}")
-                        }
-                    } else {
-                        layoutManager?.scrollToPosition(newOlderMessages.size)
-                        Log.d("ChatFragment", "Inserted ${newOlderMessages.size} older messages, scroll position at ${newOlderMessages.size}")
-                    }
-                } else {
-                    messageAdapter?.updateAdapter(messages)
-                    Log.d("ChatFragment", "No new older messages, updated adapter with ${messages.size} messages")
+                Log.d("ChatFragment", "Message in LiveData: primary=${msg.primary}, archivedId=${msg.archivedId}, body=${msg.messageBody.take(50)}, isOutgoing=${msg.isOutgoing}, sentTimestamp=${msg.sentTimestamp}")
+                if (msg.archivedId == "388774f9-3793-4a94-9c11-47ec82345440") {
+                    Log.d("ChatFragment", "Found target message in LiveData: primary=${msg.primary}, body=${msg.messageBody}, timestamp=${msg.sentTimestamp}")
                 }
-            } else {
-                messageAdapter?.updateAdapter(messages)
-                Log.d("ChatFragment", "Updated adapter with ${messages.size} messages")
             }
+            messageAdapter?.updateAdapter(messages)
             if (layoutManager != null && messageAdapter != null && messages.isNotEmpty()) {
-                val lastMessage = messages.maxByOrNull { it.sentTimestamp }
-                if (lastMessage != null) {
-                    val lastVisiblePosition = layoutManager!!.findLastVisibleItemPosition()
-                    if (isNeedScrollDown || lastVisiblePosition >= messageAdapter!!.itemCount - 2 || lastMessage.isOutgoing) {
-                        scrollDown()
-                        isNeedScrollDown = false
-                        Log.d("ChatFragment", "Scrolled to last message: primary=${lastMessage.primary}, body=${lastMessage.messageBody.take(50)}")
-                    } else {
-                        Log.d("ChatFragment", "Not scrolling: lastVisiblePosition=$lastVisiblePosition, itemCount=${messageAdapter!!.itemCount}, isOutgoing=${lastMessage.isOutgoing}")
-                    }
+                val lastVisiblePosition = layoutManager!!.findLastVisibleItemPosition()
+                val lastMessage = messages.last()
+                if (isNeedScrollDown || lastVisiblePosition >= messageAdapter!!.itemCount - 2 || !lastMessage.isOutgoing) {
+                    scrollDown()
+                    isNeedScrollDown = false
+                    Log.d("ChatFragment", "Scrolled to bottom for new message: primary=${lastMessage.primary}, isOutgoing=${lastMessage.isOutgoing}")
+                } else {
+                    Log.d("ChatFragment", "Not scrolling: lastVisiblePosition=$lastVisiblePosition, itemCount=${messageAdapter!!.itemCount}, lastMessageIsOutgoing=${lastMessage.isOutgoing}")
                 }
             }
         }
@@ -844,6 +800,12 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
             }
             Log.d("ChatFragment", "Unread count updated: $unread")
             lifecycleScope.launch(Dispatchers.Main) {
+                realm.writeBlocking {
+                    val chat = query(LastChatsStorageItem::class, "primary = '${getParams().id}'").first().find()
+                    if (chat != null) {
+                        findLatest(chat)?.unread = unread
+                    }
+                }
                 showUnreadBadge(unread)
                 if (unread > 0 && layoutManager != null && messageAdapter != null) {
                     binding.downScroller.isVisible = true
@@ -861,28 +823,6 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
                 binding.interaction.linReply.isVisible = it == 1
             } else {
                 enableSelectionMode(false)
-            }
-        }
-
-        viewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
-            if (!isAdded || !lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
-                Log.d("ChatFragment", "Skipping isLoading update: isLoading=$isLoading, lifecycleState=${lifecycle.currentState}, isViewAttached=$isAdded")
-                return@observe
-            }
-            // Show ProgressBar only if archive is not fully loaded
-            if (!isInitialArchiveLoaded) {
-                binding.progressBar.isVisible = isLoading
-                Log.d("ChatFragment", "ProgressBar visibility updated: isLoading=$isLoading, isInitialArchiveLoaded=$isInitialArchiveLoaded, isSynced=$isSynced, lifecycleState=${lifecycle.currentState}, isViewAttached=$isAdded, chatId=${getParams().id}")
-                if (!isLoading) {
-                    binding.progressBar.invalidate()
-                    binding.messageList.post {
-                        binding.progressBar.isVisible = false
-                        Log.d("ChatFragment", "Forced ProgressBar hide via post, chatId=${getParams().id}")
-                    }
-                }
-            } else {
-                binding.progressBar.isVisible = false
-                Log.d("ChatFragment", "ProgressBar hidden due to isInitialArchiveLoaded=true, chatId=${getParams().id}")
             }
         }
     }
