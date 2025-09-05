@@ -19,6 +19,8 @@
     import com.xabber.xmpp.messages.XMPPMessage
     import com.xabber.xmpp.messages.XMLElement
     import com.xabber.xmpp.messages.message.TemporaryMessageStanzaStorageItem
+    import com.xabber.xmpp.messages.message_archive.MessageArchiveManager.TemporaryMessageReceiver
+    import com.xabber.xmpp.messages.messages_manager.MessageCommonReceiver
     import io.realm.kotlin.Realm
     import io.realm.kotlin.UpdatePolicy
     import io.realm.kotlin.ext.query
@@ -78,6 +80,8 @@
         private var isConnecting = false
         private val streamBuffer = StringBuilder()
         private val bufferMutex = Mutex()
+        var temporaryMessageReceiver: TemporaryMessageReceiver? = null
+
         val messageCallbackChannel = Channel<String>(Channel.UNLIMITED)
         val messageQueue = Channel<MessageQueueItem>(Channel.UNLIMITED)
         private val queueMutex = Mutex()
@@ -348,7 +352,7 @@
                         return
                     }
                     val msgPrimary = MessageStorageItem.genPrimary(messageId, jid)
-                    val existingMsg = realm.query<MessageStorageItem>("primary = $0", msgPrimary).first().find()
+                    val existingMsg = realm.query<MessageStorageItem>("primary = $0 OR (archivedId = $1 AND archivedId != '')", msgPrimary, messageId).first().find()
                     if (existingMsg != null) {
                         Log.d(TAG, "Skipping duplicate MAM message in MessageStorageItem: id=$messageId, primary=$msgPrimary, body=${existingMsg.body.take(50)}")
                         realm.write {
@@ -367,7 +371,6 @@
                 // Reset parser for full processing
                 parser.setInput(StringReader(stanza))
                 eventType = parser.eventType
-
                 var from: String? = null
                 var to: String? = null
                 var type: String? = null
@@ -381,7 +384,7 @@
                 var innerType: String? = null
                 var innerLang: String? = null
                 var inForwarded = false
-                var inResult = false
+                var isMAM = false
                 val innerRaw = StringBuilder()
                 val elements = mutableListOf<XMLElement>()
 
@@ -406,7 +409,7 @@
                                 continue
                             }
                             if (tagName == "result" && namespace == "urn:xmpp:mam:2") {
-                                inResult = true
+                                isMAM = true
                                 queryId = attributes["queryid"]
                                 elements.add(XMLElement(tagName, namespace, "", attributes))
                             } else if (tagName == "forwarded" && namespace == "urn:xmpp:forward:0") {
@@ -468,71 +471,6 @@
                                 inForwarded = false
                             } else if (inForwarded && tagName == "message" && (parser.namespace == "jabber:client" || parser.namespace.isEmpty())) {
                                 innerRaw.append("</message>")
-                            } else if (tagName == "result" && parser.namespace == "urn:xmpp:mam:2") {
-                                inResult = false
-                                val finalMessageId = innerMessageId ?: messageId ?: "unknown_${System.currentTimeMillis()}"
-                                val fromJid = innerFrom ?: from ?: jid
-                                val toJid = innerTo ?: to
-                                if (fromJid == null || toJid == null) {
-                                    Log.w(TAG, "Skipping MAM message with missing from/to: id=$finalMessageId, from=$fromJid, to=$toJid")
-                                    return
-                                }
-                                val opponent = if (toJid != jid) toJid else fromJid
-                                val messageRaw = innerRaw.toString()
-                                val xmppMessage = XMPPMessage(
-                                    raw = messageRaw,
-                                    type = innerType ?: type,
-                                    id = finalMessageId,
-                                    from = fromJid.let { XMPPJID(fullJID = it) },
-                                    to = toJid.let { XMPPJID(fullJID = it) },
-                                    lang = innerLang ?: lang,
-                                    body = innerBody ?: body,
-                                    children = elements.filter { it.namespace != "urn:xmpp:mam:2" && it.namespace != "urn:xmpp:forward:0" }
-                                )
-
-                                val timestamp = parseTimestamp(xmppMessage, TAG) ?: run {
-                                    if (!isChatState) {
-                                        Log.w(TAG, "Using fallback timestamp for non-chat-state MAM messageId=$finalMessageId")
-                                        System.currentTimeMillis()
-                                    } else {
-                                        Log.d(TAG, "No timestamp required for chat state MAM messageId=$finalMessageId")
-                                        null
-                                    }
-                                }
-
-                                if (timestamp == null && isChatState) {
-                                    Log.d(TAG, "Skipping storage for chat state MAM message with no timestamp: id=$finalMessageId")
-                                    return
-                                }
-
-                                val realm = Realm.open(defaultRealmConfig())
-                                val primary = TemporaryMessageStanzaStorageItem.genPrimary(finalMessageId, jid)
-                                realm.write {
-                                    val tempStanza = TemporaryMessageStanzaStorageItem().apply {
-                                        this.primary = primary
-                                        owner = jid
-                                        jid = opponent
-                                        this.messageId = finalMessageId
-                                        date = timestamp ?: System.currentTimeMillis()
-                                        this.stanza = messageRaw
-                                        isProcessed = false
-                                    }
-                                    copyToRealm(tempStanza, UpdatePolicy.ALL)
-                                    Log.d(TAG, "Stored TemporaryMessageStanzaStorageItem for MAM: messageId=$finalMessageId, primary=$primary, opponent=$opponent, date=$timestamp, queryId=$queryId, thread=${Thread.currentThread().id}")
-                                }
-                                realm.close()
-
-                                val queueItem = MessageQueueItem(
-                                    stanza = messageRaw,
-                                    message = xmppMessage,
-                                    isCarbon = false,
-                                    isArchived = true,
-                                    isClientSync = false,
-                                    timestamp = timestamp ?: System.currentTimeMillis(),
-                                    queryId = queryId
-                                )
-                                messageQueue.send(queueItem)
-                                Log.d(TAG, "Enqueued MAM message: id=$finalMessageId, queryId=$queryId, opponent=$opponent, thread=${Thread.currentThread().id}")
                             }
                         }
                         XmlPullParser.TEXT -> {
@@ -543,12 +481,199 @@
                     }
                     eventType = parser.next()
                 }
-            } catch (e: XmlPullParserException) {
+
+                messageId = innerMessageId ?: messageId ?: "unknown_${System.currentTimeMillis()}"
+                Log.d(TAG, "Received message stanza: id=$messageId, isChatState=$isChatState, from=$from, to=$to, innerFrom=$innerFrom, innerTo=$innerTo, body=$body, innerBody=$innerBody, isMAM=$isMAM")
+
+                if (isChatState && (innerBody.isNullOrEmpty() && body.isNullOrEmpty())) {
+                    Log.d(TAG, "Skipping storage for chat state or marker message: id=$messageId")
+                    if (delegate != null) {
+                        withContext(Dispatchers.IO) {
+                            Log.d(TAG, "Dispatching chat state to delegate: id=$messageId")
+                            delegate?.didReceiveMessage(stanza, this@Stream)
+                        }
+                    }
+                    return
+                }
+
+                val fromJid = innerFrom ?: from
+                val toJid = innerTo ?: to
+                if (fromJid == null || toJid == null) {
+                    Log.w(TAG, "Skipping message with missing from/to: id=$messageId, from=$fromJid, to=$toJid, stanza=$stanza")
+                    return
+                }
+
+                // Correct opponent calculation: use bare JIDs and check isOutgoing
+                val isOutgoing = fromJid.split("/")[0] == jid
+                var opponent = if (isOutgoing) toJid.split("/")[0] else fromJid.split("/")[0]
+                val realm = Realm.open(defaultRealmConfig())
+                var primary = ProcessedMessageId.genPrimary(messageId, jid)
+
+                if (isMAM) {
+                    val msgPrimary = MessageStorageItem.genPrimary(messageId, jid)
+                    val existingMsg = realm.query<MessageStorageItem>("primary = $0 OR (archivedId = $1 AND archivedId != '')", msgPrimary, messageId).first().find()
+                    if (existingMsg != null) {
+                        Log.d(TAG, "Skipping duplicate MAM message in MessageStorageItem: id=$messageId, primary=$msgPrimary, body=${existingMsg.body.take(50)}")
+                        realm.write {
+                            copyToRealm(ProcessedMessageId().apply {
+                                this.messageId = messageId
+                                this.owner = jid
+                                this.timestamp = System.currentTimeMillis()
+                            }, UpdatePolicy.ALL)
+                        }
+                        realm.close()
+                        return
+                    }
+                } else {
+                    val existing = realm.query<ProcessedMessageId>("messageId = $0 AND owner = $1", messageId, jid).first().find()
+                    if (existing != null) {
+                        Log.d(TAG, "Skipping duplicate non-MAM message: id=$messageId, primary=$primary, body=$body")
+                        realm.close()
+                        return
+                    }
+                }
+
+                val messageRaw = if (isMAM) innerRaw.toString() else stanza
+                val xmppMessage = XMPPMessage(
+                    raw = messageRaw,
+                    type = innerType ?: type,
+                    id = messageId,
+                    from = (innerFrom ?: from)?.let { XMPPJID(fullJID = it) },
+                    to = (innerTo ?: to)?.let { XMPPJID(fullJID = it) },
+                    lang = innerLang ?: lang,
+                    body = innerBody ?: body,
+                    children = elements.filter { it.namespace != "urn:xmpp:mam:tmp" && it.namespace != "urn:xmpp:forward:0" }
+                )
+
+                val timestamp = parseTimestamp(xmppMessage, TAG) ?: run {
+                    if (!isChatState) {
+                        Log.w(TAG, "Using fallback timestamp for non-chat-state messageId=$messageId")
+                        System.currentTimeMillis()
+                    } else {
+                        Log.d(TAG, "No timestamp required for chat state messageId=$messageId")
+                        null
+                    }
+                }
+
+                if (timestamp == null && isChatState) {
+                    Log.d(TAG, "Skipping storage for chat state message with no timestamp: id=$messageId")
+                    realm.close()
+                    return
+                }
+
+                // Determine conversation type
+                val conversationType = MessageCommonReceiver(this.jid).conversationTypeByMessage(xmppMessage)
+                val chatPrimary = LastChatsStorageItem.genPrimary(opponent, jid, conversationType)
+
+                // Fix primary key for TemporaryMessageStanzaStorageItem
+                val tempStanzaPrimary = "${messageId}_$jid"
+                realm.write {
+                    val tempStanza = TemporaryMessageStanzaStorageItem().apply {
+                        this.primary = tempStanzaPrimary
+                        owner = jid
+                        jid = opponent
+                        this.messageId = messageId
+                        date = timestamp ?: System.currentTimeMillis()
+                        this.stanza = stanza
+                        isProcessed = false
+                    }
+                    copyToRealm(tempStanza, UpdatePolicy.ALL)
+                    Log.d(TAG, "Stored TemporaryMessageStanzaStorageItem: messageId=$messageId, primary=$tempStanzaPrimary, opponent=$opponent, date=$timestamp, body=${xmppMessage.body?.take(50)}")
+                }
+
+                val storedStanza = realm.query<TemporaryMessageStanzaStorageItem>("primary = $0", tempStanzaPrimary).first().find()
+                if (storedStanza != null) {
+                    Log.d(TAG, "Verified storage: messageId=$messageId, primary=$tempStanzaPrimary, owner=${storedStanza.owner}, isProcessed=${storedStanza.isProcessed}, body=${xmppMessage.body?.take(50)}")
+                } else {
+                    Log.e(TAG, "Failed to verify storage for messageId=$messageId, primary=$tempStanzaPrimary")
+                }
+                realm.close()
+
+                // Create MessageDto for ChatViewModel
+                val messageDto = MessageDto(
+                    primary = MessageStorageItem.genPrimary(messageId, jid),
+                    isOutgoing = isOutgoing,
+                    owner = jid,
+                    opponentJid = opponent,
+                    messageBody = xmppMessage.body ?: "",
+                    messageSendingState = if (isOutgoing) MessageSendingState.Deliver else MessageSendingState.Sent,
+                    sentTimestamp = timestamp ?: System.currentTimeMillis(),
+                    editTimestamp = 0,
+                    displayType = MessageDisplayType.Text,
+                    canEditMessage = isOutgoing,
+                    canDeleteMessage = isOutgoing,
+                    urlAvatar = null,
+                    isGroup = conversationType == ConversationType.Group,
+                    kind = null,
+                    isSelected = false,
+                    references = ArrayList<MessageReferenceDto>(), // Use ArrayList instead of emptyList
+                    isUnread = !isOutgoing,
+                    isChecked = false,
+                    archivedId = messageId
+                )
+
+                // Notify MessageArchiveManager's temporaryMessageReceiver
+                val instance = MessageStorageItem().apply {
+                    primary = messageDto.primary
+                    owner = jid
+                    opponent = opponent
+                    body = messageDto.messageBody
+                    date = messageDto.sentTimestamp
+                    sentDate = messageDto.sentTimestamp
+                    editDate = messageDto.editTimestamp
+                    outgoing = isOutgoing
+                    isRead = !messageDto.isUnread
+                    conversationType_ = conversationType.rawValue
+                    archivedId = messageId
+                    queryIds = queryId
+                }
+                temporaryMessageReceiver?.didReceiveMessage(instance, queryId ?: "")
+
+                // Notify ChatViewModel
+                val chatViewModel = AccountManager.getChatViewModel(chatPrimary)
+                if (chatViewModel != null) {
+                    chatViewModel.insertMessagesFromReceiver(listOf(messageDto))
+                    Log.d(TAG, "Notified ChatViewModel for chatId=$chatPrimary with message $messageId, body=${xmppMessage.body?.take(50)}")
+                } else {
+                    Log.w(TAG, "ChatViewModel not found for chatId=$chatPrimary, messageId=$messageId")
+                    // Create ChatViewModel if it doesn't exist
+                    AccountManager.createChatViewModel(jid, opponent, conversationType)
+                    val newChatViewModel = AccountManager.getChatViewModel(chatPrimary)
+                    newChatViewModel?.insertMessagesFromReceiver(listOf(messageDto))
+                    Log.d(TAG, "Created and notified new ChatViewModel for chatId=$chatPrimary with message $messageId")
+                }
+
+                if (delegate != null) {
+                    withContext(Dispatchers.IO) {
+                        Log.d(TAG, "Dispatching message to delegate: id=$messageId")
+                        delegate?.didReceiveMessage(stanza, this@Stream)
+                    }
+                } else {
+                    Log.e(TAG, "Delegate is null, cannot dispatch message: id=$messageId, stanza=$stanza")
+                }
+
+                val isCarbon = xmppMessage.element("sent", namespace = "urn:xmpp:carbons:2") != null ||
+                        xmppMessage.element("received", namespace = "urn:xmpp:carbons:2") != null
+                val isArchived = isMAM
+                val isClientSync = xmppMessage.element("synchronization", namespace = "https://xabber.com/protocol/synchronization") != null
+                val queueItem = MessageQueueItem(
+                    stanza = stanza,
+                    message = xmppMessage,
+                    isCarbon = isCarbon,
+                    isArchived = isArchived,
+                    isClientSync = isClientSync,
+                    timestamp = timestamp ?: System.currentTimeMillis(),
+                    queryId = queryId
+                )
+                if (queueItem.message.id != null && queueItem.message.from != null && queueItem.message.to != null) {
+                    messageQueue.send(queueItem)
+                    Log.d(TAG, "Enqueued message: id=$messageId, isCarbon=$isCarbon, isArchived=$isArchived, isClientSync=$isClientSync, body=${xmppMessage.body?.take(50)}, thread=${Thread.currentThread().id}")
+                } else {
+                    Log.w(TAG, "Skipping enqueue for invalid message: id=$messageId, from=${xmppMessage.from?.bare()}, to=${xmppMessage.to?.bare()}, stanza=$stanza")
+                }
+            } catch (e: Exception) {
                 Log.e(TAG, "Error processing MAM stanza: ${e.message}, stanza=$stanza", e)
                 onErrorCallback?.invoke("Error processing MAM stanza: ${e.message}")
-            } catch (e: Exception) {
-                Log.e(TAG, "Unexpected error processing MAM stanza: ${e.message}, stanza=$stanza", e)
-                onErrorCallback?.invoke("Unexpected error processing MAM stanza: ${e.message}")
             }
         }
 

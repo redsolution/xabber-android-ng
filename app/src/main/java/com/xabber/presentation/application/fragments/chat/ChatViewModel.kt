@@ -426,11 +426,24 @@ class ChatViewModel(
                 realm.writeBlocking {
                     messages.forEach { messageDto ->
                         val existing = query<MessageStorageItem>(
-                            "primary = $0 OR (archivedId = $1 AND archivedId != '')",
-                            messageDto.primary, messageDto.archivedId
+                            "primary = $0 OR (archivedId = $1 AND archivedId != '' AND conversationType_ = $2)",
+                            messageDto.primary, messageDto.archivedId, conversationType.rawValue
                         ).first().find()
                         if (existing != null) {
-                            Log.d(TAG, "Skipping duplicate message from receiver: primary=${messageDto.primary}, archivedId=${messageDto.archivedId}, body=${messageDto.messageBody.take(50)}")
+                            // Обновляем существующее сообщение, если изменились ключевые поля
+                            if (existing.body != messageDto.messageBody ||
+                                existing.isRead != !messageDto.isUnread ||
+                                existing.sentDate != messageDto.sentTimestamp) {
+                                findLatest(existing)?.apply {
+                                    body = messageDto.messageBody
+                                    isRead = !messageDto.isUnread
+                                    sentDate = messageDto.sentTimestamp
+                                    editDate = messageDto.editTimestamp
+                                    Log.d(TAG, "Updated existing message: primary=${existing.primary}, archivedId=${existing.archivedId}, body=${messageDto.messageBody.take(50)}")
+                                }
+                            } else {
+                                Log.d(TAG, "Skipping duplicate message from receiver: primary=${messageDto.primary}, archivedId=${messageDto.archivedId}, body=${messageDto.messageBody.take(50)}")
+                            }
                             return@forEach
                         }
                         val rreferences = realmListOf<MessageReferenceStorageItem>()
@@ -463,16 +476,15 @@ class ChatViewModel(
                             conversationType_ = if (messageDto.isGroup) "https://xabber.com/protocol/groups" else "urn:xabber:chat"
                             archivedId = messageDto.archivedId
                         })
-                        Log.d(TAG, "Inserted message from receiver: primary=${message.primary}, archivedId=${message.archivedId}, body=${message.body.take(50)}, isOutgoing=${message.outgoing}, timestamp=${message.sentDate}")
                         val chatPrimary = LastChatsStorageItem.genPrimary(bareOpponentJid, messageDto.owner, ConversationType.fromRaw(message.conversationType_))
                         val chat = query<LastChatsStorageItem>("primary = $0", chatPrimary).first().find()
                         if (chat != null) {
                             findLatest(chat)?.apply {
                                 lastMessage = message
                                 messageDate = message.sentDate
-                                if (!message.outgoing && muteExpired <= 0) {
+                                if (!messageDto.isOutgoing && muteExpired <= 0) {
                                     isArchived = false
-                                    unread = (unread ?: 0) + 1
+                                    unread = (unread ?: 0) + if (messageDto.isUnread) 1 else 0
                                 }
                             }
                         } else {
@@ -485,16 +497,19 @@ class ChatViewModel(
                                 isSynced = true
                                 isInitialArchiveLoaded = true
                                 lastMessage = message
-                                if (!message.outgoing && muteExpired <= 0) {
+                                if (!messageDto.isOutgoing && muteExpired <= 0) {
                                     isArchived = false
-                                    unread = 1
+                                    unread = if (messageDto.isUnread) 1 else 0
                                 }
                             })
                         }
+                        Log.d(TAG, "Inserted message from receiver: primary=${message.primary}, archivedId=${message.archivedId}, body=${message.body.take(50)}, isOutgoing=${message.outgoing}, timestamp=${message.sentDate}")
                     }
                 }
                 messageListMutex.withLock {
-                    val newMessages = messages.filter { m -> !messageList.any { it.primary == m.primary || (it.archivedId == m.archivedId && m.archivedId.isNotEmpty()) } }
+                    val newMessages = messages.filter { m ->
+                        !messageList.any { it.primary == m.primary || (it.archivedId == m.archivedId && m.archivedId.isNotEmpty()) }
+                    }
                     if (newMessages.isNotEmpty()) {
                         Log.d(TAG, "Adding ${newMessages.size} new messages to messageList")
                         messageList.addAll(newMessages)

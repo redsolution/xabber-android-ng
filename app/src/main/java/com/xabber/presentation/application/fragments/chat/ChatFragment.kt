@@ -531,10 +531,11 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         if (unreadCount > 0 && messageAdapter != null && messageAdapter!!.itemCount > 0) {
             val position = messageAdapter!!.messages.indexOfFirst { it.isUnread }
             if (position >= 0) {
-                Log.d("ChatFragment", "Scrolling to first unread message at position $position")
+                Log.d("ChatFragment", "Scrolling to first unread message at position $position, primary=${messageAdapter!!.messages[position].primary}, archivedId=${messageAdapter!!.messages[position].archivedId}")
                 layoutManager?.scrollToPositionWithOffset(position, 200)
                 binding.tvNewReceivedCount.text = unreadCount.toString()
                 binding.tvNewReceivedCount.isVisible = true
+                messageAdapter?.setFirstUnreadMessageId(messageAdapter!!.messages[position].primary)
             }
         }
     }
@@ -784,12 +785,12 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
             if (layoutManager != null && messageAdapter != null && messages.isNotEmpty()) {
                 val lastVisiblePosition = layoutManager!!.findLastVisibleItemPosition()
                 val lastMessage = messages.last()
-                if (isNeedScrollDown || lastVisiblePosition >= messageAdapter!!.itemCount - 2 || !lastMessage.isOutgoing) {
+                if (isNeedScrollDown || lastVisiblePosition >= messageAdapter!!.itemCount - 2 || lastMessage.isOutgoing) {
                     scrollDown()
                     isNeedScrollDown = false
-                    Log.d("ChatFragment", "Scrolled to bottom for new message: primary=${lastMessage.primary}, isOutgoing=${lastMessage.isOutgoing}")
+                    Log.d("ChatFragment", "Scrolled to bottom for new message: primary=${lastMessage.primary}, isOutgoing=${lastMessage.isOutgoing}, archivedId=${lastMessage.archivedId}")
                 } else {
-                    Log.d("ChatFragment", "Not scrolling: lastVisiblePosition=$lastVisiblePosition, itemCount=${messageAdapter!!.itemCount}, lastMessageIsOutgoing=${lastMessage.isOutgoing}")
+                    Log.d("ChatFragment", "Not scrolling: lastVisiblePosition=$lastVisiblePosition, itemCount=${messageAdapter!!.itemCount}, lastMessageIsOutgoing=${lastMessage.isOutgoing}, archivedId=${lastMessage.archivedId}")
                 }
             }
         }

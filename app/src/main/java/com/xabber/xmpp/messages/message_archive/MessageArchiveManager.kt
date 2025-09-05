@@ -6,13 +6,19 @@ import androidx.annotation.RequiresApi
 import com.xabber.common.Stream
 import com.xabber.data_base.defaultRealmConfig
 import com.xabber.common.AccountManager
+import com.xabber.common.ProcessedMessageId
 import com.xabber.data_base.models.account.AccountStorageItem
 import com.xabber.data_base.models.last_chats.LastChatsStorageItem
+import com.xabber.data_base.models.messages.MessageDisplayType
+import com.xabber.data_base.models.messages.MessageSendingState
 import com.xabber.data_base.models.messages.MessageStorageItem
 import com.xabber.data_base.models.roster.RosterStorageItem
 import com.xabber.data_base.models.sync.ConversationType
+import com.xabber.dto.MessageDto
+import com.xabber.dto.MessageReferenceDto
 import com.xabber.utils.parseTimestamp
 import com.xabber.utils.prp
+import com.xabber.utils.toMessageReferenceDto
 import com.xabber.xmpp.jid.XMPPJID
 import com.xabber.xmpp.messages.XMPPMessage
 import com.xabber.xmpp.messages.XMLElement
@@ -425,6 +431,7 @@ class MessageArchiveManager(private val owner: String) {
         )
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     suspend fun searchText(
         stream: Stream,
         jid: String? = null,
@@ -458,6 +465,7 @@ class MessageArchiveManager(private val owner: String) {
         queryId
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     suspend fun getLastMessage(
         stream: Stream,
         jid: String,
@@ -638,12 +646,35 @@ class MessageArchiveManager(private val owner: String) {
             val messageElement = document.documentElement
             val resultElement = messageElement.getElementsByTagNameNS(namespace, "result").item(0) as? Element
             val queryId = resultElement?.getAttribute("queryid") ?: return@withContext false
+            val messageId = resultElement?.getAttribute("id") ?: return@withContext false
 
             queryIdsMutex.withLock {
                 if (!queryIds.contains(queryId)) {
                     Log.w(TAG, "Unknown MAM query ID $queryId - skipping. Registered queryIds=$queryIds")
                     return@withContext false
                 }
+            }
+
+            // Check for duplicates using MessageStorageItem
+            val msgPrimary = MessageStorageItem.genPrimary(messageId, owner)
+            val existingMsg = realm.query<MessageStorageItem>(
+                "primary = $0 OR (archivedId = $1 AND archivedId != '')",
+                msgPrimary, messageId
+            ).first().find()
+            if (existingMsg != null) {
+                Log.d(TAG, "Skipping duplicate MAM message: messageId=$messageId, primary=$msgPrimary, body=${existingMsg.body.take(50)}")
+                return@withContext true
+            }
+
+            // Check for duplicates using ProcessedMessageId
+            val processedPrimary = ProcessedMessageId.genPrimary(messageId, owner)
+            val existingProcessed = realm.query<ProcessedMessageId>(
+                "messageId = $0 AND owner = $1",
+                messageId, owner
+            ).first().find()
+            if (existingProcessed != null) {
+                Log.d(TAG, "Skipping duplicate MAM message in ProcessedMessageId: messageId=$messageId, primary=$processedPrimary")
+                return@withContext true
             }
 
             val forwardedElement = resultElement.getElementsByTagNameNS("urn:xmpp:forward:0", "forwarded").item(0) as? Element
@@ -658,17 +689,17 @@ class MessageArchiveManager(private val owner: String) {
 
             val from = xmppMessage.from?.bare() ?: return@withContext true
             val to = xmppMessage.to?.bare() ?: return@withContext true
-            // For regular chats, ensure correct outgoing determination
+            // Correct opponent calculation
             val isGroupChat = xmppMessage.element("x", namespace = "https://xabber.com/protocol/groups") != null
-            val originalOutgoing = if (isGroupChat) {
+            val isOutgoing = if (isGroupChat) {
                 val userId = xmppMessage.element("x", namespace = "https://xabber.com/protocol/groups")
                     ?.element("reference", namespace = "https://xabber.com/protocol/groups")
                     ?.element("user", namespace = "https://xabber.com/protocol/groups")?.getAttribute("id")
                 userId == owner
             } else {
-                from == owner // For regular chats, message is outgoing if 'from' matches owner
+                from == owner
             }
-            val opponent = if (originalOutgoing) to else from
+            val opponent = if (isOutgoing) to else from
             val delayedDate = getDelayedDate(xmppMessage) ?: Date()
             val isEncrypted = xmppMessage.hasElement("encrypted", namespace = "urn:xmpp:omemo:2")
             val omemoError = if (isEncrypted) {
@@ -685,7 +716,7 @@ class MessageArchiveManager(private val owner: String) {
 
             val instance = MessageStorageItem()
             val conversationType = instance.conversationTypeByMessage(xmppMessage)
-            var isRead = originalOutgoing
+            var isRead = isOutgoing
             val readDate: Date? = null // Placeholder: Implement readDate logic if needed
             if (readDate != null && delayedDate.time < readDate.time) {
                 isRead = true
@@ -703,7 +734,7 @@ class MessageArchiveManager(private val owner: String) {
                     message = xmppMessage,
                     owner = owner,
                     opponent = opponent,
-                    outgoing = originalOutgoing,
+                    outgoing = isOutgoing,
                     isRead = isRead,
                     date = delayedDate,
                     isEncrypted = isEncrypted
@@ -729,12 +760,17 @@ class MessageArchiveManager(private val owner: String) {
                 }
             }
             instance.queryIds = instance.queryIds?.let { "$it,$queryId" } ?: queryId
+            instance.archivedId = messageId
 
+            // Compute chatPrimary
+            val chatPrimary = LastChatsStorageItem.genPrimary(opponent, owner, conversationType)
+
+            // Store MessageStorageItem and update LastChatsStorageItem
             realm.write {
                 copyToRealm(instance, UpdatePolicy.ALL)
-                Log.d(TAG, "Processed message: queryId=$queryId, messageId=${instance.messageId}, primary=${instance.primary}, opponent=$opponent, body=${instance.body.take(50)}, isOutgoing=$originalOutgoing")
+                Log.d(TAG, "Processed message: queryId=$queryId, messageId=${instance.messageId}, primary=${instance.primary}, opponent=$opponent, body=${instance.body.take(50)}, isOutgoing=$isOutgoing")
+
                 // Update LastChatsStorageItem
-                val chatPrimary = LastChatsStorageItem.genPrimary(opponent, owner, conversationType)
                 val chat = query<LastChatsStorageItem>("primary = $0", chatPrimary).first().find()
                 if (chat != null) {
                     findLatest(chat)?.apply {
@@ -742,16 +778,80 @@ class MessageArchiveManager(private val owner: String) {
                             this.messageDate = instance.sentDate
                             this.lastMessageId = instance.messageId
                             this.lastMessage = instance
-                            this.unread = if (instance.isRead) this.unread else this.unread + 1
-                            Log.d(TAG, "Updated LastChatsStorageItem for chatId=$chatPrimary, messageId=${instance.messageId}, timestamp=${instance.sentDate}, isOutgoing=${instance.outgoing}")
+                            this.unread = if (instance.isRead) this.unread else (this.unread ?: 0) + 1
+                            Log.d(TAG, "Updated LastChatsStorageItem for chatId=$chatPrimary, messageId=${instance.messageId}, timestamp=${instance.sentDate}, isOutgoing=$isOutgoing")
                         }
                     }
+                } else {
+                    copyToRealm(LastChatsStorageItem().apply {
+                        primary = chatPrimary
+                        owner = this@MessageArchiveManager.owner
+                        jid = opponent
+                        conversationType_ = conversationType.rawValue
+                        messageDate = instance.sentDate
+                        lastMessageId = instance.messageId
+                        lastMessage = instance
+                        unread = if (instance.isRead) 0 else 1
+                        isSynced = true
+                        isInitialArchiveLoaded = true
+                        Log.d(TAG, "Created LastChatsStorageItem for chatId=$chatPrimary, messageId=${instance.messageId}")
+                    })
                 }
             }
+
+            // Create MessageDto for ChatViewModel
+            val messageDto = MessageDto(
+                primary = instance.primary,
+                isOutgoing = isOutgoing,
+                owner = owner,
+                opponentJid = opponent,
+                messageBody = instance.body,
+                messageSendingState = if (isRead) MessageSendingState.Read else if (isOutgoing) MessageSendingState.Deliver else MessageSendingState.Sent,
+                sentTimestamp = instance.sentDate,
+                editTimestamp = instance.editDate,
+                displayType = if (isSystemMessage(xmppMessage)) MessageDisplayType.System else MessageDisplayType.Text,
+                canEditMessage = isOutgoing,
+                canDeleteMessage = isOutgoing,
+                urlAvatar = null,
+                isGroup = conversationType == ConversationType.Group,
+                kind = null,
+                isSelected = false,
+                references = ArrayList(instance.references.map { it.toMessageReferenceDto() }), // Use ArrayList
+                isUnread = !isRead,
+                isChecked = false,
+                archivedId = messageId
+            )
+
+            // Notify temporaryMessageReceiver
             temporaryMessageReceiver?.didReceiveMessage(instance, queryId)
+
+            // Notify ChatViewModel
+            val chatViewModel = AccountManager.getChatViewModel(chatPrimary)
+            if (chatViewModel != null) {
+                chatViewModel.insertMessagesFromReceiver(listOf(messageDto))
+                Log.d(TAG, "Notified ChatViewModel for chatId=$chatPrimary with message $messageId, body=${instance.body.take(50)}")
+            } else {
+                Log.w(TAG, "ChatViewModel not found for chatId=$chatPrimary, messageId=$messageId")
+                // Create ChatViewModel if it doesn't exist
+                AccountManager.createChatViewModel(owner, opponent, conversationType)
+                val newChatViewModel = AccountManager.getChatViewModel(chatPrimary)
+                newChatViewModel?.insertMessagesFromReceiver(listOf(messageDto))
+                Log.d(TAG, "Created and notified new ChatViewModel for chatId=$chatPrimary with message $messageId")
+            }
+
+            // Mark message as processed
+            realm.write {
+                copyToRealm(ProcessedMessageId().apply {
+                    this.messageId = messageId
+                    this.owner = this@MessageArchiveManager.owner
+                    this.timestamp = System.currentTimeMillis()
+                }, UpdatePolicy.ALL)
+                Log.d(TAG, "Marked message as processed: messageId=$messageId, primary=$processedPrimary")
+            }
+
             true
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to parse message: ${e.message}", e)
+            Log.e(TAG, "Failed to parse message: ${e.message}, message=$message", e)
             false
         } finally {
             realm.close()

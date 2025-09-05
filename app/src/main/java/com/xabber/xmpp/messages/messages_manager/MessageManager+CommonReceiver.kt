@@ -410,10 +410,27 @@ class MessageCommonReceiver(private val owner: String) {
                 Log.d(TAG, "Processing target message in processQueue: messageId=$messageId, body=${item.message.body?.take(100)}")
             }
             var primary = MessageStorageItem.genPrimary(messageId, owner)
-            val existing = realm.query<MessageStorageItem>("archivedId = $0 AND archivedId != ''", messageId).first().find()
+            val existing = realm.query<MessageStorageItem>(
+                "primary = $0 OR (archivedId = $1 AND archivedId != '' AND conversationType_ = $2)",
+                primary, messageId, conversationTypeByMessage(item.message).rawValue
+            ).first().find()
             if (existing != null) {
-                Log.d(TAG, "Skipping duplicate message in processQueue: messageId=$messageId, primary=$primary, sentDate=${existing.sentDate}, body=${existing.body.take(100)}")
-                return@forEach
+                // Обновляем существующее сообщение, если изменились ключевые поля
+                if (existing.body != item.message.body ||
+                    existing.isRead != item.isRead ||
+                    existing.sentDate != item.date.time) {
+                    realm.writeBlocking {
+                        findLatest(existing)?.apply {
+                            body = item.message.body ?: ""
+                            isRead = item.isRead
+                            sentDate = item.date.time
+                            Log.d(TAG, "Updated existing message: primary=$primary, archivedId=$messageId, body=${item.message.body?.take(50)}")
+                        }
+                    }
+                } else {
+                    Log.d(TAG, "Skipping duplicate message in processQueue: messageId=$messageId, primary=$primary, sentDate=${existing.sentDate}, body=${existing.body.take(100)}")
+                    return@forEach
+                }
             }
 
             val from = item.message.from?.bare() ?: item.archivedFrom ?: item.originalFrom

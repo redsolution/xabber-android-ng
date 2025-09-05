@@ -56,7 +56,7 @@ class MessageAdapter(
 
     fun updateAdapter(messageDtoList: List<MessageDto>) {
         Log.v(TAG, "Updating adapter with ${messageDtoList.size} messages")
-        val newList = messageDtoList.distinctBy { it.primary }.sortedBy { it.sentTimestamp }
+        val newList = messageDtoList.distinctBy { it.primary to it.archivedId }.sortedBy { it.sentTimestamp }
         val oldList = messages.toList()
         messages.clear()
         messages.addAll(newList)
@@ -64,30 +64,31 @@ class MessageAdapter(
             override fun getOldListSize() = oldList.size
             override fun getNewListSize() = newList.size
             override fun areItemsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
-                return oldList[oldItemPosition].primary == newList[newItemPosition].primary
+                return oldList[oldItemPosition].primary == newList[newItemPosition].primary ||
+                        (oldList[oldItemPosition].archivedId == newList[newItemPosition].archivedId &&
+                                newList[newItemPosition].archivedId.isNotEmpty())
             }
             override fun areContentsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
-                // Be more permissive to ensure updates for state changes
                 val oldItem = oldList[oldItemPosition]
                 val newItem = newList[newItemPosition]
                 val isSame = oldItem.messageBody == newItem.messageBody &&
                         oldItem.sentTimestamp == newItem.sentTimestamp &&
                         oldItem.isOutgoing == newItem.isOutgoing &&
-                        oldItem.isUnread == newItem.isUnread &&
-                        oldItem.messageSendingState == newItem.messageSendingState &&
-                        oldItem.isSelected == newItem.isSelected &&
-                        oldItem.isChecked == newItem.isChecked &&
                         oldItem.references == newItem.references &&
                         oldItem.archivedId == newItem.archivedId
                 if (!isSame) {
-                    Log.d(TAG, "Content changed for primary=${oldItem.primary}: oldBody=${oldItem.messageBody.take(50)}, newBody=${newItem.messageBody.take(50)}, oldUnread=${oldItem.isUnread}, newUnread=${newItem.isUnread}")
+                    Log.d(TAG, "Content changed for primary=${oldItem.primary}, archivedId=${oldItem.archivedId}: oldBody=${oldItem.messageBody.take(50)}, newBody=${newItem.messageBody.take(50)}")
                 }
                 return isSame
             }
         })
         diffResult.dispatchUpdatesTo(this)
+        // Явно уведомляем о новых элементах
+        if (newList.size > oldList.size) {
+            notifyItemRangeInserted(oldList.size, newList.size - oldList.size)
+        }
         notifyUnreadState()
-        Log.d(TAG, "Adapter updated with ${messages.size} messages, first=${messages.firstOrNull()?.primary}, last=${messages.lastOrNull()?.primary}")
+        Log.d(TAG, "Adapter updated with ${messages.size} messages, first=${messages.firstOrNull()?.primary}, last=${messages.lastOrNull()?.primary}, archivedId=${messages.lastOrNull()?.archivedId}")
     }
 
     fun insertOlderMessages(newMessages: List<MessageDto>) {
@@ -214,18 +215,18 @@ class MessageAdapter(
 
     private object DiffUtilCallback : DiffUtil.ItemCallback<MessageDto>() {
         override fun areItemsTheSame(oldItem: MessageDto, newItem: MessageDto): Boolean {
-            return oldItem.primary == newItem.primary
+            return oldItem.primary == newItem.primary || (oldItem.archivedId == newItem.archivedId && newItem.archivedId.isNotEmpty())
         }
 
         override fun areContentsTheSame(oldItem: MessageDto, newItem: MessageDto): Boolean {
-            return oldItem == newItem &&
-                    oldItem.isSelected == newItem.isSelected &&
-                    oldItem.isChecked == newItem.isChecked &&
-                    oldItem.isUnread == newItem.isUnread &&
-                    oldItem.messageSendingState == newItem.messageSendingState
+            return oldItem.messageBody == newItem.messageBody &&
+                    oldItem.sentTimestamp == newItem.sentTimestamp &&
+                    oldItem.isOutgoing == newItem.isOutgoing &&
+                    oldItem.references == newItem.references &&
+                    oldItem.archivedId == newItem.archivedId
+            // Убрали isUnread, isSelected, isChecked и messageSendingState, чтобы позволить обновления
         }
     }
-
     companion object {
         const val INCOMING_MESSAGE = 1
         const val OUTGOING_MESSAGE = 2
