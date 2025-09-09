@@ -57,52 +57,26 @@ class MessageAdapter(
     fun updateAdapter(messageDtoList: List<MessageDto>) {
         Log.v(TAG, "Updating adapter with ${messageDtoList.size} messages")
         val newList = messageDtoList.distinctBy { it.primary to it.archivedId }.sortedBy { it.sentTimestamp }
-        val oldList = messages.toList()
-        messages.clear()
-        messages.addAll(newList)
-        val diffResult = DiffUtil.calculateDiff(object : DiffUtil.Callback() {
-            override fun getOldListSize() = oldList.size
-            override fun getNewListSize() = newList.size
-            override fun areItemsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
-                return oldList[oldItemPosition].primary == newList[newItemPosition].primary ||
-                        (oldList[oldItemPosition].archivedId == newList[newItemPosition].archivedId &&
-                                newList[newItemPosition].archivedId.isNotEmpty())
-            }
-            override fun areContentsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
-                val oldItem = oldList[oldItemPosition]
-                val newItem = newList[newItemPosition]
-                val isSame = oldItem.messageBody == newItem.messageBody &&
-                        oldItem.sentTimestamp == newItem.sentTimestamp &&
-                        oldItem.isOutgoing == newItem.isOutgoing &&
-                        oldItem.references == newItem.references &&
-                        oldItem.archivedId == newItem.archivedId
-                if (!isSame) {
-                    Log.d(TAG, "Content changed for primary=${oldItem.primary}, archivedId=${oldItem.archivedId}: oldBody=${oldItem.messageBody.take(50)}, newBody=${newItem.messageBody.take(50)}")
-                }
-                return isSame
-            }
-        })
-        diffResult.dispatchUpdatesTo(this)
-        // Явно уведомляем о новых элементах
-        if (newList.size > oldList.size) {
-            notifyItemRangeInserted(oldList.size, newList.size - oldList.size)
+        submitList(newList) {
+            notifyUnreadState()
+            Log.d(TAG, "Adapter updated with ${messages.size} messages, first=${messages.firstOrNull()?.primary}, last=${messages.lastOrNull()?.primary}, archivedId=${messages.lastOrNull()?.archivedId}")
         }
-        notifyUnreadState()
-        Log.d(TAG, "Adapter updated with ${messages.size} messages, first=${messages.firstOrNull()?.primary}, last=${messages.lastOrNull()?.primary}, archivedId=${messages.lastOrNull()?.archivedId}")
     }
 
     fun insertOlderMessages(newMessages: List<MessageDto>) {
         Log.v(TAG, "Inserting ${newMessages.size} older messages")
-        val filteredMessages = newMessages.filter { m -> !messages.any { it.primary == m.primary } }
+        val filteredMessages = newMessages.filter { m -> !messages.any { it.primary == m.primary || (it.archivedId == m.archivedId && m.archivedId.isNotEmpty()) } }
         if (filteredMessages.isEmpty()) {
             Log.d(TAG, "No new messages to insert")
             return
         }
         val oldSize = messages.size
-        messages.addAll(0, filteredMessages) // Prepend older messages
-        messages.sortBy { it.sentTimestamp } // Restored to sortBy
-        submitList(messages.toList()) { notifyUnreadState() }
-        Log.d(TAG, "Inserted ${filteredMessages.size} older messages, new list size: ${messages.size}, first=${messages.firstOrNull()?.primary}, last=${messages.lastOrNull()?.primary}")
+        messages.addAll(0, filteredMessages)
+        messages.sortBy { it.sentTimestamp }
+        submitList(messages.toList()) {
+            notifyUnreadState()
+            Log.d(TAG, "Inserted ${filteredMessages.size} older messages, new list size: ${messages.size}, first=${messages.firstOrNull()?.primary}, last=${messages.lastOrNull()?.primary}")
+        }
     }
 
     override fun getItemViewType(position: Int): Int {
@@ -113,6 +87,7 @@ class MessageAdapter(
             else -> INCOMING_MESSAGE
         }
     }
+
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): MessageViewHolder {
         return when (viewType) {

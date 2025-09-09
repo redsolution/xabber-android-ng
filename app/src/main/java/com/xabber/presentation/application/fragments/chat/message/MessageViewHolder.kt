@@ -63,13 +63,11 @@ abstract class MessageViewHolder(
         tvMessageText = itemView.findViewById(R.id.message_text)
         statusIcon = itemView.findViewById(R.id.message_status_icon)
         tvTime = itemView.findViewById(R.id.message_time)
-        // Ensure recyclability is reset
         setIsRecyclable(true)
     }
 
     open fun bind(message: MessageDto, vhExtraData: MessageVhExtraData) {
-        // Reset recyclability state
-        setIsRecyclable(true)
+        setIsRecyclable(true) // Reset recyclability at the start of binding
         messageContainer?.removeAllViews()
         balloon?.removeAllViews()
 
@@ -93,18 +91,19 @@ abstract class MessageViewHolder(
 
         if (message.displayType != MessageDisplayType.System) {
             if (message.references.size > 0) {
-                if (message.references[0].isGeo) addGeoLocationBox(
-                    message,
-                    message.references[0].latitude,
-                    message.references[0].longitude
-                )
-                else if (message.references[0].isVoiceMessage) addVoiceMessageBox(
-                    message.references[0].uri!!, message
-                )
-                else {
+                if (message.references[0].isGeo) {
+                    setIsRecyclable(false) // Prevent recycling for geo messages
+                    addGeoLocationBox(message, message.references[0].latitude, message.references[0].longitude)
+                } else if (message.references[0].isVoiceMessage) {
+                    setIsRecyclable(false) // Prevent recycling for voice messages
+                    addVoiceMessageBox(message.references[0].uri!!, message)
+                } else {
+                    setIsRecyclable(true) // Ensure recyclability for other types
                     if (images.isNotEmpty()) addImageAndVideoBox(message, images)
                     if (otherFiles.isNotEmpty()) addFilesBox(message, otherFiles)
                 }
+            } else {
+                setIsRecyclable(true) // Ensure recyclability for text messages
             }
             if (message.messageBody.isNotEmpty()) addTextBox(message)
 

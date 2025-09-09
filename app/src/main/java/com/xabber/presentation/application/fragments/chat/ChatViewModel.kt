@@ -39,6 +39,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.Date
+import java.util.UUID
 
 @RequiresApi(Build.VERSION_CODES.O)
 class ChatViewModel(
@@ -64,6 +65,8 @@ class ChatViewModel(
     val unreadCount: LiveData<Int> = _unreadCount
     val _isLoading = MutableLiveData<Boolean>()
     val isLoading: LiveData<Boolean> = _isLoading
+    private val _isLocked = MutableLiveData<Boolean>() // New LiveData for screen lock
+    val isLocked: LiveData<Boolean> = _isLocked
     private var isLoadingHistory = false
     private val _muteExpired = MutableLiveData<Long>()
     val muteExpired: LiveData<Long> = _muteExpired
@@ -92,14 +95,36 @@ class ChatViewModel(
     private var isInitialDataLoaded = false
     private var messageArchiveManager: MessageArchiveManager? = null
 
+    private var pageLoadingCompleted = false // New flag
+    private val loadingMutex = Mutex()
+    private var loadingTimeoutJob: Job? = null
+    private val activeQueries = mutableSetOf<String>() // Tracks active MAM query IDs
+
     init {
-        messageArchiveManager = MessageArchiveManager(owner)
-        messageArchiveManager?.temporaryMessageReceiver = this // Register as receiver
+        messageArchiveManager = MessageArchiveManager(owner).apply {
+            temporaryMessageReceiver = this@ChatViewModel
+        }
         initChatDataListener(chatId)
         initMessagesListener(owner, opponent)
         markAllMessageUnread(chatId)
         viewModelScope.launch(Dispatchers.IO) {
+            delay(500L)
             loadInitialData()
+            // Start a timeout job to clear stale queries
+            loadingTimeoutJob = launch {
+                delay(15000L) // 15 seconds timeout
+                loadingMutex.withLock {
+                    if (activeQueries.isNotEmpty()) {
+                        Log.w(TAG, "Clearing stale activeQueries=$activeQueries due to timeout")
+                        activeQueries.clear()
+                        withContext(Dispatchers.Main) {
+                            _isLoading.value = false
+                            _isLocked.value = false
+                            Log.d(TAG, "Hiding ProgressBar and unlocking screen due to timeout: chatId=$chatId")
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -120,14 +145,39 @@ class ChatViewModel(
         }
     }
 
+
     override fun didReceiveEndPage(queryId: String, complete: Boolean, first: String, last: String, count: Int) {
         Log.d(TAG, "Received MAM end page: queryId=$queryId, complete=$complete, first=$first, last=$last, count=$count")
         viewModelScope.launch(Dispatchers.IO) {
+            loadingMutex.withLock {
+                activeQueries.remove(queryId)
+                pageLoadingCompleted = complete || count == 0
+                if (activeQueries.isEmpty()) {
+                    isLoadingHistory = false
+                    withContext(Dispatchers.Main) {
+                        _isLoading.value = false
+                        _isLocked.value = false
+                        Log.d(TAG, "Hiding ProgressBar and unlocking screen: queryId=$queryId, activeQueries=$activeQueries, chatId=$chatId")
+                    }
+                } else {
+                    Log.d(TAG, "Keeping ProgressBar visible and screen locked: queryId=$queryId, remaining activeQueries=$activeQueries")
+                }
+            }
             updateMessages()
-            if (!isLoadingHistory) {
+        }
+    }
+
+
+    override fun didStartPageLoad(queryId: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            loadingMutex.withLock {
+                activeQueries.add(queryId)
+                isLoadingHistory = true
+                pageLoadingCompleted = false
                 withContext(Dispatchers.Main) {
-                    _isLoading.value = false
-                    Log.d(TAG, "Hiding ProgressBar after MAM end page for queryId=$queryId, chatId=$chatId")
+                    _isLoading.value = true
+                    _isLocked.value = true
+                    Log.d(TAG, "Showing ProgressBar and locking screen for queryId=$queryId, activeQueries=$activeQueries, chatId=$chatId")
                 }
             }
         }
@@ -150,7 +200,6 @@ class ChatViewModel(
             emptyList()
         }
     }
-
     private fun mapMessageStorageItemToDto(item: MessageStorageItem): MessageDto? = try {
         MessageDto(
             primary = item.primary,
@@ -165,12 +214,14 @@ class ChatViewModel(
             },
             sentTimestamp = item.sentDate,
             editTimestamp = item.editDate,
-            displayType = MessageDisplayType.Text,
+            displayType = when (item.displayAs) {
+                "system" -> MessageDisplayType.System
+                else -> MessageDisplayType.Text
+            },
             canEditMessage = item.outgoing,
             canDeleteMessage = item.outgoing,
             urlAvatar = null,
-            isUnread = !item.isRead,
-            isGroup = item.conversationType_ == "https://xabber.com/protocol/groups",
+            isGroup = item.conversationType == ConversationType.Group,
             kind = null,
             isSelected = selectedItems.contains(item.primary),
             references = item.references.mapNotNull { ref ->
@@ -181,6 +232,7 @@ class ChatViewModel(
                     null
                 }
             } as ArrayList<MessageReferenceDto>,
+            isUnread = !item.isRead && item.sentDate >= System.currentTimeMillis(), // Only mark as unread if timestamp is recent
             isChecked = selectedItems.contains(item.primary),
             archivedId = item.archivedId
         ).also {
@@ -193,8 +245,7 @@ class ChatViewModel(
 
     suspend fun mapAllMessages(): List<MessageDto> = withContext(Dispatchers.IO) {
         val realmList = realm.query<MessageStorageItem>(
-            "owner = $0 AND opponent = $1 AND conversationType_ = $2 AND isDeleted = false",
-            owner, opponent, conversationType.rawValue
+            "owner = '$owner' AND opponent = '$opponent' AND isDeleted = false AND conversationType_ = '${conversationType.rawValue}'"
         ).sort("date", Sort.ASCENDING).find()
 
         val messageDtos = realmList.mapNotNull { item ->
@@ -206,29 +257,15 @@ class ChatViewModel(
     }
 
     suspend fun loadInitialData() {
-        if (isInitialDataLoaded) {
-            Log.d(TAG, "Initial data already loaded, skipping, chatId=$chatId")
-            withContext(Dispatchers.Main) {
-                _isLoading.value = false
-            }
-            return
-        }
-        isInitialDataLoaded = true
-        withContext(Dispatchers.Main) {
-            _isLoading.value = true
-            Log.d(TAG, "Showing ProgressBar: starting initial data load, chatId=$chatId")
-        }
         _showSkeletonObserver.postValue(true)
         val initialMessages = loadLastMessage()
         if (initialMessages.isNotEmpty()) {
-            messageListMutex.withLock {
-                messageList.clear()
-                messageList.addAll(initialMessages)
-                withContext(Dispatchers.Main) {
-                    _messages.value = messageList
-                    _unreadCount.value = messageList.count { it.isUnread }
-                    Log.d(TAG, "Displayed initial message: size=${messageList.size}, first=${messageList.firstOrNull()?.primary}, messageId=${messageList.firstOrNull()?.archivedId}, chatId=$chatId")
-                }
+            messageList.clear()
+            messageList.addAll(initialMessages)
+            withContext(Dispatchers.Main) {
+                _messages.value = messageList
+                _unreadCount.value = messageList.count { it.isUnread }
+                Log.d(TAG, "Displayed initial message: size=${messageList.size}, first=${messageList.firstOrNull()?.primary}")
             }
         }
 
@@ -243,7 +280,8 @@ class ChatViewModel(
             updateMessages()
             withContext(Dispatchers.Main) {
                 _isLoading.value = false
-                Log.d(TAG, "Hiding ProgressBar: history already loaded, chatId=$chatId")
+                _isLocked.value = false
+                Log.d(TAG, "Hiding ProgressBar and unlocking screen: history already loaded, chatId=$chatId")
             }
         }
         _showSkeletonObserver.postValue(false)
@@ -251,133 +289,188 @@ class ChatViewModel(
 
     fun loadOlderMessages() {
         viewModelScope.launch(Dispatchers.IO) {
-            if (isLoadingHistory) {
-                Log.d(TAG, "Skipping loadOlderMessages: history loading already in progress, chatId=$chatId")
-                return@launch
+            loadingMutex.withLock {
+                if (isLoadingHistory || pageLoadingCompleted) {
+                    Log.d(TAG, "Skipping loadOlderMessages: historyLoading=$isLoadingHistory, pageLoadingCompleted=$pageLoadingCompleted")
+                    return@launch
+                }
+                isLoadingHistory = true
+                pageLoadingCompleted = false
             }
-            val oldestMessage = messageList.minByOrNull { it.sentTimestamp }
-            val oldestTimestamp = oldestMessage?.sentTimestamp?.let { Date(it) }
-            val account = AccountManager.find(owner)
-            if (account != null && account.stream != null) {
-                val isFullyLoaded = realm.query<LastChatsStorageItem>("primary = $0", chatId)
-                    .first().find()?.fullArchiveLoaded ?: false
-                if (!isFullyLoaded) {
-                    isLoadingHistory = true
-                    withContext(Dispatchers.Main) {
-                        _isLoading.value = true
-                        Log.d(TAG, "Showing ProgressBar for loading older messages, chatId=$chatId")
+            try {
+                val oldestMessage = messageList.minByOrNull { it.sentTimestamp }
+                val oldestTimestamp = oldestMessage?.sentTimestamp?.let { Date(it) }
+                val account = AccountManager.find(owner)
+                if (account != null && account.stream != null) {
+                    val isFullyLoaded = realm.query<LastChatsStorageItem>("primary = $0", chatId)
+                        .first().find()?.fullArchiveLoaded ?: false
+                    if (!isFullyLoaded) {
+                        val queryId = "MAM:${UUID.randomUUID().toString().take(6)}"
+                        activeQueries.add(queryId)
+                        Log.d(TAG, "Starting loadOlderMessages query: queryId=$queryId, activeQueries=$activeQueries")
+                        messageArchiveManager?.getHistoryByDate(
+                            stream = account.stream!!,
+                            jid = opponent,
+                            conversationType = conversationType,
+                            start = null,
+                            end = oldestTimestamp,
+                            reversed = true
+                        )
+                    } else {
+                        Log.d(TAG, "Archive fully loaded for chatId=$chatId, no more messages to load")
+                        pageLoadingCompleted = true
+                        withContext(Dispatchers.Main) {
+                            _isLoading.value = false
+                            _isLocked.value = false
+                            Log.d(TAG, "Hiding ProgressBar and unlocking screen: archive fully loaded, chatId=$chatId")
+                        }
                     }
-                    messageArchiveManager?.getHistoryByDate(
-                        stream = account.stream!!,
+                } else {
+                    Log.e(TAG, "Cannot load older messages: account or stream is null for owner=$owner")
+                    pageLoadingCompleted = true
+                    withContext(Dispatchers.Main) {
+                        _isLoading.value = false
+                        _isLocked.value = false
+                        Log.d(TAG, "Hiding ProgressBar and unlocking screen: account/stream error, chatId=$chatId")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error in loadOlderMessages: ${e.message}", e)
+                withContext(Dispatchers.Main) {
+                    _isLoading.value = false
+                    _isLocked.value = false
+                    Log.d(TAG, "Hiding ProgressBar and unlocking screen due to error in loadOlderMessages, chatId=$chatId")
+                }
+            } finally {
+                loadingMutex.withLock {
+                    isLoadingHistory = false
+                }
+            }
+        }
+    }
+
+    suspend fun getStreamAndSyncHistory(chatId: String) {
+        loadingMutex.withLock {
+            if (isLoadingHistory || pageLoadingCompleted) {
+                Log.d(TAG, "Skipping getStreamAndSyncHistory: historyLoading=$isLoadingHistory, pageLoadingCompleted=$pageLoadingCompleted")
+                return
+            }
+            isLoadingHistory = true
+            pageLoadingCompleted = false
+        }
+        try {
+            val account = AccountManager.find(owner)
+            if (account != null) {
+                val stream = account.stream
+                if (stream != null) {
+                    val queryId = "MAM:${UUID.randomUUID().toString().take(6)}"
+                    activeQueries.add(queryId)
+                    Log.d(TAG, "Starting getStreamAndSyncHistory query: queryId=$queryId, activeQueries=$activeQueries")
+                    messageArchiveManager?.syncChat(
+                        stream = stream,
                         jid = opponent,
                         conversationType = conversationType,
-                        start = null,
-                        end = oldestTimestamp,
-                        reversed = true,
                         callback = {
-                            Log.d(TAG, "Loaded older messages for chatId=$chatId, end=$oldestTimestamp")
                             viewModelScope.launch(Dispatchers.IO) {
                                 updateMessages()
-                                isLoadingHistory = false
-                                withContext(Dispatchers.Main) {
-                                    _isLoading.value = false
-                                    Log.d(TAG, "Hiding ProgressBar after loading older messages, chatId=$chatId")
+                                if (activeQueries.isEmpty()) {
+                                    withContext(Dispatchers.Main) {
+                                        _isLoading.value = false
+                                        _isLocked.value = false
+                                        Log.d(TAG, "Hiding ProgressBar and unlocking screen after syncChat callback: chatId=$chatId, activeQueries=$activeQueries")
+                                    }
                                 }
                             }
                         }
                     )
                 } else {
-                    Log.d(TAG, "Archive fully loaded for chatId=$chatId, no more messages to load")
+                    Log.e(TAG, "Stream is null for account ${account.jid}")
+                    pageLoadingCompleted = true
                     withContext(Dispatchers.Main) {
                         _isLoading.value = false
-                        Log.d(TAG, "Hiding ProgressBar: archive fully loaded, chatId=$chatId")
+                        _isLocked.value = false
+                        Log.d(TAG, "Hiding ProgressBar and unlocking screen: stream null, chatId=$chatId")
                     }
                 }
             } else {
-                Log.e(TAG, "Cannot load older messages: account or stream is null for owner=$owner")
+                Log.e(TAG, "Account not found for JID $owner")
+                pageLoadingCompleted = true
                 withContext(Dispatchers.Main) {
                     _isLoading.value = false
-                    Log.d(TAG, "Hiding ProgressBar: error loading messages, chatId=$chatId")
+                    _isLocked.value = false
+                    Log.d(TAG, "Hiding ProgressBar and unlocking screen: account not found, chatId=$chatId")
                 }
             }
-        }
-    }
-
-    private suspend fun getStreamAndSyncHistory(chatId: String) {
-        val account = AccountManager.find(owner)
-        if (account != null) {
-            val stream = account.stream
-            if (stream != null) {
-                messageArchiveManager?.syncChat(
-                    stream = stream,
-                    jid = opponent,
-                    conversationType = conversationType,
-                    callback = {
-                        Log.d(TAG, "Initiated history sync for chatId=$chatId, jid=$opponent, conversationType=$conversationType")
-                        viewModelScope.launch(Dispatchers.IO) {
-                            updateMessages()
-                            isLoadingHistory = false
-                            withContext(Dispatchers.Main) {
-                                _isLoading.value = false
-                                Log.d(TAG, "Hiding ProgressBar after history sync, chatId=$chatId")
-                            }
-                        }
-                    }
-                )
-            } else {
-                Log.e(TAG, "Stream is null for account ${account.jid}")
-                _isLoading.postValue(false)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in getStreamAndSyncHistory: ${e.message}", e)
+            pageLoadingCompleted = true
+            withContext(Dispatchers.Main) {
+                _isLoading.value = false
+                _isLocked.value = false
+                Log.d(TAG, "Hiding ProgressBar and unlocking screen due to error in getStreamAndSyncHistory: chatId=$chatId")
             }
-        } else {
-            Log.e(TAG, "Account not found for JID $owner")
-            _isLoading.postValue(false)
+        } finally {
+            loadingMutex.withLock {
+                isLoadingHistory = false
+            }
         }
     }
 
     suspend fun updateMessages() {
         val messageDtos = mapAllMessages()
-        messageListMutex.withLock {
-            val currentMessages = messageList.associateBy { it.primary }.toMutableMap()
-            messageDtos.forEach { newMessage ->
-                currentMessages[newMessage.primary] = newMessage
+        val currentMessages = messageList.associateBy { it.primary }.toMutableMap()
+        var newMessagesAdded = false
+        messageDtos.forEach { newMessage ->
+            if (!currentMessages.containsKey(newMessage.primary)) {
+                newMessagesAdded = true
             }
-            messageList.clear()
-            messageList.addAll(currentMessages.values.sortedBy { it.sentTimestamp })
-            val unreadCount = messageList.count { it.isUnread }
-            Log.d(TAG, "Updated messages: ${messageList.size} messages, $unreadCount unread, first=${messageList.firstOrNull()?.primary}, last=${messageList.lastOrNull()?.primary}")
-            withContext(Dispatchers.Main) {
-                _messages.value = messageList
-                _unreadCount.value = unreadCount
-                if (!isLoadingHistory) {
-                    _isLoading.value = false
-                    Log.d(TAG, "Hiding ProgressBar: isLoadingHistory=$isLoadingHistory, messageListSize=${messageList.size}, chatId=$chatId")
-                }
+            currentMessages[newMessage.primary] = newMessage
+            Log.d(TAG, "Merged message: primary=${newMessage.primary}, messageId=${newMessage.archivedId}, body=${newMessage.messageBody.take(50)}")
+        }
+        messageList.clear()
+        messageList.addAll(currentMessages.values.sortedBy { it.sentTimestamp })
+        val unreadCount = messageList.count { it.isUnread }
+        Log.d(TAG, "Updated messages: ${messageList.size} messages, $unreadCount unread")
+        withContext(Dispatchers.Main) {
+            _messages.value = messageList
+            _unreadCount.value = unreadCount
+            val isFullyLoaded = realm.query<LastChatsStorageItem>("primary = $0", chatId)
+                .first().find()?.fullArchiveLoaded ?: false
+            if (!newMessagesAdded || isFullyLoaded || (pageLoadingCompleted && activeQueries.isEmpty())) {
+                _isLoading.value = false
+                _isLocked.value = false
+                loadingTimeoutJob?.cancel()
+                Log.d(TAG, "Hiding ProgressBar and unlocking screen: newMessagesAdded=$newMessagesAdded, isFullyLoaded=$isFullyLoaded, pageLoadingCompleted=$pageLoadingCompleted, activeQueries=$activeQueries, chatId=$chatId")
+            } else {
+                Log.d(TAG, "Keeping ProgressBar visible and screen locked: newMessagesAdded=$newMessagesAdded, isFullyLoaded=$isFullyLoaded, pageLoadingCompleted=$pageLoadingCompleted, activeQueries=$activeQueries, chatId=$chatId")
             }
         }
     }
 
+
     fun initMessagesListener(owner: String, opponentJid: String) {
-        job?.cancel() // Cancel any existing job to avoid duplicates
         job = viewModelScope.launch(Dispatchers.IO) {
             observeMessages(owner, opponentJid, conversationType)
+                .debounce(1000L)
                 .distinctUntilChanged()
-                .collect { changes: ResultsChange<MessageStorageItem> ->
-                    when (changes) {
-                        is UpdatedResults -> {
-                            Log.d(TAG, "Messages Flow collected: ${changes.list.size} messages, chatId=$chatId, opponent=$opponentJid")
-                            changes.list.forEach { msg ->
-                                Log.d(TAG, "Message from Flow: primary=${msg.primary}, archivedId=${msg.archivedId}, body=${msg.body.take(50)}, isOutgoing=${msg.outgoing}, sentTimestamp=${msg.sentDate}")
-                                if (msg.archivedId == "388774f9-3793-4a94-9c11-47ec82345440") {
-                                    Log.d(TAG, "Found target message in Flow: primary=${msg.primary}, body=${msg.body}, timestamp=${msg.sentDate}")
-                                }
-                            }
-                            updateMessageList(changes.list)
-                        }
-                        else -> {}
+                .collect { messages: List<MessageDto> ->
+                    val currentMessages = messageList.associateBy { it.primary }.toMutableMap()
+                    messages.forEach { newMessage: MessageDto ->
+                        currentMessages[newMessage.primary] = newMessage
+                        Log.d(TAG, "Merged message from Flow: primary=${newMessage.primary}, messageId=${newMessage.archivedId}, body=${newMessage.messageBody.take(50)}, sentTimestamp=${newMessage.sentTimestamp}")
+                    }
+                    messageList.clear()
+                    messageList.addAll(currentMessages.values.sortedBy { it.sentTimestamp })
+                    val unreadCount = messageList.count { it.isUnread }
+                    Log.d(TAG, "Collected messages from Flow: ${messageList.size} messages, $unreadCount unread, first=${messageList.firstOrNull()?.primary}, last=${messageList.lastOrNull()?.primary}, lastMessageId=${messageList.lastOrNull()?.archivedId}")
+                    withContext(Dispatchers.Main) {
+                        _messages.value = messageList
+                        _unreadCount.value = unreadCount
                     }
                 }
         }
     }
+
     suspend fun updateMessageList(messages: List<MessageStorageItem>) {
         try {
             val list = ArrayList<MessageDto>()
@@ -403,7 +496,8 @@ class ChatViewModel(
                         _unreadCount.value = count
                         if (!isLoadingHistory) {
                             _isLoading.value = false
-                            Log.d(TAG, "Hiding ProgressBar: isLoadingHistory=$isLoadingHistory")
+                            _isLocked.value = false
+                            Log.d(TAG, "Hiding ProgressBar and unlocking screen: isLoadingHistory=$isLoadingHistory")
                         }
                     }
                 } else {
@@ -414,130 +508,76 @@ class ChatViewModel(
             Log.e(TAG, "Error updating message list: ${e.message}", e)
             withContext(Dispatchers.Main) {
                 _isLoading.value = false
-                Log.d(TAG, "Hiding ProgressBar due to error in updateMessageList, chatId=$chatId")
+                _isLocked.value = false
+                Log.d(TAG, "Hiding ProgressBar and unlocking screen due to error in updateMessageList, chatId=$chatId")
             }
         }
     }
 
     fun insertMessagesFromReceiver(messages: List<MessageDto>) {
-        Log.d(TAG, "insertMessagesFromReceiver called with ${messages.size} messages for chatId=$chatId, opponent=$opponent")
         viewModelScope.launch(Dispatchers.IO) {
-            try {
-                realm.writeBlocking {
-                    messages.forEach { messageDto ->
-                        val existing = query<MessageStorageItem>(
-                            "primary = $0 OR (archivedId = $1 AND archivedId != '' AND conversationType_ = $2)",
-                            messageDto.primary, messageDto.archivedId, conversationType.rawValue
-                        ).first().find()
-                        if (existing != null) {
-                            // Обновляем существующее сообщение, если изменились ключевые поля
-                            if (existing.body != messageDto.messageBody ||
-                                existing.isRead != !messageDto.isUnread ||
-                                existing.sentDate != messageDto.sentTimestamp) {
-                                findLatest(existing)?.apply {
-                                    body = messageDto.messageBody
-                                    isRead = !messageDto.isUnread
-                                    sentDate = messageDto.sentTimestamp
-                                    editDate = messageDto.editTimestamp
-                                    Log.d(TAG, "Updated existing message: primary=${existing.primary}, archivedId=${existing.archivedId}, body=${messageDto.messageBody.take(50)}")
-                                }
-                            } else {
-                                Log.d(TAG, "Skipping duplicate message from receiver: primary=${messageDto.primary}, archivedId=${messageDto.archivedId}, body=${messageDto.messageBody.take(50)}")
-                            }
-                            return@forEach
-                        }
-                        val rreferences = realmListOf<MessageReferenceStorageItem>()
-                        messageDto.references.forEach { ref ->
-                            val refItem = copyToRealm(MessageReferenceStorageItem().apply {
-                                primary = "${ref.id}_${System.currentTimeMillis()}"
-                                uri = ref.uri
-                                mimeType = ref.mimeType
-                                isGeo = ref.isGeo
-                                latitude = ref.latitude
-                                longitude = ref.longitude
-                                isAudioMessage = ref.isVoiceMessage
-                                fileName = ref.fileName
-                                fileSize = ref.size
-                            })
-                            rreferences.add(refItem)
-                        }
-                        val bareOpponentJid = messageDto.opponentJid.removeSuffix("/${messageDto.opponentJid.substringAfterLast("/")}")
-                        val message = copyToRealm(MessageStorageItem().apply {
-                            primary = messageDto.primary
-                            owner = messageDto.owner
-                            opponent = bareOpponentJid
-                            body = messageDto.messageBody
-                            date = messageDto.sentTimestamp
-                            sentDate = messageDto.sentTimestamp
-                            editDate = messageDto.editTimestamp
-                            outgoing = messageDto.isOutgoing
-                            isRead = !messageDto.isUnread
-                            references = rreferences
-                            conversationType_ = if (messageDto.isGroup) "https://xabber.com/protocol/groups" else "urn:xabber:chat"
-                            archivedId = messageDto.archivedId
+            realm.writeBlocking {
+                val insertedMessages = mutableListOf<MessageDto>()
+                messages.forEach { messageDto ->
+                    val existing = query<MessageStorageItem>("primary = $0", messageDto.primary).first().find()
+                    if (existing != null) {
+                        Log.d(TAG, "Skipping duplicate message from receiver: primary=${messageDto.primary}, sentDate=${existing.sentDate}, body=${messageDto.messageBody.take(50)}")
+                        return@forEach
+                    }
+                    val rreferences = realmListOf<MessageReferenceStorageItem>()
+                    for (i in 0 until messageDto.references.size) {
+                        val ref = copyToRealm(MessageReferenceStorageItem().apply {
+                            primary = messageDto.references[i].id + "${System.currentTimeMillis()}"
+                            uri = messageDto.references[i].uri
+                            mimeType = messageDto.references[i].mimeType
+                            isGeo = messageDto.references[i].isGeo
+                            latitude = messageDto.references[i].latitude
+                            longitude = messageDto.references[i].longitude
+                            isAudioMessage = messageDto.references[i].isVoiceMessage
+                            fileName = messageDto.references[i].fileName
+                            fileSize = messageDto.references[i].size
                         })
-                        val chatPrimary = LastChatsStorageItem.genPrimary(bareOpponentJid, messageDto.owner, ConversationType.fromRaw(message.conversationType_))
-                        val chat = query<LastChatsStorageItem>("primary = $0", chatPrimary).first().find()
-                        if (chat != null) {
-                            findLatest(chat)?.apply {
-                                lastMessage = message
-                                messageDate = message.sentDate
-                                if (!messageDto.isOutgoing && muteExpired <= 0) {
-                                    isArchived = false
-                                    unread = (unread ?: 0) + if (messageDto.isUnread) 1 else 0
-                                }
-                            }
-                        } else {
-                            copyToRealm(LastChatsStorageItem().apply {
-                                owner = messageDto.owner
-                                jid = bareOpponentJid
-                                conversationType_ = conversationType.rawValue
-                                messageDate = message.sentDate
-                                primary = chatPrimary
-                                isSynced = true
-                                isInitialArchiveLoaded = true
-                                lastMessage = message
-                                if (!messageDto.isOutgoing && muteExpired <= 0) {
-                                    isArchived = false
-                                    unread = if (messageDto.isUnread) 1 else 0
-                                }
-                            })
-                        }
-                        Log.d(TAG, "Inserted message from receiver: primary=${message.primary}, archivedId=${message.archivedId}, body=${message.body.take(50)}, isOutgoing=${message.outgoing}, timestamp=${message.sentDate}")
+                        rreferences.add(ref)
                     }
+                    val message = copyToRealm(MessageStorageItem().apply {
+                        primary = messageDto.primary
+                        owner = messageDto.owner
+                        opponent = messageDto.opponentJid
+                        body = messageDto.messageBody
+                        date = messageDto.sentTimestamp
+                        sentDate = messageDto.sentTimestamp
+                        editDate = messageDto.editTimestamp
+                        outgoing = messageDto.isOutgoing
+                        isRead = !messageDto.isUnread || (messageDto.archivedId.isNotEmpty() && messageDto.sentTimestamp < System.currentTimeMillis())
+                        references = rreferences
+                        conversationType_ = if (messageDto.isGroup) "https://xabber.com/protocol/groups" else "urn:xabber:chat"
+                        archivedId = messageDto.archivedId
+                    })
+                    insertedMessages.add(messageDto)
+                    Log.d(TAG, "Inserted message from receiver: primary=${message.primary}, sentDate=${message.sentDate}, date=${Date(message.sentDate)}, body=${message.body.take(50)}, isRead=${message.isRead}, opponent=${message.opponent}, archivedId=${message.archivedId}")
                 }
-                messageListMutex.withLock {
-                    val newMessages = messages.filter { m ->
-                        !messageList.any { it.primary == m.primary || (it.archivedId == m.archivedId && m.archivedId.isNotEmpty()) }
-                    }
-                    if (newMessages.isNotEmpty()) {
-                        Log.d(TAG, "Adding ${newMessages.size} new messages to messageList")
-                        messageList.addAll(newMessages)
-                        messageList.sortBy { it.sentTimestamp }
-                        val unreadCount = messageList.count { it.isUnread }
-                        withContext(Dispatchers.Main) {
-                            _messages.value = messageList
-                            _unreadCount.value = unreadCount
-                        }
-                    } else {
-                        Log.d(TAG, "No new messages to add to messageList")
-                    }
+            }
+            val list = messageList.toMutableList()
+            val newMessages = messages.filter { m -> !list.any { it.primary == m.primary } }
+            if (newMessages.isNotEmpty()) {
+                if (newMessages.all { it.sentTimestamp >= (list.lastOrNull()?.sentTimestamp ?: 0) }) {
+                    list.addAll(newMessages)
+                } else {
+                    list.addAll(0, newMessages)
                 }
-                if (!isLoadingHistory) {
-                    withContext(Dispatchers.Main) {
-                        _isLoading.value = false
-                        Log.d(TAG, "Hiding ProgressBar after insertMessagesFromReceiver, chatId=$chatId")
-                    }
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error inserting messages from receiver: ${e.message}", e)
+                count = list.count { it.isUnread }
+                messageList = ArrayList(list.distinctBy { it.primary })
+                messageList.sortBy { it.sentTimestamp }
+                debugMessageList()
+                Log.d(TAG, "After insertMessagesFromReceiver, messageListSize=${messageList.size}, unreadCount=$count, messages=${messages.map { "${it.primary}: ${Date(it.sentTimestamp)}" }}")
                 withContext(Dispatchers.Main) {
-                    _isLoading.value = false
-                    Log.d(TAG, "Hiding ProgressBar due to error in insertMessagesFromReceiver, chatId=$chatId")
+                    _messages.value = messageList
+                    _unreadCount.value = count
                 }
             }
         }
     }
+
 
     fun debugMessageList() {
         Log.d(TAG, "Debugging messageList: size=${messageList.size}")
@@ -974,8 +1014,13 @@ class ChatViewModel(
 
     override fun onCleared() {
         super.onCleared()
+        job?.cancel()
+        loadingTimeoutJob?.cancel()
         realm.close()
-        isInitialDataLoaded = false
+        CoroutineScope(Dispatchers.IO).launch {
+            messageArchiveManager?.reset() // Use reset to preserve queryIds
+        }
+        activeQueries.clear()
     }
 
     fun saveLastPosition(id: String, savedPosition: String) {

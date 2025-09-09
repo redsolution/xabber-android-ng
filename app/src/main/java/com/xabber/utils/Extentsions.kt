@@ -24,6 +24,7 @@ import android.view.Surface
 import android.view.View
 import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
+import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
@@ -33,6 +34,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.xabber.R
 import com.xabber.data_base.defaultRealmConfig
 import com.xabber.data_base.models.last_chats.LastChatsStorageItem
+import com.xabber.data_base.models.messages.MessageDisplayType
 import com.xabber.data_base.models.messages.MessageReferenceStorageItem
 import com.xabber.data_base.models.messages.MessageSendingState
 import com.xabber.data_base.models.messages.MessageStorageItem
@@ -332,7 +334,12 @@ fun parseTimestamp(message: XMPPMessage, tag: String = "TimestampParser"): Long?
                 .appendOffsetId()
                 .toFormatter()
             val zdt = ZonedDateTime.parse(stamp, formatter)
-            return zdt.toInstant().toEpochMilli().also {
+            val epochMilli = zdt.toInstant().toEpochMilli()
+            if (epochMilli > System.currentTimeMillis() + 86400000) { // Flag future timestamps > 1 day ahead as invalid
+                Log.w(tag, "Invalid future timestamp ($source) for messageId=$messageId: $stamp -> $epochMilli")
+                return null
+            }
+            return epochMilli.also {
                 Log.d(tag, "Parsed timestamp ($source) for messageId=$messageId: $stamp -> $it")
             }
         } catch (e: DateTimeException) {
@@ -341,7 +348,12 @@ fun parseTimestamp(message: XMPPMessage, tag: String = "TimestampParser"): Long?
         try {
             val formatter = DateTimeFormatter.ISO_OFFSET_DATE_TIME
             val zdt = ZonedDateTime.parse(stamp, formatter)
-            return zdt.toInstant().toEpochMilli().also {
+            val epochMilli = zdt.toInstant().toEpochMilli()
+            if (epochMilli > System.currentTimeMillis() + 86400000) {
+                Log.w(tag, "Invalid future timestamp ($source) for messageId=$messageId: $stamp -> $epochMilli")
+                return null
+            }
+            return epochMilli.also {
                 Log.d(tag, "Parsed ISO_OFFSET_DATE_TIME ($source) for messageId=$messageId: $stamp -> $it")
             }
         } catch (e: DateTimeException) {
@@ -350,7 +362,12 @@ fun parseTimestamp(message: XMPPMessage, tag: String = "TimestampParser"): Long?
         try {
             val formatter = DateTimeFormatter.ISO_INSTANT
             val instant = Instant.parse(stamp)
-            return instant.toEpochMilli().also {
+            val epochMilli = instant.toEpochMilli()
+            if (epochMilli > System.currentTimeMillis() + 86400000) {
+                Log.w(tag, "Invalid future timestamp ($source) for messageId=$messageId: $stamp -> $epochMilli")
+                return null
+            }
+            return epochMilli.also {
                 Log.d(tag, "Parsed ISO_INSTANT ($source) for messageId=$messageId: $stamp -> $it")
             }
         } catch (e: DateTimeException) {
@@ -369,29 +386,17 @@ fun parseTimestamp(message: XMPPMessage, tag: String = "TimestampParser"): Long?
         if (forwarded != null) {
             val innerMessage = forwarded.element("message", namespace = "jabber:client")
             if (innerMessage != null) {
-                // Priority 1: <time> in inner message
                 val innerTime = innerMessage.element("time", namespace = "https://xabber.com/protocol/delivery")?.getAttribute("stamp")
                 if (innerTime != null) {
-                    return tryParse(innerTime, messageId, "inner <time>") ?: run {
-                        Log.w(tag, "Failed to parse inner <time> for messageId=$messageId: $innerTime")
-                        null
-                    }
+                    return tryParse(innerTime, messageId, "inner <time>")
                 }
-                // Priority 2: <delay> in inner message
                 val innerDelay = innerMessage.element("delay", namespace = "urn:xmpp:delay")?.getAttribute("stamp")
                 if (innerDelay != null) {
-                    return tryParse(innerDelay, messageId, "inner <delay>") ?: run {
-                        Log.w(tag, "Failed to parse inner <delay> for messageId=$messageId: $innerDelay")
-                        null
-                    }
+                    return tryParse(innerDelay, messageId, "inner <delay>")
                 }
-                // Priority 3: <delay> under forwarded (outside inner message)
                 val forwardedDelay = forwarded.element("delay", namespace = "urn:xmpp:delay")?.getAttribute("stamp")
                 if (forwardedDelay != null) {
-                    return tryParse(forwardedDelay, messageId, "forwarded <delay>") ?: run {
-                        Log.w(tag, "Failed to parse forwarded <delay> for messageId=$messageId: $forwardedDelay")
-                        null
-                    }
+                    return tryParse(forwardedDelay, messageId, "forwarded <delay>")
                 }
                 Log.d(tag, "No <time> or <delay> found in inner message for messageId=$messageId")
             } else {
@@ -401,24 +406,16 @@ fun parseTimestamp(message: XMPPMessage, tag: String = "TimestampParser"): Long?
     }
 
     // Fallback to outer message
-    // Priority 4: <time> in outer message
     val outerTime = message.element("time", namespace = "https://xabber.com/protocol/delivery")?.getAttribute("stamp")
     if (outerTime != null) {
-        return tryParse(outerTime, messageId, "outer <time>") ?: run {
-            Log.w(tag, "Failed to parse outer <time> for messageId=$messageId: $outerTime")
-            null
-        }
+        return tryParse(outerTime, messageId, "outer <time>")
     }
-    // Priority 5: <delay> in outer message
     val outerDelay = message.element("delay", namespace = "urn:xmpp:delay")?.getAttribute("stamp")
     if (outerDelay != null) {
-        return tryParse(outerDelay, messageId, "outer <delay>") ?: run {
-            Log.w(tag, "Failed to parse outer <delay> for messageId=$messageId: $outerDelay")
-            null
-        }
+        return tryParse(outerDelay, messageId, "outer <delay>")
     }
 
-    // Parse raw XML as a fallback if children list is empty
+    // Parse raw XML as fallback
     try {
         val factory = XmlPullParserFactory.newInstance()
         factory.isNamespaceAware = true
@@ -432,18 +429,12 @@ fun parseTimestamp(message: XMPPMessage, tag: String = "TimestampParser"): Long?
                 if (tagName == "time" && namespace == "https://xabber.com/protocol/delivery") {
                     val stamp = parser.getAttributeValue(null, "stamp")
                     if (stamp != null) {
-                        return tryParse(stamp, messageId, "raw <time>") ?: run {
-                            Log.w(tag, "Failed to parse raw <time> for messageId=$messageId: $stamp")
-                            null
-                        }
+                        return tryParse(stamp, messageId, "raw <time>")
                     }
                 } else if (tagName == "delay" && namespace == "urn:xmpp:delay") {
                     val stamp = parser.getAttributeValue(null, "stamp")
                     if (stamp != null) {
-                        return tryParse(stamp, messageId, "raw <delay>") ?: run {
-                            Log.w(tag, "Failed to parse raw <delay> for messageId=$messageId: $stamp")
-                            null
-                        }
+                        return tryParse(stamp, messageId, "raw <delay>")
                     }
                 }
             }
@@ -453,7 +444,6 @@ fun parseTimestamp(message: XMPPMessage, tag: String = "TimestampParser"): Long?
         Log.e(tag, "Error parsing raw XML for messageId=$messageId: ${e.message}", e)
     }
 
-    // Check if the message is a chat state or marker
     val isChatState = message.element("active", namespace = "http://jabber.org/protocol/chatstates") != null ||
             message.element("composing", namespace = "http://jabber.org/protocol/chatstates") != null ||
             message.element("inactive", namespace = "http://jabber.org/protocol/chatstates") != null ||
@@ -533,7 +523,7 @@ fun observeMessages(
     owner: String,
     opponent: String,
     conversationType: ConversationType
-): Flow<ResultsChange<MessageStorageItem>> {
+): Flow<List<MessageDto>> {
     return callbackFlow {
         val realm = Realm.open(defaultRealmConfig())
         val query = realm.query<MessageStorageItem>(
@@ -542,13 +532,46 @@ fun observeMessages(
         ).sort("date", io.realm.kotlin.query.Sort.ASCENDING)
         val results = query.find()
 
-        // Emit changes directly from Realm
-        results.asFlow().collect { change ->
-            trySend(change).isSuccess
-            Log.d("observeMessages", "Emitted ResultsChange: ${change::class.simpleName}, size=${if (change is UpdatedResults) change.list.size else 0}, owner=$owner, opponent=$opponent")
+        val listener: (ResultsChange<MessageStorageItem>) -> Unit = { change ->
+            val messages = change.list.mapNotNull { item ->
+                MessageDto(
+                    primary = item.primary,
+                    isOutgoing = item.outgoing,
+                    owner = item.owner,
+                    opponentJid = item.opponent,
+                    messageBody = item.body,
+                    messageSendingState = when {
+                        item.isRead -> MessageSendingState.Read
+                        item.outgoing -> MessageSendingState.Deliver
+                        else -> MessageSendingState.Sent
+                    },
+                    sentTimestamp = item.sentDate,
+                    editTimestamp = item.editDate,
+                    displayType = when (item.displayAs) {
+                        "system" -> MessageDisplayType.System
+                        else -> MessageDisplayType.Text
+                    },
+                    canEditMessage = item.outgoing,
+                    canDeleteMessage = item.outgoing,
+                    urlAvatar = null,
+                    isGroup = item.conversationType_ == "https://xabber.com/protocol/groups",
+                    kind = null,
+                    isSelected = false,
+                    references = item.references.map { it.toMessageReferenceDto() } as ArrayList<MessageReferenceDto>,
+                    isUnread = !item.isRead,
+                    isChecked = false,
+                    archivedId = item.archivedId
+                ).also {
+                    Log.d("observeMessages", "Emitted message: primary=${it.primary}, sentTimestamp=${it.sentTimestamp}, body=${it.messageBody.take(50)}, isUnread=${it.isUnread}")
+                }
+            }
+            trySend(messages).isSuccess
         }
 
-        // Ensure Realm is closed when the Flow is cancelled
+        results.asFlow().collect { change ->
+            listener(change)
+        }
+
         awaitClose {
             realm.close()
             Log.d("observeMessages", "Realm closed for owner=$owner, opponent=$opponent")

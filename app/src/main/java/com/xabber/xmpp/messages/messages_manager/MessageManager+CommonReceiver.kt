@@ -136,13 +136,28 @@ class MessageCommonReceiver(private val owner: String) {
             Log.w(TAG, "Skipping archived message with no valid ID: raw=${message.raw.substring(0, minOf(message.raw.length, 200))}...")
             return
         }
-        if (messageId == "388774f9-3793-4a94-9c11-47ec82345440") {
-            Log.d(TAG, "Processing target archived message: messageId=$messageId, body=${messageBare.body?.take(100)}")
+
+        if (processedMessageIds.contains(messageId)) {
+            Log.d(TAG, "Skipping duplicate archived message based on messageId=$messageId")
+            return
         }
+
+        val primary = MessageStorageItem.genPrimary(messageId, owner)
         val innerTimestamp = parseTimestamp(messageBare, TAG)?.let { Date(it) } ?: parseTimestamp(message, TAG)?.let { Date(it) } ?: run {
             Log.e(TAG, "No valid timestamp for messageId=$messageId, using current time as fallback")
             Date()
         }
+        val queryId = getMAMQueryId(message)
+        val existing = realm.query<MessageStorageItem>("primary = $0", primary).first().find()
+        if (existing != null && existing.sentDate >= innerTimestamp.time && queryId?.let {
+                existing.queryIds?.contains(
+                    it
+                )
+            } == true) {
+            Log.d(TAG, "Skipping duplicate archived message: messageId=$messageId, primary=$primary, existing sentDate=${existing.sentDate}, new sentDate=${innerTimestamp.time}, body=${existing.body.take(100)}, queryId=$queryId")
+            return
+        }
+        Log.d(TAG, "receiveArchived: messageId=$messageId, timestamp=$innerTimestamp, body=${messageBare.body?.take(100)}, queryId=$queryId")
         val queueItem = MessageQueueItem(
             message = messageBare,
             messageId = messageId,
@@ -150,12 +165,12 @@ class MessageCommonReceiver(private val owner: String) {
             isRead = messageBare.from?.bare() == owner,
             date = innerTimestamp,
             state = MessageSendingState.Deliver,
-            queryId = getMAMQueryId(message),
+            queryId = queryId,
             originalFrom = messageBare.from?.bare() ?: "",
             originalOutgoing = messageBare.from?.bare() == owner
         )
+        processedMessageIds.add(messageId)
         enqueue(queueItem)
-        Log.d(TAG, "Enqueued archived message: messageId=$messageId, timestamp=$innerTimestamp, body=${messageBare.body?.take(100)}, queryId=${queueItem.queryId}")
     }
 
     suspend fun receiveCarbon(message: XMPPMessage) {
@@ -163,8 +178,9 @@ class MessageCommonReceiver(private val owner: String) {
             Log.w(TAG, "receiveCarbon failed: no carbon copy message container for messageId=${getOriginId(message) ?: message.id}")
         }
         val messageId = getOriginId(messageBare) ?: messageBare.id
-        if (messageId == "388774f9-3793-4a94-9c11-47ec82345440") {
-            Log.d(TAG, "Processing target carbon message: messageId=$messageId, body=${messageBare.body?.take(100)}")
+        if (processedMessageIds.contains(messageId)) {
+            Log.d(TAG, "Skipping duplicate carbon message based on messageId=$messageId")
+            return
         }
         val primary = messageId?.let { MessageStorageItem.genPrimary(it, owner) }
         if (primary != null && realm.query<MessageStorageItem>("primary = $0", primary).first().find() != null) {
@@ -174,6 +190,7 @@ class MessageCommonReceiver(private val owner: String) {
         val deliveryTime = parseTimestamp(messageBare, TAG)?.let { Date(it) } ?: return.also {
             Log.w(TAG, "receiveCarbon failed: no valid timestamp for messageId=$messageId")
         }
+        Log.d(TAG, "receiveCarbon called for messageId=$messageId, timestamp=$deliveryTime")
         val queueItem = MessageQueueItem(
             message = messageBare,
             messageId = messageId,
@@ -185,8 +202,10 @@ class MessageCommonReceiver(private val owner: String) {
             originalFrom = messageBare.from?.bare() ?: "",
             originalOutgoing = messageBare.from?.bare() == owner
         )
+        if (messageId != null) {
+            processedMessageIds.add(messageId)
+        }
         enqueue(queueItem)
-        Log.d(TAG, "Enqueued carbon message: messageId=$messageId, timestamp=$deliveryTime, body=${messageBare.body?.take(100)}")
     }
 
     suspend fun receiveCarbonForwarded(message: XMPPMessage) {
