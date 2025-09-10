@@ -209,6 +209,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         }
     }
 
+
     private fun getParams(): ChatParams = requireArguments().parcelable(AppConstants.CHAT_PARAMS)!!
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {

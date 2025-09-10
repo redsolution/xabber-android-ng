@@ -881,49 +881,16 @@ class Account : XMPPStreamDelegate {
                     Log.d(TAG, "Directing archived message to MessageArchiveManager: id=$messageId")
                     messageArchiveManager.readMessage(message)
                 }
-                "forwarded", "last-message", "runtime" -> {
-                    Log.d(TAG, "Directing message to ChatViewModel: id=$messageId, container=$containerType")
-                    val chatId = LastChatsStorageItem.genPrimary(opponent, jid, ConversationType.Regular)
-                    val chatViewModel = AccountManager.getChatViewModel(chatId)
-                    if (chatViewModel != null) {
-                        val messageDto = MessageDto(
-                            primary = primary,
-                            isOutgoing = isOutgoing,
-                            owner = jid,
-                            opponentJid = opponent,
-                            messageBody = body,
-                            messageSendingState = state,
-                            sentTimestamp = timestamp,
-                            editTimestamp = 0,
-                            displayType = MessageDisplayType.Text,
-                            canEditMessage = isOutgoing,
-                            canDeleteMessage = isOutgoing,
-                            urlAvatar = null,
-                            isUnread = !isOutgoing,
-                            isGroup = false,
-                            kind = null,
-                            isSelected = false,
-                            references = arrayListOf(),
-                            isChecked = false,
-                            archivedId = messageId
-                        )
-                        chatViewModel.insertMessagesFromReceiver(listOf(messageDto))
-                        Log.d(TAG, "Notified ChatViewModel for message: id=$messageId, chatId=$chatId, body=$body")
-                    } else {
-                        Log.w(TAG, "No ChatViewModel found for chatId=$chatId, storing in temporary stanza")
-                        realm.write {
-                            val newTempStanza = TemporaryMessageStanzaStorageItem().apply {
-                                this.messageId = messageId
-                                this.primary = TemporaryMessageStanzaStorageItem.genPrimary(messageId, jid)
-                                this.owner = jid
-                                this.jid = opponent
-                                this.isProcessed = false
-                                this.date = timestamp
-                                this.stanza = message
-                            }
-                            copyToRealm(newTempStanza, UpdatePolicy.ALL)
-                        }
-                    }
+                "forwarded" -> {
+                    Log.d(TAG, "Directing forwarded (carbon) message to MessageCommonReceiver")
+                    messageReceiver.receiveCarbon(xmppMessage)
+                }
+                "last-message" -> {
+                    // Handle last-message if needed
+                }
+                "runtime" -> {
+                    Log.d(TAG, "Directing runtime message to MessageCommonReceiver")
+                    messageReceiver.receiveRuntime(xmppMessage)
                 }
             }
 
@@ -946,7 +913,7 @@ class Account : XMPPStreamDelegate {
             return false
         }
     }
-    
+
     private fun parseTimestamp(message: XMPPMessage): Long? {
         val timeElement = message.element("time", namespace = "https://xabber.com/protocol/delivery")
         val stamp = timeElement?.getAttribute("stamp")

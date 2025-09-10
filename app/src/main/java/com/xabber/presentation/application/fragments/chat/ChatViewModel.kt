@@ -128,6 +128,19 @@ class ChatViewModel(
         }
     }
 
+    fun unblockUi(force: Boolean = false) {
+        viewModelScope.launch(Dispatchers.Main) { // Ensure updates on main thread
+            _isLoading.value = false
+            _isLocked.value = false
+            if (force) {
+                activeQueries.clear()
+                Log.d(TAG, "Force cleared activeQueries for chatId=$chatId")
+            }
+            loadingTimeoutJob?.cancel()
+            Log.d(TAG, "UI unblocked (force=$force) for chatId=$chatId")
+        }
+    }
+
     override suspend fun didReceiveMessage(item: MessageStorageItem, queryId: String) {
         val messageDto = mapMessageStorageItemToDto(item) ?: return
         messageListMutex.withLock {
@@ -155,8 +168,7 @@ class ChatViewModel(
                 if (activeQueries.isEmpty()) {
                     isLoadingHistory = false
                     withContext(Dispatchers.Main) {
-                        _isLoading.value = false
-                        _isLocked.value = false
+                        unblockUi(true)
                         Log.d(TAG, "Hiding ProgressBar and unlocking screen: queryId=$queryId, activeQueries=$activeQueries, chatId=$chatId")
                     }
                 } else {
@@ -187,6 +199,7 @@ class ChatViewModel(
         val chat = realm.query<LastChatsStorageItem>("primary = $0", chatId).first().find()
         val lastMessage = chat?.lastMessage
         if (lastMessage != null && !lastMessage.isDeleted) {
+            unblockUi(true)
             val dto = mapMessageStorageItemToDto(lastMessage)
             if (dto != null && conversationType == ConversationType.Regular) {
                 val correctedDto = dto.copy(isOutgoing = !dto.isOutgoing, canEditMessage = !dto.canEditMessage, canDeleteMessage = !dto.canDeleteMessage!!)
@@ -432,6 +445,7 @@ class ChatViewModel(
         val unreadCount = messageList.count { it.isUnread }
         Log.d(TAG, "Updated messages: ${messageList.size} messages, $unreadCount unread")
         withContext(Dispatchers.Main) {
+            unblockUi(true)
             _messages.value = messageList
             _unreadCount.value = unreadCount
             val isFullyLoaded = realm.query<LastChatsStorageItem>("primary = $0", chatId)
@@ -495,8 +509,7 @@ class ChatViewModel(
                         _messages.value = messageList
                         _unreadCount.value = count
                         if (!isLoadingHistory) {
-                            _isLoading.value = false
-                            _isLocked.value = false
+                            unblockUi(true)
                             Log.d(TAG, "Hiding ProgressBar and unlocking screen: isLoadingHistory=$isLoadingHistory")
                         }
                     }
@@ -507,8 +520,7 @@ class ChatViewModel(
         } catch (e: Exception) {
             Log.e(TAG, "Error updating message list: ${e.message}", e)
             withContext(Dispatchers.Main) {
-                _isLoading.value = false
-                _isLocked.value = false
+                unblockUi(true)
                 Log.d(TAG, "Hiding ProgressBar and unlocking screen due to error in updateMessageList, chatId=$chatId")
             }
         }
@@ -573,6 +585,7 @@ class ChatViewModel(
                 withContext(Dispatchers.Main) {
                     _messages.value = messageList
                     _unreadCount.value = count
+                    unblockUi(true)
                 }
             }
         }
