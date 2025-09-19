@@ -175,10 +175,16 @@ class MessageArchiveManager(private val owner: String) {
             callbacksQueue.add(callbackItem)
             interactiveQueue.add(elementId)
             temporaryMessageReceiver?.didStartPageLoad(elementId)
+            // Ensure callback is invoked on completion
+            temporaryMessageReceiver?.let { receiver ->
+                CoroutineScope(Dispatchers.IO).launch {
+                    receiver.didReceiveEndPage(elementId, false, "", "", 0)
+                }
+            }
             Log.d(TAG, "Sent MAM query and notified start: id=$elementId, jid=$jid, conversationType=${conversationType.rawValue}, isContinues=$isContinues, flipPage=$flipPage")
         } else {
             Log.e(TAG, "Failed to send MAM query: $iqXml")
-            temporaryMessageReceiver?.didReceiveEndPage(elementId, false, "", "", 0) // Notify failure
+            temporaryMessageReceiver?.didReceiveEndPage(elementId, false, "", "", 0)
         }
     }
 

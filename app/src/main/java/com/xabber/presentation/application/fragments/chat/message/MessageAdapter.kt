@@ -56,11 +56,33 @@ class MessageAdapter(
 
     fun updateAdapter(messageDtoList: List<MessageDto>) {
         Log.v(TAG, "Updating adapter with ${messageDtoList.size} messages")
-        val newList = messageDtoList.distinctBy { it.primary to it.archivedId }.sortedBy { it.sentTimestamp }
-        submitList(newList) {
-            notifyUnreadState()
-            Log.d(TAG, "Adapter updated with ${messages.size} messages, first=${messages.firstOrNull()?.primary}, last=${messages.lastOrNull()?.primary}, archivedId=${messages.lastOrNull()?.archivedId}")
-        }
+        val newList = messageDtoList
+            .filter { it.primary.isNotEmpty() && it.messageBody.isNotEmpty() } // Allow messages with empty archivedId
+            .distinctBy { it.primary }
+            .sortedBy { it.sentTimestamp }
+        val diffResult = DiffUtil.calculateDiff(object : DiffUtil.Callback() {
+            override fun getOldListSize(): Int = messages.size
+            override fun getNewListSize(): Int = newList.size
+            override fun areItemsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
+                return messages[oldItemPosition].primary == newList[newItemPosition].primary
+            }
+            override fun areContentsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
+                val oldItem = messages[oldItemPosition]
+                val newItem = newList[newItemPosition]
+                return oldItem.messageBody == newItem.messageBody &&
+                        oldItem.sentTimestamp == newItem.sentTimestamp &&
+                        oldItem.isOutgoing == newItem.isOutgoing &&
+                        oldItem.references == newItem.references &&
+                        oldItem.isUnread == newItem.isUnread &&
+                        oldItem.isChecked == newItem.isChecked &&
+                        oldItem.messageSendingState == newItem.messageSendingState
+            }
+        })
+        messages.clear()
+        messages.addAll(newList)
+        diffResult.dispatchUpdatesTo(this)
+        notifyUnreadState()
+        Log.d(TAG, "Adapter updated with ${messages.size} messages, first=${messages.firstOrNull()?.primary}, last=${messages.lastOrNull()?.primary}, archivedId=${messages.lastOrNull()?.archivedId}")
     }
 
     fun insertOlderMessages(newMessages: List<MessageDto>) {

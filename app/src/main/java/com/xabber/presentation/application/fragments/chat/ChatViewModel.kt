@@ -529,68 +529,115 @@ class ChatViewModel(
     fun insertMessagesFromReceiver(messages: List<MessageDto>) {
         viewModelScope.launch(Dispatchers.IO) {
             realm.writeBlocking {
-                val insertedMessages = mutableListOf<MessageDto>()
                 messages.forEach { messageDto ->
-                    val existing = query<MessageStorageItem>("primary = $0", messageDto.primary).first().find()
-                    if (existing != null) {
-                        Log.d(TAG, "Skipping duplicate message from receiver: primary=${messageDto.primary}, sentDate=${existing.sentDate}, body=${messageDto.messageBody.take(50)}")
+                    // Validate messageId and primary
+                    if (messageDto.archivedId.isEmpty() || messageDto.owner.isEmpty()) {
+                        Log.w(TAG, "Skipping message with invalid archivedId or owner: archivedId=${messageDto.archivedId}, owner=${messageDto.owner}")
                         return@forEach
                     }
-                    val rreferences = realmListOf<MessageReferenceStorageItem>()
-                    for (i in 0 until messageDto.references.size) {
-                        val ref = copyToRealm(MessageReferenceStorageItem().apply {
-                            primary = messageDto.references[i].id + "${System.currentTimeMillis()}"
-                            uri = messageDto.references[i].uri
-                            mimeType = messageDto.references[i].mimeType
-                            isGeo = messageDto.references[i].isGeo
-                            latitude = messageDto.references[i].latitude
-                            longitude = messageDto.references[i].longitude
-                            isAudioMessage = messageDto.references[i].isVoiceMessage
-                            fileName = messageDto.references[i].fileName
-                            fileSize = messageDto.references[i].size
-                        })
-                        rreferences.add(ref)
+
+                    var primary = MessageStorageItem.genPrimary(messageDto.archivedId, messageDto.owner)
+                    if (primary == "_${messageDto.owner}" || primary.isEmpty()) {
+                        Log.w(TAG, "Skipping message with invalid primary: archivedId=${messageDto.archivedId}, primary=$primary")
+                        return@forEach
                     }
+
+                    val existing = query<MessageStorageItem>(
+                        "primary = $0 OR (archivedId = $1 AND archivedId != '' AND conversationType_ = $2)",
+                        primary, messageDto.archivedId, conversationType.rawValue
+                    ).first().find()
+
+                    if (existing != null) {
+                        Log.d(TAG, "Skipping duplicate message: primary=$primary, archivedId=${messageDto.archivedId}")
+                        return@forEach
+                    }
+
+                    var references = realmListOf<MessageReferenceStorageItem>()
+                    messageDto.references.forEach { ref ->
+                        val refItem = copyToRealm(MessageReferenceStorageItem().apply {
+                            primary = "${ref.id}_${System.currentTimeMillis()}"
+                            uri = ref.uri
+                            mimeType = ref.mimeType
+                            isGeo = ref.isGeo
+                            latitude = ref.latitude
+                            longitude = ref.longitude
+                            isAudioMessage = ref.isVoiceMessage
+                            fileName = ref.fileName
+                            fileSize = ref.size
+                        })
+                        references.add(refItem)
+                    }
+
+                    val bareOpponentJid = messageDto.opponentJid.removeSuffix("/${messageDto.opponentJid.substringAfterLast("/")}")
                     val message = copyToRealm(MessageStorageItem().apply {
-                        primary = messageDto.primary
+                        this.primary = primary
                         owner = messageDto.owner
-                        opponent = messageDto.opponentJid
+                        opponent = bareOpponentJid
                         body = messageDto.messageBody
                         date = messageDto.sentTimestamp
                         sentDate = messageDto.sentTimestamp
                         editDate = messageDto.editTimestamp
                         outgoing = messageDto.isOutgoing
-                        isRead = !messageDto.isUnread || (messageDto.archivedId.isNotEmpty() && messageDto.sentTimestamp < System.currentTimeMillis())
-                        references = rreferences
+                        isRead = !messageDto.isUnread
+                        references = references
                         conversationType_ = if (messageDto.isGroup) "https://xabber.com/protocol/groups" else "urn:xabber:chat"
                         archivedId = messageDto.archivedId
+                        state = messageDto.messageSendingState
                     })
-                    insertedMessages.add(messageDto)
-                    Log.d(TAG, "Inserted message from receiver: primary=${message.primary}, sentDate=${message.sentDate}, date=${Date(message.sentDate)}, body=${message.body.take(50)}, isRead=${message.isRead}, opponent=${message.opponent}, archivedId=${message.archivedId}")
+
+                    val chatPrimary = LastChatsStorageItem.genPrimary(bareOpponentJid, messageDto.owner, conversationType)
+                    val chat = query<LastChatsStorageItem>("primary = $0", chatPrimary).first().find()
+                    if (chat != null) {
+                        findLatest(chat)?.apply {
+                            lastMessage = message
+                            messageDate = message.sentDate
+                            if (!messageDto.isOutgoing && muteExpired <= 0) {
+                                isArchived = false
+                                unread = (unread ?: 0) + if (messageDto.isUnread) 1 else 0
+                            }
+                        }
+                    } else {
+                        copyToRealm(LastChatsStorageItem().apply {
+                            owner = messageDto.owner
+                            jid = bareOpponentJid
+                            conversationType_ = conversationType.rawValue
+                            messageDate = message.sentDate
+                            primary = chatPrimary
+                            isSynced = true
+                            isInitialArchiveLoaded = true
+                            lastMessage = message
+                            if (!messageDto.isOutgoing && muteExpired <= 0) {
+                                isArchived = false
+                                unread = if (messageDto.isUnread) 1 else 0
+                            }
+                        })
+                    }
+                    Log.d(TAG, "Inserted message: primary=${message.primary}, archivedId=${messageDto.archivedId}, body=${message.body.take(50)}")
                 }
             }
-            val list = messageList.toMutableList()
-            val newMessages = messages.filter { m -> !list.any { it.primary == m.primary } }
-            if (newMessages.isNotEmpty()) {
-                if (newMessages.all { it.sentTimestamp >= (list.lastOrNull()?.sentTimestamp ?: 0) }) {
-                    list.addAll(newMessages)
-                } else {
-                    list.addAll(0, newMessages)
+
+            messageListMutex.withLock {
+                val newMessages = messages.filter { m ->
+                    !messageList.any { it.primary == m.primary || (it.archivedId == m.archivedId && m.archivedId.isNotEmpty()) }
                 }
-                count = list.count { it.isUnread }
-                messageList = ArrayList(list.distinctBy { it.primary })
-                messageList.sortBy { it.sentTimestamp }
-                debugMessageList()
-                Log.d(TAG, "After insertMessagesFromReceiver, messageListSize=${messageList.size}, unreadCount=$count, messages=${messages.map { "${it.primary}: ${Date(it.sentTimestamp)}" }}")
-                withContext(Dispatchers.Main) {
-                    _messages.value = messageList
-                    _unreadCount.value = count
-                    unblockUi(true)
+                if (newMessages.isNotEmpty()) {
+                    messageList.addAll(newMessages)
+                    messageList.sortBy { it.sentTimestamp }
+                    count = messageList.count { it.isUnread }
+                    Log.d(TAG, "Added ${newMessages.size} new messages, total=${messageList.size}, unread=$count")
+                    withContext(Dispatchers.Main) {
+                        _messages.postValue(messageList)
+                        _unreadCount.postValue(count)
+                        if (!isLoadingHistory) {
+                            unblockUi(true)
+                        }
+                    }
+                } else {
+                    Log.d(TAG, "No new messages to add from receiver")
                 }
             }
         }
     }
-
 
     fun debugMessageList() {
         Log.d(TAG, "Debugging messageList: size=${messageList.size}")

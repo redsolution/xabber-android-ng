@@ -764,13 +764,17 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
 
     private fun subscribeToChatData(chat: ChatListDto) {
         viewModel.chat.observe(viewLifecycleOwner) {
-            if (it == null) navigator().closeDetail()
+            if (it == null) {
+                Log.w("ChatFragment", "Chat is null, closing fragment")
+                navigator().closeDetail()
+            } else {
+                setupOpponentName(it.getChatName())
+                setupMuteIcon(it.muteExpired)
+            }
         }
 
-        if (chat.owner != chat.opponentJid) {
-            viewModel.opponentName.observe(viewLifecycleOwner) {
-                setupOpponentName(it)
-            }
+        viewModel.opponentName.observe(viewLifecycleOwner) {
+            setupOpponentName(it ?: "Saved messages")
         }
 
         viewModel.muteExpired.observe(viewLifecycleOwner) {
@@ -778,50 +782,40 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         }
 
         viewModel.messages.observe(viewLifecycleOwner) { messages ->
-            Log.d("ChatFragment", "Messages LiveData updated: ${messages.size} messages, first=${messages.firstOrNull()?.primary}, last=${messages.lastOrNull()?.primary}, lastBody=${messages.lastOrNull()?.messageBody}")
-            val firstVisiblePosition = layoutManager?.findFirstVisibleItemPosition() ?: 0
-            val firstVisibleItemId = if (firstVisiblePosition >= 0 && firstVisiblePosition < messageAdapter!!.itemCount) {
-                messageAdapter?.getMessageItem(firstVisiblePosition)?.primary
-            } else null
-            if (firstVisiblePosition <= 5) {
-                val newOlderMessages = messages.filter { m -> !messageAdapter!!.messages.any { it.primary == m.primary } }
-                if (newOlderMessages.isNotEmpty()) {
-                    messageAdapter?.insertOlderMessages(newOlderMessages)
-                    if (firstVisibleItemId != null) {
-                        val newPosition = messageAdapter!!.messages.indexOfFirst { it.primary == firstVisibleItemId }
-                        if (newPosition >= 0) {
-                            layoutManager?.scrollToPosition(newPosition)
-                            Log.d("ChatFragment", "Inserted ${newOlderMessages.size} older messages, maintaining scroll position at $newPosition")
-                        } else {
-                            layoutManager?.scrollToPosition(newOlderMessages.size)
-                            Log.d("ChatFragment", "Inserted ${newOlderMessages.size} older messages, fallback scroll position at ${newOlderMessages.size}")
-                        }
-                    } else {
-                        layoutManager?.scrollToPosition(newOlderMessages.size)
-                        Log.d("ChatFragment", "Inserted ${newOlderMessages.size} older messages, scroll position at ${newOlderMessages.size}")
-                    }
-                } else {
-                    messageAdapter?.updateAdapter(messages)
-                    Log.d("ChatFragment", "No new older messages, updated adapter with ${messages.size} messages")
-                }
-            } else {
-                messageAdapter?.updateAdapter(messages)
-                Log.d("ChatFragment", "Updated adapter with ${messages.size} messages")
+            if (messages.isEmpty()) {
+                Log.d("ChatFragment", "Messages LiveData updated with empty list")
+                messageAdapter?.updateAdapter(emptyList())
+                binding.downScroller.isVisible = false
+                return@observe
             }
-            if (layoutManager != null && messageAdapter != null && messages.isNotEmpty()) {
+
+            Log.d("ChatFragment", "Messages LiveData updated: ${messages.size} messages, first=${messages.firstOrNull()?.primary}, last=${messages.lastOrNull()?.primary}")
+            val firstVisiblePosition = layoutManager?.findFirstVisibleItemPosition() ?: 0
+            val lastVisiblePosition = layoutManager?.findLastVisibleItemPosition() ?: 0
+            val wasAtBottom = lastVisiblePosition >= messageAdapter?.itemCount?.minus(2) ?: 0
+
+            // Update adapter with new messages
+            messageAdapter?.updateAdapter(messages)
+
+            // Scroll to the last message if user was at the bottom or the message is outgoing
+            if (messages.isNotEmpty()) {
                 val lastMessage = messages.maxByOrNull { it.sentTimestamp }
                 if (lastMessage != null) {
-                    val lastVisiblePosition = layoutManager!!.findLastVisibleItemPosition()
-                    if (isNeedScrollDown || lastVisiblePosition >= messageAdapter!!.itemCount - 2 || lastMessage.isOutgoing) {
+                    if (isNeedScrollDown || wasAtBottom || lastMessage.isOutgoing) {
                         scrollDown()
                         isNeedScrollDown = false
                         Log.d("ChatFragment", "Scrolled to last message: primary=${lastMessage.primary}, body=${lastMessage.messageBody.take(50)}")
-                    } else {
-                        Log.d("ChatFragment", "Not scrolling: lastVisiblePosition=$lastVisiblePosition, itemCount=${messageAdapter!!.itemCount}, isOutgoing=${lastMessage.isOutgoing}")
+                    } else if (lastMessage.isUnread && !lastMessage.isOutgoing) {
+                        binding.downScroller.isVisible = true
+                        Log.d("ChatFragment", "Showing down scroller for new unread message: primary=${lastMessage.primary}")
                     }
                 }
             }
-            viewModel.markAllMessageUnread(getParams().id)
+
+            // Mark messages as read if user is at the bottom
+            if (wasAtBottom && messages.any { it.isUnread && !it.isOutgoing }) {
+                viewModel.markAllMessageUnread(getParams().id)
+            }
         }
 
         viewModel.unreadCount.observe(viewLifecycleOwner) { unread ->
@@ -831,11 +825,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
             Log.d("ChatFragment", "Unread count updated: $unread")
             lifecycleScope.launch(Dispatchers.Main) {
                 showUnreadBadge(unread)
-                if (unread > 0 && layoutManager != null && messageAdapter != null) {
-                    binding.downScroller.isVisible = true
-                } else {
-                    binding.downScroller.isVisible = false
-                }
+                binding.downScroller.isVisible = unread > 0 && layoutManager != null && messageAdapter != null
             }
         }
 
@@ -845,7 +835,6 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         }
 
         viewModel.isLocked.observe(viewLifecycleOwner) { isLocked ->
-            // Lock or unlock UI elements
             binding.chatInput.isEnabled = !isLocked
             binding.buttonEmoticon.isEnabled = !isLocked
             binding.buttonAttach.isEnabled = !isLocked
@@ -866,6 +855,9 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
                 enableSelectionMode(false)
             }
         }
+
+        // Ensure initial message load
+        viewModel.getMessageList(getParams().id)
     }
 
     private fun setupOpponentName(opponentName: String?) {
