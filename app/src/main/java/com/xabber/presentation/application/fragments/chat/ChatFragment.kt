@@ -246,38 +246,72 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
 
     private fun syncChatHistory(chat: ChatListDto) {
         lifecycleScope.launch(Dispatchers.IO) {
-            val account = AccountManager.find(chat.owner) ?: return@launch
-            val stream = account.stream ?: return@launch
-            if (!messageArchiveManager?.checkShouldLoadFullHistory(chat.opponentJid, if (chat.isGroup) ConversationType.Group else ConversationType.Regular)!!) {
+            val account = AccountManager.find(chat.owner) ?: return@launch.also {
+                Log.e("ChatFragment", "Account not found for owner=${chat.owner}")
+            }
+            val stream = account.stream ?: return@launch.also {
+                Log.e("ChatFragment", "Stream is null for account=${chat.owner}")
+            }
+            val conversationType = if (chat.isGroup) ConversationType.Group else ConversationType.Regular
+
+            val isFullyLoaded = realm.query<LastChatsStorageItem>("primary = $0", chat.id)
+                .first().find()?.fullArchiveLoaded ?: false
+            if (isFullyLoaded) {
+                Log.d("ChatFragment", "Chat history already fully loaded for jid=${chat.opponentJid}")
                 viewModel.getMessageList(getParams().id)
+                withContext(Dispatchers.Main) {
+                    viewModel.unblockUi(true)
+                    Log.d("ChatFragment", "Hiding ProgressBar and unlocking screen: archive fully loaded, chatId=${chat.id}")
+                }
                 return@launch
             }
-            stream.clearStaleTemporaryMessages()
-            val conversationType = if (chat.isGroup) ConversationType.Group else ConversationType.Regular
+
+            if (!messageArchiveManager?.checkShouldLoadFullHistory(chat.opponentJid, conversationType)!!) {
+                Log.d("ChatFragment", "Chat history already synced for jid=${chat.opponentJid}")
+                viewModel.getMessageList(getParams().id)
+                withContext(Dispatchers.Main) {
+                    viewModel.unblockUi(true)
+                    Log.d("ChatFragment", "Hiding ProgressBar and unlocking screen: history already synced, chatId=${chat.id}")
+                }
+                return@launch
+            }
+
             try {
+                withContext(Dispatchers.Main) {
+                    viewModel._isLoading.value = true
+                    viewModel._isLocked.value = true
+                    Log.d("ChatFragment", "Showing ProgressBar and locking screen for MAM query: chatId=${chat.id}")
+                }
+                val queryId = "MAM:${UUID.randomUUID().toString().take(6)}"
                 messageArchiveManager?.requestArchive(
                     stream = stream,
                     jid = chat.opponentJid,
                     isContinues = true,
                     conversationType = conversationType,
-                    queryId = null,
+                    queryId = queryId,
                     searchText = null,
                     flipPage = true,
                     start = null,
                     end = null,
                     rsmBefore = "",
                     rsmAfter = null,
-                    max = 100,
+                    max = 500,
                     withCounter = true,
                     isNormalSynchronousTask = false,
                     backward = true,
                     callback = {
-                        Log.d("ChatFragment", "MAM sync completed for jid=${chat.opponentJid}")
+                        Log.d("ChatFragment", "MAM sync completed for jid=${chat.opponentJid}, queryId=$queryId")
                         viewModel.getMessageList(getParams().id)
+                        viewModel.unblockUi(true)
                     }
                 )
+                Log.d("ChatFragment", "Sent MAM query: queryId=$queryId, jid=${chat.opponentJid}, conversationType=$conversationType")
             } catch (e: Exception) {
                 Log.e("ChatFragment", "Failed to sync chat history: ${e.message}", e)
+                withContext(Dispatchers.Main) {
+                    viewModel.unblockUi(true)
+                    showToast(R.string.error_sync_failed)
+                }
             }
         }
     }
@@ -421,11 +455,19 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
             }
         }
     }
+
+
     private fun setupInputButtons() {
-        binding.btnRecord.isVisible = binding.chatInput.text.toString().trimEnd().isEmpty()
-        binding.buttonAttach.isVisible = binding.chatInput.text.toString().trimEnd().isEmpty()
-        binding.buttonSendMessage.isVisible = binding.chatInput.text.toString().trimEnd().isNotEmpty()
+        val isInputNotEmpty = binding.chatInput.text.toString().trim().isNotEmpty()
+        binding.btnRecord.isVisible = !isInputNotEmpty
+        binding.buttonAttach.isVisible = !isInputNotEmpty
+        binding.buttonSendMessage.isVisible = isInputNotEmpty || replyingMessage != null
+        binding.buttonEmoticon.isEnabled = true
+        binding.buttonAttach.isEnabled = true
+        binding.btnRecord.isEnabled = true
+        binding.buttonSendMessage.isEnabled = isInputNotEmpty || replyingMessage != null
     }
+
 
     private fun disableNotifications() {
         val dialog = NotificationBottomSheet.newInstance(getParams().id)
@@ -465,6 +507,11 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         addScrollListener()
         fillChat()
         binding.messageList.itemAnimator = null
+
+        // Add touch listener to block scrolling when locked
+        binding.messageList.setOnTouchListener { _, event ->
+            viewModel.isLocked.value == true // Consume touch events if locked
+        }
     }
 
     private fun addSwipeCallback() {
@@ -492,16 +539,12 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
             override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
                 if (layoutManager != null) {
                     val firstVisiblePosition = layoutManager!!.findFirstVisibleItemPosition()
-                    if (firstVisiblePosition <= 5) {
+                    if (firstVisiblePosition == 0) {
                         val currentTime = System.currentTimeMillis()
                         if (currentTime - lastLoadOlderMessagesTime >= debounceInterval) {
                             lastLoadOlderMessagesTime = currentTime
-                            val isFullyLoaded = realm.query<LastChatsStorageItem>("primary = $0", getParams().id)
-                                .first().find()?.fullArchiveLoaded ?: false
-                            if (!isFullyLoaded) {
-                                viewModel.loadOlderMessages()
-                                Log.d("ChatFragment", "Triggered loadOlderMessages, firstVisiblePosition=$firstVisiblePosition")
-                            }
+                            viewModel.loadOlderMessages()
+                            Log.d("ChatFragment", "Triggered loadOlderMessages at top, firstVisiblePosition=$firstVisiblePosition")
                         }
                     }
                     if (layoutManager!!.findLastVisibleItemPosition() >= messageAdapter!!.itemCount - 1) {
@@ -562,9 +605,11 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
             override fun onTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {}
             override fun afterTextChanged(p0: Editable?) {
                 setupInputButtons()
+                binding.buttonSendMessage.isEnabled = p0.toString().trim().isNotEmpty() || replyingMessage != null
             }
         })
     }
+
 
     private fun initializeButtonEmoji() {
         AXEmojiManager.install(requireContext(), AXGoogleEmojiProvider(requireContext()))
@@ -586,14 +631,17 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
 
     private fun initializeButtonSend() {
         binding.buttonSendMessage.setOnClickListener {
+            val text = binding.chatInput.text.toString().trim()
+            if (text.isEmpty() && replyingMessage == null) {
+                Log.d("ChatFragment", "Send button clicked but input is empty and no reply message, skipping")
+                return@setOnClickListener
+            }
             if (editMessageId != null) {
-                viewModel.editMessage(editMessageId!!, binding.chatInput.text.toString())
+                viewModel.editMessage(editMessageId!!, text)
                 binding.chatInput.text?.clear()
                 editMessageId = null
+                Log.d("ChatFragment", "Edited message: id=$editMessageId, newBody=$text")
             } else {
-                val text = binding.chatInput.text.toString().trim()
-                if (text.isEmpty() && replyingMessage == null) return@setOnClickListener
-                binding.chatInput.text?.clear()
                 val chat = viewModel.loadChat(getParams().id)!!
                 val conversationType = if (chat.isGroup) ConversationType.Group else ConversationType.Regular
                 val forwarded = if (replyingMessage != null) listOf(replyingMessage!!.primary) else emptyList()
@@ -610,12 +658,15 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
                         Log.d("ChatFragment", "Sent message via MessageCommonSender: body=$text, recipientJid=${chat.opponentJid}, forwarded=$forwarded")
                     }
                 }
+                binding.chatInput.text?.clear()
                 binding.answer.isVisible = false
                 replyingMessage = null
                 isNeedScrollDown = true
                 scrollDown()
             }
         }
+        // Ensure button is enabled based on input text or replying message
+        binding.buttonSendMessage.isEnabled = binding.chatInput.text.toString().trim().isNotEmpty() || replyingMessage != null
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -835,13 +886,10 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         }
 
         viewModel.isLocked.observe(viewLifecycleOwner) { isLocked ->
-            binding.chatInput.isEnabled = !isLocked
-            binding.buttonEmoticon.isEnabled = !isLocked
-            binding.buttonAttach.isEnabled = !isLocked
-            binding.btnRecord.isEnabled = !isLocked
-            binding.buttonSendMessage.isEnabled = !isLocked && binding.chatInput.text.toString().trim().isNotEmpty()
             binding.messageList.isEnabled = !isLocked
             replySwipeCallback?.setSwipeEnabled(!isLocked)
+            // Input buttons are always enabled, managed by their own logic
+            binding.buttonSendMessage.isEnabled = binding.chatInput.text.toString().trim().isNotEmpty() || replyingMessage != null
             Log.d("ChatFragment", "Screen lock state updated: isLocked=$isLocked")
         }
 
@@ -917,6 +965,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
             for (i in 0 until 10) {
                 delay(1000)
                 a++
+                val chat = viewModel.loadChat(getParams().id)!!
                 val m = MessageDto(
                     "$a $opponentJid ${System.currentTimeMillis()}",
                     false,
@@ -931,7 +980,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
                     false,
                     null,
                     isUnread = true,
-                    isGroup = false,
+                    isGroup = chat.isGroup, // Set isGroup based on chat
                     kind = null,
                     isSelected = false,
                     references = references,
@@ -1023,10 +1072,12 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
     }
 
     private fun enableStandardPanelButtons(enable: Boolean) {
-        binding.buttonEmoticon.isEnabled = enable
-        binding.buttonAttach.isEnabled = enable
-        binding.buttonSendMessage.isEnabled = enable
+        binding.buttonEmoticon.isEnabled = true
+        binding.buttonAttach.isEnabled = true
+        binding.btnRecord.isEnabled = true
+        binding.buttonSendMessage.isEnabled = binding.chatInput.text.toString().trim().isNotEmpty() || replyingMessage != null
     }
+
 
     private fun prepareUiForRecording() {
         binding.downScroller.isVisible = false

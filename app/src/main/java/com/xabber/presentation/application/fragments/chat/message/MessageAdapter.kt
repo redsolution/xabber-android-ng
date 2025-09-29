@@ -57,7 +57,7 @@ class MessageAdapter(
     fun updateAdapter(messageDtoList: List<MessageDto>) {
         Log.v(TAG, "Updating adapter with ${messageDtoList.size} messages")
         val newList = messageDtoList
-            .filter { it.primary.isNotEmpty() && it.messageBody.isNotEmpty() } // Allow messages with empty archivedId
+            .filter { it.primary.isNotEmpty() } // Only filter by non-empty primary
             .distinctBy { it.primary }
             .sortedBy { it.sentTimestamp }
         val diffResult = DiffUtil.calculateDiff(object : DiffUtil.Callback() {

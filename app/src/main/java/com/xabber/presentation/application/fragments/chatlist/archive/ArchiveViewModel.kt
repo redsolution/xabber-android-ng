@@ -31,18 +31,6 @@ class ArchiveViewModel : ViewModel() {
     val chatList: LiveData<List<ChatListDto>> = _chatList
     val t = System.currentTimeMillis() + 99999999999999999
 
-    private val anchorChatList = ChatListDto(
-        "",
-        "",
-        "",
-        "",
-        lastMessageState = MessageSendingState.None,
-        drawableId = R.drawable.angel,
-        entity = RosterItemEntity.CONTACT,
-        status = ResourceStatus.OFFLINE,
-        isHide = true
-    )
-
     init {
         initListener()
         getChat()
@@ -92,12 +80,7 @@ class ArchiveViewModel : ViewModel() {
                             if (ac != null) chatListDto.colorKey = ac.colorKey
                         }
                         listDto.sort()
-                        if (listDto.size > 0) {
-                            listDto.add(
-                                0,
-                                anchorChatList
-                            )
-                        }
+                        // Removed anchorChatList addition
                         withContext(Dispatchers.Main) {
                             _chatList.value = listDto
                         }
@@ -107,7 +90,6 @@ class ArchiveViewModel : ViewModel() {
             }
         }
     }
-
 
     fun pinChat(id: String) {
         viewModelScope.launch(Dispatchers.IO) {
@@ -127,7 +109,7 @@ class ArchiveViewModel : ViewModel() {
             val realmList =
                 realm.query(
                     LastChatsStorageItem::class,
-                    "owner IN {${accounts.joinToString { "'$it'" }}} && isArchived = true"
+                    "owner IN {${accounts.joinToString { "'$it'" }}} && isArchived == true"
                 )
                     .find()
             val listDto = ArrayList<ChatListDto>()
@@ -144,12 +126,7 @@ class ArchiveViewModel : ViewModel() {
                 if (ac != null) chatListDto.colorKey = ac.colorKey
             }
             listDto.sort()
-            if (listDto.size > 0) {
-                listDto.add(
-                    0,
-                    anchorChatList
-                )
-            }
+            // Removed anchorChatList addition
             withContext(Dispatchers.Main) { _chatList.value = listDto }
         }
     }
@@ -189,5 +166,4 @@ class ArchiveViewModel : ViewModel() {
         }
         return color
     }
-
 }

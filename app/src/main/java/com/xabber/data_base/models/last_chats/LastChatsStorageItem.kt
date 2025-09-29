@@ -6,34 +6,59 @@ import com.xabber.data_base.models.messages.MessageStorageItem
 import com.xabber.data_base.models.roster.RosterStorageItem
 import com.xabber.data_base.models.sync.ConversationType
 import com.xabber.utils.prp
-
 import io.realm.kotlin.types.RealmObject
 import io.realm.kotlin.types.annotations.PrimaryKey
+import io.realm.kotlin.types.annotations.Index
 
-
-
-
-
-class LastChatsStorageItem: RealmObject {
+class LastChatsStorageItem : RealmObject {
     companion object {
-
         fun genPrimary(jid: String, owner: String, conversationType: ConversationType): String {
             return listOf(jid, owner, conversationType.rawValue).prp()
         }
+
+        // Added from Swift: Define indexed properties for Realm
+        fun indexedProperties(): List<String> {
+            return listOf("owner", "jid", "messageDate", "isArchived")
+        }
     }
+
     var conversationType: ConversationType
         get() = ConversationType.values().firstOrNull { it.rawValue == conversationType_ } ?: ConversationType.Regular
         set(newValue) {
             conversationType_ = newValue.rawValue
         }
 
+    // Added from Swift: Computed property for isAfterburnEnabled
+    val isAfterburnEnabled: Boolean
+        get() = afterburnInterval > 0
 
+    // Added from Swift: Computed property for isMuted
+    val isMuted: Boolean
+        get() = System.currentTimeMillis() / 1000.0 < muteExpired
 
+    // Added from Swift: Computed property for chatState
+    var chatState: ComposingType
+        get() = when (chatState_) {
+            ComposingType.none.rawValue.toInt() -> ComposingType.none
+            ComposingType.typing.rawValue.toInt() -> ComposingType.typing
+            ComposingType.voice.rawValue.toInt() -> ComposingType.voice
+            ComposingType.video.rawValue.toInt() -> ComposingType.video
+            ComposingType.uploadFile.rawValue.toInt() -> ComposingType.uploadFile
+            ComposingType.uploadImage.rawValue.toInt() -> ComposingType.uploadImage
+            ComposingType.uploadAudio.rawValue.toInt() -> ComposingType.uploadAudio
+            else -> ComposingType.none
+        }
+        set(newValue) {
+            chatState_ = newValue.rawValue.toInt()
+        }
 
     @PrimaryKey
     var primary: String = ""  // автоматически jid + owner + conversation type
+    @Index
     var owner: String = ""   // jid юзера
+    @Index
     var jid: String = ""     // jid собеседника
+    @Index
     var messageDate: Long = 0    // дата последнего сообщения
     var lastReadMessageDate: Long = 0
     var rosterItem: RosterStorageItem? = null   // данные собеседника
@@ -41,6 +66,7 @@ class LastChatsStorageItem: RealmObject {
     var lastMessageId: String = "" // id последнего сообщения (мне не нужно)
     var isSynced: Boolean = false  // синхронизировано (changed to false)
     var isHistoryGapFixedForSession: Boolean = false
+    @Index
     var isArchived: Boolean = false  // архив
     var messagesCount: Int = -1
     var retractVersion: String? = null
@@ -72,10 +98,5 @@ class LastChatsStorageItem: RealmObject {
     var updateTS: Double = 0.0
     var lastChatOffset: Float = 0f
 
-
     private var chatState_: Int = 0
-
-
 }
-
-

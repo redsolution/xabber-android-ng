@@ -257,26 +257,42 @@ class ChatListViewModel : ViewModel() {
     fun forwardMessage(id: String, text: String) {
         viewModelScope.launch(Dispatchers.IO) {
             realm.write {
-                val item = this.query(LastChatsStorageItem::class, "primary = '$id'").first().find()
+                val item = query(LastChatsStorageItem::class, "primary = '$id'").first().find()
                 if (item != null) {
+                    val newMessageTimestamp = System.currentTimeMillis()
+                    // Check for the latest message in the chat
+                    val latestMessage = query<MessageStorageItem>(
+                        "owner = $0 AND opponent = $1 AND conversationType_ = $2 AND isDeleted = false",
+                        item.owner, item.jid, item.conversationType_
+                    ).sort("sentDate", Sort.DESCENDING).first().find()
+
                     val message = copyToRealm(MessageStorageItem().apply {
-                        primary = MessageStorageItem.genPrimary("message_${System.currentTimeMillis()}", item.owner)
+                        primary = MessageStorageItem.genPrimary("message_${newMessageTimestamp}", item.owner)
                         owner = item.owner
                         opponent = item.jid
                         body = text
-                        date = System.currentTimeMillis()
-                        sentDate = System.currentTimeMillis()
+                        date = newMessageTimestamp
+                        sentDate = newMessageTimestamp
                         editDate = 0
                         outgoing = true
                         conversationType_ = ConversationType.Regular.rawValue
+                        isRead = true // Forwarded messages are typically marked as read
                     })
+
                     findLatest(item)?.apply {
-                        lastMessage = message
-                        lastMessageId = message.messageId
-                        unread = 0
+                        // Update only if the new message has a higher timestamp
+                        if (latestMessage == null || newMessageTimestamp > latestMessage.sentDate) {
+                            lastMessage = message
+                            lastMessageId = message.messageId
+                            messageDate = newMessageTimestamp
+                            unread = 0
+                            Log.d("ChatListViewModel", "Updated LastChatsStorageItem with forwarded message: primary=$id, messageId=${message.messageId}, timestamp=$newMessageTimestamp")
+                        } else {
+                            Log.d("ChatListViewModel", "Skipped LastChatsStorageItem update: forwarded message timestamp ($newMessageTimestamp) not greater than current ($messageDate)")
+                        }
                     }
-                    Log.d("ChatListViewModel", "Forwarded message for chat $id")
                 }
+                Log.d("ChatListViewModel", "Forwarded message for chat $id, text=${text.take(50)}")
             }
             checkLastChats()
         }

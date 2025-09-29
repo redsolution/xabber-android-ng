@@ -102,7 +102,7 @@
             style="@style/AccountSettingsTitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="bunch"
+            android:text="stack"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintTop_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"/>
@@ -130,7 +130,7 @@
             style="@style/AccountSettingsTitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="well, how should i call it?"
+            android:text="temporary"
             app:layout_constraintStart_toEndOf="@id/circle1"
             app:layout_constraintTop_toTopOf="parent" />
 
@@ -159,7 +159,7 @@
             style="@style/AccountSettingsTitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="no idea"
+            android:text="hidden"
             app:layout_constraintStart_toEndOf="@id/circle2"
             app:layout_constraintTop_toTopOf="parent" />
 
@@ -172,7 +172,7 @@
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="@dimen/margin_less_than_medium"
         android:layout_marginTop="@dimen/margin_large"
-        android:text="@string/adts"
+        android:text="@string/adts_saved"
         android:textColor="@color/black"
         android:textSize="@dimen/font_size_18"
         app:layout_constraintEnd_toEndOf="parent"

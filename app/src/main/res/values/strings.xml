@@ -11,6 +11,7 @@
     <string name="error_ocra_failed" translatable="false">DEVICES-OCRA authentication failed: %1$s</string>
     <string name="error_authentication_failed" translatable="false">Authentication failed: %1$s</string>
     <string name="error_unexpected" translatable="false">Unexpected error: %1$s</string>
+    <string name="error_sync_failed" translatable="false"> sync failed</string>
 
     <!-- Permissions -->
     <string name="dialog_title_permission_denied">Permission denied</string>
@@ -36,10 +37,21 @@
     <string name="account_settings_show_avatars" translatable="false">account settings show_avatars</string>
     <string name="account_settings_notificaions" translatable="false">account settings notificaions</string>
     <string name="account_settings_in_app_notifications" translatable="false">account settings in_app_notifications</string>
+    <string name="account_settings_chat_notifications" translatable="false">account settings chat notifications</string>
     <string name="account_settings_chat_message_preview" translatable="false">account settings chat_message_preview</string>
     <string name="account_settings_in_app_sounds" translatable="false">account settings in_app_sounds</string>
+    <string name="account_settings_chat_sound" translatable="false">account settings chat sounds</string>
+    <string name="account_settings_chat_vibration" translatable="false">account settings chat vibration</string>
+    <string name="account_settings_chat_show_previews" translatable="false">account settings chat show previews</string>
+    <string name="account_settings_groupchat_notifications" translatable="false">account settings groupchat notifications</string>
+    <string name="account_settings_groupchat_sound" translatable="false">account settings groupchat sound</string>
+    <string name="account_settings_groupchat_vibration" translatable="false">account settings groupchat vibration</string>
+    <string name="account_settings_groupchat_show_previews" translatable="false">account settings groupchat show previews</string>
+    <string name="account_settings_chat_notifications_manage" translatable="false">account settings chat notification manage</string>
+    <string name="account_settings_groupchat_notifications_manage" translatable="false">account settings groupchat notification manage</string>
     <string name="account_settings_privacy" translatable="false">account settings privacy</string>
     <string name="account_settings_privacy_settings" translatable="false">account settings privacy_settings</string>
+    <string name="account_settings_privacy_level" translatable="false">account settings privacy level</string>
     <string name="account_settings_typing_notification" translatable="false">account settings typing_notification</string>
     <string name="settings_choose_language" translatable="false">settings choose language</string>
     <string name="account_settings_developer" translatable="false">account settings developer</string>
@@ -419,7 +431,7 @@
     \n\tReally impatient users can test working VoIP right now in <a href="https://www.xabber.com/web/">Web</a> and <a href="https://www.xabber.com/ios/">IOS</a> version of Xabber.\n\n\tIf you want to keep Xabber strong and speed up Xabber development, take part in our <a href="https://www.patreon.com/xabber">crowdfunding campaign on Patreon!</a></string>
     <!-- Saved Messages -->
     <string name="saved_messages">Saved messages</string>
-    <string name="adts">\tSaved messages are coming to Xabber for Android! Not this release, but they are on our roadmap.\n
+    <string name="adts_saved">\tSaved messages are coming to Xabber for Android! Not this release, but they are on our roadmap.\n
     \n\tReally impatient users can test working VoIP right now in <a href="https://www.xabber.com/web/">Web</a> and <a href="https://www.xabber.com/ios/">IOS</a> version of Xabber.\n\n\tIf you want to keep Xabber strong and speed up Xabber development, take part in our <a href="https://www.patreon.com/xabber">crowdfunding campaign on Patreon!</a></string>
 
     <!--Geolocation-->

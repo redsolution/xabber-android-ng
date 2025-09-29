@@ -11,6 +11,7 @@ import com.xabber.data_base.models.last_chats.LastChatsStorageItem
 import com.xabber.data_base.models.presences.ResourceStatus
 import com.xabber.data_base.models.presences.RosterItemEntity
 import com.xabber.data_base.models.roster.RosterStorageItem
+import com.xabber.data_base.models.sync.ConversationType
 import io.realm.kotlin.Realm
 import io.realm.kotlin.notifications.ResultsChange
 import io.realm.kotlin.notifications.UpdatedResults
@@ -32,7 +33,7 @@ class ContactsViewModel : ViewModel() {
             request.asFlow().collect { changes: ResultsChange<RosterStorageItem> ->
                 when (changes) {
                     is UpdatedResults -> {
-                        updateContactList(changes.list)
+                        updateContactList(filterNonGroupChats(changes.list))
                     }
                     else -> {}
                 }
@@ -45,7 +46,7 @@ class ContactsViewModel : ViewModel() {
             val realmList = realm.query(RosterStorageItem::class, "isDeleted = false")
                 .sort("customNickname" to Sort.ASCENDING, "nickname" to Sort.ASCENDING, "jid" to Sort.ASCENDING)
                 .find()
-            updateContactList(realmList)
+            updateContactList(filterNonGroupChats(realmList))
         }
     }
 
@@ -57,7 +58,7 @@ class ContactsViewModel : ViewModel() {
                 groupName
             ).sort("customNickname" to Sort.ASCENDING, "nickname" to Sort.ASCENDING, "jid" to Sort.ASCENDING)
                 .find()
-            updateContactList(realmList)
+            updateContactList(filterNonGroupChats(realmList))
         }
     }
 
@@ -66,7 +67,21 @@ class ContactsViewModel : ViewModel() {
             val realmList = realm.query(RosterStorageItem::class, "isDeleted = false")
                 .sort("customNickname" to Sort.ASCENDING, "nickname" to Sort.ASCENDING, "jid" to Sort.ASCENDING)
                 .find()
-            updateContactList(realmList)
+            updateContactList(filterNonGroupChats(realmList))
+        }
+    }
+
+    private fun filterNonGroupChats(realmList: List<RosterStorageItem>): List<RosterStorageItem> {
+        // Filter out RosterStorageItem entries that correspond to group chats
+        return realmList.filter { rosterItem ->
+            val isGroupChat = realm.query(
+                LastChatsStorageItem::class,
+                "jid = $0 AND owner = $1 AND conversationType_ = $2",
+                rosterItem.jid, rosterItem.owner, "https://xabber.com/protocol/groups"
+            ).first().find() != null
+            !isGroupChat
+        }.also {
+            Log.d("ContactsViewModel", "Filtered roster items: total=${realmList.size}, non-group=${it.size}")
         }
     }
 
@@ -87,7 +102,7 @@ class ContactsViewModel : ViewModel() {
                         T.jid, T.owner
                     ).sort("timestamp" to Sort.DESCENDING, "priority" to Sort.DESCENDING)
                         .first().find()?.status?.let { ResourceStatus.valueOf(it.name) } ?: ResourceStatus.OFFLINE,
-                    entity = RosterItemEntity.CONTACT,
+                    entity = RosterItemEntity.CONTACT, // Default to CONTACT since RosterStorageItem lacks entity_
                     isDeleted = T.isDeleted,
                     group = T.groups.firstOrNull() ?: "",
                     avatar = T.avatarR
@@ -102,8 +117,22 @@ class ContactsViewModel : ViewModel() {
     }
 
     fun getChatId(owner: String, opponent: String): String? {
-        val item = realm.query(LastChatsStorageItem::class, "jid = '$opponent'").first().find()
-        return item?.primary
+        // Check if the opponent JID corresponds to a group chat
+        val isGroupChat = realm.query(
+            LastChatsStorageItem::class,
+            "jid = $0 AND owner = $1 AND conversationType_ = $2",
+            opponent, owner, "https://xabber.com/protocol/groups"
+        ).first().find() != null
+
+        if (isGroupChat) {
+            Log.w("ContactsViewModel", "Skipping getChatId for group chat: opponent=$opponent, owner=$owner")
+            return null // Group chats should not be opened from contacts list
+        }
+
+        val item = realm.query(LastChatsStorageItem::class, "jid = '$opponent' AND owner = '$owner'").first().find()
+        val chatId = item?.primary ?: LastChatsStorageItem.genPrimary(opponent, owner, ConversationType.Regular)
+        Log.d("ContactsViewModel", "Generated chatId: opponent=$opponent, owner=$owner, chatId=$chatId")
+        return chatId
     }
 
     fun getOwner(): String? {

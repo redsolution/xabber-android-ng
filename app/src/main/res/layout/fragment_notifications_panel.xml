@@ -134,7 +134,7 @@
             style="@style/AccountSettingsTitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="well, how should i call it?"
+            android:text="temporary"
             app:layout_constraintStart_toEndOf="@id/circle1"
             app:layout_constraintTop_toTopOf="parent" />
 
@@ -163,7 +163,7 @@
             style="@style/AccountSettingsTitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="no idea"
+            android:text="hidden"
             app:layout_constraintStart_toEndOf="@id/circle2"
             app:layout_constraintTop_toTopOf="parent" />
 

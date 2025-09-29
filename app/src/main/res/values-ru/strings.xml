@@ -247,7 +247,7 @@
     \n\tСамые нетерпеливые пользователи могут протестировать работу VoIP прямо сейчас в <a href="https://www.xabber.com/web/">Web</a> и <a href="https://www.xabber.com/ios/">IOS</a> версия Xabber.\n\n\tЕсли вы хотите сохранить силу Xabber и ускорить разработку Xabber, примите участие в нашей <a href="https://www.patreon.com/xabber">краудфандинговой кампании на Patreon!</a></string>
     <!-- Saved messages -->
     <string name="saved_messages">Сохраненные сообщения</string>
-    <string name="adts">\tСохраненные сообщения приходят в Xabber для Android! Не в этом выпуске, но это есть в наших планах.\n
+    <string name="adts_saved">\tСохраненные сообщения приходят в Xabber для Android! Не в этом выпуске, но это есть в наших планах.\n
     \n\tСамые нетерпеливые пользователи могут протестировать работу VoIP прямо сейчас в <a href="https://www.xabber.com/web/">Web</a> и <a href="https://www.xabber.com/ios/">IOS</a> версия Xabber.\n\n\tЕсли вы хотите сохранить силу Xabber и ускорить разработку Xabber, примите участие в нашей <a href="https://www.patreon.com/xabber">краудфандинговой кампании на Patreon!</a></string>
 
     <!-- Geolocation -->

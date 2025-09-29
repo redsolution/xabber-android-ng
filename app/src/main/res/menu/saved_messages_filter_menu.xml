@@ -10,10 +10,10 @@
     </item>
     <item
         android:id="@+id/outgoing_call_item"
-        android:title="well, how should i call it?">
+        android:title="temporary">
     </item>
     <item
         android:id="@+id/declined_call_item"
-        android:title="no idea">
+        android:title="hidden">
     </item>
 </menu>

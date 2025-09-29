@@ -20,8 +20,11 @@ class VerificationSessionStorageItem: RealmObject {
     }
     fun primaryKey(): String? = "primary"
 
-    fun genPrimary(jid: String, owner: String): String {
-        return listOf(jid, owner).prp()
+    companion object {
+
+        fun genPrimary(jid: String, owner: String): String {
+            return listOf(jid, owner).prp()
+        }
     }
 
     var state: VerificationState
@@ -33,7 +36,6 @@ class VerificationSessionStorageItem: RealmObject {
 
     @PrimaryKey
     var primaryKey: String = ""
-
     var owner: String=""
     var myDeviceId:Int=0
     var jid: String=""
