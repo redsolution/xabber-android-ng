@@ -57,7 +57,7 @@ class MessageAdapter(
     fun updateAdapter(messageDtoList: List<MessageDto>) {
         Log.v(TAG, "Updating adapter with ${messageDtoList.size} messages")
         val newList = messageDtoList
-            .filter { it.primary.isNotEmpty() } // Only filter by non-empty primary
+            .filter { it.primary.isNotEmpty() }
             .distinctBy { it.primary }
             .sortedBy { it.sentTimestamp }
         val diffResult = DiffUtil.calculateDiff(object : DiffUtil.Callback() {
@@ -75,7 +75,8 @@ class MessageAdapter(
                         oldItem.references == newItem.references &&
                         oldItem.isUnread == newItem.isUnread &&
                         oldItem.isChecked == newItem.isChecked &&
-                        oldItem.messageSendingState == newItem.messageSendingState
+                        oldItem.messageSendingState == newItem.messageSendingState &&
+                        oldItem.archivedId == newItem.archivedId
             }
         })
         messages.clear()
@@ -87,7 +88,9 @@ class MessageAdapter(
 
     fun insertOlderMessages(newMessages: List<MessageDto>) {
         Log.v(TAG, "Inserting ${newMessages.size} older messages")
-        val filteredMessages = newMessages.filter { m -> !messages.any { it.primary == m.primary || (it.archivedId == m.archivedId && m.archivedId.isNotEmpty()) } }
+        val filteredMessages = newMessages.filter { m ->
+            !messages.any { it.primary == m.primary || (it.archivedId == m.archivedId && m.archivedId.isNotEmpty()) }
+        }
         if (filteredMessages.isEmpty()) {
             Log.d(TAG, "No new messages to insert")
             return
@@ -95,10 +98,9 @@ class MessageAdapter(
         val oldSize = messages.size
         messages.addAll(0, filteredMessages)
         messages.sortBy { it.sentTimestamp }
-        submitList(messages.toList()) {
-            notifyUnreadState()
-            Log.d(TAG, "Inserted ${filteredMessages.size} older messages, new list size: ${messages.size}, first=${messages.firstOrNull()?.primary}, last=${messages.lastOrNull()?.primary}")
-        }
+        notifyItemRangeInserted(0, filteredMessages.size)
+        notifyUnreadState()
+        Log.d(TAG, "Inserted ${filteredMessages.size} older messages, new list size: ${messages.size}, first=${messages.firstOrNull()?.primary}, last=${messages.lastOrNull()?.primary}")
     }
 
     override fun getItemViewType(position: Int): Int {
@@ -220,8 +222,10 @@ class MessageAdapter(
                     oldItem.sentTimestamp == newItem.sentTimestamp &&
                     oldItem.isOutgoing == newItem.isOutgoing &&
                     oldItem.references == newItem.references &&
-                    oldItem.archivedId == newItem.archivedId
-            // Убрали isUnread, isSelected, isChecked и messageSendingState, чтобы позволить обновления
+                    oldItem.archivedId == newItem.archivedId &&
+                    oldItem.isUnread == newItem.isUnread &&
+                    oldItem.isChecked == newItem.isChecked
+            // Include isUnread and isChecked to ensure UI updates reflect selection and read states
         }
     }
     companion object {

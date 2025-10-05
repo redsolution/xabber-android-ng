@@ -539,12 +539,13 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
             override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
                 if (layoutManager != null) {
                     val firstVisiblePosition = layoutManager!!.findFirstVisibleItemPosition()
-                    if (firstVisiblePosition == 0) {
+                    if (firstVisiblePosition <= 1) { // Trigger slightly before reaching the top
                         val currentTime = System.currentTimeMillis()
                         if (currentTime - lastLoadOlderMessagesTime >= debounceInterval) {
                             lastLoadOlderMessagesTime = currentTime
+                            val firstVisibleItem = messageAdapter?.getMessageItem(firstVisiblePosition)
                             viewModel.loadOlderMessages()
-                            Log.d("ChatFragment", "Triggered loadOlderMessages at top, firstVisiblePosition=$firstVisiblePosition")
+                            Log.d("ChatFragment", "Triggered loadOlderMessages near top, firstVisiblePosition=$firstVisiblePosition, firstVisiblePrimary=${firstVisibleItem?.primary}")
                         }
                     }
                     if (layoutManager!!.findLastVisibleItemPosition() >= messageAdapter!!.itemCount - 1) {
@@ -837,6 +838,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
                 Log.d("ChatFragment", "Messages LiveData updated with empty list")
                 messageAdapter?.updateAdapter(emptyList())
                 binding.downScroller.isVisible = false
+                binding.progressBar.isVisible = false
                 return@observe
             }
 
@@ -844,14 +846,32 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
             val firstVisiblePosition = layoutManager?.findFirstVisibleItemPosition() ?: 0
             val lastVisiblePosition = layoutManager?.findLastVisibleItemPosition() ?: 0
             val wasAtBottom = lastVisiblePosition >= messageAdapter?.itemCount?.minus(2) ?: 0
+            val wasNearTop = firstVisiblePosition <= 1
 
             // Update adapter with new messages
-            messageAdapter?.updateAdapter(messages)
+            if (wasNearTop) {
+                val firstVisibleItem = messageAdapter?.getMessageItem(firstVisiblePosition)
+                messageAdapter?.insertOlderMessages(messages.filter { m ->
+                    messageAdapter?.messages?.any { it.primary == m.primary || (it.archivedId == m.archivedId && m.archivedId.isNotEmpty()) } ?: true
+                })
+                // Restore scroll position
+                if (firstVisibleItem != null) {
+                    val newPosition = messages.indexOfFirst { it.primary == firstVisibleItem.primary }
+                    if (newPosition >= 0) {
+                        binding.messageList.post {
+                            layoutManager?.scrollToPosition(newPosition)
+                            Log.d("ChatFragment", "Restored scroll position to $newPosition after inserting older messages")
+                        }
+                    }
+                }
+            } else {
+                messageAdapter?.updateAdapter(messages)
+            }
 
-            // Scroll to the last message if user was at the bottom or the message is outgoing
+            // Only scroll to bottom for new messages, not archive messages
             if (messages.isNotEmpty()) {
                 val lastMessage = messages.maxByOrNull { it.sentTimestamp }
-                if (lastMessage != null) {
+                if (lastMessage != null && !wasNearTop) { // Skip scrolling if loading archive messages
                     if (isNeedScrollDown || wasAtBottom || lastMessage.isOutgoing) {
                         scrollDown()
                         isNeedScrollDown = false
@@ -888,8 +908,10 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
         viewModel.isLocked.observe(viewLifecycleOwner) { isLocked ->
             binding.messageList.isEnabled = !isLocked
             replySwipeCallback?.setSwipeEnabled(!isLocked)
-            // Input buttons are always enabled, managed by their own logic
             binding.buttonSendMessage.isEnabled = binding.chatInput.text.toString().trim().isNotEmpty() || replyingMessage != null
+            binding.buttonEmoticon.isEnabled = !isLocked
+            binding.buttonAttach.isEnabled = !isLocked
+            binding.btnRecord.isEnabled = !isLocked
             Log.d("ChatFragment", "Screen lock state updated: isLocked=$isLocked")
         }
 
@@ -904,7 +926,6 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
             }
         }
 
-        // Ensure initial message load
         viewModel.getMessageList(getParams().id)
     }
 

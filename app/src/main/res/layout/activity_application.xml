@@ -70,16 +70,6 @@
                         android:layout_gravity="end"
                         tools:ignore="ContentDescription" >
                     </ImageView>
-                    <ImageView
-                        android:layout_width="24dp"
-                        android:layout_height="24dp"
-                        android:id="@+id/dnsTestButton"
-                        android:layout_gravity="end"
-                        android:focusable="true"
-                        android:src="@drawable/circle"
-                        android:clickable="true">
-
-                    </ImageView>
 
                     <TextView
                         android:layout_width="wrap_content"

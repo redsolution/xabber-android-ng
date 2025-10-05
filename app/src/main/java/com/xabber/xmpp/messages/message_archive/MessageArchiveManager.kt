@@ -42,7 +42,7 @@ import javax.xml.parsers.DocumentBuilderFactory
 
 class MessageArchiveManager(private val owner: String) {
     private val namespace = "urn:xmpp:mam:2"
-    private val pageSize = 200
+    private val pageSize = 60
     private val callbacksQueue = mutableSetOf<CallbackQueueItem>()
     private val searchResultsQueries = mutableSetOf<String>()
     private val interactiveQueue = mutableListOf<String>()
@@ -128,6 +128,7 @@ class MessageArchiveManager(private val owner: String) {
         queryIdsMutex.withLock {
             if (queryIds.containsKey(elementId)) {
                 Log.w(TAG, "Query ID $elementId already exists, skipping request")
+                callback?.invoke()
                 return@withContext
             }
         }
@@ -143,42 +144,49 @@ class MessageArchiveManager(private val owner: String) {
         val toAttr = if (isGroupchat && jid != null) " to='$jid'" else ""
         val iqXml = "<iq type='set' id='$elementId'$toAttr>$queryXml</iq>"
 
-        val success = stream.socket?.write(iqXml) == true
-        if (success) {
-            val callbackItem = CallbackQueueItem(
-                jid = jid ?: "",
-                elementId = elementId,
-                task = MAMRequestItem(
-                    jid = jid,
-                    taskId = taskId,
-                    isGroupchat = isGroupchat,
-                    messageId = null,
-                    backward = backward,
-                    conversationType = conversationType,
-                    isContinues = isContinues,
-                    maxDate = start,
-                    searchText = searchText,
-                    queryId = elementId,
-                    rsmBefore = rsmBefore,
-                    rsmAfter = rsmAfter,
-                    max = max ?: pageSize,
-                    start = start,
-                    end = end,
-                    isNormalSynchronousTask = isNormalSynchronousTask
-                ),
-                callback = callback
-            )
-            queryIdsMutex.withLock {
-                queryIds[elementId] = callbackItem
-                Log.d(TAG, "Registered queryId=$elementId, taskId=$taskId, jid=$jid, conversationType=${conversationType.rawValue}")
+        try {
+            val success = stream.socket?.write(iqXml) == true
+            if (success) {
+                val callbackItem = CallbackQueueItem(
+                    jid = jid ?: "",
+                    elementId = elementId,
+                    task = MAMRequestItem(
+                        jid = jid,
+                        taskId = taskId,
+                        isGroupchat = isGroupchat,
+                        messageId = null,
+                        backward = backward,
+                        conversationType = conversationType,
+                        isContinues = isContinues,
+                        maxDate = start,
+                        searchText = searchText,
+                        queryId = elementId,
+                        rsmBefore = rsmBefore,
+                        rsmAfter = rsmAfter,
+                        max = max ?: pageSize,
+                        start = start,
+                        end = end,
+                        isNormalSynchronousTask = isNormalSynchronousTask
+                    ),
+                    callback = callback
+                )
+                queryIdsMutex.withLock {
+                    queryIds[elementId] = callbackItem
+                    Log.d(TAG, "Registered queryId=$elementId, taskId=$taskId, jid=$jid, conversationType=${conversationType.rawValue}")
+                }
+                callbacksQueue.add(callbackItem)
+                interactiveQueue.add(elementId)
+                temporaryMessageReceiver?.didStartPageLoad(elementId)
+                Log.d(TAG, "Sent MAM query: id=$elementId, jid=$jid, conversationType=${conversationType.rawValue}, isContinues=$isContinues, flipPage=$flipPage")
+            } else {
+                Log.e(TAG, "Failed to send MAM query: $iqXml")
+                temporaryMessageReceiver?.didReceiveEndPage(elementId, false, "", "", 0)
+                callback?.invoke()
             }
-            callbacksQueue.add(callbackItem)
-            interactiveQueue.add(elementId)
-            temporaryMessageReceiver?.didStartPageLoad(elementId)
-            Log.d(TAG, "Sent MAM query: id=$elementId, jid=$jid, conversationType=${conversationType.rawValue}, isContinues=$isContinues, flipPage=$flipPage")
-        } else {
-            Log.e(TAG, "Failed to send MAM query: $iqXml")
+        } catch (e: Exception) {
+            Log.e(TAG, "Exception in requestArchive: queryId=$elementId, jid=$jid, error=${e.message}", e)
             temporaryMessageReceiver?.didReceiveEndPage(elementId, false, "", "", 0)
+            callback?.invoke()
         }
     }
 
@@ -388,22 +396,33 @@ class MessageArchiveManager(private val owner: String) {
         callback: (() -> Unit)? = null
     ) = withContext(Dispatchers.IO) {
         val queryId = "MAM:${NanoId.generateOptimized(6, nanoIdAlphabet, nanoIdMask, nanoIdStep)}"
-        requestArchive(
-            stream = stream,
-            jid = jid,
-            isContinues = true,
-            conversationType = conversationType,
-            queryId = queryId,
-            searchText = null,
-            flipPage = true,
-            start = start,
-            end = end,
-            rsmBefore = if (reversed) "" else null,
-            max = 100,
-            isNormalSynchronousTask = true,
-            callback = callback
-        )
+        Log.d(TAG, "Initiating getHistoryByDate: queryId=$queryId, jid=$jid, conversationType=$conversationType, start=$start, end=$end, reversed=$reversed")
+        try {
+            requestArchive(
+                stream = stream,
+                jid = jid,
+                isContinues = true,
+                conversationType = conversationType,
+                queryId = queryId,
+                searchText = null,
+                flipPage = true,
+                start = start,
+                end = end,
+                rsmBefore = if (reversed) "" else null,
+                max = 100,
+                isNormalSynchronousTask = true,
+                callback = {
+                    Log.d(TAG, "getHistoryByDate completed: queryId=$queryId, jid=$jid")
+                    callback?.invoke()
+                }
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in getHistoryByDate: queryId=$queryId, jid=$jid, error=${e.message}", e)
+            temporaryMessageReceiver?.didReceiveEndPage(queryId, false, "", "", 0)
+            callback?.invoke() // Ensure callback is called on error
+        }
     }
+
 
     @RequiresApi(Build.VERSION_CODES.O)
     suspend fun searchText(
