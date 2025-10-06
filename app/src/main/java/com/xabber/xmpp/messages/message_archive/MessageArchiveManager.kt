@@ -177,18 +177,25 @@ class MessageArchiveManager(private val owner: String) {
                 callbacksQueue.add(callbackItem)
                 interactiveQueue.add(elementId)
                 temporaryMessageReceiver?.didStartPageLoad(elementId)
-                Log.d(TAG, "Sent MAM query: id=$elementId, jid=$jid, conversationType=${conversationType.rawValue}, isContinues=$isContinues, flipPage=$flipPage")
+                Log.v(TAG, "Sent MAM query stanza: $iqXml")
             } else {
-                Log.e(TAG, "Failed to send MAM query: $iqXml")
+                Log.e(TAG, "Failed to send MAM query stanza: $iqXml")
+                queryIdsMutex.withLock {
+                    queryIds.remove(elementId)
+                }
                 temporaryMessageReceiver?.didReceiveEndPage(elementId, false, "", "", 0)
                 callback?.invoke()
             }
         } catch (e: Exception) {
             Log.e(TAG, "Exception in requestArchive: queryId=$elementId, jid=$jid, error=${e.message}", e)
+            queryIdsMutex.withLock {
+                queryIds.remove(elementId)
+            }
             temporaryMessageReceiver?.didReceiveEndPage(elementId, false, "", "", 0)
             callback?.invoke()
         }
     }
+
 
     suspend fun syncChat(
         stream: Stream,

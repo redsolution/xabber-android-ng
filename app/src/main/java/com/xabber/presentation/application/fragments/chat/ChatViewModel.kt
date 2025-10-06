@@ -241,7 +241,6 @@ class ChatViewModel(
         }
     }
 
-
     private suspend fun loadLastMessage(): List<MessageDto> = withContext(Dispatchers.IO) {
         val chat = realm.query<LastChatsStorageItem>("primary = $0", chatId).first().find()
         val lastMessage = chat?.lastMessage
@@ -375,8 +374,7 @@ class ChatViewModel(
                         Log.d(TAG, "Skipping loadOlderMessages: historyLoading=$isLoadingHistory")
                         withContext(Dispatchers.Main) {
                             _isLoading.value = true // Keep progress bar visible
-                            _isLocked.value = true // Ensure screen is locked
-                            Log.d(TAG, "Keeping progress bar visible and screen locked due to ongoing load: chatId=$chatId")
+                            Log.d(TAG, "Keeping progress bar visible due to ongoing load: chatId=$chatId")
                         }
                         return@launch
                     }

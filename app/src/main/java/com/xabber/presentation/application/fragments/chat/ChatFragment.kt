@@ -838,7 +838,6 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
                 Log.d("ChatFragment", "Messages LiveData updated with empty list")
                 messageAdapter?.updateAdapter(emptyList())
                 binding.downScroller.isVisible = false
-                binding.progressBar.isVisible = false
                 return@observe
             }
 
@@ -851,10 +850,8 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
             // Update adapter with new messages
             if (wasNearTop) {
                 val firstVisibleItem = messageAdapter?.getMessageItem(firstVisiblePosition)
-                messageAdapter?.insertOlderMessages(messages.filter { m ->
-                    messageAdapter?.messages?.any { it.primary == m.primary || (it.archivedId == m.archivedId && m.archivedId.isNotEmpty()) } ?: true
-                })
-                // Restore scroll position
+                messageAdapter?.insertOlderMessages(messages)
+                // Restore scroll position to the previously first visible item
                 if (firstVisibleItem != null) {
                     val newPosition = messages.indexOfFirst { it.primary == firstVisibleItem.primary }
                     if (newPosition >= 0) {
@@ -868,10 +865,10 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
                 messageAdapter?.updateAdapter(messages)
             }
 
-            // Only scroll to bottom for new messages, not archive messages
+            // Scroll to the last message if user was at the bottom or the message is outgoing
             if (messages.isNotEmpty()) {
                 val lastMessage = messages.maxByOrNull { it.sentTimestamp }
-                if (lastMessage != null && !wasNearTop) { // Skip scrolling if loading archive messages
+                if (lastMessage != null) {
                     if (isNeedScrollDown || wasAtBottom || lastMessage.isOutgoing) {
                         scrollDown()
                         isNeedScrollDown = false
@@ -909,9 +906,6 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
             binding.messageList.isEnabled = !isLocked
             replySwipeCallback?.setSwipeEnabled(!isLocked)
             binding.buttonSendMessage.isEnabled = binding.chatInput.text.toString().trim().isNotEmpty() || replyingMessage != null
-            binding.buttonEmoticon.isEnabled = !isLocked
-            binding.buttonAttach.isEnabled = !isLocked
-            binding.btnRecord.isEnabled = !isLocked
             Log.d("ChatFragment", "Screen lock state updated: isLocked=$isLocked")
         }
 
@@ -928,6 +922,7 @@ class ChatFragment : DetailBaseFragment(R.layout.fragment_chat), MessageAdapter.
 
         viewModel.getMessageList(getParams().id)
     }
+
 
     private fun setupOpponentName(opponentName: String?) {
         binding.tvChatTitle.text = opponentName ?: "Saved messages"
