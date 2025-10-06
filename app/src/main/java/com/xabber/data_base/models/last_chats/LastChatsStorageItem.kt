@@ -1,5 +1,6 @@
 package com.xabber.data_base.models.last_chats
 
+import android.util.Log
 import com.xabber.R
 import com.xabber.data_base.models.chat_states.ComposingType
 import com.xabber.data_base.models.messages.MessageStorageItem
@@ -13,15 +14,15 @@ import io.realm.kotlin.types.annotations.Index
 class LastChatsStorageItem : RealmObject {
     companion object {
         fun genPrimary(jid: String, owner: String, conversationType: ConversationType): String {
-            return listOf(jid, owner, conversationType.rawValue).prp()
-        }
-
-        // Added from Swift: Define indexed properties for Realm
-        fun indexedProperties(): List<String> {
-            return listOf("owner", "jid", "messageDate", "isArchived")
+            if (jid.isBlank() || owner.isBlank() || conversationType.rawValue.isBlank()) {
+                Log.e("LastChatsStorageItem", "Invalid genPrimary inputs: jid='$jid', owner='$owner', type='${conversationType.rawValue}'")
+                return ""
+            }
+            val primary = listOf(jid, owner, conversationType.rawValue).prp()
+            Log.d("LastChatsStorageItem", "Generated primary: $primary for jid=$jid, owner=$owner, type=${conversationType.rawValue}")
+            return primary
         }
     }
-
     var conversationType: ConversationType
         get() = ConversationType.values().firstOrNull { it.rawValue == conversationType_ } ?: ConversationType.Regular
         set(newValue) {
@@ -54,11 +55,8 @@ class LastChatsStorageItem : RealmObject {
 
     @PrimaryKey
     var primary: String = ""  // автоматически jid + owner + conversation type
-    @Index
     var owner: String = ""   // jid юзера
-    @Index
     var jid: String = ""     // jid собеседника
-    @Index
     var messageDate: Long = 0    // дата последнего сообщения
     var lastReadMessageDate: Long = 0
     var rosterItem: RosterStorageItem? = null   // данные собеседника
@@ -66,7 +64,6 @@ class LastChatsStorageItem : RealmObject {
     var lastMessageId: String = "" // id последнего сообщения (мне не нужно)
     var isSynced: Boolean = false  // синхронизировано (changed to false)
     var isHistoryGapFixedForSession: Boolean = false
-    @Index
     var isArchived: Boolean = false  // архив
     var messagesCount: Int = -1
     var retractVersion: String? = null

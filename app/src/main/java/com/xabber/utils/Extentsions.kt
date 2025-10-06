@@ -539,7 +539,7 @@ fun observeMessages(
                     isOutgoing = item.outgoing,
                     owner = item.owner,
                     opponentJid = item.opponent,
-                    messageBody = item.body,
+                    messageBody = item.body ?: "",
                     messageSendingState = when {
                         item.isRead -> MessageSendingState.Read
                         item.outgoing -> MessageSendingState.Deliver
@@ -549,7 +549,7 @@ fun observeMessages(
                     editTimestamp = item.editDate,
                     displayType = when (item.displayAs) {
                         "system" -> MessageDisplayType.System
-                        else -> MessageDisplayType.Text
+                        else -> if (item.body.isNullOrEmpty() && item.references.isNotEmpty()) MessageDisplayType.Images else MessageDisplayType.Text
                     },
                     canEditMessage = item.outgoing,
                     canDeleteMessage = item.outgoing,
@@ -562,7 +562,7 @@ fun observeMessages(
                     isChecked = false,
                     archivedId = item.archivedId
                 ).also {
-                    Log.d("observeMessages", "Emitted message: primary=${it.primary}, sentTimestamp=${it.sentTimestamp}, body=${it.messageBody.take(50)}, isUnread=${it.isUnread}")
+                    Log.d("observeMessages", "Emitted message: primary=${it.primary}, sentTimestamp=${it.sentTimestamp}, body=${it.messageBody.take(50)}, isUnread=${it.isUnread}, archivedId=${it.archivedId}")
                 }
             }
             trySend(messages).isSuccess

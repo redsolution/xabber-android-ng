@@ -42,7 +42,7 @@ import javax.xml.parsers.DocumentBuilderFactory
 
 class MessageArchiveManager(private val owner: String) {
     private val namespace = "urn:xmpp:mam:2"
-    private val pageSize = 60
+    private val pageSize = 20 // Reduced from 60 to 20
     private val callbacksQueue = mutableSetOf<CallbackQueueItem>()
     private val searchResultsQueries = mutableSetOf<String>()
     private val interactiveQueue = mutableListOf<String>()
@@ -52,9 +52,8 @@ class MessageArchiveManager(private val owner: String) {
     private val nanoIdStep = 16
     private val TAG = "MessageArchiveManager"
     private val queryToReceivedCount = mutableMapOf<String, Int>()
-    private val queryIds = mutableMapOf<String, CallbackQueueItem>() // Changed to Map
+    private val queryIds = mutableMapOf<String, CallbackQueueItem>()
     private val queryIdsMutex = Mutex()
-
 
     data class MAMRequestItem(
         val jid: String?,
@@ -98,7 +97,7 @@ class MessageArchiveManager(private val owner: String) {
     interface TemporaryMessageReceiver {
         suspend fun didReceiveMessage(item: MessageStorageItem, queryId: String)
         fun didReceiveEndPage(queryId: String, fin: Boolean, first: String, last: String, count: Int)
-        fun didStartPageLoad(queryId: String) // New callback for starting page load
+        fun didStartPageLoad(queryId: String)
     }
     var temporaryMessageReceiver: TemporaryMessageReceiver? = null
 
@@ -196,12 +195,12 @@ class MessageArchiveManager(private val owner: String) {
         }
     }
 
-
+    @RequiresApi(Build.VERSION_CODES.O)
     suspend fun syncChat(
         stream: Stream,
         jid: String,
         conversationType: ConversationType,
-        callback: (() -> Unit)?
+        callback: (() -> Unit)? = null
     ) = withContext(Dispatchers.IO) {
         val realm = Realm.open(defaultRealmConfig())
         try {
@@ -213,10 +212,22 @@ class MessageArchiveManager(private val owner: String) {
             var chat: LastChatsStorageItem? = null
 
             realm.write {
-                chat = query<LastChatsStorageItem>(
-                    "primary = $0",
-                    LastChatsStorageItem.genPrimary(jid, owner, conversationType)
-                ).first().find()
+                // Check for existing chats with the same jid and owner
+                val existingChats = query<LastChatsStorageItem>(
+                    "jid = $0 AND owner = $1", jid, owner
+                ).find()
+                chat = existingChats.find { it.conversationType_ == conversationType.rawValue }
+                if (chat == null && existingChats.isNotEmpty() && conversationType == ConversationType.Group) {
+                    // Update existing chat to group type if needed
+                    chat = existingChats.firstOrNull()
+                    if (chat != null) {
+                        findLatest(chat!!)?.apply {
+                            conversationType_ = ConversationType.Group.rawValue
+                            Log.d(TAG, "Updated existing chat to group type: jid=$jid, owner=$owner, new conversationType=${ConversationType.Group.rawValue}")
+                        }
+                    }
+                }
+
                 if (chat != null) {
                     isInitialArchiveLoaded = chat!!.isInitialArchiveLoaded
                     isSynced = chat!!.isSynced
@@ -284,9 +295,15 @@ class MessageArchiveManager(private val owner: String) {
                         }
                     }
                 } else {
+                    val chatPrimary = LastChatsStorageItem.genPrimary(jid, owner, conversationType)
+                    if (chatPrimary.isEmpty()) {
+                        Log.w(TAG, "Skipping chat creation due to invalid primary key for jid=$jid, owner=$owner, type=${conversationType.rawValue}")
+                        callback?.invoke()
+                        return@write
+                    }
                     val existingChat = query<LastChatsStorageItem>(
                         "primary = $0",
-                        LastChatsStorageItem.genPrimary(jid, owner, conversationType)
+                        chatPrimary
                     ).first().find()
                     if (existingChat == null) {
                         val instance = LastChatsStorageItem().apply {
@@ -294,7 +311,7 @@ class MessageArchiveManager(private val owner: String) {
                             this.jid = jid
                             conversationType_ = conversationType.rawValue
                             messageDate = System.currentTimeMillis()
-                            primary = LastChatsStorageItem.genPrimary(jid, owner, conversationType)
+                            primary = chatPrimary
                             isSynced = false
                             isInitialArchiveLoaded = false
                             val roster = query<RosterStorageItem>("jid = $0 AND owner = $1", jid, owner).first().find()
@@ -363,7 +380,7 @@ class MessageArchiveManager(private val owner: String) {
                                 end = gap.end,
                                 max = pageSize,
                                 withCounter = true,
-                                callback = null // No callback for gap queries
+                                callback = null
                             )
                         }
                         realm.write {
@@ -416,7 +433,7 @@ class MessageArchiveManager(private val owner: String) {
                 start = start,
                 end = end,
                 rsmBefore = if (reversed) "" else null,
-                max = 100,
+                max = pageSize, // Use pageSize instead of 100
                 isNormalSynchronousTask = true,
                 callback = {
                     Log.d(TAG, "getHistoryByDate completed: queryId=$queryId, jid=$jid")
@@ -426,10 +443,9 @@ class MessageArchiveManager(private val owner: String) {
         } catch (e: Exception) {
             Log.e(TAG, "Error in getHistoryByDate: queryId=$queryId, jid=$jid, error=${e.message}", e)
             temporaryMessageReceiver?.didReceiveEndPage(queryId, false, "", "", 0)
-            callback?.invoke() // Ensure callback is called on error
+            callback?.invoke()
         }
     }
-
 
     @RequiresApi(Build.VERSION_CODES.O)
     suspend fun searchText(
@@ -437,7 +453,7 @@ class MessageArchiveManager(private val owner: String) {
         jid: String? = null,
         conversationType: ConversationType,
         text: String,
-        max: Int = 250,
+        max: Int = pageSize, // Use pageSize
         loadFull: Boolean = true
     ): String = withContext(Dispatchers.IO) {
         val taskId = listOf(jid ?: "global_search", conversationType.rawValue).prp()
@@ -503,7 +519,7 @@ class MessageArchiveManager(private val owner: String) {
             queryId = queryId,
             flipPage = true,
             rsmAfter = messageId,
-            max = 250,
+            max = pageSize, // Use pageSize
             callback = callback
         )
     }
@@ -533,7 +549,7 @@ class MessageArchiveManager(private val owner: String) {
                 flipPage = true,
                 end = modifiedDate,
                 rsmBefore = "",
-                max = 250,
+                max = pageSize, // Use pageSize
                 isNormalSynchronousTask = true,
                 callback = callback
             )
@@ -640,6 +656,7 @@ class MessageArchiveManager(private val owner: String) {
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     suspend fun readMessage(message: String, updateLastChat: Boolean = false): MessageStorageItem? = withContext(Dispatchers.IO) {
         val realm = Realm.open(defaultRealmConfig())
         try {
@@ -666,12 +683,18 @@ class MessageArchiveManager(private val owner: String) {
                 return@withContext null
             }
 
+            if (xmppMessage.type == "headline") {
+                Log.d(TAG, "Skipping headline message for queryId=$queryId, messageId=${xmppMessage.id}")
+                return@withContext null
+            }
+
             val from = xmppMessage.from?.bare() ?: return@withContext null
             val to = xmppMessage.to?.bare() ?: return@withContext null
             val isGroupChat = xmppMessage.element("x", namespace = "https://xabber.com/protocol/groups") != null
+            val conversationType = if (isGroupChat) ConversationType.Group else ConversationType.Regular
             val originalOutgoing = if (isGroupChat) {
                 val userId = xmppMessage.element("x", namespace = "https://xabber.com/protocol/groups")
-                    ?.element("reference", namespace = "https://xabber.com/protocol/groups")
+                    ?.element("reference", namespace = "https://xabber.com/protocol/references")
                     ?.element("user", namespace = "https://xabber.com/protocol/groups")?.getAttribute("id")
                 userId == owner
             } else {
@@ -693,7 +716,7 @@ class MessageArchiveManager(private val owner: String) {
             }
 
             val instance = MessageStorageItem()
-            val conversationType = instance.conversationTypeByMessage(xmppMessage)
+            instance.conversationType_ = conversationType.rawValue
             var isRead = originalOutgoing
             val readDate: Date? = null
             if (readDate != null && delayedDate.time < readDate.time) {
@@ -741,7 +764,71 @@ class MessageArchiveManager(private val owner: String) {
 
             realm.write {
                 copyToRealm(instance, UpdatePolicy.ALL)
-                Log.d(TAG, "Processed message: queryId=$queryId, messageId=${instance.messageId}, primary=${instance.primary}, opponent=$opponent, body=${instance.body.take(50)}, isOutgoing=$originalOutgoing")
+                Log.d(TAG, "Processed message: queryId=$queryId, messageId=${instance.messageId}, primary=${instance.primary}, opponent=$opponent, body=${instance.body.take(50)}, isOutgoing=$originalOutgoing, conversationType=${instance.conversationType_}")
+
+                // Update or create LastChatsStorageItem
+                if (updateLastChat) {
+                    val existingChats = query<LastChatsStorageItem>(
+                        "jid = $0 AND owner = $1", opponent, owner
+                    ).find()
+                    var targetChat: LastChatsStorageItem? = existingChats.find { it.conversationType_ == conversationType.rawValue }
+
+                    if (targetChat == null && existingChats.isNotEmpty() && isGroupChat) {
+                        targetChat = existingChats.firstOrNull()
+                        if (targetChat != null) {
+                            findLatest(targetChat)?.apply {
+                                conversationType_ = ConversationType.Group.rawValue
+                                Log.d(TAG, "Updated existing chat to group type: jid=$opponent, owner=$owner, new conversationType=${ConversationType.Group.rawValue}")
+                            }
+                        }
+                    }
+
+                    val chatPrimary = LastChatsStorageItem.genPrimary(opponent, owner, conversationType)
+                    if (chatPrimary.isEmpty()) {
+                        Log.w(TAG, "Skipping LastChatsStorageItem creation: invalid chatPrimary for jid=$opponent, owner=$owner, type=${conversationType.rawValue}")
+                        return@write
+                    }
+
+                    if (targetChat != null) {
+                        findLatest(targetChat)?.apply {
+                            if (instance.sentDate > messageDate) {
+                                lastMessage = instance
+                                messageDate = instance.sentDate
+                                lastMessageId = instance.messageId
+                                if (!originalOutgoing && muteExpired <= 0) {
+                                    isArchived = false
+                                    unread = (unread ?: 0) + if (!instance.isRead) 1 else 0
+                                }
+                                Log.d(TAG, "Updated LastChatsStorageItem for MAM message: primary=$chatPrimary, timestamp=${instance.sentDate}, messageId=${instance.messageId}")
+                            }
+                        }
+                    } else {
+                        val roster = query<RosterStorageItem>("jid = $0 AND owner = $1", opponent, owner).first().find()
+                            ?: copyToRealm(RosterStorageItem().apply {
+                                this.jid = opponent
+                                this.owner = this@MessageArchiveManager.owner
+                                primary = RosterStorageItem.genPrimary(opponent, owner)
+                                groups = realmListOf("ungrouped")
+                            })
+                        copyToRealm(LastChatsStorageItem().apply {
+                            primary = chatPrimary
+                            this.jid = opponent
+                            this.owner = owner
+                            conversationType_ = conversationType.rawValue
+                            messageDate = instance.sentDate
+                            isSynced = true
+                            isInitialArchiveLoaded = true
+                            lastMessage = instance
+                            lastMessageId = instance.messageId
+                            if (!originalOutgoing && muteExpired <= 0) {
+                                isArchived = false
+                                unread = if (!instance.isRead) 1 else 0
+                            }
+                            rosterItem = roster
+                        }, UpdatePolicy.ALL)
+                        Log.d(TAG, "Created new LastChatsStorageItem for MAM message: primary=$chatPrimary, timestamp=${instance.sentDate}, messageId=${instance.messageId}")
+                    }
+                }
             }
             temporaryMessageReceiver?.didReceiveMessage(instance, queryId)
             instance
@@ -753,7 +840,7 @@ class MessageArchiveManager(private val owner: String) {
         }
     }
 
-
+    @RequiresApi(Build.VERSION_CODES.O)
     suspend fun read(iq: String, stream: Stream): Boolean = withContext(Dispatchers.IO) {
         val realm = Realm.open(defaultRealmConfig())
         try {
@@ -811,7 +898,6 @@ class MessageArchiveManager(private val owner: String) {
                         ).first().find()
                         if (chat != null) {
                             findLatest(chat)?.apply {
-                                // Only set fullArchiveLoaded if complete is true and count is 0
                                 if (task.isNormalSynchronousTask || (task.isContinues && complete && count == 0)) {
                                     fullArchiveLoaded = true
                                     Log.d(TAG, "Marked archive as fully loaded: jid=${task.jid}, queryId=$queryId, count=$count")
@@ -851,7 +937,6 @@ class MessageArchiveManager(private val owner: String) {
             true
         } catch (e: Exception) {
             Log.e(TAG, "Failed to parse IQ: ${e.message}", e)
-            // Do not set fullArchiveLoaded on failure
             temporaryMessageReceiver?.didReceiveEndPage("", false, "", "", 0)
             return@withContext false
         } finally {
@@ -962,7 +1047,8 @@ class MessageArchiveManager(private val owner: String) {
     }
 
     private fun isSystemMessage(message: XMPPMessage): Boolean {
-        return message.hasElement("system", namespace = "urn:xmpp:system")
+        return message.hasElement("system", namespace = "urn:xmpp:system") ||
+                message.hasElement("x", namespace = "https://xabber.com/protocol/groups#system-message")
     }
 
     private fun isChatStateOrMarker(message: XMPPMessage): Boolean {
@@ -1029,10 +1115,8 @@ class MessageArchiveManager(private val owner: String) {
         searchResultsQueries.clear()
         interactiveQueue.clear()
         continuesTaskID = null
-        // Do not clear queryIds to preserve active queries
         Log.d(TAG, "Reset callbacks for owner $owner, preserving queryIds=$queryIds")
     }
-
 
     fun didResetState() {
         callbacksQueue.forEach { it.callback?.invoke() }
@@ -1040,10 +1124,8 @@ class MessageArchiveManager(private val owner: String) {
         searchResultsQueries.clear()
         interactiveQueue.clear()
         continuesTaskID = null
-        // Do not clear queryIds to preserve active queries
         Log.d(TAG, "Reset state for owner $owner, preserving queryIds=$queryIds")
     }
-
 
     fun incrementReceived(queryId: String) {
         queryToReceivedCount[queryId] = (queryToReceivedCount[queryId] ?: 0) + 1

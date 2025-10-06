@@ -83,7 +83,7 @@ class MessageAdapter(
         messages.addAll(newList)
         diffResult.dispatchUpdatesTo(this)
         notifyUnreadState()
-        Log.d(TAG, "Adapter updated with ${messages.size} messages, first=${messages.firstOrNull()?.primary}, last=${messages.lastOrNull()?.primary}, archivedId=${messages.lastOrNull()?.archivedId}")
+        Log.d(TAG, "Adapter updated with ${messages.size} messages, first=${messages.firstOrNull()?.primary}, last=${messages.lastOrNull()?.primary}, lastArchivedId=${messages.lastOrNull()?.archivedId}")
     }
 
     fun insertOlderMessages(newMessages: List<MessageDto>) {

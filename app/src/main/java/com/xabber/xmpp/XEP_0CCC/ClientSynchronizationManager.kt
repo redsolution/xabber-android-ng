@@ -52,7 +52,6 @@ class ClientSynchronizationManager(owner: String) {
         }
     }
 
-
     @RequiresApi(Build.VERSION_CODES.O)
     suspend fun sync(stream: Stream, customVer: String? = null, after: String? = null): Boolean {
         val syncId = NanoId.generateOptimized(9, "_-0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", 63, 16)
@@ -65,7 +64,7 @@ class ClientSynchronizationManager(owner: String) {
             }
             append(">")
             append("<set xmlns='http://jabber.org/protocol/rsm'>")
-            append("<max>60</max>")
+            append("<max>20</max>") // Reduced page size from 60 to 20
             if (after != null) {
                 append("<after>$after</after>")
             }
@@ -152,10 +151,6 @@ class ClientSynchronizationManager(owner: String) {
             "https://xabber.com/protocol/groups",
             "urn:xabber:favorites:0"
         )
-        val groupChatJids = setOf(
-            "xabber@xmppdev01.xabber.com",
-            "test-group-igor-310725-01@xmppdev01.xabber.com"
-        )
 
         realm.write {
             val existingChats = query<LastChatsStorageItem>("owner = $0", owner).find()
@@ -163,8 +158,8 @@ class ClientSynchronizationManager(owner: String) {
 
             for (i in 0 until conversations.length) {
                 val conversation = conversations.item(i) as Element
-                val jid = conversation.getAttribute("jid") ?: continue
-                val type = conversation.getAttribute("type") ?: continue
+                val jid = conversation.getAttribute("jid")?.takeIf { it.isNotBlank() } ?: continue
+                val type = conversation.getAttribute("type")?.takeIf { it.isNotBlank() } ?: continue
 
                 // Skip self JID
                 if (jid == owner) {
@@ -172,11 +167,13 @@ class ClientSynchronizationManager(owner: String) {
                     continue
                 }
 
-                // Existing skips
+                // Skip notifications
                 if (type == "urn:xabber:xen:0") {
                     Log.d("ClientSyncManager", "Skipping notification conversation with jid=$jid, type=$type")
                     continue
                 }
+
+                // Skip server JID
                 if (jid == owner.substringAfter("@")) {
                     Log.d("ClientSyncManager", "Skipping server JID conversation for jid=$jid")
                     continue
@@ -188,19 +185,12 @@ class ClientSynchronizationManager(owner: String) {
                     continue
                 }
 
-                // For group chat JIDs, enforce https://xabber.com/protocol/groups
-                val expectedType = if (jid in groupChatJids) "https://xabber.com/protocol/groups" else type
-                if (jid in groupChatJids && type != expectedType) {
-                    Log.w("ClientSyncManager", "Incorrect conversation type $type for group chat jid=$jid, expected $expectedType, skipping")
-                    continue
-                }
-
-                val status = conversation.getAttribute("status") ?: "active"
+                val status = conversation.getAttribute("status")?.takeIf { it.isNotBlank() } ?: "active"
                 val pinned = conversation.getAttribute("pinned")?.toLongOrNull() ?: 0L
                 val conversationStamp = conversation.getAttribute("stamp")?.toLongOrNull() ?: 0L
 
-                val conversationType = ConversationType.values().firstOrNull { it.rawValue == expectedType } ?: run {
-                    Log.w("ClientSyncManager", "Unknown conversation type $expectedType for jid $jid, treating as urn:xabber:chat")
+                val conversationType = ConversationType.values().firstOrNull { it.rawValue == type } ?: run {
+                    Log.w("ClientSyncManager", "Unknown conversation type $type for jid $jid, treating as urn:xabber:chat")
                     ConversationType.Regular
                 }
 
@@ -212,8 +202,9 @@ class ClientSynchronizationManager(owner: String) {
 
                 for (j in 0 until metadataList.length) {
                     val metadata = metadataList.item(j) as Element
-                    if (metadata.getAttribute("node") != "https://xabber.com/protocol/synchronization") {
-                        Log.d("ClientSyncManager", "Skipping metadata with node=${metadata.getAttribute("node")} for jid=$jid")
+                    val node = metadata.getAttribute("node")?.takeIf { it.isNotBlank() }
+                    if (node != "https://xabber.com/protocol/synchronization") {
+                        Log.d("ClientSyncManager", "Skipping metadata with node=$node for jid=$jid")
                         continue
                     }
                     val unread = metadata.getElementsByTagName("unread").item(0) as? Element
@@ -222,10 +213,14 @@ class ClientSynchronizationManager(owner: String) {
                     lastMessageElement?.let { messageElement ->
                         val message = messageElement.getElementsByTagName("message").item(0) as? Element
                         message?.let {
-                            val messageId = it.getAttribute("id") ?: ""
-                            val from = it.getAttribute("from") ?: jid
-                            val to = it.getAttribute("to") ?: owner
-                            val body = it.getElementsByTagName("body").item(0)?.textContent ?: ""
+                            val messageId = it.getAttribute("id")?.takeIf { it.isNotBlank() } ?: ""
+                            if (messageId.isEmpty()) {
+                                Log.d("ClientSyncManager", "Skipping message with empty id for jid=$jid")
+                                return@let
+                            }
+                            val from = it.getAttribute("from")?.takeIf { it.isNotBlank() } ?: jid
+                            val to = it.getAttribute("to")?.takeIf { it.isNotBlank() } ?: owner
+                            val body = it.getElementsByTagName("body").item(0)?.textContent?.trim() ?: ""
                             if (body.isEmpty()) {
                                 Log.d("ClientSyncManager", "Skipping message with empty body for jid=$jid, messageId=$messageId")
                                 return@let
@@ -243,6 +238,10 @@ class ClientSynchronizationManager(owner: String) {
                             } ?: 0L
 
                             val messagePrimary = MessageStorageItem.genPrimary(messageId, owner)
+                            if (messagePrimary.isEmpty()) {
+                                Log.w("ClientSyncManager", "Skipping message with invalid primary key for messageId=$messageId, owner=$owner")
+                                return@let
+                            }
                             val existingMessage = query<MessageStorageItem>("primary = $0", messagePrimary).first().find()
                             lastMessage = if (existingMessage == null) {
                                 copyToRealm(MessageStorageItem().apply {
@@ -255,7 +254,7 @@ class ClientSynchronizationManager(owner: String) {
                                     this.sentDate = timestamp
                                     this.editDate = 0L
                                     this.outgoing = to == owner
-                                    this.conversationType_ = expectedType
+                                    this.conversationType_ = type
                                     this.isRead = unreadCount == 0L
                                     this.state = MessageSendingState.Sent
                                 }, UpdatePolicy.ALL)
@@ -264,30 +263,28 @@ class ClientSynchronizationManager(owner: String) {
                             }
                             messageDate = timestamp
                             lastMessageId = messageId
-                            Log.d("ClientSyncManager", "Saved or used existing message $messageId for jid $jid")
+                            Log.d("ClientSyncManager", "Saved or used existing message $messageId for jid=$jid, body=${body.take(50)}")
                         }
                     }
                 }
 
                 // Skip if no valid message was found
                 if (lastMessage == null || messageDate == 0L || lastMessageId.isEmpty()) {
-                    Log.d("ClientSyncManager", "Skipping conversation with no valid message for jid=$jid, type=$expectedType")
+                    Log.d("ClientSyncManager", "Skipping conversation with no valid message for jid=$jid, type=$type")
                     continue
                 }
 
-                // Check for existing chats with the same jid across all conversation types
-                val existingChats = query<LastChatsStorageItem>("jid = $0 AND owner = $1", jid, owner).find()
-                val existingChat = existingChats.find { it.conversationType_ == expectedType }
-                val otherChats = existingChats.filter { it.conversationType_ != expectedType }
-
-                // If there are chats with the same jid but different conversation types, log a warning
-                if (otherChats.isNotEmpty()) {
-                    Log.w("ClientSyncManager", "Found ${otherChats.size} existing LastChatsStorageItem entries for jid=$jid with different conversation types: ${otherChats.map { it.conversationType_ }}")
+                // Check for existing chats
+                val existingChat = query<LastChatsStorageItem>("jid = $0 AND owner = $1 AND conversationType_ = $2", jid, owner, type).first().find()
+                val chatPrimary = LastChatsStorageItem.genPrimary(jid, owner, conversationType)
+                if (chatPrimary.isEmpty()) {
+                    Log.w("ClientSyncManager", "Skipping chat creation due to invalid primary key for jid=$jid, owner=$owner, type=$type")
+                    continue
                 }
 
                 // Create rosterItem only if not excluded
                 var rosterItem: RosterStorageItem? = null
-                val isExcludedForRoster = excludedJidsForRoster.contains(jid) || excludedTypesForRoster.contains(expectedType) || jid == owner
+                val isExcludedForRoster = excludedJidsForRoster.contains(jid) || excludedTypesForRoster.contains(type) || jid == owner
                 if (!isExcludedForRoster) {
                     rosterItem = query<RosterStorageItem>("jid = $0 AND owner = $1", jid, owner).first().find()
                         ?: copyToRealm(RosterStorageItem().apply {
@@ -296,32 +293,27 @@ class ClientSynchronizationManager(owner: String) {
                             this.owner = owner
                             this.customNickname = jid
                         }, UpdatePolicy.ALL)
-                    Log.d("ClientSyncManager", "Created/Used RosterStorageItem for jid $jid")
+                    Log.d("ClientSyncManager", "Created/Used RosterStorageItem for jid=$jid")
                 } else {
-                    Log.d("ClientSyncManager", "Skipping RosterStorageItem creation for excluded jid=$jid, type=$expectedType")
+                    Log.d("ClientSyncManager", "Skipping RosterStorageItem creation for excluded jid=$jid, type=$type")
                 }
 
                 if (existingChat == null) {
-                    // Only create a new chat if no existing chat with the same jid exists
-                    if (existingChats.isEmpty()) {
-                        copyToRealm(LastChatsStorageItem().apply {
-                            primary = LastChatsStorageItem.genPrimary(jid, owner, conversationType)
-                            this.jid = jid
-                            this.owner = owner
-                            this.conversationType_ = expectedType
-                            this.isArchived = status == "archived"
-                            this.unread = unreadCount.toInt()
-                            this.messageDate = messageDate
-                            this.lastMessageId = lastMessageId
-                            this.pinnedPosition = pinned
-                            this.muteExpired = -1
-                            this.rosterItem = rosterItem
-                            this.lastMessage = lastMessage
-                        }, UpdatePolicy.ALL)
-                        Log.d("ClientSyncManager", "Created new LastChatsStorageItem for jid $jid, type $expectedType, owner $owner")
-                    } else {
-                        Log.w("ClientSyncManager", "Skipping creation of new LastChatsStorageItem for jid=$jid, type=$expectedType; existing chats found: ${existingChats.map { it.conversationType_ }}")
-                    }
+                    copyToRealm(LastChatsStorageItem().apply {
+                        primary = chatPrimary
+                        this.jid = jid
+                        this.owner = owner
+                        this.conversationType_ = type
+                        this.isArchived = status == "archived"
+                        this.unread = unreadCount.toInt()
+                        this.messageDate = messageDate
+                        this.lastMessageId = lastMessageId
+                        this.pinnedPosition = pinned
+                        this.muteExpired = -1
+                        this.rosterItem = rosterItem
+                        this.lastMessage = lastMessage
+                    }, UpdatePolicy.ALL)
+                    Log.d("ClientSyncManager", "Created new LastChatsStorageItem for jid=$jid, type=$type, owner=$owner, primary=$chatPrimary")
                 } else {
                     findLatest(existingChat)?.apply {
                         if (messageDate > this.messageDate) {
@@ -332,9 +324,9 @@ class ClientSynchronizationManager(owner: String) {
                             this.pinnedPosition = pinned
                             this.rosterItem = rosterItem
                             this.lastMessage = lastMessage
-                            Log.d("ClientSyncManager", "Updated LastChatsStorageItem for jid=$jid, type=$expectedType with newer timestamp=$messageDate, messageId=$lastMessageId")
+                            Log.d("ClientSyncManager", "Updated LastChatsStorageItem for jid=$jid, type=$type with newer timestamp=$messageDate, messageId=$lastMessageId")
                         } else {
-                            Log.d("ClientSyncManager", "Skipped LastChatsStorageItem update for jid=$jid, type=$expectedType; current messageDate=${this.messageDate} is newer than timestamp=$messageDate")
+                            Log.d("ClientSyncManager", "Skipped LastChatsStorageItem update for jid=$jid, type=$type; current messageDate=${this.messageDate} is newer than timestamp=$messageDate")
                         }
                     }
                 }
@@ -351,7 +343,7 @@ class ClientSynchronizationManager(owner: String) {
         readConversationMetadata(query, owner)
         val countElement = query.getElementsByTagNameNS("http://jabber.org/protocol/rsm", "count").item(0) as? Element
         val count = countElement?.textContent?.toIntOrNull() ?: 0
-        if (count < 60) {
+        if (count < 20) { // Updated to match new page size
             version = stamp
             SettingManager.saveClientSynchronizationVersion(owner, version)
             Log.d("ClientSyncManager", "Sync completed, updated version to $version, count: $count")
@@ -455,10 +447,10 @@ class ClientSynchronizationManager(owner: String) {
                         val tagName = parser.name
                         when {
                             tagName == "message" && !inForwarded -> {
-                                messageId = parser.getAttributeValue(null, "id") ?: ""
-                                from = parser.getAttributeValue(null, "from") ?: ""
-                                to = parser.getAttributeValue(null, "to") ?: owner
-                                type = parser.getAttributeValue(null, "type") ?: "chat"
+                                messageId = parser.getAttributeValue(null, "id")?.takeIf { it.isNotBlank() }
+                                from = parser.getAttributeValue(null, "from")?.takeIf { it.isNotBlank() }
+                                to = parser.getAttributeValue(null, "to")?.takeIf { it.isNotBlank() } ?: owner
+                                type = parser.getAttributeValue(null, "type")?.takeIf { it.isNotBlank() } ?: "chat"
                                 Log.d("ClientSyncManager", "Message attributes: id=$messageId, from=$from, to=$to, type=$type")
                             }
                             tagName == "forwarded" && parser.getAttributeValue(null, "xmlns") == "urn:xmpp:forward:0" -> {
@@ -466,10 +458,10 @@ class ClientSynchronizationManager(owner: String) {
                             }
                             tagName == "message" && inForwarded -> {
                                 inInnerMessage = true
-                                messageId = parser.getAttributeValue(null, "id") ?: messageId
-                                from = parser.getAttributeValue(null, "from")?.split("/")?.get(0) ?: from
-                                to = parser.getAttributeValue(null, "to") ?: to
-                                type = parser.getAttributeValue(null, "type") ?: type
+                                messageId = parser.getAttributeValue(null, "id")?.takeIf { it.isNotBlank() } ?: messageId
+                                from = parser.getAttributeValue(null, "from")?.split("/")?.get(0)?.takeIf { it.isNotBlank() } ?: from
+                                to = parser.getAttributeValue(null, "to")?.takeIf { it.isNotBlank() } ?: to
+                                type = parser.getAttributeValue(null, "type")?.takeIf { it.isNotBlank() } ?: type
                                 Log.d("ClientSyncManager", "Inner message attributes: id=$messageId, from=$from, to=$to, type=$type")
                             }
                             tagName == "body" && inInnerMessage -> {
@@ -509,8 +501,8 @@ class ClientSynchronizationManager(owner: String) {
                 eventType = parser.next()
             }
 
-            if (messageId.isNullOrEmpty() || from.isNullOrEmpty() || to.isNullOrEmpty()) {
-                Log.e("ClientSyncManager", "Invalid message: missing id, from, or to attribute")
+            if (messageId.isNullOrEmpty() || from.isNullOrEmpty() || to.isNullOrEmpty() || body.isNullOrEmpty()) {
+                Log.e("ClientSyncManager", "Invalid message: missing id=$messageId, from=$from, to=$to, or body=$body")
                 return
             }
 
@@ -519,37 +511,50 @@ class ClientSynchronizationManager(owner: String) {
                 conversationType = "urn:xabber:favorites:0"
             }
 
-            realm.write {
-                val rosterItem = query<RosterStorageItem>("jid = $0 AND owner = $1", from, owner).first().find()
-                    ?: copyToRealm(RosterStorageItem().apply {
-                        primary = RosterStorageItem.genPrimary(from, owner)
-                        this.jid = from
-                        this.owner = owner
-                        this.customNickname = from
-                    }, UpdatePolicy.ALL)
-                Log.d("ClientSyncManager", "Created/Used RosterStorageItem for jid=$from")
+            val conversationTypeEnum = ConversationType.values().firstOrNull { it.rawValue == conversationType } ?: ConversationType.Regular
+            val chatJid = if (from == owner) to else from // Use destination for outgoing, sender for incoming
+            val messagePrimary = MessageStorageItem.genPrimary(messageId, owner)
+            if (messagePrimary.isEmpty()) {
+                Log.w("ClientSyncManager", "Skipping message with invalid primary key for messageId=$messageId, owner=$owner")
+                return
+            }
+            val chatPrimary = LastChatsStorageItem.genPrimary(chatJid, owner, conversationTypeEnum)
+            if (chatPrimary.isEmpty()) {
+                Log.w("ClientSyncManager", "Skipping chat creation due to invalid primary key for jid=$chatJid, owner=$owner, type=$conversationType")
+                return
+            }
 
-                val chat = query<LastChatsStorageItem>("jid = $0 AND owner = $1 AND conversationType_ = $2", to, owner, conversationType).first().find()
+            realm.write {
+                val rosterItem = query<RosterStorageItem>("jid = $0 AND owner = $1", chatJid, owner).first().find()
+                    ?: copyToRealm(RosterStorageItem().apply {
+                        primary = RosterStorageItem.genPrimary(chatJid, owner)
+                        this.jid = chatJid
+                        this.owner = owner
+                        this.customNickname = chatJid
+                    }, UpdatePolicy.ALL)
+                Log.d("ClientSyncManager", "Created/Used RosterStorageItem for jid=$chatJid")
+
                 val message = copyToRealm(MessageStorageItem().apply {
-                    primary = MessageStorageItem.genPrimary(messageId, owner)
+                    primary = messagePrimary
                     this.messageId = messageId
-                    this.owner = owner // Set owner explicitly
-                    this.opponent = to // Use 'to' for carbon messages (destination chat)
-                    this.body = body ?: "" // Ensure body is set
+                    this.owner = owner
+                    this.opponent = chatJid // Use chatJid (destination for outgoing, sender for incoming)
+                    this.body = body
                     this.date = timestamp
                     this.sentDate = timestamp
                     this.editDate = 0L
-                    this.outgoing = from == owner // Set outgoing based on from
+                    this.outgoing = from == owner
                     this.conversationType_ = conversationType
                     this.isRead = from == owner // Outgoing messages are read
                     this.state = if (from == owner) MessageSendingState.Deliver else MessageSendingState.Sent
                 }, UpdatePolicy.ALL)
-                Log.d("ClientSyncManager", "Saved message $messageId for jid=$to in receiveClientSyncRaw")
+                Log.d("ClientSyncManager", "Saved message $messageId for jid=$chatJid in receiveClientSyncRaw, body=${body.take(50)}")
 
+                val chat = query<LastChatsStorageItem>("jid = $0 AND owner = $1 AND conversationType_ = $2", chatJid, owner, conversationType).first().find()
                 if (chat == null) {
                     copyToRealm(LastChatsStorageItem().apply {
-                        primary = LastChatsStorageItem.genPrimary(to, owner, ConversationType.fromRaw(conversationType))
-                        this.jid = to
+                        primary = chatPrimary
+                        this.jid = chatJid
                         this.owner = owner
                         this.conversationType_ = conversationType
                         this.isArchived = false
@@ -561,7 +566,7 @@ class ClientSynchronizationManager(owner: String) {
                         this.rosterItem = rosterItem
                         this.lastMessage = message
                     }, UpdatePolicy.ALL)
-                    Log.d("ClientSyncManager", "Created new LastChatsStorageItem for jid=$to in receiveClientSyncRaw")
+                    Log.d("ClientSyncManager", "Created new LastChatsStorageItem for jid=$chatJid, type=$conversationType, primary=$chatPrimary in receiveClientSyncRaw")
                 } else {
                     findLatest(chat)?.apply {
                         this.unread = if (from == owner) this.unread else this.unread + 1
@@ -570,20 +575,20 @@ class ClientSynchronizationManager(owner: String) {
                         this.lastMessage = message
                         this.isArchived = false
                     }
-                    Log.d("ClientSyncManager", "Updated LastChatsStorageItem for jid=$to in receiveClientSyncRaw")
+                    Log.d("ClientSyncManager", "Updated LastChatsStorageItem for jid=$chatJid, type=$conversationType in receiveClientSyncRaw")
                 }
                 // Log MessageStorageItem entries
                 query<MessageStorageItem>("messageId = $0", messageId).find().forEach { item ->
                     Log.d(
                         "ClientSyncManager",
                         "MessageStorageItem: primary=${item.primary}, messageId=${item.messageId}, owner=${item.owner}, " +
-                                "opponent=${item.opponent}, body=${item.body}, date=${item.date}, sentDate=${item.sentDate}, " +
+                                "opponent=${item.opponent}, body=${item.body.take(50)}, date=${item.date}, sentDate=${item.sentDate}, " +
                                 "editDate=${item.editDate}, outgoing=${item.outgoing}, conversationType_=${item.conversationType_}, " +
                                 "isRead=${item.isRead}, state=${item.state}"
                     )
                 }
                 // Log LastChatsStorageItem
-                query<LastChatsStorageItem>("jid = $0 AND owner = $1", to, owner).find().forEach { item ->
+                query<LastChatsStorageItem>("jid = $0 AND owner = $1", chatJid, owner).find().forEach { item ->
                     Log.d(
                         "ClientSyncManager",
                         "LastChatsStorageItem: primary=${item.primary}, jid=${item.jid}, owner=${item.owner}, " +
@@ -604,10 +609,21 @@ class ClientSynchronizationManager(owner: String) {
             return
         }
         realm.write {
+            // Query chats within the transaction to ensure fresh data
             val chats = query<LastChatsStorageItem>("owner = $0", owner).find()
-            Log.d("ClientSyncManager", "LastChatsStorageItem count for owner $owner: ${chats.size}")
+            Log.d("ClientSyncManager", "Checking LastChatsStorageItem count for owner $owner: ${chats.size}")
             chats.forEach { chat ->
-                Log.d("ClientSyncManager", "Chat: jid=${chat.jid}, type=${chat.conversationType_}, isArchived=${chat.isArchived}, unread=${chat.unread}, messageDate=${chat.messageDate}, lastMessageId=${chat.lastMessageId}")
+                // Use a snapshot of properties to avoid accessing invalidated objects
+                val jid = chat.jid
+                val conversationType = chat.conversationType_
+                val chatPrimary = LastChatsStorageItem.genPrimary(jid, owner, ConversationType.fromRaw(conversationType))
+                if (chatPrimary.isEmpty()) {
+                    Log.w("ClientSyncManager", "Found invalid primary key for chat jid=$jid, type=$conversationType, deleting")
+                    findLatest(chat)?.let { delete(it) }
+                    Log.d("ClientSyncManager", "Deleted LastChatsStorageItem with invalid primary for jid=$jid, type=$conversationType")
+                    return@forEach
+                }
+                Log.d("ClientSyncManager", "Chat: jid=$jid, type=$conversationType, primary=$chatPrimary, isArchived=${chat.isArchived}, unread=${chat.unread}, messageDate=${chat.messageDate}, lastMessageId=${chat.lastMessageId}")
             }
         }
     }
