@@ -23,6 +23,7 @@ import com.xabber.xmpp.messages.messages_manager.MessageCommonReceiver
 import com.xabber.data_base.models.messages.MessageStorageItem
 import com.xabber.data_base.models.sync.ConversationType
 import com.xabber.dto.MessageDto
+import com.xabber.utils.parseTimestamp
 import com.xabber.xmpp.jid.XMPPJID
 import com.xabber.xmpp.messages.XMPPMessage
 import com.xabber.xmpp.messages.message.TemporaryMessageStanzaStorageItem
@@ -845,8 +846,6 @@ class Account : XMPPStreamDelegate {
                 }
             }
 
-            val timestamp = tempStanza?.date?.takeIf { it > 0 } ?: parseTimestamp(xmppMessage) ?: System.currentTimeMillis()
-            val date = Date(timestamp)
             val isOutgoing = fromJid == jid
             val state = if (isOutgoing) MessageSendingState.Deliver else MessageSendingState.Sent
 
@@ -914,20 +913,6 @@ class Account : XMPPStreamDelegate {
         }
     }
 
-    private fun parseTimestamp(message: XMPPMessage): Long? {
-        val timeElement = message.element("time", namespace = "https://xabber.com/protocol/delivery")
-        val stamp = timeElement?.getAttribute("stamp")
-        return stamp?.let {
-            try {
-                val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'", Locale.US)
-                sdf.timeZone = TimeZone.getTimeZone("UTC")
-                sdf.parse(it)?.time
-            } catch (e: Exception) {
-                Log.e("Account", "Failed to parse timestamp: ${e.message}")
-                null
-            }
-        }
-    }
 
     private fun parserToDom(parser: XmlPullParser): Node {
         val factory = DocumentBuilderFactory.newInstance()
@@ -958,19 +943,6 @@ class Account : XMPPStreamDelegate {
         return stack.first().firstChild ?: document
     }
 
-    private fun getDeliveryTime(message: XMPPMessage): Date? {
-        val time = message.element("time", namespace = "https://xabber.com/protocol/delivery")?.getAttribute("stamp")
-        return time?.let {
-            try {
-                val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'", Locale.US)
-                sdf.timeZone = TimeZone.getTimeZone("UTC")
-                sdf.parse(it)
-            } catch (e: Exception) {
-                Log.e("Account", "Failed to parse delivery timestamp: ${e.message}")
-                null
-            }
-        }
-    }
 
     override suspend fun streamDidConnect(stream: Stream): Boolean {
         CoroutineScope(Dispatchers.IO).launch {

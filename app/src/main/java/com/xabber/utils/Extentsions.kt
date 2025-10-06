@@ -64,6 +64,7 @@ import org.xmlpull.v1.XmlPullParser
 import org.xmlpull.v1.XmlPullParserFactory
 import java.time.DateTimeException
 import java.time.Instant
+import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeFormatterBuilder
@@ -322,18 +323,15 @@ fun JSONObject.toMap(): Map<String, Any> {
  * @param tag A logging tag for identifying the source of the parse call.
  * @return Long? The parsed timestamp in milliseconds, or null if parsing fails or the message is a chat state.
  */
+
+
 fun parseTimestamp(message: XMPPMessage, tag: String = "TimestampParser"): Long? {
+    @RequiresApi(Build.VERSION_CODES.O)
     fun tryParse(stamp: String, messageId: String?, source: String): Long? {
         try {
-            val formatter = DateTimeFormatterBuilder()
-                .parseCaseInsensitive()
-                .append(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
-                .optionalStart()
-                .appendFraction(ChronoField.NANO_OF_SECOND, 0, 9, true)
-                .optionalEnd()
-                .appendOffsetId()
-                .toFormatter()
-            val zdt = ZonedDateTime.parse(stamp, formatter)
+            // Use a strict formatter for 'YYYY-MM-DDThh:mm:ssZ'
+            val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'")
+            val zdt = ZonedDateTime.parse(stamp, formatter.withZone(ZoneId.of("UTC")))
             val epochMilli = zdt.toInstant().toEpochMilli()
             if (epochMilli > System.currentTimeMillis() + 86400000) { // Flag future timestamps > 1 day ahead as invalid
                 Log.w(tag, "Invalid future timestamp ($source) for messageId=$messageId: $stamp -> $epochMilli")
@@ -343,40 +341,13 @@ fun parseTimestamp(message: XMPPMessage, tag: String = "TimestampParser"): Long?
                 Log.d(tag, "Parsed timestamp ($source) for messageId=$messageId: $stamp -> $it")
             }
         } catch (e: DateTimeException) {
-            Log.w(tag, "Failed to parse flexible ISO ($source) for messageId=$messageId: $stamp, error=${e.message}")
-        }
-        try {
-            val formatter = DateTimeFormatter.ISO_OFFSET_DATE_TIME
-            val zdt = ZonedDateTime.parse(stamp, formatter)
-            val epochMilli = zdt.toInstant().toEpochMilli()
-            if (epochMilli > System.currentTimeMillis() + 86400000) {
-                Log.w(tag, "Invalid future timestamp ($source) for messageId=$messageId: $stamp -> $epochMilli")
-                return null
-            }
-            return epochMilli.also {
-                Log.d(tag, "Parsed ISO_OFFSET_DATE_TIME ($source) for messageId=$messageId: $stamp -> $it")
-            }
-        } catch (e: DateTimeException) {
-            Log.w(tag, "Failed to parse ISO_OFFSET_DATE_TIME ($source) for messageId=$messageId: $stamp, error=${e.message}")
-        }
-        try {
-            val formatter = DateTimeFormatter.ISO_INSTANT
-            val instant = Instant.parse(stamp)
-            val epochMilli = instant.toEpochMilli()
-            if (epochMilli > System.currentTimeMillis() + 86400000) {
-                Log.w(tag, "Invalid future timestamp ($source) for messageId=$messageId: $stamp -> $epochMilli")
-                return null
-            }
-            return epochMilli.also {
-                Log.d(tag, "Parsed ISO_INSTANT ($source) for messageId=$messageId: $stamp -> $it")
-            }
-        } catch (e: DateTimeException) {
-            Log.w(tag, "Failed to parse ISO_INSTANT ($source) for messageId=$messageId: $stamp, error=${e.message}")
+            Log.w(tag, "Failed to parse ISO ($source) for messageId=$messageId: $stamp, error=${e.message}")
         }
         Log.w(tag, "All parsers failed ($source) for messageId=$messageId: $stamp")
         return null
     }
 
+    // Rest of the function remains unchanged
     val messageId = message.element("origin-id", namespace = "urn:xmpp:sid:0")?.getAttribute("id") ?: message.id ?: "unknown"
 
     // Check MAM forwarded message
@@ -456,8 +427,8 @@ fun parseTimestamp(message: XMPPMessage, tag: String = "TimestampParser"): Long?
     }
 
     Log.w(tag, "No valid timestamp found for messageId=$messageId. Message details: " +
-            "from=${message.from?.bare()}, to=${message.to?.bare()}, body=${message.body?.take(100)}, " +
-            "raw=${message.raw.substring(0, minOf(message.raw.length, 200))}...")
+            "from=${message.from?.bare()}, to=${message.to?.bare()}, body=${message.body}, " +
+            "raw=${message.raw}")
     return null
 }
 
