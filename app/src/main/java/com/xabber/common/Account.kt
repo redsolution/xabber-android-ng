@@ -39,8 +39,13 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.channels.Channel
-import io.viascom.nanoid.NanoId
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.filter
+import io.viascom.nanoid.NanoId
+import kotlinx.coroutines.cancel
 import nl.adaptivity.xmlutil.core.impl.multiplatform.StringReader
 import org.w3c.dom.Element
 import org.w3c.dom.Node
@@ -101,14 +106,32 @@ class Account : XMPPStreamDelegate {
     val messages: MessageManager by lazy { MessageManager(jid, activeStream = stream != null) }
     val messageReceiver: MessageCommonReceiver by lazy { MessageCommonReceiver(jid) }
 
+    // New: Buffer for post-registration stanzas (roster, sync, presence)
+    private val stanzaBuffer = MutableSharedFlow<StanzaItem>(replay = 0, extraBufferCapacity = 1000)
+    private val stanzaProcessingScope = CoroutineScope(Dispatchers.IO.limitedParallelism(2) + SupervisorJob())
+
+    // New: Data class to hold stanza type and content
+    private data class StanzaItem(val type: StanzaType, val content: String, val stream: Stream) {
+        enum class StanzaType {
+            ROSTER, SYNC, PRESENCE, OTHER
+        }
+    }
+
     init {
         if (deviceName.isEmpty()) {
             deviceName = NickGenerator.genRandomNick()
         }
-    }
-
-    override fun toString(): String {
-        return "Account $jid"
+        // New: Start processing buffered stanzas asynchronously
+        stanzaProcessingScope.launch {
+            stanzaBuffer.collect { item ->
+                when (item.type) {
+                    StanzaItem.StanzaType.ROSTER -> processRosterStanza(item.content, item.stream)
+                    StanzaItem.StanzaType.SYNC -> processSyncStanza(item.content, item.stream)
+                    StanzaItem.StanzaType.PRESENCE -> processPresenceStanza(item.content, item.stream)
+                    StanzaItem.StanzaType.OTHER -> Log.d(TAG, "Skipping non-buffered stanza type: ${item.content.take(200)}")
+                }
+            }
+        }
     }
 
     fun setOnErrorCallback(callback: (String) -> Unit) {
@@ -137,7 +160,7 @@ class Account : XMPPStreamDelegate {
             checkExistingDevice()
             initializeStream()
         } catch (e: Exception) {
-            Log.e("Account", "Can't load user $jid from db", e)
+            Log.e(TAG, "Can't load user $jid from db", e)
             onErrorCallback?.invoke("Error loading account: ${e.message}")
         }
     }
@@ -164,7 +187,7 @@ class Account : XMPPStreamDelegate {
             }
             initializeStream()
         } catch (e: Exception) {
-            Log.d("Account", "Can't update push info for user ${this.jid}", e)
+            Log.d(TAG, "Can't update push info for user ${this.jid}", e)
         }
     }
 
@@ -175,7 +198,7 @@ class Account : XMPPStreamDelegate {
             realm.close()
             return exists
         } catch (e: Exception) {
-            Log.e("Account", "Error checking account existence for $jid: ${e.message}", e)
+            Log.e(TAG, "Error checking account existence for $jid: ${e.message}", e)
             return false
         }
     }
@@ -183,21 +206,21 @@ class Account : XMPPStreamDelegate {
     private suspend fun checkExistingDevice() {
         try {
             val devices = realm.query<DeviceStorageItem>("owner = $0", jid).find()
-            Log.d("Account", "Found ${devices.size} devices for JID: $jid")
+            Log.d(TAG, "Found ${devices.size} devices for JID: $jid")
             devices.forEach { device ->
-                Log.d("Account", "Device: uid=${device.uid}, expire=${device.expire}, authCounter=${device.authCounter}, secret=${device.secret.substring(0, 8)}..., validationKey=${device.validationKey.substring(0, 8)}...")
+                Log.d(TAG, "Device: uid=${device.uid}, expire=${device.expire}, authCounter=${device.authCounter}, secret=${device.secret.substring(0, 8)}..., validationKey=${device.validationKey.substring(0, 8)}...")
             }
             val validDevice = devices.firstOrNull { it.expire > System.currentTimeMillis().toDouble() / 1000 }
             isDeviceRegistered = validDevice != null
             if (isDeviceRegistered) {
-                Log.d("Account", "Valid device found for JID: $jid, uid: ${validDevice?.uid}")
+                Log.d(TAG, "Valid device found for JID: $jid, uid: ${validDevice?.uid}")
             } else if (devices.isNotEmpty()) {
-                Log.w("Account", "Devices found but all expired/invalid for JID: $jid")
+                Log.w(TAG, "Devices found but all expired/invalid for JID: $jid")
             } else {
-                Log.d("Account", "No devices found for JID: $jid")
+                Log.d(TAG, "No devices found for JID: $jid")
             }
         } catch (e: Exception) {
-            Log.e("Account", "Error checking existing devices for JID: $jid: ${e.message}", e)
+            Log.e(TAG, "Error checking existing devices for JID: $jid: ${e.message}", e)
             isDeviceRegistered = false
         }
     }
@@ -210,14 +233,14 @@ class Account : XMPPStreamDelegate {
                     onErrorCallback?.let { setOnErrorCallback(it) }
                     delegate = this@Account
                 }
-                Log.d("Account", "Stream initialized for $jid with port $port")
+                Log.d(TAG, "Stream initialized for $jid with port $port")
                 messageReceiver.subscribeReceiver()
             } else {
-                Log.w("Account", "Cannot initialize Stream: JID is empty")
+                Log.w(TAG, "Cannot initialize Stream: JID is empty")
                 onErrorCallback?.invoke("Cannot initialize connection: Invalid JID")
             }
         } catch (e: Exception) {
-            Log.e("Account", "Error initializing Stream for $jid: ${e.message}", e)
+            Log.e(TAG, "Error initializing Stream for $jid: ${e.message}", e)
             onErrorCallback?.invoke("Error initializing connection: ${e.message}")
         }
     }
@@ -230,25 +253,25 @@ class Account : XMPPStreamDelegate {
                 if (connectError == null) {
                     presenceManager = PresenceManager(jid, it.socket!!)
                     statusMessage.onNext("Online")
-                    Log.d("Account", "Stream connected for $jid")
-                    syncAllChats(it)
-                    true
+                    Log.d(TAG, "Stream connected for $jid")
+                    syncAllChats(it) // Trigger MAM sync immediately
+                    return@withContext true
                 } else {
                     statusMessage.onNext("Offline")
-                    Log.e("Account", "Stream connection failed for $jid: $connectError")
+                    Log.e(TAG, "Stream connection failed for $jid: $connectError")
                     onErrorCallback?.invoke(connectError)
-                    false
+                    return@withContext false
                 }
             } ?: run {
-                Log.w("Account", "No Stream initialized for $jid")
+                Log.w(TAG, "No Stream initialized for $jid")
                 onErrorCallback?.invoke("No connection initialized")
-                false
+                return@withContext false
             }
         } catch (e: Exception) {
-            Log.e("Account", "Error connecting Stream for $jid: ${e.message}", e)
+            Log.e(TAG, "Error connecting Stream for $jid: ${e.message}", e)
             onErrorCallback?.invoke("Connection error: ${e.message}")
             statusMessage.onNext("Offline")
-            false
+            return@withContext false
         }
     }
 
@@ -258,9 +281,11 @@ class Account : XMPPStreamDelegate {
             val chats = realm.writeBlocking {
                 query<LastChatsStorageItem>("owner = $0", jid).find()
             }
-            Log.d("Account", "Found ${chats.size} chats to sync for $jid")
-            chats.forEach { chat ->
-                launch {
+            Log.d(TAG, "Found ${chats.size} chats to sync for $jid")
+            // Prioritize chats with pinned messages or recent activity
+            val prioritizedChats = chats.sortedByDescending { it.pinnedPosition ?: it.messageDate }
+            prioritizedChats.forEach { chat ->
+                launch(Dispatchers.IO.limitedParallelism(4)) { // Limit concurrent MAM queries
                     val conversationType = ConversationType.fromRaw(chat.conversationType_)
                     try {
                         messageArchiveManager.syncChat(
@@ -268,17 +293,17 @@ class Account : XMPPStreamDelegate {
                             jid = chat.jid,
                             conversationType = conversationType,
                             callback = {
-                                Log.d("Account", "Chat history sync completed for jid=${chat.jid}, type=${chat.conversationType_}")
+                                Log.d(TAG, "Chat history sync completed for jid=${chat.jid}, type=${chat.conversationType_}")
                             }
                         )
-                        Log.d("Account", "Initiated sync for chat jid=${chat.jid}, type=${chat.conversationType_}")
+                        Log.d(TAG, "Initiated sync for chat jid=${chat.jid}, type=${chat.conversationType_}")
                     } catch (e: Exception) {
-                        Log.e("Account", "Failed to sync chat jid=${chat.jid}, type=${chat.conversationType_}: ${e.message}", e)
+                        Log.e(TAG, "Failed to sync chat jid=${chat.jid}, type=${chat.conversationType_}: ${e.message}", e)
                     }
                 }
             }
         } catch (e: Exception) {
-            Log.e("Account", "Error syncing chats for $jid: ${e.message}", e)
+            Log.e(TAG, "Error syncing chats for $jid: ${e.message}", e)
         } finally {
             realm.close()
         }
@@ -292,122 +317,71 @@ class Account : XMPPStreamDelegate {
         messageReceiver.unsubscribeReceiver()
         statusMessage.onNext("Offline")
         rosterRequested = false
-        Log.d("Account", "Stream closed for $jid")
+        stanzaProcessingScope.cancel() // Cancel stanza processing scope
+        Log.d(TAG, "Stream closed for $jid")
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
     override suspend fun didReceiveIQ(iq: XMPPIQ, stream: Stream): Boolean {
+
         try {
+            // Buffer roster and sync IQ stanzas post-registration
+            if (stream.state == StreamState.CONNECTED || stream.state == StreamState.BINDING) {
+                if (iq.queryNamespace == "jabber:iq:roster" || iq.queryContent?.contains("<item") == true || iq.queryContent?.contains("<group>") == true) {
+                    stanzaBuffer.emit(StanzaItem(StanzaItem.StanzaType.ROSTER, iq.raw, stream))
+                    Log.d(TAG, "Buffered roster IQ stanza: ${iq.raw.take(200)}")
+                    return true
+                }
+                if (iq.queryNamespace == "https://xabber.com/protocol/synchronization") {
+                    stanzaBuffer.emit(StanzaItem(StanzaItem.StanzaType.SYNC, iq.raw, stream))
+                    Log.d(TAG, "Buffered sync IQ stanza: ${iq.raw.take(200)}")
+                    return true
+                }
+            }
+
+            // Handle ping and disco#info synchronously to maintain responsiveness
             if (iq.type == "get" && iq.queryNamespace == "urn:xmpp:ping" && stream.state == StreamState.CONNECTED) {
-                Log.d("Account", "Received server ping request")
+                Log.d(TAG, "Received server ping request")
                 val pingId = iq.id ?: return false
                 val fromJid = iq.from ?: return false
                 val response = """
                     <iq type='result' id='$pingId' to='$fromJid'/>
                 """.trimIndent()
-                if (runBlocking { stream.socket?.write(response) } == true) {
-                    Log.d("Account", "Sent ping response: $response")
-                    return true
-                } else {
-                    Log.e("Account", "Failed to send ping response")
-                    onErrorCallback?.invoke("Failed to send ping response")
-                    stream.state = StreamState.NOT_CONNECTING
-                    return false
+                return withContext(Dispatchers.IO) {
+                    if (stream.socket?.write(response) == true) {
+                        Log.d(TAG, "Sent ping response: $response")
+                        true
+                    } else {
+                        Log.e(TAG, "Failed to send ping response")
+                        onErrorCallback?.invoke("Failed to send ping response")
+                        stream.state = StreamState.NOT_CONNECTING
+                        false
+                    }
                 }
             }
 
             if (iq.type == "get" && iq.queryNamespace == "http://jabber.org/protocol/disco#info") {
-                Log.d("Account", "Received disco#info query from ${iq.from}")
+                Log.d(TAG, "Received disco#info query from ${iq.from}")
                 val discoId = iq.id ?: return false
                 val fromJid = iq.from ?: return false
                 val toJid = iq.to ?: jid
                 val response = buildDiscoInfoResponse(discoId, fromJid, toJid)
-                if (runBlocking { stream.socket?.write(response) } == true) {
-                    Log.d("Account", "Sent disco#info response to $fromJid")
-                    return true
-                } else {
-                    Log.e("Account", "Failed to send disco#info response")
-                    return false
-                }
-            }
-
-            if (iq.queryNamespace == "jabber:iq:roster" || iq.queryContent?.contains("<item") == true || iq.queryContent?.contains("<group>") == true) {
-                var completeStanza: String? = null
-                synchronized(rosterStanzaBuffer) {
-                    rosterStanzaBuffer.append(iq.raw)
-                    Log.d("Account", "Appended to roster stanza buffer: ${iq.raw.substring(0, minOf(iq.raw.length, 200))}...")
-                    val bufferedContent = rosterStanzaBuffer.toString()
-                    if (!bufferedContent.trim().startsWith("<iq")) {
-                        Log.d("Account", "Waiting for IQ start, current buffer: ${bufferedContent.substring(0, minOf(bufferedContent.length, 200))}...")
-                        return false
-                    }
-                    if (!bufferedContent.contains("</iq>")) {
-                        Log.d("Account", "Incomplete roster IQ stanza, waiting for more data: ${bufferedContent.substring(0, minOf(bufferedContent.length, 200))}...")
-                        return false
-                    }
-                    completeStanza = bufferedContent
-                    rosterStanzaBuffer.clear()
-                    Log.d("Account", "Cleared roster stanza buffer after copying complete stanza")
-                }
-                completeStanza?.let {
-                    Log.d("Account", "Processing complete roster IQ stanza: ${it.substring(0, minOf(it.length, 200))}...")
-                    rosterManager.read(XMPPIQ(raw = it, type = iq.type, id = iq.id, from = iq.from, to = iq.to, error = iq.error, queryNamespace = iq.queryNamespace, queryContent = iq.queryContent))
-                    return true
-                }
-                return false
-            }
-
-            if (iq.queryNamespace == "https://xabber.com/protocol/synchronization") {
-                var completeStanza: String? = null
-                synchronized(syncStanzaBuffer) {
-                    syncStanzaBuffer.append(iq.raw)
-                    Log.d("Account", "Appended to sync stanza buffer: ${iq.raw.substring(0, minOf(iq.raw.length, 200))}...")
-                    val bufferedContent = syncStanzaBuffer.toString()
-                    if (!bufferedContent.contains("<query") || !bufferedContent.contains("https://xabber.com/protocol/synchronization")) {
-                        Log.d("Account", "Waiting for query start, current buffer: ${bufferedContent.substring(0, minOf(bufferedContent.length, 200))}...")
-                        return false
-                    }
-                    if (!bufferedContent.contains("</query>")) {
-                        Log.d("Account", "Incomplete sync query stanza, waiting for more data: ${bufferedContent.substring(0, minOf(bufferedContent.length, 200))}...")
-                        return false
-                    }
-                    completeStanza = bufferedContent
-                    syncStanzaBuffer.clear()
-                    Log.d("Account", "Cleared sync stanza buffer after copying complete stanza")
-                }
-                completeStanza?.let {
-                    Log.d("Account", "Processing complete sync query stanza: ${it.substring(0, minOf(it.length, 200))}...")
-                    val cleaned = it.replace(Regex("""<iq[^>]*type='result'[^>]*id='ping1'[^>]*/>"""), "").replace(Regex("r\\.boldin='modify'"), "")
-                    val iqStart = cleaned.indexOf("<iq")
-                    val iqEnd = cleaned.lastIndexOf("</iq>") + 5
-                    if (iqStart != -1 && iqEnd != -1 && iqEnd > iqStart) {
-                        val iqStanza = cleaned.substring(iqStart, iqEnd)
-                        try {
-                            syncManager.read(iqStanza)
-                            Log.d("Account", "Processed sync response with ClientSynchronizationManager for JID: $jid")
-                            syncCompletionChannel.trySend(Unit)
-                            return true
-                        } catch (e: Exception) {
-                            Log.e("Account", "Error parsing sync IQ stanza: ${e.message}", e)
-                            return false
-                        }
+                return withContext(Dispatchers.IO) {
+                    if (stream.socket?.write(response) == true) {
+                        Log.d(TAG, "Sent disco#info response to $fromJid")
+                        true
                     } else {
-                        Log.e("Account", "Failed to extract complete <iq> stanza from: ${cleaned.substring(0, minOf(cleaned.length, 200))}...")
-                        return false
+                        Log.e(TAG, "Failed to send disco#info response")
+                        false
                     }
                 }
-                return false
             }
 
-            if (iq.queryNamespace == "urn:xmpp:mam:2") {
-                Log.d("Account", "Received MAM IQ response: ${iq.raw}...")
-                return messageArchiveManager.read(iq.raw, stream)
-            }
-
+            // Handle device registration and binding synchronously
             if (stream.state == StreamState.DEVICE_REGISTRATION) {
-                Log.d("Account", "Received IQ response for device registration")
+                Log.d(TAG, "Received IQ response for device registration")
                 if (iq.type == "result") {
-                    Log.d("Account", "Device registration successful")
+                    Log.d(TAG, "Device registration successful")
                     val uidMatch = Regex("""device id=['"]([^'"]+)['"]""").find(iq.queryContent ?: "")
                     val validationKeyMatch = Regex("""<validation-key>([^<]+)</validation-key>""").find(iq.queryContent ?: "")
                     val expireMatch = Regex("""<expire>([^<]+)</expire>""").find(iq.queryContent ?: "")
@@ -417,7 +391,7 @@ class Account : XMPPStreamDelegate {
                         val validationKey = validationKeyMatch.groupValues[1]
                         var expireDuration = expireMatch.groupValues[1].toDoubleOrNull() ?: 0.0
                         if (expireDuration <= 0) {
-                            Log.w("Account", "Invalid expire duration from server: $expireDuration - defaulting to 3600s")
+                            Log.w(TAG, "Invalid expire duration from server: $expireDuration - defaulting to 3600s")
                             expireDuration = 3600.0
                         }
                         val secret = secretMatch.groupValues[1]
@@ -442,7 +416,7 @@ class Account : XMPPStreamDelegate {
                                         validationKey = validationKey
                                     )
                                 }
-                                Log.d("Account", "Updated existing DeviceStorageItem for uid: $uid, owner: $jid")
+                                Log.d(TAG, "Updated existing DeviceStorageItem for uid: $uid, owner: $jid")
                             } else {
                                 val newDevice = DeviceStorageItem().apply {
                                     configure(
@@ -460,16 +434,16 @@ class Account : XMPPStreamDelegate {
                                     )
                                 }
                                 copyToRealm(newDevice, UpdatePolicy.ALL)
-                                Log.d("Account", "Created new DeviceStorageItem for uid: $uid, owner: $jid")
+                                Log.d(TAG, "Created new DeviceStorageItem for uid: $uid, owner: $jid")
                             }
                         }
                         val savedDevice = realm.query<DeviceStorageItem>("uid = $0 AND owner = $1", uid, jid).first().find()
                         if (savedDevice != null) {
-                            Log.d("Account", "Confirmed DeviceStorageItem saved: uid=$uid, expire=${savedDevice.expire}, authCounter=${savedDevice.authCounter}")
+                            Log.d(TAG, "Confirmed DeviceStorageItem saved: uid=$uid, expire=${savedDevice.expire}, authCounter=${savedDevice.authCounter}")
                             isDeviceRegistered = true
                             stream.state = StreamState.BINDING
                         } else {
-                            Log.e("Account", "Failed to confirm DeviceStorageItem save for uid=$uid, owner=$jid - forcing re-registration")
+                            Log.e(TAG, "Failed to confirm DeviceStorageItem save for uid=$uid, owner=$jid - forcing re-registration")
                             isDeviceRegistered = false
                             stream.state = StreamState.DEVICE_REGISTRATION
                             return false
@@ -479,23 +453,23 @@ class Account : XMPPStreamDelegate {
                             if (device != null) {
                                 findLatest(device)?.apply {
                                     authCounter++
-                                    Log.d("Account", "Incremented authCounter to 2 for uid: $uid, owner: $jid")
+                                    Log.d(TAG, "Incremented authCounter to 2 for uid: $uid, owner: $jid")
                                 }
                             } else {
-                                Log.e("Account", "Failed to find device for incrementing authCounter: uid=$uid, owner=$jid")
+                                Log.e(TAG, "Failed to find device for incrementing authCounter: uid=$uid, owner=$jid")
                             }
                         }
                         isDeviceRegistered = true
                         stream.state = StreamState.BINDING
                         return true
                     } else {
-                        Log.e("Account", "Failed to parse device registration response: ${iq.raw}")
+                        Log.e(TAG, "Failed to parse device registration response: ${iq.raw}")
                         onErrorCallback?.invoke("Failed to parse device registration response")
                         stream.state = StreamState.NOT_CONNECTING
                         return false
                     }
                 } else {
-                    Log.e("Account", "Device registration failed: ${iq.raw}")
+                    Log.e(TAG, "Device registration failed: ${iq.raw}")
                     onErrorCallback?.invoke("Device registration failed")
                     stream.state = StreamState.NOT_CONNECTING
                     return false
@@ -503,28 +477,168 @@ class Account : XMPPStreamDelegate {
             }
 
             if (stream.state == StreamState.BINDING) {
-                Log.d("Account", "Received IQ response for binding")
+                Log.d(TAG, "Received IQ response for binding")
                 val jidMatch = Regex("""<jid>([^<]+)</jid>""").find(iq.queryContent ?: "")
                 if (jidMatch != null) {
                     boundJid = jidMatch.groupValues[1]
-                    Log.d("Account", "Resource binding successful, bound JID: $boundJid")
+                    Log.d(TAG, "Resource binding successful, bound JID: $boundJid")
                     stream.state = StreamState.CONNECTED
                     return true
                 } else {
-                    Log.e("Account", "Binding failed, no JID in response: ${iq.raw}")
+                    Log.e(TAG, "Binding failed, no JID in response: ${iq.raw}")
                     onErrorCallback?.invoke("Resource binding failed")
                     stream.state = StreamState.NOT_CONNECTING
                     return false
                 }
             }
 
-            Log.w("Account", "Unhandled IQ: ${iq.raw}")
+            Log.w(TAG, "Unhandled IQ: ${iq.raw}")
             return false
         } catch (e: Exception) {
-            Log.e("Account", "Error handling IQ: ${e.message}", e)
+            Log.e(TAG, "Error handling IQ: ${e.message}", e)
             onErrorCallback?.invoke("Error processing IQ: ${e.message}")
             stream.state = StreamState.NOT_CONNECTING
             return false
+        }
+    }
+
+    // New: Async processing for roster stanzas
+    private suspend fun processRosterStanza(stanza: String, stream: Stream) {
+        val batchSize = 10 // Process up to 10 roster stanzas at once
+        val rosterStanzas = mutableListOf<String>()
+        synchronized(rosterStanzaBuffer) {
+            rosterStanzaBuffer.append(stanza)
+            val bufferedContent = rosterStanzaBuffer.toString()
+            if (bufferedContent.trim().startsWith("<iq") && bufferedContent.contains("</iq>")) {
+                rosterStanzas.add(bufferedContent)
+                rosterStanzaBuffer.clear()
+                Log.d(TAG, "Collected complete roster stanza for processing: ${bufferedContent.take(200)}")
+            } else {
+                Log.d(TAG, "Incomplete roster stanza, buffering: ${bufferedContent.take(200)}")
+                return
+            }
+        }
+
+        // Batch process roster stanzas
+        rosterStanzas.chunked(batchSize).forEach { batch ->
+            try {
+                batch.forEach { completeStanza ->
+                    val iq = parseIQ(completeStanza) // Assume parseIQ is defined elsewhere
+                    if (iq != null) {
+                        rosterManager.read(XMPPIQ(raw = completeStanza, type = iq.type, id = iq.id, from = iq.from, to = iq.to, error = iq.error, queryNamespace = iq.queryNamespace, queryContent = iq.queryContent))
+                        Log.d(TAG, "Processed roster IQ stanza: ${completeStanza.take(200)}")
+                    } else {
+                        Log.w(TAG, "Failed to parse roster IQ stanza: ${completeStanza.take(200)}")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error processing roster stanza batch: ${e.message}", e)
+            }
+        }
+    }
+
+    // New: Async processing for sync stanzas
+    private suspend fun processSyncStanza(stanza: String, stream: Stream) {
+        val batchSize = 10 // Process up to 10 sync stanzas at once
+        val syncStanzas = mutableListOf<String>()
+        synchronized(syncStanzaBuffer) {
+            syncStanzaBuffer.append(stanza)
+            val bufferedContent = syncStanzaBuffer.toString()
+            if (bufferedContent.contains("<query") && bufferedContent.contains("https://xabber.com/protocol/synchronization") && bufferedContent.contains("</query>")) {
+                val cleaned = bufferedContent.replace(Regex("""<iq[^>]*type='result'[^>]*id='ping1'[^>]*/>"""), "").replace(Regex("r\\.boldin='modify'"), "")
+                val iqStart = cleaned.indexOf("<iq")
+                val iqEnd = cleaned.lastIndexOf("</iq>") + 5
+                if (iqStart != -1 && iqEnd != -1 && iqEnd > iqStart) {
+                    syncStanzas.add(cleaned.substring(iqStart, iqEnd))
+                    syncStanzaBuffer.clear()
+                    Log.d(TAG, "Collected complete sync stanza for processing: ${cleaned.take(200)}")
+                } else {
+                    Log.e(TAG, "Failed to extract complete sync <iq> stanza: ${cleaned.take(200)}")
+                    return
+                }
+            } else {
+                Log.d(TAG, "Incomplete sync stanza, buffering: ${bufferedContent.take(200)}")
+                return
+            }
+        }
+
+        // Batch process sync stanzas
+        syncStanzas.chunked(batchSize).forEach { batch ->
+            try {
+                batch.forEach { completeStanza ->
+                    syncManager.read(completeStanza)
+                    Log.d(TAG, "Processed sync query stanza: ${completeStanza.take(200)}")
+                    syncCompletionChannel.trySend(Unit)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error processing sync stanza batch: ${e.message}", e)
+            }
+        }
+    }
+
+    // New: Async processing for presence stanzas
+    private suspend fun processPresenceStanza(stanza: String, stream: Stream) {
+        val batchSize = 20 // Batch up to 20 presence stanzas
+        val presenceStanzas = mutableListOf<String>()
+
+        // Add the incoming stanza to the buffer thread-safely
+        synchronized(this) {
+            presenceStanzas.add(stanza)
+            Log.d(TAG, "Buffered presence stanza for batching: ${stanza.take(200)}")
+        }
+
+        // Process only when enough stanzas are collected or after a short delay
+        if (presenceStanzas.size >= batchSize) {
+            val batchToProcess = synchronized(this) {
+                val batch = presenceStanzas.take(batchSize).toMutableList()
+                presenceStanzas.removeAll(batch)
+                batch
+            }
+            processPresenceBatch(batchToProcess, stream) // Call outside synchronized block
+        } else {
+            // Delay to allow more stanzas to accumulate (e.g., 100ms)
+            delay(100)
+            val batchToProcess = synchronized(this) {
+                if (presenceStanzas.isNotEmpty()) {
+                    val batch = presenceStanzas.take(batchSize).toMutableList()
+                    presenceStanzas.removeAll(batch)
+                    batch
+                } else {
+                    emptyList()
+                }
+            }
+            if (batchToProcess.isNotEmpty()) {
+                processPresenceBatch(batchToProcess, stream) // Call outside synchronized block
+            }
+        }
+    }
+
+    private suspend fun processPresenceBatch(stanzas: List<String>, stream: Stream) {
+        val batchSize = 20 // Batch up to 20 presence stanzas
+        try {
+            stanzas.chunked(batchSize).forEach { chunk ->
+                val realm = Realm.open(defaultRealmConfig())
+                try {
+                    chunk.forEach { presence ->
+                        // Launch a coroutine for each suspend call to processPresence
+                        stanzaProcessingScope.launch {
+                            try {
+                                presenceManager?.processPresence(presence)
+                                Log.d(TAG, "Processed presence stanza: ${presence.take(200)}")
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Error processing individual presence stanza: ${e.message}, stanza=${presence.take(200)}", e)
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error processing presence stanza batch: ${e.message}", e)
+                } finally {
+                    realm.close()
+                }
+            }
+            Log.d(TAG, "Processed batch of ${stanzas.size} presence stanzas")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in processPresenceBatch: ${e.message}", e)
         }
     }
 
@@ -551,75 +665,81 @@ class Account : XMPPStreamDelegate {
         """.trimIndent()
     }
 
-    override fun didReceivePresence(presence: String, stream: Stream): Boolean {
-        Log.d("Account", "Received presence stanza")
+    override suspend fun didReceivePresence(presence: String, stream: Stream): Boolean {
+        if (stream.state == StreamState.CONNECTED || stream.state == StreamState.BINDING) {
+            stanzaBuffer.emit(StanzaItem(StanzaItem.StanzaType.PRESENCE, presence, stream))
+            Log.d(TAG, "Buffered presence stanza: ${presence.take(200)}")
+            return true
+        }
+        // Process non-post-registration presence synchronously
+        Log.d(TAG, "Received presence stanza")
         return presenceManager?.processPresence(presence) ?: run {
-            Log.w("Account", "PresenceManager not initialized, skipping presence processing")
+            Log.w(TAG, "PresenceManager not initialized, skipping presence processing")
             false
         }
     }
 
     override fun didReceiveStreamHeader(header: String, stream: Stream): Boolean {
-        Log.d("Account", "Received stream header, awaiting features")
+        Log.d(TAG, "Received stream header, awaiting features")
         return true
     }
 
     override fun didReceiveStreamFeatures(features: String, stream: Stream): Boolean {
         try {
-            Log.d("Account", "Received stream features: $features")
+            Log.d(TAG, "Received stream features: $features")
             supportedFeatures = features
             realm.writeBlocking {
                 val account = query<AccountStorageItem>("jid = $0", jid).first().find()
                 if (account != null && account.clientSyncSupport != true) {
                     findLatest(account)?.clientSyncSupport = true
-                    Log.d("Account", "Updated AccountStorageItem clientSyncSupport to true for JID: $jid")
+                    Log.d(TAG, "Updated AccountStorageItem clientSyncSupport to true for JID: $jid")
                 }
             }
             val response = stream.socket?.parseStreamResponse(features)
             if (response == null) {
-                Log.e("Account", "Failed to parse stream features")
+                Log.e(TAG, "Failed to parse stream features")
                 onErrorCallback?.invoke("Failed to parse stream features")
                 stream.state = StreamState.NOT_CONNECTING
                 return false
             }
             if (stream.state == StreamState.NOT_CONNECTING || stream.state == StreamState.PROCEED || stream.state == StreamState.AUTH_SUCCESS) {
-                Log.d("Account", "Initial stream response received")
+                Log.d(TAG, "Initial stream response received")
                 stream.state = StreamState.STREAM_OPEN
             }
             response.features?.let { feat ->
-                Log.d("Account", "Stream features: $feat")
+                Log.d(TAG, "Stream features: $feat")
                 if (stream.state == StreamState.PROCEED && DevicesOCRA.isSupported(feat)) {
-                    Log.d("Account", "DEVICES-OCRA authentication is supported post-TLS")
+                    Log.d(TAG, "DEVICES-OCRA authentication is supported post-TLS")
                     stream.state = StreamState.START_AUTH
                 } else if (!attemptedPreTlsAuth && DevicesOCRA.isSupported(feat)) {
-                    Log.d("Account", "DEVICES-OCRA authentication is supported pre-TLS")
+                    Log.d(TAG, "DEVICES-OCRA authentication is supported pre-TLS")
                     attemptedPreTlsAuth = true
                     stream.state = StreamState.START_AUTH
                 } else if (stream.state == StreamState.PROCEED && feat.mechanisms?.mechanism?.contains("PLAIN") == true) {
-                    Log.d("Account", "PLAIN authentication is supported post-TLS")
+                    Log.d(TAG, "PLAIN authentication is supported post-TLS")
                     stream.state = StreamState.START_AUTH
                 } else if (!attemptedPreTlsAuth && feat.mechanisms?.mechanism?.contains("PLAIN") == true) {
-                    Log.d("Account", "PLAIN authentication is supported pre-TLS")
+                    Log.d(TAG, "PLAIN authentication is supported pre-TLS")
                     attemptedPreTlsAuth = true
                     stream.state = StreamState.START_AUTH
                 } else if (feat.starttls?.present == true) {
                     val isTlsRequired = features.contains("<required/>")
-                    Log.d("Account", "STARTTLS is supported${if (isTlsRequired) " and required" else ""}")
+                    Log.d(TAG, "STARTTLS is supported${if (isTlsRequired) " and required" else ""}")
                     if (isTlsRequired && attemptedPreTlsAuth) {
-                        Log.w("Account", "TLS required after failed pre-TLS auth attempt")
+                        Log.w(TAG, "TLS required after failed pre-TLS auth attempt")
                         attemptedPreTlsAuth = false
                     }
                     stream.state = StreamState.START_TLS
                 } else if (stream.state == StreamState.STREAM_OPEN && feat.devices?.present == true) {
-                    Log.d("Account", "Device registration is supported")
+                    Log.d(TAG, "Device registration is supported")
                     if (isDeviceRegistered) {
-                        Log.d("Account", "Skipping device registration, already registered for JID: $jid")
+                        Log.d(TAG, "Skipping device registration, already registered for JID: $jid")
                         stream.state = StreamState.BINDING
                     } else {
                         stream.state = StreamState.DEVICE_REGISTRATION
                     }
                 } else {
-                    Log.w("Account", "No supported features found")
+                    Log.w(TAG, "No supported features found")
                     onErrorCallback?.invoke("No supported authentication features found")
                     stream.state = StreamState.NOT_CONNECTING
                     return false
@@ -627,7 +747,7 @@ class Account : XMPPStreamDelegate {
             }
             return true
         } catch (e: Exception) {
-            Log.e("Account", "Error handling stream features: ${e.message}", e)
+            Log.e(TAG, "Error handling stream features: ${e.message}", e)
             onErrorCallback?.invoke("Error processing stream features: ${e.message}")
             stream.state = StreamState.NOT_CONNECTING
             return false
@@ -636,11 +756,11 @@ class Account : XMPPStreamDelegate {
 
     override suspend fun didReceiveChallenge(challenge: String, stream: Stream): Boolean {
         try {
-            Log.d("Account", "Received OCRA challenge")
+            Log.d(TAG, "Received OCRA challenge")
             if (stream.state == StreamState.PROCESS_AUTH && ocraAuth != null) {
                 val success = ocraAuth!!.handleAuthChallenge(challenge)
                 if (!success) {
-                    Log.e("Account", "OCRA challenge handling failed")
+                    Log.e(TAG, "OCRA challenge handling failed")
                     onErrorCallback?.invoke("OCRA authentication challenge failed")
                     stream.state = StreamState.AUTH_FAILED
                     return false
@@ -649,7 +769,7 @@ class Account : XMPPStreamDelegate {
             }
             return false
         } catch (e: Exception) {
-            Log.e("Account", "Error handling challenge: ${e.message}", e)
+            Log.e(TAG, "Error handling challenge: ${e.message}", e)
             onErrorCallback?.invoke("Error processing challenge: ${e.message}")
             stream.state = StreamState.NOT_CONNECTING
             return false
@@ -658,12 +778,12 @@ class Account : XMPPStreamDelegate {
 
     override suspend fun didReceiveSuccess(success: String, stream: Stream): Boolean {
         try {
-            Log.d("Account", "Authentication successful")
+            Log.d(TAG, "Authentication successful")
             if (stream.state == StreamState.PROCESS_AUTH) {
                 if (ocraAuth != null) {
                     val succ = ocraAuth!!.handleAuthResponse(success)
                     if (!succ) {
-                        Log.e("Account", "OCRA authentication response handling failed")
+                        Log.e(TAG, "OCRA authentication response handling failed")
                         onErrorCallback?.invoke("OCRA authentication response handling failed")
                         stream.state = StreamState.AUTH_FAILED
                         return false
@@ -674,7 +794,7 @@ class Account : XMPPStreamDelegate {
             }
             return false
         } catch (e: Exception) {
-            Log.e("Account", "Error handling success: ${e.message}", e)
+            Log.e(TAG, "Error handling success: ${e.message}", e)
             onErrorCallback?.invoke("Error processing success: ${e.message}")
             stream.state = StreamState.NOT_CONNECTING
             return false
@@ -683,7 +803,7 @@ class Account : XMPPStreamDelegate {
 
     override fun didReceiveFailure(failure: String, stream: Stream): Boolean {
         try {
-            Log.e("Account", "Authentication failed: $failure")
+            Log.e(TAG, "Authentication failed: $failure")
             if (stream.state == StreamState.PROCESS_AUTH) {
                 val errorTextMatch = Regex("""<text[^>]*>([^<]+)</text>""").find(failure)
                 val errorText = errorTextMatch?.groupValues?.get(1) ?: "Unknown authentication error"
@@ -693,14 +813,14 @@ class Account : XMPPStreamDelegate {
                     "not-authorized" -> "Authentication failed: $errorText"
                     else -> "Authentication failed: $errorText ($errorType)"
                 }
-                Log.e("Account", userMessage)
+                Log.e(TAG, userMessage)
                 onErrorCallback?.invoke(userMessage)
                 stream.state = StreamState.AUTH_FAILED
                 return true
             }
             return false
         } catch (e: Exception) {
-            Log.e("Account", "Error handling failure: ${e.message}", e)
+            Log.e(TAG, "Error handling failure: ${e.message}", e)
             onErrorCallback?.invoke("Error processing failure: ${e.message}")
             stream.state = StreamState.NOT_CONNECTING
             return false
@@ -708,11 +828,12 @@ class Account : XMPPStreamDelegate {
     }
 
     override fun didReceiveProceed(proceed: String, stream: Stream): Boolean {
-        Log.d("Account", "Received proceed for STARTTLS")
+        Log.d(TAG, "Received proceed for STARTTLS")
         return true
     }
 
     override suspend fun didReceiveMessage(message: String, stream: Stream): Boolean {
+        // Messages are not buffered; handled as before to maintain real-time chat functionality
         Log.d(TAG, "Received message stanza: $message")
         try {
             val xmppMessage = XMPPMessage(message)
@@ -846,6 +967,8 @@ class Account : XMPPStreamDelegate {
                 }
             }
 
+            val timestamp = tempStanza?.date?.takeIf { it > 0 } ?: parseTimestamp(xmppMessage) ?: System.currentTimeMillis()
+            val date = Date(timestamp)
             val isOutgoing = fromJid == jid
             val state = if (isOutgoing) MessageSendingState.Deliver else MessageSendingState.Sent
 
@@ -913,6 +1036,20 @@ class Account : XMPPStreamDelegate {
         }
     }
 
+    private fun parseTimestamp(message: XMPPMessage): Long? {
+        val timeElement = message.element("time", namespace = "https://xabber.com/protocol/delivery")
+        val stamp = timeElement?.getAttribute("stamp")
+        return stamp?.let {
+            try {
+                val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'", Locale.US)
+                sdf.timeZone = TimeZone.getTimeZone("UTC")
+                sdf.parse(it)?.time
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to parse timestamp: ${e.message}")
+                null
+            }
+        }
+    }
 
     private fun parserToDom(parser: XmlPullParser): Node {
         val factory = DocumentBuilderFactory.newInstance()
@@ -943,6 +1080,19 @@ class Account : XMPPStreamDelegate {
         return stack.first().firstChild ?: document
     }
 
+    private fun getDeliveryTime(message: XMPPMessage): Date? {
+        val time = message.element("time", namespace = "https://xabber.com/protocol/delivery")?.getAttribute("stamp")
+        return time?.let {
+            try {
+                val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'", Locale.US)
+                sdf.timeZone = TimeZone.getTimeZone("UTC")
+                sdf.parse(it)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to parse delivery timestamp: ${e.message}")
+                null
+            }
+        }
+    }
 
     override suspend fun streamDidConnect(stream: Stream): Boolean {
         CoroutineScope(Dispatchers.IO).launch {
@@ -968,17 +1118,19 @@ class Account : XMPPStreamDelegate {
                     </bind>
                 </iq>
             """.trimIndent()
-            if (runBlocking { stream.socket?.write(bindRequest) } == true) {
-                Log.d("Account", "Sent bind request for JID: $jid")
-                return true
-            } else {
-                Log.e("Account", "Failed to send bind request for JID: $jid")
-                onErrorCallback?.invoke("Failed to send resource binding request")
-                stream.state = StreamState.NOT_CONNECTING
-                return false
+            return withContext(Dispatchers.IO) {
+                if (stream.socket?.write(bindRequest) == true) {
+                    Log.d(TAG, "Sent bind request for JID: $jid")
+                    true
+                } else {
+                    Log.e(TAG, "Failed to send bind request for JID: $jid")
+                    onErrorCallback?.invoke("Failed to send resource binding request")
+                    stream.state = StreamState.NOT_CONNECTING
+                    false
+                }
             }
         } catch (e: Exception) {
-            Log.e("Account", "Error during resource binding for JID: $jid: ${e.message}", e)
+            Log.e(TAG, "Error during resource binding for JID: $jid: ${e.message}", e)
             onErrorCallback?.invoke("Resource binding error: ${e.message}")
             stream.state = StreamState.NOT_CONNECTING
             return false
@@ -988,7 +1140,7 @@ class Account : XMPPStreamDelegate {
     override suspend fun streamDeviceRegistration(stream: Stream): Boolean {
         try {
             if (isDeviceRegistered) {
-                Log.d("Account", "Device already registered for JID: $jid, skipping registration")
+                Log.d(TAG, "Device already registered for JID: $jid, skipping registration")
                 stream.state = StreamState.BINDING
                 return true
             }
@@ -1006,17 +1158,19 @@ class Account : XMPPStreamDelegate {
                     </register>
                 </iq>
             """.trimIndent()
-            if (runBlocking { stream.socket?.write(deviceRequest) } == true) {
-                Log.d("Account", "Sent device registration request for JID: $jid")
-                return true
-            } else {
-                Log.e("Account", "Failed to send device registration request for JID: $jid")
-                onErrorCallback?.invoke("Failed to send device registration request")
-                stream.state = StreamState.NOT_CONNECTING
-                return false
+            return withContext(Dispatchers.IO) {
+                if (stream.socket?.write(deviceRequest) == true) {
+                    Log.d(TAG, "Sent device registration request for JID: $jid")
+                    true
+                } else {
+                    Log.e(TAG, "Failed to send device registration request for JID: $jid")
+                    onErrorCallback?.invoke("Failed to send device registration request")
+                    stream.state = StreamState.NOT_CONNECTING
+                    false
+                }
             }
         } catch (e: Exception) {
-            Log.e("Account", "Error during device registration for JID: $jid: ${e.message}", e)
+            Log.e(TAG, "Error during device registration for JID: $jid: ${e.message}", e)
             onErrorCallback?.invoke("Device registration error: ${e.message}")
             stream.state = StreamState.NOT_CONNECTING
             return false
@@ -1024,26 +1178,26 @@ class Account : XMPPStreamDelegate {
     }
 
     override suspend fun streamAuthFailed(stream: Stream): Boolean {
-        Log.e("Account", "Authentication failed for JID: $jid")
+        Log.e(TAG, "Authentication failed for JID: $jid")
         onErrorCallback?.invoke("Authentication failed")
         if (!attemptedPreTlsAuth || stream.state == StreamState.PROCEED) {
-            Log.e("Account", "Closing connection due to auth failure")
-            runBlocking { closeStream() }
+            Log.e(TAG, "Closing connection due to auth failure")
+            closeStream()
         } else {
-            Log.d("Account", "Pre-TLS auth failed, falling back to START_TLS")
+            Log.d(TAG, "Pre-TLS auth failed, falling back to START_TLS")
             stream.state = StreamState.START_TLS
         }
         return true
     }
 
     override suspend fun streamAuthSuccess(stream: Stream): Boolean {
-        Log.d("Account", "Authentication successful for JID: $jid, initiating new stream")
         try {
+            Log.d(TAG, "Authentication successful for JID: $jid, initiating new stream")
             stream.socket?.initiateXmppStream(stream.socket!!, host, jid)
-            Log.d("Account", "New stream initiated after auth success for JID: $jid")
+            Log.d(TAG, "New stream initiated after auth success for JID: $jid")
             return true
         } catch (e: Exception) {
-            Log.e("Account", "Error initiating new stream after auth success: ${e.message}", e)
+            Log.e(TAG, "Error initiating new stream after auth success: ${e.message}", e)
             onErrorCallback?.invoke("Error initiating stream after authentication")
             stream.state = StreamState.NOT_CONNECTING
             return false
@@ -1052,26 +1206,28 @@ class Account : XMPPStreamDelegate {
 
     override suspend fun streamPlainAuth(stream: Stream): Boolean {
         try {
-            Log.d("Account", "Initiating SASL PLAIN authentication for JID: $jid")
+            Log.d(TAG, "Initiating SASL PLAIN authentication for JID: $jid")
             val username = stream.extractUsernameFromJid(jid)
-            Log.d("Account", "Extracted username: $username")
+            Log.d(TAG, "Extracted username: $username")
             val authData = stream.socket!!.saslPlainAuth(jid, username)
-            Log.d("Account", "Generated SASL PLAIN auth data")
+            Log.d(TAG, "Generated SASL PLAIN auth data")
             val authMessage = """
                 <auth xmlns='urn:ietf:params:xml:ns:xmpp-sasl' mechanism='PLAIN'>$authData</auth>
             """.trimIndent()
-            if (runBlocking { stream.socket?.write(authMessage) } == true) {
-                Log.d("Account", "Sent SASL PLAIN auth request for JID: $jid")
-                stream.state = StreamState.PROCESS_AUTH
-                return true
-            } else {
-                Log.e("Account", "Failed to send SASL PLAIN auth request for JID: $jid")
-                onErrorCallback?.invoke("Failed to send PLAIN authentication request")
-                stream.state = StreamState.AUTH_FAILED
-                return false
+            return withContext(Dispatchers.IO) {
+                if (stream.socket?.write(authMessage) == true) {
+                    Log.d(TAG, "Sent SASL PLAIN auth request for JID: $jid")
+                    stream.state = StreamState.PROCESS_AUTH
+                    true
+                } else {
+                    Log.e(TAG, "Failed to send SASL PLAIN auth request for JID: $jid")
+                    onErrorCallback?.invoke("Failed to send PLAIN authentication request")
+                    stream.state = StreamState.AUTH_FAILED
+                    false
+                }
             }
         } catch (e: IllegalStateException) {
-            Log.e("Account", "SASL PLAIN authentication failed for JID: $jid: ${e.message}", e)
+            Log.e(TAG, "SASL PLAIN authentication failed for JID: $jid: ${e.message}", e)
             onErrorCallback?.invoke("PLAIN authentication failed: ${e.message}")
             stream.state = StreamState.AUTH_FAILED
             return false
@@ -1079,9 +1235,9 @@ class Account : XMPPStreamDelegate {
     }
 
     override suspend fun streamOCRAAuth(stream: Stream): Boolean = withContext(Dispatchers.IO) {
-        Log.d("Account", "Entering streamOCRAAuth for JID: $jid")
+        Log.d(TAG, "Entering streamOCRAAuth for JID: $jid")
         if (stream.socket == null || stream.socket?.getSocket()?.isClosed == true) {
-            Log.e("Account", "Cannot initiate authentication: Socket is null or closed")
+            Log.e(TAG, "Cannot initiate authentication: Socket is null or closed")
             onErrorCallback?.invoke("Cannot initiate authentication: Connection closed")
             stream.state = StreamState.AUTH_FAILED
             return@withContext false
@@ -1090,12 +1246,12 @@ class Account : XMPPStreamDelegate {
             val response = stream.socket?.parseStreamResponse(stream.messageCallbackChannel.tryReceive().getOrNull() ?: "")
             val features = response?.features
             if (DevicesOCRA.isSupported(features)) {
-                Log.d("Account", "Initiating DEVICES-OCRA authentication for JID: $jid")
+                Log.d(TAG, "Initiating DEVICES-OCRA authentication for JID: $jid")
                 var device: DeviceStorageItem? = null
                 device = realm.query<DeviceStorageItem>("owner = $0", jid).first().find()
                 device?.let {
                     if (it.secret.isNotEmpty() && it.validationKey.isNotEmpty() && it.uid.isNotEmpty()) {
-                        Log.d("Account", "Using DeviceStorageItem for OCRA: uid=${it.uid}, authCounter=${it.authCounter}")
+                        Log.d(TAG, "Using DeviceStorageItem for OCRA: uid=${it.uid}, authCounter=${it.authCounter}")
                         ocraAuth = DevicesOCRA(
                             stream = stream,
                             deviceId = it.uid,
@@ -1105,46 +1261,46 @@ class Account : XMPPStreamDelegate {
                             realm = realm
                         )
                         if (ocraAuth?.start() == true) {
-                            Log.d("Account", "DEVICES-OCRA authentication started for JID: $jid")
+                            Log.d(TAG, "DEVICES-OCRA authentication started for JID: $jid")
                             stream.state = StreamState.PROCESS_AUTH
                             return@withContext true
                         } else {
-                            Log.e("Account", "Failed to start DEVICES-OCRA authentication for JID: $jid")
+                            Log.e(TAG, "Failed to start DEVICES-OCRA authentication for JID: $jid")
                             onErrorCallback?.invoke("Failed to start DEVICES-OCRA authentication")
                             stream.state = StreamState.AUTH_FAILED
                             return@withContext false
                         }
                     } else {
-                        Log.e("Account", "DeviceStorageItem missing required fields for OCRA")
+                        Log.e(TAG, "DeviceStorageItem missing required fields for OCRA")
                         onErrorCallback?.invoke("Invalid device data for OCRA authentication")
                         stream.state = StreamState.AUTH_FAILED
                         return@withContext false
                     }
                 } ?: run {
-                    Log.e("Account", "No valid device found for OCRA authentication for JID: $jid")
+                    Log.e(TAG, "No valid device found for OCRA authentication for JID: $jid")
                     if (features?.mechanisms?.mechanism?.contains("PLAIN") == true) {
-                        Log.d("Account", "Falling back to PLAIN authentication")
+                        Log.d(TAG, "Falling back to PLAIN authentication")
                         streamPlainAuth(stream)
                         return@withContext true
                     } else {
-                        Log.e("Account", "No supported authentication mechanisms")
+                        Log.e(TAG, "No supported authentication mechanisms")
                         onErrorCallback?.invoke("No supported authentication mechanisms")
                         stream.state = StreamState.AUTH_FAILED
                         return@withContext false
                     }
                 }
             } else if (features?.mechanisms?.mechanism?.contains("PLAIN") == true) {
-                Log.d("Account", "DEVICES-OCRA not supported, using PLAIN authentication")
+                Log.d(TAG, "DEVICES-OCRA not supported, using PLAIN authentication")
                 streamPlainAuth(stream)
                 return@withContext true
             } else {
-                Log.e("Account", "No supported authentication mechanisms found")
+                Log.e(TAG, "No supported authentication mechanisms found")
                 onErrorCallback?.invoke("No supported authentication mechanisms")
                 stream.state = StreamState.AUTH_FAILED
                 return@withContext false
             }
         } catch (e: Exception) {
-            Log.e("Account", "Unexpected error during authentication for JID: $jid: ${e.message}", e)
+            Log.e(TAG, "Unexpected error during authentication for JID: $jid: ${e.message}", e)
             onErrorCallback?.invoke("Authentication error: ${e.message}")
             stream.state = StreamState.AUTH_FAILED
             return@withContext false
@@ -1153,36 +1309,36 @@ class Account : XMPPStreamDelegate {
 
     override suspend fun streamStartTLS(stream: Stream): Boolean = withContext(Dispatchers.IO) {
         if (stream.socket == null || stream.socket?.getSocket()?.isClosed == true) {
-            Log.e("Account", "Cannot initiate STARTTLS: Socket is null or closed")
+            Log.e(TAG, "Cannot initiate STARTTLS: Socket is null or closed")
             onErrorCallback?.invoke("Cannot initiate STARTTLS: Connection closed")
             stream.state = StreamState.NOT_CONNECTING
             return@withContext false
         }
         try {
-            Log.d("Account", "Initiating STARTTLS negotiation")
+            Log.d(TAG, "Initiating STARTTLS negotiation")
             if (!stream.socket!!.initiateStartTls()) {
-                Log.e("Account", "Failed to initiate STARTTLS")
+                Log.e(TAG, "Failed to initiate STARTTLS")
                 onErrorCallback?.invoke("Failed to initiate STARTTLS")
                 stream.state = StreamState.NOT_CONNECTING
                 return@withContext false
             }
-            Log.d("Account", "STARTTLS negotiation successful, preparing for TLS upgrade")
+            Log.d(TAG, "STARTTLS negotiation successful, preparing for TLS upgrade")
             delay(1000)
-            Log.d("Account", "Upgrading to TLS")
+            Log.d(TAG, "Upgrading to TLS")
             if (stream.socket?.upgradeToTls() == true) {
-                Log.d("Account", "TLS upgrade successful, initiating new stream")
+                Log.d(TAG, "TLS upgrade successful, initiating new stream")
                 stream.state = StreamState.PROCEED
                 stream.socket?.initiateXmppStream(stream.socket!!, host, jid)
-                Log.d("Account", "New stream initiated over TLS, awaiting response")
+                Log.d(TAG, "New stream initiated over TLS, awaiting response")
                 return@withContext true
             } else {
-                Log.e("Account", "Failed to upgrade to TLS")
+                Log.e(TAG, "Failed to upgrade to TLS")
                 onErrorCallback?.invoke("Failed to upgrade to TLS")
                 stream.state = StreamState.NOT_CONNECTING
                 return@withContext false
             }
         } catch (e: Exception) {
-            Log.e("Account", "Error during STARTTLS process: ${e.message}", e)
+            Log.e(TAG, "Error during STARTTLS process: ${e.message}", e)
             onErrorCallback?.invoke("STARTTLS error: ${e.message}")
             stream.state = StreamState.NOT_CONNECTING
             return@withContext false
@@ -1192,12 +1348,12 @@ class Account : XMPPStreamDelegate {
     override suspend fun streamSyncRequest(stream: Stream): Boolean {
         try {
             if (stream.state != StreamState.CONNECTED) {
-                Log.w("Account", "Cannot send sync request: Stream is not in CONNECTED state, current state: ${stream.state}")
+                Log.w(TAG, "Cannot send sync request: Stream is not in CONNECTED state, current state: ${stream.state}")
                 onErrorCallback?.invoke("Cannot send sync request: Not connected")
                 return false
             }
             if (stream.socket == null || stream.socket?.getSocket()?.isClosed == true) {
-                Log.e("Account", "Cannot send sync request: Socket is null or closed")
+                Log.e(TAG, "Cannot send sync request: Socket is null or closed")
                 onErrorCallback?.invoke("Cannot send sync request: Connection closed")
                 stream.state = StreamState.NOT_CONNECTING
                 return false
@@ -1208,17 +1364,19 @@ class Account : XMPPStreamDelegate {
                     <query xmlns='https://xabber.com/protocol/synchronization'/>
                 </iq>
             """.trimIndent()
-            if (stream.socket?.write(syncRequest) == true) {
-                Log.d("Account", "Sent sync request for JID: $jid with id: $syncId")
-                return true
-            } else {
-                Log.e("Account", "Failed to send sync request for JID: $jid")
-                onErrorCallback?.invoke("Failed to send sync request")
-                stream.state = StreamState.NOT_CONNECTING
-                return false
+            return withContext(Dispatchers.IO) {
+                if (stream.socket?.write(syncRequest) == true) {
+                    Log.d(TAG, "Sent sync request for JID: $jid with id: $syncId")
+                    true
+                } else {
+                    Log.e(TAG, "Failed to send sync request for JID: $jid")
+                    onErrorCallback?.invoke("Failed to send sync request")
+                    stream.state = StreamState.NOT_CONNECTING
+                    false
+                }
             }
         } catch (e: Exception) {
-            Log.e("Account", "Error sending sync request for JID: $jid: ${e.message}", e)
+            Log.e(TAG, "Error sending sync request for JID: $jid: ${e.message}", e)
             onErrorCallback?.invoke("Sync request error: ${e.message}")
             stream.state = StreamState.NOT_CONNECTING
             return false
@@ -1227,12 +1385,12 @@ class Account : XMPPStreamDelegate {
 
     override suspend fun streamCarbonsSend(stream: Stream): Boolean = withContext(Dispatchers.IO) {
         if (stream.state != StreamState.CONNECTED) {
-            Log.w("Account", "Cannot send carbons enable: Stream is not in CONNECTED state, current state: ${stream.state}")
+            Log.w(TAG, "Cannot send carbons enable: Stream is not in CONNECTED state, current state: ${stream.state}")
             onErrorCallback?.invoke("Cannot send carbons enable: Not connected")
             return@withContext false
         }
         if (stream.socket == null || stream.socket?.getSocket()?.isClosed == true) {
-            Log.e("Account", "Cannot send carbons enable: Socket is null or closed")
+            Log.e(TAG, "Cannot send carbons enable: Socket is null or closed")
             onErrorCallback?.invoke("Cannot send carbons enable: Connection closed")
             stream.state = StreamState.NOT_CONNECTING
             return@withContext false
@@ -1245,15 +1403,15 @@ class Account : XMPPStreamDelegate {
                 </iq>
             """.trimIndent()
             if (stream.socket?.write(carbonsStanza) == true) {
-                Log.d("Account", "Sent carbons enable stanza for JID: $jid with id: $id")
+                Log.d(TAG, "Sent carbons enable stanza for JID: $jid with id: $id")
                 return@withContext true
             } else {
-                Log.e("Account", "Failed to send carbons enable stanza for JID: $jid")
+                Log.e(TAG, "Failed to send carbons enable stanza for JID: $jid")
                 onErrorCallback?.invoke("Failed to send carbons enable stanza")
                 return@withContext false
             }
         } catch (e: Exception) {
-            Log.e("Account", "Error sending carbons enable for JID: $jid: ${e.message}", e)
+            Log.e(TAG, "Error sending carbons enable for JID: $jid: ${e.message}", e)
             onErrorCallback?.invoke("Carbons enable error: ${e.message}")
             return@withContext false
         }
@@ -1265,10 +1423,10 @@ class Account : XMPPStreamDelegate {
             if (parts.size > 1) {
                 return parts[1].split("/").first()
             }
-            Log.w("Account", "Invalid JID format: $jid")
+            Log.w(TAG, "Invalid JID format: $jid")
             return jid
         } catch (e: Exception) {
-            Log.e("Account", "Error extracting host from JID: ${e.message}", e)
+            Log.e(TAG, "Error extracting host from JID: ${e.message}", e)
             return jid
         }
     }
@@ -1282,14 +1440,14 @@ class Account : XMPPStreamDelegate {
             if (stream.state == StreamState.CONNECTED && stream.socket?.getSocket()?.isClosed == false) {
                 action(this, stream)
             } else {
-                Log.w("Account", "Cannot execute action: Stream is not connected or socket is closed")
+                Log.w(TAG, "Cannot execute action: Stream is not connected or socket is closed")
             }
-        } ?: Log.w("Account", "Cannot execute action: Stream is null")
+        } ?: Log.w(TAG, "Cannot execute action: Stream is null")
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
     fun logMessageStorageItems(owner: String, messageIds: List<String>? = null) {
-        Log.d("Account", "Logging MessageStorageItem entries for owner: $owner")
+        Log.d(TAG, "Logging MessageStorageItem entries for owner: $owner")
         try {
             realm.query<MessageStorageItem>(
                 query = if (messageIds.isNullOrEmpty()) {
@@ -1300,16 +1458,48 @@ class Account : XMPPStreamDelegate {
                 owner, messageIds
             ).find().forEach { item ->
                 Log.d(
-                    "Account",
+                    TAG,
                     "MessageStorageItem: primary=${item.primary}, messageId=${item.messageId}, owner=${item.owner}, " +
                             "opponent=${item.opponent}, body=${item.body}, date=${item.date}, sentDate=${item.sentDate}, " +
                             "editDate=${item.editDate}, outgoing=${item.outgoing}, conversationType_=${item.conversationType_}, " +
                             "isRead=${item.isRead}, state=${item.state}"
                 )
             }
-            Log.d("Account", "Finished logging MessageStorageItem entries")
+            Log.d(TAG, "Finished logging MessageStorageItem entries")
         } catch (e: Exception) {
-            Log.e("Account", "Error querying MessageStorageItem: ${e.message}", e)
+            Log.e(TAG, "Error querying MessageStorageItem: ${e.message}", e)
+        }
+    }
+
+    // New: Helper function to parse IQ stanzas (assumed to exist or added for completeness)
+    private fun parseIQ(stanza: String): XMPPIQ? {
+        try {
+            val typeMatch = Regex("""type=['"]([^'"]+)['"]""").find(stanza)?.groupValues?.get(1) ?: return null
+            val idMatch = Regex("""id=['"]([^'"]+)['"]""").find(stanza)?.groupValues?.get(1)
+            val fromMatch = Regex("""from=['"]([^'"]+)['"]""").find(stanza)?.groupValues?.get(1)
+            val toMatch = Regex("""to=['"]([^'"]+)['"]""").find(stanza)?.groupValues?.get(1)
+            val error = if (typeMatch == "error") {
+                val errorStart = stanza.indexOf("<error")
+                if (errorStart != -1) {
+                    val errorEnd = stanza.indexOf("</error>", errorStart) + 8
+                    stanza.substring(errorStart, errorEnd)
+                } else null
+            } else null
+            val iqStart = stanza.indexOf("<iq")
+            val headerEnd = stanza.indexOf(">", iqStart)
+            val iqEnd = stanza.lastIndexOf("</iq>")
+            val content = if (headerEnd != -1 && iqEnd > headerEnd + 1) stanza.substring(headerEnd + 1, iqEnd).trim() else ""
+            val queryNamespace = if (content.isNotEmpty()) {
+                val childStart = content.indexOf("<")
+                if (childStart != -1) {
+                    val childHeaderEnd = content.indexOf(">", childStart)
+                    Regex("""xmlns=['"]([^'"]+)['"]""").find(content.substring(childStart, childHeaderEnd + 1))?.groupValues?.get(1)
+                } else null
+            } else null
+            return XMPPIQ(stanza, typeMatch, idMatch, fromMatch, toMatch, error, queryNamespace, content)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error parsing IQ: ${e.message}, stanza=$stanza", e)
+            return null
         }
     }
 }

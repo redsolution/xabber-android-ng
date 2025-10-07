@@ -3,7 +3,7 @@ package com.xabber.common
 interface XMPPStreamDelegate {
     suspend fun didReceiveIQ(iq: XMPPIQ, stream: Stream): Boolean
 
-    fun didReceivePresence(presence: String, stream: Stream): Boolean
+    suspend fun didReceivePresence(presence: String, stream: Stream): Boolean
 
     fun didReceiveStreamHeader(header: String, stream: Stream): Boolean
 
