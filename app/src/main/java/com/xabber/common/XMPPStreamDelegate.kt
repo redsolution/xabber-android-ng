@@ -1,24 +1,25 @@
 package com.xabber.common
 
+import com.xabber.xmpp.messages.XMPPMessage
+
 interface XMPPStreamDelegate {
     suspend fun didReceiveIQ(iq: XMPPIQ, stream: Stream): Boolean
 
-    suspend fun didReceivePresence(presence: String, stream: Stream): Boolean
+    suspend fun didReceivePresence(presence: XMPPPresence, stream: Stream): Boolean
 
     fun didReceiveStreamHeader(header: String, stream: Stream): Boolean
 
-    fun didReceiveStreamFeatures(features: String, stream: Stream): Boolean
+    suspend fun didReceiveStreamFeatures(features: String, stream: Stream): Boolean
 
     suspend fun didReceiveChallenge(challenge: String, stream: Stream): Boolean
 
     suspend fun didReceiveSuccess(success: String, stream: Stream): Boolean
 
-
     fun didReceiveFailure(failure: String, stream: Stream): Boolean
 
     fun didReceiveProceed(proceed: String, stream: Stream): Boolean
 
-    suspend fun didReceiveMessage(message: String, stream: Stream): Boolean
+    suspend fun didReceiveMessage(message: XMPPMessage, stream: Stream): Boolean
 
     suspend fun streamDidConnect(stream: Stream): Boolean
 

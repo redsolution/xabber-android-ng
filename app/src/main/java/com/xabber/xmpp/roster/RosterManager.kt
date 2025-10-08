@@ -15,12 +15,24 @@ import io.realm.kotlin.UpdatePolicy
 import io.realm.kotlin.ext.query
 import io.realm.kotlin.ext.realmListOf
 import io.viascom.nanoid.NanoId
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.consumeAsFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import nl.adaptivity.xmlutil.serialization.XML
 import nl.adaptivity.xmlutil.serialization.XmlSerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
+import nl.adaptivity.xmlutil.core.impl.multiplatform.StringReader
+import org.xmlpull.v1.XmlPullParser
+import org.xmlpull.v1.XmlPullParserFactory
 import java.util.concurrent.ConcurrentHashMap
 
 @Serializable
@@ -54,6 +66,17 @@ class RosterManager(private val owner: String, private val realm: Realm) {
             pedantic = false
         }
     }
+    private val scope = CoroutineScope(Dispatchers.IO.limitedParallelism(2) + SupervisorJob())
+    private val rosterBuffer = Channel<XMPPIQ>(capacity = 100) // Buffer up to 100 roster IQ stanzas
+    private val bufferMutex = Mutex()
+    private var processingJob: Job? = null
+    private val stanzaProcessingScope = CoroutineScope(Dispatchers.IO.limitedParallelism(2) + SupervisorJob()) // Add this line
+
+    init {
+        scope.launch {
+            startRosterProcessing()
+        }
+    }
 
     suspend fun request(stream: Stream) = withContext(Dispatchers.IO) {
         try {
@@ -79,169 +102,348 @@ class RosterManager(private val owner: String, private val realm: Realm) {
         }
     }
 
-    suspend fun read(iq: XMPPIQ): Boolean {
+    suspend fun read(iq: XMPPIQ): Boolean = withContext(Dispatchers.IO) {
         try {
-            if (iq.queryNamespace != "jabber:iq:roster") return false  // Quick check
-
-            Log.d(TAG, "Processing complete roster IQ: ${iq.raw}")
-            return when {
-                iq.error != null -> readError(iq)  // Adapt readError to use iq.error
-                iq.type == "result" -> readSuccess(iq)  // Adapt to use iq
-                else -> {
-                    Log.w(TAG, "Unhandled roster IQ type: ${iq.type}")
-                    false
-                }
+            if (iq.queryNamespace != "jabber:iq:roster") {
+                Log.w(TAG, "Ignoring non-roster IQ: namespace=${iq.queryNamespace}")
+                return@withContext false
             }
+            rosterBuffer.send(iq)
+            Log.d(TAG, "Buffered roster IQ stanza: id=${iq.id}, thread=${Thread.currentThread().id}")
+            return@withContext true
         } catch (e: Exception) {
-            Log.e(TAG, "Error reading IQ: ${e.message}, IQ: ${iq.raw}", e)
-            return false
+            Log.e(TAG, "Error buffering roster IQ: ${e.message}, IQ: ${iq.raw}", e)
+            return@withContext false
         }
     }
 
-    private suspend fun readSuccess(iq: XMPPIQ): Boolean {
-        val rosterQuery = try {
-            xml.decodeFromString<RosterQuery>(iq.queryContent ?: return false)
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to parse roster query: ${e.message}, content: ${iq.queryContent}", e)
-            return false
+    private suspend fun startRosterProcessing() {
+        processingJob?.cancelAndJoin()
+        processingJob = scope.launch {
+            val batch = mutableListOf<XMPPIQ>()
+            rosterBuffer.consumeAsFlow().collect { iq ->
+                bufferMutex.withLock {
+                    batch.add(iq)
+                    if (batch.size >= 50 || rosterBuffer.isEmpty) { // Increased batch size to 50 for better performance
+                        processRosterBatch(batch.toList())
+                        batch.clear()
+                        Log.d(TAG, "Processed batch of ${batch.size} roster IQ stanzas")
+                    }
+                }
+            }
         }
+    }
 
-        Log.d(TAG, "Parsed RosterQuery with version: ${rosterQuery.ver}")
+    private suspend fun processRosterBatch(iqs: List<XMPPIQ>) = withContext(Dispatchers.IO) {
         realm.write {
-            // Fetch all groups once and map by name for O(1) lookups
-            val allGroups = query<RosterGroupStorageItem>("owner = $0", owner).find()
-                .associateBy { it.name }.toMutableMap()
-
-            // Get/create system group
-            var systemGroup = allGroups[RosterGroupStorageItem.SYSTEM_GROUP_NAME]
-            if (systemGroup == null) {
-                val systemPrimary = RosterGroupStorageItem.genPrimary(RosterGroupStorageItem.SYSTEM_GROUP_NAME, owner)
-                systemGroup = copyToRealm(RosterGroupStorageItem().apply {
-                    primary = systemPrimary
-                    this.owner = this@RosterManager.owner
-                    name = RosterGroupStorageItem.SYSTEM_GROUP_NAME
-                    isSystemGroup = true
-                    contacts = realmListOf()
-                }, UpdatePolicy.ALL)
-                allGroups[RosterGroupStorageItem.SYSTEM_GROUP_NAME] = systemGroup
-            }
-
-            rosterQuery.items.forEach { item ->
-                // Skip self JID
-                if (item.jid == owner) {
-                    Log.d(TAG, "Skipping self JID: ${item.jid}")
+            iqs.forEach { iq ->
+                if (iq.type != "result" || iq.queryNamespace != "jabber:iq:roster") return@forEach
+                val rosterQuery = try {
+                    xml.decodeFromString<RosterQuery>(iq.queryContent ?: return@forEach)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to parse roster query: ${e.message}", e)
                     return@forEach
                 }
 
-                // Skip specific JID and remove if exists
-                if (item.jid.equals("xabber@xmppdev01.xabber.com", ignoreCase = true)) {
-                    val primaryKey = RosterStorageItem.genPrimary(item.jid, owner)
-                    val existingItem = query<RosterStorageItem>("primary = $0", primaryKey).first().find()
-                    if (existingItem != null) {
-                        allGroups.values.forEach { group ->
-                            group.contacts.removeAll { it.primary == existingItem.primary }
-                        }
-                        delete(existingItem)
-                        Log.d(TAG, "Removed skipped RosterStorageItem for JID: ${item.jid}")
-                    }
-                    return@forEach
-                }
+                val allGroups = query<RosterGroupStorageItem>("owner = $0", owner).find()
+                    .associateBy { it.name }.toMutableMap()
+                val allExistingItems = query<RosterStorageItem>("owner = $0", owner).find()
+                    .associateBy { it.primary }.toMutableMap()
 
-                // Handle subscription="remove"
-                if (item.subscription == "remove") {
-                    val primaryKey = RosterStorageItem.genPrimary(item.jid, owner)
-                    val existingItem = query<RosterStorageItem>("primary = $0", primaryKey).first().find()
-                    if (existingItem != null) {
-                        allGroups.values.forEach { group ->
-                            group.contacts.removeAll { it.primary == existingItem.primary }
-                        }
-                        delete(existingItem)
-                        Log.d(TAG, "Deleted RosterStorageItem for JID: ${item.jid} due to subscription='remove'")
-                    }
-                    return@forEach
-                }
-
-                // Update or create RosterStorageItem
-                val primaryKey = RosterStorageItem.genPrimary(item.jid, owner)
-                val existingItem = query<RosterStorageItem>("primary = $0", primaryKey).first().find()
-                val instance = if (existingItem != null) {
-                    findLatest(existingItem)?.apply {
-                        customNickname = item.name ?: ""
-                        subscription = item.subscription?.let { Subscription.fromRaw(it) } ?: Subscription.NONE
-                        ask = if (item.ask == "subscribe") Ask.OUT else (item.ask?.let { Ask.fromRaw(it) } ?: Ask.NONE)
-                        approved = item.approved == "true"
-                        groups.clear()
-                        groups.addAll(item.groups)
-                        updatedTS = System.currentTimeMillis().toDouble() / 1000
-                    }
-                    Log.d(TAG, "Updated RosterStorageItem for JID: ${item.jid}")
-                    existingItem!!
-                } else {
-                    copyToRealm(RosterStorageItem().apply {
-                        primary = primaryKey
+                var systemGroup = allGroups[RosterGroupStorageItem.SYSTEM_GROUP_NAME]
+                if (systemGroup == null) {
+                    val systemPrimary = RosterGroupStorageItem.genPrimary(RosterGroupStorageItem.SYSTEM_GROUP_NAME, owner)
+                    systemGroup = copyToRealm(RosterGroupStorageItem().apply {
+                        primary = systemPrimary
                         this.owner = this@RosterManager.owner
-                        jid = item.jid
-                        customNickname = item.name ?: ""
-                        subscription = item.subscription?.let { Subscription.fromRaw(it) } ?: Subscription.NONE
-                        ask = if (item.ask == "subscribe") Ask.OUT else (item.ask?.let { Ask.fromRaw(it) } ?: Ask.NONE)
-                        approved = item.approved == "true"
-                        groups.addAll(item.groups)
-                        updatedTS = System.currentTimeMillis().toDouble() / 1000
-                    }, UpdatePolicy.ALL).also {
-                        Log.d(TAG, "Created new RosterStorageItem for JID: ${item.jid}")
+                        name = RosterGroupStorageItem.SYSTEM_GROUP_NAME
+                        isSystemGroup = true
+                        contacts = realmListOf()
+                    }, UpdatePolicy.ALL)
+                    allGroups[RosterGroupStorageItem.SYSTEM_GROUP_NAME] = systemGroup
+                }
+
+                val processedCount = rosterQuery.items.size
+                var createdCount = 0
+                var updatedCount = 0
+                var skippedCount = 0
+
+                rosterQuery.items.forEach { item ->
+                    if (item.jid == owner || item.jid.equals("xabber@xmppdev01.xabber.com", ignoreCase = true)) {
+                        val primaryKey = RosterStorageItem.genPrimary(item.jid, owner)
+                        allExistingItems[primaryKey]?.let { existing ->
+                            allGroups.values.forEach { group -> group.contacts.removeAll { it.primary == primaryKey } }
+                            delete(existing)
+                            allExistingItems.remove(primaryKey)
+                        }
+                        skippedCount++
+                        return@forEach
+                    }
+
+                    if (item.subscription == "remove") {
+                        val primaryKey = RosterStorageItem.genPrimary(item.jid, owner)
+                        allExistingItems[primaryKey]?.let { existing ->
+                            allGroups.values.forEach { group -> group.contacts.removeAll { it.primary == primaryKey } }
+                            delete(existing)
+                            allExistingItems.remove(primaryKey)
+                        }
+                        skippedCount++
+                        return@forEach
+                    }
+
+                    val primaryKey = RosterStorageItem.genPrimary(item.jid, owner)
+                    var existingItem = allExistingItems[primaryKey]
+                    val oldGroups = existingItem?.groups?.toSet() ?: emptySet()
+                    val instance = if (existingItem != null) {
+                        findLatest(existingItem)?.apply {
+                            customNickname = item.name ?: ""
+                            subscription = item.subscription?.let { Subscription.fromRaw(it) } ?: Subscription.NONE
+                            ask = if (item.ask == "subscribe") Ask.OUT else (item.ask?.let { Ask.fromRaw(it) } ?: Ask.NONE)
+                            approved = item.approved == "true"
+                            groups.clear()
+                            groups.addAll(item.groups)
+                            updatedTS = System.currentTimeMillis().toDouble() / 1000
+                        }
+                        updatedCount++
+                        existingItem!!
+                    } else {
+                        val newItem = RosterStorageItem().apply {
+                            primary = primaryKey
+                            this.owner = this@RosterManager.owner
+                            jid = item.jid
+                            customNickname = item.name ?: ""
+                            subscription = item.subscription?.let { Subscription.fromRaw(it) } ?: Subscription.NONE
+                            ask = if (item.ask == "subscribe") Ask.OUT else (item.ask?.let { Ask.fromRaw(it) } ?: Ask.NONE)
+                            approved = item.approved == "true"
+                            groups.addAll(item.groups)
+                            updatedTS = System.currentTimeMillis().toDouble() / 1000
+                        }
+                        copyToRealm(newItem, UpdatePolicy.ALL).also {
+                            allExistingItems[primaryKey] = it
+                            createdCount++
+                        }
+                    }
+
+                    val newGroupsSet = item.groups.toSet()
+                    val groupsToRemoveFrom = oldGroups - newGroupsSet
+                    groupsToRemoveFrom.forEach { groupName ->
+                        allGroups[groupName]?.contacts?.removeAll { it.primary == primaryKey }
+                    }
+
+                    if (item.groups.isEmpty()) {
+                        if (!systemGroup.contacts.any { it.primary == primaryKey }) {
+                            systemGroup.contacts.add(instance)
+                        }
+                    } else {
+                        item.groups.distinct().filter { it.isNotEmpty() }.forEach { groupName ->
+                            var group = allGroups[groupName]
+                            if (group == null) {
+                                val groupPrimary = RosterGroupStorageItem.genPrimary(groupName, owner)
+                                group = copyToRealm(RosterGroupStorageItem().apply {
+                                    primary = groupPrimary
+                                    this.owner = this@RosterManager.owner
+                                    name = groupName
+                                    contacts = realmListOf()
+                                }, UpdatePolicy.ALL)
+                                allGroups[groupName] = group
+                            }
+                            if (!group.contacts.any { it.primary == primaryKey }) {
+                                group.contacts.add(instance)
+                            }
+                        }
                     }
                 }
 
-                // Remove from all groups first (including system)
-                allGroups.values.forEach { group ->
-                    group.contacts.removeAll { it.primary == instance.primary }
-                }
-
-                if (item.groups.isEmpty()) {
-                    // Add to system group if not already there
-                    if (!systemGroup.contacts.any { it.primary == instance.primary }) {
-                        systemGroup.contacts.add(instance)
-                    }
-                    Log.d(TAG, "Added JID ${instance.jid} to system group")
-                } else {
-                    // Add to specified unique groups
-                    item.groups.distinct().filter { it.isNotEmpty() }.forEach { groupName ->
-                        var group = allGroups[groupName]
-                        if (group == null) {
-                            val groupPrimary = RosterGroupStorageItem.genPrimary(groupName, owner)
-                            group = copyToRealm(RosterGroupStorageItem().apply {
-                                primary = groupPrimary
-                                this.owner = this@RosterManager.owner
-                                name = groupName
-                                contacts = realmListOf()
-                            }, UpdatePolicy.ALL)
-                            allGroups[groupName] = group
-                            Log.d(TAG, "Created new group: $groupName")
-                        }
-                        if (!group.contacts.any { it.primary == instance.primary }) {
-                            group.contacts.add(instance)
-                        }
-                        Log.d(TAG, "Added JID ${instance.jid} to group: $groupName")
-                    }
-                }
+                Log.d(TAG, "Processed $processedCount roster items: $createdCount created, $updatedCount updated, $skippedCount skipped")
             }
         }
-        return true
+    }
+    // Helper: Parse single <item>
+    private fun parseSingleRosterItem(parser: XmlPullParser): RosterItem? {
+        val jid = parser.getAttributeValue(null, "jid") ?: return null
+        val name = parser.getAttributeValue(null, "name")
+        val subscription = parser.getAttributeValue(null, "subscription")
+        val ask = parser.getAttributeValue(null, "ask")
+        val approved = parser.getAttributeValue(null, "approved") == "true"
+        val groups = mutableListOf<String>()
+        var eventType = parser.next()
+        while (eventType != XmlPullParser.END_DOCUMENT && !(eventType == XmlPullParser.END_TAG && parser.name == "item")) {
+            if (eventType == XmlPullParser.START_TAG && parser.name == "group") {
+                parser.next() // Text
+                groups.add(parser.text)
+            }
+            eventType = parser.next()
+        }
+        return RosterItem(jid, name, subscription, ask, if (approved) "true" else null, groups)
+    }
+
+    private suspend fun readSuccess(iq: XMPPIQ): Boolean = withContext(Dispatchers.IO) {
+        try {
+            if (!queryIds.contains(iq.id)) {
+                Log.w(TAG, "Ignoring roster IQ with unknown id: ${iq.id}")
+                return@withContext false
+            }
+            queryIds.remove(iq.id)
+            Log.d(TAG, "Processing roster IQ response for id: ${iq.id}")
+
+            val rosterQuery = try {
+                xml.decodeFromString<RosterQuery>(iq.queryContent ?: return@withContext false)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to parse roster query: ${e.message}, content: ${iq.queryContent}", e)
+                return@withContext false
+            }
+
+            Log.d(TAG, "Parsed RosterQuery with version: ${rosterQuery.ver}, item count: ${rosterQuery.items.size}")
+
+            realm.write {
+                // Pre-fetch all existing groups and items for O(1) lookups (optimization)
+                val allGroups = query<RosterGroupStorageItem>("owner = $0", owner).find()
+                    .associateBy { it.name }.toMutableMap()
+                val allExistingItems = query<RosterStorageItem>("owner = $0", owner).find()
+                    .associateBy { it.primary }.toMutableMap()
+
+                // Get/create system group once
+                var systemGroup = allGroups[RosterGroupStorageItem.SYSTEM_GROUP_NAME]
+                if (systemGroup == null) {
+                    val systemPrimary = RosterGroupStorageItem.genPrimary(RosterGroupStorageItem.SYSTEM_GROUP_NAME, owner)
+                    systemGroup = copyToRealm(RosterGroupStorageItem().apply {
+                        primary = systemPrimary
+                        this.owner = this@RosterManager.owner
+                        name = RosterGroupStorageItem.SYSTEM_GROUP_NAME
+                        isSystemGroup = true
+                        contacts = realmListOf()
+                    }, UpdatePolicy.ALL)
+                    allGroups[RosterGroupStorageItem.SYSTEM_GROUP_NAME] = systemGroup
+                }
+
+                val processedCount = rosterQuery.items.size
+                var createdCount = 0
+                var updatedCount = 0
+                var skippedCount = 0
+
+                rosterQuery.items.forEach { item ->
+                    // Skip self JID
+                    if (item.jid == owner) {
+                        skippedCount++
+                        return@forEach
+                    }
+
+                    // Skip and remove specific JID
+                    if (item.jid.equals("xabber@xmppdev01.xabber.com", ignoreCase = true)) {
+                        val primaryKey = RosterStorageItem.genPrimary(item.jid, owner)
+                        val existingItem = allExistingItems[primaryKey]
+                        if (existingItem != null) {
+                            allGroups.values.forEach { group ->
+                                group.contacts.removeAll { it.primary == primaryKey }
+                            }
+                            delete(existingItem)
+                            allExistingItems.remove(primaryKey)
+                            skippedCount++
+                        }
+                        return@forEach
+                    }
+
+                    // Handle subscription="remove"
+                    if (item.subscription == "remove") {
+                        val primaryKey = RosterStorageItem.genPrimary(item.jid, owner)
+                        val existingItem = allExistingItems[primaryKey]
+                        if (existingItem != null) {
+                            allGroups.values.forEach { group ->
+                                group.contacts.removeAll { it.primary == primaryKey }
+                            }
+                            delete(existingItem)
+                            allExistingItems.remove(primaryKey)
+                            skippedCount++
+                        }
+                        return@forEach
+                    }
+
+                    // Update or create RosterStorageItem
+                    val primaryKey = RosterStorageItem.genPrimary(item.jid, owner)
+                    var existingItem = allExistingItems[primaryKey]
+                    val oldGroups = existingItem?.groups?.toSet() ?: emptySet()  // Track old groups for optimized removal
+
+                    val instance = if (existingItem != null) {
+                        findLatest(existingItem)?.apply {
+                            customNickname = item.name ?: ""
+                            subscription = item.subscription?.let { Subscription.fromRaw(it) } ?: Subscription.NONE
+                            ask = if (item.ask == "subscribe") Ask.OUT else (item.ask?.let { Ask.fromRaw(it) } ?: Ask.NONE)
+                            approved = item.approved == "true"
+                            groups.clear()
+                            groups.addAll(item.groups)
+                            updatedTS = System.currentTimeMillis().toDouble() / 1000
+                        }
+                        updatedCount++
+                        existingItem!!
+                    } else {
+                        val newItem = RosterStorageItem().apply {
+                            primary = primaryKey
+                            this.owner = this@RosterManager.owner
+                            jid = item.jid
+                            customNickname = item.name ?: ""
+                            subscription = item.subscription?.let { Subscription.fromRaw(it) } ?: Subscription.NONE
+                            ask = if (item.ask == "subscribe") Ask.OUT else (item.ask?.let { Ask.fromRaw(it) } ?: Ask.NONE)
+                            approved = item.approved == "true"
+                            groups.addAll(item.groups)
+                            updatedTS = System.currentTimeMillis().toDouble() / 1000
+                        }
+                        copyToRealm(newItem, UpdatePolicy.ALL).also {
+                            allExistingItems[primaryKey] = it
+                            createdCount++
+                        }
+                    }
+
+                    // Optimized group removal: Only remove from old groups not in new groups
+                    val newGroupsSet = item.groups.toSet()
+                    val groupsToRemoveFrom = oldGroups - newGroupsSet
+                    groupsToRemoveFrom.forEach { groupName ->
+                        allGroups[groupName]?.contacts?.removeAll { it.primary == primaryKey }
+                    }
+
+                    if (item.groups.isEmpty()) {
+                        // Add to system group if not already there
+                        if (!systemGroup.contacts.any { it.primary == primaryKey }) {
+                            systemGroup.contacts.add(instance)
+                        }
+                    } else {
+                        // Add to specified unique groups
+                        item.groups.distinct().filter { it.isNotEmpty() }.forEach { groupName ->
+                            var group = allGroups[groupName]
+                            if (group == null) {
+                                val groupPrimary = RosterGroupStorageItem.genPrimary(groupName, owner)
+                                group = copyToRealm(RosterGroupStorageItem().apply {
+                                    primary = groupPrimary
+                                    this.owner = this@RosterManager.owner
+                                    name = groupName
+                                    contacts = realmListOf()
+                                }, UpdatePolicy.ALL)
+                                allGroups[groupName] = group
+                            }
+                            if (!group.contacts.any { it.primary == primaryKey }) {
+                                group.contacts.add(instance)
+                            }
+                        }
+                    }
+                }
+
+                // Summary log instead of per-item logs
+                Log.d(TAG, "Processed $processedCount roster items: $createdCount created, $updatedCount updated, $skippedCount skipped")
+            }
+            return@withContext true
+        } catch (e: Exception) {
+            Log.e(TAG, "Error processing roster success: ${e.message}, IQ: ${iq.raw}", e)
+            return@withContext false
+        }
     }
 
     private fun readError(iq: XMPPIQ): Boolean {
-        // Adapt to use iq.error or iq.raw
         Log.e(TAG, "Roster IQ error: ${iq.error}")
         return true
     }
 
-    private fun readResponse(iq: String): Boolean {
-        val elementIdMatch = Regex("""id=['"]([^'"]+)['"]""").find(iq)
-        val elementId = elementIdMatch?.groupValues?.get(1) ?: return false
-        if (!queryIds.contains(elementId)) return false
-
-        queryIds.remove(elementId)
-        Log.d(TAG, "Roster IQ response processed for id: $elementId")
-        return true
+    suspend fun close() {
+        rosterBuffer.close()
+        processingJob?.cancelAndJoin()
+        Log.d(TAG, "RosterManager closed for owner=$owner")
     }
 }
