@@ -3,22 +3,15 @@ package com.xabber.xmpp.messages.message_archive
 import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
-import com.xabber.common.Stream
+import com.xabber.stream.Stream
 import com.xabber.data_base.defaultRealmConfig
-import com.xabber.common.AccountManager
-import com.xabber.common.ProcessedMessageId
 import com.xabber.data_base.models.account.AccountStorageItem
 import com.xabber.data_base.models.last_chats.LastChatsStorageItem
-import com.xabber.data_base.models.messages.MessageDisplayType
-import com.xabber.data_base.models.messages.MessageSendingState
 import com.xabber.data_base.models.messages.MessageStorageItem
 import com.xabber.data_base.models.roster.RosterStorageItem
 import com.xabber.data_base.models.sync.ConversationType
-import com.xabber.dto.MessageDto
-import com.xabber.dto.MessageReferenceDto
 import com.xabber.utils.parseTimestamp
 import com.xabber.utils.prp
-import com.xabber.utils.toMessageReferenceDto
 import com.xabber.xmpp.jid.XMPPJID
 import com.xabber.xmpp.messages.XMPPMessage
 import com.xabber.xmpp.messages.XMLElement
@@ -524,6 +517,7 @@ class MessageArchiveManager(private val owner: String) {
         )
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     suspend fun getNextHistory(
         stream: Stream,
         jid: String,
@@ -558,6 +552,7 @@ class MessageArchiveManager(private val owner: String) {
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     suspend fun startLoadHistory(
         stream: Stream,
         jid: String,

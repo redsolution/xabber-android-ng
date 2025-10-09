@@ -1,8 +1,11 @@
-    package com.xabber.common
+package com.xabber.stream
 
     import android.os.Build
     import android.util.Log
     import androidx.annotation.RequiresApi
+    import com.xabber.account.AccountManager
+    import com.xabber.stream.serializers.XMPPIQ
+    import com.xabber.stream.delegates.XMPPStreamDelegate
     import com.xabber.data_base.defaultRealmConfig
     import com.xabber.data_base.models.last_chats.LastChatsStorageItem
     import com.xabber.data_base.models.messages.MessageDisplayType
@@ -39,8 +42,9 @@
     import org.xmlpull.v1.XmlPullParser
     import org.xmlpull.v1.XmlPullParserException
     import org.xmlpull.v1.XmlPullParserFactory
+    import kotlin.collections.iterator
 
-    // Define ProcessedMessageId as a regular class
+// Define ProcessedMessageId as a regular class
     class ProcessedMessageId : RealmObject {
         @PrimaryKey
         var messageId: String = ""
@@ -73,7 +77,7 @@
     @RequiresApi(Build.VERSION_CODES.O)
     class Stream(var jid: String, var port: Int = 5222) {
         var delegate: XMPPStreamDelegate? = null
-        @io.realm.kotlin.types.annotations.PrimaryKey
+        @PrimaryKey
         var host: String = extractHostFromJid(jid)
         var remoteAddress: String = ""
         var socket: Socket? = null
@@ -82,7 +86,7 @@
         private val streamBuffer = StringBuilder()
         private val bufferMutex = Mutex()
         var temporaryMessageReceiver: TemporaryMessageReceiver? = null
-        private val stanzaProcessingScope = CoroutineScope(Dispatchers.IO.limitedParallelism(2) + SupervisorJob())
+        private val stanzaProcessingScope = CoroutineScope(Dispatchers.IO.limitedParallelism(999) + SupervisorJob())
 
         val messageCallbackChannel = Channel<String>(Channel.UNLIMITED)
         val messageQueue = Channel<MessageQueueItem>(Channel.UNLIMITED)
@@ -218,7 +222,7 @@
                 streamBuffer.append(chunk)
                 var content = streamBuffer.toString()
                 var processedStanzas = 0
-                while (content.isNotEmpty() && processedStanzas < 50) {
+                while (content.isNotEmpty()) {
                     val start = content.indexOf("<")
                     if (start == -1) {
                         Log.w(TAG, "No XML start tag found in buffer: ${content.take(200)}")
@@ -269,7 +273,7 @@
 
                     val tagEnd = content.indexOf(">", nextStart.first)
                     if (tagEnd == -1) {
-                        Log.w(TAG, "Incomplete stanza tag, buffering: ${content.take(200)}")
+//                        Log.w(TAG, "Incomplete stanza tag, buffering: ${content.take(200)}")
                         break
                     }
                     val fullTag = content.substring(nextStart.first + 1, tagEnd)
@@ -286,7 +290,7 @@
                             val nextOpen = content.indexOf("<$tagName", currentIndex)
                             val nextClose = content.indexOf("</$tagName>", currentIndex)
                             if (nextClose == -1) {
-                                Log.w(TAG, "No closing tag for $tagName, buffering: ${content.take(200)}")
+//                                Log.w(TAG, "No closing tag for $tagName, buffering: ${content.take(200)}")
                                 break
                             }
                             if (nextOpen != -1 && nextOpen < nextClose) {
@@ -302,25 +306,21 @@
                             stanzaEnd = currentIndex - "</$tagName>".length
                             fullEnd = currentIndex
                         } else {
-                            Log.w(TAG, "Incomplete stanza for $tagName, buffering: ${content.take(200)}")
+//                            Log.w(TAG, "Incomplete stanza for $tagName, buffering: ${content.take(200)}")
                             break
                         }
                     }
                     val stanza = content.substring(nextStart.first, fullEnd)
-
+                    Log.d("XMPP STANZA", "RECV:${stanza}")
                     // Launch concurrent processing for the stanza without waiting
                     stanzaProcessingScope.launch {
                         try {
                             if (tagName == "message" && (stanza.contains("urn:xmpp:mam:2") || stanza.contains("urn:xmpp:mam:tmp") || stanza.contains("urn:xmpp:last-message"))) {
                                 processMAMStanza(stanza)
-                            } else if (tagName == "iq" && stanza.contains("https://xabber.com/protocol/synchronization")) {
-                                processStanza(stanza)
-                                Log.d(TAG, "Processed sync IQ stanza: ${stanza.take(200)}")
                             } else {
                                 processStanza(stanza)
                             }
                         } catch (e: Exception) {
-                            Log.e(TAG, "Error processing stanza concurrently: ${e.message}, stanza=${stanza.take(200)}", e)
                             onErrorCallback?.invoke("Error processing stanza: ${e.message}")
                         }
                     }
@@ -1240,7 +1240,16 @@
                         Regex("""xmlns=['"]([^'"]+)['"]""").find(content.substring(childStart, childHeaderEnd + 1))?.groupValues?.get(1)
                     } else null
                 } else null
-                return XMPPIQ(stanza, typeMatch, idMatch, fromMatch, toMatch, error, queryNamespace, content)
+                return XMPPIQ(
+                    stanza,
+                    typeMatch,
+                    idMatch,
+                    fromMatch,
+                    toMatch,
+                    error,
+                    queryNamespace,
+                    content
+                )
             } catch (e: Exception) {
                 Log.e(TAG, "Error parsing IQ: ${e.message}, stanza=$stanza", e)
                 return null

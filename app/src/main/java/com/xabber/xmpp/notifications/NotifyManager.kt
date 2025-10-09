@@ -13,7 +13,7 @@
 //import androidx.annotation.RequiresApi
 //import androidx.core.app.NotificationCompat
 //import androidx.core.app.NotificationManagerCompat
-//import com.xabber.common.AccountManager
+//import com.xabber.account.AccountManager
 //import com.xabber.common.SettingManager
 //import com.xabber.data_base.defaultRealmConfig
 //import com.xabber.data_base.models.account.AccountStorageItem

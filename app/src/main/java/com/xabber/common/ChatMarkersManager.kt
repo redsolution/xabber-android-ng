@@ -3,8 +3,8 @@ package com.xabber.xmpp.messages.messages_manager
 import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
-import com.xabber.common.AccountManager
-import com.xabber.common.Stream
+import com.xabber.account.AccountManager
+import com.xabber.stream.Stream
 import com.xabber.data_base.defaultRealmConfig
 import com.xabber.data_base.models.last_chats.LastChatsStorageItem
 import com.xabber.data_base.models.messages.MessageSendingState
@@ -22,7 +22,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale

@@ -1,4 +1,4 @@
-package com.xabber.common
+package com.xabber.stream.serializers
 
 import kotlinx.serialization.Serializable
 

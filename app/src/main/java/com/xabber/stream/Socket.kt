@@ -1,4 +1,4 @@
-package com.xabber.common
+package com.xabber.stream
 
 import android.os.Build
 import android.util.Log
@@ -644,42 +644,8 @@ class Socket(private val host: String, private val port: Int) {
         }
     }
 
-    suspend fun prepareForTlsUpgrade() {
-        try {
-            Log.d(TAG, "Preparing to clean up channels. Reader: $reader, Writer: $writer")
-            reader?.let {
-                if (!it.isClosedForRead) {
-                    val available = it.availableForRead
-                    Log.d(TAG, "Reader has $available bytes available")
-                    try {
-                        it.discard(available.toLong())
-                        KTOR_LOGGER.debug("Discarded $available bytes from reader buffer")
-                    } catch (e: Exception) {
-                        KTOR_LOGGER.warn("Error discarding reader buffer: $e")
-                    }
-                } else {
-                    Log.d(TAG, "Reader already closed for reading")
-                }
-            }
-            writer?.let {
-                if (!it.isClosedForWrite) {
-                    try {
-                        it.flush()
-                        KTOR_LOGGER.debug("Writer channel flushed")
-                    } catch (e: Exception) {
-                        KTOR_LOGGER.warn("Error flushing writer: $e")
-                    }
-                } else {
-                    Log.d(TAG, "Writer already closed for writing")
-                }
-            }
-        } catch (e: Exception) {
-            Log.w(TAG, "Error preparing channels for TLS upgrade: ${e.message}", e)
-            KTOR_LOGGER.error("Error preparing channels: $e")
-        }
-    }
-
     suspend fun write(message: String): Boolean = withContext(Dispatchers.IO) {
+        Log.d("XMPP STANZA", "SEND: ${message}")
         try {
             writer?.let {
                 if (it.isClosedForWrite) {

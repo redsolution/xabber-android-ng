@@ -3,9 +3,8 @@ package com.xabber.xmpp.messages.messages_manager
 import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
-import com.xabber.common.Account
-import com.xabber.common.AccountManager
-import com.xabber.common.Stream
+import com.xabber.account.AccountManager
+import com.xabber.stream.Stream
 import com.xabber.data_base.defaultRealmConfig
 import com.xabber.data_base.models.last_chats.LastChatsStorageItem
 import com.xabber.data_base.models.messages.MessageForwardsInlineStorageItem
@@ -13,13 +12,11 @@ import com.xabber.data_base.models.messages.MessageReferenceStorageItem
 import com.xabber.data_base.models.messages.MessageSendingState
 import com.xabber.data_base.models.messages.MessageStorageItem
 import com.xabber.data_base.models.sync.ConversationType
-import com.xabber.xmpp.XEP_0CCC.ClientSynchronizationManager
 import com.xabber.xmpp.groupchat.GroupChatStorageItem
 import com.xabber.xmpp.messages.XMLElement
 import com.xabber.xmpp.messages.XMPPMessage
 import com.xabber.xmpp.messages.message.MessageStanzaStorageItem
 import io.realm.kotlin.Realm
-import io.realm.kotlin.UpdatePolicy
 import io.realm.kotlin.ext.query
 import io.viascom.nanoid.NanoId
 import kotlinx.coroutines.Dispatchers
@@ -28,7 +25,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
-import java.util.Date
 import java.util.Timer
 import java.util.TimerTask
 import java.util.UUID

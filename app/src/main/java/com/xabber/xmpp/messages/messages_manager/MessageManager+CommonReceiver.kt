@@ -3,7 +3,7 @@ package com.xabber.xmpp.messages.messages_manager
 import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
-import com.xabber.common.AccountManager
+import com.xabber.account.AccountManager
 import com.xabber.data_base.defaultRealmConfig
 import com.xabber.data_base.models.last_chats.LastChatsStorageItem
 import com.xabber.data_base.models.messages.MessageDisplayType

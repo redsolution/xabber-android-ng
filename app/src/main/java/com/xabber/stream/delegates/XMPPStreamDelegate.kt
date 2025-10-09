@@ -1,4 +1,7 @@
-package com.xabber.common
+package com.xabber.stream.delegates
+
+import com.xabber.stream.Stream
+import com.xabber.stream.serializers.XMPPIQ
 
 interface XMPPStreamDelegate {
     suspend fun didReceiveIQ(iq: XMPPIQ, stream: Stream): Boolean

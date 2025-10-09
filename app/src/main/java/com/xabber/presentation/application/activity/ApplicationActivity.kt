@@ -2,7 +2,6 @@ package com.xabber.presentation.application.activity
 
 
 import  android.annotation.SuppressLint
-import android.content.ContentValues.TAG
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
@@ -13,9 +12,6 @@ import android.os.Bundle
 import android.util.Log
 import android.util.TypedValue
 import android.view.MenuItem
-import android.view.View
-import android.view.ViewTreeObserver
-import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -25,7 +21,6 @@ import androidx.annotation.RequiresApi
 import androidx.appcompat.app.ActionBarDrawerToggle
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
-import androidx.appcompat.app.AppCompatDelegate
 import androidx.appcompat.widget.Toolbar
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.view.GravityCompat
@@ -38,17 +33,13 @@ import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.commit
-import androidx.fragment.app.replace
-import androidx.lifecycle.lifecycleScope
 import androidx.slidingpanelayout.widget.SlidingPaneLayout
 import com.bumptech.glide.Glide
-import com.google.android.material.bottomnavigation.BottomNavigationItemView
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.google.android.material.navigation.NavigationView
 import com.xabber.R
-import com.xabber.common.Account
-import com.xabber.common.AccountManager
-import com.xabber.common.Stream
+import com.xabber.account.AccountManager
+import com.xabber.stream.Stream
 import com.xabber.data_base.defaultRealmConfig
 import com.xabber.databinding.ActivityApplicationBinding
 import com.xabber.dto.AccountDto
@@ -56,7 +47,6 @@ import com.xabber.dto.AvatarDto
 import com.xabber.presentation.AppConstants
 import com.xabber.presentation.AppConstants.CHAT_LIST_UNREAD_KEY
 import com.xabber.presentation.application.contract.Navigator
-import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.application.dialogs.AccountDialog
 import com.xabber.presentation.application.dialogs.NotificationsFragmentFull
 import com.xabber.presentation.application.fragments.account.AccountAdapter
@@ -97,10 +87,6 @@ import com.xabber.utils.lockScreenRotation
 import com.xabber.utils.toAccountDto
 import com.xabber.utils.toAvatarDto
 import io.realm.kotlin.Realm
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 
 /**

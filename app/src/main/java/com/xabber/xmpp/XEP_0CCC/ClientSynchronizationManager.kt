@@ -3,9 +3,9 @@ package com.xabber.xmpp.XEP_0CCC
 import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
-import com.xabber.common.AccountManager
+import com.xabber.account.AccountManager
 import com.xabber.common.SettingManager
-import com.xabber.common.Stream
+import com.xabber.stream.Stream
 import com.xabber.data_base.defaultRealmConfig
 import com.xabber.data_base.models.account.AccountStorageItem
 import com.xabber.data_base.models.last_chats.LastChatsStorageItem
@@ -26,7 +26,6 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.consumeAsFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.w3c.dom.Element
 import org.xmlpull.v1.XmlPullParser
@@ -45,8 +44,8 @@ class ClientSynchronizationManager(owner: String) {
         val account = realm.query<AccountStorageItem>().find().firstOrNull()
         account?.jid?.takeIf { it.isNotBlank() } ?: throw IllegalArgumentException("No valid account found for ClientSynchronizationManager")
     }
-    private val scope = CoroutineScope(Dispatchers.IO.limitedParallelism(2) + SupervisorJob())
-    private val syncBuffer = Channel<SyncItem>(capacity = 50) // Buffer for sync operations
+    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val syncBuffer = Channel<SyncItem>(capacity = 1) // Buffer for sync operations
     private val bufferMutex = Mutex()
     private var processingJob: Job? = null
 
@@ -71,7 +70,8 @@ class ClientSynchronizationManager(owner: String) {
         }
     }
 
-    private suspend fun startSyncProcessing() {
+    suspend fun startSyncProcessing() {
+//        performSync(stream!!, "0", null)
         processingJob?.cancelAndJoin()
         processingJob = scope.launch {
             syncBuffer.consumeAsFlow().collect { item ->
@@ -83,11 +83,12 @@ class ClientSynchronizationManager(owner: String) {
     @RequiresApi(Build.VERSION_CODES.O)
     suspend fun sync(stream: Stream, customVer: String? = null, after: String? = null): Boolean {
         syncBuffer.send(SyncItem(stream, customVer, after))
+
         Log.d("ClientSyncManager", "Buffered sync request for $owner, version: ${customVer ?: version}, after: $after")
         return true
     }
 
-    private suspend fun performSync(stream: Stream, customVer: String?, after: String?) {
+    suspend fun performSync(stream: Stream, customVer: String?, after: String?) {
         val syncId = NanoId.generateOptimized(9, "_-0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", 63, 16)
         val query = buildString {
             append("<query xmlns='https://xabber.com/protocol/synchronization'")
@@ -98,7 +99,7 @@ class ClientSynchronizationManager(owner: String) {
             }
             append(">")
             append("<set xmlns='http://jabber.org/protocol/rsm'>")
-            append("<max>20</max>") // Reduced page size from 60 to 20
+            append("<max>40</max>") // Reduced page size from 60 to 20
             if (after != null) {
                 append("<after>$after</after>")
             }
@@ -106,7 +107,7 @@ class ClientSynchronizationManager(owner: String) {
             append("</query>")
         }
         val iq = """
-            <iq type='get' id='$syncId' from='$owner' to='$owner'>$query</iq>
+            <iq type='get' id='SYNC: $syncId'>$query</iq>
         """.trimIndent()
         val success = stream.socket?.write(iq) == true
         Log.d("ClientSyncManager", "Sent sync request for $owner with id $syncId, version: ${customVer ?: version}, after: $after, success: $success")

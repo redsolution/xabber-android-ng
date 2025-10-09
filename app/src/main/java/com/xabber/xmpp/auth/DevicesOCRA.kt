@@ -4,9 +4,9 @@ import android.os.Build
 import android.util.Base64
 import android.util.Log
 import androidx.annotation.RequiresApi
-import com.xabber.common.Stream
-import com.xabber.common.StreamFeatures
-import com.xabber.common.StreamState
+import com.xabber.stream.Stream
+import com.xabber.stream.StreamFeatures
+import com.xabber.stream.StreamState
 import com.xabber.xmpp.device.DeviceStorageItem
 import io.realm.kotlin.Realm
 import io.realm.kotlin.ext.query

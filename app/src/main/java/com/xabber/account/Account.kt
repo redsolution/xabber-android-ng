@@ -1,64 +1,54 @@
-package com.xabber.common
+package com.xabber.account
 
 import android.icu.text.SimpleDateFormat
 import android.icu.util.TimeZone
 import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
+import com.xabber.stream.Stream
+import com.xabber.stream.StreamState
+import com.xabber.stream.serializers.XMPPIQ
+import com.xabber.stream.delegates.XMPPStreamDelegate
 import com.xabber.data_base.defaultRealmConfig
 import com.xabber.data_base.models.account.AccountStorageItem
 import com.xabber.data_base.models.last_chats.LastChatsStorageItem
-import com.xabber.data_base.models.messages.MessageDisplayType
 import com.xabber.data_base.models.messages.MessageSendingState
-import com.xabber.data_base.models.presences.ResourceStorageItem
+import com.xabber.data_base.models.messages.MessageStorageItem
+import com.xabber.data_base.models.sync.ConversationType
 import com.xabber.utils.custom.NickGenerator
 import com.xabber.xmpp.XEP_0CCC.ClientSynchronizationManager
 import com.xabber.xmpp.auth.DevicesOCRA
 import com.xabber.xmpp.device.DeviceStorageItem
-import com.xabber.xmpp.presence.PresenceManager
-import com.xabber.xmpp.roster.RosterManager
-import com.xabber.xmpp.messages.messages_manager.MessageManager
-import com.xabber.xmpp.messages.messages_manager.ChatMarkersManager
-import com.xabber.xmpp.messages.messages_manager.MessageCommonReceiver
-import com.xabber.data_base.models.messages.MessageStorageItem
-import com.xabber.data_base.models.sync.ConversationType
-import com.xabber.dto.MessageDto
-import com.xabber.utils.parseTimestamp
 import com.xabber.xmpp.jid.XMPPJID
 import com.xabber.xmpp.messages.XMPPMessage
 import com.xabber.xmpp.messages.message.TemporaryMessageStanzaStorageItem
 import com.xabber.xmpp.messages.message_archive.MessageArchiveManager
+import com.xabber.xmpp.messages.messages_manager.ChatMarkersManager
+import com.xabber.xmpp.messages.messages_manager.MessageCommonReceiver
+import com.xabber.xmpp.messages.messages_manager.MessageManager
+import com.xabber.xmpp.presence.PresenceManager
+import com.xabber.xmpp.roster.RosterManager
 import io.ktor.network.sockets.isClosed
 import io.reactivex.subjects.BehaviorSubject
 import io.realm.kotlin.Realm
 import io.realm.kotlin.UpdatePolicy
 import io.realm.kotlin.ext.query
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.filter
 import io.viascom.nanoid.NanoId
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import nl.adaptivity.xmlutil.core.impl.multiplatform.StringReader
-import org.w3c.dom.Element
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.w3c.dom.Node
 import org.xmlpull.v1.XmlPullParser
 import org.xmlpull.v1.XmlPullParserFactory
-import java.io.StringWriter
 import java.util.Date
 import java.util.Locale
 import javax.xml.parsers.DocumentBuilderFactory
-import javax.xml.transform.OutputKeys
-import javax.xml.transform.TransformerFactory
-import javax.xml.transform.dom.DOMSource
-import javax.xml.transform.stream.StreamResult
 
 @RequiresApi(Build.VERSION_CODES.O)
 class Account : XMPPStreamDelegate {
@@ -87,7 +77,7 @@ class Account : XMPPStreamDelegate {
     var statusMessage: BehaviorSubject<String> = BehaviorSubject.createDefault("Offline")
     var stream: Stream? = null
     private var onErrorCallback: ((String) -> Unit)? = null
-    private val realm: Realm by lazy { Realm.open(defaultRealmConfig()) }
+    private val realm: Realm by lazy { Realm.Companion.open(defaultRealmConfig()) }
     private val rosterManager: RosterManager by lazy { RosterManager(jid, realm) }
     private val syncManager: ClientSynchronizationManager by lazy { ClientSynchronizationManager(jid) }
     private val messageArchiveManager: MessageArchiveManager by lazy { MessageArchiveManager(jid) }
@@ -108,7 +98,8 @@ class Account : XMPPStreamDelegate {
 
     // New: Buffer for post-registration stanzas (roster, sync, presence)
     private val stanzaBuffer = MutableSharedFlow<StanzaItem>(replay = 0, extraBufferCapacity = 1000)
-    private val stanzaProcessingScope = CoroutineScope(Dispatchers.IO.limitedParallelism(2) + SupervisorJob())
+    private val stanzaProcessingScope =
+        CoroutineScope(Dispatchers.IO.limitedParallelism(2) + SupervisorJob())
 
     // New: Data class to hold stanza type and content
     private data class StanzaItem(val type: StanzaType, val content: String, val stream: Stream) {
@@ -144,7 +135,7 @@ class Account : XMPPStreamDelegate {
 
     suspend fun loadAccount() = withContext(Dispatchers.IO) {
         try {
-            val realm = Realm.open(defaultRealmConfig())
+            val realm = Realm.Companion.open(defaultRealmConfig())
             val item = realm.query<AccountStorageItem>("primary == $0", jid).first().find()
             item?.let {
                 this@Account.jid = it.jid
@@ -170,7 +161,7 @@ class Account : XMPPStreamDelegate {
             if (!manuallySetHost) {
                 host = extractHostFromJid(jid)
             }
-            val realm = Realm.open(defaultRealmConfig())
+            val realm = Realm.Companion.open(defaultRealmConfig())
             realm.writeBlocking {
                 val item = AccountStorageItem().apply {
                     order = query<AccountStorageItem>().find().size
@@ -193,7 +184,7 @@ class Account : XMPPStreamDelegate {
 
     fun isExist(jid: String): Boolean {
         try {
-            val realm = Realm.open(defaultRealmConfig())
+            val realm = Realm.Companion.open(defaultRealmConfig())
             val exists = realm.query<AccountStorageItem>("jid = $0", jid).first().find() != null
             realm.close()
             return exists
@@ -276,32 +267,43 @@ class Account : XMPPStreamDelegate {
     }
 
     private suspend fun syncAllChats(stream: Stream) = withContext(Dispatchers.IO) {
-        val realm = Realm.open(defaultRealmConfig())
+        val realm = Realm.Companion.open(defaultRealmConfig())
         try {
             val chats = realm.writeBlocking {
                 query<LastChatsStorageItem>("owner = $0", jid).find()
             }
             Log.d(TAG, "Found ${chats.size} chats to sync for $jid")
-            // Prioritize chats with pinned messages or recent activity
-            val prioritizedChats = chats.sortedByDescending { it.pinnedPosition ?: it.messageDate }
-            prioritizedChats.forEach { chat ->
-                launch(Dispatchers.IO.limitedParallelism(4)) { // Limit concurrent MAM queries
-                    val conversationType = ConversationType.fromRaw(chat.conversationType_)
-                    try {
-                        messageArchiveManager.syncChat(
-                            stream = stream,
-                            jid = chat.jid,
-                            conversationType = conversationType,
-                            callback = {
-                                Log.d(TAG, "Chat history sync completed for jid=${chat.jid}, type=${chat.conversationType_}")
-                            }
-                        )
-                        Log.d(TAG, "Initiated sync for chat jid=${chat.jid}, type=${chat.conversationType_}")
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Failed to sync chat jid=${chat.jid}, type=${chat.conversationType_}: ${e.message}", e)
-                    }
-                }
-            }
+            // Prioritize chats with pinned messages or recent activity WHAT THE FUCK A????
+//            val prioritizedChats = chats.sortedByDescending { it.pinnedPosition ?: it.messageDate }
+//            prioritizedChats.forEach { chat ->
+//                launch(Dispatchers.IO.limitedParallelism(4)) { // Limit concurrent MAM queries
+//                    val conversationType =
+//                        ConversationType.Companion.fromRaw(chat.conversationType_)
+//                    try {
+//                        messageArchiveManager.syncChat(
+//                            stream = stream,
+//                            jid = chat.jid,
+//                            conversationType = conversationType,
+//                            callback = {
+//                                Log.d(
+//                                    TAG,
+//                                    "Chat history sync completed for jid=${chat.jid}, type=${chat.conversationType_}"
+//                                )
+//                            }
+//                        )
+//                        Log.d(
+//                            TAG,
+//                            "Initiated sync for chat jid=${chat.jid}, type=${chat.conversationType_}"
+//                        )
+//                    } catch (e: Exception) {
+//                        Log.e(
+//                            TAG,
+//                            "Failed to sync chat jid=${chat.jid}, type=${chat.conversationType_}: ${e.message}",
+//                            e
+//                        )
+//                    }
+//                }
+//            }
         } catch (e: Exception) {
             Log.e(TAG, "Error syncing chats for $jid: ${e.message}", e)
         } finally {
@@ -530,7 +532,18 @@ class Account : XMPPStreamDelegate {
                 batch.forEach { completeStanza ->
                     val iq = parseIQ(completeStanza) // Assume parseIQ is defined elsewhere
                     if (iq != null) {
-                        rosterManager.read(XMPPIQ(raw = completeStanza, type = iq.type, id = iq.id, from = iq.from, to = iq.to, error = iq.error, queryNamespace = iq.queryNamespace, queryContent = iq.queryContent))
+                        rosterManager.read(
+                            XMPPIQ(
+                                raw = completeStanza,
+                                type = iq.type,
+                                id = iq.id,
+                                from = iq.from,
+                                to = iq.to,
+                                error = iq.error,
+                                queryNamespace = iq.queryNamespace,
+                                queryContent = iq.queryContent
+                            )
+                        )
                         Log.d(TAG, "Processed roster IQ stanza: ${completeStanza.take(200)}")
                     } else {
                         Log.w(TAG, "Failed to parse roster IQ stanza: ${completeStanza.take(200)}")
@@ -711,10 +724,10 @@ class Account : XMPPStreamDelegate {
             }
             response.features?.let { feat ->
                 Log.d(TAG, "Stream features: $feat")
-                if (stream.state == StreamState.PROCEED && DevicesOCRA.isSupported(feat)) {
+                if (stream.state == StreamState.PROCEED && DevicesOCRA.Companion.isSupported(feat)) {
                     Log.d(TAG, "DEVICES-OCRA authentication is supported post-TLS")
                     stream.state = StreamState.START_AUTH
-                } else if (!attemptedPreTlsAuth && DevicesOCRA.isSupported(feat)) {
+                } else if (!attemptedPreTlsAuth && DevicesOCRA.Companion.isSupported(feat)) {
                     Log.d(TAG, "DEVICES-OCRA authentication is supported pre-TLS")
                     attemptedPreTlsAuth = true
                     stream.state = StreamState.START_AUTH
@@ -854,7 +867,7 @@ class Account : XMPPStreamDelegate {
             val factory = XmlPullParserFactory.newInstance()
             factory.isNamespaceAware = true
             val parser = factory.newPullParser()
-            parser.setInput(StringReader(message))
+            parser.setInput(nl.adaptivity.xmlutil.core.impl.multiplatform.StringReader(message))
             var eventType = parser.eventType
 
             while (eventType != XmlPullParser.END_DOCUMENT) {
@@ -941,7 +954,7 @@ class Account : XMPPStreamDelegate {
                 return false
             }
 
-            val realm = Realm.open(defaultRealmConfig())
+            val realm = Realm.Companion.open(defaultRealmConfig())
             val primary = "${messageId}_$jid"
             val existingMessage = realm.query<MessageStorageItem>("primary = $0", primary).first().find()
             if (existingMessage != null) {
@@ -951,7 +964,7 @@ class Account : XMPPStreamDelegate {
             }
 
             val tempStanza = realm.query<TemporaryMessageStanzaStorageItem>(
-                "primary = $0 AND isProcessed = false", TemporaryMessageStanzaStorageItem.genPrimary(messageId, jid)
+                "primary = $0 AND isProcessed = false", TemporaryMessageStanzaStorageItem.Companion.genPrimary(messageId, jid)
             ).first().find()
 
             if (tempStanza == null && !isChatState) {
@@ -1246,15 +1259,20 @@ class Account : XMPPStreamDelegate {
             return@withContext false
         }
         try {
-            val response = stream.socket?.parseStreamResponse(stream.messageCallbackChannel.tryReceive().getOrNull() ?: "")
+            val response = stream.socket?.parseStreamResponse(
+                stream.messageCallbackChannel.tryReceive().getOrNull() ?: ""
+            )
             val features = response?.features
-            if (DevicesOCRA.isSupported(features)) {
+            if (DevicesOCRA.Companion.isSupported(features)) {
                 Log.d(TAG, "Initiating DEVICES-OCRA authentication for JID: $jid")
                 var device: DeviceStorageItem? = null
                 device = realm.query<DeviceStorageItem>("owner = $0", jid).first().find()
                 device?.let {
                     if (it.secret.isNotEmpty() && it.validationKey.isNotEmpty() && it.uid.isNotEmpty()) {
-                        Log.d(TAG, "Using DeviceStorageItem for OCRA: uid=${it.uid}, authCounter=${it.authCounter}")
+                        Log.d(
+                            TAG,
+                            "Using DeviceStorageItem for OCRA: uid=${it.uid}, authCounter=${it.authCounter}"
+                        )
                         ocraAuth = DevicesOCRA(
                             stream = stream,
                             deviceId = it.uid,
@@ -1362,22 +1380,9 @@ class Account : XMPPStreamDelegate {
                 return false
             }
             val syncId = NanoId.generateOptimized(9, "_-0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", 63, 16)
-            val syncRequest = """
-                <iq type='get' id='$syncId' from='$jid' to='$jid'>
-                    <query xmlns='https://xabber.com/protocol/synchronization'/>
-                </iq>
-            """.trimIndent()
-            return withContext(Dispatchers.IO) {
-                if (stream.socket?.write(syncRequest) == true) {
-                    Log.d(TAG, "Sent sync request for JID: $jid with id: $syncId")
-                    true
-                } else {
-                    Log.e(TAG, "Failed to send sync request for JID: $jid")
-                    onErrorCallback?.invoke("Failed to send sync request")
-                    stream.state = StreamState.NOT_CONNECTING
-                    false
-                }
-            }
+//            this.stream
+            this.syncManager.sync(this.stream!!)
+            return true
         } catch (e: Exception) {
             Log.e(TAG, "Error sending sync request for JID: $jid: ${e.message}", e)
             onErrorCallback?.invoke("Sync request error: ${e.message}")
@@ -1388,7 +1393,10 @@ class Account : XMPPStreamDelegate {
 
     override suspend fun streamCarbonsSend(stream: Stream): Boolean = withContext(Dispatchers.IO) {
         if (stream.state != StreamState.CONNECTED) {
-            Log.w(TAG, "Cannot send carbons enable: Stream is not in CONNECTED state, current state: ${stream.state}")
+            Log.w(
+                TAG,
+                "Cannot send carbons enable: Stream is not in CONNECTED state, current state: ${stream.state}"
+            )
             onErrorCallback?.invoke("Cannot send carbons enable: Not connected")
             return@withContext false
         }
@@ -1399,7 +1407,12 @@ class Account : XMPPStreamDelegate {
             return@withContext false
         }
         try {
-            val id = NanoId.generateOptimized(9, "_-0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", 63, 16)
+            val id = NanoId.generateOptimized(
+                9,
+                "_-0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ",
+                63,
+                16
+            )
             val carbonsStanza = """
                 <iq type="set" to="$jid" id="$id">
                     <enable xmlns="urn:xmpp:carbons:2"/>
@@ -1499,7 +1512,16 @@ class Account : XMPPStreamDelegate {
                     Regex("""xmlns=['"]([^'"]+)['"]""").find(content.substring(childStart, childHeaderEnd + 1))?.groupValues?.get(1)
                 } else null
             } else null
-            return XMPPIQ(stanza, typeMatch, idMatch, fromMatch, toMatch, error, queryNamespace, content)
+            return XMPPIQ(
+                stanza,
+                typeMatch,
+                idMatch,
+                fromMatch,
+                toMatch,
+                error,
+                queryNamespace,
+                content
+            )
         } catch (e: Exception) {
             Log.e(TAG, "Error parsing IQ: ${e.message}, stanza=$stanza", e)
             return null

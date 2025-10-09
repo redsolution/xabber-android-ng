@@ -3,13 +3,12 @@ package com.xabber.xmpp.roster
 import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
-import com.xabber.common.Stream
-import com.xabber.common.XMPPIQ
+import com.xabber.stream.Stream
+import com.xabber.stream.serializers.XMPPIQ
 import com.xabber.data_base.models.roster.RosterGroupStorageItem
 import com.xabber.data_base.models.roster.RosterStorageItem
 import com.xabber.data_base.models.roster.Subscription
 import com.xabber.data_base.models.roster.Ask
-import com.xabber.data_base.models.presences.ResourceStorageItem
 import io.realm.kotlin.Realm
 import io.realm.kotlin.UpdatePolicy
 import io.realm.kotlin.ext.query

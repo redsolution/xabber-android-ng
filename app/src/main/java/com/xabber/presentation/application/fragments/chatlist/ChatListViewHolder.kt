@@ -34,7 +34,11 @@ import com.xabber.presentation.application.manage.MaskManager
 import com.xabber.utils.dateFormat
 import com.xabber.utils.parcelable
 import java.util.*
-
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.Rect
 
 class ChatListViewHolder(
     val binding: ItemChatListBinding // Make binding public for adapter access
@@ -43,7 +47,7 @@ class ChatListViewHolder(
     fun bind(chatListDto: ChatListDto, listener: ChatListAdapter.ChatListener) {
         binding.cardview.radius = 0f
         setColorDivider(chatListDto.colorKey)
-        setAvatar(chatListDto.drawableId)
+        setAvatar(chatListDto.opponentJid)
         setName(chatListDto.getChatName())
         setTextMessage(chatListDto.draftMessage, chatListDto.lastMessageBody)
         setTime(chatListDto.lastMessageDate)
@@ -70,9 +74,53 @@ class ChatListViewHolder(
 //        binding.accountColorIndicator.setBackgroundResource(color)
     }
 
-    private fun setAvatar(drawableId: Int) {
+    private fun getAvatarColor(jid: String): Int {
+
+        return Color.parseColor("#45B7D1")
+    }
+
+    fun createInitialsBitmap(initials: String, jid: String): Bitmap {
+        // Размер аватара (в пикселях, подгони под свой layout)
+        val size = 48 // или resources.getDimensionPixelSize(R.dimen.avatar_size)
+
+        val backgroundPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = getAvatarColor(jid)
+        }
+
+        val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.WHITE
+            textSize = (size * 0.5f)
+            isFakeBoldText = true
+            textAlign = Paint.Align.CENTER // Горизонтальное центрирование
+        }
+
+        // Создаём Bitmap
+        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+
+        // Рисуем квадратный фон (по всему Bitmap)
+        canvas.drawRect(0f, 0f, size.toFloat(), size.toFloat(), backgroundPaint)
+
+        // Точное центрирование текста
+        val fontMetrics = textPaint.fontMetrics
+        val x = size / 2f
+        val baselineY = (size / 2f) + (fontMetrics.descent - fontMetrics.ascent) / 2f - 4
+
+        // Рисуем текст
+        canvas.drawText(initials, x, baselineY, textPaint)
+
+        return bitmap
+    }
+
+    private fun setAvatar(contactJid: String) {
         binding.shapeView.setDrawable(MaskManager.mask)
-        Glide.with(itemView).load(drawableId).into(binding.imChatListItemAvatar)
+
+        val initials = contactJid.take(1).uppercase()
+        val bitmap = createInitialsBitmap(initials, contactJid)
+
+        Glide.with(itemView)
+            .load(bitmap)
+            .into(binding.imChatListItemAvatar)
     }
 
     private fun setName(name: String) {

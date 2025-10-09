@@ -1,7 +1,7 @@
 package com.xabber.xmpp.presence
 
 import android.util.Log
-import com.xabber.common.Socket
+import com.xabber.stream.Socket
 import com.xabber.data_base.defaultRealmConfig
 import com.xabber.data_base.models.presences.ResourceStatus
 import com.xabber.data_base.models.roster.RosterStorageItem

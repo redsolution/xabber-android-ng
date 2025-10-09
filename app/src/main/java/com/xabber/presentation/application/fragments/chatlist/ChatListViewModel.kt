@@ -8,7 +8,7 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.xabber.R
-import com.xabber.common.AccountManager
+import com.xabber.account.AccountManager
 import com.xabber.data_base.dao.LastChatStorageItemDao
 import com.xabber.data_base.defaultRealmConfig
 import com.xabber.data_base.models.last_chats.LastChatsStorageItem

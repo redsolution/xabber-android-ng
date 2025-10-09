@@ -1,21 +1,21 @@
-package com.xabber.common
+package com.xabber.account
 
 import android.content.Context
 import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
+import com.xabber.stream.Stream
 import com.xabber.data_base.defaultRealmConfig
 import com.xabber.data_base.models.account.AccountStorageItem
 import com.xabber.data_base.models.avatar.AvatarStorageItem
-import com.xabber.data_base.models.presences.ResourceStorageItem
 import com.xabber.data_base.models.last_chats.LastChatsStorageItem
 import com.xabber.data_base.models.messages.MessageReferenceStorageItem
 import com.xabber.data_base.models.messages.MessageStorageItem
+import com.xabber.data_base.models.presences.ResourceStorageItem
 import com.xabber.data_base.models.roster.BlockStorageItem
 import com.xabber.data_base.models.roster.RosterGroupStorageItem
 import com.xabber.data_base.models.roster.RosterStorageItem
 import com.xabber.data_base.models.sync.ConversationType
-import com.xabber.presentation.XabberApplication
 import com.xabber.presentation.application.fragments.chat.ChatViewModel
 import com.xabber.presentation.onboarding.util.PasswordStorageHelper
 import com.xabber.xmpp.XEP_0CCC.ClientSynchronizationManager
@@ -31,6 +31,7 @@ import com.xabber.xmpp.voip.voIPManager.CallMetadataStorageItem
 import com.xabber.xmpp.x509.X509StorageItem
 import io.realm.kotlin.Realm
 import io.realm.kotlin.ext.query
+import io.realm.kotlin.types.RealmObject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
@@ -39,7 +40,7 @@ import kotlin.reflect.KClass
 @RequiresApi(Build.VERSION_CODES.O)
 object AccountManager {
 
-    private val realm = Realm.open(defaultRealmConfig())
+    private val realm = Realm.Companion.open(defaultRealmConfig())
     var users: MutableList<Account> = mutableListOf()
     private var isLoggingOut: Boolean = false
     private var passwordStorageHelper: PasswordStorageHelper? = null
@@ -94,7 +95,7 @@ object AccountManager {
             if (parts.size == 3) {
                 val opponent = parts[0]
                 val owner = parts[1]
-                val conversationType = ConversationType.fromRaw(parts[2])
+                val conversationType = ConversationType.Companion.fromRaw(parts[2])
                 viewModel = ChatViewModel(chatId, owner, opponent, conversationType)
                 chatViewModels[chatId] = viewModel
                 Log.d("AccountManager", "Initialized and registered ChatViewModel for chatId=$chatId, opponent=$opponent, conversationType=${conversationType.rawValue}")
@@ -107,7 +108,7 @@ object AccountManager {
         return viewModel
     }
     fun createChatViewModel(owner: String, opponent: String, conversationType: ConversationType) {
-        val chatId = LastChatsStorageItem.genPrimary(opponent, owner, conversationType)
+        val chatId = LastChatsStorageItem.Companion.genPrimary(opponent, owner, conversationType)
         if (!chatViewModels.containsKey(chatId)) {
             val viewModel = ChatViewModel(chatId, owner, opponent, conversationType)
             chatViewModels[chatId] = viewModel
@@ -137,61 +138,84 @@ object AccountManager {
 
     var clientSynchronizationManager: ClientSynchronizationManager? = null
 
-    suspend fun login(jid: String, username: String, password: String): Boolean = withContext(Dispatchers.IO) {
-        try {
-            Log.d("AccountManager", "Attempting to create account (login) for jid $jid, current users: ${users.map { it.jid }}")
-            if (jid.isEmpty() || username.isEmpty() || password.isEmpty()) {
-                Log.e("AccountManager", "Invalid credentials: jid, username, or password empty")
-                throw IllegalArgumentException("Invalid credentials")
-            }
-            val normalizedJid = jid.trim().lowercase()
-            val existingAccount = realm.query(AccountStorageItem::class, "jid = $0", normalizedJid).first().find()
-            if (existingAccount != null) {
-                Log.w("AccountManager", "Account with jid $normalizedJid already exists in Realm")
-                throw IllegalArgumentException("Account already exists")
-            }
+    suspend fun login(jid: String, username: String, password: String): Boolean =
+        withContext(Dispatchers.IO) {
+            try {
+                Log.d(
+                    "AccountManager",
+                    "Attempting to create account (login) for jid $jid, current users: ${users.map { it.jid }}"
+                )
+                if (jid.isEmpty() || username.isEmpty() || password.isEmpty()) {
+                    Log.e("AccountManager", "Invalid credentials: jid, username, or password empty")
+                    throw IllegalArgumentException("Invalid credentials")
+                }
+                val normalizedJid = jid.trim().lowercase()
+                val existingAccount =
+                    realm.query(AccountStorageItem::class, "jid = $0", normalizedJid).first().find()
+                if (existingAccount != null) {
+                    Log.w(
+                        "AccountManager",
+                        "Account with jid $normalizedJid already exists in Realm"
+                    )
+                    throw IllegalArgumentException("Account already exists")
+                }
 
-            passwordStorageHelper?.setData(normalizedJid, password.toByteArray())
-                ?: Log.w("AccountManager", "PasswordStorageHelper not initialized, skipping password storage")
-            Log.d("AccountManager", "Stored password for jid $normalizedJid")
+                passwordStorageHelper?.setData(normalizedJid, password.toByteArray())
+                    ?: Log.w(
+                        "AccountManager",
+                        "PasswordStorageHelper not initialized, skipping password storage"
+                    )
+                Log.d("AccountManager", "Stored password for jid $normalizedJid")
 
-            realm.write {
-                val newAccount = copyToRealm(AccountStorageItem().apply {
-                    this.order = query<AccountStorageItem>().find().size
+                realm.write {
+                    val newAccount = copyToRealm(AccountStorageItem().apply {
+                        this.order = query<AccountStorageItem>().find().size
+                        this.jid = normalizedJid
+                        this.username = username
+                        primary = normalizedJid
+                        enabled = true
+                    })
+                    Log.d("AccountManager", "Created AccountStorageItem for jid $normalizedJid")
+                }
+                val newUserAccount = Account().apply {
                     this.jid = normalizedJid
                     this.username = username
-                    primary = normalizedJid
-                    enabled = true
-                })
-                Log.d("AccountManager", "Created AccountStorageItem for jid $normalizedJid")
-            }
-            val newUserAccount = Account().apply {
-                this.jid = normalizedJid
-                this.username = username
-                loadAccount()
-            }
-            val streamConnected = newUserAccount.connectStream()
-            if (!streamConnected) {
-                Log.e("AccountManager", "Failed to connect Stream for jid $normalizedJid")
-                realm.write {
-                    val account = query(AccountStorageItem::class, "jid = $0", normalizedJid).first().find()
-                    account?.let { delete(it) }
-                    passwordStorageHelper?.remove(normalizedJid)
+                    loadAccount()
                 }
-                throw IllegalStateException("Stream connection failed")
+                val streamConnected = newUserAccount.connectStream()
+                if (!streamConnected) {
+                    Log.e("AccountManager", "Failed to connect Stream for jid $normalizedJid")
+                    realm.write {
+                        val account =
+                            query(AccountStorageItem::class, "jid = $0", normalizedJid).first()
+                                .find()
+                        account?.let { delete(it) }
+                        passwordStorageHelper?.remove(normalizedJid)
+                    }
+                    throw IllegalStateException("Stream connection failed")
+                }
+                synchronized(users) {
+                    users.add(newUserAccount)
+                    Log.d(
+                        "AccountManager",
+                        "Added account with jid $normalizedJid to users list, new users: ${users.map { it.jid }}"
+                    )
+                }
+                Log.d(
+                    "AccountManager",
+                    "Account creation (login) successful for jid $normalizedJid"
+                )
+                true
+            } catch (e: Exception) {
+                Log.e(
+                    "AccountManager",
+                    "Account creation (login) failed for jid $jid: ${e.message}",
+                    e
+                )
+                passwordStorageHelper?.remove(jid)
+                throw e
             }
-            synchronized(users) {
-                users.add(newUserAccount)
-                Log.d("AccountManager", "Added account with jid $normalizedJid to users list, new users: ${users.map { it.jid }}")
-            }
-            Log.d("AccountManager", "Account creation (login) successful for jid $normalizedJid")
-            true
-        } catch (e: Exception) {
-            Log.e("AccountManager", "Account creation (login) failed for jid $jid: ${e.message}", e)
-            passwordStorageHelper?.remove(jid)
-            throw e
         }
-    }
 
     fun createAccount(jid: String, username: String, order: Int = 0): Boolean {
         return try {
@@ -244,7 +268,7 @@ object AccountManager {
                     return@writeBlocking false
                 }
                 delete(account)
-                fun <T : io.realm.kotlin.types.RealmObject> deleteStorageItems(
+                fun <T : RealmObject> deleteStorageItems(
                     clazz: KClass<T>,
                     queryField: String,
                     queryValue: String
@@ -330,7 +354,10 @@ object AccountManager {
 
                 val jid = accountStorageItem.jid
                 val username = accountStorageItem.username
-                Log.d("AccountManager", "Attempting to load and connect first account with jid $jid")
+                Log.d(
+                    "AccountManager",
+                    "Attempting to load and connect first account with jid $jid"
+                )
 
                 val newUserAccount = Account().apply {
                     this.jid = jid
@@ -342,7 +369,8 @@ object AccountManager {
                 if (!streamConnected) {
                     Log.e("AccountManager", "Failed to connect Stream for jid $jid")
                     realm.write {
-                        val account = query(AccountStorageItem::class, "jid = $0", jid).first().find()
+                        val account =
+                            query(AccountStorageItem::class, "jid = $0", jid).first().find()
                         account?.let { delete(it) }
                         passwordStorageHelper?.remove(jid)
                     }
@@ -354,14 +382,20 @@ object AccountManager {
                 }
 
                 account = newUserAccount
-                Log.d("AccountManager", "Successfully loaded and connected first account with jid $jid")
+                Log.d(
+                    "AccountManager",
+                    "Successfully loaded and connected first account with jid $jid"
+                )
             } catch (e: Exception) {
                 Log.e("AccountManager", "Failed to load and connect first account: ${e.message}", e)
                 account?.let {
                     synchronized(users) {
                         users.removeIf { user -> user.jid == it.jid }
                         passwordStorageHelper?.remove(it.jid)
-                        Log.d("AccountManager", "Removed account with jid ${it.jid} from users list and password storage due to failure")
+                        Log.d(
+                            "AccountManager",
+                            "Removed account with jid ${it.jid} from users list and password storage due to failure"
+                        )
                     }
                 }
             }
