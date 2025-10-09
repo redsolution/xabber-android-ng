@@ -9,7 +9,6 @@ import com.xabber.data_base.models.roster.Ask
 import com.xabber.data_base.models.roster.Subscription
 import com.xabber.data_base.models.presences.ResourceStorageItem
 import com.xabber.xmpp.device.DeviceStorageItem
-import com.xabber.common.XMPPPresence
 import io.realm.kotlin.Realm
 import io.realm.kotlin.MutableRealm
 import io.realm.kotlin.UpdatePolicy
@@ -21,16 +20,49 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.consumeAsFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.serialization.*
+import nl.adaptivity.xmlutil.serialization.XML
+import nl.adaptivity.xmlutil.serialization.XmlSerialName
+import org.xmlpull.v1.XmlPullParser
+import org.xmlpull.v1.XmlPullParserFactory
+import nl.adaptivity.xmlutil.core.impl.multiplatform.StringReader
+
+@Serializable
+@XmlSerialName("presence", "", "")
+data class Presence(
+    val type: String? = null,
+    val from: String? = null,
+    val to: String? = null,
+    val show: String? = null,
+    val status: String? = null,
+    val priority: Int? = null
+)
+
+// Lightweight data for batched processing
+data class ParsedPresence(
+    val type: String?,
+    val from: String?,
+    val show: String?,
+    val status: String?,
+    val priority: Int?
+)
 
 class PresenceManager(private val owner: String, private val socket: Socket) {
     private val scope = CoroutineScope(Dispatchers.IO.limitedParallelism(2) + SupervisorJob())
     private val stanzaProcessingScope = CoroutineScope(Dispatchers.IO.limitedParallelism(2) + SupervisorJob())
-    private val presenceBuffer = Channel<XMPPPresence>(capacity = 100)
+    private val xml = XML {
+        indent = 2
+        autoPolymorphic = false
+        defaultPolicy {
+            ignoreUnknownChildren()
+            pedantic = false
+        }
+    }
+    private val presenceBuffer = Channel<ParsedPresence>(capacity = 100)
     private val bufferMutex = Mutex()
     private var processingJob: Job? = null
     private val TAG = "PresenceManager"
@@ -56,9 +88,7 @@ class PresenceManager(private val owner: String, private val socket: Socket) {
         """.trimIndent()
         scope.launch {
             val success = socket.write(stanza)
-            if (Log.isLoggable(TAG, Log.DEBUG)) {
-                Log.d(TAG, "Sent initial presence for owner $owner: success=$success")
-            }
+            Log.d(TAG, "Sent initial presence for owner $owner: success=$success")
             if (!success) {
                 Log.e(TAG, "Failed to send initial presence for owner: $owner")
             }
@@ -81,22 +111,61 @@ class PresenceManager(private val owner: String, private val socket: Socket) {
         }
     }
 
-    suspend fun processPresence(presence: XMPPPresence): Boolean {
+    suspend fun processPresence(presenceXml: String): Boolean {
         try {
-            if (presence.from?.contains("/Group") == true) {
-                if (Log.isLoggable(TAG, Log.DEBUG)) {
-                    Log.d(TAG, "Skipping group-related presence stanza: id=${presence.id}, from=${presence.from}")
-                }
+            // Early check for group-related presence to skip "presence cloak"
+            if (presenceXml.contains("https://xabber.com/protocol/groups")) {
+                Log.d(TAG, "Skipping group-related presence stanza: ${presenceXml.take(200)}")
                 return true
             }
 
-            presenceBuffer.send(presence)
-            if (Log.isLoggable(TAG, Log.DEBUG)) {
-                Log.d(TAG, "Sent presence to buffer: id=${presence.id}, from=${presence.from}")
+            // Incremental parse with XmlPullParser
+            val factory = XmlPullParserFactory.newInstance()
+            factory.isNamespaceAware = true
+            val parser = factory.newPullParser()
+            parser.setInput(StringReader(presenceXml))
+            var eventType = parser.eventType
+            var type: String? = null
+            var from: String? = null
+            var to: String? = null
+            var show: String? = null
+            var status: String? = null
+            var priority: Int? = null
+
+            while (eventType != XmlPullParser.END_DOCUMENT) {
+                when (eventType) {
+                    XmlPullParser.START_TAG -> {
+                        val tagName = parser.name
+                        if (tagName == "presence") {
+                            type = parser.getAttributeValue(null, "type")
+                            from = parser.getAttributeValue(null, "from")
+                            to = parser.getAttributeValue(null, "to")
+                        } else if (tagName == "show") {
+                            parser.next()
+                            if (parser.eventType == XmlPullParser.TEXT) {
+                                show = parser.text
+                            }
+                        } else if (tagName == "status") {
+                            parser.next()
+                            if (parser.eventType == XmlPullParser.TEXT) {
+                                status = parser.text
+                            }
+                        } else if (tagName == "priority") {
+                            parser.next()
+                            if (parser.eventType == XmlPullParser.TEXT) {
+                                priority = parser.text?.toIntOrNull()
+                            }
+                        }
+                    }
+                }
+                eventType = parser.next()
             }
+
+            val parsedPresence = ParsedPresence(type, from, show, status, priority)
+            presenceBuffer.send(parsedPresence)
             return true
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to process presence: ${e.message}, id=${presence.id}, from=${presence.from}", e)
+            Log.e(TAG, "Failed to parse presence: ${e.message}, stanza: ${presenceXml.take(200)}", e)
             return false
         }
     }
@@ -104,24 +173,21 @@ class PresenceManager(private val owner: String, private val socket: Socket) {
     private suspend fun startPresenceProcessing() {
         processingJob?.cancelAndJoin()
         processingJob = scope.launch {
-            val batch = mutableListOf<XMPPPresence>()
+            val batch = mutableListOf<ParsedPresence>()
             presenceBuffer.consumeAsFlow().collect { presence ->
                 bufferMutex.withLock {
                     batch.add(presence)
-                    if (batch.size >= 10 || presenceBuffer.isEmpty) {
+                    if (batch.size >= 10 || presenceBuffer.isEmpty) { // Reduced batch size from 50 to 10
                         processPresenceBatch(batch.toList())
                         batch.clear()
-                        if (Log.isLoggable(TAG, Log.DEBUG)) {
-                            Log.d(TAG, "Processed batch of ${batch.size} presence stanzas")
-                        }
-                        delay(20) // Debounce to prevent rapid processing
+                        Log.d(TAG, "Processed batch of ${batch.size} presence stanzas")
                     }
                 }
             }
         }
     }
 
-    private suspend fun processPresenceBatch(presences: List<XMPPPresence>) {
+    private suspend fun processPresenceBatch(presences: List<ParsedPresence>) {
         if (presences.isEmpty()) return
         val startTime = System.currentTimeMillis()
         var contactPresenceCount = 0
@@ -129,10 +195,12 @@ class PresenceManager(private val owner: String, private val socket: Socket) {
             val rosterItems = realm.query<RosterStorageItem>("owner = $0", owner).find().associateBy { RosterStorageItem.genPrimary(it.jid, owner) }
             val resourceItems = realm.query<ResourceStorageItem>("owner = $0", owner).find().associateBy { it.primary }
 
-            presences.chunked(20).forEach { chunk ->
+            // Process in smaller chunks to avoid blocking
+            presences.chunked(20).forEach { chunk -> // Reduced batch size from 50 to 20
                 realm.writeBlocking {
                     chunk.forEach { presence ->
-                        if (presence.from?.contains("/Group") == true) {
+                        // Skip group-related presence aggressively
+                        if (presence.from?.contains("/Group") == true || presence.from?.contains("https://xabber.com/protocol/groups") == true) {
                             return@forEach
                         }
                         when (presence.type) {
@@ -150,12 +218,10 @@ class PresenceManager(private val owner: String, private val socket: Socket) {
         } catch (e: Exception) {
             Log.e(TAG, "Error processing presence batch: ${e.message}")
         }
-        if (Log.isLoggable(TAG, Log.DEBUG)) {
-            Log.d(TAG, "Processed batch of ${presences.size} presence stanzas in ${System.currentTimeMillis() - startTime}ms: $contactPresenceCount contact presences")
-        }
+        Log.d(TAG, "Processed batch of ${presences.size} presence stanzas in ${System.currentTimeMillis() - startTime}ms: $contactPresenceCount contact presences")
     }
 
-    private fun didReceiveSubscribeRequest(presence: XMPPPresence, realm: MutableRealm, rosterItems: Map<String, RosterStorageItem>) {
+    private fun didReceiveSubscribeRequest(presence: ParsedPresence, realm: MutableRealm, rosterItems: Map<String, RosterStorageItem>) {
         val jid = presence.from?.split("/")?.get(0) ?: return
         val primaryKey = RosterStorageItem.genPrimary(jid, owner)
         val rosterItem = rosterItems[primaryKey]
@@ -173,7 +239,7 @@ class PresenceManager(private val owner: String, private val socket: Socket) {
         }
     }
 
-    private fun didReceiveUnsubscribedRequest(presence: XMPPPresence, realm: MutableRealm, rosterItems: Map<String, RosterStorageItem>) {
+    private fun didReceiveUnsubscribedRequest(presence: ParsedPresence, realm: MutableRealm, rosterItems: Map<String, RosterStorageItem>) {
         val jid = presence.from?.split("/")?.get(0) ?: return
         val primaryKey = RosterStorageItem.genPrimary(jid, owner)
         val rosterItem = rosterItems[primaryKey]
@@ -185,7 +251,7 @@ class PresenceManager(private val owner: String, private val socket: Socket) {
         }
     }
 
-    private fun didReceiveContactPresence(presence: XMPPPresence, realm: MutableRealm, resourceItems: Map<String, ResourceStorageItem>) {
+    private fun didReceiveContactPresence(presence: ParsedPresence, realm: MutableRealm, resourceItems: Map<String, ResourceStorageItem>) {
         val fromJid = presence.from?.split("/")?.get(0) ?: return
         val resource = presence.from?.split("/")?.get(1) ?: ""
         val status = when (presence.show) {
@@ -207,8 +273,6 @@ class PresenceManager(private val owner: String, private val socket: Socket) {
                 this.statusMessage = statusMessage
                 this.priority = priority
                 this.timestamp = System.currentTimeMillis()
-                this.deviceId = presence.deviceId.toString() // Nullable, safe to assign
-                this.timestamp = presence.timestamp // Store presence-specific timestamp
             }
         } else {
             realm.copyToRealm(ResourceStorageItem().apply {
@@ -219,8 +283,7 @@ class PresenceManager(private val owner: String, private val socket: Socket) {
                 this.status = status
                 this.statusMessage = statusMessage
                 this.priority = priority
-                this.deviceId = presence.deviceId.toString()
-                this.timestamp = presence.timestamp
+                this.timestamp = System.currentTimeMillis()
             }, UpdatePolicy.ALL)
         }
     }

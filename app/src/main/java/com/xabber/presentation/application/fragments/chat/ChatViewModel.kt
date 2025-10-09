@@ -154,14 +154,11 @@ class ChatViewModel(
     override suspend fun didReceiveMessage(item: MessageStorageItem, queryId: String) {
         val messageDto = mapMessageStorageItemToDto(item) ?: return
         accumulatorMutex.withLock {
-            if (!messageAccumulator.any {
-                    it.primary == messageDto.primary ||
-                            (it.archivedId == messageDto.archivedId && messageDto.archivedId.isNotEmpty())
-                }) {
+            if (!messageAccumulator.any { it.primary == messageDto.primary || (it.archivedId == messageDto.archivedId && messageDto.archivedId.isNotEmpty()) }) {
                 messageAccumulator.add(messageDto)
                 Log.d(TAG, "Accumulated MAM message: primary=${messageDto.primary}, archivedId=${messageDto.archivedId}, body=${messageDto.messageBody.take(50)}, queryId=$queryId, accumulatorSize=${messageAccumulator.size}")
             } else {
-                Log.d(TAG, "Skipping duplicate MAM message in accumulator: primary=${messageDto.primary}, archivedId=${messageDto.archivedId}, queryId=$queryId")
+                Log.d(TAG, "Skipping duplicate MAM message in accumulator: primary=${messageDto.primary}, archivedId=${messageDto.archivedId}")
             }
         }
     }
@@ -745,8 +742,8 @@ class ChatViewModel(
                         primary, messageDto.archivedId, conversationType.rawValue
                     ).first().find()
 
-                    if (existing != null) {
-                        Log.d(TAG, "Skipping duplicate message in Realm: primary=$primary, archivedId=${messageDto.archivedId}, body=${messageDto.messageBody.take(50)}")
+                    if (existing != null && messageDto.archivedId != lastMessageId) {
+                        Log.d(TAG, "Skipping duplicate message in Realm: primary=$primary, archivedId=${messageDto.archivedId}, lastMessageId=$lastMessageId, body=${messageDto.messageBody.take(50)}")
                         return@forEach
                     }
 
@@ -788,7 +785,8 @@ class ChatViewModel(
                         archivedId = messageDto.archivedId
                         state = messageDto.messageSendingState
                         messageId = messageDto.archivedId
-                    }, UpdatePolicy.ALL)
+                    })
+
                     // Check for existing chats with the same jid and owner
                     val existingChats = query<LastChatsStorageItem>(
                         "jid = $0 AND owner = $1", bareOpponentJid, messageDto.owner

@@ -71,8 +71,7 @@ class Account : XMPPStreamDelegate {
     companion object {
         private const val TAG = "Account"
     }
-
-    private val presenceStanzas = mutableListOf<XMPPPresence>()
+    private val presenceStanzas = mutableListOf<String>() // Class-level buffer for presence stanzas
     var jid: String = ""
     var host: String = ""
     var port: Int = 5222
@@ -126,10 +125,10 @@ class Account : XMPPStreamDelegate {
         stanzaProcessingScope.launch {
             stanzaBuffer.collect { item ->
                 when (item.type) {
-                    StanzaItem.StanzaType.ROSTER -> processRosterStanza(item.content as String, item.stream)
-                    StanzaItem.StanzaType.SYNC -> processSyncStanza(item.content as String, item.stream)
-                    StanzaItem.StanzaType.PRESENCE -> processPresenceStanza(item.content as XMPPPresence, item.stream)
-                    StanzaItem.StanzaType.OTHER -> Log.d(TAG, "Skipping non-buffered stanza type: ${item.content.toString().take(200)}")
+                    StanzaItem.StanzaType.ROSTER -> processRosterStanza(item.content, item.stream)
+                    StanzaItem.StanzaType.SYNC -> processSyncStanza(item.content, item.stream)
+                    StanzaItem.StanzaType.PRESENCE -> processPresenceStanza(item.content, item.stream)
+                    StanzaItem.StanzaType.OTHER -> Log.d(TAG, "Skipping non-buffered stanza type: ${item.content.take(200)}")
                 }
             }
         }
@@ -279,7 +278,7 @@ class Account : XMPPStreamDelegate {
     private suspend fun syncAllChats(stream: Stream) = withContext(Dispatchers.IO) {
         val realm = Realm.open(defaultRealmConfig())
         try {
-            val chats = realm.write {
+            val chats = realm.writeBlocking {
                 query<LastChatsStorageItem>("owner = $0", jid).find()
             }
             Log.d(TAG, "Found ${chats.size} chats to sync for $jid")
@@ -512,7 +511,6 @@ class Account : XMPPStreamDelegate {
     private suspend fun processRosterStanza(stanza: String, stream: Stream) {
         val batchSize = 10 // Process up to 10 roster stanzas at once
         val rosterStanzas = mutableListOf<String>()
-
         synchronized(rosterStanzaBuffer) {
             rosterStanzaBuffer.append(stanza)
             val bufferedContent = rosterStanzaBuffer.toString()
@@ -584,12 +582,13 @@ class Account : XMPPStreamDelegate {
     }
 
     // New: Async processing for presence stanzas
-    private suspend fun processPresenceStanza(presence: XMPPPresence, stream: Stream) {
-        val batchSize = 20 // Reduced from 50 to 20 for faster processing
+    private suspend fun processPresenceStanza(stanza: String, stream: Stream) {
+        val batchSize = 50
+        val presenceStanzas = mutableListOf<String>()
         val maxWaitTime = 10L // Reduced from 50ms to 10ms
 
         val batchToProcess = synchronized(this) {
-            presenceStanzas.add(presence)
+            presenceStanzas.add(stanza)
             if (presenceStanzas.size >= batchSize) {
                 val batch = presenceStanzas.take(batchSize).toMutableList()
                 presenceStanzas.removeAll(batch)
@@ -599,9 +598,11 @@ class Account : XMPPStreamDelegate {
             }
         }
 
+        // Process immediately if batch size is reached
         if (batchToProcess.isNotEmpty()) {
             processPresenceBatch(batchToProcess, stream)
         } else {
+            // Launch a coroutine to wait and process later
             stanzaProcessingScope.launch {
                 delay(maxWaitTime)
                 val delayedBatch = synchronized(this@Account) {
@@ -620,20 +621,20 @@ class Account : XMPPStreamDelegate {
         }
     }
 
-    private suspend fun processPresenceBatch(presences: List<XMPPPresence>, stream: Stream) {
-        if (presences.isEmpty()) return
+    private suspend fun processPresenceBatch(stanzas: List<String>, stream: Stream) {
+        if (stanzas.isEmpty()) return
         val startTime = System.currentTimeMillis()
         try {
-            presences.chunked(20).forEach { chunk ->
+            stanzas.chunked(50).forEach { chunk ->
                 chunk.forEach { presence ->
-                    if (presence.from?.contains("/Group") == true) {
+                    if (presence.contains("https://xabber.com/protocol/groups")) {
                         return@forEach // Skip group chat presence early
                     }
                     stanzaProcessingScope.launch {
                         try {
                             presenceManager?.processPresence(presence)
                         } catch (e: Exception) {
-                            Log.e(TAG, "Error processing individual presence stanza: ${e.message}, id=${presence.id}, from=${presence.from}", e)
+                            Log.e(TAG, "Error processing individual presence stanza: ${e.message}, stanza=${presence.take(200)}", e)
                         }
                     }
                 }
@@ -641,7 +642,7 @@ class Account : XMPPStreamDelegate {
         } catch (e: Exception) {
             Log.e(TAG, "Error in processPresenceBatch: ${e.message}")
         }
-        Log.d(TAG, "Processed batch of ${presences.size} presence stanzas in ${System.currentTimeMillis() - startTime}ms")
+        Log.d(TAG, "Processed batch of ${stanzas.size} presence stanzas in ${System.currentTimeMillis() - startTime}ms")
     }
 
     private fun buildDiscoInfoResponse(id: String, to: String, from: String): String {
@@ -667,34 +668,30 @@ class Account : XMPPStreamDelegate {
         """.trimIndent()
     }
 
-    override suspend fun didReceivePresence(presence: XMPPPresence, stream: Stream): Boolean {
+    override suspend fun didReceivePresence(presence: String, stream: Stream): Boolean {
         if (stream.state == StreamState.CONNECTED || stream.state == StreamState.BINDING) {
-            stanzaBuffer.emit(StanzaItem(StanzaItem.StanzaType.PRESENCE, presence.raw, stream))
-            if (Log.isLoggable(TAG, Log.DEBUG)) {
-                Log.d(TAG, "Buffered presence stanza: id=${presence.id}, from=${presence.from}, to=${presence.to}")
-            }
+            stanzaBuffer.emit(StanzaItem(StanzaItem.StanzaType.PRESENCE, presence, stream))
+            Log.d(TAG, "Buffered presence stanza: ${presence.take(200)}")
             return true
         }
-        if (Log.isLoggable(TAG, Log.DEBUG)) {
-            Log.d(TAG, "Received presence stanza: id=${presence.id}, from=${presence.from}, to=${presence.to}")
-        }
+        // Process non-post-registration presence synchronously
+        Log.d(TAG, "Received presence stanza")
         return presenceManager?.processPresence(presence) ?: run {
             Log.w(TAG, "PresenceManager not initialized, skipping presence processing")
             false
         }
     }
 
-
     override fun didReceiveStreamHeader(header: String, stream: Stream): Boolean {
         Log.d(TAG, "Received stream header, awaiting features")
         return true
     }
 
-    override suspend fun didReceiveStreamFeatures(features: String, stream: Stream): Boolean {
+    override fun didReceiveStreamFeatures(features: String, stream: Stream): Boolean {
         try {
             Log.d(TAG, "Received stream features: $features")
             supportedFeatures = features
-            realm.write {
+            realm.writeBlocking {
                 val account = query<AccountStorageItem>("jid = $0", jid).first().find()
                 if (account != null && account.clientSyncSupport != true) {
                     findLatest(account)?.clientSyncSupport = true
@@ -838,35 +835,109 @@ class Account : XMPPStreamDelegate {
         return true
     }
 
-    @RequiresApi(Build.VERSION_CODES.O)
-    override suspend fun didReceiveMessage(message: XMPPMessage, stream: Stream): Boolean {
-        Log.d(TAG, "Received message stanza: id=${message.id}, from=${message.from?.bare()}, to=${message.to?.bare()}")
+    override suspend fun didReceiveMessage(message: String, stream: Stream): Boolean {
+        // Messages are not buffered; handled as before to maintain real-time chat functionality
+        Log.d(TAG, "Received message stanza: $message")
         try {
-            // Check if the message is a chat state notification
-            val isChatState = message.hasElement("active", "http://jabber.org/protocol/chatstates") ||
-                    message.hasElement("composing", "http://jabber.org/protocol/chatstates") ||
-                    message.hasElement("inactive", "http://jabber.org/protocol/chatstates") ||
-                    message.hasElement("received", "urn:xmpp:chat-markers:0") ||
-                    message.hasElement("displayed", "urn:xmpp:chat-markers:0")
+            val xmppMessage = XMPPMessage(message)
+            var messageId = xmppMessage.id
+            var isChatState = false
+            var innerMessageId: String? = null
+            var innerFrom: String? = null
+            var innerTo: String? = null
+            var innerBody: String? = null
+            var innerType: String? = null
+            var innerLang: String? = null
+            var inForwarded = false
+            val innerRaw = StringBuilder()
 
-            val messageId = message.id ?: "unknown_${System.currentTimeMillis()}"
-            val fromJid = message.from?.bare()
-            val toJid = message.to?.bare()
-            val body = message.body
+            val factory = XmlPullParserFactory.newInstance()
+            factory.isNamespaceAware = true
+            val parser = factory.newPullParser()
+            parser.setInput(StringReader(message))
+            var eventType = parser.eventType
 
-            if (isChatState && body.isNullOrEmpty()) {
+            while (eventType != XmlPullParser.END_DOCUMENT) {
+                when (eventType) {
+                    XmlPullParser.START_TAG -> {
+                        val tagName = parser.name
+                        val namespace = parser.namespace
+                        if (tagName == "message" && (namespace == "jabber:client" || namespace.isEmpty())) {
+                            if (!inForwarded) {
+                                messageId = parser.getAttributeValue(null, "id") ?: "unknown_${System.currentTimeMillis()}"
+                                innerRaw.append("<message")
+                                for (i in 0 until parser.attributeCount) {
+                                    innerRaw.append(" ${parser.getAttributeName(i)}='${parser.getAttributeValue(i)}'")
+                                }
+                                innerRaw.append(">")
+                            } else {
+                                innerMessageId = parser.getAttributeValue(null, "id") ?: "unknown_${System.currentTimeMillis()}"
+                                innerFrom = parser.getAttributeValue(null, "from")?.trim()
+                                innerTo = parser.getAttributeValue(null, "to")?.trim()
+                                innerType = parser.getAttributeValue(null, "type")
+                                innerLang = parser.getAttributeValue(null, "xml:lang")
+                                Log.d(TAG, "Inner message attributes: id=$innerMessageId, from=$innerFrom, to=$innerTo, type=$innerType, lang=$innerLang")
+                                innerRaw.append("<message")
+                                for (i in 0 until parser.attributeCount) {
+                                    innerRaw.append(" ${parser.getAttributeName(i)}='${parser.getAttributeValue(i)}'")
+                                }
+                                innerRaw.append(">")
+                            }
+                        } else if (tagName == "forwarded" && namespace == "urn:xmpp:forward:0") {
+                            inForwarded = true
+                        } else if (tagName in listOf("active", "composing", "inactive", "received", "displayed") && (namespace == "http://jabber.org/protocol/chatstates" || namespace == "urn:xmpp:chat-markers:0")) {
+                            isChatState = true
+                            innerRaw.append("<$tagName xmlns='$namespace'/>")
+                        } else if (tagName == "body" && inForwarded) {
+                            parser.next()
+                            if (parser.eventType == XmlPullParser.TEXT) {
+                                innerBody = parser.text.trim()
+                                innerRaw.append("<body>${parser.text}</body>")
+                            }
+                        } else if (inForwarded && namespace != "jabber:client") {
+                            innerRaw.append("<${tagName} xmlns='${namespace}'")
+                            for (i in 0 until parser.attributeCount) {
+                                innerRaw.append(" ${parser.getAttributeName(i)}='${parser.getAttributeValue(i)}'")
+                            }
+                            innerRaw.append("/>")
+                        }
+                    }
+                    XmlPullParser.END_TAG -> {
+                        val tagName = parser.name
+                        if (tagName == "forwarded" && parser.namespace == "urn:xmpp:forward:0") {
+                            inForwarded = false
+                        } else if (inForwarded && tagName == "message" && (parser.namespace == "jabber:client" || parser.namespace.isEmpty())) {
+                            innerRaw.append("</message>")
+                        }
+                    }
+                    XmlPullParser.TEXT -> {
+                        if (inForwarded) {
+                            innerRaw.append(parser.text)
+                        }
+                    }
+                }
+                eventType = parser.next()
+            }
+
+            messageId = innerMessageId ?: messageId ?: "unknown_${System.currentTimeMillis()}"
+            Log.d(TAG, "Processing message: id=$messageId, isChatState=$isChatState, innerFrom=$innerFrom, innerTo=$innerTo, innerBody=$innerBody")
+
+            if (isChatState && innerBody.isNullOrEmpty()) {
                 Log.d(TAG, "Skipping chat state notification: id=$messageId")
                 return true
             }
 
+            val fromJid = innerFrom ?: xmppMessage.from?.bare()
+            val toJid = innerTo ?: xmppMessage.to?.bare()
+            val body = innerBody ?: xmppMessage.body
             if (fromJid == null || toJid == null || body == null) {
-                Log.w(TAG, "Skipping message with missing attributes: id=$messageId, from=$fromJid, to=$toJid, body=$body")
+                Log.w(TAG, "Skipping message with missing attributes: id=$messageId, innerFrom=$innerFrom, innerTo=$innerTo, innerBody=$innerBody, from=${xmppMessage.from?.bare()}, to=${xmppMessage.to?.bare()}, body=${xmppMessage.body}")
                 return false
             }
 
             val opponent = if (toJid != jid) toJid else fromJid
             if (opponent == jid) {
-                Log.w(TAG, "Skipping self-directed message: id=$messageId, from=$fromJid, to=$toJid")
+                Log.w(TAG, "Skipping self-directed message: id=$messageId, from=$fromJid, to=$toJid, stanza=$message")
                 return false
             }
 
@@ -892,29 +963,37 @@ class Account : XMPPStreamDelegate {
                         this.owner = jid
                         this.jid = opponent
                         this.isProcessed = false
-                        this.date = parseTimestamp(message) ?: System.currentTimeMillis()
-                        this.stanza = message.raw
+                        this.date = parseTimestamp(xmppMessage) ?: System.currentTimeMillis()
+                        this.stanza = message
                     }
                     copyToRealm(newTempStanza, UpdatePolicy.ALL)
                 }
             }
 
-            val timestamp = tempStanza?.date?.takeIf { it > 0 } ?: parseTimestamp(message) ?: System.currentTimeMillis()
+            val timestamp = tempStanza?.date?.takeIf { it > 0 } ?: parseTimestamp(xmppMessage) ?: System.currentTimeMillis()
             val date = Date(timestamp)
             val isOutgoing = fromJid == jid
             val state = if (isOutgoing) MessageSendingState.Deliver else MessageSendingState.Sent
 
             var containerType: String? = null
-            var innerMessage: XMPPMessage? = message
-            if (message.hasElement("sent", "urn:xmpp:carbons:2")) {
+            var innerMessage: XMPPMessage? = xmppMessage
+            if (inForwarded && xmppMessage.element("sent", namespace = "urn:xmpp:carbons:2") != null) {
                 containerType = "forwarded"
                 Log.d(TAG, "Detected forwarded carbon message for messageId=$messageId")
-                // For carbon messages, use the inner message data already parsed in Stream
-                innerMessage = message
-            } else if (message.hasElement("last-message")) {
+                innerMessage = XMPPMessage(
+                    raw = innerRaw.toString(),
+                    type = innerType,
+                    id = innerMessageId,
+                    from = innerFrom?.let { XMPPJID(fullJID = it) },
+                    to = innerTo?.let { XMPPJID(fullJID = it) },
+                    lang = innerLang,
+                    body = innerBody
+                )
+                Log.d(TAG, "Extracted inner message for forwarded container: id=${innerMessage.id}, raw=$innerRaw")
+            } else if (xmppMessage.element("last-message") != null) {
                 containerType = "last-message"
                 Log.d(TAG, "Detected last-message container for messageId=$messageId")
-            } else if (message.hasElement("archived", "urn:xmpp:mam:tmp")) {
+            } else if (xmppMessage.element("archived", namespace = "urn:xmpp:mam:tmp") != null) {
                 containerType = "archived"
                 Log.d(TAG, "Detected archived container for messageId=$messageId")
             } else {
@@ -925,18 +1004,18 @@ class Account : XMPPStreamDelegate {
             when (containerType) {
                 "archived" -> {
                     Log.d(TAG, "Directing archived message to MessageArchiveManager: id=$messageId")
-                    messageArchiveManager.readMessage(message.raw)
+                    messageArchiveManager.readMessage(message)
                 }
                 "forwarded" -> {
                     Log.d(TAG, "Directing forwarded (carbon) message to MessageCommonReceiver")
-                    messageReceiver.receiveCarbon(message)
+                    messageReceiver.receiveCarbon(xmppMessage)
                 }
                 "last-message" -> {
                     // Handle last-message if needed
                 }
                 "runtime" -> {
                     Log.d(TAG, "Directing runtime message to MessageCommonReceiver")
-                    messageReceiver.receiveRuntime(message)
+                    messageReceiver.receiveRuntime(xmppMessage)
                 }
             }
 
@@ -954,7 +1033,7 @@ class Account : XMPPStreamDelegate {
             Log.d(TAG, "Processed message successfully: id=$messageId, container=$containerType")
             return true
         } catch (e: Exception) {
-            Log.e(TAG, "Error handling message: ${e.message}", e)
+            Log.e(TAG, "Error handling message: ${e.message}, stanza=$message", e)
             stream.state = StreamState.NOT_CONNECTING
             return false
         }
