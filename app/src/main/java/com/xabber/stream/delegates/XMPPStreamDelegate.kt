@@ -16,7 +16,6 @@ interface XMPPStreamDelegate {
 
     suspend fun didReceiveSuccess(success: String, stream: Stream): Boolean
 
-
     fun didReceiveFailure(failure: String, stream: Stream): Boolean
 
     fun didReceiveProceed(proceed: String, stream: Stream): Boolean

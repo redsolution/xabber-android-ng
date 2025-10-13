@@ -117,7 +117,6 @@ abstract class MessageViewHolder(
         messageId = message.primary
         date = getDateStringForMessage(message.sentTimestamp)
 
-        validateTimestamp(message)
 
         itemView.post {
             Log.d(
@@ -127,24 +126,6 @@ abstract class MessageViewHolder(
                         "containerHeight=${messageContainer?.height ?: 0}, sentTimestamp=${message.sentTimestamp}, " +
                         "displayedDate=$date, isUnread=$isUnread"
             )
-        }
-    }
-
-    private fun validateTimestamp(message: MessageDto) {
-        val currentTime = System.currentTimeMillis()
-        val sentTime = message.sentTimestamp
-        // Allow timestamps up to 1 hour in the future and 365 days in the past for MAM messages
-        val isSuspicious = sentTime > currentTime + 3_600_000 || sentTime < currentTime - 365L * 24 * 60 * 60 * 1000
-        if (isSuspicious) {
-            Log.w(
-                TAG,
-                "Suspicious timestamp for messageId=${message.primary}: sentTimestamp=$sentTime, " +
-                        "currentTime=$currentTime, date=${Date(sentTime)}, body=${message.messageBody.take(50)}"
-            )
-            tvTime?.setTextColor(ContextCompat.getColor(context, R.color.red_500))
-            tvTime?.text = context.getString(R.string.invalid_timestamp)
-        } else {
-            setTime(message.sentTimestamp, message.editTimestamp)
         }
     }
 

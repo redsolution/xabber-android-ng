@@ -332,6 +332,10 @@ class Account : XMPPStreamDelegate {
     override suspend fun didReceiveIQ(iq: XMPPIQ, stream: Stream): Boolean {
 
         try {
+            if (iq.queryNamespace == "urn:xmpp:mam:2") {
+                Log.d(TAG, "Forwarding MAM IQ stanza to MessageArchiveManager: id=${iq.id}, queryId=${iq.queryContent}")
+                return messageArchiveManager.read(iq.raw, stream)
+            }
             // Buffer roster and sync IQ stanzas post-registration
             if (stream.state == StreamState.CONNECTED || stream.state == StreamState.BINDING) {
                 if (iq.queryNamespace == "jabber:iq:roster" || iq.queryContent?.contains("<item") == true || iq.queryContent?.contains("<group>") == true) {
@@ -848,9 +852,9 @@ class Account : XMPPStreamDelegate {
         return true
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     override suspend fun didReceiveMessage(message: String, stream: Stream): Boolean {
-        // Messages are not buffered; handled as before to maintain real-time chat functionality
-        Log.d(TAG, "Received message stanza: $message")
+        Log.d(TAG, "Received message stanza: ${message.take(200)}")
         try {
             val xmppMessage = XMPPMessage(message)
             var messageId = xmppMessage.id
@@ -896,6 +900,9 @@ class Account : XMPPStreamDelegate {
                                 }
                                 innerRaw.append(">")
                             }
+                        } else if (tagName == "result" && namespace == "urn:xmpp:mam:2") {
+                            messageId = parser.getAttributeValue(null, "id") ?: messageId
+                            inForwarded = true // Treat as forwarded for MAM messages
                         } else if (tagName == "forwarded" && namespace == "urn:xmpp:forward:0") {
                             inForwarded = true
                         } else if (tagName in listOf("active", "composing", "inactive", "received", "displayed") && (namespace == "http://jabber.org/protocol/chatstates" || namespace == "urn:xmpp:chat-markers:0")) {
@@ -944,7 +951,7 @@ class Account : XMPPStreamDelegate {
             val toJid = innerTo ?: xmppMessage.to?.bare()
             val body = innerBody ?: xmppMessage.body
             if (fromJid == null || toJid == null || body == null) {
-                Log.w(TAG, "Skipping message with missing attributes: id=$messageId, innerFrom=$innerFrom, innerTo=$innerTo, innerBody=$innerBody, from=${xmppMessage.from?.bare()}, to=${xmppMessage.to?.bare()}, body=${xmppMessage.body}")
+                Log.w(TAG, "Skipping message with missing attributes: id=$messageId, innerFrom=$innerFrom, innerTo=$innerTo, innerBody=$innerBody")
                 return false
             }
 
@@ -954,7 +961,7 @@ class Account : XMPPStreamDelegate {
                 return false
             }
 
-            val realm = Realm.Companion.open(defaultRealmConfig())
+            val realm = Realm.open(defaultRealmConfig())
             val primary = "${messageId}_$jid"
             val existingMessage = realm.query<MessageStorageItem>("primary = $0", primary).first().find()
             if (existingMessage != null) {
@@ -963,8 +970,44 @@ class Account : XMPPStreamDelegate {
                 return true
             }
 
+            var containerType: String? = null
+            var innerMessage: XMPPMessage? = xmppMessage
+            if (xmppMessage.element("result", namespace = "urn:xmpp:mam:2") != null) {
+                containerType = "archived"
+                Log.d(TAG, "Detected archived message for messageId=$messageId")
+                innerMessage = XMPPMessage(
+                    raw = innerRaw.toString(),
+                    type = innerType,
+                    id = innerMessageId,
+                    from = innerFrom?.let { XMPPJID(fullJID = it) },
+                    to = innerTo?.let { XMPPJID(fullJID = it) },
+                    lang = innerLang,
+                    body = innerBody,
+                    children = xmppMessage.children
+                )
+            } else if (inForwarded && xmppMessage.element("sent", namespace = "urn:xmpp:carbons:2") != null) {
+                containerType = "forwarded"
+                Log.d(TAG, "Detected forwarded carbon message for messageId=$messageId")
+                innerMessage = XMPPMessage(
+                    raw = innerRaw.toString(),
+                    type = innerType,
+                    id = innerMessageId,
+                    from = innerFrom?.let { XMPPJID(fullJID = it) },
+                    to = innerTo?.let { XMPPJID(fullJID = it) },
+                    lang = innerLang,
+                    body = innerBody,
+                    children = xmppMessage.children
+                )
+            } else if (xmppMessage.element("last-message") != null) {
+                containerType = "last-message"
+                Log.d(TAG, "Detected last-message container for messageId=$messageId")
+            } else {
+                containerType = "runtime"
+                Log.d(TAG, "No specific container found, treating as runtime for messageId=$messageId")
+            }
+
             val tempStanza = realm.query<TemporaryMessageStanzaStorageItem>(
-                "primary = $0 AND isProcessed = false", TemporaryMessageStanzaStorageItem.Companion.genPrimary(messageId, jid)
+                "primary = $0 AND isProcessed = false", TemporaryMessageStanzaStorageItem.genPrimary(messageId, jid)
             ).first().find()
 
             if (tempStanza == null && !isChatState) {
@@ -983,37 +1026,6 @@ class Account : XMPPStreamDelegate {
                 }
             }
 
-            val timestamp = tempStanza?.date?.takeIf { it > 0 } ?: parseTimestamp(xmppMessage) ?: System.currentTimeMillis()
-            val date = Date(timestamp)
-            val isOutgoing = fromJid == jid
-            val state = if (isOutgoing) MessageSendingState.Deliver else MessageSendingState.Sent
-
-            var containerType: String? = null
-            var innerMessage: XMPPMessage? = xmppMessage
-            if (inForwarded && xmppMessage.element("sent", namespace = "urn:xmpp:carbons:2") != null) {
-                containerType = "forwarded"
-                Log.d(TAG, "Detected forwarded carbon message for messageId=$messageId")
-                innerMessage = XMPPMessage(
-                    raw = innerRaw.toString(),
-                    type = innerType,
-                    id = innerMessageId,
-                    from = innerFrom?.let { XMPPJID(fullJID = it) },
-                    to = innerTo?.let { XMPPJID(fullJID = it) },
-                    lang = innerLang,
-                    body = innerBody
-                )
-                Log.d(TAG, "Extracted inner message for forwarded container: id=${innerMessage.id}, raw=$innerRaw")
-            } else if (xmppMessage.element("last-message") != null) {
-                containerType = "last-message"
-                Log.d(TAG, "Detected last-message container for messageId=$messageId")
-            } else if (xmppMessage.element("archived", namespace = "urn:xmpp:mam:tmp") != null) {
-                containerType = "archived"
-                Log.d(TAG, "Detected archived container for messageId=$messageId")
-            } else {
-                containerType = "runtime"
-                Log.d(TAG, "No specific container found, treating as runtime for messageId=$messageId")
-            }
-
             when (containerType) {
                 "archived" -> {
                     Log.d(TAG, "Directing archived message to MessageArchiveManager: id=$messageId")
@@ -1021,14 +1033,15 @@ class Account : XMPPStreamDelegate {
                 }
                 "forwarded" -> {
                     Log.d(TAG, "Directing forwarded (carbon) message to MessageCommonReceiver")
-                    messageReceiver.receiveCarbon(xmppMessage)
+                    messageReceiver.receiveCarbon(innerMessage!!)
                 }
                 "last-message" -> {
-                    // Handle last-message if needed
+                    Log.d(TAG, "Directing last-message to MessageCommonReceiver")
+                    messageReceiver.receiveRuntime(innerMessage!!)
                 }
                 "runtime" -> {
                     Log.d(TAG, "Directing runtime message to MessageCommonReceiver")
-                    messageReceiver.receiveRuntime(xmppMessage)
+                    messageReceiver.receiveRuntime(innerMessage!!)
                 }
             }
 
@@ -1067,48 +1080,7 @@ class Account : XMPPStreamDelegate {
         }
     }
 
-    private fun parserToDom(parser: XmlPullParser): Node {
-        val factory = DocumentBuilderFactory.newInstance()
-        factory.isNamespaceAware = true
-        val builder = factory.newDocumentBuilder()
-        val document = builder.newDocument()
-        val stack = mutableListOf<Node>(document)
-        var eventType = parser.eventType
-        while (eventType != XmlPullParser.END_DOCUMENT) {
-            when (eventType) {
-                XmlPullParser.START_TAG -> {
-                    val element = document.createElementNS(parser.namespace, parser.name)
-                    for (i in 0 until parser.attributeCount) {
-                        element.setAttribute(parser.getAttributeName(i), parser.getAttributeValue(i))
-                    }
-                    stack.last().appendChild(element)
-                    stack.add(element)
-                }
-                XmlPullParser.END_TAG -> {
-                    stack.removeLast()
-                }
-                XmlPullParser.TEXT -> {
-                    stack.last().appendChild(document.createTextNode(parser.text))
-                }
-            }
-            eventType = parser.next()
-        }
-        return stack.first().firstChild ?: document
-    }
 
-    private fun getDeliveryTime(message: XMPPMessage): Date? {
-        val time = message.element("time", namespace = "https://xabber.com/protocol/delivery")?.getAttribute("stamp")
-        return time?.let {
-            try {
-                val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'", Locale.US)
-                sdf.timeZone = TimeZone.getTimeZone("UTC")
-                sdf.parse(it)
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to parse delivery timestamp: ${e.message}")
-                null
-            }
-        }
-    }
 
     override suspend fun streamDidConnect(stream: Stream): Boolean {
         CoroutineScope(Dispatchers.IO).launch {
@@ -1461,33 +1433,7 @@ class Account : XMPPStreamDelegate {
         } ?: Log.w(TAG, "Cannot execute action: Stream is null")
     }
 
-    @RequiresApi(Build.VERSION_CODES.O)
-    fun logMessageStorageItems(owner: String, messageIds: List<String>? = null) {
-        Log.d(TAG, "Logging MessageStorageItem entries for owner: $owner")
-        try {
-            realm.query<MessageStorageItem>(
-                query = if (messageIds.isNullOrEmpty()) {
-                    "owner = $0"
-                } else {
-                    "owner = $0 AND messageId IN $1"
-                },
-                owner, messageIds
-            ).find().forEach { item ->
-                Log.d(
-                    TAG,
-                    "MessageStorageItem: primary=${item.primary}, messageId=${item.messageId}, owner=${item.owner}, " +
-                            "opponent=${item.opponent}, body=${item.body}, date=${item.date}, sentDate=${item.sentDate}, " +
-                            "editDate=${item.editDate}, outgoing=${item.outgoing}, conversationType_=${item.conversationType_}, " +
-                            "isRead=${item.isRead}, state=${item.state}"
-                )
-            }
-            Log.d(TAG, "Finished logging MessageStorageItem entries")
-        } catch (e: Exception) {
-            Log.e(TAG, "Error querying MessageStorageItem: ${e.message}", e)
-        }
-    }
 
-    // New: Helper function to parse IQ stanzas (assumed to exist or added for completeness)
     private fun parseIQ(stanza: String): XMPPIQ? {
         try {
             val typeMatch = Regex("""type=['"]([^'"]+)['"]""").find(stanza)?.groupValues?.get(1) ?: return null

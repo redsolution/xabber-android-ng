@@ -148,13 +148,12 @@ class MessageCommonReceiver(private val owner: String) {
             Date()
         }
         val queryId = getMAMQueryId(message)
-        val existing = realm.query<MessageStorageItem>("primary = $0", primary).first().find()
-        if (existing != null && existing.sentDate >= innerTimestamp.time && queryId?.let {
-                existing.queryIds?.contains(
-                    it
-                )
-            } == true) {
-            Log.d(TAG, "Skipping duplicate archived message: messageId=$messageId, primary=$primary, existing sentDate=${existing.sentDate}, new sentDate=${innerTimestamp.time}, body=${existing.body.take(100)}, queryId=$queryId")
+        val existing = realm.query<MessageStorageItem>(
+            "primary = $0 OR (archivedId = $1 AND archivedId != '' AND conversationType_ = $2)",
+            primary, messageId, conversationTypeByMessage(messageBare).rawValue
+        ).first().find()
+        if (existing != null) {
+            Log.d(TAG, "Skipping duplicate archived message: messageId=$messageId, primary=$primary, existing sentDate=${existing.sentDate}, new sentDate=${innerTimestamp.time}, queryId=$queryId")
             return
         }
         Log.d(TAG, "receiveArchived: messageId=$messageId, timestamp=$innerTimestamp, body=${messageBare.body?.take(100)}, queryId=$queryId")
