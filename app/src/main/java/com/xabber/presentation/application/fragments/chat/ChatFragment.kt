@@ -72,7 +72,6 @@
     import com.xabber.presentation.application.manage.DisplayManager
     import com.xabber.utils.*
     import com.xabber.utils.custom.PlayerVisualizerView
-    import com.xabber.xmpp.messages.message_archive.MessageArchiveManager
     import com.xabber.xmpp.messages.messages_manager.MessageCommonSender
     import io.reactivex.rxjava3.disposables.Disposable
     import io.realm.kotlin.Realm
@@ -115,7 +114,6 @@
         private var ignoreReceiver = true
         private var isPlaying = false
         private var messageSender: MessageCommonSender? = null
-        private var messageArchiveManager: MessageArchiveManager? = null
         private var lastLoadOlderMessagesTime = 0L // For debouncing
         private val debounceInterval = 500L // 500ms debounce
 
@@ -241,78 +239,6 @@
                     }
                 }
                 Log.d("ChatFragment", "Opening chat: id=${getParams().id}, owner=${chat.owner}, opponentJid=${chat.opponentJid}")
-            }
-        }
-
-        private fun syncChatHistory(chat: ChatListDto) {
-            lifecycleScope.launch(Dispatchers.IO) {
-                val account = AccountManager.find(chat.owner) ?: return@launch.also {
-                    Log.e("ChatFragment", "Account not found for owner=${chat.owner}")
-                }
-                val stream = account.stream ?: return@launch.also {
-                    Log.e("ChatFragment", "Stream is null for account=${chat.owner}")
-                }
-                val conversationType = if (chat.isGroup) ConversationType.Group else ConversationType.Regular
-
-                val isFullyLoaded = realm.query<LastChatsStorageItem>("primary = $0", chat.id)
-                    .first().find()?.fullArchiveLoaded ?: false
-                if (isFullyLoaded) {
-                    Log.d("ChatFragment", "Chat history already fully loaded for jid=${chat.opponentJid}")
-                    viewModel.getMessageList(getParams().id)
-                    withContext(Dispatchers.Main) {
-                        viewModel.unblockUi(true)
-                        Log.d("ChatFragment", "Hiding ProgressBar and unlocking screen: archive fully loaded, chatId=${chat.id}")
-                    }
-                    return@launch
-                }
-
-                if (!messageArchiveManager?.checkShouldLoadFullHistory(chat.opponentJid, conversationType)!!) {
-                    Log.d("ChatFragment", "Chat history already synced for jid=${chat.opponentJid}")
-                    viewModel.getMessageList(getParams().id)
-                    withContext(Dispatchers.Main) {
-                        viewModel.unblockUi(true)
-                        Log.d("ChatFragment", "Hiding ProgressBar and unlocking screen: history already synced, chatId=${chat.id}")
-                    }
-                    return@launch
-                }
-
-                try {
-                    withContext(Dispatchers.Main) {
-                        viewModel._isLoading.value = true
-                        viewModel._isLocked.value = true
-                        Log.d("ChatFragment", "Showing ProgressBar and locking screen for MAM query: chatId=${chat.id}")
-                    }
-                    val queryId = "MAM:${UUID.randomUUID().toString().take(6)}"
-                    messageArchiveManager?.requestArchive(
-                        stream = stream,
-                        jid = chat.opponentJid,
-                        isContinues = true,
-                        conversationType = conversationType,
-                        queryId = queryId,
-                        searchText = null,
-                        flipPage = true,
-                        start = null,
-                        end = null,
-                        rsmBefore = "",
-                        rsmAfter = null,
-                        max = 50, // Updated to 50
-                        withCounter = true,
-                        isNormalSynchronousTask = false,
-                        backward = true,
-                        callback = {
-                            Log.d("ChatFragment", "MAM sync completed for jid=${chat.opponentJid}, queryId=$queryId")
-                            viewModel.getMessageList(getParams().id)
-                            viewModel.unblockUi(true)
-                        }
-                    )
-                    Log.d("ChatFragment", "Sent MAM query: queryId=$queryId, jid=${chat.opponentJid}, conversationType=$conversationType")
-                } catch (e: Exception) {
-                    Log.e("ChatFragment", "Failed to sync chat history: ${e.message}", e)
-                    withContext(Dispatchers.Main) {
-                        viewModel.unblockUi(true)
-                        showToast(R.string.error_sync_failed)
-                    }
-                }
             }
         }
 
@@ -544,7 +470,6 @@
                             if (currentTime - lastLoadOlderMessagesTime >= debounceInterval) {
                                 lastLoadOlderMessagesTime = currentTime
                                 val firstVisibleItem = messageAdapter?.getMessageItem(firstVisiblePosition)
-                                viewModel.loadOlderMessages()
                                 Log.d("ChatFragment", "Triggered loadOlderMessages near top, firstVisiblePosition=$firstVisiblePosition, firstVisiblePrimary=${firstVisibleItem?.primary}")
                             }
                         }
@@ -835,16 +760,12 @@
 
             viewModel.messages.observe(viewLifecycleOwner) { messages ->
                 if (messages.isEmpty()) {
-                    Log.d("ChatFragment", "Messages LiveData updated with empty list")
                     messageAdapter?.updateAdapter(emptyList())
                     binding.downScroller.isVisible = false
                     binding.progressBar.isVisible = false
                     return@observe
                 }
-
-                // Create a copy to avoid ConcurrentModificationException
                 val messagesCopy = messages.toList()
-                Log.d("ChatFragment", "Messages LiveData updated: ${messagesCopy.size} messages, first=${messagesCopy.firstOrNull()?.primary}, last=${messagesCopy.lastOrNull()?.primary}")
                 val firstVisiblePosition = layoutManager?.findFirstVisibleItemPosition() ?: 0
                 val lastVisiblePosition = layoutManager?.findLastVisibleItemPosition() ?: 0
                 val wasAtBottom = lastVisiblePosition >= (messageAdapter?.itemCount?.minus(2) ?: 0)
@@ -865,12 +786,8 @@
                                     layoutManager?.scrollToPosition(newPosition)
                                     Log.d("ChatFragment", "Restored scroll position to $newPosition after inserting ${newMessages.size} older messages")
                                 }
-                            } else {
-                                Log.w("ChatFragment", "Could not find previous first visible item in new messages, maintaining current position")
                             }
                         }
-                    } else {
-                        Log.d("ChatFragment", "No new messages to insert for wasNearTop")
                     }
                 } else {
                     messageAdapter?.updateAdapter(messagesCopy)
@@ -1260,7 +1177,9 @@
             binding.pinPanel.setOnClickListener {
                 val position = viewModel.getPositionMessage(viewModel.lastPositionPrimary(messageDto.primary))
                 binding.messageList.scrollToPosition(position)
-                viewModel.selectMessage(messageDto.primary, true)
+                lifecycleScope.launch {
+                    viewModel.selectMessage(messageDto.primary, true)
+                }
                 viewModel.getMessageList(getParams().id)
                 handler.postDelayed(cancelSelected, 1000)
             }
@@ -1268,7 +1187,6 @@
                 binding.pinPanel.isVisible = false
             }
         }
-
         override fun forwardMessage(messageDto: MessageDto) {
             val text = "${messageDto.owner}\n${messageDto.messageBody}"
             val chat = viewModel.loadChat(getParams().id)
@@ -1298,13 +1216,14 @@
             Log.d("ChatFragment", "onLongClick: primary=$primary")
             enableSelectionMode(true)
             Check.setSelectedMode(true)
-            viewModel.selectMessage(primary, true)
+            lifecycleScope.launch {
+                viewModel.selectMessage(primary, true)
+            }
             val position = viewModel.getMessagePosition(primary)
             if (position != -1) {
                 messageAdapter?.notifyItemChanged(position)
             }
         }
-
         override fun onFullSwipe(position: Int) {
             handler.postDelayed(reply, 1500)
         }
@@ -1359,11 +1278,14 @@
         }
 
         override fun checkItem(isChecked: Boolean, primary: String) {
-            Log.d("ChatFragment", "checkItem: primary=$primary, isChecked=$isChecked")
-            viewModel.selectMessage(primary, isChecked)
-            val position = viewModel.getMessagePosition(primary)
-            if (position != -1) {
-                messageAdapter?.notifyItemChanged(position)
+            lifecycleScope.launch {
+                Log.d("ChatFragment", "checkItem: primary=$primary, isChecked=$isChecked")
+                viewModel.selectMessage(primary, isChecked)
+                val position = viewModel.getMessagePosition(primary)
+                if (position != -1) {
+                    messageAdapter?.notifyItemChanged(position)
+                }
+
             }
         }
 
@@ -1374,7 +1296,6 @@
             saveDraft()
             AccountManager.unregisterChatViewModel(getParams().id)
             messageSender?.unsubscribeSender()
-            messageArchiveManager = null // Clean up MAM
             onBackPressedCallback.remove()
         }
 

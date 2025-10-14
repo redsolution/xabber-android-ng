@@ -719,18 +719,6 @@ class MessageCommonReceiver(private val owner: String) {
         }
     }
 
-    private fun getMessageAuthorGroupchat(references: List<XMLElement>, jid: String): String? {
-        val groupchatRef = references.firstOrNull {
-            it.element("user", namespace = "https://xabber.com/protocol/groups") != null
-        }
-        val user = groupchatRef?.element("user", namespace = "https://xabber.com/protocol/groups")
-        return user?.element("jid")?.getAttribute("stringValue") ?: run {
-            user?.getAttribute("id")?.let { id ->
-                realm.query<GroupChatStorageItem>("primary = $0", GroupChatStorageItem.genPrimary(jid, owner))
-                    .first().find()?.jid
-            }
-        }
-    }
 
     fun deleteSelfChats() {
         realm.writeBlocking {

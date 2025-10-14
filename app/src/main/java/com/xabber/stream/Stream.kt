@@ -22,7 +22,6 @@ package com.xabber.stream
     import com.xabber.xmpp.messages.XMPPMessage
     import com.xabber.xmpp.messages.XMLElement
     import com.xabber.xmpp.messages.message.TemporaryMessageStanzaStorageItem
-    import com.xabber.xmpp.messages.message_archive.MessageArchiveManager.TemporaryMessageReceiver
     import com.xabber.xmpp.messages.messages_manager.MessageCommonReceiver
     import io.realm.kotlin.Realm
     import io.realm.kotlin.UpdatePolicy
@@ -644,7 +643,7 @@ package com.xabber.stream
             }
         }
 
-        private fun parseIQ(stanza: String): XMPPIQ? {
+        fun parseIQ(stanza: String): XMPPIQ? {
             try {
                 val typeMatch = Regex("""type=['"]([^'"]+)['"]""").find(stanza)?.groupValues?.get(1) ?: return null
                 val idMatch = Regex("""id=['"]([^'"]+)['"]""").find(stanza)?.groupValues?.get(1)

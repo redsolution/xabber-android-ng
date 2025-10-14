@@ -45,7 +45,7 @@ class MessageArchiveManager(private val owner: String) {
     private val nanoIdStep = 16
     private val TAG = "MessageArchiveManager"
     private val queryToReceivedCount = mutableMapOf<String, Int>()
-    private val queryIds = mutableMapOf<String, CallbackQueueItem>()
+    val queryIds = mutableMapOf<String, CallbackQueueItem>()
     private val queryIdsMutex = Mutex()
 
     data class MAMRequestItem(
@@ -97,14 +97,16 @@ class MessageArchiveManager(private val owner: String) {
     @RequiresApi(Build.VERSION_CODES.O)
     suspend fun requestArchive(
         stream: Stream,
-        jid: String?,
-        isContinues: Boolean,
-        conversationType: ConversationType,
+        jid: String? = null,
+        isContinues: Boolean = false,
+        conversationType: ConversationType = ConversationType.Regular,
         queryId: String? = null,
         searchText: String? = null,
         flipPage: Boolean = false,
         start: Date? = null,
         end: Date? = null,
+        beforeId: String? = null,
+        afterId: String? = null,
         rsmBefore: String? = null,
         rsmAfter: String? = null,
         max: Int? = null,
@@ -149,12 +151,12 @@ class MessageArchiveManager(private val owner: String) {
             queryIds[elementId] = callbackItem
             callbacksQueue.add(callbackItem)
             interactiveQueue.add(elementId)
-            Log.d(TAG, "Registered queryId=$elementId, taskId=$taskId, jid=$jid, conversationType=${conversationType.rawValue}")
+            Log.d(TAG, "Registered queryId=$elementId, taskId=$taskId, jid=$jid, conversationType=${conversationType.rawValue}, beforeId=$beforeId, afterId=$afterId")
         }
 
         val queryXml = buildString {
             append("<query xmlns='$namespace' queryid='$elementId'>")
-            append(buildX(searchText, start, end, withCounter, jid, conversationType, isGroupchat))
+            append(buildX(searchText, start, end, withCounter, jid, conversationType, isGroupchat, beforeId, afterId))
             append(buildSet(max ?: pageSize, rsmBefore, rsmAfter))
             if (flipPage) append("<flip-page/>")
             append("</query>")
@@ -763,69 +765,6 @@ class MessageArchiveManager(private val owner: String) {
                 copyToRealm(instance, UpdatePolicy.ALL)
                 Log.d(TAG, "Processed message: queryId=$queryId, messageId=${instance.messageId}, primary=${instance.primary}, opponent=$opponent, body=${instance.body.take(50)}, isOutgoing=$originalOutgoing, conversationType=${instance.conversationType_}")
 
-                // Update or create LastChatsStorageItem
-//                if (updateLastChat) {
-//                    val existingChats = query<LastChatsStorageItem>(
-//                        "jid = $0 AND owner = $1", opponent, owner
-//                    ).find()
-//                    var targetChat: LastChatsStorageItem? = existingChats.find { it.conversationType_ == conversationType.rawValue }
-//
-//                    if (targetChat == null && existingChats.isNotEmpty() && isGroupChat) {
-//                        targetChat = existingChats.firstOrNull()
-//                        if (targetChat != null) {
-//                            findLatest(targetChat)?.apply {
-//                                conversationType_ = ConversationType.Group.rawValue
-//                                Log.d(TAG, "Updated existing chat to group type: jid=$opponent, owner=$owner, new conversationType=${ConversationType.Group.rawValue}")
-//                            }
-//                        }
-//                    }
-//
-//                    val chatPrimary = LastChatsStorageItem.genPrimary(opponent, owner, conversationType)
-//                    if (chatPrimary.isEmpty()) {
-//                        Log.w(TAG, "Skipping LastChatsStorageItem creation: invalid chatPrimary for jid=$opponent, owner=$owner, type=${conversationType.rawValue}")
-//                        return@write
-//                    }
-//
-//                    if (targetChat != null) {
-//                        findLatest(targetChat)?.apply {
-//                            if (instance.sentDate > messageDate) {
-//                                lastMessage = instance
-//                                messageDate = instance.sentDate
-//                                lastMessageId = instance.messageId
-//                                if (!originalOutgoing && muteExpired <= 0) {
-//                                    isArchived = false
-//                                    unread = (unread ?: 0) + if (!instance.isRead) 1 else 0
-//                                }
-//                                Log.d(TAG, "Updated LastChatsStorageItem for MAM message: primary=$chatPrimary, timestamp=${instance.sentDate}, messageId=${instance.messageId}")
-//                            }
-//                        }
-//                    } else {
-//                        val roster = query<RosterStorageItem>("jid = $0 AND owner = $1", opponent, owner).first().find()
-//                            ?: copyToRealm(RosterStorageItem().apply {
-//                                this.jid = opponent
-//                                this.owner = this@MessageArchiveManager.owner
-//                                primary = RosterStorageItem.genPrimary(opponent, owner)
-//                                groups = realmListOf("ungrouped")
-//                            })
-//                        copyToRealm(LastChatsStorageItem().apply {
-//                            primary = chatPrimary
-//                            this.jid = opponent
-//                            this.owner = owner
-//                            conversationType_ = conversationType.rawValue
-//                            messageDate = instance.sentDate
-//                            isSynced = true
-//                            isInitialArchiveLoaded = true
-//                            lastMessage = instance
-//                            lastMessageId = instance.messageId
-//                            if (!originalOutgoing && muteExpired <= 0) {
-//                                isArchived = false
-//                                unread = if (!instance.isRead) 1 else 0
-//                            }
-//                            rosterItem = roster
-//                        }, UpdatePolicy.ALL)
-//                        Log.d(TAG, "Created new LastChatsStorageItem for MAM message: primary=$chatPrimary, timestamp=${instance.sentDate}, messageId=${instance.messageId}")
-//                    }
-//                }
             }
             temporaryMessageReceiver?.didReceiveMessage(instance, queryId)
             instance
@@ -942,15 +881,19 @@ class MessageArchiveManager(private val owner: String) {
         withCounter: Boolean,
         jid: String?,
         conversationType: ConversationType,
-        isGroupchat: Boolean
+        isGroupchat: Boolean,
+        beforeId: String?, // Added
+        afterId: String?   // Added
     ): String = buildString {
         append("<x xmlns='jabber:x:data' type='submit'>")
         append("<field var='FORM_TYPE' type='hidden'><value>$namespace</value></field>")
+        if (jid != null && !isGroupchat) append("<field var='with'><value>$jid</value></field>")
         if (start != null) append("<field var='start'><value>${formatDate(start)}</value></field>")
         if (end != null) append("<field var='end'><value>${formatDate(end)}</value></field>")
-        if (jid != null && !isGroupchat) append("<field var='with'><value>$jid</value></field>")
+        if (beforeId != null && beforeId.isNotEmpty()) append("<field var='before-id'><value>$beforeId</value></field>")
+        if (afterId != null && afterId.isNotEmpty()) append("<field var='after-id'><value>$afterId</value></field>")
+        if (searchText != null && searchText.isNotEmpty()) append("<field var='search'><value>$searchText</value></field>")
         append("<field var='conversation-type'><value>${conversationType.rawValue}</value></field>")
-        if (searchText != null) append("<field var='search'><value>$searchText</value></field>")
         append("</x>")
     }
 

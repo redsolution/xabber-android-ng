@@ -15,10 +15,18 @@ data class XMPPMessage(
     val error: String? = null,
     val children: List<XMLElement> = emptyList()
 ) {
-    private val elements = mutableMapOf<String, MutableList<XMLElement>>()
+    private val elements = mutableMapOf<String, MutableList<XMLElement>>().apply {
+        children.forEach { child ->
+            getOrPut(child.name) { mutableListOf() }.add(child)
+        }
+    }
 
     fun element(name: String, namespace: String? = null): XMLElement? {
         return elements[name]?.firstOrNull { it.namespace == namespace || namespace == null }
+    }
+
+    fun elements(name: String, namespace: String? = null): List<XMLElement> {
+        return elements[name]?.filter { it.namespace == namespace || namespace == null } ?: emptyList()
     }
 
     fun hasElement(name: String, namespace: String? = null): Boolean {
@@ -41,8 +49,8 @@ data class XMLElement(
         return children.firstOrNull { it.name == name && (it.namespace == namespace || namespace == null) }
     }
 
-    fun elements(name: String): List<XMLElement> {
-        return children.filter { it.name == name }
+    fun elements(name: String, namespace: String? = null): List<XMLElement> {
+        return children.filter { it.name == name && (it.namespace == namespace || namespace == null) }
     }
 
     fun getAttribute(name: String): String? {

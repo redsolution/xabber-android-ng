@@ -381,6 +381,7 @@ abstract class MessageViewHolder(
 
     private fun setupOnLongClick(messagePrimary: String, isChecked: Boolean) {
         itemView.setOnLongClickListener {
+            
             if (!Check.getSelectedMode()) onViewClickListener?.onLongClick(messagePrimary)
             else onViewClickListener?.checkItem(!isChecked, messagePrimary)
             true

@@ -194,7 +194,7 @@ class Account : XMPPStreamDelegate {
         }
     }
 
-    private suspend fun checkExistingDevice() {
+    private fun checkExistingDevice() {
         try {
             val devices = realm.query<DeviceStorageItem>("owner = $0", jid).find()
             Log.d(TAG, "Found ${devices.size} devices for JID: $jid")
@@ -273,37 +273,6 @@ class Account : XMPPStreamDelegate {
                 query<LastChatsStorageItem>("owner = $0", jid).find()
             }
             Log.d(TAG, "Found ${chats.size} chats to sync for $jid")
-            // Prioritize chats with pinned messages or recent activity WHAT THE FUCK A????
-//            val prioritizedChats = chats.sortedByDescending { it.pinnedPosition ?: it.messageDate }
-//            prioritizedChats.forEach { chat ->
-//                launch(Dispatchers.IO.limitedParallelism(4)) { // Limit concurrent MAM queries
-//                    val conversationType =
-//                        ConversationType.Companion.fromRaw(chat.conversationType_)
-//                    try {
-//                        messageArchiveManager.syncChat(
-//                            stream = stream,
-//                            jid = chat.jid,
-//                            conversationType = conversationType,
-//                            callback = {
-//                                Log.d(
-//                                    TAG,
-//                                    "Chat history sync completed for jid=${chat.jid}, type=${chat.conversationType_}"
-//                                )
-//                            }
-//                        )
-//                        Log.d(
-//                            TAG,
-//                            "Initiated sync for chat jid=${chat.jid}, type=${chat.conversationType_}"
-//                        )
-//                    } catch (e: Exception) {
-//                        Log.e(
-//                            TAG,
-//                            "Failed to sync chat jid=${chat.jid}, type=${chat.conversationType_}: ${e.message}",
-//                            e
-//                        )
-//                    }
-//                }
-//            }
         } catch (e: Exception) {
             Log.e(TAG, "Error syncing chats for $jid: ${e.message}", e)
         } finally {
@@ -332,9 +301,9 @@ class Account : XMPPStreamDelegate {
     override suspend fun didReceiveIQ(iq: XMPPIQ, stream: Stream): Boolean {
 
         try {
+            //пока втупую вызываю, тестовый до момента нормального вызова
             if (iq.queryNamespace == "urn:xmpp:mam:2") {
-                Log.d(TAG, "Forwarding MAM IQ stanza to MessageArchiveManager: id=${iq.id}, queryId=${iq.queryContent}")
-                return messageArchiveManager.read(iq.raw, stream)
+                messageArchiveManager.syncChat(stream, jid, conversationType = ConversationType.Regular)
             }
             // Buffer roster and sync IQ stanzas post-registration
             if (stream.state == StreamState.CONNECTED || stream.state == StreamState.BINDING) {
@@ -534,7 +503,7 @@ class Account : XMPPStreamDelegate {
         rosterStanzas.chunked(batchSize).forEach { batch ->
             try {
                 batch.forEach { completeStanza ->
-                    val iq = parseIQ(completeStanza) // Assume parseIQ is defined elsewhere
+                    val iq = stream.parseIQ(completeStanza) // Assume parseIQ is defined elsewhere
                     if (iq != null) {
                         rosterManager.read(
                             XMPPIQ(
@@ -1434,43 +1403,8 @@ class Account : XMPPStreamDelegate {
     }
 
 
-    private fun parseIQ(stanza: String): XMPPIQ? {
-        try {
-            val typeMatch = Regex("""type=['"]([^'"]+)['"]""").find(stanza)?.groupValues?.get(1) ?: return null
-            val idMatch = Regex("""id=['"]([^'"]+)['"]""").find(stanza)?.groupValues?.get(1)
-            val fromMatch = Regex("""from=['"]([^'"]+)['"]""").find(stanza)?.groupValues?.get(1)
-            val toMatch = Regex("""to=['"]([^'"]+)['"]""").find(stanza)?.groupValues?.get(1)
-            val error = if (typeMatch == "error") {
-                val errorStart = stanza.indexOf("<error")
-                if (errorStart != -1) {
-                    val errorEnd = stanza.indexOf("</error>", errorStart) + 8
-                    stanza.substring(errorStart, errorEnd)
-                } else null
-            } else null
-            val iqStart = stanza.indexOf("<iq")
-            val headerEnd = stanza.indexOf(">", iqStart)
-            val iqEnd = stanza.lastIndexOf("</iq>")
-            val content = if (headerEnd != -1 && iqEnd > headerEnd + 1) stanza.substring(headerEnd + 1, iqEnd).trim() else ""
-            val queryNamespace = if (content.isNotEmpty()) {
-                val childStart = content.indexOf("<")
-                if (childStart != -1) {
-                    val childHeaderEnd = content.indexOf(">", childStart)
-                    Regex("""xmlns=['"]([^'"]+)['"]""").find(content.substring(childStart, childHeaderEnd + 1))?.groupValues?.get(1)
-                } else null
-            } else null
-            return XMPPIQ(
-                stanza,
-                typeMatch,
-                idMatch,
-                fromMatch,
-                toMatch,
-                error,
-                queryNamespace,
-                content
-            )
-        } catch (e: Exception) {
-            Log.e(TAG, "Error parsing IQ: ${e.message}, stanza=$stanza", e)
-            return null
-        }
+    private fun MessageArchiveManager.getQueryIds(): Map<String, MessageArchiveManager.CallbackQueueItem> {
+        return queryIds
     }
 }
+
