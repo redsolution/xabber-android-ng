@@ -45,7 +45,7 @@ object AccountManager {
     private var isLoggingOut: Boolean = false
     private var passwordStorageHelper: PasswordStorageHelper? = null
     private val chatViewModels = mutableMapOf<String, ChatViewModel>()
-    private val streams = mutableMapOf<String, Stream>()
+//    private val streams = mutableMapOf<String, Stream>()
     private val messageSenders: MutableMap<String, MessageCommonSender> = mutableMapOf()
 
     // Initialize PasswordStorageHelper with application context
@@ -58,16 +58,16 @@ object AccountManager {
         }
     }
 
-    fun registerStream(owner: String, stream: Stream) {
-        streams[owner] = stream
-        Log.d("AccountManager", "Registered stream for owner=$owner")
-    }
-
-    fun getStream(owner: String): Stream? {
-        return streams[owner].also {
-            if (it == null) Log.w("AccountManager", "No stream found for owner=$owner")
-        }
-    }
+//    fun registerStream(owner: String, stream: Stream) {
+//        streams[owner] = stream
+//        Log.d("AccountManager", "Registered stream for owner=$owner")
+//    }
+//
+//    fun getStream(owner: String): Stream? {
+//        return streams[owner].also {
+//            if (it == null) Log.w("AccountManager", "No stream found for owner=$owner")
+//        }
+//    }
 
     fun registerMessageSender(owner: String, sender: MessageCommonSender) {
         messageSenders[owner] = sender
@@ -136,7 +136,6 @@ object AccountManager {
         Log.d("AccountManager", "Unregistered ChatViewModel for chatId=$chatId")
     }
 
-    var clientSynchronizationManager: ClientSynchronizationManager? = null
 
     suspend fun login(jid: String, username: String, password: String): Boolean =
         withContext(Dispatchers.IO) {
@@ -254,9 +253,7 @@ object AccountManager {
     }
 
     fun find(jid: String): Account? {
-        return users.firstOrNull { it.jid == jid }.also {
-            if (it == null) Log.w("AccountManager", "No account found for jid=$jid")
-        }
+        return users.firstOrNull { it.jid == jid }
     }
 
     fun deleteAccount(jid: String): Boolean {

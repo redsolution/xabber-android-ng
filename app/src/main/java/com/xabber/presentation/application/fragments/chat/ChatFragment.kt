@@ -39,6 +39,7 @@
     import com.aghajari.emojiview.googleprovider.AXGoogleEmojiProvider
     import com.aghajari.emojiview.view.AXSingleEmojiView
     import com.xabber.R
+    import com.xabber.account.Account
     import com.xabber.account.AccountManager
     import com.xabber.data_base.defaultRealmConfig
     import com.xabber.data_base.models.last_chats.LastChatsStorageItem
@@ -70,6 +71,7 @@
     import com.xabber.presentation.application.fragments.contacts.ContactAccountParams
     import com.xabber.presentation.application.manage.ColorManager
     import com.xabber.presentation.application.manage.DisplayManager
+    import com.xabber.stream.Stream
     import com.xabber.utils.*
     import com.xabber.utils.custom.PlayerVisualizerView
     import com.xabber.xmpp.messages.messages_manager.MessageCommonSender
@@ -213,6 +215,11 @@
         override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
             super.onViewCreated(view, savedInstanceState)
             val chat = viewModel.loadChat(getParams().id)
+            CoroutineScope(Dispatchers.IO).launch {
+                AccountManager.find(chat!!.owner)!!.action { Account, stream ->
+                    Account().messageArchiveManager.syncChat(stream, chat.owner, ConversationType.Regular)
+                }
+            }
             if (chat == null) {
                 navigator().closeDetail()
             } else {

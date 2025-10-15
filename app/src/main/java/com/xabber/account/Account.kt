@@ -16,6 +16,7 @@ import com.xabber.data_base.models.messages.MessageSendingState
 import com.xabber.data_base.models.messages.MessageStorageItem
 import com.xabber.data_base.models.sync.ConversationType
 import com.xabber.utils.custom.NickGenerator
+import com.xabber.utils.parseTimestamp
 import com.xabber.xmpp.XEP_0CCC.ClientSynchronizationManager
 import com.xabber.xmpp.auth.DevicesOCRA
 import com.xabber.xmpp.device.DeviceStorageItem
@@ -80,16 +81,13 @@ class Account : XMPPStreamDelegate {
     private val realm: Realm by lazy { Realm.Companion.open(defaultRealmConfig()) }
     private val rosterManager: RosterManager by lazy { RosterManager(jid, realm) }
     private val syncManager: ClientSynchronizationManager by lazy { ClientSynchronizationManager(jid) }
-    private val messageArchiveManager: MessageArchiveManager by lazy { MessageArchiveManager(jid) }
+    val messageArchiveManager: MessageArchiveManager by lazy { MessageArchiveManager(jid) }
     private var presenceManager: PresenceManager? = null
     private val deviceModel = Build.MODEL
     private var isDeviceRegistered = false
     private var ocraAuth: DevicesOCRA? = null
     private var attemptedPreTlsAuth = false
     private var boundJid: String? = null
-    private val rosterStanzaBuffer = StringBuilder()
-    private val syncStanzaBuffer = StringBuilder()
-    private val syncCompletionChannel = Channel<Unit>(1)
     private var supportedFeatures: String = ""
     private var rosterRequested = false
     val chatMarkers: ChatMarkersManager by lazy { ChatMarkersManager(jid) }
@@ -111,17 +109,6 @@ class Account : XMPPStreamDelegate {
     init {
         if (deviceName.isEmpty()) {
             deviceName = NickGenerator.genRandomNick()
-        }
-        // New: Start processing buffered stanzas asynchronously
-        stanzaProcessingScope.launch {
-            stanzaBuffer.collect { item ->
-                when (item.type) {
-                    StanzaItem.StanzaType.ROSTER -> processRosterStanza(item.content, item.stream)
-                    StanzaItem.StanzaType.SYNC -> processSyncStanza(item.content, item.stream)
-                    StanzaItem.StanzaType.PRESENCE -> processPresenceStanza(item.content, item.stream)
-                    StanzaItem.StanzaType.OTHER -> Log.d(TAG, "Skipping non-buffered stanza type: ${item.content.take(200)}")
-                }
-            }
         }
     }
 
@@ -245,7 +232,6 @@ class Account : XMPPStreamDelegate {
                     presenceManager = PresenceManager(jid, it.socket!!)
                     statusMessage.onNext("Online")
                     Log.d(TAG, "Stream connected for $jid")
-                    syncAllChats(it) // Trigger MAM sync immediately
                     return@withContext true
                 } else {
                     statusMessage.onNext("Offline")
@@ -303,7 +289,6 @@ class Account : XMPPStreamDelegate {
         try {
             //пока втупую вызываю, тестовый до момента нормального вызова
             if (iq.queryNamespace == "urn:xmpp:mam:2") {
-                messageArchiveManager.syncChat(stream, jid, conversationType = ConversationType.Regular)
             }
             // Buffer roster and sync IQ stanzas post-registration
             if (stream.state == StreamState.CONNECTED || stream.state == StreamState.BINDING) {
@@ -482,154 +467,7 @@ class Account : XMPPStreamDelegate {
         }
     }
 
-    // New: Async processing for roster stanzas
-    private suspend fun processRosterStanza(stanza: String, stream: Stream) {
-        val batchSize = 10 // Process up to 10 roster stanzas at once
-        val rosterStanzas = mutableListOf<String>()
-        synchronized(rosterStanzaBuffer) {
-            rosterStanzaBuffer.append(stanza)
-            val bufferedContent = rosterStanzaBuffer.toString()
-            if (bufferedContent.trim().startsWith("<iq") && bufferedContent.contains("</iq>")) {
-                rosterStanzas.add(bufferedContent)
-                rosterStanzaBuffer.clear()
-                Log.d(TAG, "Collected complete roster stanza for processing: ${bufferedContent.take(200)}")
-            } else {
-                Log.d(TAG, "Incomplete roster stanza, buffering: ${bufferedContent.take(200)}")
-                return
-            }
-        }
 
-        // Batch process roster stanzas
-        rosterStanzas.chunked(batchSize).forEach { batch ->
-            try {
-                batch.forEach { completeStanza ->
-                    val iq = stream.parseIQ(completeStanza) // Assume parseIQ is defined elsewhere
-                    if (iq != null) {
-                        rosterManager.read(
-                            XMPPIQ(
-                                raw = completeStanza,
-                                type = iq.type,
-                                id = iq.id,
-                                from = iq.from,
-                                to = iq.to,
-                                error = iq.error,
-                                queryNamespace = iq.queryNamespace,
-                                queryContent = iq.queryContent
-                            )
-                        )
-                        Log.d(TAG, "Processed roster IQ stanza: ${completeStanza.take(200)}")
-                    } else {
-                        Log.w(TAG, "Failed to parse roster IQ stanza: ${completeStanza.take(200)}")
-                    }
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error processing roster stanza batch: ${e.message}", e)
-            }
-        }
-    }
-
-    // New: Async processing for sync stanzas
-    private suspend fun processSyncStanza(stanza: String, stream: Stream) {
-        val batchSize = 10 // Process up to 10 sync stanzas at once
-        val syncStanzas = mutableListOf<String>()
-        synchronized(syncStanzaBuffer) {
-            syncStanzaBuffer.append(stanza)
-            val bufferedContent = syncStanzaBuffer.toString()
-            if (bufferedContent.contains("<query") && bufferedContent.contains("https://xabber.com/protocol/synchronization") && bufferedContent.contains("</query>")) {
-                val cleaned = bufferedContent.replace(Regex("""<iq[^>]*type='result'[^>]*id='ping1'[^>]*/>"""), "").replace(Regex("r\\.boldin='modify'"), "")
-                val iqStart = cleaned.indexOf("<iq")
-                val iqEnd = cleaned.lastIndexOf("</iq>") + 5
-                if (iqStart != -1 && iqEnd != -1 && iqEnd > iqStart) {
-                    syncStanzas.add(cleaned.substring(iqStart, iqEnd))
-                    syncStanzaBuffer.clear()
-                    Log.d(TAG, "Collected complete sync stanza for processing: ${cleaned.take(200)}")
-                } else {
-                    Log.e(TAG, "Failed to extract complete sync <iq> stanza: ${cleaned.take(200)}")
-                    return
-                }
-            } else {
-                Log.d(TAG, "Incomplete sync stanza, buffering: ${bufferedContent.take(200)}")
-                return
-            }
-        }
-
-        // Batch process sync stanzas
-        syncStanzas.chunked(batchSize).forEach { batch ->
-            try {
-                batch.forEach { completeStanza ->
-                    syncManager.read(completeStanza)
-                    Log.d(TAG, "Processed sync query stanza: ${completeStanza.take(200)}")
-                    syncCompletionChannel.trySend(Unit)
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error processing sync stanza batch: ${e.message}", e)
-            }
-        }
-    }
-
-    // New: Async processing for presence stanzas
-    private suspend fun processPresenceStanza(stanza: String, stream: Stream) {
-        val batchSize = 50
-        val presenceStanzas = mutableListOf<String>()
-        val maxWaitTime = 10L // Reduced from 50ms to 10ms
-
-        val batchToProcess = synchronized(this) {
-            presenceStanzas.add(stanza)
-            if (presenceStanzas.size >= batchSize) {
-                val batch = presenceStanzas.take(batchSize).toMutableList()
-                presenceStanzas.removeAll(batch)
-                batch
-            } else {
-                emptyList()
-            }
-        }
-
-        // Process immediately if batch size is reached
-        if (batchToProcess.isNotEmpty()) {
-            processPresenceBatch(batchToProcess, stream)
-        } else {
-            // Launch a coroutine to wait and process later
-            stanzaProcessingScope.launch {
-                delay(maxWaitTime)
-                val delayedBatch = synchronized(this@Account) {
-                    if (presenceStanzas.isNotEmpty()) {
-                        val batch = presenceStanzas.take(batchSize).toMutableList()
-                        presenceStanzas.removeAll(batch)
-                        batch
-                    } else {
-                        emptyList()
-                    }
-                }
-                if (delayedBatch.isNotEmpty()) {
-                    processPresenceBatch(delayedBatch, stream)
-                }
-            }
-        }
-    }
-
-    private suspend fun processPresenceBatch(stanzas: List<String>, stream: Stream) {
-        if (stanzas.isEmpty()) return
-        val startTime = System.currentTimeMillis()
-        try {
-            stanzas.chunked(50).forEach { chunk ->
-                chunk.forEach { presence ->
-                    if (presence.contains("https://xabber.com/protocol/groups")) {
-                        return@forEach // Skip group chat presence early
-                    }
-                    stanzaProcessingScope.launch {
-                        try {
-                            presenceManager?.processPresence(presence)
-                        } catch (e: Exception) {
-                            Log.e(TAG, "Error processing individual presence stanza: ${e.message}, stanza=${presence.take(200)}", e)
-                        }
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error in processPresenceBatch: ${e.message}")
-        }
-        Log.d(TAG, "Processed batch of ${stanzas.size} presence stanzas in ${System.currentTimeMillis() - startTime}ms")
-    }
 
     private fun buildDiscoInfoResponse(id: String, to: String, from: String): String {
         val features = listOf(
@@ -1034,20 +872,7 @@ class Account : XMPPStreamDelegate {
         }
     }
 
-    private fun parseTimestamp(message: XMPPMessage): Long? {
-        val timeElement = message.element("time", namespace = "https://xabber.com/protocol/delivery")
-        val stamp = timeElement?.getAttribute("stamp")
-        return stamp?.let {
-            try {
-                val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'", Locale.US)
-                sdf.timeZone = TimeZone.getTimeZone("UTC")
-                sdf.parse(it)?.time
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to parse timestamp: ${e.message}")
-                null
-            }
-        }
-    }
+
 
 
 
@@ -1320,8 +1145,6 @@ class Account : XMPPStreamDelegate {
                 stream.state = StreamState.NOT_CONNECTING
                 return false
             }
-            val syncId = NanoId.generateOptimized(9, "_-0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", 63, 16)
-//            this.stream
             this.syncManager.sync(this.stream!!)
             return true
         } catch (e: Exception) {
@@ -1393,13 +1216,9 @@ class Account : XMPPStreamDelegate {
     }
 
     suspend fun action(action: suspend (Account, Stream) -> Unit) {
-        stream?.let { stream ->
-            if (stream.state == StreamState.CONNECTED && stream.socket?.getSocket()?.isClosed == false) {
-                action(this, stream)
-            } else {
-                Log.w(TAG, "Cannot execute action: Stream is not connected or socket is closed")
-            }
-        } ?: Log.w(TAG, "Cannot execute action: Stream is null")
+        withContext(Dispatchers.IO) {
+            action(this@Account, stream!!)
+        }
     }
 
 

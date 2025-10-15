@@ -143,17 +143,15 @@ class MessageCommonReceiver(private val owner: String) {
         }
 
         val primary = MessageStorageItem.genPrimary(messageId, owner)
-        val innerTimestamp = parseTimestamp(messageBare, TAG)?.let { Date(it) } ?: parseTimestamp(message, TAG)?.let { Date(it) } ?: run {
-            Log.e(TAG, "No valid timestamp for messageId=$messageId, using current time as fallback")
-            Date()
-        }
+        val innerTimestamp = parseTimestamp(messageBare, TAG)?.let { Date(it) } ?: parseTimestamp(message, TAG)?.let { Date(it) }
+
         val queryId = getMAMQueryId(message)
         val existing = realm.query<MessageStorageItem>(
             "primary = $0 OR (archivedId = $1 AND archivedId != '' AND conversationType_ = $2)",
             primary, messageId, conversationTypeByMessage(messageBare).rawValue
         ).first().find()
         if (existing != null) {
-            Log.d(TAG, "Skipping duplicate archived message: messageId=$messageId, primary=$primary, existing sentDate=${existing.sentDate}, new sentDate=${innerTimestamp.time}, queryId=$queryId")
+            Log.d(TAG, "Skipping duplicate archived message: messageId=$messageId, primary=$primary, existing sentDate=${existing.sentDate}, new sentDate=${innerTimestamp!!.time}, queryId=$queryId")
             return
         }
         Log.d(TAG, "receiveArchived: messageId=$messageId, timestamp=$innerTimestamp, body=${messageBare.body?.take(100)}, queryId=$queryId")
@@ -162,7 +160,7 @@ class MessageCommonReceiver(private val owner: String) {
             messageId = messageId,
             archivedFrom = messageBare.from?.bare(),
             isRead = messageBare.from?.bare() == owner,
-            date = innerTimestamp,
+            date = innerTimestamp!!,
             state = MessageSendingState.Deliver,
             queryId = queryId,
             originalFrom = messageBare.from?.bare() ?: "",
@@ -173,10 +171,8 @@ class MessageCommonReceiver(private val owner: String) {
     }
 
     suspend fun receiveCarbon(message: XMPPMessage) {
-        val messageBare = getCarbonCopyMessageContainer(message) ?: return.also {
-            Log.w(TAG, "receiveCarbon failed: no carbon copy message container for messageId=${getOriginId(message) ?: message.id}")
-        }
-        val messageId = getOriginId(messageBare) ?: messageBare.id
+        val messageBare = getCarbonCopyMessageContainer(message)
+        val messageId = getOriginId(messageBare!!) ?: messageBare.id
         if (processedMessageIds.contains(messageId)) {
             Log.d(TAG, "Skipping duplicate carbon message based on messageId=$messageId")
             return
@@ -186,16 +182,14 @@ class MessageCommonReceiver(private val owner: String) {
             Log.d(TAG, "Skipping duplicate carbon message: messageId=$messageId, primary=$primary")
             return
         }
-        val deliveryTime = parseTimestamp(messageBare, TAG)?.let { Date(it) } ?: return.also {
-            Log.w(TAG, "receiveCarbon failed: no valid timestamp for messageId=$messageId")
-        }
+        val deliveryTime = parseTimestamp(messageBare, TAG)?.let { Date(it) }
         Log.d(TAG, "receiveCarbon called for messageId=$messageId, timestamp=$deliveryTime")
         val queueItem = MessageQueueItem(
             message = messageBare,
             messageId = messageId,
             archivedFrom = messageBare.from?.bare(),
             isRead = false,
-            date = deliveryTime,
+            date = deliveryTime!!,
             state = MessageSendingState.Sent,
             queryId = getMAMQueryId(message),
             originalFrom = messageBare.from?.bare() ?: "",
@@ -224,29 +218,23 @@ class MessageCommonReceiver(private val owner: String) {
             Log.d(TAG, "Skipping duplicate carbon forwarded message: messageId=$messageId, primary=$primary")
             return
         }
-        val from = message.from?.bare() ?: return.also {
-            Log.w(TAG, "receiveCarbonForwarded failed: no from JID for messageId=$messageId")
-        }
-        val to = message.to?.bare() ?: return.also {
-            Log.w(TAG, "receiveCarbonForwarded failed: no to JID for messageId=$messageId")
-        }
+        val from = message.from?.bare()
+        val to = message.to?.bare()
         val opponent = if (to != owner) to else from
         if (opponent == owner) {
             Log.w(TAG, "Skipping self-directed message: messageId=$messageId, from=$from, to=$to")
             return
         }
-        val deliveryTime = parseTimestamp(message, TAG)?.let { Date(it) } ?: return.also {
-            Log.w(TAG, "receiveCarbonForwarded failed: no valid timestamp for messageId=$messageId")
-        }
+        val deliveryTime = parseTimestamp(message, TAG)?.let { Date(it) }
         val queueItem = MessageQueueItem(
             message = message,
             messageId = messageId,
             archivedFrom = from,
             isRead = from == owner,
-            date = deliveryTime,
+            date = deliveryTime!!,
             state = if (from == owner) MessageSendingState.Deliver else MessageSendingState.Sent,
             queryId = getMAMQueryId(message),
-            originalFrom = from,
+            originalFrom = from!!,
             originalOutgoing = from == owner
         )
         enqueue(queueItem)

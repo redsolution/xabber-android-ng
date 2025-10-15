@@ -35,7 +35,7 @@ import javax.xml.parsers.DocumentBuilderFactory
 
 class MessageArchiveManager(private val owner: String) {
     private val namespace = "urn:xmpp:mam:2"
-    private val pageSize = 20 // Reduced from 60 to 20
+    private val pageSize = 50
     private val callbacksQueue = mutableSetOf<CallbackQueueItem>()
     private val searchResultsQueries = mutableSetOf<String>()
     private val interactiveQueue = mutableListOf<String>()
@@ -584,13 +584,12 @@ class MessageArchiveManager(private val owner: String) {
                 archiveStart = realm.query<AccountStorageItem>("jid = $0", owner).first().find()?.createdAt?.let { Date(it) }
             }
 
-            val queryId = "MAM:${NanoId.generateOptimized(8, nanoIdAlphabet, nanoIdMask, nanoIdStep)}"
+//            val queryId = "MAM:${NanoId.generateOptimized(8, nanoIdAlphabet, nanoIdMask, nanoIdStep)}"
             requestArchive(
                 stream = stream,
                 jid = jid,
                 isContinues = true,
                 conversationType = conversationType,
-                queryId = queryId,
                 rsmBefore = messageId,
                 start = archiveStart,
                 max = pageSize,
