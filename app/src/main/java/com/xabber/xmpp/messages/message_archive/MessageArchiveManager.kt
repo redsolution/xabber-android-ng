@@ -765,6 +765,7 @@ class MessageArchiveManager(private val owner: String) {
                 Log.d(TAG, "Processed message: queryId=$queryId, messageId=${instance.messageId}, primary=${instance.primary}, opponent=$opponent, body=${instance.body.take(50)}, isOutgoing=$originalOutgoing, conversationType=${instance.conversationType_}")
 
             }
+
             temporaryMessageReceiver?.didReceiveMessage(instance, queryId)
             instance
         } catch (e: Exception) {

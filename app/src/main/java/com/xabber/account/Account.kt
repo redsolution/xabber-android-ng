@@ -817,8 +817,8 @@ class Account : XMPPStreamDelegate {
                 "primary = $0 AND isProcessed = false", TemporaryMessageStanzaStorageItem.genPrimary(messageId, jid)
             ).first().find()
 
-            if (tempStanza == null && !isChatState) {
-                Log.d(TAG, "Creating new TemporaryMessageStanzaStorageItem for messageId=$messageId, primary=$primary")
+            if (tempStanza == null && !isChatState && containerType == "runtime") {  // Skip for "archived"/"forwarded"
+                Log.d(TAG, "Creating new TemporaryMessageStanzaStorageItem for runtime messageId=$messageId, primary=$primary")
                 realm.write {
                     val newTempStanza = TemporaryMessageStanzaStorageItem().apply {
                         this.messageId = messageId
@@ -831,6 +831,8 @@ class Account : XMPPStreamDelegate {
                     }
                     copyToRealm(newTempStanza, UpdatePolicy.ALL)
                 }
+            } else if (containerType != "runtime") {
+                Log.d(TAG, "Skipping temp creation for non-runtime containerType=$containerType, messageId=$messageId")
             }
 
             when (containerType) {

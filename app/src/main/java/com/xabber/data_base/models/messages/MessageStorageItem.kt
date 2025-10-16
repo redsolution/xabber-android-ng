@@ -5,6 +5,8 @@ import com.xabber.utils.prp
 import com.xabber.utils.toMap
 import com.xabber.xmpp.messages.XMPPMessage
 import com.xabber.data_base.models.sync.ConversationType
+import com.xabber.dto.MessageDto
+import com.xabber.dto.MessageReferenceDto
 import com.xabber.xmpp.messages.message.MessageStanzaStorageItem
 import io.realm.kotlin.MutableRealm
 import io.realm.kotlin.UpdatePolicy
@@ -259,5 +261,59 @@ class MessageStorageItem : RealmObject {
         }.also {
             Log.d(TAG, "Determined conversationType=${it.rawValue} for messageId=${message.id}, to=$to")
         }
+    }
+    fun toMessageDto(): MessageDto? = try {
+        val TAG = "TO MSI"
+        MessageDto(
+            primary = primary,
+            isOutgoing = outgoing,
+            owner = owner,
+            opponentJid = opponent,
+            messageBody = body ?: "",
+            messageSendingState = when {
+                isRead -> MessageSendingState.Read
+                outgoing -> MessageSendingState.Deliver
+                else -> MessageSendingState.Sent
+            },
+            sentTimestamp = sentDate,
+            editTimestamp = editDate,
+            displayType = when {
+                conversationType_ == "https://xabber.com/protocol/groups#system-message" -> MessageDisplayType.System
+                body.isNullOrEmpty() && references.isNotEmpty() -> MessageDisplayType.Images
+                else -> MessageDisplayType.Text
+            },
+            canEditMessage = outgoing,
+            canDeleteMessage = outgoing,
+            urlAvatar = null,
+            isGroup = conversationType_ == "https://xabber.com/protocol/groups",
+            kind = null,
+            isSelected = false, // Managed separately
+            references = references.mapNotNull { ref ->
+                try {
+                    MessageReferenceDto(
+                        id = ref.primary,
+                        uri = ref.uri,
+                        mimeType = ref.mimeType,
+                        isGeo = ref.isGeo,
+                        latitude = ref.latitude,
+                        longitude = ref.longitude,
+                        isVoiceMessage = ref.isAudioMessage,
+                        fileName = ref.fileName,
+                        size = ref.fileSize
+                    )
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to map reference: ${e.message}")
+                    null
+                }
+            } as ArrayList<MessageReferenceDto>,
+            isUnread = !isRead,
+            isChecked = false, // Managed separately
+            archivedId = archivedId
+        ).also {
+            Log.d(TAG, "Mapped storage item to DTO: primary=${it.primary}, archivedId=${archivedId}, isUnread=${it.isUnread}")
+        }
+    } catch (e: Exception) {
+        Log.e("TO MSI", "Failed to map MessageStorageItem to MessageDto: primary=$primary, error=${e.message}")
+        null
     }
 }

@@ -11,6 +11,7 @@ import androidx.fragment.app.DialogFragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import by.kirich1409.viewbindingdelegate.viewBinding
 import com.xabber.R
+import com.xabber.data_base.defaultRealmConfig
 import com.xabber.data_base.models.messages.MessageSendingState
 import com.xabber.databinding.FragmentChatSettingsBinding
 import com.xabber.dto.MessageDto
@@ -21,6 +22,7 @@ import com.xabber.presentation.application.fragments.chat.ChatSettingsManager
 import com.xabber.presentation.application.fragments.chat.Gradient
 import com.xabber.presentation.application.fragments.chat.GradientAdapter
 import com.xabber.presentation.application.fragments.chat.MessageAdapter
+import io.realm.kotlin.Realm
 
 class ChatSettingsDialog : DialogFragment(R.layout.fragment_chat_settings),
     GradientAdapter.TryOnWallpaper {
@@ -48,6 +50,8 @@ class ChatSettingsDialog : DialogFragment(R.layout.fragment_chat_settings),
     }
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        val realm = Realm.open(defaultRealmConfig()) // Initialize Realm
+
         binding.rvChatDemonstration.layoutManager = LinearLayoutManager(requireContext())
         list.add(
             MessageDto(
@@ -91,8 +95,15 @@ class ChatSettingsDialog : DialogFragment(R.layout.fragment_chat_settings),
                 canDeleteMessage = false
             )
         )
-
-        adapter = MessageAdapter(layoutInflater, messages = list, isGroup = false)
+        adapter = MessageAdapter(
+            layoutInflater,
+            listener = null, // No menu listener for demo
+            onViewClickListener = null, // No click listener for demo
+            isGroup = false,
+            onBindListener = null, // No onBind for demo, or define if needed
+            realm = realm,
+            onMessagesUpdated = { /* No update needed for static demo */ }
+        )
         binding.rvChatDemonstration.adapter = adapter
         binding.seekBar.progress = ChatSettingsManager.cornerValue
         binding.tvProgressValue.text = ChatSettingsManager.cornerValue.toString()

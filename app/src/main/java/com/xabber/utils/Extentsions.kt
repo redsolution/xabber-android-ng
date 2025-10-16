@@ -67,6 +67,7 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeParseException
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
@@ -318,40 +319,24 @@ fun JSONObject.toMap(): Map<String, Any> {
     return map
 }
 
-// Existing parseTimestamp (unchanged)
 @RequiresApi(Build.VERSION_CODES.O)
 fun parseTimestamp(message: XMPPMessage, tag: String = "TimestampParser"): Long? {
     fun tryParse(stamp: String, messageId: String?, source: String): Long? {
-        try {
-            val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'")
-            val zdt = ZonedDateTime.parse(stamp, formatter.withZone(ZoneId.of("UTC")))
+        return try {
+            // Native ISO parser handles variable fractional seconds (0-9 digits) and 'Z'
+            val zdt = ZonedDateTime.parse(stamp)
             val epochMilli = zdt.toInstant().toEpochMilli()
-            if (epochMilli > System.currentTimeMillis() + 86400000) {
+            if (epochMilli > System.currentTimeMillis() + 86400000L) {
                 Log.w(tag, "Invalid future timestamp ($source) for messageId=$messageId: $stamp -> $epochMilli")
-                return null
+                null
+            } else {
+                Log.d(tag, "Parsed timestamp ($source) for messageId=$messageId: $stamp -> $epochMilli")
+                epochMilli
             }
-            return epochMilli.also {
-                Log.d(tag, "Parsed timestamp ($source) for messageId=$messageId: $stamp -> $it")
-            }
-        } catch (e: DateTimeException) {
-            try {
-                // Fallback to milliseconds format
-                val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
-                val zdt = ZonedDateTime.parse(stamp, formatter.withZone(ZoneId.of("UTC")))
-                val epochMilli = zdt.toInstant().toEpochMilli()
-                if (epochMilli > System.currentTimeMillis() + 86400000) {
-                    Log.w(tag, "Invalid future timestamp ($source) for messageId=$messageId: $stamp -> $epochMilli")
-                    return null
-                }
-                return epochMilli.also {
-                    Log.d(tag, "Parsed timestamp ($source) for messageId=$messageId: $stamp -> $it")
-                }
-            } catch (e: DateTimeException) {
-                Log.w(tag, "Failed to parse ISO ($source) for messageId=$messageId: $stamp, error=${e.message}")
-            }
+        } catch (e: DateTimeParseException) {
+            Log.w(tag, "Failed to parse ISO ($source) for messageId=$messageId: $stamp, error=${e.message} (index=${e.errorIndex})")
+            null
         }
-        Log.w(tag, "All parsers failed ($source) for messageId=$messageId: $stamp")
-        return null
     }
 
     val messageId = message.element("origin-id", namespace = "urn:xmpp:sid:0")?.getAttribute("id") ?: message.id ?: "unknown"
@@ -364,17 +349,11 @@ fun parseTimestamp(message: XMPPMessage, tag: String = "TimestampParser"): Long?
             val innerMessage = forwarded.element("message", namespace = "jabber:client")
             if (innerMessage != null) {
                 val innerTime = innerMessage.element("time", namespace = "https://xabber.com/protocol/delivery")?.getAttribute("stamp")
-                if (innerTime != null) {
-                    return tryParse(innerTime, messageId, "inner <time>")
-                }
+                if (innerTime != null) return tryParse(innerTime, messageId, "inner <time>")
                 val innerDelay = innerMessage.element("delay", namespace = "urn:xmpp:delay")?.getAttribute("stamp")
-                if (innerDelay != null) {
-                    return tryParse(innerDelay, messageId, "inner <delay>")
-                }
+                if (innerDelay != null) return tryParse(innerDelay, messageId, "inner <delay>")
                 val forwardedDelay = forwarded.element("delay", namespace = "urn:xmpp:delay")?.getAttribute("stamp")
-                if (forwardedDelay != null) {
-                    return tryParse(forwardedDelay, messageId, "forwarded <delay>")
-                }
+                if (forwardedDelay != null) return tryParse(forwardedDelay, messageId, "forwarded <delay>")
                 Log.d(tag, "No <time> or <delay> found in inner message for messageId=$messageId")
             } else {
                 Log.w(tag, "No <forwarded> found in MAM <result> for messageId=$messageId")
@@ -384,13 +363,9 @@ fun parseTimestamp(message: XMPPMessage, tag: String = "TimestampParser"): Long?
 
     // Fallback to outer message
     val outerTime = message.element("time", namespace = "https://xabber.com/protocol/delivery")?.getAttribute("stamp")
-    if (outerTime != null) {
-        return tryParse(outerTime, messageId, "outer <time>")
-    }
+    if (outerTime != null) return tryParse(outerTime, messageId, "outer <time>")
     val outerDelay = message.element("delay", namespace = "urn:xmpp:delay")?.getAttribute("stamp")
-    if (outerDelay != null) {
-        return tryParse(outerDelay, messageId, "outer <delay>")
-    }
+    if (outerDelay != null) return tryParse(outerDelay, messageId, "outer <delay>")
 
     // Parse raw XML as fallback
     try {
@@ -405,14 +380,10 @@ fun parseTimestamp(message: XMPPMessage, tag: String = "TimestampParser"): Long?
                 val namespace = parser.namespace
                 if (tagName == "time" && namespace == "https://xabber.com/protocol/delivery") {
                     val stamp = parser.getAttributeValue(null, "stamp")
-                    if (stamp != null) {
-                        return tryParse(stamp, messageId, "raw <time>")
-                    }
+                    if (stamp != null) return tryParse(stamp, messageId, "raw <time>")
                 } else if (tagName == "delay" && namespace == "urn:xmpp:delay") {
                     val stamp = parser.getAttributeValue(null, "stamp")
-                    if (stamp != null) {
-                        return tryParse(stamp, messageId, "raw <delay>")
-                    }
+                    if (stamp != null) return tryParse(stamp, messageId, "raw <delay>")
                 }
             }
             eventType = parser.next()
@@ -753,3 +724,4 @@ fun observeMessages(
         }
     }
 }
+

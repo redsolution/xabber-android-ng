@@ -46,14 +46,14 @@ class ChatViewModel(
     private val chatId: String,
     private val owner: String,
     private val opponent: String,
-    private val conversationType: ConversationType
+    val conversationType: ConversationType
 ) : ViewModel() {
     val realm = Realm.open(defaultRealmConfig())
     private var lastLoadOlderMessagesTime = 0L
     private val _chat = MutableLiveData<ChatListDto?>()
     val chat: LiveData<ChatListDto?> = _chat
     private val messageListMutex = Mutex()
-    private val _messages = MutableLiveData<List<MessageDto>>()
+    val _messages = MutableLiveData<List<MessageDto>>()
     val messages: LiveData<List<MessageDto>> = _messages
     private var job: Job? = null
     private val _opponentName = MutableLiveData<String>()
@@ -171,6 +171,16 @@ class ChatViewModel(
             }
             messageList.sortedBy { it.sentTimestamp }
         }
+    }
+
+    suspend fun updateMessagesAndUnread(messages: List<MessageDto>) {
+        messageListMutex.withLock {
+            messageList.clear()
+            messageList.addAll(messages)
+        }
+        _messages.postValue(messages)
+        _unreadCount.postValue(messages.count { it.isUnread })
+        Log.d(TAG, "Updated messages and unread: size=${messages.size}, unread=${messages.count { it.isUnread }}")
     }
 
     suspend fun loadInitialData() {
@@ -341,7 +351,17 @@ class ChatViewModel(
                     }
 
                     val bareOpponentJid = messageDto.opponentJid.removeSuffix("/${messageDto.opponentJid.substringAfterLast("/")}")
+                    val validOwner = messageDto.owner.ifEmpty { this@ChatViewModel.owner } // Fallback to ViewModel owner
+                    if (validOwner.isEmpty()) {
+                        Log.e(TAG, "Skipping message insertion: empty owner for opponent=$bareOpponentJid")
+                        return@forEach
+                    }
                     val messageConversationType = if (messageDto.isGroup) ConversationType.Group else conversationType
+                    val chatPrimary = LastChatsStorageItem.genPrimary(bareOpponentJid, validOwner, messageConversationType) // Now with valid owner
+                    if (chatPrimary.isEmpty()) {
+                        Log.w(TAG, "Skipping LastChatsStorageItem creation: invalid chatPrimary for jid=$bareOpponentJid, owner=$validOwner, type=${messageConversationType.rawValue}")
+                        return@forEach
+                    }
                     val message = copyToRealm(MessageStorageItem().apply {
                         this.primary = primary
                         owner = messageDto.owner
@@ -375,7 +395,6 @@ class ChatViewModel(
                         }
                     }
 
-                    val chatPrimary = LastChatsStorageItem.genPrimary(bareOpponentJid, messageDto.owner, messageConversationType)
                     if (chatPrimary.isEmpty()) {
                         Log.w(TAG, "Skipping LastChatsStorageItem creation: invalid chatPrimary for jid=$bareOpponentJid, owner=${messageDto.owner}, type=${messageConversationType.rawValue}")
                         return@forEach

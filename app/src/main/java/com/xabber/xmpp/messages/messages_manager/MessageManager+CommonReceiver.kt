@@ -168,6 +168,14 @@ class MessageCommonReceiver(private val owner: String) {
         )
         processedMessageIds.add(messageId)
         enqueue(queueItem)
+        CoroutineScope(Dispatchers.IO).launch {
+            processQueue(messagesQueue.value) { messages ->
+                messages?.let { save(it) }
+            }
+        }
+        storeMessagesNow()
+
+        Log.d(TAG, "Processed archived MAM synchronously: messageId=$messageId")
     }
 
     suspend fun receiveCarbon(message: XMPPMessage) {

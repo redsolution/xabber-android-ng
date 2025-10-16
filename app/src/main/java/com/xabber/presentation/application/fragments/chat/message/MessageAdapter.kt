@@ -8,12 +8,27 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.xabber.R
 import com.xabber.data_base.models.messages.MessageDisplayType
+import com.xabber.data_base.models.messages.MessageStorageItem
 import com.xabber.dto.MessageDto
 import com.xabber.presentation.application.fragments.chat.message.IncomingMessageVH
 import com.xabber.presentation.application.fragments.chat.message.MessageViewHolder
 import com.xabber.presentation.application.fragments.chat.message.OutgoingMessageVH
 import com.xabber.presentation.application.fragments.chat.message.SystemMessageVH
 import com.xabber.utils.isSameDayWith
+import io.realm.kotlin.Realm
+import io.realm.kotlin.ext.query
+import io.realm.kotlin.notifications.InitialResults
+import io.realm.kotlin.notifications.ResultsChange
+import io.realm.kotlin.notifications.UpdatedResults
+import io.realm.kotlin.query.RealmResults
+import io.realm.kotlin.query.Sort
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MessageAdapter(
     private val layoutInflater: LayoutInflater,
@@ -21,15 +36,24 @@ class MessageAdapter(
     private val onViewClickListener: OnViewClickListener? = null,
     val messages: ArrayList<MessageDto> = ArrayList(),
     private val isGroup: Boolean,
-    private val onBindListener: ((MessageDto?) -> Unit)? = null
-) : ListAdapter<MessageDto, MessageViewHolder>(DiffUtilCallback) {
+    private val onBindListener: ((MessageDto?) -> Unit)? = null,
+    private val realm: Realm, // New: Pass Realm instance
+    private val onMessagesUpdated: (List<MessageDto>) -> Unit // New: Callback to notify ChatViewModel
+) : RecyclerView.Adapter<MessageViewHolder>() {
+
+
+    private var collection: RealmResults<MessageStorageItem>? = null
+    private var currentList: List<MessageDto> = emptyList()
+    private var observingJob: Job? = null
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
 
     init {
         setHasStableIds(true)
     }
 
     override fun getItemId(position: Int): Long {
-        return getMessageItem(position)?.primary?.hashCode()?.toLong() ?: RecyclerView.NO_ID
+        return currentList.getOrNull(position)?.primary?.hashCode()?.toLong() ?: RecyclerView.NO_ID
     }
 
     private var firstUnreadMessageID: String? = null
@@ -52,7 +76,46 @@ class MessageAdapter(
         fun onLocationClick(latitude: Double, longitude: Double)
     }
 
-    override fun getItemCount(): Int = messages.size
+    override fun getItemCount(): Int = currentList.size
+
+    fun startObserving(owner: String, opponent: String, conversationType: String) {
+        stopObserving() // Stop any existing observation
+        val query = realm.query<MessageStorageItem>(
+            "owner = $0 AND opponent = $1 AND conversationType_ = $2 AND isDeleted = false",
+            owner, opponent, conversationType
+        ).sort("sentDate", Sort.ASCENDING)
+        collection = query.find()
+
+        observingJob = scope.launch {
+            collection!!.asFlow().collect { changes: ResultsChange<MessageStorageItem> ->
+                val newDtos = when (changes) {
+                    is InitialResults -> changes.list.mapNotNull { it.toMessageDto() }
+                    is UpdatedResults -> changes.list.mapNotNull { it.toMessageDto() }
+                }.sortedBy { it.sentTimestamp }
+
+                withContext(Dispatchers.Main) {
+                    val prevSize = currentList.size
+                    currentList = newDtos
+                    onMessagesUpdated(currentList) // Notify ChatViewModel
+
+                    // Notify adapter changes (simple full refresh for simplicity; optimize with specific notifies if needed)
+                    notifyDataSetChanged()
+
+                    Log.d(TAG, "Observed ${currentList.size} messages (from ${changes.list.size} storage items), notified ViewModel")
+                }
+            }
+        }
+        Log.d(TAG, "Started observing messages for owner=$owner, opponent=$opponent")
+    }
+
+
+    fun stopObserving() {
+        observingJob?.cancel()
+        observingJob = null
+        collection = null
+        currentList = emptyList()
+        notifyDataSetChanged()
+    }
 
     fun updateAdapter(messageDtoList: List<MessageDto>) {
         Log.v(TAG, "Updating adapter with ${messageDtoList.size} messages")
@@ -104,7 +167,7 @@ class MessageAdapter(
     }
 
     override fun getItemViewType(position: Int): Int {
-        val message = getMessageItem(position) ?: return INCOMING_MESSAGE
+        val message = currentList.getOrNull(position) ?: return INCOMING_MESSAGE
         return when {
             message.displayType == MessageDisplayType.System -> SYSTEM_MESSAGE
             message.isOutgoing -> OUTGOING_MESSAGE
@@ -135,8 +198,8 @@ class MessageAdapter(
     }
 
     override fun onBindViewHolder(holder: MessageViewHolder, position: Int) {
-        Log.d(TAG, "Binding position $position of ${itemCount} (message primary: ${getMessageItem(position)?.primary})")
-        val message = getMessageItem(position) ?: return
+        Log.d(TAG, "Binding position $position of ${itemCount} (message primary: ${currentList.getOrNull(position)?.primary})")
+        val message = currentList.getOrNull(position) ?: return
         Log.v(TAG, "Binding message: primary=${message.primary}, body=${message.messageBody.take(50)}, isOutgoing=${message.isOutgoing}, isUnread=${message.isUnread}, isChecked=${message.isChecked}")
         holder.setIsRecyclable(true)
         holder.messageId = message.primary
@@ -184,7 +247,7 @@ class MessageAdapter(
     }
 
     fun getMessageItem(position: Int): MessageDto? =
-        if (position in 0 until messages.size) messages[position] else null
+        if (position in 0 until currentList.size) currentList[position] else null
 
     fun setFirstUnreadMessageId(id: String?) {
         firstUnreadMessageID = id
@@ -197,15 +260,15 @@ class MessageAdapter(
         } else {
             checkedItemIds.remove(primary)
         }
-        val position = messages.indexOfFirst { it.primary == primary }
+        val position = currentList.indexOfFirst { it.primary == primary }
         if (position != -1) {
-            messages[position] = messages[position].copy(isChecked = isChecked, isSelected = isChecked)
+            // Note: Since currentList is immutable in this setup, update via notifyItemChanged
             notifyItemChanged(position)
         }
     }
 
     private fun notifyUnreadState() {
-        messages.forEachIndexed { index, message ->
+        currentList.forEachIndexed { index, message ->
             if (message.isUnread && (firstUnreadMessageID == null || message.primary == firstUnreadMessageID)) {
                 notifyItemChanged(index)
             }
@@ -232,5 +295,11 @@ class MessageAdapter(
         const val INCOMING_MESSAGE = 1
         const val OUTGOING_MESSAGE = 2
         const val SYSTEM_MESSAGE = 3
+    }
+
+    override fun onDetachedFromRecyclerView(parent: RecyclerView) {
+        super.onDetachedFromRecyclerView(parent)
+        stopObserving()
+        scope.cancel()
     }
 }
