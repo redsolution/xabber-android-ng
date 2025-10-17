@@ -239,11 +239,29 @@
                 } else {
                     restoreDraft()
                     // Delay scroll to ensure adapter is populated
-                    binding.messageList.post {
-                        scrollDown()
-                        Log.d("ChatFragment", "Initial scroll to bottom on chat open")
+                }
+
+                lifecycleScope.launch {
+                    val account = AccountManager.find(chat.owner)
+                    if (account != null) {
+                        account.action { acc, stream ->
+                            Log.d("ChatFragment", "Starting MAM sync for chat: owner=${chat.owner}, opponent=${chat.opponentJid}, type=${viewModel.conversationType}")
+                            acc.messageArchiveManager.syncChat(
+                                stream = stream,
+                                jid = chat.opponentJid,
+                                conversationType = viewModel.conversationType
+                            )
+                        }
+                    } else {
+                        Log.e("ChatFragment", "Account not found for owner=${chat.owner}")
                     }
                 }
+
+                binding.messageList.post {
+                    scrollDown()
+                    Log.d("ChatFragment", "Initial scroll to bottom on chat open")
+                }
+
                 Log.d("ChatFragment", "Opening chat: id=${getParams().id}, owner=${chat.owner}, opponentJid=${chat.opponentJid}")
             }
         }
@@ -447,11 +465,11 @@
 
             // Start observing after adapter setup
             viewModel.viewModelScope.launch {
-                val chat = viewModel.loadChat(getParams().id)
+                val chat = viewModel.loadChat(getParams().id)!!
                 messageAdapter!!.startObserving(
-                    owner = chat?.owner ?: "",
-                    opponent = chat!!.opponentJid, // Fixed: was jid, now opponentJid
-                    conversationType = viewModel.conversationType.rawValue // Fixed: use from ViewModel
+                    owner = chat.owner,
+                    opponent = chat.opponentJid,
+                    conversationType = viewModel.conversationType.rawValue
                 )
             }
 

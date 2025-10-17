@@ -223,7 +223,7 @@ class ClientSynchronizationManager(owner: String) {
                     val metadataList = conversation.getElementsByTagName("metadata")
                     var unreadCount = 0L
                     var lastMessage: MessageStorageItem? = null
-                    var messageDate = 0L
+                    var messageDate = conversationStamp
                     var lastMessageId = ""
 
                     for (j in 0 until metadataList.length) {

@@ -79,7 +79,7 @@ class MessageAdapter(
     override fun getItemCount(): Int = currentList.size
 
     fun startObserving(owner: String, opponent: String, conversationType: String) {
-        stopObserving() // Stop any existing observation
+        stopObserving()
         val query = realm.query<MessageStorageItem>(
             "owner = $0 AND opponent = $1 AND conversationType_ = $2 AND isDeleted = false",
             owner, opponent, conversationType
@@ -94,20 +94,21 @@ class MessageAdapter(
                 }.sortedBy { it.sentTimestamp }
 
                 withContext(Dispatchers.Main) {
-                    val prevSize = currentList.size
                     currentList = newDtos
-                    onMessagesUpdated(currentList) // Notify ChatViewModel
-
-                    // Notify adapter changes (simple full refresh for simplicity; optimize with specific notifies if needed)
+                    onMessagesUpdated(newDtos) // This will trigger ViewModel update
                     notifyDataSetChanged()
 
-                    Log.d(TAG, "Observed ${currentList.size} messages (from ${changes.list.size} storage items), notified ViewModel")
+                    val archivedMessages = newDtos.filter { !it.archivedId.isNullOrEmpty() }
+                    if (archivedMessages.isNotEmpty()) {
+                        Log.d(TAG, "Adapter received ${archivedMessages.size} archived messages")
+                    }
+
+                    Log.d(TAG, "Observed ${currentList.size} messages total")
                 }
             }
         }
         Log.d(TAG, "Started observing messages for owner=$owner, opponent=$opponent")
     }
-
 
     fun stopObserving() {
         observingJob?.cancel()

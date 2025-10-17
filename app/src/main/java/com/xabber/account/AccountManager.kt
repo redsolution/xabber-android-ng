@@ -9,6 +9,7 @@ import com.xabber.data_base.defaultRealmConfig
 import com.xabber.data_base.models.account.AccountStorageItem
 import com.xabber.data_base.models.avatar.AvatarStorageItem
 import com.xabber.data_base.models.last_chats.LastChatsStorageItem
+import com.xabber.data_base.models.messages.MessageForwardsInlineStorageItem
 import com.xabber.data_base.models.messages.MessageReferenceStorageItem
 import com.xabber.data_base.models.messages.MessageStorageItem
 import com.xabber.data_base.models.presences.ResourceStorageItem
@@ -20,6 +21,7 @@ import com.xabber.presentation.application.fragments.chat.ChatViewModel
 import com.xabber.presentation.onboarding.util.PasswordStorageHelper
 import com.xabber.xmpp.XEP_0CCC.ClientSynchronizationManager
 import com.xabber.xmpp.device.DeviceStorageItem
+import com.xabber.xmpp.global_index.GroupChatIndexStorageItem
 import com.xabber.xmpp.groupchat.GroupChatStorageItem
 import com.xabber.xmpp.groupchat.GroupchatInvitesStorageItem
 import com.xabber.xmpp.messages.message.MessageStanzaStorageItem
@@ -27,6 +29,7 @@ import com.xabber.xmpp.messages.message.TemporaryMessageStanzaStorageItem
 import com.xabber.xmpp.messages.messages_manager.MessageCommonSender
 import com.xabber.xmpp.notifications.NotificationStorageItem
 import com.xabber.xmpp.notifications.XMPPNotificationsManagerStorageItem
+import com.xabber.xmpp.roster.RosterDisplayNameStorageItem
 import com.xabber.xmpp.voip.voIPManager.CallMetadataStorageItem
 import com.xabber.xmpp.x509.X509StorageItem
 import io.realm.kotlin.Realm
@@ -295,6 +298,10 @@ object AccountManager {
                 deleteStorageItems(MessageStorageItem::class, "owner", jid)
                 deleteStorageItems(RosterStorageItem::class, "owner", jid)
                 deleteStorageItems(LastChatsStorageItem::class, "owner", jid)
+                // Added missing items:
+                deleteStorageItems(MessageForwardsInlineStorageItem::class, "owner", jid)
+                deleteStorageItems(GroupChatIndexStorageItem::class, "owner", jid)
+                deleteStorageItems(RosterDisplayNameStorageItem::class, "owner", jid)
                 passwordStorageHelper?.remove(jid)
                     ?: Log.w("AccountManager", "PasswordStorageHelper not initialized, skipping password removal for jid $jid")
                 true

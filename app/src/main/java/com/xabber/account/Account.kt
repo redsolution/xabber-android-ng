@@ -62,6 +62,9 @@ class Account : XMPPStreamDelegate {
     companion object {
         private const val TAG = "Account"
     }
+    private var bindingCompleted = false
+    private var bindingRequestId: String? = null
+
     private val presenceStanzas = mutableListOf<String>() // Class-level buffer for presence stanzas
     var jid: String = ""
     var host: String = ""
@@ -94,6 +97,10 @@ class Account : XMPPStreamDelegate {
     val messages: MessageManager by lazy { MessageManager(jid, activeStream = stream != null) }
     val messageReceiver: MessageCommonReceiver by lazy { MessageCommonReceiver(jid) }
 
+    private val rosterStanzaBuffer = StringBuilder()
+    private val syncStanzaBuffer = StringBuilder()
+    private val syncCompletionChannel = Channel<Unit>(1)
+
     // New: Buffer for post-registration stanzas (roster, sync, presence)
     private val stanzaBuffer = MutableSharedFlow<StanzaItem>(replay = 0, extraBufferCapacity = 1000)
     private val stanzaProcessingScope =
@@ -110,6 +117,134 @@ class Account : XMPPStreamDelegate {
         if (deviceName.isEmpty()) {
             deviceName = NickGenerator.genRandomNick()
         }
+        stanzaProcessingScope.launch {
+            stanzaBuffer.collect { item ->
+                when (item.type) {
+                    StanzaItem.StanzaType.ROSTER -> processRosterStanza(item.content, item.stream)
+                    StanzaItem.StanzaType.SYNC -> processSyncStanza(item.content, item.stream)
+                    StanzaItem.StanzaType.PRESENCE -> Log.d(TAG, "Skipping PRESENCE")
+                    StanzaItem.StanzaType.OTHER -> Log.d(TAG, "Skipping OTHER")
+                }
+            }
+        }
+    }
+
+    private suspend fun processRosterStanza(stanza: String, stream: Stream) {
+        val batchSize = 10 // Process up to 10 roster stanzas at once
+        val rosterStanzas = mutableListOf<String>()
+        synchronized(rosterStanzaBuffer) {
+            rosterStanzaBuffer.append(stanza)
+            val bufferedContent = rosterStanzaBuffer.toString()
+            if (bufferedContent.trim().startsWith("<iq") && bufferedContent.contains("</iq>")) {
+                rosterStanzas.add(bufferedContent)
+                rosterStanzaBuffer.clear()
+                Log.d(TAG, "Collected complete roster stanza for processing: ${bufferedContent.take(200)}")
+            } else {
+                Log.d(TAG, "Incomplete roster stanza, buffering: ${bufferedContent.take(200)}")
+                return
+            }
+        }
+
+        // Batch process roster stanzas
+        rosterStanzas.chunked(batchSize).forEach { batch ->
+            try {
+                batch.forEach { completeStanza ->
+                    val iq = parseIQ(completeStanza) // Assume parseIQ is defined elsewhere
+                    if (iq != null) {
+                        rosterManager.read(
+                            XMPPIQ(
+                                raw = completeStanza,
+                                type = iq.type,
+                                id = iq.id,
+                                from = iq.from,
+                                to = iq.to,
+                                error = iq.error,
+                                queryNamespace = iq.queryNamespace,
+                                queryContent = iq.queryContent
+                            )
+                        )
+                        Log.d(TAG, "Processed roster IQ stanza: ${completeStanza.take(200)}")
+                    } else {
+                        Log.w(TAG, "Failed to parse roster IQ stanza: ${completeStanza.take(200)}")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error processing roster stanza batch: ${e.message}", e)
+            }
+        }
+    }
+
+    private suspend fun processSyncStanza(stanza: String, stream: Stream) {
+        val batchSize = 10 // Process up to 10 sync stanzas at once
+        val syncStanzas = mutableListOf<String>()
+        synchronized(syncStanzaBuffer) {
+            syncStanzaBuffer.append(stanza)
+            val bufferedContent = syncStanzaBuffer.toString()
+            if (bufferedContent.contains("<query") && bufferedContent.contains("https://xabber.com/protocol/synchronization") && bufferedContent.contains(
+                    "</query>"
+                )
+            ) {
+                val cleaned = bufferedContent.replace(
+                    Regex("""<iq[^>]*type='result'[^>]*id='ping1'[^>]*/>"""),
+                    ""
+                ).replace(Regex("r\\.boldin='modify'"), "")
+                val iqStart = cleaned.indexOf("<iq")
+                val iqEnd = cleaned.lastIndexOf("</iq>") + 5
+                if (iqStart != -1 && iqEnd != -1 && iqEnd > iqStart) {
+                    syncStanzas.add(cleaned.substring(iqStart, iqEnd))
+                    syncStanzaBuffer.clear()
+                    Log.d(
+                        TAG,
+                        "Collected complete sync stanza for processing: ${cleaned.take(200)}"
+                    )
+                } else {
+                    Log.e(TAG, "Failed to extract complete sync <iq> stanza: ${cleaned.take(200)}")
+                    return
+                }
+            } else {
+                Log.d(TAG, "Incomplete sync stanza, buffering: ${bufferedContent.take(200)}")
+                return
+            }
+        }
+        syncStanzas.chunked(batchSize).forEach { batch ->
+            try {
+                batch.forEach { completeStanza ->
+                    syncManager.read(completeStanza)
+                    Log.d(TAG, "Processed sync query stanza: ${completeStanza.take(200)}")
+                    syncCompletionChannel.trySend(Unit)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error processing sync stanza batch: ${e.message}", e)
+            }
+        }
+
+    }
+
+//    private suspend fun processPresenceStanza(stanza: String, stream: Stream) {
+//        synchronized(presenceStanzas) { presenceStanzas.add(stanza) }
+//        if (presenceStanzas.size >= 50) {
+//            val batch = synchronized(presenceStanzas) {
+//                presenceStanzas.take(50).also { presenceStanzas.removeAll(it) }
+//            }
+//            launch { batch.forEach { presenceManager?.processPresence(it) } }
+//        }
+//    }
+
+    private fun parseIQ(stanza: String): XMPPIQ? {
+        try {
+            val typeMatch = Regex("""type=['"]([^'"]+)['"]""").find(stanza)?.groupValues?.get(1) ?: return null
+            val idMatch = Regex("""id=['"]([^'"]+)['"]""").find(stanza)?.groupValues?.get(1)
+            val fromMatch = Regex("""from=['"]([^'"]+)['"]""").find(stanza)?.groupValues?.get(1)
+            val toMatch = Regex("""to=['"]([^'"]+)['"]""").find(stanza)?.groupValues?.get(1)
+            val iqStart = stanza.indexOf("<iq")
+            val headerEnd = stanza.indexOf(">", iqStart)
+            val iqEnd = stanza.lastIndexOf("</iq>")
+            val content = if (headerEnd != -1 && iqEnd > headerEnd + 1)
+                stanza.substring(headerEnd + 1, iqEnd).trim() else ""
+            val queryNamespace = Regex("""xmlns=['"]([^'"]+)['"]""")
+                .find(content)?.groupValues?.get(1)
+            return XMPPIQ(stanza, typeMatch, idMatch, fromMatch, toMatch, null, queryNamespace, content)
+        } catch (e: Exception) { return null }
     }
 
     fun setOnErrorCallback(callback: (String) -> Unit) {
@@ -292,9 +427,8 @@ class Account : XMPPStreamDelegate {
             }
             // Buffer roster and sync IQ stanzas post-registration
             if (stream.state == StreamState.CONNECTED || stream.state == StreamState.BINDING) {
-                if (iq.queryNamespace == "jabber:iq:roster" || iq.queryContent?.contains("<item") == true || iq.queryContent?.contains("<group>") == true) {
+                if (iq.queryNamespace == "jabber:iq:roster" || iq.queryContent?.contains("<item") == true) {
                     stanzaBuffer.emit(StanzaItem(StanzaItem.StanzaType.ROSTER, iq.raw, stream))
-                    Log.d(TAG, "Buffered roster IQ stanza: ${iq.raw.take(200)}")
                     return true
                 }
                 if (iq.queryNamespace == "https://xabber.com/protocol/synchronization") {
@@ -455,6 +589,18 @@ class Account : XMPPStreamDelegate {
                     stream.state = StreamState.NOT_CONNECTING
                     return false
                 }
+            }
+
+            // *** ADD THIS NEW HANDLER ***
+            if (iq.type == "result" && iq.queryContent.isNullOrEmpty() && iq.queryNamespace.isNullOrEmpty()) {
+                Log.d(TAG, "Received empty result IQ for id='${iq.id}' from ${iq.from} - request completed successfully")
+                return true
+            }
+
+            // Handle other empty results that might have just a namespace but no content
+            if (iq.type == "result" && (iq.queryContent.isNullOrEmpty() || iq.queryContent?.trim() == "")) {
+                Log.d(TAG, "Received empty result IQ (with namespace '${iq.queryNamespace}') for id='${iq.id}' - request completed")
+                return true
             }
 
             Log.w(TAG, "Unhandled IQ: ${iq.raw}")
