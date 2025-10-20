@@ -44,8 +44,8 @@ import java.util.Date
 @RequiresApi(Build.VERSION_CODES.O)
 class ChatViewModel(
     private val chatId: String,
-    private val owner: String,
-    private val opponent: String,
+    val owner: String,
+    val opponent: String,
     val conversationType: ConversationType
 ) : ViewModel() {
     val realm = Realm.open(defaultRealmConfig())
@@ -144,32 +144,12 @@ class ChatViewModel(
 
     private suspend fun mapAllMessages(): List<MessageDto> {
         return realm.write {
-            val messages = query<MessageStorageItem>(
+            query<MessageStorageItem>(
                 "owner = $0 AND opponent = $1 AND conversationType_ = $2 AND isDeleted = false",
                 owner, opponent, conversationType.rawValue
-            ).sort("sentDate", Sort.ASCENDING).find().mapNotNull { item ->
-                mapMessageStorageItemToDto(item)
-            }
-            val chat = query<LastChatsStorageItem>("primary = $0", chatId).first().find()
-            val lastMessageId = chat?.lastMessageId
-            val lastMessage = if (lastMessageId != null) {
-                query<MessageStorageItem>(
-                    "archivedId = $0 AND owner = $1 AND conversationType_ = $2 AND isDeleted = false",
-                    lastMessageId, owner, conversationType.rawValue
-                ).first().find()?.let { mapMessageStorageItemToDto(it) }
-            } else {
-                messages.maxByOrNull { it.sentTimestamp }
-            }
-            val messageList = messages.toMutableList()
-            if (lastMessage != null && !messageList.any { it.primary == lastMessage.primary || (it.archivedId == lastMessage.archivedId && lastMessage.archivedId.isNotEmpty()) }) {
-                messageList.add(lastMessage)
-                Log.d(TAG, "Added last message from MessageStorageItem (verified by LastChatsStorageItem): primary=${lastMessage.primary}, archivedId=${lastMessage.archivedId}, body=${lastMessage.messageBody.take(50)}, sentTimestamp=${lastMessage.sentTimestamp}")
-            } else if (lastMessage != null) {
-                Log.d(TAG, "Last message already in list: primary=${lastMessage.primary}, archivedId=${lastMessage.archivedId}, body=${lastMessage.messageBody.take(50)}")
-            } else {
-                Log.w(TAG, "No last message found for chatId=$chatId, lastMessageId=$lastMessageId")
-            }
-            messageList.sortedBy { it.sentTimestamp }
+            ).sort("sentDate", Sort.DESCENDING).find()
+                .mapNotNull { it.toMessageDto() }
+                .sortedBy { it.sentTimestamp }
         }
     }
 
@@ -192,7 +172,6 @@ class ChatViewModel(
             withContext(Dispatchers.Main) {
                 _messages.value = messageList
                 _unreadCount.value = messageList.count { it.isUnread }
-                Log.d(TAG, "Displayed initial messages: size=${messageList.size}, first=${messageList.firstOrNull()?.primary}, last=${messageList.lastOrNull()?.primary}")
             }
         }
         _showSkeletonObserver.postValue(false)
@@ -204,69 +183,26 @@ class ChatViewModel(
             val query = realm.query<MessageStorageItem>(
                 "owner = $0 AND opponent = $1 AND conversationType_ = $2 AND isDeleted = false",
                 owner, opponentJid, conversationType.rawValue
-            ).sort("sentDate", Sort.ASCENDING)
-            query.asFlow().debounce(1000L).distinctUntilChanged().collect { changes: ResultsChange<MessageStorageItem> ->
-                when (changes) {
-                    is InitialResults -> {
-                        val messages = changes.list.mapNotNull { mapMessageStorageItemToDto(it) }
-                        messageListMutex.withLock {
-                            messageList.clear()
-                            messageList.addAll(messages)
-                            withContext(Dispatchers.Main) {
-                                _messages.postValue(messageList)
-                                _unreadCount.postValue(messageList.count { it.isUnread })
-                                Log.d(TAG, "Initial messages loaded: size=${messageList.size}, first=${messageList.firstOrNull()?.primary}, last=${messageList.lastOrNull()?.primary}")
-                            }
-                        }
-                    }
-                    is UpdatedResults -> {
-                        val newMessages = changes.list.mapNotNull { mapMessageStorageItemToDto(it) }
-                        messageListMutex.withLock {
-                            val currentMessages = messageList.associateBy { it.primary }.toMutableMap()
-                            var changesMade = false
-                            // Handle insertions
-                            changes.insertions.forEach { index ->
-                                val newMessage = newMessages.getOrNull(index)
-                                if (newMessage != null && !currentMessages.containsKey(newMessage.primary)) {
-                                    currentMessages[newMessage.primary] = newMessage
-                                    changesMade = true
-                                    Log.d(TAG, "Inserted new message: primary=${newMessage.primary}, archivedId=${newMessage.archivedId}, body=${newMessage.messageBody.take(50)}")
-                                }
-                            }
-                            // Handle updates
-                            changes.changes.forEach { index ->
-                                val updatedMessage = newMessages.getOrNull(index)
-                                if (updatedMessage != null) {
-                                    currentMessages[updatedMessage.primary] = updatedMessage
-                                    changesMade = true
-                                    Log.d(TAG, "Updated message: primary=${updatedMessage.primary}, archivedId=${updatedMessage.archivedId}, body=${updatedMessage.messageBody.take(50)}, isUnread=${updatedMessage.isUnread}")
-                                }
-                            }
-                            // Handle deletions
-                            changes.deletions.forEach { index ->
-                                val oldMessage = messageList.getOrNull(index)
-                                if (oldMessage != null) {
-                                    currentMessages.remove(oldMessage.primary)
-                                    changesMade = true
-                                    Log.d(TAG, "Deleted message: primary=${oldMessage.primary}, archivedId=${oldMessage.archivedId}")
-                                }
-                            }
-                            if (changesMade) {
-                                messageList.clear()
-                                messageList.addAll(currentMessages.values.sortedBy { it.sentTimestamp })
-                                withContext(Dispatchers.Main) {
-                                    _messages.postValue(messageList)
-                                    _unreadCount.postValue(messageList.count { it.isUnread })
-                                    Log.d(TAG, "Updated message list: size=${messageList.size}, first=${messageList.firstOrNull()?.primary}, last=${messageList.lastOrNull()?.primary}, unread=${messageList.count { it.isUnread }}")
-                                }
-                            } else {
-                                Log.d(TAG, "No changes to message list")
-                            }
-                        }
-                    }
+            ).sort("sentDate", Sort.DESCENDING)
+
+            query.asFlow().collect { changes: ResultsChange<MessageStorageItem> ->
+                val messages = when (changes) {
+                    is InitialResults -> changes.list.mapNotNull { it.toMessageDto() }
+                    is UpdatedResults -> changes.list.mapNotNull { it.toMessageDto() }
+                }.sortedBy { it.sentTimestamp }
+
+                messageListMutex.withLock {
+                    messageList.clear()
+                    messageList.addAll(messages)
+                }
+
+                withContext(Dispatchers.Main) {
+                    _messages.value = messages
+                    _unreadCount.value = messages.count { it.isUnread }
                 }
             }
         }
+        Log.d(TAG, "🔄 Started observing messages for owner=$owner, opponent=$opponentJid")
     }
 
     suspend fun updateMessageList(messages: List<MessageStorageItem>) {
@@ -329,10 +265,10 @@ class ChatViewModel(
                         return@forEach
                     }
 
-                    if (messageDto.messageBody.isEmpty() && messageDto.references.isEmpty()) {
-                        Log.d(TAG, "Skipping message with no body or references: primary=$primary, archivedId=${messageDto.archivedId}")
-                        return@forEach
-                    }
+//                    if (messageDto.messageBody.isEmpty() && messageDto.references.isEmpty()) {
+//                        Log.d(TAG, "Skipping message with no body or references: primary=$primary, archivedId=${messageDto.archivedId}")
+//                        return@forEach
+//                    }
 
                     var references = realmListOf<MessageReferenceStorageItem>()
                     messageDto.references.forEach { ref ->
@@ -523,7 +459,7 @@ class ChatViewModel(
             val realmList = realm.query<MessageStorageItem>(
                 "owner = '$owner' AND opponent = '$opponent' AND conversationType_ = $0 AND isDeleted = false",
                 conversationType.rawValue
-            ).sort("date", Sort.ASCENDING).find()
+            ).sort("date", Sort.DESCENDING).find()
             updateMessageList(realmList)
         }
     }

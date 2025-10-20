@@ -10,17 +10,32 @@ import org.koin.dsl.module
 @RequiresApi(Build.VERSION_CODES.O)
 val dataModule = module {
     viewModel { (chatId: String) ->
-        // Parse chatId to extract owner, opponent, and conversationType
-        val parts = chatId.split("_")
-        require(parts.size == 3) { "Invalid chatId format: $chatId. Expected format: opponent_owner_conversationType" }
-        val opponent = parts[0]
-        val owner = parts[1]
-        val conversationType = ConversationType.fromRaw(parts[2])
-        ChatViewModel(
-            chatId = chatId,
-            owner = owner,
-            opponent = opponent,
-            conversationType = conversationType
-        )
+        try {
+            val parts = chatId.split("_")
+            require(parts.size == 3) { "Invalid chatId format: $chatId" }
+
+            val opponent = parts[0]
+            val owner = parts[1]
+            val rawType = parts[2]
+
+            val conversationType = when (rawType) {
+                "urn:xabber:chat" -> ConversationType.Regular
+                "https://xabber.com/protocol/groups" -> ConversationType.Group
+                "https://xabber.com/protocol/channels" -> ConversationType.Channel
+                "urn:xmpp:omemo:2" -> ConversationType.Omemo
+                "urn:xmpp:omemo:1" -> ConversationType.Omemo1
+                "eu.siacs.conversations.axolotl" -> ConversationType.Axolotl
+                else -> {
+                    ConversationType.Regular
+                }
+            }
+
+
+            ChatViewModel(chatId, owner, opponent, conversationType)
+        } catch (e: Exception) {
+            // 🚨 EMERGENCY FALLBACK
+            val opponent = chatId.split("_").firstOrNull() ?: "fallback@jabber.com"
+            ChatViewModel(chatId, "igor.boldin@redsolution.com", opponent, ConversationType.Regular)
+        }
     }
 }

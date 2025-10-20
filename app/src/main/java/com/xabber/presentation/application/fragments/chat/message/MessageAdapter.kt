@@ -83,7 +83,7 @@ class MessageAdapter(
         val query = realm.query<MessageStorageItem>(
             "owner = $0 AND opponent = $1 AND conversationType_ = $2 AND isDeleted = false",
             owner, opponent, conversationType
-        ).sort("sentDate", Sort.ASCENDING)
+        ).sort("sentDate", Sort.DESCENDING)
         collection = query.find()
 
         observingJob = scope.launch {
@@ -150,22 +150,6 @@ class MessageAdapter(
         Log.d(TAG, "Adapter updated with ${messages.size} messages, first=${messages.firstOrNull()?.primary}, last=${messages.lastOrNull()?.primary}, lastArchivedId=${messages.lastOrNull()?.archivedId}")
     }
 
-    fun insertOlderMessages(newMessages: List<MessageDto>) {
-        Log.v(TAG, "Inserting ${newMessages.size} older messages")
-        val filteredMessages = newMessages.filter { m ->
-            !messages.any { it.primary == m.primary || (it.archivedId == m.archivedId && m.archivedId.isNotEmpty()) }
-        }
-        if (filteredMessages.isEmpty()) {
-            Log.d(TAG, "No new messages to insert")
-            return
-        }
-        val oldSize = messages.size
-        messages.addAll(0, filteredMessages)
-        messages.sortBy { it.sentTimestamp }
-        notifyItemRangeInserted(0, filteredMessages.size)
-        notifyUnreadState()
-        Log.d(TAG, "Inserted ${filteredMessages.size} older messages, new list size: ${messages.size}, first=${messages.firstOrNull()?.primary}, last=${messages.lastOrNull()?.primary}")
-    }
 
     override fun getItemViewType(position: Int): Int {
         val message = currentList.getOrNull(position) ?: return INCOMING_MESSAGE
@@ -255,18 +239,6 @@ class MessageAdapter(
         notifyUnreadState()
     }
 
-    fun updateCheckedItems(primary: String, isChecked: Boolean) {
-        if (isChecked) {
-            checkedItemIds.add(primary)
-        } else {
-            checkedItemIds.remove(primary)
-        }
-        val position = currentList.indexOfFirst { it.primary == primary }
-        if (position != -1) {
-            // Note: Since currentList is immutable in this setup, update via notifyItemChanged
-            notifyItemChanged(position)
-        }
-    }
 
     private fun notifyUnreadState() {
         currentList.forEachIndexed { index, message ->
@@ -276,22 +248,6 @@ class MessageAdapter(
         }
     }
 
-    private object DiffUtilCallback : DiffUtil.ItemCallback<MessageDto>() {
-        override fun areItemsTheSame(oldItem: MessageDto, newItem: MessageDto): Boolean {
-            return oldItem.primary == newItem.primary || (oldItem.archivedId == newItem.archivedId && newItem.archivedId.isNotEmpty())
-        }
-
-        override fun areContentsTheSame(oldItem: MessageDto, newItem: MessageDto): Boolean {
-            return oldItem.messageBody == newItem.messageBody &&
-                    oldItem.sentTimestamp == newItem.sentTimestamp &&
-                    oldItem.isOutgoing == newItem.isOutgoing &&
-                    oldItem.references == newItem.references &&
-                    oldItem.archivedId == newItem.archivedId &&
-                    oldItem.isUnread == newItem.isUnread &&
-                    oldItem.isChecked == newItem.isChecked
-            // Include isUnread and isChecked to ensure UI updates reflect selection and read states
-        }
-    }
     companion object {
         const val INCOMING_MESSAGE = 1
         const val OUTGOING_MESSAGE = 2

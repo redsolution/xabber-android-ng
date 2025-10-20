@@ -7,6 +7,7 @@ import com.xabber.stream.Stream
 import com.xabber.data_base.defaultRealmConfig
 import com.xabber.data_base.models.account.AccountStorageItem
 import com.xabber.data_base.models.last_chats.LastChatsStorageItem
+import com.xabber.data_base.models.messages.MessageReferenceStorageItem
 import com.xabber.data_base.models.messages.MessageStorageItem
 import com.xabber.data_base.models.roster.RosterStorageItem
 import com.xabber.data_base.models.sync.ConversationType
@@ -19,6 +20,7 @@ import io.realm.kotlin.Realm
 import io.realm.kotlin.UpdatePolicy
 import io.realm.kotlin.ext.query
 import io.realm.kotlin.ext.realmListOf
+import io.realm.kotlin.types.RealmList
 import io.viascom.nanoid.NanoId
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -220,7 +222,6 @@ class MessageArchiveManager(private val owner: String) {
                     if (chat != null) {
                         findLatest(chat!!)?.apply {
                             conversationType_ = ConversationType.Group.rawValue
-                            Log.d(TAG, "Updated existing chat to group type: jid=$jid, owner=$owner, new conversationType=${ConversationType.Group.rawValue}")
                         }
                     }
                 }
@@ -365,34 +366,21 @@ class MessageArchiveManager(private val owner: String) {
                 callback = {
                     CoroutineScope(Dispatchers.IO).launch {
                         getLastMessage(stream, jid, conversationType)
-                        Log.d(TAG, "Requested last message for jid=$jid, conversationType=${conversationType.rawValue}")
-                        gaps.forEach { gap ->
-                            requestArchive(
-                                stream = stream,
-                                jid = jid,
-                                isContinues = true,
-                                conversationType = conversationType,
-                                queryId = gap.queryId,
-                                start = gap.start,
-                                end = gap.end,
-                                max = pageSize,
-                                withCounter = true,
-                                callback = null
-                            )
-                        }
+
+                        // ✅ FIXED: Mark chat as synced AFTER all messages processed
                         realm.write {
-                            val instance = query<LastChatsStorageItem>(
+                            val chat = query<LastChatsStorageItem>(
                                 "primary = $0",
                                 LastChatsStorageItem.genPrimary(jid, owner, conversationType)
                             ).first().find()
-                            if (instance != null) {
-                                findLatest(instance)?.apply {
+                            chat?.let {
+                                findLatest(it)?.apply {
                                     isSynced = true
                                     isInitialArchiveLoaded = true
-                                    Log.d(TAG, "Marked syncChat complete for jid=$jid, conversationType=${conversationType.rawValue}")
                                 }
                             }
                         }
+
                         callback?.invoke()
                     }
                 }
@@ -517,8 +505,8 @@ class MessageArchiveManager(private val owner: String) {
             conversationType = conversationType,
             queryId = queryId,
             flipPage = true,
-            rsmAfter = messageId,
-            max = pageSize, // Use pageSize
+            rsmBefore = messageId,
+            max = pageSize,
             callback = callback
         )
     }
@@ -668,7 +656,7 @@ class MessageArchiveManager(private val owner: String) {
 
             queryIdsMutex.withLock {
                 if (!queryIds.contains(queryId)) {
-                    Log.w(TAG, "Unknown MAM query ID $queryId - skipping. Registered queryIds=$queryIds")
+                    Log.w(TAG, "Unknown MAM query ID $queryId - skipping")
                     return@withContext null
                 }
             }
@@ -678,20 +666,18 @@ class MessageArchiveManager(private val owner: String) {
                 ?: return@withContext null
             val xmppMessage = parseXMPPMessage(forwardedMessage) ?: return@withContext null
 
-            if (isChatStateOrMarker(xmppMessage)) {
-                Log.d(TAG, "Skipping chat state/marker message for queryId=$queryId")
-                return@withContext null
-            }
-
-            if (xmppMessage.type == "headline") {
-                Log.d(TAG, "Skipping headline message for queryId=$queryId, messageId=${xmppMessage.id}")
+            // Skip non-message elements
+            if (isChatStateOrMarker(xmppMessage) || xmppMessage.type == "headline") {
+                Log.d(TAG, "Skipping non-message for queryId=$queryId")
                 return@withContext null
             }
 
             val from = xmppMessage.from?.bare() ?: return@withContext null
             val to = xmppMessage.to?.bare() ?: return@withContext null
+
             val isGroupChat = xmppMessage.element("x", namespace = "https://xabber.com/protocol/groups") != null
             val conversationType = if (isGroupChat) ConversationType.Group else ConversationType.Regular
+
             val originalOutgoing = if (isGroupChat) {
                 val userId = xmppMessage.element("x", namespace = "https://xabber.com/protocol/groups")
                     ?.element("reference", namespace = "https://xabber.com/protocol/references")
@@ -700,72 +686,68 @@ class MessageArchiveManager(private val owner: String) {
             } else {
                 from == owner
             }
+
             val opponent = if (originalOutgoing) to else from
             val delayedDate = getDelayedDate(xmppMessage) ?: Date()
+
             val isEncrypted = xmppMessage.hasElement("encrypted", namespace = "urn:xmpp:omemo:2")
-            val omemoError = if (isEncrypted) {
-                !xmppMessage.hasElement("omemo-result__system", namespace = "urn:xmpp:omemo:0")
-            } else false
+            val omemoError = isEncrypted && !xmppMessage.hasElement("omemo-result__system", namespace = "urn:xmpp:omemo:0")
             val afterburnInterval = xmppMessage.element("ephemeral", namespace = "urn:xmpp:ephemeral:0")
                 ?.getAttribute("timer")?.toDoubleOrNull() ?: 0.0
-            var errorMetadata = mutableMapOf<String, Any>()
-            var envelopeContainer: String? = null
-            val hasSignElement = xmppMessage.hasElement("time-signature", namespace = "urn:xmpp:signatures")
-            if (hasSignElement) {
-                envelopeContainer = xmppMessage.element("time-signature", namespace = "urn:xmpp:signatures")?.raw
-            }
 
+            // Create message instance
             val instance = MessageStorageItem()
             instance.conversationType_ = conversationType.rawValue
             var isRead = originalOutgoing
-            val readDate: Date? = null
-            if (readDate != null && delayedDate.time < readDate.time) {
-                isRead = true
-            }
 
             if (isSystemMessage(xmppMessage)) {
-                instance.configureSystemMessage(
-                    message = xmppMessage,
-                    owner = owner,
-                    opponent = opponent,
-                    date = delayedDate
-                )
+                instance.configureSystemMessage(xmppMessage, owner, opponent, delayedDate)
             } else {
-                instance.configureIncomingMessage(
-                    message = xmppMessage,
-                    owner = owner,
-                    opponent = opponent,
-                    outgoing = originalOutgoing,
-                    isRead = isRead,
-                    date = delayedDate,
-                    isEncrypted = isEncrypted
-                )
+                instance.configureIncomingMessage(xmppMessage, owner, opponent, originalOutgoing, isRead, delayedDate, isEncrypted)
             }
-            instance.envelopeContainer = envelopeContainer
-            instance.afterburnInterval = afterburnInterval
-            if (hasSignElement) instance.errorMetadata = errorMetadata
-            if (isEncrypted && errorMetadata.isNotEmpty()) {
-                instance.messageError = if (omemoError) "omemo" else if (hasSignElement) "cert_error" else null
-            }
-            if (afterburnInterval > 0 && isEncrypted && errorMetadata.isNotEmpty() && omemoError) {
-                instance.isDeleted = true
-            }
-            if (afterburnInterval > 0 && readDate != null) {
-                instance.isRead = true
-                instance.readDate = readDate.time.toDouble()
-                instance.burnDate = readDate.time.toDouble() + afterburnInterval
+
+            // Handle references
+            val references = extractReferences(xmppMessage)
+            instance.references = references
+
+            // Handle afterburn
+            if (afterburnInterval > 0) {
+                instance.afterburnInterval = afterburnInterval
+                instance.burnDate = delayedDate.time.toDouble() + afterburnInterval * 1000
                 if (instance.burnDate <= System.currentTimeMillis().toDouble()) {
                     instance.isDeleted = true
                     instance.body = ""
-                    instance.legacyBody = ""
                 }
             }
+
             instance.queryIds = instance.queryIds?.let { "$it,$queryId" } ?: queryId
 
             realm.write {
-                copyToRealm(instance, UpdatePolicy.ALL)
-                Log.d(TAG, "Processed message: queryId=$queryId, messageId=${instance.messageId}, primary=${instance.primary}, opponent=$opponent, body=${instance.body.take(50)}, isOutgoing=$originalOutgoing, conversationType=${instance.conversationType_}")
+                val existing = query<MessageStorageItem>(
+                    "primary = $0 OR (archivedId = $1 AND archivedId != '' AND owner = $2 AND opponent = $3 AND conversationType_ = $4)",
+                    instance.primary, instance.archivedId, owner, opponent, conversationType.rawValue
+                ).first().find()
 
+                if (existing != null) {
+                    Log.d(TAG, "⏭️ Skipping duplicate message: primary=${instance.primary}")
+                    return@write
+                }
+
+                val savedMessage = copyToRealm(instance, UpdatePolicy.ALL)
+                savedMessage.storeStanza(this)
+                Log.d(TAG, "✅ SAVED message: primary=${savedMessage.primary}")
+            }
+
+            if (updateLastChat) {
+                realm.write {
+                    updateLastChatItem(
+                        chatPrimary = LastChatsStorageItem.genPrimary(opponent, owner, conversationType),
+                        message = instance, // Use instance (already has all data)
+                        isIncoming = !originalOutgoing,
+                        muteExpired = getMuteExpired(opponent, conversationType, realm),
+                        realm = realm
+                    )
+                }
             }
 
             temporaryMessageReceiver?.didReceiveMessage(instance, queryId)
@@ -776,6 +758,79 @@ class MessageArchiveManager(private val owner: String) {
         } finally {
             realm.close()
         }
+    }
+    // ✅ NEW: Extract references from XMPP message
+    private fun extractReferences(message: XMPPMessage): RealmList<MessageReferenceStorageItem> {
+        val references = realmListOf<MessageReferenceStorageItem>()
+
+        // Handle file uploads
+        message.element("reference", namespace = "urn:xmpp:reference:0")?.let { ref ->
+            var uri = ref.getAttribute("uri")
+            var mimeType = ref.getAttribute("type")
+            val size = ref.getAttribute("size")?.toLongOrNull() ?: 0L
+            var fileName = ref.getAttribute("name")
+
+            val refItem = MessageReferenceStorageItem().apply {
+                primary = "${message.id}_${System.currentTimeMillis()}"
+                uri = uri
+                mimeType = mimeType
+                fileSize = size
+                fileName = fileName
+            }
+            references.add(refItem)
+        }
+
+        // Handle geo location
+//        message.element("geoloc", namespace = "http://jabber.org/protocol/geoloc")?.let { geo ->
+//            val lat = geo.element("lat")?.textContent?.toDoubleOrNull() ?: 0.0
+//            val lon = geo.element("lon")?.textContent?.toDoubleOrNull() ?: 0.0
+//
+//            val refItem = MessageReferenceStorageItem().apply {
+//                primary = "${message.id}_geo_${System.currentTimeMillis()}"
+//                isGeo = true
+//                latitude = lat
+//                longitude = lon
+//            }
+//            references.add(refItem)
+//        }
+
+        return references
+    }
+
+    private fun updateLastChatItem(
+        chatPrimary: String,
+        message: MessageStorageItem,
+        isIncoming: Boolean,
+        muteExpired: Long,
+        realm: Realm
+    ) {
+        val chat = realm.query<LastChatsStorageItem>("primary = $0", chatPrimary).first().find()
+        if (chat != null) {
+            chat.apply {
+                if (message.sentDate > messageDate) {
+                    lastMessage = message
+                    messageDate = message.sentDate
+                    lastMessageId = message.archivedId
+                }
+
+                // Update unread count (only for incoming, non-muted)
+                if (isIncoming && muteExpired <= 0) {
+                    isArchived = false
+                    unread = (unread ?: 0) + 1
+                }
+
+                Log.d(TAG, "Updated chat: primary=$chatPrimary, lastMessageId=${message.archivedId}, unread=$unread")
+            }
+        } else {
+            Log.w(TAG, "No chat found for primary=$chatPrimary")
+        }
+    }
+
+    private fun getMuteExpired(jid: String, conversationType: ConversationType, realm: Realm): Long {
+        return realm.query<LastChatsStorageItem>(
+            "primary = $0",
+            LastChatsStorageItem.genPrimary(jid, owner, conversationType)
+        ).first().find()?.muteExpired ?: 0L
     }
 
     @RequiresApi(Build.VERSION_CODES.O)

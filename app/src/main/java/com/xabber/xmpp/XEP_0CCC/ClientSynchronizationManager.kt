@@ -526,10 +526,10 @@ class ClientSynchronizationManager(owner: String) {
             val conversationTypeEnum = ConversationType.values().firstOrNull { it.rawValue == conversationType } ?: ConversationType.Regular
             val chatJid = if (from == owner) to else from // Use destination for outgoing, sender for incoming
             val messagePrimary = MessageStorageItem.genPrimary(messageId, owner)
-            if (messagePrimary.isEmpty()) {
-                Log.w("ClientSyncManager", "Skipping message with invalid primary key for messageId=$messageId, owner=$owner")
-                return
-            }
+//            if (messagePrimary.isEmpty()) {
+//                Log.w("ClientSyncManager", "Skipping message with invalid primary key for messageId=$messageId, owner=$owner")
+//                return
+//            }
             val chatPrimary = LastChatsStorageItem.genPrimary(chatJid, owner, conversationTypeEnum)
             if (chatPrimary.isEmpty()) {
                 Log.w("ClientSyncManager", "Skipping chat creation due to invalid primary key for jid=$chatJid, owner=$owner, type=$conversationType")

@@ -419,8 +419,7 @@ class MessageCommonReceiver(private val owner: String) {
             }
 
             // Extract archivedId from MAM stanza
-            val archivedId = item.message.element("archived", namespace = "urn:xmpp:mam:tmp")?.getAttribute("id") ?: messageId
-
+            val archivedId = getOriginId(item.message) ?: item.messageId ?: messageId
             // Check for duplicates in database
             val existing = realm.query<MessageStorageItem>(
                 "primary = $0 OR (archivedId = $1 AND archivedId != '' AND conversationType_ = $2)",
@@ -518,14 +517,10 @@ class MessageCommonReceiver(private val owner: String) {
             messageDtos.add(messageDto)
 
             // Immediate notification to ChatViewModel
+            save(listOf(messageDto)) // Immediate DB save!
             val chatId = LastChatsStorageItem.genPrimary(opponent, owner, conversationType)
             val chatViewModel = AccountManager.getChatViewModel(chatId)
-            if (chatViewModel != null) {
-                chatViewModel.insertMessagesFromReceiver(listOf(messageDto))
-                Log.d(TAG, "Notified ChatViewModel immediately: chatId=$chatId, messageId=$messageId, primary=$primary, archivedId=$archivedId")
-            } else {
-                Log.w(TAG, "ChatViewModel not found for chatId=$chatId, messageId=$messageId")
-            }
+            chatViewModel?.insertMessagesFromReceiver(listOf(messageDto))
         }
 
         // Save to database

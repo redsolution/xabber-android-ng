@@ -424,6 +424,7 @@ class Account : XMPPStreamDelegate {
         try {
             //пока втупую вызываю, тестовый до момента нормального вызова
             if (iq.queryNamespace == "urn:xmpp:mam:2") {
+                return messageArchiveManager.read(iq.raw, stream)
             }
             // Buffer roster and sync IQ stanzas post-registration
             if (stream.state == StreamState.CONNECTED || stream.state == StreamState.BINDING) {
@@ -807,7 +808,7 @@ class Account : XMPPStreamDelegate {
 
     @RequiresApi(Build.VERSION_CODES.O)
     override suspend fun didReceiveMessage(message: String, stream: Stream): Boolean {
-        Log.d(TAG, "Received message stanza: ${message.take(200)}")
+        Log.d(TAG, "Received message stanza: ${message}")
         try {
             val xmppMessage = XMPPMessage(message)
             var messageId = xmppMessage.id
@@ -820,6 +821,11 @@ class Account : XMPPStreamDelegate {
             var innerLang: String? = null
             var inForwarded = false
             val innerRaw = StringBuilder()
+
+            // Add flags for container detection
+            var isArchived = false
+            var isCarbon = false
+            var isLastMessage = false  // If needed for last-message
 
             val factory = XmlPullParserFactory.newInstance()
             factory.isNamespaceAware = true
@@ -856,6 +862,12 @@ class Account : XMPPStreamDelegate {
                         } else if (tagName == "result" && namespace == "urn:xmpp:mam:2") {
                             messageId = parser.getAttributeValue(null, "id") ?: messageId
                             inForwarded = true // Treat as forwarded for MAM messages
+                            isArchived = true  // Set archived flag
+                        } else if (tagName == "sent" && namespace == "urn:xmpp:carbons:2") {
+                            isCarbon = true  // Set carbon flag
+                            inForwarded = true
+                        } else if (tagName == "last-message") {  // Add if last-message is a start tag
+                            isLastMessage = true
                         } else if (tagName == "forwarded" && namespace == "urn:xmpp:forward:0") {
                             inForwarded = true
                         } else if (tagName in listOf("active", "composing", "inactive", "received", "displayed") && (namespace == "http://jabber.org/protocol/chatstates" || namespace == "urn:xmpp:chat-markers:0")) {
@@ -903,10 +915,10 @@ class Account : XMPPStreamDelegate {
             val fromJid = innerFrom ?: xmppMessage.from?.bare()
             val toJid = innerTo ?: xmppMessage.to?.bare()
             val body = innerBody ?: xmppMessage.body
-            if (fromJid == null || toJid == null || body == null) {
-                Log.w(TAG, "Skipping message with missing attributes: id=$messageId, innerFrom=$innerFrom, innerTo=$innerTo, innerBody=$innerBody")
-                return false
-            }
+//            if (fromJid == null || toJid == null || body == null) {
+//                Log.w(TAG, "Skipping message with missing attributes: id=$messageId, innerFrom=$innerFrom, innerTo=$innerTo, innerBody=$innerBody")
+//                return false
+//            }
 
             val opponent = if (toJid != jid) toJid else fromJid
             if (opponent == jid) {
@@ -924,8 +936,8 @@ class Account : XMPPStreamDelegate {
             }
 
             var containerType: String? = null
-            var innerMessage: XMPPMessage? = xmppMessage
-            if (xmppMessage.element("result", namespace = "urn:xmpp:mam:2") != null) {
+            var innerMessage: XMPPMessage? = null
+            if (isArchived) {
                 containerType = "archived"
                 Log.d(TAG, "Detected archived message for messageId=$messageId")
                 innerMessage = XMPPMessage(
@@ -938,7 +950,7 @@ class Account : XMPPStreamDelegate {
                     body = innerBody,
                     children = xmppMessage.children
                 )
-            } else if (inForwarded && xmppMessage.element("sent", namespace = "urn:xmpp:carbons:2") != null) {
+            } else if (isCarbon) {
                 containerType = "forwarded"
                 Log.d(TAG, "Detected forwarded carbon message for messageId=$messageId")
                 innerMessage = XMPPMessage(
@@ -951,11 +963,13 @@ class Account : XMPPStreamDelegate {
                     body = innerBody,
                     children = xmppMessage.children
                 )
-            } else if (xmppMessage.element("last-message") != null) {
+            } else if (isLastMessage) {  // Or keep xmppMessage.element if it works for this
                 containerType = "last-message"
+                innerMessage = xmppMessage  // Adjust if needed
                 Log.d(TAG, "Detected last-message container for messageId=$messageId")
             } else {
                 containerType = "runtime"
+                innerMessage = xmppMessage
                 Log.d(TAG, "No specific container found, treating as runtime for messageId=$messageId")
             }
 
@@ -970,7 +984,7 @@ class Account : XMPPStreamDelegate {
                         this.messageId = messageId
                         this.primary = primary
                         this.owner = jid
-                        this.jid = opponent
+                        this.jid = opponent!!
                         this.isProcessed = false
                         this.date = parseTimestamp(xmppMessage) ?: System.currentTimeMillis()
                         this.stanza = message

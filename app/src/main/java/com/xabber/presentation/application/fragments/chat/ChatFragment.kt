@@ -119,7 +119,7 @@
         private var messageSender: MessageCommonSender? = null
         private var lastLoadOlderMessagesTime = 0L // For debouncing
         private val debounceInterval = 500L // 500ms debounce
-
+        private var isLoadingHistory = false
 
         val realm = Realm.open(defaultRealmConfig())
 
@@ -504,20 +504,24 @@
                 override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
                     if (layoutManager != null) {
                         val firstVisiblePosition = layoutManager!!.findFirstVisibleItemPosition()
-                        if (firstVisiblePosition <= 1) { // Trigger slightly before reaching the top
+
+                        if (firstVisiblePosition <= 2 && !isLoadingHistory) {
                             val currentTime = System.currentTimeMillis()
                             if (currentTime - lastLoadOlderMessagesTime >= debounceInterval) {
                                 lastLoadOlderMessagesTime = currentTime
-                                val firstVisibleItem = messageAdapter?.getMessageItem(firstVisiblePosition)
-                                Log.d("ChatFragment", "Triggered loadOlderMessages near top, firstVisiblePosition=$firstVisiblePosition, firstVisiblePrimary=${firstVisibleItem?.primary}")
+                                loadOlderMessages()
                             }
                         }
-                        if (layoutManager!!.findLastVisibleItemPosition() >= messageAdapter!!.itemCount - 1) {
+
+                        val lastVisible = layoutManager!!.findLastVisibleItemPosition()
+                        if (lastVisible >= messageAdapter!!.itemCount - 1) {
                             binding.downScroller.isVisible = false
                         } else {
-                            if (currentVoiceRecordingState != VoiceRecordState.TouchRecording &&
-                                currentVoiceRecordingState != VoiceRecordState.InitiatedRecording &&
-                                currentVoiceRecordingState != VoiceRecordState.NoTouchRecording) {
+                            if (currentVoiceRecordingState !in listOf(
+                                    VoiceRecordState.TouchRecording,
+                                    VoiceRecordState.InitiatedRecording,
+                                    VoiceRecordState.NoTouchRecording
+                                )) {
                                 binding.downScroller.isVisible = viewModel.unreadCount.value ?: 0 > 0
                             }
                         }
@@ -527,7 +531,7 @@
 
             binding.btnDownward.setOnClickListener {
                 val lastVisiblePosition = layoutManager!!.findLastVisibleItemPosition()
-                if (viewModel.unreadCount.value == 0 || viewModel.unreadCount.value == null ||
+                if (viewModel.unreadCount.value == 0 ||
                     lastVisiblePosition + 2 >= messageAdapter!!.itemCount - viewModel.unreadCount.value!!) {
                     scrollDown()
                     binding.tvNewReceivedCount.text = ""
@@ -537,6 +541,60 @@
                 }
             }
         }
+
+
+        private fun loadOlderMessages() {
+            if (isLoadingHistory) return
+
+            isLoadingHistory = true
+            binding.progressBar.isVisible = true
+
+            // ✅ 1. Захватываем ТОЧНУЮ позицию ДО загрузки
+            val layoutState = layoutManager!!.onSaveInstanceState()!!
+            val currentFirstVisiblePosition = layoutManager!!.findFirstVisibleItemPosition()
+            val currentItemCount = messageAdapter!!.itemCount
+            Log.d("ChatFragment", "📍 SAVED: position=$currentFirstVisiblePosition, itemCount=$currentItemCount")
+
+            val firstVisibleItem = messageAdapter?.getMessageItem(currentFirstVisiblePosition)
+            val firstArchivedId = firstVisibleItem?.archivedId
+
+            lifecycleScope.launch {
+                try {
+                    val account = AccountManager.find(viewModel.owner)
+                    account?.action { acc, stream ->
+                        acc.messageArchiveManager.getPrevHistory(
+                            stream = stream,
+                            jid = viewModel.opponent,
+                            conversationType = viewModel.conversationType,
+                            messageId = firstArchivedId ?: "",
+                            callback = {
+                                lifecycleScope.launch(Dispatchers.Main) {
+                                    // ✅ 2. ВОССТАНАВЛИВАЕМ ТОЧНУЮ позицию ПОСЛЕ загрузки
+                                    binding.messageList.post {
+                                        // Количество НОВЫХ сообщений сверху
+                                        val addedMessagesCount = messageAdapter!!.itemCount - currentItemCount
+
+                                        // НОВАЯ позиция = старая + добавленные сверху
+                                        val newFirstVisiblePosition = currentFirstVisiblePosition + addedMessagesCount
+
+                                        layoutManager!!.onRestoreInstanceState(layoutState)
+                                        Log.d("ChatFragment", "✅ RESTORED: added=$addedMessagesCount, newPos=$newFirstVisiblePosition, total=${messageAdapter!!.itemCount}")
+                                    }
+
+                                    isLoadingHistory = false
+                                    binding.progressBar.isVisible = false
+                                }
+                            }
+                        )
+                    }
+                } catch (e: Exception) {
+                    Log.e("ChatFragment", "Error loading older messages", e)
+                    isLoadingHistory = false
+                    binding.progressBar.isVisible = false
+                }
+            }
+        }
+
 
         private fun scrollToFirstUnread() {
             val unreadCount = viewModel.unreadCount.value ?: 0
