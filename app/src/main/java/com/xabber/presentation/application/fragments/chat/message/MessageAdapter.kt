@@ -30,6 +30,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.debounce
+import kotlin.time.Duration.Companion.milliseconds
 
 class MessageAdapter(
     private val layoutInflater: LayoutInflater,
@@ -79,6 +81,7 @@ class MessageAdapter(
 
     override fun getItemCount(): Int = currentList.size
 
+
     fun startObserving(owner: String, opponent: String, conversationType: String, recyclerView: RecyclerView) {
         stopObserving()
         val query = realm.query<MessageStorageItem>(
@@ -86,63 +89,64 @@ class MessageAdapter(
             owner, opponent, conversationType
         ).sort("sentDate", Sort.ASCENDING)
         collection = query.find()
-
         observingJob = scope.launch {
-            collection!!.asFlow().collect { changes: ResultsChange<MessageStorageItem> ->
-                val newDtos = when (changes) {
-                    is InitialResults -> changes.list.mapNotNull { it.toMessageDto() }
-                    is UpdatedResults -> changes.list.mapNotNull { it.toMessageDto() }
-                }.sortedBy { it.sentTimestamp }
+            collection!!.asFlow()
+                .debounce(300.milliseconds)  // Debounce updates by 300ms to batch rapid changes and reduce UI flicker
+                .collect { changes: ResultsChange<MessageStorageItem> ->
+                    val newDtos = when (changes) {
+                        is InitialResults -> changes.list.mapNotNull { it.toMessageDto() }
+                        is UpdatedResults -> changes.list.mapNotNull { it.toMessageDto() }
+                    }.sortedBy { it.sentTimestamp }  // Keep sort if sentTimestamp doesn't perfectly align with Realm's sentDate sort
 
-                withContext(Dispatchers.Main) {
-                    // Сохраняем текущую позицию прокрутки
-                    val layoutManager = recyclerView.layoutManager as? LinearLayoutManager
-                    val firstVisiblePosition = layoutManager?.findFirstVisibleItemPosition() ?: 0
-                    val firstVisibleView = layoutManager?.findViewByPosition(firstVisiblePosition)
-                    val offset = firstVisibleView?.top ?: 0
-                    val oldItemCount = currentList.size
+                    withContext(Dispatchers.Main) {
+                        // Save current scroll position before update
+                        val layoutManager = recyclerView.layoutManager as? LinearLayoutManager
+                        val firstVisiblePosition = layoutManager?.findFirstVisibleItemPosition() ?: 0
+                        val firstVisibleView = layoutManager?.findViewByPosition(firstVisiblePosition)
+                        val offset = firstVisibleView?.top ?: 0
+                        val oldItemCount = currentList.size
 
-                    // Обновляем список через DiffUtil
-                    val diffResult = DiffUtil.calculateDiff(object : DiffUtil.Callback() {
-                        override fun getOldListSize(): Int = currentList.size
-                        override fun getNewListSize(): Int = newDtos.size
-                        override fun areItemsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
-                            return currentList[oldItemPosition].primary == newDtos[newItemPosition].primary
-                        }
-                        override fun areContentsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
-                            val oldItem = currentList[oldItemPosition]
-                            val newItem = newDtos[newItemPosition]
-                            return oldItem.messageBody == newItem.messageBody &&
-                                    oldItem.sentTimestamp == newItem.sentTimestamp &&
-                                    oldItem.isOutgoing == newItem.isOutgoing &&
-                                    oldItem.references == newItem.references &&
-                                    oldItem.isUnread == newItem.isUnread &&
-                                    oldItem.isChecked == newItem.isChecked &&
-                                    oldItem.messageSendingState == newItem.messageSendingState &&
-                                    oldItem.archivedId == newItem.archivedId
-                        }
-                    })
+                        // Efficiently update via DiffUtil (already optimized for partial changes)
+                        val diffResult = DiffUtil.calculateDiff(object : DiffUtil.Callback() {
+                            override fun getOldListSize(): Int = currentList.size
+                            override fun getNewListSize(): Int = newDtos.size
+                            override fun areItemsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
+                                return currentList[oldItemPosition].primary == newDtos[newItemPosition].primary
+                            }
+                            override fun areContentsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
+                                val oldItem = currentList[oldItemPosition]
+                                val newItem = newDtos[newItemPosition]
+                                return oldItem.messageBody == newItem.messageBody &&
+                                        oldItem.sentTimestamp == newItem.sentTimestamp &&
+                                        oldItem.isOutgoing == newItem.isOutgoing &&
+                                        oldItem.references == newItem.references &&
+                                        oldItem.isUnread == newItem.isUnread &&
+                                        oldItem.isChecked == newItem.isChecked &&
+                                        oldItem.messageSendingState == newItem.messageSendingState &&
+                                        oldItem.archivedId == newItem.archivedId
+                            }
+                        })
 
-                    // Обновляем текущий список
-                    currentList = newDtos
-                    onMessagesUpdated(newDtos)
+                        // Update list and notify
+                        currentList = newDtos
+                        onMessagesUpdated(newDtos)
 
-                    // Уведомляем о вставке новых элементов
-                    if (newDtos.size > oldItemCount) {
-                        val insertedCount = newDtos.size - oldItemCount
+                        // Apply updates and handle scroll restoration
                         diffResult.dispatchUpdatesTo(this@MessageAdapter)
-                        // Восстанавливаем позицию прокрутки
-                        if (firstVisiblePosition != RecyclerView.NO_POSITION) {
-                            layoutManager?.scrollToPositionWithOffset(
-                                firstVisiblePosition + insertedCount,
-                                offset
-                            )
+
+                        // If items were inserted (common for new messages at end), adjust scroll to maintain view
+                        // This assumes append-only behavior; for general cases, consider always scrolling to a stable key
+                        if (newDtos.size > oldItemCount) {
+                            val insertedCount = newDtos.size - oldItemCount
+                            if (firstVisiblePosition != RecyclerView.NO_POSITION) {
+                                layoutManager?.scrollToPositionWithOffset(
+                                    firstVisiblePosition + insertedCount,
+                                    offset
+                                )
+                            }
                         }
-                    } else {
-                        diffResult.dispatchUpdatesTo(this@MessageAdapter)
                     }
                 }
-            }
         }
     }
 
