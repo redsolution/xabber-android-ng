@@ -58,12 +58,15 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import nl.adaptivity.xmlutil.core.impl.multiplatform.StringReader
+import nl.adaptivity.xmlutil.serialization.structure.PolymorphicMode
 import org.json.JSONObject
 import org.xmlpull.v1.XmlPullParser
 import org.xmlpull.v1.XmlPullParserFactory
+import java.text.ParseException
 import java.text.SimpleDateFormat
 import java.time.DateTimeException
 import java.time.Instant
+import java.time.Year
 import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
@@ -321,94 +324,24 @@ fun JSONObject.toMap(): Map<String, Any> {
 
 @RequiresApi(Build.VERSION_CODES.O)
 fun parseTimestamp(message: XMPPMessage, tag: String = "TimestampParser"): Long? {
-    fun tryParse(stamp: String, messageId: String?, source: String): Long? {
-        return try {
-            // Native ISO parser handles variable fractional seconds (0-9 digits) and 'Z'
-            val zdt = ZonedDateTime.parse(stamp)
-            val epochMilli = zdt.toInstant().toEpochMilli()
-            if (epochMilli > System.currentTimeMillis() + 86400000L) {
-                Log.w(tag, "Invalid future timestamp ($source) for messageId=$messageId: $stamp -> $epochMilli")
-                null
-            } else {
-                Log.d(tag, "Parsed timestamp ($source) for messageId=$messageId: $stamp -> $epochMilli")
-                epochMilli
-            }
-        } catch (e: DateTimeParseException) {
-            Log.w(tag, "Failed to parse ISO ($source) for messageId=$messageId: $stamp, error=${e.message} (index=${e.errorIndex})")
-            null
-        }
-    }
-
-    val messageId = message.element("origin-id", namespace = "urn:xmpp:sid:0")?.getAttribute("id") ?: message.id ?: "unknown"
-
-    // Check MAM forwarded message
+    var out = Date()
     val resultElement = message.element("result", namespace = "urn:xmpp:mam:2")
     if (resultElement != null) {
         val forwarded = resultElement.element("forwarded", namespace = "urn:xmpp:forward:0")
         if (forwarded != null) {
-            val innerMessage = forwarded.element("message", namespace = "jabber:client")
-            if (innerMessage != null) {
-                val innerTime = innerMessage.element("time", namespace = "https://xabber.com/protocol/delivery")?.getAttribute("stamp")
-                if (innerTime != null) return tryParse(innerTime, messageId, "inner <time>")
-                val innerDelay = innerMessage.element("delay", namespace = "urn:xmpp:delay")?.getAttribute("stamp")
-                if (innerDelay != null) return tryParse(innerDelay, messageId, "inner <delay>")
-                val forwardedDelay = forwarded.element("delay", namespace = "urn:xmpp:delay")?.getAttribute("stamp")
-                if (forwardedDelay != null) return tryParse(forwardedDelay, messageId, "forwarded <delay>")
-                Log.d(tag, "No <time> or <delay> found in inner message for messageId=$messageId")
-            } else {
-                Log.w(tag, "No <forwarded> found in MAM <result> for messageId=$messageId")
-            }
-        }
-    }
-
-    // Fallback to outer message
-    val outerTime = message.element("time", namespace = "https://xabber.com/protocol/delivery")?.getAttribute("stamp")
-    if (outerTime != null) return tryParse(outerTime, messageId, "outer <time>")
-    val outerDelay = message.element("delay", namespace = "urn:xmpp:delay")?.getAttribute("stamp")
-    if (outerDelay != null) return tryParse(outerDelay, messageId, "outer <delay>")
-
-    // Parse raw XML as fallback
-    try {
-        val factory = XmlPullParserFactory.newInstance()
-        factory.isNamespaceAware = true
-        val parser = factory.newPullParser()
-        parser.setInput(StringReader(message.raw))
-        var eventType = parser.eventType
-        while (eventType != XmlPullParser.END_DOCUMENT) {
-            if (eventType == XmlPullParser.START_TAG) {
-                val tagName = parser.name
-                val namespace = parser.namespace
-                if (tagName == "time" && namespace == "https://xabber.com/protocol/delivery") {
-                    val stamp = parser.getAttributeValue(null, "stamp")
-                    if (stamp != null) return tryParse(stamp, messageId, "raw <time>")
-                } else if (tagName == "delay" && namespace == "urn:xmpp:delay") {
-                    val stamp = parser.getAttributeValue(null, "stamp")
-                    if (stamp != null) return tryParse(stamp, messageId, "raw <delay>")
+            val forwardedDelay = forwarded.element("delay", namespace = "urn:xmpp:delay")?.getAttribute("stamp")
+            if (forwardedDelay != null) {
+                try {
+                    val instant = Instant.parse(forwardedDelay)
+                    out = Date.from(instant)
+                } catch (e: DateTimeParseException) {
+                    out = Date()
                 }
             }
-            eventType = parser.next()
         }
-    } catch (e: Exception) {
-        Log.e(tag, "Error parsing raw XML for messageId=$messageId: ${e.message}", e)
     }
-
-    val isChatState = message.element("active", namespace = "http://jabber.org/protocol/chatstates") != null ||
-            message.element("composing", namespace = "http://jabber.org/protocol/chatstates") != null ||
-            message.element("inactive", namespace = "http://jabber.org/protocol/chatstates") != null ||
-            message.element("received", namespace = "urn:xmpp:chat-markers:0") != null ||
-            message.element("displayed", namespace = "urn:xmpp:chat-markers:0") != null
-
-    if (isChatState) {
-        Log.d(tag, "Chat state message detected, no timestamp required: messageId=$messageId")
-        return null
-    }
-
-    Log.w(tag, "No valid timestamp found for messageId=$messageId. Message details: " +
-            "from=${message.from?.bare()}, to=${message.to?.bare()}, body=${message.body}, " +
-            "raw=${message.raw.take(200)}")
-    return null
+    return out.time
 }
-
 // New XMPPMessage Extensions (converted from Swift)
 fun XMPPMessage.getStanzaId(owner: String): String {
     val isGroupchat = this.element("x", namespace = "https://xabber.com/protocol/groups") != null
@@ -646,17 +579,13 @@ private fun tryParseDate(stamp: String, messageId: String?, source: String): Dat
         val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
         val zdt = ZonedDateTime.parse(stamp, formatter.withZone(ZoneId.of("UTC")))
         val epochMilli = zdt.toInstant().toEpochMilli()
-        return Date(epochMilli).also {
-            Log.d(tag, "Parsed date ($source) for messageId=$messageId: $stamp -> $epochMilli")
-        }
+        return Date(epochMilli)
     } catch (e: DateTimeException) {
         try {
             val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'")
             val zdt = ZonedDateTime.parse(stamp, formatter.withZone(ZoneId.of("UTC")))
             val epochMilli = zdt.toInstant().toEpochMilli()
-            return Date(epochMilli).also {
-                Log.d(tag, "Parsed date ($source) for messageId=$messageId: $stamp -> $epochMilli")
-            }
+            return Date(epochMilli)
         } catch (e: DateTimeException) {
             Log.w(tag, "Failed to parse date ($source) for messageId=$messageId: $stamp, error=${e.message}")
         }
@@ -707,9 +636,7 @@ fun observeMessages(
                     isUnread = !item.isRead,
                     isChecked = false,
                     archivedId = item.archivedId
-                ).also {
-                    Log.d("observeMessages", "Emitted message: primary=${it.primary}, sentTimestamp=${it.sentTimestamp}, body=${it.messageBody.take(50)}, isUnread=${it.isUnread}, archivedId=${it.archivedId}")
-                }
+                )
             }
             trySend(messages).isSuccess
         }
@@ -720,7 +647,6 @@ fun observeMessages(
 
         awaitClose {
             realm.close()
-            Log.d("observeMessages", "Realm closed for owner=$owner, opponent=$opponent")
         }
     }
 }

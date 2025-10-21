@@ -9,6 +9,7 @@ data class XMPPMessage(
     val from: XMPPJID? = null,
     val to: XMPPJID? = null,
     val lang: String? = null,
+    val date: Long? = 0,
     val body: String? = null,
     val subject: String? = null,
     val thread: String? = null,

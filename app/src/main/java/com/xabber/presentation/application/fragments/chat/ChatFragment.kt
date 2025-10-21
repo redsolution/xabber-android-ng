@@ -240,7 +240,7 @@
                     restoreDraft()
                     // Delay scroll to ensure adapter is populated
                 }
-
+                viewModel.setLocked(true)
                 lifecycleScope.launch {
                     val account = AccountManager.find(chat.owner)
                     if (account != null) {
@@ -256,13 +256,13 @@
                         Log.e("ChatFragment", "Account not found for owner=${chat.owner}")
                     }
                 }
+                viewModel.setLocked(false)
+
 
                 binding.messageList.post {
                     scrollDown()
-                    Log.d("ChatFragment", "Initial scroll to bottom on chat open")
                 }
 
-                Log.d("ChatFragment", "Opening chat: id=${getParams().id}, owner=${chat.owner}, opponentJid=${chat.opponentJid}")
             }
         }
 
@@ -398,10 +398,8 @@
             binding.messageList.post {
                 if (position > 0 && position < (messageAdapter?.itemCount ?: 0)) {
                     layoutManager?.scrollToPosition(position)
-                    Log.d("ChatFragment", "Restored scroll to position=$position, lastPosition=$lastPosition")
                 } else {
                     scrollDown()
-                    Log.d("ChatFragment", "No valid last position, scrolling to bottom")
                 }
             }
         }
@@ -438,7 +436,6 @@
             dialog.show(childFragmentManager, AppConstants.DELETING_CHAT_DIALOG_TAG)
         }
 
-        @SuppressLint("ClickableViewAccessibility")
         private fun initializeRecyclerView() {
             val isGroup = viewModel.loadChat(getParams().id)!!.isGroup
             messageAdapter = MessageAdapter(
@@ -455,8 +452,11 @@
                 }
             )
             binding.messageList.adapter = messageAdapter
-            layoutManager = LinearLayoutManager(context)
             layoutManager?.stackFromEnd = true
+            layoutManager = LinearLayoutManager(context).apply {
+                stackFromEnd = true
+                reverseLayout = false
+            }
             binding.messageList.layoutManager = layoutManager
             addSwipeCallback()
             addMessageHeaderViewDecoration()
@@ -469,13 +469,9 @@
                 messageAdapter!!.startObserving(
                     owner = chat.owner,
                     opponent = chat.opponentJid,
-                    conversationType = viewModel.conversationType.rawValue
+                    conversationType = viewModel.conversationType.rawValue,
+                    recyclerView = binding.messageList // Передаем RecyclerView
                 )
-            }
-
-            // Add touch listener to block scrolling when locked
-            binding.messageList.setOnTouchListener { _, event ->
-                viewModel.isLocked.value == true // Consume touch events if locked
             }
         }
 
@@ -509,7 +505,7 @@
                             val currentTime = System.currentTimeMillis()
                             if (currentTime - lastLoadOlderMessagesTime >= debounceInterval) {
                                 lastLoadOlderMessagesTime = currentTime
-                                loadOlderMessages()
+//                                loadOlderMessages()
                             }
                         }
 
@@ -548,15 +544,15 @@
 
             isLoadingHistory = true
             binding.progressBar.isVisible = true
+            viewModel.setLocked(true)
 
-            // ✅ 1. Захватываем ТОЧНУЮ позицию ДО загрузки
-            val layoutState = layoutManager!!.onSaveInstanceState()!!
-            val currentFirstVisiblePosition = layoutManager!!.findFirstVisibleItemPosition()
-            val currentItemCount = messageAdapter!!.itemCount
-            Log.d("ChatFragment", "📍 SAVED: position=$currentFirstVisiblePosition, itemCount=$currentItemCount")
-
-            val firstVisibleItem = messageAdapter?.getMessageItem(currentFirstVisiblePosition)
+            // Сохраняем текущую позицию прокрутки
+            val firstVisiblePosition = layoutManager!!.findFirstVisibleItemPosition()
+            val firstVisibleView = layoutManager!!.findViewByPosition(firstVisiblePosition)
+            val offset = firstVisibleView?.top ?: 0
+            val firstVisibleItem = messageAdapter?.getMessageItem(firstVisiblePosition)
             val firstArchivedId = firstVisibleItem?.archivedId
+            val currentItemCount = messageAdapter!!.itemCount
 
             lifecycleScope.launch {
                 try {
@@ -569,20 +565,19 @@
                             messageId = firstArchivedId ?: "",
                             callback = {
                                 lifecycleScope.launch(Dispatchers.Main) {
-                                    // ✅ 2. ВОССТАНАВЛИВАЕМ ТОЧНУЮ позицию ПОСЛЕ загрузки
-                                    binding.messageList.post {
-                                        // Количество НОВЫХ сообщений сверху
-                                        val addedMessagesCount = messageAdapter!!.itemCount - currentItemCount
-
-                                        // НОВАЯ позиция = старая + добавленные сверху
-                                        val newFirstVisiblePosition = currentFirstVisiblePosition + addedMessagesCount
-
-                                        layoutManager!!.onRestoreInstanceState(layoutState)
-                                        Log.d("ChatFragment", "✅ RESTORED: added=$addedMessagesCount, newPos=$newFirstVisiblePosition, total=${messageAdapter!!.itemCount}")
-                                    }
-
                                     isLoadingHistory = false
                                     binding.progressBar.isVisible = false
+                                    viewModel.setLocked(false)
+
+                                    // Восстанавливаем позицию прокрутки
+                                    val newItemCount = messageAdapter!!.itemCount
+                                    val insertedCount = newItemCount - currentItemCount
+                                    if (insertedCount > 0 && firstVisiblePosition != RecyclerView.NO_POSITION) {
+                                        layoutManager!!.scrollToPositionWithOffset(
+                                            firstVisiblePosition + insertedCount,
+                                            offset
+                                        )
+                                    }
                                 }
                             }
                         )
@@ -591,6 +586,7 @@
                     Log.e("ChatFragment", "Error loading older messages", e)
                     isLoadingHistory = false
                     binding.progressBar.isVisible = false
+                    viewModel.setLocked(false)
                 }
             }
         }
@@ -603,7 +599,6 @@
                 val messages = viewModel.messages.value ?: emptyList()
                 val position = messages.indexOfFirst { it.isUnread }
                 if (position >= 0) {
-                    Log.d("ChatFragment", "Scrolling to first unread message at position $position, primary=${messages[position].primary}, archivedId=${messages[position].archivedId}")
                     layoutManager?.scrollToPositionWithOffset(position, 200)
                     binding.tvNewReceivedCount.text = unreadCount.toString()
                     binding.tvNewReceivedCount.isVisible = true
@@ -658,14 +653,12 @@
             binding.buttonSendMessage.setOnClickListener {
                 val text = binding.chatInput.text.toString().trim()
                 if (text.isEmpty() && replyingMessage == null) {
-                    Log.d("ChatFragment", "Send button clicked but input is empty and no reply message, skipping")
                     return@setOnClickListener
                 }
                 if (editMessageId != null) {
                     viewModel.editMessage(editMessageId!!, text)
                     binding.chatInput.text?.clear()
                     editMessageId = null
-                    Log.d("ChatFragment", "Edited message: id=$editMessageId, newBody=$text")
                 } else {
                     val chat = viewModel.loadChat(getParams().id)!!
                     val conversationType = if (chat.isGroup) ConversationType.Group else ConversationType.Regular
@@ -677,11 +670,7 @@
                             forwarded = forwarded,
                             conversationType = conversationType
                         )
-                        if (sentId.isNullOrEmpty()) {
-                            Log.w("ChatFragment", "Failed to send message: MessageSender not initialized or error occurred")
-                        } else {
-                            Log.d("ChatFragment", "Sent message via MessageCommonSender: body=$text, recipientJid=${chat.opponentJid}, forwarded=$forwarded")
-                        }
+
                     }
                     binding.chatInput.text?.clear()
                     binding.answer.isVisible = false
@@ -863,7 +852,6 @@
                 if (!isAdded || !lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
                     return@observe
                 }
-                Log.d("ChatFragment", "Unread count updated: $unread")
                 lifecycleScope.launch(Dispatchers.Main) {
                     showUnreadBadge(unread)
                     binding.downScroller.isVisible = unread > 0 && layoutManager != null && messageAdapter != null
@@ -872,22 +860,21 @@
 
             viewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
                 binding.progressBar.isVisible = isLoading
-                Log.d("ChatFragment", "ProgressBar visibility updated: $isLoading")
             }
 
-            viewModel.isLocked.observe(viewLifecycleOwner) { isLocked ->
-                binding.messageList.isEnabled = !isLocked
-                replySwipeCallback?.setSwipeEnabled(!isLocked)
-                binding.buttonSendMessage.isEnabled = !isLocked && (binding.chatInput.text.toString().trim().isNotEmpty() || replyingMessage != null)
-                binding.buttonEmoticon.isEnabled = !isLocked
-                binding.buttonAttach.isEnabled = !isLocked
-                binding.btnRecord.isEnabled = !isLocked
-                binding.btnDownward.isEnabled = !isLocked
-                Log.d("ChatFragment", "Screen lock state updated: isLocked=$isLocked")
-            }
+//            viewModel.isLocked.observe(viewLifecycleOwner) { isLocked ->
+//                binding.messageList.isEnabled = !isLocked
+//                replySwipeCallback?.setSwipeEnabled(!isLocked)
+//                binding.buttonSendMessage.isEnabled = !isLocked && (binding.chatInput.text.toString().trim().isNotEmpty() || replyingMessage != null)
+//                binding.buttonEmoticon.isEnabled = !isLocked
+//                binding.buttonAttach.isEnabled = !isLocked
+//                binding.btnRecord.isEnabled = !isLocked
+//                binding.btnDownward.isEnabled = !isLocked
+//
+//            }
 
             viewModel.selectedCount.observe(viewLifecycleOwner) {
-                Log.d("ChatFragment", "Selected count updated: $it")
+
                 if (it > 0) {
                     binding.selectMessagesToolbar.tvMessagesCount.text = it.toString()
                     binding.selectMessagesToolbar.toolbarSelectedMessages.menu.findItem(R.id.edit_message).isVisible = it == 1 && viewModel.isOutgoing()
@@ -1046,7 +1033,7 @@
             if (messageAdapter != null && messageAdapter!!.itemCount > 0) {
                 binding.messageList.post {
                     layoutManager?.scrollToPosition(messageAdapter!!.itemCount - 1)
-                    Log.d("ChatFragment", "Scrolled to last message, itemCount=${messageAdapter!!.itemCount}")
+
                 }
                 binding.tvNewReceivedCount.isVisible = false
                 binding.tvNewReceivedCount.text = ""
@@ -1257,7 +1244,7 @@
         }
 
         override fun onLongClick(primary: String) {
-            Log.d("ChatFragment", "onLongClick: primary=$primary")
+
             enableSelectionMode(true)
             Check.setSelectedMode(true)
             lifecycleScope.launch {
@@ -1323,7 +1310,7 @@
 
         override fun checkItem(isChecked: Boolean, primary: String) {
             lifecycleScope.launch {
-                Log.d("ChatFragment", "checkItem: primary=$primary, isChecked=$isChecked")
+
                 viewModel.selectMessage(primary, isChecked)
                 val position = viewModel.getMessagePosition(primary)
                 if (position != -1) {
@@ -1364,7 +1351,7 @@
 
         fun onBind(message: MessageDto?) {
             if (message != null && message.isUnread && !message.isOutgoing) {
-                Log.d("ChatFragment", "Marking message as read: primary=${message.primary}")
+
                 lifecycleScope.launch(Dispatchers.IO) {
                     realm.writeBlocking {
                         val msg = query(MessageStorageItem::class, "primary = '${message.primary}'").first().find()
@@ -1435,7 +1422,7 @@
         }
 
         fun setUpVoiceMessagePresenter(path: String) {
-            Log.d("iii", "presenter $path")
+
             val time = HttpFileUploadManager.getVoiceLength(path)
             binding.audioPresenter.tvDuration.text = String.format(
                 Locale.getDefault(), "%02d:%02d",

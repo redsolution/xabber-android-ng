@@ -15,11 +15,9 @@ class LastChatsStorageItem : RealmObject {
     companion object {
         fun genPrimary(jid: String, owner: String, conversationType: ConversationType): String {
             if (jid.isBlank() || owner.isBlank() || conversationType.rawValue.isBlank()) {
-                Log.e("LastChatsStorageItem", "Invalid genPrimary inputs: jid='$jid', owner='$owner', type='${conversationType.rawValue}'")
                 return ""
             }
             val primary = listOf(jid, owner, conversationType.rawValue).prp()
-            Log.d("LastChatsStorageItem", "Generated primary: $primary for jid=$jid, owner=$owner, type=${conversationType.rawValue}")
             return primary
         }
     }
@@ -29,15 +27,12 @@ class LastChatsStorageItem : RealmObject {
             conversationType_ = newValue.rawValue
         }
 
-    // Added from Swift: Computed property for isAfterburnEnabled
     val isAfterburnEnabled: Boolean
         get() = afterburnInterval > 0
 
-    // Added from Swift: Computed property for isMuted
     val isMuted: Boolean
         get() = System.currentTimeMillis() / 1000.0 < muteExpired
 
-    // Added from Swift: Computed property for chatState
     var chatState: ComposingType
         get() = when (chatState_) {
             ComposingType.none.rawValue.toInt() -> ComposingType.none

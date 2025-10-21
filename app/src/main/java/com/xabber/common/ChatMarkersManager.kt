@@ -243,10 +243,10 @@ class ChatMarkersManager(private val owner: String, withoutAfterburnTimer: Boole
                     }
 
                     if (msg.readDate!! < 1) {
-                        msg.readDate = (date.time / 1000.0)
+                        msg.readDate = (date.time / 1000)
                     }
                     if (msg.afterburnInterval > 0 && msg.burnDate < 1) {
-                        msg.burnDate = (date.time / 1000.0) + msg.afterburnInterval
+                        msg.burnDate = (date.time / 1000) + msg.afterburnInterval
                     }
                     msg.state = MessageSendingState.Read
                     msg.isRead = true
@@ -254,10 +254,10 @@ class ChatMarkersManager(private val owner: String, withoutAfterburnTimer: Boole
 
                 collection.forEach { msg ->
                     if (msg.readDate!! < 1) {
-                        msg.readDate = (date.time / 1000.0)
+                        msg.readDate = (date.time / 1000)
                     }
                     if (msg.afterburnInterval > 0 && msg.burnDate < 1) {
-                        msg.burnDate = (date.time / 1000.0) + msg.afterburnInterval
+                        msg.burnDate = (date.time / 1000) + msg.afterburnInterval
                     }
                     msg.state = MessageSendingState.Read
                     msg.isRead = true
@@ -395,15 +395,15 @@ class ChatMarkersManager(private val owner: String, withoutAfterburnTimer: Boole
 
                 findLatest(instance)?.let { msg ->
                     if (msg.readDate!! < 1 && msg.burnDate < 1 && msg.afterburnInterval > 0) {
-                        msg.readDate = System.currentTimeMillis() / 1000.0
-                        msg.burnDate = System.currentTimeMillis() / 1000.0 + msg.afterburnInterval
+                        msg.readDate = System.currentTimeMillis() / 1000
+                        msg.burnDate = System.currentTimeMillis() / 1000 + msg.afterburnInterval
                     }
                 }
 
                 collection.forEach { msg ->
                     if (msg.readDate!! < 1 && msg.burnDate < 1 && msg.afterburnInterval > 0) {
-                        msg.readDate = System.currentTimeMillis() / 1000.0
-                        msg.burnDate = System.currentTimeMillis() / 1000.0 + msg.afterburnInterval
+                        msg.readDate = System.currentTimeMillis() / 1000
+                        msg.burnDate = System.currentTimeMillis() / 1000 + msg.afterburnInterval
                     }
                 }
             }

@@ -76,10 +76,7 @@ class MessageCommonReceiver(private val owner: String) {
         readDate: Date? = null
     ): MessageQueueItem? {
         val messageId = getOriginId(message) ?: message.id
-        Log.d(
-            TAG,
-            "receiveClientSyncRaw called: messageId=$messageId, from=${message.from?.bare()}, to=${message.to?.bare()}, body=${message.body?.take(100)}, isRead=$isRead, state=$state, date=$date"
-        )
+
         val queueItem = MessageQueueItem(
             message = message,
             messageId = messageId,
@@ -93,31 +90,24 @@ class MessageCommonReceiver(private val owner: String) {
             groupchatUserCard = groupchatUserCard,
             readDate = readDate
         )
-        Log.d(TAG, "Created MessageQueueItem: messageId=${queueItem.messageId}, clientSyncMessage=${queueItem.clientSyncMessage}")
         return queueItem
     }
 
     suspend fun receiveClientSync(message: XMPPMessage, isRead: Boolean, state: MessageSendingState, date: Date) {
         val messageId = getOriginId(message) ?: message.id
-        Log.d(TAG, "receiveClientSync called for messageId=$messageId")
         receiveClientSyncRaw(message, null, isRead, state, date)?.let { enqueue(it) }
     }
 
-    fun receiveTemporary(message: XMPPMessage): MessageQueueItem? {
-        val date = getDelayedDate(message) ?: return null.also {
-            Log.w(TAG, "receiveTemporary failed: no delayed date for messageId=${getOriginId(message) ?: message.id}")
-        }
-        val messageBare = getArchivedMessageContainer(message) ?: return null.also {
-            Log.w(TAG, "receiveTemporary failed: no archived message container for messageId=${getOriginId(message) ?: message.id}")
-        }
-        val messageId = getOriginId(messageBare) ?: messageBare.id
-        Log.d(TAG, "receiveTemporary called for messageId=$messageId")
+    fun receiveTemporary(message: XMPPMessage): MessageQueueItem {
+        val date = getDelayedDate(message)
+        val messageBare = getArchivedMessageContainer(message)
+        val messageId = getOriginId(messageBare!!) ?: messageBare.id
         return MessageQueueItem(
             message = messageBare,
             messageId = messageId,
             archivedFrom = message.from?.bare(),
             isRead = (message.from?.bare() == owner),
-            date = getDeliveryTime(messageBare, owner) ?: date,
+            date = getDeliveryTime(messageBare, owner)!!,
             state = MessageSendingState.Deliver,
             clientSyncMessage = true,
             queryId = getMAMQueryId(message)
@@ -129,21 +119,15 @@ class MessageCommonReceiver(private val owner: String) {
             Log.w(TAG, "Skipping incomplete archived message: messageId=${message.id}")
             return
         }
-        val messageBare = getArchivedMessageContainer(message) ?: return.also {
-            Log.w(TAG, "receiveArchived failed: no archived message container for messageId=${getOriginId(message) ?: message.id}")
-        }
-        val messageId = getOriginId(messageBare) ?: messageBare.id ?: run {
-            Log.w(TAG, "Skipping archived message with no valid ID: raw=${message.raw.substring(0, minOf(message.raw.length, 200))}...")
-            return
-        }
+        val messageBare = getArchivedMessageContainer(message)
+        val messageId = getOriginId(messageBare!!) ?: messageBare.id
 
         if (processedMessageIds.contains(messageId)) {
-            Log.d(TAG, "Skipping duplicate archived message based on messageId=$messageId")
             return
         }
 
-        val primary = MessageStorageItem.genPrimary(messageId, owner)
-        val innerTimestamp = parseTimestamp(messageBare, TAG)?.let { Date(it) } ?: parseTimestamp(message, TAG)?.let { Date(it) }
+        val primary = MessageStorageItem.genPrimary(messageId!!, owner)
+        val innerTimestamp = Date(parseTimestamp(messageBare, TAG)!!)
 
         val queryId = getMAMQueryId(message)
         val existing = realm.query<MessageStorageItem>(
@@ -151,16 +135,14 @@ class MessageCommonReceiver(private val owner: String) {
             primary, messageId, conversationTypeByMessage(messageBare).rawValue
         ).first().find()
         if (existing != null) {
-            Log.d(TAG, "Skipping duplicate archived message: messageId=$messageId, primary=$primary, existing sentDate=${existing.sentDate}, new sentDate=${innerTimestamp!!.time}, queryId=$queryId")
             return
         }
-        Log.d(TAG, "receiveArchived: messageId=$messageId, timestamp=$innerTimestamp, body=${messageBare.body?.take(100)}, queryId=$queryId")
         val queueItem = MessageQueueItem(
             message = messageBare,
             messageId = messageId,
             archivedFrom = messageBare.from?.bare(),
             isRead = messageBare.from?.bare() == owner,
-            date = innerTimestamp!!,
+            date = innerTimestamp,
             state = MessageSendingState.Deliver,
             queryId = queryId,
             originalFrom = messageBare.from?.bare() ?: "",
@@ -175,23 +157,19 @@ class MessageCommonReceiver(private val owner: String) {
         }
         storeMessagesNow()
 
-        Log.d(TAG, "Processed archived MAM synchronously: messageId=$messageId")
     }
 
     suspend fun receiveCarbon(message: XMPPMessage) {
         val messageBare = getCarbonCopyMessageContainer(message)
         val messageId = getOriginId(messageBare!!) ?: messageBare.id
         if (processedMessageIds.contains(messageId)) {
-            Log.d(TAG, "Skipping duplicate carbon message based on messageId=$messageId")
             return
         }
         val primary = messageId?.let { MessageStorageItem.genPrimary(it, owner) }
         if (primary != null && realm.query<MessageStorageItem>("primary = $0", primary).first().find() != null) {
-            Log.d(TAG, "Skipping duplicate carbon message: messageId=$messageId, primary=$primary")
             return
         }
         val deliveryTime = parseTimestamp(messageBare, TAG)?.let { Date(it) }
-        Log.d(TAG, "receiveCarbon called for messageId=$messageId, timestamp=$deliveryTime")
         val queueItem = MessageQueueItem(
             message = messageBare,
             messageId = messageId,
@@ -210,27 +188,20 @@ class MessageCommonReceiver(private val owner: String) {
     }
 
     suspend fun receiveCarbonForwarded(message: XMPPMessage) {
-        val messageId = getOriginId(message) ?: message.id ?: run {
-            Log.w(TAG, "Skipping carbon forwarded message with no valid ID: raw=${message.raw.substring(0, minOf(message.raw.length, 200))}...")
-            return
-        }
+        val messageId = getOriginId(message) ?: message.id
         if (messageId == "388774f9-3793-4a94-9c11-47ec82345440") {
-            Log.d(TAG, "Processing target carbon forwarded message: messageId=$messageId, body=${message.body?.take(100)}")
         }
         if (message.body.isNullOrEmpty()) {
-            Log.d(TAG, "Skipping carbon forwarded message with no body: messageId=$messageId")
             return
         }
-        val primary = MessageStorageItem.genPrimary(messageId, owner)
+        val primary = MessageStorageItem.genPrimary(messageId!!, owner)
         if (realm.query<MessageStorageItem>("primary = $0", primary).first().find() != null) {
-            Log.d(TAG, "Skipping duplicate carbon forwarded message: messageId=$messageId, primary=$primary")
             return
         }
         val from = message.from?.bare()
         val to = message.to?.bare()
         val opponent = if (to != owner) to else from
         if (opponent == owner) {
-            Log.w(TAG, "Skipping self-directed message: messageId=$messageId, from=$from, to=$to")
             return
         }
         val deliveryTime = parseTimestamp(message, TAG)?.let { Date(it) }
@@ -246,54 +217,41 @@ class MessageCommonReceiver(private val owner: String) {
             originalOutgoing = from == owner
         )
         enqueue(queueItem)
-        Log.d(TAG, "Enqueued carbon forwarded message: messageId=$messageId, opponent=$opponent, isOutgoing=${from == owner}, timestamp=$deliveryTime")
     }
 
     private fun isValidMessage(message: XMPPMessage): Boolean {
         return try {
-            message.raw.contains("</message>").also {
-                if (!it) Log.w(TAG, "Invalid message (incomplete): messageId=${message.id}, raw=${message.raw.take(200)}")
-            }
+            message.raw.contains("</message>")
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to validate message: ${e.message}")
             false
         }
     }
 
     suspend fun receiveRuntime(message: XMPPMessage) {
         if (!isValidMessage(message)) {
-            Log.w(TAG, "Skipping incomplete runtime message: messageId=${message.id}")
             return
         }
         if (message.element("result", namespace = "urn:xmpp:mam:2") != null || message.raw.contains("urn:xmpp:mam:2")) {
-            Log.d(TAG, "Detected MAM message in receiveRuntime, redirecting to receiveArchived: messageId=${getOriginId(message) ?: message.id}")
             receiveArchived(message)
             return
         }
         val messageId = getOriginId(message) ?: message.id
-        if (messageId == "388774f9-3793-4a94-9c11-47ec82345440") {
-            Log.d(TAG, "Processing target runtime message: messageId=$messageId, body=${message.body?.take(100)}")
-        }
         val primary = messageId?.let { MessageStorageItem.genPrimary(it, owner) }
         if (primary != null) {
             val existing = realm.query<MessageStorageItem>("primary = $0", primary).first().find()
             if (existing != null) {
-                Log.d(TAG, "Skipping duplicate runtime message: messageId=$messageId, primary=$primary, existing body=${existing.body.take(100)}")
                 return
             }
         } else {
-            Log.w(TAG, "Skipping message without ID: body=${message.body?.take(100)}")
             return
         }
         val from = message.from?.bare()
         val to = message.to?.bare()
         if (from == null || to == null) {
-            Log.w(TAG, "Skipping runtime message with missing from/to: messageId=$messageId, from=$from, to=$to, body=${message.body?.take(100)}")
             return
         }
         val opponent = if (to != owner) to else from
         if (opponent == owner) {
-            Log.w(TAG, "Skipping self-directed runtime message: messageId=$messageId, from=$from, to=$to")
             return
         }
         val isOutgoing = from == owner
@@ -310,11 +268,9 @@ class MessageCommonReceiver(private val owner: String) {
             originalOutgoing = isOutgoing
         )
         enqueue(queueItem)
-        Log.d(TAG, "Enqueued runtime message: messageId=$messageId, opponent=$opponent, isOutgoing=$isOutgoing, timestamp=$deliveryTime")
     }
 
     fun updateReadDate(messageId: String, stanzaId: String, jid: String, date: Date) {
-        Log.d(TAG, "updateReadDate called: messageId=$messageId, stanzaId=$stanzaId, jid=$jid, date=$date")
         prereadedMessages.add(PrereadedMessagesItem(messageId, stanzaId, date, jid))
     }
 
@@ -360,24 +316,18 @@ class MessageCommonReceiver(private val owner: String) {
     }
 
     private fun clearQueue(item: MessageQueueItem) {
-        Log.d(TAG, "Clearing queue item: messageId=${item.messageId}")
         val current = messagesQueue.value.toMutableSet()
         current.remove(item)
         messagesQueue.value = current
-        Log.d(TAG, "Queue state after clear: size=${messagesQueue.value.size}, items=${messagesQueue.value.map { it.messageId }}")
     }
 
     private fun clearQueue() {
-        Log.d(TAG, "Clearing entire message queue")
         messagesQueue.value = HashSet()
-        Log.d(TAG, "Queue cleared: size=${messagesQueue.value.size}")
     }
 
     fun subscribeReceiver() {
-        Log.d(TAG, "Subscribing receiver for owner $owner")
         scope.launch {
             messagesQueue.collect { results ->
-                Log.d(TAG, "Collected ${results.size} items: ${results.map { it.messageId }}")
                 processQueue(results) { messages ->
                     messages?.let { save(it) }
                 }
@@ -387,30 +337,24 @@ class MessageCommonReceiver(private val owner: String) {
     }
 
     fun unsubscribeReceiver() {
-        Log.d(TAG, "Unsubscribing receiver for owner $owner")
         clearQueue()
     }
 
     suspend fun processQueue(items: Set<MessageQueueItem>, callback: suspend (List<MessageDto>?) -> Unit) {
         if (items.isEmpty()) {
-            Log.d(TAG, "No items in queue to process")
             callback(null)
             return
         }
-        Log.d(TAG, "Processing queue with ${items.size} items: ${items.map { it.messageId }}")
 
         val messageDtos = mutableListOf<MessageDto>()
         val sortedItems = items.sortedBy { it.date.time }
 
         sortedItems.forEach { item ->
             if (isVoIPMessage(item.message)) {
-                Log.d(TAG, "Skipping VoIP message: messageId=${item.messageId}")
                 return@forEach
             }
 
-            val messageId = item.messageId ?: return@forEach.also {
-                Log.w(TAG, "Skipping message without ID: body=${item.message.body?.take(100)}")
-            }
+            val messageId = item.messageId ?: return@forEach
 
             var primary = MessageStorageItem.genPrimary(messageId, owner)
             if (primary == "_$owner" || primary.isEmpty()) {
@@ -433,11 +377,9 @@ class MessageCommonReceiver(private val owner: String) {
                             body = item.message.body ?: ""
                             isRead = item.isRead
                             sentDate = item.date.time
-                            Log.d(TAG, "Updated existing message: primary=$primary, archivedId=$archivedId, body=${item.message.body?.take(50)}")
                         }
                     }
                 } else {
-                    Log.d(TAG, "Skipping duplicate message: primary=$primary, archivedId=$archivedId")
                     return@forEach
                 }
             } else {
@@ -445,12 +387,9 @@ class MessageCommonReceiver(private val owner: String) {
             }
 
             val from = item.message.from?.bare() ?: item.archivedFrom ?: item.originalFrom
-            val to = item.message.to?.bare() ?: return@forEach.also {
-                Log.w(TAG, "Skipping message ${item.messageId}: no valid 'to' JID")
-            }
+            val to = item.message.to?.bare() ?: return@forEach
             val opponent = if (to != owner) to else from
             if (opponent == owner) {
-                Log.w(TAG, "Skipping self-directed message: messageId=$messageId, from=$from, to=$to")
                 return@forEach
             }
 
@@ -470,7 +409,6 @@ class MessageCommonReceiver(private val owner: String) {
                     if (forwardedMessage != null) {
                         val forwardedMessageId = forwardedMessage.attributes["id"] ?: return@forEach
                         if (processedMessageIds.contains(forwardedMessageId)) {
-                            Log.d(TAG, "Skipping reference with forwarded messageId=$forwardedMessageId")
                             return@forEach
                         }
                     }
@@ -531,26 +469,21 @@ class MessageCommonReceiver(private val owner: String) {
         // Clear processedMessageIds periodically
         if (processedMessageIds.size > 1000) {
             processedMessageIds.clear()
-            Log.d(TAG, "Cleared processedMessageIds to prevent memory growth")
         }
     }
 
     private suspend fun enqueue(item: MessageQueueItem) {
-        Log.d(TAG, "Enqueuing item: messageId=${item.messageId}")
         val current = messagesQueue.value.toMutableSet()
         current.add(item)
         messagesQueue.value = current
-        Log.d(TAG, "Queue updated: size=${messagesQueue.value.size}, items=${messagesQueue.value.map { it.messageId }}")
     }
 
     private suspend fun save(messages: List<MessageDto>) {
-        Log.d(TAG, "save called with ${messages.size} messages")
         try {
             realm.write {
                 messages.forEach { messageDto ->
                     val existing = query<MessageStorageItem>("archivedId = $0 AND archivedId != ''", messageDto.archivedId).first().find()
                     if (existing != null) {
-                        Log.d(TAG, "Skipping duplicate MessageStorageItem: primary=$existing.primary, messageId=${messageDto.archivedId}, body=${existing.body.take(100)}")
                         return@forEach
                     }
                     val rreferences = realmListOf<MessageReferenceStorageItem>()
@@ -594,23 +527,16 @@ class MessageCommonReceiver(private val owner: String) {
                                 unread = (unread ?: 0) + if (messageDto.isUnread) 1 else 0
                             }
                         }
-                        Log.d(TAG, "Updated LastChatsStorageItem for chatId=$chatId: lastMessageId=${message.primary}, unread=${chat.unread}")
                     }
-                    Log.d(TAG, "Saved MessageStorageItem: primary=${message.primary}, messageId=${messageDto.archivedId}, owner=${message.owner}, opponent=${message.opponent}, body=${message.body.take(50)}, state=${messageDto.messageSendingState}, isRead=${message.isRead}, archivedId=${message.archivedId}")
                 }
             }
             messages.forEach { message ->
-                if (message.archivedId == "388774f9-3793-4a94-9c11-47ec82345440") {
-                    Log.d(TAG, "Notifying ChatViewModel for target message: primary=${message.primary}, archivedId=${message.archivedId}, body=${message.messageBody.take(50)}")
-                }
                 val conversationType = ConversationType.fromRaw(if (message.isGroup) "https://xabber.com/protocol/groups" else "urn:xabber:chat")
                 val chatId = LastChatsStorageItem.genPrimary(message.opponentJid, message.owner, conversationType)
                 val chatViewModel = AccountManager.getChatViewModel(chatId)
                 if (chatViewModel != null) {
                     chatViewModel.insertMessagesFromReceiver(listOf(message))
-                    Log.d(TAG, "Notified ChatViewModel for chatId=$chatId with message ${message.primary}")
                 } else {
-                    Log.w(TAG, "ChatViewModel not found for chatId=$chatId, messageId=${message.primary}")
                 }
             }
         } catch (e: Exception) {
@@ -625,16 +551,10 @@ class MessageCommonReceiver(private val owner: String) {
                 messages.forEach { message ->
                     if (message.save(this, false)) {
                         message.storeStanza(this)
-                        Log.d(
-                            TAG,
-                            "Unsafe Saved MessageStorageItem: primary=${message.primary}, messageId=${message.messageId}, owner=${message.owner}, opponent=${message.opponent}, body=${message.body.take(50)}, state=${message.state}, isRead=${message.isRead}, date=${message.date}, readDate=${message.readDate}, burnDate=${message.burnDate}, afterburnInterval=${message.afterburnInterval}, isDeleted=${message.isDeleted}, conversationType=${message.conversationType}, referencesCount=${message.references.size}"
-                        )
+
                         message.references.forEach { reference ->
                             reference.prepare()
-                            Log.d(
-                                TAG,
-                                "  Reference for message ${message.primary}: primary=${reference.primary}, messageId=${reference.messageId}, kind=${reference.kind}, mimeType=${reference.mimeType}, isDownloaded=${reference.isDownloaded}, isUploaded=${reference.isUploaded}, isMissed=${reference.isMissed}, hasError=${reference.hasError}, fileName=${reference.fileName}, fileSize=${reference.fileSize}, uri=${reference.uri}, metadata=${reference.metadata}"
-                            )
+
                         }
                     } else {
                         Log.w(TAG, "Failed to unsafe save MessageStorageItem: primary=${message.primary}, messageId=${message.messageId}")
@@ -647,10 +567,8 @@ class MessageCommonReceiver(private val owner: String) {
     }
 
     fun storeMessagesNow() {
-        Log.d(TAG, "storeMessagesNow called for owner $owner")
         val results = messagesQueue.value
         messagesQueue.value = HashSet()
-        Log.d(TAG, "storeMessagesNow: Processing ${results.size} queued items: ${results.map { it.messageId }}")
         CoroutineScope(Dispatchers.IO).launch {
             processQueue(results) { messages ->
                 messages?.let { save(it) }
@@ -705,8 +623,6 @@ class MessageCommonReceiver(private val owner: String) {
             message.element("axolotl", namespace = "eu.siacs.conversations.axolotl") != null -> ConversationType.Axolotl
             message.element("xen", namespace = "urn:xabber:xen:0") != null -> ConversationType.Notifications
             else -> ConversationType.Regular
-        }.also {
-            Log.d(TAG, "Determined conversationType=${it.rawValue} for messageId=${message.id}, to=$to")
         }
     }
 
@@ -715,7 +631,6 @@ class MessageCommonReceiver(private val owner: String) {
         realm.writeBlocking {
             val selfChats = query<LastChatsStorageItem>("owner = $0 AND jid = $0", owner).find()
             delete(selfChats)
-            Log.d(TAG, "Deleted ${selfChats.size} self-chats for owner=$owner")
         }
     }
 }

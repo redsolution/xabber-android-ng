@@ -227,10 +227,10 @@ class MessageManager(private val owner: String, activeStream: Boolean) {
                     latestMsg.isRead = true
                     latestMsg.state = MessageSendingState.Read
                     if (latestMsg.readDate!! <= 1) {
-                        latestMsg.readDate = System.currentTimeMillis() / 1000.0
+                        latestMsg.readDate = System.currentTimeMillis() / 1000
                     }
                     if (latestMsg.afterburnInterval > 0 && latestMsg.burnDate <= 1) {
-                        latestMsg.burnDate = System.currentTimeMillis() / 1000.0 + latestMsg.afterburnInterval
+                        latestMsg.burnDate = System.currentTimeMillis() / 1000 + latestMsg.afterburnInterval
                     }
                 }
 

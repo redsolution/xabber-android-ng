@@ -331,7 +331,6 @@ open class MessageReferenceStorageItem : RealmObject {
             Kind.VOICE -> {
                 // Voice handling omitted as it depends on AudioMessageReceiver and OpusAudio
                 // Placeholder for future implementation if needed
-                Log.d("MessageReferenceStorageItem", "Voice reference preparation not implemented")
             }
             Kind.MEDIA -> {
                 if (mimeType == "video") {

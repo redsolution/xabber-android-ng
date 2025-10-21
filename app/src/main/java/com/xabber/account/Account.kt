@@ -138,9 +138,7 @@ class Account : XMPPStreamDelegate {
             if (bufferedContent.trim().startsWith("<iq") && bufferedContent.contains("</iq>")) {
                 rosterStanzas.add(bufferedContent)
                 rosterStanzaBuffer.clear()
-                Log.d(TAG, "Collected complete roster stanza for processing: ${bufferedContent.take(200)}")
             } else {
-                Log.d(TAG, "Incomplete roster stanza, buffering: ${bufferedContent.take(200)}")
                 return
             }
         }
@@ -163,7 +161,6 @@ class Account : XMPPStreamDelegate {
                                 queryContent = iq.queryContent
                             )
                         )
-                        Log.d(TAG, "Processed roster IQ stanza: ${completeStanza.take(200)}")
                     } else {
                         Log.w(TAG, "Failed to parse roster IQ stanza: ${completeStanza.take(200)}")
                     }
@@ -193,16 +190,11 @@ class Account : XMPPStreamDelegate {
                 if (iqStart != -1 && iqEnd != -1 && iqEnd > iqStart) {
                     syncStanzas.add(cleaned.substring(iqStart, iqEnd))
                     syncStanzaBuffer.clear()
-                    Log.d(
-                        TAG,
-                        "Collected complete sync stanza for processing: ${cleaned.take(200)}"
-                    )
                 } else {
                     Log.e(TAG, "Failed to extract complete sync <iq> stanza: ${cleaned.take(200)}")
                     return
                 }
             } else {
-                Log.d(TAG, "Incomplete sync stanza, buffering: ${bufferedContent.take(200)}")
                 return
             }
         }
@@ -210,7 +202,6 @@ class Account : XMPPStreamDelegate {
             try {
                 batch.forEach { completeStanza ->
                     syncManager.read(completeStanza)
-                    Log.d(TAG, "Processed sync query stanza: ${completeStanza.take(200)}")
                     syncCompletionChannel.trySend(Unit)
                 }
             } catch (e: Exception) {
@@ -434,14 +425,12 @@ class Account : XMPPStreamDelegate {
                 }
                 if (iq.queryNamespace == "https://xabber.com/protocol/synchronization") {
                     stanzaBuffer.emit(StanzaItem(StanzaItem.StanzaType.SYNC, iq.raw, stream))
-                    Log.d(TAG, "Buffered sync IQ stanza: ${iq.raw.take(200)}")
                     return true
                 }
             }
 
             // Handle ping and disco#info synchronously to maintain responsiveness
             if (iq.type == "get" && iq.queryNamespace == "urn:xmpp:ping" && stream.state == StreamState.CONNECTED) {
-                Log.d(TAG, "Received server ping request")
                 val pingId = iq.id ?: return false
                 val fromJid = iq.from ?: return false
                 val response = """
@@ -449,7 +438,6 @@ class Account : XMPPStreamDelegate {
                 """.trimIndent()
                 return withContext(Dispatchers.IO) {
                     if (stream.socket?.write(response) == true) {
-                        Log.d(TAG, "Sent ping response: $response")
                         true
                     } else {
                         Log.e(TAG, "Failed to send ping response")
@@ -461,14 +449,12 @@ class Account : XMPPStreamDelegate {
             }
 
             if (iq.type == "get" && iq.queryNamespace == "http://jabber.org/protocol/disco#info") {
-                Log.d(TAG, "Received disco#info query from ${iq.from}")
                 val discoId = iq.id ?: return false
                 val fromJid = iq.from ?: return false
                 val toJid = iq.to ?: jid
                 val response = buildDiscoInfoResponse(discoId, fromJid, toJid)
                 return withContext(Dispatchers.IO) {
                     if (stream.socket?.write(response) == true) {
-                        Log.d(TAG, "Sent disco#info response to $fromJid")
                         true
                     } else {
                         Log.e(TAG, "Failed to send disco#info response")
@@ -577,7 +563,6 @@ class Account : XMPPStreamDelegate {
             }
 
             if (stream.state == StreamState.BINDING) {
-                Log.d(TAG, "Received IQ response for binding")
                 val jidMatch = Regex("""<jid>([^<]+)</jid>""").find(iq.queryContent ?: "")
                 if (jidMatch != null) {
                     boundJid = jidMatch.groupValues[1]
@@ -594,17 +579,14 @@ class Account : XMPPStreamDelegate {
 
             // *** ADD THIS NEW HANDLER ***
             if (iq.type == "result" && iq.queryContent.isNullOrEmpty() && iq.queryNamespace.isNullOrEmpty()) {
-                Log.d(TAG, "Received empty result IQ for id='${iq.id}' from ${iq.from} - request completed successfully")
                 return true
             }
 
             // Handle other empty results that might have just a namespace but no content
             if (iq.type == "result" && (iq.queryContent.isNullOrEmpty() || iq.queryContent?.trim() == "")) {
-                Log.d(TAG, "Received empty result IQ (with namespace '${iq.queryNamespace}') for id='${iq.id}' - request completed")
                 return true
             }
 
-            Log.w(TAG, "Unhandled IQ: ${iq.raw}")
             return false
         } catch (e: Exception) {
             Log.e(TAG, "Error handling IQ: ${e.message}", e)
@@ -642,11 +624,9 @@ class Account : XMPPStreamDelegate {
     override suspend fun didReceivePresence(presence: String, stream: Stream): Boolean {
         if (stream.state == StreamState.CONNECTED || stream.state == StreamState.BINDING) {
             stanzaBuffer.emit(StanzaItem(StanzaItem.StanzaType.PRESENCE, presence, stream))
-            Log.d(TAG, "Buffered presence stanza: ${presence.take(200)}")
             return true
         }
         // Process non-post-registration presence synchronously
-        Log.d(TAG, "Received presence stanza")
         return presenceManager?.processPresence(presence) ?: run {
             Log.w(TAG, "PresenceManager not initialized, skipping presence processing")
             false
@@ -808,7 +788,6 @@ class Account : XMPPStreamDelegate {
 
     @RequiresApi(Build.VERSION_CODES.O)
     override suspend fun didReceiveMessage(message: String, stream: Stream): Boolean {
-        Log.d(TAG, "Received message stanza: ${message}")
         try {
             val xmppMessage = XMPPMessage(message)
             var messageId = xmppMessage.id
@@ -821,8 +800,6 @@ class Account : XMPPStreamDelegate {
             var innerLang: String? = null
             var inForwarded = false
             val innerRaw = StringBuilder()
-
-            // Add flags for container detection
             var isArchived = false
             var isCarbon = false
             var isLastMessage = false  // If needed for last-message
@@ -852,7 +829,6 @@ class Account : XMPPStreamDelegate {
                                 innerTo = parser.getAttributeValue(null, "to")?.trim()
                                 innerType = parser.getAttributeValue(null, "type")
                                 innerLang = parser.getAttributeValue(null, "xml:lang")
-                                Log.d(TAG, "Inner message attributes: id=$innerMessageId, from=$innerFrom, to=$innerTo, type=$innerType, lang=$innerLang")
                                 innerRaw.append("<message")
                                 for (i in 0 until parser.attributeCount) {
                                     innerRaw.append(" ${parser.getAttributeName(i)}='${parser.getAttributeValue(i)}'")
@@ -904,11 +880,9 @@ class Account : XMPPStreamDelegate {
                 eventType = parser.next()
             }
 
-            messageId = innerMessageId ?: messageId ?: "unknown_${System.currentTimeMillis()}"
-            Log.d(TAG, "Processing message: id=$messageId, isChatState=$isChatState, innerFrom=$innerFrom, innerTo=$innerTo, innerBody=$innerBody")
+            messageId = innerMessageId ?: messageId
 
             if (isChatState && innerBody.isNullOrEmpty()) {
-                Log.d(TAG, "Skipping chat state notification: id=$messageId")
                 return true
             }
 
@@ -922,7 +896,6 @@ class Account : XMPPStreamDelegate {
 
             val opponent = if (toJid != jid) toJid else fromJid
             if (opponent == jid) {
-                Log.w(TAG, "Skipping self-directed message: id=$messageId, from=$fromJid, to=$toJid, stanza=$message")
                 return false
             }
 
@@ -930,7 +903,6 @@ class Account : XMPPStreamDelegate {
             val primary = "${messageId}_$jid"
             val existingMessage = realm.query<MessageStorageItem>("primary = $0", primary).first().find()
             if (existingMessage != null) {
-                Log.d(TAG, "Skipping duplicate message: id=$messageId, primary=$primary")
                 realm.close()
                 return true
             }
@@ -939,7 +911,6 @@ class Account : XMPPStreamDelegate {
             var innerMessage: XMPPMessage? = null
             if (isArchived) {
                 containerType = "archived"
-                Log.d(TAG, "Detected archived message for messageId=$messageId")
                 innerMessage = XMPPMessage(
                     raw = innerRaw.toString(),
                     type = innerType,
@@ -952,7 +923,6 @@ class Account : XMPPStreamDelegate {
                 )
             } else if (isCarbon) {
                 containerType = "forwarded"
-                Log.d(TAG, "Detected forwarded carbon message for messageId=$messageId")
                 innerMessage = XMPPMessage(
                     raw = innerRaw.toString(),
                     type = innerType,
@@ -966,19 +936,16 @@ class Account : XMPPStreamDelegate {
             } else if (isLastMessage) {  // Or keep xmppMessage.element if it works for this
                 containerType = "last-message"
                 innerMessage = xmppMessage  // Adjust if needed
-                Log.d(TAG, "Detected last-message container for messageId=$messageId")
             } else {
                 containerType = "runtime"
                 innerMessage = xmppMessage
-                Log.d(TAG, "No specific container found, treating as runtime for messageId=$messageId")
             }
 
             val tempStanza = realm.query<TemporaryMessageStanzaStorageItem>(
-                "primary = $0 AND isProcessed = false", TemporaryMessageStanzaStorageItem.genPrimary(messageId, jid)
+                "primary = $0 AND isProcessed = false", TemporaryMessageStanzaStorageItem.genPrimary(messageId!!, jid)
             ).first().find()
 
             if (tempStanza == null && !isChatState && containerType == "runtime") {  // Skip for "archived"/"forwarded"
-                Log.d(TAG, "Creating new TemporaryMessageStanzaStorageItem for runtime messageId=$messageId, primary=$primary")
                 realm.write {
                     val newTempStanza = TemporaryMessageStanzaStorageItem().apply {
                         this.messageId = messageId
@@ -986,30 +953,25 @@ class Account : XMPPStreamDelegate {
                         this.owner = jid
                         this.jid = opponent!!
                         this.isProcessed = false
-                        this.date = parseTimestamp(xmppMessage) ?: System.currentTimeMillis()
+                        this.date = parseTimestamp(xmppMessage)!!
                         this.stanza = message
                     }
                     copyToRealm(newTempStanza, UpdatePolicy.ALL)
                 }
             } else if (containerType != "runtime") {
-                Log.d(TAG, "Skipping temp creation for non-runtime containerType=$containerType, messageId=$messageId")
             }
 
             when (containerType) {
                 "archived" -> {
-                    Log.d(TAG, "Directing archived message to MessageArchiveManager: id=$messageId")
                     messageArchiveManager.readMessage(message)
                 }
                 "forwarded" -> {
-                    Log.d(TAG, "Directing forwarded (carbon) message to MessageCommonReceiver")
                     messageReceiver.receiveCarbon(innerMessage!!)
                 }
                 "last-message" -> {
-                    Log.d(TAG, "Directing last-message to MessageCommonReceiver")
                     messageReceiver.receiveRuntime(innerMessage!!)
                 }
                 "runtime" -> {
-                    Log.d(TAG, "Directing runtime message to MessageCommonReceiver")
                     messageReceiver.receiveRuntime(innerMessage!!)
                 }
             }
@@ -1019,13 +981,11 @@ class Account : XMPPStreamDelegate {
                     val latest = findLatest(tempStanza)
                     if (latest != null) {
                         latest.isProcessed = true
-                        Log.d(TAG, "Marked TemporaryMessageStanzaStorageItem as processed: id=$messageId, primary=$primary")
                     }
                 }
             }
             realm.close()
 
-            Log.d(TAG, "Processed message successfully: id=$messageId, container=$containerType")
             return true
         } catch (e: Exception) {
             Log.e(TAG, "Error handling message: ${e.message}, stanza=$message", e)

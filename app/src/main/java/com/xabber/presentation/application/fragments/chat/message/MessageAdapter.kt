@@ -4,6 +4,7 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
+import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.xabber.R
@@ -78,12 +79,12 @@ class MessageAdapter(
 
     override fun getItemCount(): Int = currentList.size
 
-    fun startObserving(owner: String, opponent: String, conversationType: String) {
+    fun startObserving(owner: String, opponent: String, conversationType: String, recyclerView: RecyclerView) {
         stopObserving()
         val query = realm.query<MessageStorageItem>(
             "owner = $0 AND opponent = $1 AND conversationType_ = $2 AND isDeleted = false",
             owner, opponent, conversationType
-        ).sort("sentDate", Sort.DESCENDING)
+        ).sort("sentDate", Sort.ASCENDING)
         collection = query.find()
 
         observingJob = scope.launch {
@@ -94,20 +95,55 @@ class MessageAdapter(
                 }.sortedBy { it.sentTimestamp }
 
                 withContext(Dispatchers.Main) {
+                    // Сохраняем текущую позицию прокрутки
+                    val layoutManager = recyclerView.layoutManager as? LinearLayoutManager
+                    val firstVisiblePosition = layoutManager?.findFirstVisibleItemPosition() ?: 0
+                    val firstVisibleView = layoutManager?.findViewByPosition(firstVisiblePosition)
+                    val offset = firstVisibleView?.top ?: 0
+                    val oldItemCount = currentList.size
+
+                    // Обновляем список через DiffUtil
+                    val diffResult = DiffUtil.calculateDiff(object : DiffUtil.Callback() {
+                        override fun getOldListSize(): Int = currentList.size
+                        override fun getNewListSize(): Int = newDtos.size
+                        override fun areItemsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
+                            return currentList[oldItemPosition].primary == newDtos[newItemPosition].primary
+                        }
+                        override fun areContentsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
+                            val oldItem = currentList[oldItemPosition]
+                            val newItem = newDtos[newItemPosition]
+                            return oldItem.messageBody == newItem.messageBody &&
+                                    oldItem.sentTimestamp == newItem.sentTimestamp &&
+                                    oldItem.isOutgoing == newItem.isOutgoing &&
+                                    oldItem.references == newItem.references &&
+                                    oldItem.isUnread == newItem.isUnread &&
+                                    oldItem.isChecked == newItem.isChecked &&
+                                    oldItem.messageSendingState == newItem.messageSendingState &&
+                                    oldItem.archivedId == newItem.archivedId
+                        }
+                    })
+
+                    // Обновляем текущий список
                     currentList = newDtos
-                    onMessagesUpdated(newDtos) // This will trigger ViewModel update
-                    notifyDataSetChanged()
+                    onMessagesUpdated(newDtos)
 
-                    val archivedMessages = newDtos.filter { !it.archivedId.isNullOrEmpty() }
-                    if (archivedMessages.isNotEmpty()) {
-                        Log.d(TAG, "Adapter received ${archivedMessages.size} archived messages")
+                    // Уведомляем о вставке новых элементов
+                    if (newDtos.size > oldItemCount) {
+                        val insertedCount = newDtos.size - oldItemCount
+                        diffResult.dispatchUpdatesTo(this@MessageAdapter)
+                        // Восстанавливаем позицию прокрутки
+                        if (firstVisiblePosition != RecyclerView.NO_POSITION) {
+                            layoutManager?.scrollToPositionWithOffset(
+                                firstVisiblePosition + insertedCount,
+                                offset
+                            )
+                        }
+                    } else {
+                        diffResult.dispatchUpdatesTo(this@MessageAdapter)
                     }
-
-                    Log.d(TAG, "Observed ${currentList.size} messages total")
                 }
             }
         }
-        Log.d(TAG, "Started observing messages for owner=$owner, opponent=$opponent")
     }
 
     fun stopObserving() {
@@ -147,7 +183,6 @@ class MessageAdapter(
         messages.addAll(newList)
         diffResult.dispatchUpdatesTo(this)
         notifyUnreadState()
-        Log.d(TAG, "Adapter updated with ${messages.size} messages, first=${messages.firstOrNull()?.primary}, last=${messages.lastOrNull()?.primary}, lastArchivedId=${messages.lastOrNull()?.archivedId}")
     }
 
 
@@ -183,7 +218,6 @@ class MessageAdapter(
     }
 
     override fun onBindViewHolder(holder: MessageViewHolder, position: Int) {
-        Log.d(TAG, "Binding position $position of ${itemCount} (message primary: ${currentList.getOrNull(position)?.primary})")
         val message = currentList.getOrNull(position) ?: return
         Log.v(TAG, "Binding message: primary=${message.primary}, body=${message.messageBody.take(50)}, isOutgoing=${message.isOutgoing}, isUnread=${message.isUnread}, isChecked=${message.isChecked}")
         holder.setIsRecyclable(true)

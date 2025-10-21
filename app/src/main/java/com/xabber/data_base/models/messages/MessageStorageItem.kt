@@ -54,7 +54,7 @@ class MessageStorageItem : RealmObject {
     var date: Long = 0
     var sentDate: Long = 0
     var editDate: Long = 0
-    var readDate: Double? = null
+    var readDate: Long? = null
     var outgoing: Boolean = false
     var isRead: Boolean = outgoing
     var displayAs_: String = ""
@@ -71,8 +71,8 @@ class MessageStorageItem : RealmObject {
     var conversationType_: String = ConversationType.Regular.rawValue
     var inlineForwards: RealmList<MessageForwardsInlineStorageItem> = realmListOf()
     var errorMetadata_: String? = null
-    var afterburnInterval: Double = -1.0
-    var burnDate: Double = -1.0
+    var afterburnInterval: Long = -1
+    var burnDate: Long = -1
     var forceUnreadState: Boolean? = null
     var queryIds: String? = null
     var envelopeContainer: String? = null
@@ -176,7 +176,6 @@ class MessageStorageItem : RealmObject {
             this.conversationType = ConversationType.Omemo
         }
         updatePrimary()
-        Log.d(TAG, "Configured incoming message: primary=$primary, messageId=$messageId, sentDate=$sentDate, date=${Date(sentDate)}")
     }
 
     fun configureOutgoingMessage(
@@ -211,7 +210,6 @@ class MessageStorageItem : RealmObject {
             // Encryption metadata skipped (not implemented in Kotlin codebase)
         }
 
-        Log.d(TAG, "Configured outgoing message: primary=$primary, messageId=$messageId, body=$body, opponent=$opponent")
     }
 
     fun save(realm: MutableRealm, silentNotifications: Boolean): Boolean {
@@ -237,7 +235,6 @@ class MessageStorageItem : RealmObject {
                 )
             }
             realm.copyToRealm(stanza, UpdatePolicy.ALL)
-            Log.d(TAG, "Successfully stored stanza for message: primary=$primary, messageId=$messageId")
         } catch (e: Exception) {
             Log.e(TAG, "Error storing stanza for message $primary: ${e.message}")
         }
@@ -263,7 +260,6 @@ class MessageStorageItem : RealmObject {
         }
     }
     fun toMessageDto(): MessageDto? = try {
-        val TAG = "TO MSI"
         MessageDto(
             primary = primary,
             isOutgoing = outgoing,
@@ -309,11 +305,8 @@ class MessageStorageItem : RealmObject {
             isUnread = !isRead,
             isChecked = false, // Managed separately
             archivedId = archivedId
-        ).also {
-            Log.d(TAG, "Mapped storage item to DTO: primary=${it.primary}, archivedId=${archivedId}, isUnread=${it.isUnread}")
-        }
+        )
     } catch (e: Exception) {
-        Log.e("TO MSI", "Failed to map MessageStorageItem to MessageDto: primary=$primary, error=${e.message}")
         null
     }
 }

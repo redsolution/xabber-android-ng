@@ -181,7 +181,6 @@ class Socket(private val host: String, private val port: Int) {
 
     private fun startReadingLoop() {
         if (isReadingLoopActive) {
-            Log.d(TAG, "Reading loop already active, skipping start")
             return
         }
         isReadingLoopActive = true
@@ -385,7 +384,6 @@ class Socket(private val host: String, private val port: Int) {
                                 val bytes = withTimeoutOrNull(1000) {
                                     tlsDataChannel.receive()
                                 }
-                                Log.d(TAG, "Read attempt: bytesRead=${bytes?.size ?: -1}, retry=$readRetries, reader closed=${reader?.isClosedForRead}")
                                 if (bytes != null) {
                                     accumulatedBytes += bytes.size
                                     readRetries = 0
@@ -597,7 +595,6 @@ class Socket(private val host: String, private val port: Int) {
             try {
                 val tempBuffer = ByteArray(65536)
                 val bytesRead = reader?.readAvailable(tempBuffer) ?: -1
-                Log.d(TAG, "Read attempt: bytesRead=$bytesRead, reader closed=${reader?.isClosedForRead}")
                 if (bytesRead == -1) {
                     Log.w(TAG, "Socket closed by remote peer")
                     break
@@ -608,7 +605,6 @@ class Socket(private val host: String, private val port: Int) {
                         Log.d(TAG, "Sent ${bytesRead} bytes to TLS channel")
                     } else {
                         val message = String(bytes, StandardCharsets.UTF_8)
-                        Log.d(TAG, "Read chunk: $message")
                         if (message.contains("<proceed") && !proceedChannel.isClosedForSend) {
                             proceedChannel.send(message)
                         }
@@ -653,11 +649,9 @@ class Socket(private val host: String, private val port: Int) {
                     return@withContext false
                 }
                 val bytes = message.toByteArray(StandardCharsets.UTF_8)
-                Log.d(TAG, "Raw bytes to send: ${bytes.joinToString(", ")}")
                 writeMutex.withLock {
                     it.writeFully(bytes, 0, bytes.size)
                 }
-                Log.d(TAG, "Sent message: $message")
                 true
             } ?: run {
                 Log.e(TAG, "Cannot send: Socket writer is null")
@@ -690,7 +684,6 @@ class Socket(private val host: String, private val port: Int) {
                             bytesRead > 0 -> {
                                 val chunk = tempBuffer.decodeToString(0, bytesRead)
                                 buffer.append(chunk)
-                                Log.d(TAG, "Read chunk: $chunk")
                                 if (buffer.contains("</stream:stream>") ||
                                     buffer.contains("</stream:features>") ||
                                     buffer.contains("</stream:error>") ||

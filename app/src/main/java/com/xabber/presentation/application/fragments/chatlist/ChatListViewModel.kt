@@ -64,10 +64,7 @@ class ChatListViewModel : ViewModel() {
                 val chats = query<LastChatsStorageItem>(
                     "conversationType_ IN {'${ConversationType.Regular.rawValue}', '${ConversationType.Group.rawValue}', '${ConversationType.Channel.rawValue}', '${ConversationType.Favorites.rawValue}'}"
                 ).find()
-                Log.d("ChatListViewModel", "LastChatsStorageItem count: ${chats.size}")
-                chats.forEach { chat ->
-                    Log.d("ChatListViewModel", "Chat: jid=${chat.jid}, owner=${chat.owner}, type=${chat.conversationType_}, isArchived=${chat.isArchived}, unread=${chat.unread}, messageDate=${chat.messageDate}, lastMessageId=${chat.lastMessageId}")
-                }
+
             }
         }
     }
@@ -82,7 +79,6 @@ class ChatListViewModel : ViewModel() {
                 ConversationType.Favorites.rawValue
             ).first().find() != null
         }
-        Log.d("ChatListViewModel", "isSavedHas for jid $jid: $exists")
         return exists
     }
 
@@ -91,7 +87,6 @@ class ChatListViewModel : ViewModel() {
         realm.writeBlocking {
             amount = this.query(com.xabber.data_base.models.account.AccountStorageItem::class, "enabled = true").find().size
         }
-        Log.d("ChatListViewModel", "Accounts amount: $amount")
         return amount
     }
 
@@ -103,7 +98,6 @@ class ChatListViewModel : ViewModel() {
 
     fun selectChat(chatId: String) {
         _selectedChatId.value = chatId
-        Log.d("ChatListViewModel", "Selected chat: $chatId")
     }
 
     fun initDataListener() {
@@ -114,7 +108,6 @@ class ChatListViewModel : ViewModel() {
         } else {
             "owner IN {${accounts.joinToString { "'$it'" }}} AND isArchived = false AND conversationType_ IN {'${ConversationType.Regular.rawValue}', '${ConversationType.Group.rawValue}', '${ConversationType.Channel.rawValue}', '${ConversationType.Favorites.rawValue}'}"
         }
-        Log.d("ChatListViewModel", "Querying chats with: $query")
         job = viewModelScope.launch(Dispatchers.IO) {
             val request = realm.query(LastChatsStorageItem::class, query)
                 .sort("pinnedPosition" to Sort.DESCENDING, "messageDate" to Sort.DESCENDING)
@@ -123,8 +116,6 @@ class ChatListViewModel : ViewModel() {
                     is UpdatedResults -> {
                         val dataSource = ArrayList<ChatListDto>()
                         dataSource.addAll(changes.list.map { it.toChatListDto() })
-                        Log.d("ChatListViewModel", "Fetched ${dataSource.size} chats")
-                        dataSource.forEach { Log.d("ChatListViewModel", "Chat DTO: $it") }
                         val accountItems = realm.query(com.xabber.data_base.models.account.AccountStorageItem::class, "enabled = true").find()
                         val accountDtoList = accountItems.map { it.toAccountDto() }
                         val accountHashMap = HashMap<String, AccountDto>()
@@ -138,7 +129,6 @@ class ChatListViewModel : ViewModel() {
                         chatListDto = dataSource
                         launch(Dispatchers.Main) {
                             _chats.postValue(chatListDto)
-                            Log.d("ChatListViewModel", "Posted ${chatListDto.size} chats to LiveData")
                         }
                     }
                     else -> {}
@@ -177,11 +167,9 @@ class ChatListViewModel : ViewModel() {
         } else {
             "owner IN {${accounts.joinToString { "'$it'" }}} AND isArchived = false AND conversationType_ IN {'${ConversationType.Regular.rawValue}', '${ConversationType.Group.rawValue}', '${ConversationType.Channel.rawValue}', '${ConversationType.Favorites.rawValue}'}"
         }
-        Log.d("ChatListViewModel", "Fetching chats with query: $query")
         viewModelScope.launch(Dispatchers.IO) {
             val realmList = realm.query(LastChatsStorageItem::class, query)
                 .sort("pinnedPosition" to Sort.DESCENDING, "messageDate" to Sort.DESCENDING).find()
-            Log.d("ChatListViewModel", "Fetched ${realmList.size} chats from Realm")
             realmList.forEach { chat ->
                 Log.d("ChatListViewModel", "Chat: jid=${chat.jid}, owner=${chat.owner}, type=${chat.conversationType_}, isArchived=${chat.isArchived}, unread=${chat.unread}, messageDate=${chat.messageDate}")
             }
@@ -200,7 +188,6 @@ class ChatListViewModel : ViewModel() {
             chatListDto = dataSource
             withContext(Dispatchers.Main) {
                 _chats.value = chatListDto
-                Log.d("ChatListViewModel", "Updated chats LiveData with ${chatListDto.size} items")
             }
         }
     }
@@ -249,7 +236,6 @@ class ChatListViewModel : ViewModel() {
                 ).find()
                 messages.forEach { findLatest(it)?.isRead = true }
             }
-            Log.d("ChatListViewModel", "Marked all chats as unread")
             checkLastChats()
         }
     }
@@ -286,13 +272,9 @@ class ChatListViewModel : ViewModel() {
                             lastMessageId = message.messageId
                             messageDate = newMessageTimestamp
                             unread = 0
-                            Log.d("ChatListViewModel", "Updated LastChatsStorageItem with forwarded message: primary=$id, messageId=${message.messageId}, timestamp=$newMessageTimestamp")
-                        } else {
-                            Log.d("ChatListViewModel", "Skipped LastChatsStorageItem update: forwarded message timestamp ($newMessageTimestamp) not greater than current ($messageDate)")
                         }
                     }
                 }
-                Log.d("ChatListViewModel", "Forwarded message for chat $id, text=${text.take(50)}")
             }
             checkLastChats()
         }
@@ -306,7 +288,6 @@ class ChatListViewModel : ViewModel() {
                 "conversationType_ IN {'${ConversationType.Regular.rawValue}', '${ConversationType.Group.rawValue}', '${ConversationType.Channel.rawValue}', '${ConversationType.Favorites.rawValue}'}"
             ).find()
             if (lastChats.isNotEmpty()) result = false
-            Log.d("ChatListViewModel", "chatIsEmpty: ${lastChats.size} regular chats found")
         }
         return result
     }
@@ -363,7 +344,6 @@ class ChatListViewModel : ViewModel() {
 
     private fun getMainAccountPrimary(): String? {
         val primary = accountStorageItemDao.getMainAccountPrimary()
-        Log.d("ChatListViewModel", "Main account primary: $primary")
         return primary
     }
 
@@ -372,7 +352,6 @@ class ChatListViewModel : ViewModel() {
             realm.writeBlocking {
                 val item = this.query(com.xabber.data_base.models.account.AccountStorageItem::class, "primary = '$id'").first().find()
                 if (item != null) findLatest(item)?.colorKey = color
-                Log.d("ChatListViewModel", "Set color $color for account $id")
             }
         }
     }
@@ -383,6 +362,5 @@ class ChatListViewModel : ViewModel() {
         super.onCleared()
         job?.cancel()
         realm.close()
-        Log.d("ChatListViewModel", "ViewModel cleared")
     }
 }

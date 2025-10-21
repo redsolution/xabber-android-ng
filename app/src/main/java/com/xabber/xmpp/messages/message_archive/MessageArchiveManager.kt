@@ -16,6 +16,7 @@ import com.xabber.utils.prp
 import com.xabber.xmpp.jid.XMPPJID
 import com.xabber.xmpp.messages.XMPPMessage
 import com.xabber.xmpp.messages.XMLElement
+import com.xabber.xmpp.messages.messages_manager.MessageCommonReceiver
 import io.realm.kotlin.Realm
 import io.realm.kotlin.UpdatePolicy
 import io.realm.kotlin.ext.query
@@ -30,6 +31,8 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.w3c.dom.Element
 import java.text.SimpleDateFormat
+import java.time.Instant
+import java.time.format.DateTimeParseException
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
@@ -109,7 +112,7 @@ class MessageArchiveManager(private val owner: String) {
         end: Date? = null,
         beforeId: String? = null,
         afterId: String? = null,
-        rsmBefore: String? = null,
+        rsmBefore: String? = "",
         rsmAfter: String? = null,
         max: Int? = null,
         withCounter: Boolean = true,
@@ -153,7 +156,6 @@ class MessageArchiveManager(private val owner: String) {
             queryIds[elementId] = callbackItem
             callbacksQueue.add(callbackItem)
             interactiveQueue.add(elementId)
-            Log.d(TAG, "Registered queryId=$elementId, taskId=$taskId, jid=$jid, conversationType=${conversationType.rawValue}, beforeId=$beforeId, afterId=$afterId")
         }
 
         val queryXml = buildString {
@@ -207,7 +209,6 @@ class MessageArchiveManager(private val owner: String) {
             var isSynced = false
             var archiveStart: Date? = null
             val gaps = mutableListOf<GapInfo>()
-            var messageId: String? = null
             var chat: LastChatsStorageItem? = null
 
             realm.write {
@@ -337,20 +338,14 @@ class MessageArchiveManager(private val owner: String) {
                 if (listOf(ConversationType.Omemo, ConversationType.Omemo1, ConversationType.Axolotl).contains(conversationType)) {
                     archiveStart = query<AccountStorageItem>("jid = $0", owner).first().find()?.createdAt?.let { Date(it) }
                 }
-                messageId = query<MessageStorageItem>(
-                    "opponent = $0 AND owner = $1 AND conversationType_ = $2",
-                    jid, owner, conversationType.rawValue
-                ).find().sortedByDescending { it.date }.lastOrNull()?.archivedId
             }
 
             if (isInitialArchiveLoaded && isSynced) {
-                Log.d(TAG, "Skipping syncChat: already synced and loaded for jid=$jid, conversationType=${conversationType.rawValue}")
                 callback?.invoke()
                 return@withContext
             }
 
             val queryId = "MAM:${NanoId.generateOptimized(8, nanoIdAlphabet, nanoIdMask, nanoIdStep)}"
-            Log.d(TAG, "Registering syncChat MAM query with queryId=$queryId for jid=$jid, start=$archiveStart")
             requestArchive(
                 stream = stream,
                 jid = jid,
@@ -359,15 +354,15 @@ class MessageArchiveManager(private val owner: String) {
                 queryId = queryId,
                 flipPage = true,
                 start = archiveStart,
-                rsmBefore = messageId,
+                rsmBefore = "",
                 max = pageSize,
                 withCounter = true,
                 isNormalSynchronousTask = false,
+                backward = true, // Ensure backward pagination (newest to oldest)
                 callback = {
                     CoroutineScope(Dispatchers.IO).launch {
                         getLastMessage(stream, jid, conversationType)
 
-                        // ✅ FIXED: Mark chat as synced AFTER all messages processed
                         realm.write {
                             val chat = query<LastChatsStorageItem>(
                                 "primary = $0",
@@ -407,7 +402,6 @@ class MessageArchiveManager(private val owner: String) {
         callback: (() -> Unit)? = null
     ) = withContext(Dispatchers.IO) {
         val queryId = "MAM:${NanoId.generateOptimized(6, nanoIdAlphabet, nanoIdMask, nanoIdStep)}"
-        Log.d(TAG, "Initiating getHistoryByDate: queryId=$queryId, jid=$jid, conversationType=$conversationType, start=$start, end=$end, reversed=$reversed")
         try {
             requestArchive(
                 stream = stream,
@@ -423,7 +417,6 @@ class MessageArchiveManager(private val owner: String) {
                 max = pageSize, // Use pageSize instead of 100
                 isNormalSynchronousTask = true,
                 callback = {
-                    Log.d(TAG, "getHistoryByDate completed: queryId=$queryId, jid=$jid")
                     callback?.invoke()
                 }
             )
@@ -475,7 +468,6 @@ class MessageArchiveManager(private val owner: String) {
         conversationType: ConversationType
     ) = withContext(Dispatchers.IO) {
         val queryId = "MAM:last:${NanoId.generateOptimized(8, nanoIdAlphabet, nanoIdMask, nanoIdStep)}"
-        Log.d(TAG, "Initiating getLastMessage for jid=$jid, conversationType=$conversationType, queryId=$queryId")
         requestArchive(
             stream = stream,
             jid = jid,
@@ -485,7 +477,6 @@ class MessageArchiveManager(private val owner: String) {
             rsmBefore = "",
             max = 1,
             callback = {
-                Log.d(TAG, "Completed getLastMessage for jid=$jid, conversationType=$conversationType, queryId=$queryId")
             }
         )
     }
@@ -505,12 +496,12 @@ class MessageArchiveManager(private val owner: String) {
             conversationType = conversationType,
             queryId = queryId,
             flipPage = true,
-            rsmBefore = messageId,
+            rsmBefore = if (messageId.isEmpty()) "" else messageId,
             max = pageSize,
+            backward = true,
             callback = callback
         )
     }
-
     @RequiresApi(Build.VERSION_CODES.O)
     suspend fun getNextHistory(
         stream: Stream,
@@ -586,7 +577,6 @@ class MessageArchiveManager(private val owner: String) {
                 callback = {
                     CoroutineScope(Dispatchers.IO).launch {
                         getLastMessage(stream, jid, conversationType)
-                        Log.d(TAG, "Requested last message for jid=$jid, conversationType=${conversationType.rawValue}")
                         realm.write {
                             val instance = query<LastChatsStorageItem>(
                                 "primary = $0",
@@ -596,7 +586,6 @@ class MessageArchiveManager(private val owner: String) {
                                 findLatest(instance)?.apply {
                                     isInitialArchiveLoaded = true
                                     isSynced = true
-                                    Log.d(TAG, "Marked full archive loaded for jid=$jid, conversationType=${conversationType.rawValue}")
                                 }
                             }
                         }
@@ -604,7 +593,6 @@ class MessageArchiveManager(private val owner: String) {
                 }
             )
             continuesTaskID = taskId
-            Log.d(TAG, "Initiated startLoadHistory for jid=$jid, taskId=$taskId, rsmBefore=$messageId")
         } finally {
             realm.close()
         }
@@ -621,7 +609,6 @@ class MessageArchiveManager(private val owner: String) {
                 continuesTaskID = null
             }
         }
-        Log.d(TAG, "Ended load history for jid=$jid, conversationType=${conversationType.rawValue}")
     }
 
     suspend fun checkShouldLoadFullHistory(jid: String, conversationType: ConversationType): Boolean = withContext(Dispatchers.IO) {
@@ -656,7 +643,6 @@ class MessageArchiveManager(private val owner: String) {
 
             queryIdsMutex.withLock {
                 if (!queryIds.contains(queryId)) {
-                    Log.w(TAG, "Unknown MAM query ID $queryId - skipping")
                     return@withContext null
                 }
             }
@@ -668,7 +654,6 @@ class MessageArchiveManager(private val owner: String) {
 
             // Skip non-message elements
             if (isChatStateOrMarker(xmppMessage) || xmppMessage.type == "headline") {
-                Log.d(TAG, "Skipping non-message for queryId=$queryId")
                 return@withContext null
             }
 
@@ -688,7 +673,19 @@ class MessageArchiveManager(private val owner: String) {
             }
 
             val opponent = if (originalOutgoing) to else from
-            val delayedDate = getDelayedDate(xmppMessage) ?: Date()
+
+            var delayedDate = Date()
+            val delayElement = forwardedElement.getElementsByTagNameNS("urn:xmpp:delay", "delay").item(0) as? Element
+            val stampStr = delayElement?.getAttribute("stamp") ?: xmppMessage.element("time", namespace = "https://xabber.com/protocol/delivery")?.getAttribute("stamp")
+            if (stampStr != null && stampStr.isNotEmpty()) {
+                try {
+                    val instant = Instant.parse(stampStr)
+                    delayedDate = Date.from(instant)
+                } catch (e: DateTimeParseException) {
+                    delayedDate = Date()
+                }
+            } else {
+            }
 
             val isEncrypted = xmppMessage.hasElement("encrypted", namespace = "urn:xmpp:omemo:2")
             val omemoError = isEncrypted && !xmppMessage.hasElement("omemo-result__system", namespace = "urn:xmpp:omemo:0")
@@ -712,8 +709,8 @@ class MessageArchiveManager(private val owner: String) {
 
             // Handle afterburn
             if (afterburnInterval > 0) {
-                instance.afterburnInterval = afterburnInterval
-                instance.burnDate = delayedDate.time.toDouble() + afterburnInterval * 1000
+                instance.afterburnInterval = afterburnInterval.toLong()
+                instance.burnDate = (delayedDate.time + afterburnInterval * 1000).toLong()
                 if (instance.burnDate <= System.currentTimeMillis().toDouble()) {
                     instance.isDeleted = true
                     instance.body = ""
@@ -729,13 +726,11 @@ class MessageArchiveManager(private val owner: String) {
                 ).first().find()
 
                 if (existing != null) {
-                    Log.d(TAG, "⏭️ Skipping duplicate message: primary=${instance.primary}")
                     return@write
                 }
 
                 val savedMessage = copyToRealm(instance, UpdatePolicy.ALL)
                 savedMessage.storeStanza(this)
-                Log.d(TAG, "✅ SAVED message: primary=${savedMessage.primary}")
             }
 
             if (updateLastChat) {
@@ -759,7 +754,8 @@ class MessageArchiveManager(private val owner: String) {
             realm.close()
         }
     }
-    // ✅ NEW: Extract references from XMPP message
+
+
     private fun extractReferences(message: XMPPMessage): RealmList<MessageReferenceStorageItem> {
         val references = realmListOf<MessageReferenceStorageItem>()
 
@@ -819,10 +815,7 @@ class MessageArchiveManager(private val owner: String) {
                     unread = (unread ?: 0) + 1
                 }
 
-                Log.d(TAG, "Updated chat: primary=$chatPrimary, lastMessageId=${message.archivedId}, unread=$unread")
             }
-        } else {
-            Log.w(TAG, "No chat found for primary=$chatPrimary")
         }
     }
 
@@ -837,7 +830,6 @@ class MessageArchiveManager(private val owner: String) {
     suspend fun read(iq: String, stream: Stream): Boolean = withContext(Dispatchers.IO) {
         val realm = Realm.open(defaultRealmConfig())
         try {
-            Log.d(TAG, "Processing MAM IQ: ${iq.take(200)}")
             val factory = DocumentBuilderFactory.newInstance().apply { isNamespaceAware = true }
             val document = factory.newDocumentBuilder().parse(iq.byteInputStream())
             val iqElement = document.documentElement
@@ -869,7 +861,6 @@ class MessageArchiveManager(private val owner: String) {
                             findLatest(chat)?.apply {
                                 if (task.isNormalSynchronousTask || (task.isContinues && complete && count == 0)) {
                                     fullArchiveLoaded = true
-                                    Log.d(TAG, "Marked archive as fully loaded: jid=${task.jid}, queryId=$queryId, count=$count")
                                 }
                                 lastLoadedMessageHistoryId = last
                             }
@@ -878,16 +869,12 @@ class MessageArchiveManager(private val owner: String) {
                     if (task.isContinues && !complete && count > 0) {
                         val continueUid = if (task.backward) first else last
                         continueLoadHistory(stream, task, continueUid)
-                        Log.d(TAG, "Continuing MAM pagination for queryId=$queryId, continueUid=$continueUid, count=$count")
                     } else {
                         callbackItem.callback?.invoke()
                         callbacksQueue.remove(callbackItem)
                         interactiveQueue.remove(queryId)
                         queryIds.remove(queryId)
-                        Log.d(TAG, "Completed MAM query for queryId=$queryId, no further pagination needed")
                     }
-                } else {
-                    Log.w(TAG, "No callback found for queryId=$queryId, notifying didReceiveEndPage")
                 }
                 temporaryMessageReceiver?.didReceiveEndPage(queryId, complete, first, last, count)
             }
@@ -924,11 +911,10 @@ class MessageArchiveManager(private val owner: String) {
             end = task.end,
             max = task.max,
             withCounter = true,
-            rsmBefore = if (task.backward) continueUid else null,
-            rsmAfter = if (!task.backward) continueUid else null,
-            backward = task.backward
+            rsmBefore = continueUid,
+            rsmAfter = null,
+            backward = true
         )
-        Log.d(TAG, "Requested next MAM page for queryId=${task.queryId}, jid=${task.jid}, continueUid=$continueUid")
     }
 
     private fun buildX(
@@ -1043,7 +1029,6 @@ class MessageArchiveManager(private val owner: String) {
         searchResultsQueries.clear()
         interactiveQueue.clear()
         continuesTaskID = null
-        Log.d(TAG, "Reset callbacks for owner $owner, preserving queryIds=$queryIds")
     }
 
     fun didResetState() {

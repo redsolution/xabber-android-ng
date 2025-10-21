@@ -45,8 +45,9 @@ class ChatListForwardHolder(
                 if (chatListDto.lastMessageBody == null) "" else chatListDto.lastMessageBody
 
             // timeStamp
-            tvTimestamp.text =
-                Date().dateFormat(chatListDto.lastMessageDate)
+            val dateObj = Date(chatListDto.lastMessageDate)
+
+            tvTimestamp.text = dateObj.toString()
 
             // pinned -> background and icon
             if (chatListDto.pinnedDate > 0) {

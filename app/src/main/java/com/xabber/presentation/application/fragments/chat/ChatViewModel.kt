@@ -63,7 +63,7 @@ class ChatViewModel(
     private val _isLoading = MutableLiveData<Boolean>()
     val isLoading: LiveData<Boolean> = _isLoading
     private val _isLocked = MutableLiveData<Boolean>()
-    val isLocked: LiveData<Boolean> = _isLocked
+//    val isLocked: LiveData<Boolean> = _isLocked
     private var isLoadingHistory = false
     private val _muteExpired = MutableLiveData<Long>()
     val muteExpired: LiveData<Long> = _muteExpired
@@ -134,9 +134,7 @@ class ChatViewModel(
             isUnread = !item.isRead,
             isChecked = selectedItems.contains(item.primary),
             archivedId = item.archivedId
-        ).also {
-            Log.d(TAG, "Mapped message: primary=${it.primary}, messageId=${item.messageId}, sentTimestamp=${it.sentTimestamp}, body=${it.messageBody.take(50)}, isUnread=${it.isUnread}, isOutgoing=${it.isOutgoing}, archivedId=${it.archivedId}, conversationType=${item.conversationType_}, displayType=${it.displayType}")
-        }
+        )
     } catch (e: Exception) {
         Log.e(TAG, "Failed to map MessageStorageItem to MessageDto: primary=${item.primary}, messageId=${item.messageId}, error=${e.message}")
         null
@@ -147,9 +145,8 @@ class ChatViewModel(
             query<MessageStorageItem>(
                 "owner = $0 AND opponent = $1 AND conversationType_ = $2 AND isDeleted = false",
                 owner, opponent, conversationType.rawValue
-            ).sort("sentDate", Sort.DESCENDING).find()
+            ).sort("sentDate", Sort.ASCENDING).find() // Sort by sentDate DESC
                 .mapNotNull { it.toMessageDto() }
-                .sortedBy { it.sentTimestamp }
         }
     }
 
@@ -160,12 +157,12 @@ class ChatViewModel(
         }
         _messages.postValue(messages)
         _unreadCount.postValue(messages.count { it.isUnread })
-        Log.d(TAG, "Updated messages and unread: size=${messages.size}, unread=${messages.count { it.isUnread }}")
+
     }
 
     suspend fun loadInitialData() {
         _showSkeletonObserver.postValue(true)
-        val initialMessages = mapAllMessages()
+        val initialMessages = mapAllMessages()  // Now ascending
         messageListMutex.withLock {
             messageList.clear()
             messageList.addAll(initialMessages)
@@ -183,13 +180,13 @@ class ChatViewModel(
             val query = realm.query<MessageStorageItem>(
                 "owner = $0 AND opponent = $1 AND conversationType_ = $2 AND isDeleted = false",
                 owner, opponentJid, conversationType.rawValue
-            ).sort("sentDate", Sort.DESCENDING)
+            ).sort("sentDate", Sort.ASCENDING)  // Changed to ASCENDING
 
             query.asFlow().collect { changes: ResultsChange<MessageStorageItem> ->
                 val messages = when (changes) {
                     is InitialResults -> changes.list.mapNotNull { it.toMessageDto() }
                     is UpdatedResults -> changes.list.mapNotNull { it.toMessageDto() }
-                }.sortedBy { it.sentTimestamp }
+                }
 
                 messageListMutex.withLock {
                     messageList.clear()
@@ -202,7 +199,6 @@ class ChatViewModel(
                 }
             }
         }
-        Log.d(TAG, "🔄 Started observing messages for owner=$owner, opponent=$opponentJid")
     }
 
     suspend fun updateMessageList(messages: List<MessageStorageItem>) {
@@ -219,18 +215,16 @@ class ChatViewModel(
                         !messageList.any { it.primary == m.primary || (it.archivedId == m.archivedId && m.archivedId.isNotEmpty()) }
                     }
                     if (newMessages.isNotEmpty()) {
-                        Log.d(TAG, "Adding ${newMessages.size} new messages to messageList in updateMessageList")
+
                         messageList.addAll(newMessages)
-                        messageList.sortBy { it.sentTimestamp }
+                        messageList.sortBy { it.sentTimestamp }  // Retained ascending sort after insert
                     }
                     count = messageList.count { it.isUnread }
-                    Log.d(TAG, "Updating messages: ${messageList.size} messages, $count unread")
+
                     withContext(Dispatchers.Main) {
                         _messages.value = messageList
                         _unreadCount.value = count
                     }
-                } else {
-                    Log.d(TAG, "No change in messages, skipping LiveData update")
                 }
             }
         } catch (e: Exception) {
@@ -261,7 +255,6 @@ class ChatViewModel(
                     ).first().find()
 
                     if (existing != null && messageDto.archivedId != lastMessageId) {
-                        Log.d(TAG, "Skipping duplicate message in Realm: primary=$primary, archivedId=${messageDto.archivedId}, lastMessageId=$lastMessageId, body=${messageDto.messageBody.take(50)}")
                         return@forEach
                     }
 
@@ -326,7 +319,6 @@ class ChatViewModel(
                         if (targetChat != null && messageDto.isGroup) {
                             findLatest(targetChat)?.apply {
                                 conversationType_ = ConversationType.Group.rawValue
-                                Log.d(TAG, "Updated existing chat to group type: jid=$bareOpponentJid, owner=${messageDto.owner}, new conversationType=${ConversationType.Group.rawValue}")
                             }
                         }
                     }
@@ -346,7 +338,6 @@ class ChatViewModel(
                                     isArchived = false
                                     unread = (unread ?: 0) + if (messageDto.isUnread) 1 else 0
                                 }
-                                Log.d(TAG, "Updated LastChatsStorageItem for real-time message: primary=$primary, timestamp=${message.sentDate}, chatId=$chatPrimary, lastMessageId=$lastMessageId")
                             }
                         }
                     } else {
@@ -365,9 +356,7 @@ class ChatViewModel(
                                 unread = if (messageDto.isUnread) 1 else 0
                             }
                         }, UpdatePolicy.ALL)
-                        Log.d(TAG, "Created new LastChatsStorageItem for real-time message: primary=$primary, timestamp=${message.sentDate}, chatId=$chatPrimary, lastMessageId=$lastMessageId")
                     }
-                    Log.d(TAG, "Inserted message: primary=${message.primary}, archivedId=${messageDto.archivedId}, body=${message.body.take(50)}, messageId=${message.messageId}")
                 }
             }
 
@@ -379,22 +368,18 @@ class ChatViewModel(
                     messageList.addAll(newMessages)
                     messageList.sortBy { it.sentTimestamp }
                     count = messageList.count { it.isUnread }
-                    Log.d(TAG, "Added ${newMessages.size} new messages from receiver, total=${messageList.size}, unread=$count, last=${newMessages.lastOrNull()?.primary}, lastArchivedId=${newMessages.lastOrNull()?.archivedId}")
                     withContext(Dispatchers.Main) {
                         _messages.postValue(messageList)
                         _unreadCount.postValue(count)
                     }
                 } else {
-                    Log.d(TAG, "No new messages to add from receiver")
                 }
             }
         }
     }
 
     fun debugMessageList() {
-        Log.d(TAG, "Debugging messageList: size=${messageList.size}")
         messageList.forEachIndexed { index, msg ->
-            Log.d(TAG, "Message[$index]: primary=${msg.primary}, sentTimestamp=${msg.sentTimestamp}, body=${msg.messageBody.take(50)}, isUnread=${msg.isUnread}, archivedId=${msg.archivedId}")
         }
     }
 
@@ -492,7 +477,6 @@ class ChatViewModel(
                 messageListMutex.withLock {
                     messageList[position] = updatedMessage
                 }
-                Log.d(TAG, "Selected message: primary=$primary, checked=$checked, selectedItems=$selectedItems, messageListSize=${messageList.size}")
                 withContext(Dispatchers.Main) {
                     _selectedCount.value = selectedItems.size
                     _messages.value = messageList
@@ -505,7 +489,6 @@ class ChatViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             realm.write {
                 val item = query(LastChatsStorageItem::class, "primary = '$id'").first().find()
-                Log.d(TAG, "setMute: item=$item")
                 item?.muteExpired = mute
             }
         }
@@ -523,7 +506,6 @@ class ChatViewModel(
             }
             selectedItems.clear()
             messageList = ArrayList(updatedList)
-            Log.d(TAG, "Cleared selection, messageListSize=${messageList.size}")
             viewModelScope.launch(Dispatchers.Main) {
                 _selectedCount.value = 0
                 _messages.value = messageList
@@ -634,12 +616,7 @@ class ChatViewModel(
                     val unreadMessages = query(MessageStorageItem::class, "isRead = false AND owner = '$owner' AND opponent = '$opponent'").find()
                     if (unreadMessages.isNotEmpty()) {
                         unreadMessages.forEach { it.isRead = true }
-                        Log.d(TAG, "Marked all messages as read for chatId=$chatId, owner=$owner, opponent=$opponent, updated ${unreadMessages.size} messages")
-                    } else {
-                        Log.d(TAG, "No unread messages to mark for chatId=$chatId")
                     }
-                } else {
-                    Log.w(TAG, "No chat found for chatId=$chatId")
                 }
             }
         }
@@ -749,7 +726,6 @@ class ChatViewModel(
     }
 
     fun getPositionMessage(lastPosition: String): Int {
-        Log.d(TAG, "getPositionMessage: messageList=$messageList")
         messageList.sortBy { it.sentTimestamp }
         var pos = 0
         for (i in 0 until messageList.size) {
@@ -771,5 +747,8 @@ class ChatViewModel(
         super.onCleared()
         job?.cancel()
         realm.close()
+    }
+    fun setLocked(locked: Boolean) {
+        _isLocked.value = locked
     }
 }

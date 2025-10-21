@@ -182,7 +182,6 @@ package com.xabber.stream
                 socket = Socket(remoteAddress, port)
                 socket?.setMessageCallback { message ->
                     CoroutineScope(Dispatchers.IO).launch {
-                        Log.d(TAG, "Received message via callback: ${message.take(200)}")
                         messageCallbackChannel.send(message)
                         handleIncomingStanza(message)
                     }
@@ -328,7 +327,6 @@ package com.xabber.stream
                             val nextOpen = content.indexOf("<$tagName", currentIndex)
                             val nextClose = content.indexOf("</$tagName>", currentIndex)
                             if (nextClose == -1) {
-                                Log.w(TAG, "No closing tag for $tagName, buffering: ${content.take(200)}")
                                 break
                             }
                             if (nextOpen != -1 && nextOpen < nextClose) {
@@ -344,7 +342,6 @@ package com.xabber.stream
                             stanzaEnd = currentIndex - "</$tagName>".length
                             fullEnd = currentIndex
                         } else {
-                            Log.w(TAG, "Incomplete stanza for $tagName, buffering: ${content.take(200)}")
                             break
                         }
                     }
@@ -470,8 +467,8 @@ package com.xabber.stream
                                 this.owner = jid
                                 this.opponent = opponent
                                 this.body = item.message.body ?: ""
-                                this.date = item.timestamp
-                                this.sentDate = item.timestamp
+                                this.date = item.timestamp/10000
+                                this.sentDate = item.timestamp/10000
                                 this.editDate = 0L
                                 this.outgoing = isOutgoing
                                 this.conversationType_ = when {
@@ -496,7 +493,7 @@ package com.xabber.stream
                                     this.conversationType_ = conversationType.rawValue
                                     this.isArchived = false
                                     this.unread = if (isOutgoing || item.isArchived) 0 else 1
-                                    this.messageDate = item.timestamp
+                                    this.messageDate = item.timestamp / 10000
                                     this.lastMessageId = messageId
                                     this.pinnedPosition = 0
                                     this.muteExpired = -1
@@ -506,15 +503,15 @@ package com.xabber.stream
                                 Log.d(TAG, "Created new LastChatsStorageItem for jid=$opponent, type=${conversationType.rawValue}, messageId=$messageId, timestamp=${item.timestamp}, isOutgoing=$isOutgoing")
                             } else {
                                 findLatest(chat)?.apply {
-                                    if (item.timestamp > this.messageDate) {
+                                    if (item.timestamp/10000 > this.messageDate) {
                                         this.unread = if (isOutgoing || item.isArchived) this.unread else this.unread + 1
-                                        this.messageDate = item.timestamp
+                                        this.messageDate = item.timestamp/10000
                                         this.lastMessageId = messageId
                                         this.lastMessage = message
                                         this.isArchived = false
-                                        Log.d(TAG, "Updated LastChatsStorageItem to latest: jid=$opponent, type=${conversationType.rawValue}, messageId=$messageId, timestamp=${item.timestamp}, isOutgoing=$isOutgoing")
+                                        Log.d(TAG, "Updated LastChatsStorageItem to latest: jid=$opponent, type=${conversationType.rawValue}, messageId=$messageId, timestamp=${item.timestamp/10000}, isOutgoing=$isOutgoing")
                                     } else {
-                                        Log.d(TAG, "Skipped LastChatsStorageItem update, older timestamp: jid=$opponent, messageId=$messageId, timestamp=${item.timestamp}, current=${this.messageDate}")
+                                        Log.d(TAG, "Skipped LastChatsStorageItem update, older timestamp: jid=$opponent, messageId=$messageId, timestamp=${item.timestamp/10000}, current=${this.messageDate}")
                                     }
                                 }
                             }

@@ -134,10 +134,7 @@ abstract class MessageViewHolder(
         val time = StringUtils.getTimeText(context, date)
         tvTime?.text = if (editTime > 0) context.getString(R.string.edit) + " $time" else time
         tvTime?.setTextColor(ContextCompat.getColor(context, R.color.black))
-        Log.d(
-            TAG,
-            "Setting time for messageId=$messageId: sentTime=$sentTime, editTime=$editTime, date=$date, displayed=$time"
-        )
+
     }
 
     private fun setBalloonBackground(isOutgoing: Boolean, needTail: Boolean) {
@@ -289,11 +286,7 @@ abstract class MessageViewHolder(
             imageTime.text = context.getString(R.string.invalid_timestamp)
         } else {
             imageTime.setTextColor(ContextCompat.getColor(context, R.color.black))
-            Log.d(
-                TAG,
-                "Setting image time for messageId=$messageId: sentTimestamp=${message.sentTimestamp}, " +
-                        "editTimestamp=${message.editTimestamp}, date=$date, displayed=$time"
-            )
+
         }
     }
 
@@ -327,11 +320,7 @@ abstract class MessageViewHolder(
         tvMessageText?.text = if (text.isEmpty()) context.getString(R.string.empty_message) else text
         tvMessageText?.movementMethod = CorrectlyTouchEventTextView.LocalLinkMovementMethod
         tvMessageText?.post {
-            Log.d(
-                TAG,
-                "setMessageText: primary=$messageId, textLines=${tvMessageText?.lineCount}, " +
-                        "textHeight=${tvMessageText?.height}, text=${text.take(50)}"
-            )
+
         }
     }
 
