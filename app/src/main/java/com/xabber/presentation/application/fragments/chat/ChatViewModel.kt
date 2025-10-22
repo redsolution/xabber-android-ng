@@ -90,7 +90,7 @@ class ChatViewModel(
 
     init {
         initChatDataListener(chatId)
-        initMessagesListener(owner, opponent)
+//        initMessagesListener(owner, opponent)
         markAllMessageUnread(chatId)
         viewModelScope.launch(Dispatchers.IO) {
             delay(500L)

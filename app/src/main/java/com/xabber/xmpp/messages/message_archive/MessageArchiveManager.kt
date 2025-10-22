@@ -684,7 +684,6 @@ class MessageArchiveManager(private val owner: String) {
                 } catch (e: DateTimeParseException) {
                     delayedDate = Date()
                 }
-            } else {
             }
 
             val isEncrypted = xmppMessage.hasElement("encrypted", namespace = "urn:xmpp:omemo:2")
@@ -695,7 +694,7 @@ class MessageArchiveManager(private val owner: String) {
             // Create message instance
             val instance = MessageStorageItem()
             instance.conversationType_ = conversationType.rawValue
-            var isRead = originalOutgoing
+            val isRead = true
 
             if (isSystemMessage(xmppMessage)) {
                 instance.configureSystemMessage(xmppMessage, owner, opponent, delayedDate)
@@ -737,7 +736,7 @@ class MessageArchiveManager(private val owner: String) {
                 realm.write {
                     updateLastChatItem(
                         chatPrimary = LastChatsStorageItem.genPrimary(opponent, owner, conversationType),
-                        message = instance, // Use instance (already has all data)
+                        message = instance,
                         isIncoming = !originalOutgoing,
                         muteExpired = getMuteExpired(opponent, conversationType, realm),
                         realm = realm
@@ -810,11 +809,10 @@ class MessageArchiveManager(private val owner: String) {
                 }
 
                 // Update unread count (only for incoming, non-muted)
-                if (isIncoming && muteExpired <= 0) {
+                if (isIncoming && muteExpired <= 0 && !message.isRead) {
                     isArchived = false
                     unread = (unread ?: 0) + 1
                 }
-
             }
         }
     }

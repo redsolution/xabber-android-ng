@@ -11,7 +11,7 @@ data class MessageDto(
     val opponentJid: String,
     val messageBody: String,
     val messageSendingState: MessageSendingState,
-    val sentTimestamp: Long,
+    val sentTimestamp: Long = 0L,
     val editTimestamp: Long = 0L,
     val displayType: MessageDisplayType? = null,
     val canEditMessage: Boolean,

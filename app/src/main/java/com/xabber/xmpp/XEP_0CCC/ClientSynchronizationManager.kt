@@ -14,6 +14,7 @@ import com.xabber.data_base.models.messages.MessageStorageItem
 import com.xabber.data_base.models.roster.RosterStorageItem
 import com.xabber.data_base.models.sync.ConversationType
 import com.xabber.utils.parseTimestamp
+import com.xabber.xmpp.jid.XMPPJID
 import com.xabber.xmpp.messages.XMPPMessage
 import io.realm.kotlin.Realm
 import io.realm.kotlin.UpdatePolicy
@@ -166,16 +167,15 @@ class ClientSynchronizationManager(owner: String) {
         val conversations = query.getElementsByTagName("conversation")
         val stamp = query.getAttribute("stamp")?.toLongOrNull() ?: 0L
 
-        // Define excluded patterns for roster (contacts), but allow in chats
         val excludedJidsForRoster = setOf(
             "favorites.redsolution.com",
             "redmine@redsolution.com",
             "xabber@xmppdev01.xabber.com"
         )
         val excludedTypesForRoster = setOf(
-            "urn:xabber:xen:0",  // Notifications
+            "urn:xabber:xen:0",
             "urn:xabber:favorites:0",
-            "https://xabber.com/protocol/groups"  // Groups
+            "https://xabber.com/protocol/groups"
         )
 
         realm.write {
@@ -187,20 +187,17 @@ class ClientSynchronizationManager(owner: String) {
                     conversations.item(idx) as Element
                 }
                 batch.forEach { conversation ->
-                    val jid = conversation.getAttribute("jid")?.takeIf { it.isNotBlank() } ?: return@forEach
+                    val jid = conversation.getAttribute("jid")?.let { XMPPJID(it).bare() }?.takeIf { it.isNotBlank() } ?: return@forEach
                     val type = conversation.getAttribute("type")?.takeIf { it.isNotBlank() } ?: return@forEach
 
-                    // Skip self JID
                     if (jid == owner) {
                         return@forEach
                     }
 
-                    // Skip notifications
                     if (type == "urn:xabber:xen:0") {
                         return@forEach
                     }
 
-                    // Skip server JID
                     if (jid == owner.substringAfter("@")) {
                         return@forEach
                     }
@@ -233,8 +230,8 @@ class ClientSynchronizationManager(owner: String) {
                                 if (messageId.isEmpty()) {
                                     return@let
                                 }
-                                val from = it.getAttribute("from")?.takeIf { it.isNotBlank() } ?: jid
-                                val to = it.getAttribute("to")?.takeIf { it.isNotBlank() } ?: owner
+                                val from = it.getAttribute("from")?.let { XMPPJID(it).bare() } ?: jid
+                                val to = it.getAttribute("to")?.let { XMPPJID(it).bare() } ?: owner
                                 val body = it.getElementsByTagName("body").item(0)?.textContent?.trim() ?: ""
                                 if (body.isEmpty()) {
                                     return@let
@@ -242,9 +239,8 @@ class ClientSynchronizationManager(owner: String) {
                                 val rawStamp = conversation.getAttribute("stamp")?.takeIf { it.isNotBlank() }
                                 val timestamp = rawStamp?.toLongOrNull()
 
-
                                 val messagePrimary = MessageStorageItem.genPrimary(messageId, owner)
-                                                                val existingMessage = query<MessageStorageItem>("primary = $0", messagePrimary).first().find()
+                                val existingMessage = query<MessageStorageItem>("primary = $0", messagePrimary).first().find()
                                 lastMessage = if (existingMessage == null) {
                                     copyToRealm(MessageStorageItem().apply {
                                         primary = messagePrimary
@@ -269,21 +265,12 @@ class ClientSynchronizationManager(owner: String) {
                         }
                     }
 
-                    // Skip if no valid message was found
                     if (lastMessage == null || messageDate == 0L || lastMessageId.isEmpty()) {
                         return@forEach
                     }
 
-                    // Check for existing chats
-                    val existingChat = query<LastChatsStorageItem>("jid = $0 AND owner = $1 AND conversationType_ = $2", jid, owner, type).first().find()
-                    val chatPrimary = LastChatsStorageItem.genPrimary(jid, owner, conversationType!!)
-                    if (chatPrimary.isEmpty()) {
-                        return@forEach
-                    }
-
-                    // Create rosterItem only if not excluded
-                    var rosterItem: RosterStorageItem? = null
                     val isExcludedForRoster = excludedJidsForRoster.contains(jid) || excludedTypesForRoster.contains(type) || jid == owner
+                    var rosterItem: RosterStorageItem? = null
                     if (!isExcludedForRoster) {
                         rosterItem = query<RosterStorageItem>("jid = $0 AND owner = $1", jid, owner).first().find()
                             ?: copyToRealm(RosterStorageItem().apply {
@@ -294,6 +281,12 @@ class ClientSynchronizationManager(owner: String) {
                             }, UpdatePolicy.ALL)
                     }
 
+                    val chatPrimary = LastChatsStorageItem.genPrimary(jid, owner, conversationType!!)
+                    if (chatPrimary.isEmpty()) {
+                        return@forEach
+                    }
+
+                    val existingChat = query<LastChatsStorageItem>("jid = $0 AND owner = $1 AND conversationType_ = $2", jid, owner, type).first().find()
                     if (existingChat == null) {
                         copyToRealm(LastChatsStorageItem().apply {
                             primary = chatPrimary
@@ -530,7 +523,7 @@ class ClientSynchronizationManager(owner: String) {
                         this.conversationType_ = conversationType
                         this.isArchived = false
                         this.unread = if (from == owner) 0 else 1
-                        this.messageDate = timestamp
+                        this.messageDate = timestamp/1000
                         this.lastMessageId = messageId
                         this.pinnedPosition = 0
                         this.muteExpired = -1
@@ -541,7 +534,7 @@ class ClientSynchronizationManager(owner: String) {
                 } else {
                     findLatest(chat)?.apply {
                         this.unread = if (from == owner) this.unread else this.unread + 1
-                        this.messageDate = timestamp
+                        this.messageDate = timestamp/1000
                         this.lastMessageId = messageId
                         this.lastMessage = message
                         this.isArchived = false

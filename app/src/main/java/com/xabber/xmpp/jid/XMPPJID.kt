@@ -8,20 +8,20 @@ class XMPPJID {
     val domainPart: String
     var resourcePart: String?
 
-    // Aliases for consistency with XMPPFramework
     val user: String? get() = localPart
     val domain: String get() = domainPart
     val resource: String? get() = resourcePart
 
     constructor(fullJID: String) {
+        if (fullJID.isBlank()) {
+            throw IllegalArgumentException("Invalid JID format: empty or blank")
+        }
         val pattern = "^(?:([^\\/@]+)@)?([^@\\/]+)(?:/(.+))?$".toRegex()
         val match = pattern.matchEntire(fullJID)
-            ?: throw IllegalArgumentException("Invalid JID format: $fullJID")
-
-        localPart = match.groups[1]?.value
-        domainPart = match.groups[2]?.value
+        localPart = match?.groups?.get(1)?.value
+        domainPart = match?.groups?.get(2)?.value
             ?: throw IllegalArgumentException("Domain part is required: $fullJID")
-        resourcePart = match.groups[3]?.value
+        resourcePart = match?.groups?.get(3)?.value
 
         validateParts()
     }
@@ -34,7 +34,6 @@ class XMPPJID {
         validateParts()
     }
 
-    // Additional constructor similar to jidWithString:resource:
     constructor(fullJID: String, resourcePart: String?) : this(fullJID) {
         if (resourcePart != null) {
             this.resourcePart = resourcePart
@@ -60,7 +59,6 @@ class XMPPJID {
             throw IllegalArgumentException("Resource part cannot be empty if provided")
         }
 
-        // Basic JID format validation
         if (localPart?.contains("@") == true || localPart?.contains("/") == true) {
             throw IllegalArgumentException("Local part contains invalid characters: $localPart")
         }
@@ -75,10 +73,12 @@ class XMPPJID {
     }
 
     fun bare(): String {
-        val builder = StringBuilder()
-        localPart?.let { builder.append(it).append("@") }
-        builder.append(domainPart)
-        return builder.toString()
+        // For server JIDs (no local part), return the domain part only
+        return if (localPart.isNullOrBlank()) {
+            domainPart
+        } else {
+            "$localPart@$domainPart"
+        }
     }
 
     fun full(): String {

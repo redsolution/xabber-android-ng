@@ -52,8 +52,8 @@ class MessageStorageItem : RealmObject {
     var body: String = ""
     var legacyBody: String = ""
     var date: Long = 0
-    var sentDate: Long = 0
-    var editDate: Long = 0
+    var sentDate: Long = 0L
+    var editDate: Long = 0L
     var readDate: Long? = null
     var outgoing: Boolean = false
     var isRead: Boolean = outgoing
@@ -259,7 +259,16 @@ class MessageStorageItem : RealmObject {
             Log.d(TAG, "Determined conversationType=${it.rawValue} for messageId=${message.id}, to=$to")
         }
     }
+
     fun toMessageDto(): MessageDto? = try {
+        val sentTimestamp = if (sentDate > System.currentTimeMillis() * 10) {
+            Log.w(TAG, "sentDate appears to be in microseconds: $sentDate, dividing by 1000")
+            sentDate / 1000
+        } else {
+            sentDate
+        }
+        Log.d(TAG, "toMessageDto: primary=$primary, sentDate=$sentDate, sentTimestamp=$sentTimestamp, formatted=${Date(sentTimestamp)}")
+
         MessageDto(
             primary = primary,
             isOutgoing = outgoing,
@@ -271,7 +280,7 @@ class MessageStorageItem : RealmObject {
                 outgoing -> MessageSendingState.Deliver
                 else -> MessageSendingState.Sent
             },
-            sentTimestamp = sentDate,
+            sentTimestamp = sentTimestamp,
             editTimestamp = editDate,
             displayType = when {
                 conversationType_ == "https://xabber.com/protocol/groups#system-message" -> MessageDisplayType.System
@@ -283,7 +292,7 @@ class MessageStorageItem : RealmObject {
             urlAvatar = null,
             isGroup = conversationType_ == "https://xabber.com/protocol/groups",
             kind = null,
-            isSelected = false, // Managed separately
+            isSelected = false,
             references = references.mapNotNull { ref ->
                 try {
                     MessageReferenceDto(
@@ -303,10 +312,11 @@ class MessageStorageItem : RealmObject {
                 }
             } as ArrayList<MessageReferenceDto>,
             isUnread = !isRead,
-            isChecked = false, // Managed separately
+            isChecked = false,
             archivedId = archivedId
         )
     } catch (e: Exception) {
+        Log.e(TAG, "Failed to create MessageDto: ${e.message}")
         null
     }
 }

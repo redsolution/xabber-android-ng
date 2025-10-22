@@ -75,6 +75,7 @@
     import com.xabber.stream.Stream
     import com.xabber.utils.*
     import com.xabber.utils.custom.PlayerVisualizerView
+    import com.xabber.xmpp.jid.XMPPJID
     import com.xabber.xmpp.messages.messages_manager.MessageCommonSender
     import io.reactivex.rxjava3.disposables.Disposable
     import io.realm.kotlin.Realm
@@ -216,53 +217,68 @@
         override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
             super.onViewCreated(view, savedInstanceState)
             val chat = viewModel.loadChat(getParams().id)
-            CoroutineScope(Dispatchers.IO).launch {
-                AccountManager.find(chat!!.owner)!!.action { Account, stream ->
-                    Account().messageArchiveManager.syncChat(stream, chat.opponentJid, viewModel.conversationType)
-                }
-            }
             if (chat == null) {
                 navigator().closeDetail()
+                return
+            }
+
+            // Convert to bare JIDs
+            val bareOwner = try {
+                XMPPJID(fullJID = chat.owner).bare()
+            } catch (e: IllegalArgumentException) {
+                Log.e("ChatFragment", "Invalid owner JID: ${chat.owner}, ${e.message}")
+                navigator().closeDetail()
+                return
+            }
+            val bareOpponent = try {
+                XMPPJID(fullJID = chat.opponentJid).bare()
+            } catch (e: IllegalArgumentException) {
+                Log.e("ChatFragment", "Invalid opponent JID: ${chat.opponentJid}, ${e.message}")
+                navigator().closeDetail()
+                return
+            }
+
+            CoroutineScope(Dispatchers.IO).launch {
+                AccountManager.find(bareOwner)?.action { account, stream ->
+                    account.messageArchiveManager.syncChat(stream, bareOpponent, viewModel.conversationType)
+                } ?: Log.e("ChatFragment", "Account not found for owner=$bareOwner")
+            }
+
+            messageSender = MessageCommonSender(bareOwner)
+            prepareUi(chat)
+            initializeToolbarActions(chat)
+            initializeRecyclerView()
+            initializeStandardInputLayoutActions()
+            initializeSelectMessageToolbarActions()
+            initializeSelectedMessagePanel()
+            subscribeToChatData(chat)
+            AccountManager.registerChatViewModel(getParams().id, viewModel)
+            activity?.onBackPressedDispatcher?.addCallback(onBackPressedCallback)
+            if (savedInstanceState != null) {
+                restoreState(savedInstanceState)
             } else {
-                messageSender = MessageCommonSender(chat.owner)
-                prepareUi(chat)
-                initializeToolbarActions(chat)
-                initializeRecyclerView()
-                initializeStandardInputLayoutActions()
-                initializeSelectMessageToolbarActions()
-                initializeSelectedMessagePanel()
-                subscribeToChatData(chat)
-                AccountManager.registerChatViewModel(getParams().id, viewModel)
-                activity?.onBackPressedDispatcher?.addCallback(onBackPressedCallback)
-                if (savedInstanceState != null) {
-                    restoreState(savedInstanceState)
-                } else {
-                    restoreDraft()
-                    // Delay scroll to ensure adapter is populated
-                }
-                viewModel.setLocked(true)
-                lifecycleScope.launch {
-                    val account = AccountManager.find(chat.owner)
-                    if (account != null) {
-                        account.action { acc, stream ->
-                            Log.d("ChatFragment", "Starting MAM sync for chat: owner=${chat.owner}, opponent=${chat.opponentJid}, type=${viewModel.conversationType}")
-                            acc.messageArchiveManager.syncChat(
-                                stream = stream,
-                                jid = chat.opponentJid,
-                                conversationType = viewModel.conversationType
-                            )
-                        }
-                    } else {
-                        Log.e("ChatFragment", "Account not found for owner=${chat.owner}")
+                restoreDraft()
+            }
+            viewModel.setLocked(true)
+            lifecycleScope.launch {
+                val account = AccountManager.find(bareOwner)
+                if (account != null) {
+                    account.action { acc, stream ->
+                        Log.d("ChatFragment", "Starting MAM sync for chat: owner=$bareOwner, opponent=$bareOpponent, type=${viewModel.conversationType}")
+                        acc.messageArchiveManager.syncChat(
+                            stream = stream,
+                            jid = bareOpponent,
+                            conversationType = viewModel.conversationType
+                        )
                     }
+                } else {
+                    Log.e("ChatFragment", "Account not found for owner=$bareOwner")
                 }
-                viewModel.setLocked(false)
+            }
+            viewModel.setLocked(false)
 
-
-                binding.messageList.post {
-                    scrollDown()
-                }
-
+            binding.messageList.post {
+                scrollDown()
             }
         }
 
@@ -448,11 +464,13 @@
                 onMessagesUpdated = { messages ->
                     viewModel.viewModelScope.launch(Dispatchers.Main) {
                         viewModel.updateMessagesAndUnread(messages)
+                        messageAdapter?.notifyDataSetChanged() // Ensure adapter updates
+                        Log.d("ChatFragment", "Messages updated: ${messages.size} items")
+                        scrollDown() // Scroll to bottom after update
                     }
                 }
             )
             binding.messageList.adapter = messageAdapter
-            layoutManager?.stackFromEnd = true
             layoutManager = LinearLayoutManager(context).apply {
                 stackFromEnd = true
                 reverseLayout = false
@@ -466,12 +484,25 @@
             // Start observing after adapter setup
             viewModel.viewModelScope.launch {
                 val chat = viewModel.loadChat(getParams().id)!!
+                val bareOwner = try {
+                    XMPPJID(fullJID = chat.owner).bare()
+                } catch (e: IllegalArgumentException) {
+                    Log.e("ChatFragment", "Invalid owner JID: ${chat.owner}")
+                    return@launch
+                }
+                val bareOpponent = try {
+                    XMPPJID(fullJID = chat.opponentJid).bare()
+                } catch (e: IllegalArgumentException) {
+                    Log.e("ChatFragment", "Invalid opponent JID: ${chat.opponentJid}")
+                    return@launch
+                }
                 messageAdapter!!.startObserving(
-                    owner = chat.owner,
-                    opponent = chat.opponentJid,
+                    owner = bareOwner,
+                    opponent = bareOpponent,
                     conversationType = viewModel.conversationType.rawValue,
-                    recyclerView = binding.messageList // Передаем RecyclerView
+                    recyclerView = binding.messageList
                 )
+                Log.d("ChatFragment", "Started observing messages for owner=$bareOwner, opponent=$bareOpponent")
             }
         }
 
@@ -495,6 +526,55 @@
             binding.messageList.addItemDecoration(MessageHeaderViewDecoration(requireContext()))
         }
 
+        suspend fun printAllMessageStorageItems() = withContext(Dispatchers.IO) {
+            val realm = Realm.open(defaultRealmConfig())
+            try {
+                val messages = realm.query<MessageStorageItem>().find()
+                Log.d("MessageStorageItemPrinter", "Found ${messages.size} MessageStorageItem objects. Printing details:")
+
+                messages.forEachIndexed { index, message ->
+                    Log.d("MessageStorageItemPrinter", "=== Message $index ===")
+                    Log.d("MessageStorageItemPrinter", "primary: ${message.primary}")
+                    Log.d("MessageStorageItemPrinter", "owner: ${message.owner}")
+                    Log.d("MessageStorageItemPrinter", "opponent: ${message.opponent}")
+                    Log.d("MessageStorageItemPrinter", "body: ${message.body}")
+                    Log.d("MessageStorageItemPrinter", "legacyBody: ${message.legacyBody}")
+                    Log.d("MessageStorageItemPrinter", "date: ${Date(message.date)}")
+                    Log.d("MessageStorageItemPrinter", "sentDate: ${Date(message.sentDate)}")
+                    Log.d("MessageStorageItemPrinter", "editDate: ${Date(message.editDate)}")
+                    Log.d("MessageStorageItemPrinter", "readDate: ${message.readDate?.let { Date(it) }}")
+                    Log.d("MessageStorageItemPrinter", "outgoing: ${message.outgoing}")
+                    Log.d("MessageStorageItemPrinter", "isRead: ${message.isRead}")
+                    Log.d("MessageStorageItemPrinter", "displayAs: ${message.displayAs}")
+                    Log.d("MessageStorageItemPrinter", "messageId: ${message.messageId}")
+                    Log.d("MessageStorageItemPrinter", "trustedSource: ${message.trustedSource}")
+                    Log.d("MessageStorageItemPrinter", "previousId: ${message.previousId}")
+                    Log.d("MessageStorageItemPrinter", "archivedId: ${message.archivedId}")
+                    Log.d("MessageStorageItemPrinter", "isDeleted: ${message.isDeleted}")
+                    Log.d("MessageStorageItemPrinter", "state: ${message.state}")
+                    Log.d("MessageStorageItemPrinter", "systemMetadata: ${message.systemMetadata}")
+                    Log.d("MessageStorageItemPrinter", "messageError: ${message.messageError}")
+                    Log.d("MessageStorageItemPrinter", "messageErrorCode: ${message.messageErrorCode}")
+                    Log.d("MessageStorageItemPrinter", "conversationType: ${message.conversationType}")
+                    Log.d("MessageStorageItemPrinter", "errorMetadata: ${message.errorMetadata}")
+                    Log.d("MessageStorageItemPrinter", "afterburnInterval: ${message.afterburnInterval}")
+                    Log.d("MessageStorageItemPrinter", "burnDate: ${Date(message.burnDate)}")
+                    Log.d("MessageStorageItemPrinter", "forceUnreadState: ${message.forceUnreadState}")
+                    Log.d("MessageStorageItemPrinter", "queryIds: ${message.queryIds}")
+                    Log.d("MessageStorageItemPrinter", "envelopeContainer: ${message.envelopeContainer}")
+
+
+                    Log.d("MessageStorageItemPrinter", "========================")
+                }
+
+
+            } catch (e: Exception) {
+                Log.e("MessageStorageItemPrinter", "Error printing messages: ${e.message}", e)
+            } finally {
+                realm.close()
+            }
+        }
+
         private fun addScrollListener() {
             binding.messageList.addOnScrollListener(object : RecyclerView.OnScrollListener() {
                 override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
@@ -505,7 +585,7 @@
                             val currentTime = System.currentTimeMillis()
                             if (currentTime - lastLoadOlderMessagesTime >= debounceInterval) {
                                 lastLoadOlderMessagesTime = currentTime
-//                                loadOlderMessages()
+                                loadOlderMessages()
                             }
                         }
 
@@ -536,6 +616,7 @@
                     scrollToFirstUnread()
                 }
             }
+//            lifecycleScope.launch { printAllMessageStorageItems() }
         }
 
 
@@ -546,7 +627,7 @@
             binding.progressBar.isVisible = true
             viewModel.setLocked(true)
 
-            // Сохраняем текущую позицию прокрутки
+            // Save current scroll position
             val firstVisiblePosition = layoutManager!!.findFirstVisibleItemPosition()
             val firstVisibleView = layoutManager!!.findViewByPosition(firstVisiblePosition)
             val offset = firstVisibleView?.top ?: 0
@@ -556,11 +637,30 @@
 
             lifecycleScope.launch {
                 try {
-                    val account = AccountManager.find(viewModel.owner)
+                    val bareOwner = try {
+                        XMPPJID(fullJID = viewModel.owner).bare()
+                    } catch (e: IllegalArgumentException) {
+                        Log.e("ChatFragment", "Invalid owner JID: ${viewModel.owner}, ${e.message}")
+                        isLoadingHistory = false
+                        binding.progressBar.isVisible = false
+                        viewModel.setLocked(false)
+                        return@launch
+                    }
+                    val bareOpponent = try {
+                        XMPPJID(fullJID = viewModel.opponent).bare()
+                    } catch (e: IllegalArgumentException) {
+                        Log.e("ChatFragment", "Invalid opponent JID: ${viewModel.opponent}, ${e.message}")
+                        isLoadingHistory = false
+                        binding.progressBar.isVisible = false
+                        viewModel.setLocked(false)
+                        return@launch
+                    }
+
+                    val account = AccountManager.find(bareOwner)
                     account?.action { acc, stream ->
                         acc.messageArchiveManager.getPrevHistory(
                             stream = stream,
-                            jid = viewModel.opponent,
+                            jid = bareOpponent,
                             conversationType = viewModel.conversationType,
                             messageId = firstArchivedId ?: "",
                             callback = {
@@ -569,7 +669,6 @@
                                     binding.progressBar.isVisible = false
                                     viewModel.setLocked(false)
 
-                                    // Восстанавливаем позицию прокрутки
                                     val newItemCount = messageAdapter!!.itemCount
                                     val insertedCount = newItemCount - currentItemCount
                                     if (insertedCount > 0 && firstVisiblePosition != RecyclerView.NO_POSITION) {
@@ -581,7 +680,7 @@
                                 }
                             }
                         )
-                    }
+                    } ?: Log.e("ChatFragment", "Account not found for owner=$bareOwner")
                 } catch (e: Exception) {
                     Log.e("ChatFragment", "Error loading older messages", e)
                     isLoadingHistory = false
@@ -968,7 +1067,7 @@
                     viewModel.insertMessage(getParams().id, m)
                 }
             }
-            isNeedScrollDown = layoutManager!!.findFirstVisibleItemPosition() + 2 >= (messageAdapter!!.itemCount - viewModel.unreadCount.value!!)
+//            isNeedScrollDown = layoutManager!!.findFirstVisibleItemPosition() + 2 >= (messageAdapter!!.itemCount - viewModel.unreadCount.value!!)
         }
 
         private fun onGotGalleryPermissionResult(grantResults: Map<String, Boolean>) {

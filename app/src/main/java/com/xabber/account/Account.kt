@@ -799,10 +799,9 @@ class Account : XMPPStreamDelegate {
             var innerType: String? = null
             var innerLang: String? = null
             var inForwarded = false
-            val innerRaw = StringBuilder()
             var isArchived = false
             var isCarbon = false
-            var isLastMessage = false  // If needed for last-message
+            var isLastMessage = false
 
             val factory = XmlPullParserFactory.newInstance()
             factory.isNamespaceAware = true
@@ -818,62 +817,38 @@ class Account : XMPPStreamDelegate {
                         if (tagName == "message" && (namespace == "jabber:client" || namespace.isEmpty())) {
                             if (!inForwarded) {
                                 messageId = parser.getAttributeValue(null, "id") ?: "unknown_${System.currentTimeMillis()}"
-                                innerRaw.append("<message")
-                                for (i in 0 until parser.attributeCount) {
-                                    innerRaw.append(" ${parser.getAttributeName(i)}='${parser.getAttributeValue(i)}'")
-                                }
-                                innerRaw.append(">")
                             } else {
                                 innerMessageId = parser.getAttributeValue(null, "id") ?: "unknown_${System.currentTimeMillis()}"
-                                innerFrom = parser.getAttributeValue(null, "from")?.trim()
-                                innerTo = parser.getAttributeValue(null, "to")?.trim()
+                                innerFrom = parser.getAttributeValue(null, "from")?.let { XMPPJID(it).bare() }
+                                innerTo = parser.getAttributeValue(null, "to")?.let { XMPPJID(it).bare() }
                                 innerType = parser.getAttributeValue(null, "type")
                                 innerLang = parser.getAttributeValue(null, "xml:lang")
-                                innerRaw.append("<message")
-                                for (i in 0 until parser.attributeCount) {
-                                    innerRaw.append(" ${parser.getAttributeName(i)}='${parser.getAttributeValue(i)}'")
-                                }
-                                innerRaw.append(">")
                             }
                         } else if (tagName == "result" && namespace == "urn:xmpp:mam:2") {
                             messageId = parser.getAttributeValue(null, "id") ?: messageId
-                            inForwarded = true // Treat as forwarded for MAM messages
-                            isArchived = true  // Set archived flag
-                        } else if (tagName == "sent" && namespace == "urn:xmpp:carbons:2") {
-                            isCarbon = true  // Set carbon flag
                             inForwarded = true
-                        } else if (tagName == "last-message") {  // Add if last-message is a start tag
+                            isArchived = true
+                        } else if (tagName == "sent" && namespace == "urn:xmpp:carbons:2") {
+                            isCarbon = true
+                            inForwarded = true
+                        } else if (tagName == "last-message") {
                             isLastMessage = true
                         } else if (tagName == "forwarded" && namespace == "urn:xmpp:forward:0") {
                             inForwarded = true
-                        } else if (tagName in listOf("active", "composing", "inactive", "received", "displayed") && (namespace == "http://jabber.org/protocol/chatstates" || namespace == "urn:xmpp:chat-markers:0")) {
+                        } else if (tagName in listOf("active", "composing", "inactive", "received", "displayed") &&
+                            (namespace == "http://jabber.org/protocol/chatstates" || namespace == "urn:xmpp:chat-markers:0")) {
                             isChatState = true
-                            innerRaw.append("<$tagName xmlns='$namespace'/>")
                         } else if (tagName == "body" && inForwarded) {
                             parser.next()
                             if (parser.eventType == XmlPullParser.TEXT) {
                                 innerBody = parser.text.trim()
-                                innerRaw.append("<body>${parser.text}</body>")
                             }
-                        } else if (inForwarded && namespace != "jabber:client") {
-                            innerRaw.append("<${tagName} xmlns='${namespace}'")
-                            for (i in 0 until parser.attributeCount) {
-                                innerRaw.append(" ${parser.getAttributeName(i)}='${parser.getAttributeValue(i)}'")
-                            }
-                            innerRaw.append("/>")
                         }
                     }
                     XmlPullParser.END_TAG -> {
                         val tagName = parser.name
                         if (tagName == "forwarded" && parser.namespace == "urn:xmpp:forward:0") {
                             inForwarded = false
-                        } else if (inForwarded && tagName == "message" && (parser.namespace == "jabber:client" || parser.namespace.isEmpty())) {
-                            innerRaw.append("</message>")
-                        }
-                    }
-                    XmlPullParser.TEXT -> {
-                        if (inForwarded) {
-                            innerRaw.append(parser.text)
                         }
                     }
                 }
@@ -889,10 +864,10 @@ class Account : XMPPStreamDelegate {
             val fromJid = innerFrom ?: xmppMessage.from?.bare()
             val toJid = innerTo ?: xmppMessage.to?.bare()
             val body = innerBody ?: xmppMessage.body
-//            if (fromJid == null || toJid == null || body == null) {
-//                Log.w(TAG, "Skipping message with missing attributes: id=$messageId, innerFrom=$innerFrom, innerTo=$innerTo, innerBody=$innerBody")
-//                return false
-//            }
+            if (fromJid == null || toJid == null || body == null) {
+                Log.w(TAG, "Skipping message with missing attributes: id=$messageId, innerFrom=$innerFrom, innerTo=$innerTo, innerBody=$innerBody")
+                return false
+            }
 
             val opponent = if (toJid != jid) toJid else fromJid
             if (opponent == jid) {
@@ -912,7 +887,7 @@ class Account : XMPPStreamDelegate {
             if (isArchived) {
                 containerType = "archived"
                 innerMessage = XMPPMessage(
-                    raw = innerRaw.toString(),
+                    raw = message, // Use original message as raw
                     type = innerType,
                     id = innerMessageId,
                     from = innerFrom?.let { XMPPJID(fullJID = it) },
@@ -924,7 +899,7 @@ class Account : XMPPStreamDelegate {
             } else if (isCarbon) {
                 containerType = "forwarded"
                 innerMessage = XMPPMessage(
-                    raw = innerRaw.toString(),
+                    raw = message, // Use original message as raw
                     type = innerType,
                     id = innerMessageId,
                     from = innerFrom?.let { XMPPJID(fullJID = it) },
@@ -933,9 +908,9 @@ class Account : XMPPStreamDelegate {
                     body = innerBody,
                     children = xmppMessage.children
                 )
-            } else if (isLastMessage) {  // Or keep xmppMessage.element if it works for this
+            } else if (isLastMessage) {
                 containerType = "last-message"
-                innerMessage = xmppMessage  // Adjust if needed
+                innerMessage = xmppMessage
             } else {
                 containerType = "runtime"
                 innerMessage = xmppMessage
@@ -945,20 +920,19 @@ class Account : XMPPStreamDelegate {
                 "primary = $0 AND isProcessed = false", TemporaryMessageStanzaStorageItem.genPrimary(messageId!!, jid)
             ).first().find()
 
-            if (tempStanza == null && !isChatState && containerType == "runtime") {  // Skip for "archived"/"forwarded"
+            if (tempStanza == null && !isChatState && containerType == "runtime") {
                 realm.write {
                     val newTempStanza = TemporaryMessageStanzaStorageItem().apply {
                         this.messageId = messageId
                         this.primary = primary
                         this.owner = jid
-                        this.jid = opponent!!
+                        this.jid = opponent
                         this.isProcessed = false
                         this.date = parseTimestamp(xmppMessage)!!
                         this.stanza = message
                     }
                     copyToRealm(newTempStanza, UpdatePolicy.ALL)
                 }
-            } else if (containerType != "runtime") {
             }
 
             when (containerType) {
@@ -993,7 +967,6 @@ class Account : XMPPStreamDelegate {
             return false
         }
     }
-
 
 
 

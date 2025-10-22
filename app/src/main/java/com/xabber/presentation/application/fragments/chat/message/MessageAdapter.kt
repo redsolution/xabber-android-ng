@@ -91,7 +91,7 @@ class MessageAdapter(
         collection = query.find()
         observingJob = scope.launch {
             collection!!.asFlow()
-                .debounce(300.milliseconds)  // Debounce updates by 300ms to batch rapid changes and reduce UI flicker
+                .debounce(600.milliseconds)  // Debounce updates by 300ms to batch rapid changes and reduce UI flicker
                 .collect { changes: ResultsChange<MessageStorageItem> ->
                     val newDtos = when (changes) {
                         is InitialResults -> changes.list.mapNotNull { it.toMessageDto() }
@@ -136,15 +136,15 @@ class MessageAdapter(
 
                         // If items were inserted (common for new messages at end), adjust scroll to maintain view
                         // This assumes append-only behavior; for general cases, consider always scrolling to a stable key
-                        if (newDtos.size > oldItemCount) {
-                            val insertedCount = newDtos.size - oldItemCount
-                            if (firstVisiblePosition != RecyclerView.NO_POSITION) {
-                                layoutManager?.scrollToPositionWithOffset(
-                                    firstVisiblePosition + insertedCount,
-                                    offset
-                                )
-                            }
-                        }
+//                        if (newDtos.size > oldItemCount) {
+//                            val insertedCount = newDtos.size - oldItemCount
+//                            if (firstVisiblePosition != RecyclerView.NO_POSITION) {
+//                                layoutManager?.scrollToPositionWithOffset(
+//                                    firstVisiblePosition + insertedCount,
+//                                    offset
+//                                )
+//                            }
+//                        }
                     }
                 }
         }
