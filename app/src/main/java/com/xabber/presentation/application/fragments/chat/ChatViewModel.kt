@@ -188,15 +188,15 @@ class ChatViewModel(
                     is UpdatedResults -> changes.list.mapNotNull { it.toMessageDto() }
                 }
 
-                messageListMutex.withLock {
-                    messageList.clear()
-                    messageList.addAll(messages)
-                }
-
-                withContext(Dispatchers.Main) {
-                    _messages.value = messages
-                    _unreadCount.value = messages.count { it.isUnread }
-                }
+//                messageListMutex.withLock {
+//                    messageList.clear()
+//                    messageList.addAll(messages)
+//                }
+//
+//                withContext(Dispatchers.Main) {
+//                    _messages.value = messages
+//                    _unreadCount.value = messages.count { it.isUnread }
+//                }
             }
         }
     }

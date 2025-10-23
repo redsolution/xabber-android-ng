@@ -91,22 +91,20 @@ class MessageAdapter(
         collection = query.find()
         observingJob = scope.launch {
             collection!!.asFlow()
-                .debounce(600.milliseconds)  // Debounce updates by 300ms to batch rapid changes and reduce UI flicker
+                .debounce(600.milliseconds)
                 .collect { changes: ResultsChange<MessageStorageItem> ->
                     val newDtos = when (changes) {
                         is InitialResults -> changes.list.mapNotNull { it.toMessageDto() }
                         is UpdatedResults -> changes.list.mapNotNull { it.toMessageDto() }
-                    }.sortedBy { it.sentTimestamp }  // Keep sort if sentTimestamp doesn't perfectly align with Realm's sentDate sort
+                    }.sortedBy { it.sentTimestamp }
 
                     withContext(Dispatchers.Main) {
-                        // Save current scroll position before update
                         val layoutManager = recyclerView.layoutManager as? LinearLayoutManager
                         val firstVisiblePosition = layoutManager?.findFirstVisibleItemPosition() ?: 0
                         val firstVisibleView = layoutManager?.findViewByPosition(firstVisiblePosition)
                         val offset = firstVisibleView?.top ?: 0
                         val oldItemCount = currentList.size
 
-                        // Efficiently update via DiffUtil (already optimized for partial changes)
                         val diffResult = DiffUtil.calculateDiff(object : DiffUtil.Callback() {
                             override fun getOldListSize(): Int = currentList.size
                             override fun getNewListSize(): Int = newDtos.size
@@ -127,24 +125,18 @@ class MessageAdapter(
                             }
                         })
 
-                        // Update list and notify
                         currentList = newDtos
                         onMessagesUpdated(newDtos)
-
-                        // Apply updates and handle scroll restoration
                         diffResult.dispatchUpdatesTo(this@MessageAdapter)
 
-                        // If items were inserted (common for new messages at end), adjust scroll to maintain view
-                        // This assumes append-only behavior; for general cases, consider always scrolling to a stable key
-//                        if (newDtos.size > oldItemCount) {
-//                            val insertedCount = newDtos.size - oldItemCount
-//                            if (firstVisiblePosition != RecyclerView.NO_POSITION) {
-//                                layoutManager?.scrollToPositionWithOffset(
-//                                    firstVisiblePosition + insertedCount,
-//                                    offset
-//                                )
-//                            }
-//                        }
+                        if (newDtos.size > oldItemCount && firstVisiblePosition != RecyclerView.NO_POSITION) {
+                            val insertedCount = newDtos.size - oldItemCount
+                            layoutManager?.scrollToPositionWithOffset(
+                                firstVisiblePosition + insertedCount,
+                                offset
+                            )
+                        }
+                        Log.d("MessageAdapter", "List updated: oldSize=$oldItemCount, newSize=${newDtos.size}, firstVisiblePosition=$firstVisiblePosition")
                     }
                 }
         }
@@ -192,11 +184,18 @@ class MessageAdapter(
 
     override fun getItemViewType(position: Int): Int {
         val message = currentList.getOrNull(position) ?: return INCOMING_MESSAGE
-        return when {
+        val viewType = when {
             message.displayType == MessageDisplayType.System -> SYSTEM_MESSAGE
-            message.isOutgoing -> OUTGOING_MESSAGE
-            else -> INCOMING_MESSAGE
+            message.isOutgoing -> {
+                Log.d(TAG, "ViewType OUTGOING for primary=${message.primary}, isOutgoing=true")
+                OUTGOING_MESSAGE
+            }
+            else -> {
+                Log.d(TAG, "ViewType INCOMING for primary=${message.primary}, isOutgoing=false")
+                INCOMING_MESSAGE
+            }
         }
+        return viewType
     }
 
 

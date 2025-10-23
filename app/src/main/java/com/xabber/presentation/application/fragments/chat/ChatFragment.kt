@@ -238,11 +238,11 @@
                 return
             }
 
-            CoroutineScope(Dispatchers.IO).launch {
-                AccountManager.find(bareOwner)?.action { account, stream ->
-                    account.messageArchiveManager.syncChat(stream, bareOpponent, viewModel.conversationType)
-                } ?: Log.e("ChatFragment", "Account not found for owner=$bareOwner")
-            }
+//            CoroutineScope(Dispatchers.IO).launch {
+//                AccountManager.find(bareOwner)?.action { account, stream ->
+//                    account.messageArchiveManager.syncChat(stream, bareOpponent, viewModel.conversationType)
+//                } ?: Log.e("ChatFragment", "Account not found for owner=$bareOwner")
+//            }
 
             messageSender = MessageCommonSender(bareOwner)
             prepareUi(chat)
@@ -464,9 +464,8 @@
                 onMessagesUpdated = { messages ->
                     viewModel.viewModelScope.launch(Dispatchers.Main) {
                         viewModel.updateMessagesAndUnread(messages)
-                        messageAdapter?.notifyDataSetChanged() // Ensure adapter updates
-                        Log.d("ChatFragment", "Messages updated: ${messages.size} items")
-                        scrollDown() // Scroll to bottom after update
+                        messageAdapter?.notifyDataSetChanged()
+                        Log.d("ChatFragment", "Messages updated: ${messages.size} items, source=onMessagesUpdated")
                     }
                 }
             )
@@ -481,7 +480,6 @@
             addScrollListener()
             binding.messageList.itemAnimator = null
 
-            // Start observing after adapter setup
             viewModel.viewModelScope.launch {
                 val chat = viewModel.loadChat(getParams().id)!!
                 val bareOwner = try {
@@ -616,7 +614,6 @@
                     scrollToFirstUnread()
                 }
             }
-//            lifecycleScope.launch { printAllMessageStorageItems() }
         }
 
 
@@ -627,12 +624,11 @@
             binding.progressBar.isVisible = true
             viewModel.setLocked(true)
 
-            // Save current scroll position
             val firstVisiblePosition = layoutManager!!.findFirstVisibleItemPosition()
             val firstVisibleView = layoutManager!!.findViewByPosition(firstVisiblePosition)
             val offset = firstVisibleView?.top ?: 0
             val firstVisibleItem = messageAdapter?.getMessageItem(firstVisiblePosition)
-            val firstArchivedId = firstVisibleItem?.archivedId
+            val firstArchivedId = firstVisibleItem?.archivedId ?: ""
             val currentItemCount = messageAdapter!!.itemCount
 
             lifecycleScope.launch {
@@ -662,7 +658,7 @@
                             stream = stream,
                             jid = bareOpponent,
                             conversationType = viewModel.conversationType,
-                            messageId = firstArchivedId ?: "",
+                            messageId = firstArchivedId,
                             callback = {
                                 lifecycleScope.launch(Dispatchers.Main) {
                                     isLoadingHistory = false
@@ -677,19 +673,19 @@
                                             offset
                                         )
                                     }
+                                    Log.d("ChatFragment", "Loaded older messages: inserted=$insertedCount, firstArchivedId=$firstArchivedId")
                                 }
                             }
                         )
                     } ?: Log.e("ChatFragment", "Account not found for owner=$bareOwner")
                 } catch (e: Exception) {
-                    Log.e("ChatFragment", "Error loading older messages", e)
+                    Log.e("ChatFragment", "Error loading older messages: ${e.message}", e)
                     isLoadingHistory = false
                     binding.progressBar.isVisible = false
                     viewModel.setLocked(false)
                 }
             }
         }
-
 
         private fun scrollToFirstUnread() {
             val unreadCount = viewModel.unreadCount.value ?: 0

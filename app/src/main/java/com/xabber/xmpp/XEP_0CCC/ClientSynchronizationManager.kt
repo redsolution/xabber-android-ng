@@ -237,7 +237,7 @@ class ClientSynchronizationManager(owner: String) {
                                     return@let
                                 }
                                 val rawStamp = conversation.getAttribute("stamp")?.takeIf { it.isNotBlank() }
-                                val timestamp = rawStamp?.toLongOrNull()
+                                val timestamp = rawStamp?.toLongOrNull()!!.div(1000)
 
                                 val messagePrimary = MessageStorageItem.genPrimary(messageId, owner)
                                 val existingMessage = query<MessageStorageItem>("primary = $0", messagePrimary).first().find()
