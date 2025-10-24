@@ -340,7 +340,7 @@ class MessageCommonReceiver(private val owner: String) {
         clearQueue()
     }
 
-    suspend fun processQueue(items: Set<MessageQueueItem>, callback: suspend (List<MessageDto>?) -> Unit) {
+    private suspend fun processQueue(items: Set<MessageQueueItem>, callback: suspend (List<MessageDto>?) -> Unit) {
         if (items.isEmpty()) {
             callback(null)
             return
@@ -393,7 +393,7 @@ class MessageCommonReceiver(private val owner: String) {
                 return@forEach
             }
 
-            val isOutgoing = item.originalOutgoing || from == owner
+            val isOutgoing = item.originalOutgoing // Rely solely on originalOutgoing
             val conversationType = conversationTypeByMessage(item.message)
             val readDate = if (item.isRead) {
                 item.readDate ?: prereadedMessages.firstOrNull { it.messageId == messageId }?.date

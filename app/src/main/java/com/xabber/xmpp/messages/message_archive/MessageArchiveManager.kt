@@ -40,7 +40,7 @@ import javax.xml.parsers.DocumentBuilderFactory
 
 class MessageArchiveManager(private val owner: String) {
     private val namespace = "urn:xmpp:mam:2"
-    private val pageSize = 50
+    private val pageSize = 60
     private val callbacksQueue = mutableSetOf<CallbackQueueItem>()
     private val searchResultsQueries = mutableSetOf<String>()
     private val interactiveQueue = mutableListOf<String>()
@@ -230,69 +230,69 @@ class MessageArchiveManager(private val owner: String) {
                 if (chat != null) {
                     isInitialArchiveLoaded = chat!!.isInitialArchiveLoaded
                     isSynced = chat!!.isSynced
-                    val messages = query<MessageStorageItem>(
-                        "owner = $0 AND opponent = $1 AND conversationType_ = $2 AND isDeleted = false",
-                        owner, jid, conversationType.rawValue
-                    ).find().sortedByDescending { it.date }
-                    if (messages.isNotEmpty()) {
-                        val tempGaps = mutableListOf<HistoryGap>()
-                        for (i in 0 until messages.size - 1) {
-                            val current = messages[i]
-                            val next = messages[i + 1]
-                            val currentQueryIds = current.queryIds?.split(",")?.toSet() ?: emptySet()
-                            val nextQueryIds = next.queryIds?.split(",")?.toSet() ?: emptySet()
-                            if (currentQueryIds.intersect(nextQueryIds).isEmpty()) {
-                                tempGaps.add(
-                                    HistoryGap(
-                                        newestMessageId = current.archivedId,
-                                        oldestMessageId = next.archivedId,
-                                        startDate = Date(current.date),
-                                        endDate = Date(next.date)
-                                    )
-                                )
-                            }
-                        }
-                        var optimizedGaps = tempGaps
-                        var optimizationDone = false
-                        while (!optimizationDone) {
-                            val newGaps = mutableListOf<HistoryGap>()
-                            val excluded = mutableSetOf<Int>()
-                            optimizedGaps.forEachIndexed { index, gap ->
-                                if (excluded.contains(index)) return@forEachIndexed
-                                val nextIndex = index + 1
-                                if (nextIndex < optimizedGaps.size && gap.oldestMessageId == optimizedGaps[nextIndex].newestMessageId) {
-                                    excluded.add(nextIndex)
-                                    newGaps.add(
-                                        HistoryGap(
-                                            newestMessageId = gap.newestMessageId,
-                                            oldestMessageId = optimizedGaps[nextIndex].oldestMessageId,
-                                            startDate = gap.startDate,
-                                            endDate = optimizedGaps[nextIndex].endDate
-                                        )
-                                    )
-                                } else {
-                                    newGaps.add(gap)
-                                }
-                            }
-                            optimizationDone = newGaps.size == optimizedGaps.size
-                            optimizedGaps = newGaps
-                        }
-                        optimizedGaps.forEachIndexed { index, gap ->
-                            gaps.add(
-                                GapInfo(
-                                    queryId = "MAM gap $index:${NanoId.generateOptimized(6, nanoIdAlphabet, nanoIdMask, nanoIdStep)}",
-                                    start = gap.endDate,
-                                    end = gap.startDate
-                                )
-                            )
-                        }
-                    }
-                    if (gaps.isEmpty()) {
-                        val oldestMessage = messages.lastOrNull()
-                        if (oldestMessage != null) {
-                            archiveStart = Date(oldestMessage.date - 600_000)
-                        }
-                    }
+//                    val messages = query<MessageStorageItem>(
+//                        "owner = $0 AND opponent = $1 AND conversationType_ = $2 AND isDeleted = false",
+//                        owner, jid, conversationType.rawValue
+//                    ).find().sortedByDescending { it.date }
+//                    if (messages.isNotEmpty()) {
+//                        val tempGaps = mutableListOf<HistoryGap>()
+//                        for (i in 0 until messages.size - 1) {
+//                            val current = messages[i]
+//                            val next = messages[i + 1]
+//                            val currentQueryIds = current.queryIds?.split(",")?.toSet() ?: emptySet()
+//                            val nextQueryIds = next.queryIds?.split(",")?.toSet() ?: emptySet()
+//                            if (currentQueryIds.intersect(nextQueryIds).isEmpty()) {
+//                                tempGaps.add(
+//                                    HistoryGap(
+//                                        newestMessageId = current.archivedId,
+//                                        oldestMessageId = next.archivedId,
+//                                        startDate = Date(current.date),
+//                                        endDate = Date(next.date)
+//                                    )
+//                                )
+//                            }
+//                        }
+//                        var optimizedGaps = tempGaps
+//                        var optimizationDone = false
+//                        while (!optimizationDone) {
+//                            val newGaps = mutableListOf<HistoryGap>()
+//                            val excluded = mutableSetOf<Int>()
+//                            optimizedGaps.forEachIndexed { index, gap ->
+//                                if (excluded.contains(index)) return@forEachIndexed
+//                                val nextIndex = index + 1
+//                                if (nextIndex < optimizedGaps.size && gap.oldestMessageId == optimizedGaps[nextIndex].newestMessageId) {
+//                                    excluded.add(nextIndex)
+//                                    newGaps.add(
+//                                        HistoryGap(
+//                                            newestMessageId = gap.newestMessageId,
+//                                            oldestMessageId = optimizedGaps[nextIndex].oldestMessageId,
+//                                            startDate = gap.startDate,
+//                                            endDate = optimizedGaps[nextIndex].endDate
+//                                        )
+//                                    )
+//                                } else {
+//                                    newGaps.add(gap)
+//                                }
+//                            }
+//                            optimizationDone = newGaps.size == optimizedGaps.size
+//                            optimizedGaps = newGaps
+//                        }
+//                        optimizedGaps.forEachIndexed { index, gap ->
+//                            gaps.add(
+//                                GapInfo(
+//                                    queryId = "MAM gap $index:${NanoId.generateOptimized(6, nanoIdAlphabet, nanoIdMask, nanoIdStep)}",
+//                                    start = gap.endDate,
+//                                    end = gap.startDate
+//                                )
+//                            )
+//                        }
+//                    }
+//                    if (gaps.isEmpty()) {
+//                        val oldestMessage = messages.lastOrNull()
+//                        if (oldestMessage != null) {
+//                            archiveStart = Date(oldestMessage.date - 600_000)
+//                        }
+//                    }
                 } else {
                     val chatPrimary = LastChatsStorageItem.genPrimary(jid, owner, conversationType)
                     if (chatPrimary.isEmpty()) {
@@ -497,7 +497,7 @@ class MessageArchiveManager(private val owner: String) {
             queryId = queryId,
             flipPage = true,
             rsmBefore = if (messageId.isEmpty()) "" else messageId,
-            max = pageSize,
+            max = 60,
             backward = true,
             callback = callback
         )

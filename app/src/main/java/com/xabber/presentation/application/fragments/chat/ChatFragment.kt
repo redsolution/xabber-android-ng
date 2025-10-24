@@ -466,7 +466,7 @@
                         viewModel.updateMessagesAndUnread(messages)
                         messageAdapter?.notifyDataSetChanged() // Ensure adapter updates
                         Log.d("ChatFragment", "Messages updated: ${messages.size} items")
-                        scrollDown() // Scroll to bottom after update
+//                        scrollDown() // Scroll to bottom after update
                     }
                 }
             )

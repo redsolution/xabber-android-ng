@@ -190,15 +190,7 @@ class ClientSynchronizationManager(owner: String) {
                     val jid = conversation.getAttribute("jid")?.let { XMPPJID(it).bare() }?.takeIf { it.isNotBlank() } ?: return@forEach
                     val type = conversation.getAttribute("type")?.takeIf { it.isNotBlank() } ?: return@forEach
 
-                    if (jid == owner) {
-                        return@forEach
-                    }
-
-                    if (type == "urn:xabber:xen:0") {
-                        return@forEach
-                    }
-
-                    if (jid == owner.substringAfter("@")) {
+                    if (jid == owner || type == "urn:xabber:xen:0" || jid == owner.substringAfter("@")) {
                         return@forEach
                     }
 
@@ -251,7 +243,7 @@ class ClientSynchronizationManager(owner: String) {
                                         this.date = timestamp!!
                                         this.sentDate = timestamp
                                         this.editDate = 0L
-                                        this.outgoing = to == owner
+                                        this.outgoing = from == owner // Fixed: Correctly set outgoing based on from == owner
                                         this.conversationType_ = type
                                         this.isRead = unreadCount == 0L
                                         this.state = MessageSendingState.Sent
@@ -261,6 +253,7 @@ class ClientSynchronizationManager(owner: String) {
                                 }
                                 messageDate = timestamp!!
                                 lastMessageId = messageId
+                                Log.d("ClientSyncManager", "Set lastMessage for jid=$jid, messageId=$messageId, outgoing=${lastMessage!!.outgoing}, from=$from, to=$to")
                             }
                         }
                     }
@@ -302,6 +295,7 @@ class ClientSynchronizationManager(owner: String) {
                             this.rosterItem = rosterItem
                             this.lastMessage = lastMessage
                         }, UpdatePolicy.ALL)
+                        Log.d("ClientSyncManager", "Created LastChatsStorageItem: primary=$chatPrimary, lastMessageId=$lastMessageId, lastMessage.outgoing=${lastMessage!!.outgoing}")
                     } else {
                         findLatest(existingChat)?.apply {
                             if (messageDate > this.messageDate) {
@@ -313,6 +307,7 @@ class ClientSynchronizationManager(owner: String) {
                                 this.rosterItem = rosterItem
                                 this.lastMessage = lastMessage
                             }
+                            Log.d("ClientSyncManager", "Updated LastChatsStorageItem: primary=$chatPrimary, lastMessageId=$lastMessageId, lastMessage.outgoing=${lastMessage!!.outgoing}")
                         }
                     }
                 }

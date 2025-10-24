@@ -426,13 +426,14 @@ package com.xabber.stream
                         realm.close()
                     }
                     val from = item.message.from?.bare() ?: return@withLock
-                    val to = item.message.to?.bare() ?: jid
-                    val opponent = if (to != jid) to else from
+                    val to = item.message.to?.bare() ?: return@withLock
+                    var isOutgoing = item.isArchived ?: (from == jid)
+                    val opponent = if (isOutgoing) to else from
                     if (item.message.body.isNullOrEmpty()) {
                         Log.d(TAG, "Skipping message with no body: id=$messageId, stanza=${item.stanza}")
                         return@withLock
                     }
-                    Log.d(TAG, "Processing queued message: id=$messageId, from=$from, to=$to, body=${item.message.body.take(50)}, thread=${Thread.currentThread().id}")
+                    Log.d(TAG, "Processing queued message: id=$messageId, from=$from, to=$to, body=${item.message.body.take(50)}, isOutgoing=$isOutgoing, isArchived=${item.isArchived}, thread=${Thread.currentThread().id}")
                     try {
                         val realm = Realm.open(defaultRealmConfig())
                         realm.write {
@@ -452,10 +453,9 @@ package com.xabber.stream
                                 }, UpdatePolicy.ALL)
 
                             val isGroupChat = item.message.element("x", namespace = "https://xabber.com/protocol/groups") != null
-                            var isOutgoing = from == jid
                             if (isGroupChat) {
                                 val userId = item.message.element("x", namespace = "https://xabber.com/protocol/groups")
-                                    ?.element("reference", namespace = "https://xabber.com/protocol/groups")
+                                    ?.element("reference", namespace = "https://xabber.com/protocol/references")
                                     ?.element("user", namespace = "https://xabber.com/protocol/groups")?.getAttribute("id")
                                 isOutgoing = userId == jid
                                 Log.d(TAG, "Group chat message: userId=$userId, jid=$jid, isOutgoing=$isOutgoing")
@@ -467,8 +467,8 @@ package com.xabber.stream
                                 this.owner = jid
                                 this.opponent = opponent
                                 this.body = item.message.body ?: ""
-                                this.date = item.timestamp/10000
-                                this.sentDate = item.timestamp/10000
+                                this.date = item.timestamp / 10000
+                                this.sentDate = item.timestamp / 10000
                                 this.editDate = 0L
                                 this.outgoing = isOutgoing
                                 this.conversationType_ = when {
@@ -495,23 +495,21 @@ package com.xabber.stream
                                     this.unread = if (isOutgoing || item.isArchived) 0 else 1
                                     this.messageDate = item.timestamp / 10000
                                     this.lastMessageId = messageId
-                                    this.pinnedPosition = 0
-                                    this.muteExpired = -1
                                     this.rosterItem = rosterItem
                                     this.lastMessage = message
                                 }, UpdatePolicy.ALL)
                                 Log.d(TAG, "Created new LastChatsStorageItem for jid=$opponent, type=${conversationType.rawValue}, messageId=$messageId, timestamp=${item.timestamp}, isOutgoing=$isOutgoing")
                             } else {
                                 findLatest(chat)?.apply {
-                                    if (item.timestamp/10000 > this.messageDate) {
+                                    if (item.timestamp / 10000 > this.messageDate) {
                                         this.unread = if (isOutgoing || item.isArchived) this.unread else this.unread + 1
-                                        this.messageDate = item.timestamp/10000
+                                        this.messageDate = item.timestamp / 10000
                                         this.lastMessageId = messageId
                                         this.lastMessage = message
                                         this.isArchived = false
-                                        Log.d(TAG, "Updated LastChatsStorageItem to latest: jid=$opponent, type=${conversationType.rawValue}, messageId=$messageId, timestamp=${item.timestamp/10000}, isOutgoing=$isOutgoing")
+                                        Log.d(TAG, "Updated LastChatsStorageItem to latest: jid=$opponent, type=${conversationType.rawValue}, messageId=$messageId, timestamp=${item.timestamp / 10000}, isOutgoing=$isOutgoing")
                                     } else {
-                                        Log.d(TAG, "Skipped LastChatsStorageItem update, older timestamp: jid=$opponent, messageId=$messageId, timestamp=${item.timestamp/10000}, current=${this.messageDate}")
+                                        Log.d(TAG, "Skipped LastChatsStorageItem update, older timestamp: jid=$opponent, messageId=$messageId, timestamp=${item.timestamp / 10000}, current=${this.messageDate}")
                                     }
                                 }
                             }
