@@ -44,7 +44,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import nl.adaptivity.xmlutil.core.impl.multiplatform.StringReader
 import org.w3c.dom.Node
 import org.xmlpull.v1.XmlPullParser
 import org.xmlpull.v1.XmlPullParserFactory
@@ -212,6 +211,15 @@ class Account : XMPPStreamDelegate {
 
     }
 
+//    private suspend fun processPresenceStanza(stanza: String, stream: Stream) {
+//        synchronized(presenceStanzas) { presenceStanzas.add(stanza) }
+//        if (presenceStanzas.size >= 50) {
+//            val batch = synchronized(presenceStanzas) {
+//                presenceStanzas.take(50).also { presenceStanzas.removeAll(it) }
+//            }
+//            launch { batch.forEach { presenceManager?.processPresence(it) } }
+//        }
+//    }
 
     private fun parseIQ(stanza: String): XMPPIQ? {
         try {
@@ -370,7 +378,19 @@ class Account : XMPPStreamDelegate {
         }
     }
 
-
+    private suspend fun syncAllChats(stream: Stream) = withContext(Dispatchers.IO) {
+        val realm = Realm.Companion.open(defaultRealmConfig())
+        try {
+            val chats = realm.writeBlocking {
+                query<LastChatsStorageItem>("owner = $0", jid).find()
+            }
+            Log.d(TAG, "Found ${chats.size} chats to sync for $jid")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error syncing chats for $jid: ${e.message}", e)
+        } finally {
+            realm.close()
+        }
+    }
 
     @RequiresApi(Build.VERSION_CODES.O)
     suspend fun closeStream() = withContext(Dispatchers.IO) {
@@ -395,7 +415,7 @@ class Account : XMPPStreamDelegate {
         try {
             //пока втупую вызываю, тестовый до момента нормального вызова
             if (iq.queryNamespace == "urn:xmpp:mam:2") {
-                return messageArchiveManager.read(iq.raw, stream, realm)
+                return messageArchiveManager.read(iq.raw, stream)
             }
             // Buffer roster and sync IQ stanzas post-registration
             if (stream.state == StreamState.CONNECTED || stream.state == StreamState.BINDING) {
@@ -786,9 +806,8 @@ class Account : XMPPStreamDelegate {
             val factory = XmlPullParserFactory.newInstance()
             factory.isNamespaceAware = true
             val parser = factory.newPullParser()
-            parser.setInput(StringReader(message))  // Use StringReader from xmlutil
+            parser.setInput(nl.adaptivity.xmlutil.core.impl.multiplatform.StringReader(message))
             var eventType = parser.eventType
-            var detectedArchived = false  // New: Track detection
 
             while (eventType != XmlPullParser.END_DOCUMENT) {
                 when (eventType) {
@@ -807,11 +826,8 @@ class Account : XMPPStreamDelegate {
                             }
                         } else if (tagName == "result" && namespace == "urn:xmpp:mam:2") {
                             messageId = parser.getAttributeValue(null, "id") ?: messageId
-                            innerMessageId = messageId  // Ensure inner ID
                             inForwarded = true
                             isArchived = true
-                            detectedArchived = true  // Set flag
-                            Log.d(TAG, "Detected MAM archived: queryid=${parser.getAttributeValue(null, "queryid")}, id=$messageId, isArchived=true")
                         } else if (tagName == "sent" && namespace == "urn:xmpp:carbons:2") {
                             isCarbon = true
                             inForwarded = true
@@ -921,12 +937,7 @@ class Account : XMPPStreamDelegate {
 
             when (containerType) {
                 "archived" -> {
-                    val saved = messageArchiveManager.readMessage(message, updateLastChat = true)  // Force true for initial
-                    if (saved != null) {
-                        Log.d(TAG, "Successfully saved archived message: archivedId=${saved.archivedId}")
-                    } else {
-                        Log.e(TAG, "Failed to save archived message via readMessage")
-                    }
+                    messageArchiveManager.readMessage(message)
                 }
                 "forwarded" -> {
                     messageReceiver.receiveCarbon(innerMessage!!)

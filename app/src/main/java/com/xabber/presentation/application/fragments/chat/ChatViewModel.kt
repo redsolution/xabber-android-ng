@@ -140,6 +140,7 @@ class ChatViewModel(
         null
     }
 
+//    TODO WTF PLS REMOVE
     private suspend fun mapAllMessages(): List<MessageDto> {
         return realm.write {
             query<MessageStorageItem>(
@@ -150,6 +151,7 @@ class ChatViewModel(
         }
     }
 
+//    TODO WTF WRITE ABOUT THIS
     suspend fun updateMessagesAndUnread(messages: List<MessageDto>) {
         messageListMutex.withLock {
             messageList.clear()
@@ -375,11 +377,6 @@ class ChatViewModel(
                 } else {
                 }
             }
-        }
-    }
-
-    fun debugMessageList() {
-        messageList.forEachIndexed { index, msg ->
         }
     }
 

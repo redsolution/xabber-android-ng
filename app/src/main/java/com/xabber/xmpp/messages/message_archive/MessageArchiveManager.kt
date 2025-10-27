@@ -26,6 +26,7 @@ import io.viascom.nanoid.NanoId
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -37,6 +38,7 @@ import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
 import javax.xml.parsers.DocumentBuilderFactory
+import kotlin.coroutines.resume
 
 class MessageArchiveManager(private val owner: String) {
     private val namespace = "urn:xmpp:mam:2"
@@ -208,17 +210,16 @@ class MessageArchiveManager(private val owner: String) {
             var isInitialArchiveLoaded = false
             var isSynced = false
             var archiveStart: Date? = null
-            val gaps = mutableListOf<GapInfo>()
             var chat: LastChatsStorageItem? = null
+            var lastMessageId: String? = null
 
+            // Step 1: Check for existing chat and initialize
             realm.write {
-                // Check for existing chats with the same jid and owner
                 val existingChats = query<LastChatsStorageItem>(
                     "jid = $0 AND owner = $1", jid, owner
                 ).find()
                 chat = existingChats.find { it.conversationType_ == conversationType.rawValue }
                 if (chat == null && existingChats.isNotEmpty() && conversationType == ConversationType.Group) {
-                    // Update existing chat to group type if needed
                     chat = existingChats.firstOrNull()
                     if (chat != null) {
                         findLatest(chat!!)?.apply {
@@ -230,69 +231,6 @@ class MessageArchiveManager(private val owner: String) {
                 if (chat != null) {
                     isInitialArchiveLoaded = chat!!.isInitialArchiveLoaded
                     isSynced = chat!!.isSynced
-//                    val messages = query<MessageStorageItem>(
-//                        "owner = $0 AND opponent = $1 AND conversationType_ = $2 AND isDeleted = false",
-//                        owner, jid, conversationType.rawValue
-//                    ).find().sortedByDescending { it.date }
-//                    if (messages.isNotEmpty()) {
-//                        val tempGaps = mutableListOf<HistoryGap>()
-//                        for (i in 0 until messages.size - 1) {
-//                            val current = messages[i]
-//                            val next = messages[i + 1]
-//                            val currentQueryIds = current.queryIds?.split(",")?.toSet() ?: emptySet()
-//                            val nextQueryIds = next.queryIds?.split(",")?.toSet() ?: emptySet()
-//                            if (currentQueryIds.intersect(nextQueryIds).isEmpty()) {
-//                                tempGaps.add(
-//                                    HistoryGap(
-//                                        newestMessageId = current.archivedId,
-//                                        oldestMessageId = next.archivedId,
-//                                        startDate = Date(current.date),
-//                                        endDate = Date(next.date)
-//                                    )
-//                                )
-//                            }
-//                        }
-//                        var optimizedGaps = tempGaps
-//                        var optimizationDone = false
-//                        while (!optimizationDone) {
-//                            val newGaps = mutableListOf<HistoryGap>()
-//                            val excluded = mutableSetOf<Int>()
-//                            optimizedGaps.forEachIndexed { index, gap ->
-//                                if (excluded.contains(index)) return@forEachIndexed
-//                                val nextIndex = index + 1
-//                                if (nextIndex < optimizedGaps.size && gap.oldestMessageId == optimizedGaps[nextIndex].newestMessageId) {
-//                                    excluded.add(nextIndex)
-//                                    newGaps.add(
-//                                        HistoryGap(
-//                                            newestMessageId = gap.newestMessageId,
-//                                            oldestMessageId = optimizedGaps[nextIndex].oldestMessageId,
-//                                            startDate = gap.startDate,
-//                                            endDate = optimizedGaps[nextIndex].endDate
-//                                        )
-//                                    )
-//                                } else {
-//                                    newGaps.add(gap)
-//                                }
-//                            }
-//                            optimizationDone = newGaps.size == optimizedGaps.size
-//                            optimizedGaps = newGaps
-//                        }
-//                        optimizedGaps.forEachIndexed { index, gap ->
-//                            gaps.add(
-//                                GapInfo(
-//                                    queryId = "MAM gap $index:${NanoId.generateOptimized(6, nanoIdAlphabet, nanoIdMask, nanoIdStep)}",
-//                                    start = gap.endDate,
-//                                    end = gap.startDate
-//                                )
-//                            )
-//                        }
-//                    }
-//                    if (gaps.isEmpty()) {
-//                        val oldestMessage = messages.lastOrNull()
-//                        if (oldestMessage != null) {
-//                            archiveStart = Date(oldestMessage.date - 600_000)
-//                        }
-//                    }
                 } else {
                     val chatPrimary = LastChatsStorageItem.genPrimary(jid, owner, conversationType)
                     if (chatPrimary.isEmpty()) {
@@ -335,16 +273,30 @@ class MessageArchiveManager(private val owner: String) {
                         isSynced = existingChat.isSynced
                     }
                 }
+
+                // Set archive start for encrypted conversations
                 if (listOf(ConversationType.Omemo, ConversationType.Omemo1, ConversationType.Axolotl).contains(conversationType)) {
                     archiveStart = query<AccountStorageItem>("jid = $0", owner).first().find()?.createdAt?.let { Date(it) }
                 }
             }
 
+            // Step 2: Early exit if already synced
             if (isInitialArchiveLoaded && isSynced) {
+                Log.d(TAG, "Chat already synced for jid=$jid, owner=$owner, type=${conversationType.rawValue}")
                 callback?.invoke()
                 return@withContext
             }
 
+            // Step 3: Fetch the last message and wait for completion
+//            lastMessageId = suspendCancellableCoroutine { cont ->
+//                CoroutineScope(Dispatchers.IO).launch {
+//                    getLastMessage(stream, jid, conversationType) { archivedId ->
+//                        cont.resume(archivedId)
+//                    }
+//                }
+//            }
+
+            // Step 4: Request archive starting from the last message's ID
             val queryId = "MAM:${NanoId.generateOptimized(8, nanoIdAlphabet, nanoIdMask, nanoIdStep)}"
             requestArchive(
                 stream = stream,
@@ -354,15 +306,13 @@ class MessageArchiveManager(private val owner: String) {
                 queryId = queryId,
                 flipPage = true,
                 start = archiveStart,
-                rsmBefore = "",
+                rsmBefore =  "",
                 max = pageSize,
                 withCounter = true,
                 isNormalSynchronousTask = false,
-                backward = true, // Ensure backward pagination (newest to oldest)
+                backward = true,
                 callback = {
                     CoroutineScope(Dispatchers.IO).launch {
-                        getLastMessage(stream, jid, conversationType)
-
                         realm.write {
                             val chat = query<LastChatsStorageItem>(
                                 "primary = $0",
@@ -372,10 +322,22 @@ class MessageArchiveManager(private val owner: String) {
                                 findLatest(it)?.apply {
                                     isSynced = true
                                     isInitialArchiveLoaded = true
+                                    val latestMessage = query<MessageStorageItem>(
+                                        "owner = $0 AND opponent = $1 AND conversationType_ = $2 AND isDeleted = false",
+                                        owner, jid, conversationType.rawValue
+                                    ).find().maxByOrNull { it.sentDate }
+                                    if (latestMessage != null) {
+                                        lastMessage = latestMessage
+                                        messageDate = latestMessage.sentDate
+                                        lastMessageId = latestMessage.archivedId
+                                        if (!latestMessage.outgoing && muteExpired <= 0 && !latestMessage.isRead) {
+                                            isArchived = false
+                                            unread = (unread ?: 0) + 1
+                                        }
+                                    }
                                 }
                             }
                         }
-
                         callback?.invoke()
                     }
                 }
@@ -388,8 +350,6 @@ class MessageArchiveManager(private val owner: String) {
             realm.close()
         }
     }
-
-
 
     @RequiresApi(Build.VERSION_CODES.O)
     suspend fun getHistoryByDate(
@@ -413,7 +373,7 @@ class MessageArchiveManager(private val owner: String) {
                 flipPage = true,
                 start = start,
                 end = end,
-                rsmBefore = if (reversed) "" else null,
+                rsmBefore =  "",
                 max = pageSize, // Use pageSize instead of 100
                 isNormalSynchronousTask = true,
                 callback = {
@@ -465,7 +425,8 @@ class MessageArchiveManager(private val owner: String) {
     suspend fun getLastMessage(
         stream: Stream,
         jid: String,
-        conversationType: ConversationType
+        conversationType: ConversationType,
+        callback: ((String?) -> Unit)? = null // Callback to return the archivedId
     ) = withContext(Dispatchers.IO) {
         val queryId = "MAM:last:${NanoId.generateOptimized(8, nanoIdAlphabet, nanoIdMask, nanoIdStep)}"
         requestArchive(
@@ -477,6 +438,17 @@ class MessageArchiveManager(private val owner: String) {
             rsmBefore = "",
             max = 1,
             callback = {
+                // Query the database for the most recent message after the MAM response
+                val realm = Realm.open(defaultRealmConfig())
+                try {
+                    val latestMessage = realm.query<MessageStorageItem>(
+                        "owner = $0 AND opponent = $1 AND conversationType_ = $2 AND isDeleted = false",
+                        owner, jid, conversationType.rawValue
+                    ).find().maxByOrNull { it.date }
+                    callback?.invoke(latestMessage?.archivedId)
+                } finally {
+                    realm.close()
+                }
             }
         )
     }
@@ -488,7 +460,7 @@ class MessageArchiveManager(private val owner: String) {
         messageId: String,
         callback: (() -> Unit)? = null
     ) = withContext(Dispatchers.IO) {
-        val queryId = "MAM prev history:${NanoId.generateOptimized(6, nanoIdAlphabet, nanoIdMask, nanoIdStep)}"
+        val queryId = "MAM:${NanoId.generateOptimized(6, nanoIdAlphabet, nanoIdMask, nanoIdStep)}"
         requestArchive(
             stream = stream,
             jid = jid,
@@ -497,7 +469,7 @@ class MessageArchiveManager(private val owner: String) {
             queryId = queryId,
             flipPage = true,
             rsmBefore = if (messageId.isEmpty()) "" else messageId,
-            max = 60,
+            max = pageSize,
             backward = true,
             callback = callback
         )
@@ -643,6 +615,7 @@ class MessageArchiveManager(private val owner: String) {
 
             queryIdsMutex.withLock {
                 if (!queryIds.contains(queryId)) {
+                    Log.w(TAG, "Query ID $queryId not found in queryIds, skipping")
                     return@withContext null
                 }
             }

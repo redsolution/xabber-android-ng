@@ -310,7 +310,7 @@ package com.xabber.stream
 
                     val tagEnd = content.indexOf(">", nextStart.first)
                     if (tagEnd == -1) {
-                        Log.w(TAG, "Incomplete stanza tag, buffering: ${content.take(200)}")
+                        Log.w(TAG, "Incomplete stanza tag, buffering: ${content}")
                         break
                     }
                     val fullTag = content.substring(nextStart.first + 1, tagEnd)

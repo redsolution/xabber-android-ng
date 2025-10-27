@@ -74,7 +74,7 @@ class MessageCommonReceiver(private val owner: String) {
         state: MessageSendingState,
         date: Date,
         readDate: Date? = null
-    ): MessageQueueItem? {
+    ): MessageQueueItem {
         val messageId = getOriginId(message) ?: message.id
 
         val queueItem = MessageQueueItem(
@@ -536,7 +536,6 @@ class MessageCommonReceiver(private val owner: String) {
                 val chatViewModel = AccountManager.getChatViewModel(chatId)
                 if (chatViewModel != null) {
                     chatViewModel.insertMessagesFromReceiver(listOf(message))
-                } else {
                 }
             }
         } catch (e: Exception) {

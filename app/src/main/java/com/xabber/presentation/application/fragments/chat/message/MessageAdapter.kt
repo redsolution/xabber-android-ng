@@ -8,15 +8,19 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.xabber.R
+import com.xabber.account.AccountManager
+import com.xabber.data_base.defaultRealmConfig
 import com.xabber.data_base.models.last_chats.LastChatsStorageItem
 import com.xabber.data_base.models.messages.MessageDisplayType
 import com.xabber.data_base.models.messages.MessageStorageItem
+import com.xabber.data_base.models.sync.ConversationType
 import com.xabber.dto.MessageDto
 import com.xabber.presentation.application.fragments.chat.message.IncomingMessageVH
 import com.xabber.presentation.application.fragments.chat.message.MessageViewHolder
 import com.xabber.presentation.application.fragments.chat.message.OutgoingMessageVH
 import com.xabber.presentation.application.fragments.chat.message.SystemMessageVH
 import com.xabber.utils.isSameDayWith
+import com.xabber.xmpp.messages.message_archive.MessageArchiveManager
 import io.realm.kotlin.Realm
 import io.realm.kotlin.ext.query
 import io.realm.kotlin.notifications.InitialResults
@@ -84,7 +88,8 @@ class MessageAdapter(
 
 
     fun startObserving(owner: String, opponent: String, conversationType: String, recyclerView: RecyclerView) {
-        stopObserving()
+        stopObserving() // Stop any existing observation
+
         // Query for MessageStorageItem
         val messageQuery = realm.query<MessageStorageItem>(
             "owner = $0 AND opponent = $1 AND conversationType_ = $2 AND isDeleted = false",
@@ -92,30 +97,18 @@ class MessageAdapter(
         ).sort("sentDate", Sort.ASCENDING)
         collection = messageQuery.find()
 
-        // Query for LastChatsStorageItem
-        val lastChatQuery = realm.query<LastChatsStorageItem>(
-            "owner = $0 AND jid = $1 AND conversationType_ = $2",
-            owner, opponent, conversationType
-        )
-        val lastChatCollection = lastChatQuery.find()
-
         observingJob = scope.launch {
-            // Observe MessageStorageItem changes
             collection!!.asFlow()
-                .debounce(300.milliseconds)
+                .debounce(600.milliseconds)
                 .collect { changes: ResultsChange<MessageStorageItem> ->
-                    // Get the latest LastChatsStorageItem (single item expected)
-                    val lastChat = lastChatCollection.firstOrNull()
-                    val lastMessageDto = lastChat?.lastMessage?.toMessageDto()
-
                     // Map MessageStorageItem to MessageDto
                     val messageDtos = when (changes) {
                         is InitialResults -> changes.list.mapNotNull { it.toMessageDto() }
                         is UpdatedResults -> changes.list.mapNotNull { it.toMessageDto() }
                     }
 
-                    // Combine messages with lastMessage, avoiding duplicates
-                    val newDtos = (messageDtos + listOfNotNull(lastMessageDto))
+                    // Use only MessageStorageItem results, sorted by sentTimestamp
+                    val newDtos = messageDtos
                         .filter { it.primary.isNotEmpty() }
                         .distinctBy { it.primary }
                         .sortedBy { it.sentTimestamp }
@@ -158,7 +151,12 @@ class MessageAdapter(
                                 offset
                             )
                         }
-                        Log.d("MessageAdapter", "List updated: oldSize=$oldItemCount, newSize=${newDtos.size}, firstVisiblePosition=$firstVisiblePosition, lastMessagePrimary=${lastMessageDto?.primary}")
+                        Log.d(
+                            "MessageAdapter",
+                            "List updated: oldSize=$oldItemCount, newSize=${newDtos.size}, " +
+                                    "firstVisiblePosition=$firstVisiblePosition, lastMessagePrimary=${newDtos.lastOrNull()?.primary}, " +
+                                    "lastMessageIsOutgoing=${newDtos.lastOrNull()?.isOutgoing}"
+                        )
                     }
                 }
         }
@@ -206,12 +204,9 @@ class MessageAdapter(
 
     override fun getItemViewType(position: Int): Int {
         val message = currentList.getOrNull(position) ?: return INCOMING_MESSAGE
-        // Swap isOutgoing for the last message
-        val isLastMessage = position == currentList.size - 1
-        val effectiveIsOutgoing = if (isLastMessage) !message.isOutgoing else message.isOutgoing
         return when {
             message.displayType == MessageDisplayType.System -> SYSTEM_MESSAGE
-            effectiveIsOutgoing -> OUTGOING_MESSAGE
+            message.isOutgoing -> OUTGOING_MESSAGE
             else -> INCOMING_MESSAGE
         }
     }
