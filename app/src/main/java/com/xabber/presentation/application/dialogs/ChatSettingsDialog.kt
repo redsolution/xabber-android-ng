@@ -17,11 +17,12 @@ import com.xabber.databinding.FragmentChatSettingsBinding
 import com.xabber.dto.MessageDto
 import com.xabber.presentation.AppConstants
 import com.xabber.presentation.application.contract.navigator
-import com.xabber.presentation.application.fragments.DetailBaseFragment
 import com.xabber.presentation.application.fragments.chat.ChatSettingsManager
 import com.xabber.presentation.application.fragments.chat.Gradient
 import com.xabber.presentation.application.fragments.chat.GradientAdapter
-import com.xabber.presentation.application.fragments.chat.MessageAdapter
+import com.xabber.presentation.application.fragments.chat.chatmodel.ChatFragmentModel
+import com.xabber.presentation.application.fragments.chat.chatmodel.MessageAdapter
+import com.xabber.presentation.application.fragments.chat.chatmodel.MessageUiMapper
 import io.realm.kotlin.Realm
 
 class ChatSettingsDialog : DialogFragment(R.layout.fragment_chat_settings),
@@ -97,12 +98,9 @@ class ChatSettingsDialog : DialogFragment(R.layout.fragment_chat_settings),
         )
         adapter = MessageAdapter(
             layoutInflater,
-            listener = null, // No menu listener for demo
-            onViewClickListener = null, // No click listener for demo
-            isGroup = false,
-            onBindListener = null, // No onBind for demo, or define if needed
-            realm = realm,
-            onMessagesUpdated = { /* No update needed for static demo */ }
+            menuItemListener = null,
+            onViewClickListener = null,
+            uiMapper = MessageUiMapper()
         )
         binding.rvChatDemonstration.adapter = adapter
         binding.seekBar.progress = ChatSettingsManager.cornerValue

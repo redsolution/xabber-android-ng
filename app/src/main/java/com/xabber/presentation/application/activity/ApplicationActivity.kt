@@ -57,7 +57,7 @@ import com.xabber.presentation.application.fragments.account.qrcode.QRCodeParams
 import com.xabber.presentation.application.fragments.account.reorder.ReorderAccountsFragment
 import com.xabber.presentation.application.fragments.calls.CallFiltersFragment
 import com.xabber.presentation.application.fragments.calls.CallsFragment
-import com.xabber.presentation.application.fragments.chat.ChatFragment
+import com.xabber.presentation.application.fragments.chat.chatmodel.ChatFragment
 import com.xabber.presentation.application.fragments.chat.ChatParams
 import com.xabber.presentation.application.fragments.chat.ChatSettingsFragment
 import com.xabber.presentation.application.fragments.chat.ChatSettingsManager

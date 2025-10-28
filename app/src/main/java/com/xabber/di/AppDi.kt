@@ -3,7 +3,7 @@ package com.xabber.di
 import android.os.Build
 import androidx.annotation.RequiresApi
 import com.xabber.data_base.models.sync.ConversationType
-import com.xabber.presentation.application.fragments.chat.ChatViewModel
+import com.xabber.presentation.application.fragments.chat.chatmodel.ChatFragmentModel
 import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.dsl.module
 
@@ -25,17 +25,14 @@ val dataModule = module {
                 "urn:xmpp:omemo:2" -> ConversationType.Omemo
                 "urn:xmpp:omemo:1" -> ConversationType.Omemo1
                 "eu.siacs.conversations.axolotl" -> ConversationType.Axolotl
-                else -> {
-                    ConversationType.Regular
-                }
+                else -> ConversationType.Regular
             }
 
-
-            ChatViewModel(chatId, owner, opponent, conversationType)
+            ChatFragmentModel(chatId, owner, opponent, conversationType)
         } catch (e: Exception) {
-            // 🚨 EMERGENCY FALLBACK
+            // EMERGENCY FALLBACK
             val opponent = chatId.split("_").firstOrNull() ?: "fallback@jabber.com"
-            ChatViewModel(chatId, "igor.boldin@redsolution.com", opponent, ConversationType.Regular)
+            ChatFragmentModel(chatId, "igor.boldin@redsolution.com", opponent, ConversationType.Regular)
         }
     }
 }

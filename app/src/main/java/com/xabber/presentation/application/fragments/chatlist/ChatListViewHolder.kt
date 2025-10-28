@@ -80,8 +80,7 @@ class ChatListViewHolder(
     }
 
     fun createInitialsBitmap(initials: String, jid: String): Bitmap {
-        // Размер аватара (в пикселях, подгони под свой layout)
-        val size = 48 // или resources.getDimensionPixelSize(R.dimen.avatar_size)
+        val size = 48
 
         val backgroundPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = getAvatarColor(jid)

@@ -4,10 +4,8 @@ import android.annotation.SuppressLint
 import android.content.SharedPreferences
 import android.content.res.Configuration
 import android.os.Bundle
-import android.view.Menu
 import android.view.View
 import android.widget.PopupMenu
-import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import by.kirich1409.viewbindingdelegate.viewBinding
@@ -16,10 +14,8 @@ import com.xabber.databinding.FragmentContactBinding
 import com.xabber.dto.ContactDto
 import com.xabber.presentation.AppConstants
 import com.xabber.presentation.application.contract.navigator
-import com.xabber.presentation.application.dialogs.BlockContactDialog
-import com.xabber.presentation.application.dialogs.DeletingContactDialog
 import com.xabber.presentation.application.fragments.BaseFragment
-import com.xabber.presentation.application.fragments.chat.ChatFragment
+import com.xabber.presentation.application.fragments.chat.chatmodel.ChatFragment
 import com.xabber.presentation.application.fragments.chat.ChatParams
 import com.xabber.presentation.application.manage.DisplayManager
 

@@ -32,7 +32,6 @@ import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.xabber.R
-import com.xabber.data_base.models.messages.MessageDisplayType
 import com.xabber.data_base.models.messages.MessageSendingState
 import com.xabber.databinding.LayoutBottomSheetCustomBinding
 import com.xabber.dto.MediaDto
@@ -41,6 +40,7 @@ import com.xabber.dto.MessageReferenceDto
 import com.xabber.presentation.AppConstants
 import com.xabber.presentation.XabberApplication
 import com.xabber.presentation.application.fragments.chat.*
+import com.xabber.presentation.application.fragments.chat.chatmodel.ChatModel
 import com.xabber.presentation.application.fragments.chat.geo.PickGeolocationActivity
 import com.xabber.utils.askUserForOpeningAppSettings
 import com.xabber.utils.showToast
@@ -55,7 +55,7 @@ class AttachmentBottomSheet : BottomSheetDialogFragment(R.layout.layout_bottom_s
     private var bottomSheetWidth = 0
     private var behavior: BottomSheetBehavior<*>? = null
     private val viewModel: MediaViewModel by viewModels()
-    private val chatVM: ChatViewModel by viewModel { parametersOf(getChatId()) }
+    private val chatVM: ChatModel by viewModel { parametersOf(getChatId()) }
     private var galleryAdapter: GalleryAdapter? = null
     private var currentPhotoUri: Uri? = null
     private var mediaList = ArrayList<MediaDto>()
@@ -665,7 +665,6 @@ class AttachmentBottomSheet : BottomSheetDialogFragment(R.layout.layout_bottom_s
                             sentTimestamp = System.currentTimeMillis(),
                             isGroup = false
                         )
-                        chatVM.insertMessage(getChatId(), message)
                     }
                 }
 
@@ -704,22 +703,6 @@ class AttachmentBottomSheet : BottomSheetDialogFragment(R.layout.layout_bottom_s
                     }
 
                     val chat = chatVM.loadChat(getChatId())
-                    chatVM.insertMessage(
-                        getChatId(),
-                        MessageDto(
-                            primary = getChatId() + System.currentTimeMillis(),
-                            references = refer,
-                            isOutgoing = true,
-                            owner = chat!!.owner,
-                            opponentJid = chat.opponentJid,
-                            canDeleteMessage = false,
-                            canEditMessage = false,
-                            messageBody = "" + body,
-                            messageSendingState = MessageSendingState.Sending,
-                            sentTimestamp = System.currentTimeMillis(),
-                            isGroup = false
-                        )
-                    )
                     dismiss()
                 }
 
@@ -763,22 +746,6 @@ class AttachmentBottomSheet : BottomSheetDialogFragment(R.layout.layout_bottom_s
                     }
 
                     val chat = chatVM.loadChat(getChatId())
-                    chatVM.insertMessage(
-                        getChatId(),
-                        MessageDto(
-                            primary = getChatId() + System.currentTimeMillis(),
-                            references = refer,
-                            isOutgoing = true,
-                            owner = chat!!.owner,
-                            opponentJid = chat.opponentJid,
-                            canDeleteMessage = false,
-                            canEditMessage = false,
-                            messageBody = "" + body,
-                            messageSendingState = MessageSendingState.Sending,
-                            sentTimestamp = System.currentTimeMillis(),
-                            isGroup = false
-                        )
-                    )
                     dismiss()
                 }
 

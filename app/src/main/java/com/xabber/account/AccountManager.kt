@@ -4,7 +4,6 @@ import android.content.Context
 import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
-import com.xabber.stream.Stream
 import com.xabber.data_base.defaultRealmConfig
 import com.xabber.data_base.models.account.AccountStorageItem
 import com.xabber.data_base.models.avatar.AvatarStorageItem
@@ -17,9 +16,8 @@ import com.xabber.data_base.models.roster.BlockStorageItem
 import com.xabber.data_base.models.roster.RosterGroupStorageItem
 import com.xabber.data_base.models.roster.RosterStorageItem
 import com.xabber.data_base.models.sync.ConversationType
-import com.xabber.presentation.application.fragments.chat.ChatViewModel
+import com.xabber.presentation.application.fragments.chat.chatmodel.ChatModel
 import com.xabber.presentation.onboarding.util.PasswordStorageHelper
-import com.xabber.xmpp.XEP_0CCC.ClientSynchronizationManager
 import com.xabber.xmpp.device.DeviceStorageItem
 import com.xabber.xmpp.global_index.GroupChatIndexStorageItem
 import com.xabber.xmpp.groupchat.GroupChatStorageItem
@@ -47,7 +45,7 @@ object AccountManager {
     var users: MutableList<Account> = mutableListOf()
     private var isLoggingOut: Boolean = false
     private var passwordStorageHelper: PasswordStorageHelper? = null
-    private val chatViewModels = mutableMapOf<String, ChatViewModel>()
+    private val chatModels = mutableMapOf<String, ChatModel>()
 //    private val streams = mutableMapOf<String, Stream>()
     private val messageSenders: MutableMap<String, MessageCommonSender> = mutableMapOf()
 
@@ -86,21 +84,21 @@ object AccountManager {
         return sender
     }
 
-    fun registerChatViewModel(chatId: String, chatViewModel: ChatViewModel) {
-        chatViewModels[chatId] = chatViewModel
+    fun registerChatViewModel(chatId: String, chatModel: ChatModel) {
+        chatModels[chatId] = chatModel
         Log.d("AccountManager", "Registered ChatViewModel for chatId=$chatId")
     }
 
-    fun getChatViewModel(chatId: String): ChatViewModel? {
-        var viewModel = chatViewModels[chatId]
+    fun getChatViewModel(chatId: String): ChatModel? {
+        var viewModel = chatModels[chatId]
         if (viewModel == null) {
             val parts = chatId.split("_")
             if (parts.size == 3) {
                 val opponent = parts[0]
                 val owner = parts[1]
                 val conversationType = ConversationType.Companion.fromRaw(parts[2])
-                viewModel = ChatViewModel(chatId, owner, opponent, conversationType)
-                chatViewModels[chatId] = viewModel
+                viewModel = ChatModel(chatId, owner, opponent, conversationType)
+                chatModels[chatId] = viewModel
                 Log.d("AccountManager", "Initialized and registered ChatViewModel for chatId=$chatId, opponent=$opponent, conversationType=${conversationType.rawValue}")
             } else {
                 Log.e("AccountManager", "Invalid chatId format: $chatId")
@@ -112,9 +110,9 @@ object AccountManager {
     }
     fun createChatViewModel(owner: String, opponent: String, conversationType: ConversationType) {
         val chatId = LastChatsStorageItem.Companion.genPrimary(opponent, owner, conversationType)
-        if (!chatViewModels.containsKey(chatId)) {
-            val viewModel = ChatViewModel(chatId, owner, opponent, conversationType)
-            chatViewModels[chatId] = viewModel
+        if (!chatModels.containsKey(chatId)) {
+            val viewModel = ChatModel(chatId, owner, opponent, conversationType)
+            chatModels[chatId] = viewModel
             Log.d("AccountManager", "Created ChatViewModel for chatId=$chatId, opponent=$opponent, conversationType=${conversationType.rawValue}")
             // Ensure LastChatsStorageItem exists
             realm.writeBlocking {
@@ -135,7 +133,7 @@ object AccountManager {
     }
 
     fun unregisterChatViewModel(chatId: String) {
-        chatViewModels.remove(chatId)
+        chatModels.remove(chatId)
         Log.d("AccountManager", "Unregistered ChatViewModel for chatId=$chatId")
     }
 
