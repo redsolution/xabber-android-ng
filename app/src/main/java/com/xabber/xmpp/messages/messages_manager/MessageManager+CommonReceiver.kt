@@ -458,7 +458,6 @@ class MessageCommonReceiver(private val owner: String) {
             save(listOf(messageDto)) // Immediate DB save!
             val chatId = LastChatsStorageItem.genPrimary(opponent, owner, conversationType)
             val chatViewModel = AccountManager.getChatViewModel(chatId)
-            chatViewModel?.insertMessagesFromReceiver(listOf(messageDto))
         }
 
         // Save to database
@@ -534,9 +533,6 @@ class MessageCommonReceiver(private val owner: String) {
                 val conversationType = ConversationType.fromRaw(if (message.isGroup) "https://xabber.com/protocol/groups" else "urn:xabber:chat")
                 val chatId = LastChatsStorageItem.genPrimary(message.opponentJid, message.owner, conversationType)
                 val chatViewModel = AccountManager.getChatViewModel(chatId)
-                if (chatViewModel != null) {
-                    chatViewModel.insertMessagesFromReceiver(listOf(message))
-                }
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error saving messages: ${e.message}", e)
