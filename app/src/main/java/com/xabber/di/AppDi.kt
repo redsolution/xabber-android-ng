@@ -3,7 +3,7 @@ package com.xabber.di
 import android.os.Build
 import androidx.annotation.RequiresApi
 import com.xabber.data_base.models.sync.ConversationType
-import com.xabber.presentation.application.fragments.chat.ChatViewModel
+import com.xabber.presentation.application.fragments.chat.viewmodel.ChatViewModel
 import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.dsl.module
 

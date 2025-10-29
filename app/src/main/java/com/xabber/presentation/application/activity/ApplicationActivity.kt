@@ -39,7 +39,6 @@ import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.google.android.material.navigation.NavigationView
 import com.xabber.R
 import com.xabber.account.AccountManager
-import com.xabber.stream.Stream
 import com.xabber.data_base.defaultRealmConfig
 import com.xabber.databinding.ActivityApplicationBinding
 import com.xabber.dto.AccountDto
@@ -57,10 +56,10 @@ import com.xabber.presentation.application.fragments.account.qrcode.QRCodeParams
 import com.xabber.presentation.application.fragments.account.reorder.ReorderAccountsFragment
 import com.xabber.presentation.application.fragments.calls.CallFiltersFragment
 import com.xabber.presentation.application.fragments.calls.CallsFragment
-import com.xabber.presentation.application.fragments.chat.ChatFragment
 import com.xabber.presentation.application.fragments.chat.ChatParams
 import com.xabber.presentation.application.fragments.chat.ChatSettingsFragment
 import com.xabber.presentation.application.fragments.chat.ChatSettingsManager
+import com.xabber.presentation.application.fragments.chat.view.ChatView
 import com.xabber.presentation.application.fragments.chatlist.ChatListFragment
 import com.xabber.presentation.application.fragments.chatlist.ChatListViewModel
 import com.xabber.presentation.application.fragments.chatlist.add.NewChatFragment
@@ -106,7 +105,6 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
             layoutInflater
         )
     }
-    private lateinit var stream: Stream
 
     private val realm = Realm.open(defaultRealmConfig())
     private lateinit var drawerLayout: DrawerLayout
@@ -308,7 +306,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
             return true
         }
         return super.onOptionsItemSelected(item)
-        }
+    }
 
     override fun onNavigationItemSelected(item: MenuItem): Boolean {
         when (item.itemId) {
@@ -365,7 +363,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         }
 
     }
-//    private fun handleContactAddition() {
+    //    private fun handleContactAddition() {
 //        binding.toolbarNav.findViewById<ImageView>(R.id.add).setOnClickListener {
 //            if (chatListViewModel.chatIsEmpty()) chatListViewModel.addSomeChats()
 //            else showNewChat()
@@ -379,7 +377,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
 
         // Check if there's an active chat in the detail container
         val currentDetailFragment = supportFragmentManager.findFragmentById(R.id.detail_container)
-        val isChatActive = currentDetailFragment is ChatFragment
+        val isChatActive = currentDetailFragment is ChatView
 
         if (activeFragment !is NotificationFragment) {
             if (orientation == Configuration.ORIENTATION_LANDSCAPE) {
@@ -423,7 +421,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
 
         // Check if there's an active chat in the detail container
         val currentDetailFragment = supportFragmentManager.findFragmentById(R.id.detail_container)
-        val isChatActive = currentDetailFragment is ChatFragment
+        val isChatActive = currentDetailFragment is ChatView
 
         if (activeFragment !is SavedMessagesFragment) {
             if (orientation == Configuration.ORIENTATION_LANDSCAPE) {
@@ -466,7 +464,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
 
         // Check if there's an active chat in the detail container
         val currentDetailFragment = supportFragmentManager.findFragmentById(R.id.detail_container)
-        val isChatActive = currentDetailFragment is ChatFragment
+        val isChatActive = currentDetailFragment is ChatView
 
         if (activeFragment !is ArchiveFragment) {
             if (orientation == Configuration.ORIENTATION_LANDSCAPE) {
@@ -547,7 +545,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
 
         // Check if there's an active chat in the detail container
         val currentDetailFragment = supportFragmentManager.findFragmentById(R.id.detail_container)
-        val isChatActive = currentDetailFragment is ChatFragment
+        val isChatActive = currentDetailFragment is ChatView
 
         if (activeFragment !is ContactsFragment) {
             if (orientation == Configuration.ORIENTATION_LANDSCAPE) {
@@ -608,7 +606,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
 
 
     private fun closeDrawerSlowly() {
-            drawerLayout.closeDrawer(GravityCompat.START)
+        drawerLayout.closeDrawer(GravityCompat.START)
     }
 
     override fun onBackPressed() {
@@ -770,8 +768,8 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
 
 
 
-     @RequiresApi(Build.VERSION_CODES.O)
-     override fun logOut() {
+    @RequiresApi(Build.VERSION_CODES.O)
+    override fun logOut() {
         if (isLoggingOut) {
             Log.w("ApplicationActivity", "Logout already in progress, skipping")
             return
@@ -812,7 +810,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         }
     }
 
-     fun updateAccountUI() {
+    fun updateAccountUI() {
         if (isLoggingOut || isUpdatingUI) {
             Log.w("ApplicationActivity", "Skipping updateAccountUI during logout or UI update")
             return
@@ -842,7 +840,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         viewModel.initAccountListListener()
         viewModel.initUnreadMessagesCountListener()
         viewModel.unreadMessage.observe(this) {
-           // handler.postDelayed(showBadge, 300)
+            // handler.postDelayed(showBadge, 300)
         }
         viewModel.getUnreadMessages()
     }
@@ -1293,7 +1291,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
                     val restoredFragment = supportFragmentManager.findFragmentById(R.id.application_container)
                     Log.d("ApplicationActivity", "Back stack changed, restored fragment = ${restoredFragment?.javaClass?.simpleName}")
                     val restoredDetailFragment = supportFragmentManager.findFragmentById(R.id.detail_container)
-                    if (!isPortrait && restoredDetailFragment is ChatFragment) {
+                    if (!isPortrait && restoredDetailFragment is ChatView) {
                         binding.slidingPaneLayout.openPane()
                     }
                     supportFragmentManager.removeOnBackStackChangedListener(this)
@@ -1357,7 +1355,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
     }
 
     override fun showChat(chatParams: ChatParams) {
-        launchDetail(ChatFragment.newInstance(chatParams))
+        launchDetail(ChatView.newInstance(chatParams))
     }
 
 
@@ -1453,7 +1451,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
     }
 
     override fun showChatInStack(chatParams: ChatParams) {
-        launchDetailInStack(ChatFragment.newInstance(chatParams))
+        launchDetailInStack(ChatView.newInstance(chatParams))
     }
 
     override fun showConnectionSettings() {

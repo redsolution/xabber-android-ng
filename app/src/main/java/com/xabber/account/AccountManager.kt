@@ -4,7 +4,6 @@ import android.content.Context
 import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
-import com.xabber.stream.Stream
 import com.xabber.data_base.defaultRealmConfig
 import com.xabber.data_base.models.account.AccountStorageItem
 import com.xabber.data_base.models.avatar.AvatarStorageItem
@@ -17,9 +16,8 @@ import com.xabber.data_base.models.roster.BlockStorageItem
 import com.xabber.data_base.models.roster.RosterGroupStorageItem
 import com.xabber.data_base.models.roster.RosterStorageItem
 import com.xabber.data_base.models.sync.ConversationType
-import com.xabber.presentation.application.fragments.chat.ChatViewModel
+import com.xabber.presentation.application.fragments.chat.viewmodel.ChatViewModel
 import com.xabber.presentation.onboarding.util.PasswordStorageHelper
-import com.xabber.xmpp.XEP_0CCC.ClientSynchronizationManager
 import com.xabber.xmpp.device.DeviceStorageItem
 import com.xabber.xmpp.global_index.GroupChatIndexStorageItem
 import com.xabber.xmpp.groupchat.GroupChatStorageItem

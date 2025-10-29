@@ -74,12 +74,10 @@ class ChatSettingsFragment : DetailBaseFragment(R.layout.fragment_chat_settings)
         )
         adapter = MessageAdapter(
             layoutInflater,
-            listener = null, // No menu listener for demo
-            onViewClickListener = null, // No click listener for demo
+            listener = null,
+            onViewClickListener = null,
             isGroup = false,
-            onBindListener = null, // No onBind for demo, or define if needed
-            realm = realm,
-            onMessagesUpdated = { /* No update needed for static demo */ }
+            onBindListener = null
         )
         binding.rvChatDemonstration.adapter = adapter
         binding.seekBar.progress = ChatSettingsManager.cornerValue

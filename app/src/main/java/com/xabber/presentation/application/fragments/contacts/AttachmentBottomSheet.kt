@@ -32,7 +32,6 @@ import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.xabber.R
-import com.xabber.data_base.models.messages.MessageDisplayType
 import com.xabber.data_base.models.messages.MessageSendingState
 import com.xabber.databinding.LayoutBottomSheetCustomBinding
 import com.xabber.dto.MediaDto
@@ -42,6 +41,7 @@ import com.xabber.presentation.AppConstants
 import com.xabber.presentation.XabberApplication
 import com.xabber.presentation.application.fragments.chat.*
 import com.xabber.presentation.application.fragments.chat.geo.PickGeolocationActivity
+import com.xabber.presentation.application.fragments.chat.viewmodel.ChatViewModel
 import com.xabber.utils.askUserForOpeningAppSettings
 import com.xabber.utils.showToast
 import org.koin.androidx.viewmodel.ext.android.viewModel
