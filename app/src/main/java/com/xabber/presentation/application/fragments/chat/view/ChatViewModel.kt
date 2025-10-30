@@ -10,11 +10,13 @@ import com.xabber.dto.AccountDto
 import com.xabber.dto.ChatListDto
 import com.xabber.dto.MessageDto
 import com.xabber.presentation.application.fragments.chat.view.ChatModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 
 class ChatViewModel(
     private val chatId: String,
@@ -173,14 +175,29 @@ class ChatViewModel(
     }
 
     fun selectMessage(primary: String, checked: Boolean) {
-        if (checked) selectedItems.add(primary) else selectedItems.remove(primary)
-        _selectedCount.value = selectedItems.size
-        // Update messages list to reflect selection
-        _messages.value = _messages.value?.map { msg ->
-            msg.copy(isSelected = selectedItems.contains(msg.primary), isChecked = selectedItems.contains(msg.primary))
+        viewModelScope.launch(Dispatchers.IO) {
+            if (checked) {
+                selectedItems.add(primary)
+            } else {
+                selectedItems.remove(primary)
+            }
+
+            // Обновляем список сообщений, чтобы отразить выбор
+            _messages.value?.let { currentMessages ->
+                val updatedMessages = currentMessages.map { msg ->
+                    msg.copy(
+                        isSelected = selectedItems.contains(msg.primary),
+                        isChecked = selectedItems.contains(msg.primary)
+                    )
+                }
+
+                withContext(Dispatchers.Main) {
+                    _selectedCount.value = selectedItems.size
+                    _messages.value = updatedMessages
+                }
+            }
         }
     }
-
     fun clearAllSelected() {
         selectedItems.clear()
         _selectedCount.value = 0

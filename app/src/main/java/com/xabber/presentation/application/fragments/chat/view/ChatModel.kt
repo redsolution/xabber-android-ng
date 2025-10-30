@@ -174,14 +174,15 @@ class ChatModel(
             ).first().find()
 
             if (existing != null) {
-                if (messageDto.isOutgoing) {
-                    // For outgoing carbons, update state
-                    findLatest(existing)?.apply {
-                        state = messageDto.messageSendingState
-                        isRead = !messageDto.isUnread
+                findLatest(existing)?.apply {
+                    state = messageDto.messageSendingState
+                    isRead = !messageDto.isUnread
+                    if (messageDto.editTimestamp > editDate) {
+                        editDate = messageDto.editTimestamp
+                        body = messageDto.messageBody
                     }
                 }
-                Log.d(TAG, "Message already exists: $primary, skipping insert")
+                Log.d(TAG, "Updated existing message: $primary")
                 return@writeBlocking
             }
 

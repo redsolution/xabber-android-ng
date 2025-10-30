@@ -340,6 +340,7 @@ fun parseTimestamp(message: XMPPMessage, tag: String = "TimestampParser"): Long?
             }
         }
     }
+    Log.w(tag, "time stamp = ${out.time}")
     return out.time
 }
 // New XMPPMessage Extensions (converted from Swift)

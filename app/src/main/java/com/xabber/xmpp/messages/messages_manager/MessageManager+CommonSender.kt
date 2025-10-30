@@ -227,11 +227,17 @@ class MessageCommonSender(private val owner: String) {
                                     state = MessageSendingState.Error
                                     messageError = "Stream not connected"
                                 }
-                                query<LastChatsStorageItem>(
+                                val chat = query<LastChatsStorageItem>(
                                     "primary = $0",
-                                    LastChatsStorageItem.genPrimary(msg?.opponent ?: "", msg?.owner ?: "", msg?.conversationType ?: ConversationType.Regular)
-                                ).first().find()?.hasErrorInChat = true
-                            }
+                                    LastChatsStorageItem.genPrimary(opponent, owner, conversationType)
+                                ).first().find()
+
+                                chat?.apply {
+                                    lastMessage = msg
+                                    lastMessageId = msg?.messageId!!
+                                    messageDate = System.currentTimeMillis()
+                                    unread = 0
+                                }                            }
                         } finally {
                             localRealm.close()
                         }
@@ -253,10 +259,6 @@ class MessageCommonSender(private val owner: String) {
                                     lastMessage = msg
                                     messageDate = Date().time
                                 }
-                            }
-                            val msg = localRealm.query<MessageStorageItem>("primary = $0", primary).first().find()
-                            if (msg != null) {
-                                notifyChatViewModel(msg)
                             }
                         } finally {
                             localRealm.close()
@@ -486,8 +488,9 @@ class MessageCommonSender(private val owner: String) {
     }
 
     private fun formatXMPPDate(date: Date): String {
-        val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US)
-        sdf.timeZone = TimeZone.getTimeZone("UTC")
+        val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply {
+            timeZone = TimeZone.getTimeZone("UTC")
+        }
         return sdf.format(date)
     }
 }
