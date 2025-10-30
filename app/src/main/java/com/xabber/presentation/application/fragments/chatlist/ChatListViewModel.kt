@@ -51,6 +51,7 @@ class ChatListViewModel : ViewModel() {
 
     init {
         _showUnreadOnly.value = false
+        insertTestChat()
         getChatList()
         CoroutineScope(Dispatchers.IO).launch {
             checkLastChats()
@@ -169,6 +170,9 @@ class ChatListViewModel : ViewModel() {
         viewModelScope.launch(Dispatchers.IO) {
             val realmList = realm.query(LastChatsStorageItem::class, query)
                 .sort("pinnedPosition" to Sort.DESCENDING, "messageDate" to Sort.DESCENDING).find()
+            realmList.forEach { chat ->
+                Log.d("ChatListViewModel", "Chat: jid=${chat.jid}, owner=${chat.owner}, type=${chat.conversationType_}, isArchived=${chat.isArchived}, unread=${chat.unread}, messageDate=${chat.messageDate}")
+            }
             val dataSource = ArrayList<ChatListDto>()
             dataSource.addAll(realmList.map { it.toChatListDto() })
             val accountItems = realm.query(com.xabber.data_base.models.account.AccountStorageItem::class, "enabled = true").find()
@@ -288,13 +292,72 @@ class ChatListViewModel : ViewModel() {
         return result
     }
 
+//    fun insertContactAndChat(contactJid: String, customName: String) {
+//        val contactOwner = getMainAccountPrimary()
+//        if (contactOwner != null) {
+//            viewModelScope.launch(Dispatchers.IO) {
+//                realm.write {
+//                    val existingChat = query<LastChatsStorageItem>(
+//                        "primary = $0",
+//                        LastChatsStorageItem.genPrimary(contactJid, contactOwner, ConversationType.Regular)
+//                    ).first().find()
+//                    if (existingChat == null) {
+//                        val existingRosterItem = query<RosterStorageItem>(
+//                            "primary = $0",
+//                            RosterStorageItem.genPrimary(contactJid, contactOwner)
+//                        ).first().find()
+//                        val rosterItem = existingRosterItem ?: copyToRealm(RosterStorageItem().apply {
+//                            primary = RosterStorageItem.genPrimary(contactJid, contactOwner)
+//                            owner = contactOwner
+//                            jid = contactJid
+//                            customNickname = customName
+//                        })
+//                        copyToRealm(LastChatsStorageItem().apply {
+//                            primary = LastChatsStorageItem.genPrimary(contactJid, contactOwner, ConversationType.Regular)
+//                            muteExpired = -1
+//                            owner = contactOwner
+//                            jid = contactJid
+//                            conversationType_ = ConversationType.Regular.rawValue
+//                            messageDate = System.currentTimeMillis()
+//                            this.rosterItem = rosterItem
+//                            rosterItem.associatedLastChat = this
+//                        })
+//                        Log.d("ChatListViewModel", "Inserted contact and chat for jid $contactJid")
+//                    } else {
+//                        Log.d("ChatListViewModel", "Chat already exists for jid $contactJid, skipping insertion")
+//                    }
+//                }
+//                checkLastChats()
+//            }
+//        }
+//    }
+
+    fun insertTestChat() {
+        val contactOwner = getMainAccountPrimary()
+        if (contactOwner != null) {
+//            insertContactAndChat("test@xabber.com", "Test Contact")
+            Log.d("ChatListViewModel", "Inserted test chat for owner $contactOwner")
+        } else {
+            Log.w("ChatListViewModel", "No main account found, skipping test chat insertion")
+        }
+    }
+
     private fun getMainAccountPrimary(): String? {
         val primary = accountStorageItemDao.getMainAccountPrimary()
         return primary
     }
 
+    fun setColor(id: String, color: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            realm.writeBlocking {
+                val item = this.query(com.xabber.data_base.models.account.AccountStorageItem::class, "primary = '$id'").first().find()
+                if (item != null) findLatest(item)?.colorKey = color
+            }
+        }
+    }
 
 
+    @RequiresApi(Build.VERSION_CODES.N)
     override fun onCleared() {
         super.onCleared()
         job?.cancel()

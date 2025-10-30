@@ -26,7 +26,7 @@ import com.xabber.presentation.XabberApplication
 import com.xabber.presentation.application.fragments.chat.ChatSettingsManager
 import com.xabber.presentation.application.fragments.chat.Check
 import com.xabber.presentation.application.fragments.chat.HttpFileUploadManager
-import com.xabber.presentation.application.fragments.chat.chatmodel.ChatFragmentModel
+import com.xabber.presentation.application.fragments.chat.MessageAdapter
 import com.xabber.presentation.application.fragments.chat.MessageVhExtraData
 import com.xabber.presentation.application.fragments.chat.audio.VoiceMessagePresenterManager
 import com.xabber.utils.StringUtils
@@ -39,8 +39,8 @@ import java.util.concurrent.TimeUnit
 abstract class MessageViewHolder(
     itemView: View,
     private val inflater: LayoutInflater,
-    private val menuItemListener: ChatFragmentModel.MenuItemListener?,
-    private val onViewClickListener: ChatFragmentModel.OnViewClickListener?
+    private val menuItemListener: MessageAdapter.MenuItemListener?,
+    private val onViewClickListener: MessageAdapter.OnViewClickListener?
 ) : RecyclerView.ViewHolder(itemView), FilesAdapter.OnFileClickListener {
     var needDate = false
     var date: String? = null
@@ -368,8 +368,9 @@ abstract class MessageViewHolder(
         }
     }
 
-    private suspend fun setupOnLongClick(messagePrimary: String, isChecked: Boolean) {
+    private fun setupOnLongClick(messagePrimary: String, isChecked: Boolean) {
         itemView.setOnLongClickListener {
+            
             if (!Check.getSelectedMode()) onViewClickListener?.onLongClick(messagePrimary)
             else onViewClickListener?.checkItem(!isChecked, messagePrimary)
             true

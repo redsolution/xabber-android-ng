@@ -1,8 +1,13 @@
 package com.xabber.presentation.application.fragments.chat.message
 
 import android.annotation.SuppressLint
+import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.graphics.drawable.ShapeDrawable
 import android.graphics.drawable.shapes.RoundRectShape
+import android.os.Handler
+import android.os.Looper
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
@@ -13,10 +18,11 @@ import androidx.appcompat.widget.LinearLayoutCompat
 import com.xabber.R
 import com.xabber.dto.MessageDto
 import com.xabber.presentation.application.fragments.chat.ChatSettingsManager
-import com.xabber.presentation.application.fragments.chat.chatmodel.ChatFragmentModel
+import com.xabber.presentation.application.fragments.chat.MessageAdapter
 import com.xabber.utils.StringUtils
 import com.xabber.utils.custom.ShapeOfView
 import com.xabber.utils.dp
+import okhttp3.*
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
@@ -33,7 +39,7 @@ class GeoLocationBuilder {
     fun addGeoLocationBox(
         view: View, message: MessageDto,
         latitude: Double,
-        longitude: Double, onViewClickListener: ChatFragmentModel.OnViewClickListener?
+        longitude: Double, onViewClickListener: MessageAdapter.OnViewClickListener?
     ) {
         val mapImage = view.findViewById<ImageView>(R.id.map_image)
         val shape = view.findViewById<ShapeOfView>(R.id.geo_shape)

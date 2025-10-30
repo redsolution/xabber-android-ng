@@ -541,6 +541,12 @@ package com.xabber.stream
                             )
 
                             val chatViewModel = AccountManager.getChatViewModel(chatPrimary)
+                            if (chatViewModel != null) {
+                                chatViewModel.insertMessagesFromReceiver(listOf(messageDto))
+                                Log.d(TAG, "Notified ChatViewModel for chatId=$chatPrimary with message $messageId, body=${message.body.take(50)}, timestamp=${item.timestamp}, isOutgoing=$isOutgoing, thread=${Thread.currentThread().id}")
+                            } else {
+                                Log.w(TAG, "ChatViewModel not found for chatId=$chatPrimary, messageId=$messageId")
+                            }
 
                             processedIds.add(messageId)
                             copyToRealm(ProcessedMessageId().apply {

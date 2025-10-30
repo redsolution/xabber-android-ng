@@ -401,6 +401,8 @@ class MessageCommonSender(private val owner: String) {
             isUnread = !instance.isRead,
             isChecked = false
         )
+        AccountManager.getChatViewModel(chatId)?.insertMessagesFromReceiver(listOf(messageDto))
+        Log.d(TAG, "Notified ChatViewModel: chatId=$chatId, messageId=${instance.messageId}")
     }
 
     @RequiresApi(Build.VERSION_CODES.O)

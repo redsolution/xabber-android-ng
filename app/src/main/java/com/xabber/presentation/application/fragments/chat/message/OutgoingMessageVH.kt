@@ -2,10 +2,10 @@ package com.xabber.presentation.application.fragments.chat.message
 
 import android.view.LayoutInflater
 import android.view.View
-import com.xabber.presentation.application.fragments.chat.chatmodel.ChatFragmentModel
+import com.xabber.presentation.application.fragments.chat.MessageAdapter
 
 class OutgoingMessageVH(
     itemView: View, inflater: LayoutInflater,
-    menuItemListener: ChatFragmentModel.MenuItemListener?,
-    onViewClickListener: ChatFragmentModel.OnViewClickListener?
+    menuItemListener: MessageAdapter.MenuItemListener?,
+    onViewClickListener: MessageAdapter.OnViewClickListener?
 ) : MessageViewHolder(itemView, inflater, menuItemListener, onViewClickListener)
