@@ -413,7 +413,6 @@ class Account : XMPPStreamDelegate {
     override suspend fun didReceiveIQ(iq: XMPPIQ, stream: Stream): Boolean {
 
         try {
-            //пока втупую вызываю, тестовый до момента нормального вызова
             if (iq.queryNamespace == "urn:xmpp:mam:2") {
                 return messageArchiveManager.read(iq.raw, stream)
             }

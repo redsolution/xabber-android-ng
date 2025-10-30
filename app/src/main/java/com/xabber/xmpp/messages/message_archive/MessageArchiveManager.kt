@@ -682,7 +682,7 @@ class MessageArchiveManager(private val owner: String) {
             // Handle afterburn
             if (afterburnInterval > 0) {
                 instance.afterburnInterval = afterburnInterval.toLong()
-                instance.burnDate = (delayedDate.time + afterburnInterval * 1000).toLong()
+                instance.burnDate = (delayedDate.time + afterburnInterval).toLong()
                 if (instance.burnDate <= System.currentTimeMillis().toDouble()) {
                     instance.isDeleted = true
                     instance.body = ""
@@ -921,7 +921,7 @@ class MessageArchiveManager(private val owner: String) {
     }
 
     private fun formatDate(date: Date): String {
-        val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).apply {
+        val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply {
             timeZone = TimeZone.getTimeZone("UTC")
         }
         return sdf.format(date)

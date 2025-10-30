@@ -240,8 +240,8 @@ class ClientSynchronizationManager(owner: String) {
                                         this.owner = owner
                                         this.opponent = from
                                         this.body = body
-                                        this.date = timestamp!!
-                                        this.sentDate = timestamp
+                                        this.date = timestamp!!/1000
+                                        this.sentDate = timestamp/1000
                                         this.editDate = 0L
                                         this.outgoing = from == owner // Fixed: Correctly set outgoing based on from == owner
                                         this.conversationType_ = type
@@ -499,8 +499,8 @@ class ClientSynchronizationManager(owner: String) {
                     this.owner = owner
                     this.opponent = chatJid // Use chatJid (destination for outgoing, sender for incoming)
                     this.body = body
-                    this.date = timestamp
-                    this.sentDate = timestamp
+                    this.date = timestamp/1000
+                    this.sentDate = timestamp/1000
                     this.editDate = 0L
                     this.outgoing = from == owner
                     this.conversationType_ = conversationType

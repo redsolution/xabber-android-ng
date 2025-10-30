@@ -139,8 +139,8 @@ class MessageStorageItem : RealmObject {
         this.owner = owner
         this.opponent = opponent
         this.body = message.body ?: ""
-        this.date = date.time
-        this.sentDate = date.time
+        this.date = date.time/1000
+        this.sentDate = date.time/1000
         this.conversationType = conversationTypeByMessage(message)
         this.messageId = message.id ?: ""
         this.archivedId = message.element("archived", namespace = "urn:xmpp:mam:tmp")?.getAttribute("id") ?: ""
@@ -163,8 +163,8 @@ class MessageStorageItem : RealmObject {
         this.opponent = opponent
         this.body = message.body ?: ""
         this.legacyBody = message.body ?: ""
-        this.date = date.time
-        this.sentDate = date.time
+        this.date = date.time/1000
+        this.sentDate = date.time/1000
         this.outgoing = outgoing
         this.isRead = isRead
         this.messageId = message.id ?: ""
@@ -195,7 +195,7 @@ class MessageStorageItem : RealmObject {
         this.outgoing = true
         this.isRead = true
         this.date = System.currentTimeMillis()
-        this.sentDate = this.date
+        this.sentDate = this.date/1000
         this.state = com.xabber.data_base.models.messages.MessageSendingState.NotSent
         this.conversationType = ConversationType.Regular // Default; updated by caller if needed
         this.references = references
@@ -261,12 +261,7 @@ class MessageStorageItem : RealmObject {
     }
 
     fun toMessageDto(): MessageDto? = try {
-        val sentTimestamp = if (sentDate > System.currentTimeMillis() * 10) {
-            Log.w(TAG, "sentDate appears to be in microseconds: $sentDate, dividing by 1000")
-            sentDate / 1000
-        } else {
-            sentDate
-        }
+        val sentTimestamp = sentDate
         Log.d(TAG, "toMessageDto: primary=$primary, sentDate=$sentDate, sentTimestamp=$sentTimestamp, formatted=${Date(sentTimestamp)}")
 
         MessageDto(

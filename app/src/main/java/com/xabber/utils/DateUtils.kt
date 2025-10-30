@@ -64,25 +64,23 @@ fun Date.getDateTimeText(): String =
 
 @SuppressLint("SimpleDateFormat")
 fun Date.dateFormat(date: Long): String {
-    val time = Date(date)
-    val calendar = Calendar.getInstance()
-    calendar.time = time
+    val time = Date(date*1000)  // КЛЮЧЕВОЕ ИЗМЕНЕНИЕ
+    val calendar = Calendar.getInstance().apply { this.time = time }
     val now = Calendar.getInstance()
-    val yesterday = Calendar.getInstance()
-    yesterday.add(Calendar.DATE, -1)
+    val yesterday = Calendar.getInstance().apply { add(Calendar.DATE, -1) }
 
     return if (DateUtils.isToday(time.time)) {
         SimpleDateFormat(" H:mm:ss").format(time)
-    } else if (calendar.get(Calendar.YEAR) == yesterday.get(Calendar.YEAR) && calendar.get(
-            Calendar.MONTH
-        ) == yesterday.get(Calendar.MONTH) && calendar.get(Calendar.DATE) == yesterday.get(
-            Calendar.DATE
-        ) && ((System.currentTimeMillis() - date) < 43200000)
+    } else if (
+        calendar.get(Calendar.YEAR) == yesterday.get(Calendar.YEAR) &&
+        calendar.get(Calendar.MONTH) == yesterday.get(Calendar.MONTH) &&
+        calendar.get(Calendar.DATE) == yesterday.get(Calendar.DATE) &&
+        (now.timeInMillis - time.time) < 43_200_000
     ) {
         SimpleDateFormat(" H:mm:ss").format(time)
-    } else if (calendar.get(Calendar.YEAR) == now.get(Calendar.YEAR) && calendar.get(
-            Calendar.WEEK_OF_YEAR
-        ) == now.get(Calendar.WEEK_OF_YEAR)
+    } else if (
+        calendar.get(Calendar.YEAR) == now.get(Calendar.YEAR) &&
+        calendar.get(Calendar.WEEK_OF_YEAR) == now.get(Calendar.WEEK_OF_YEAR)
     ) {
         SimpleDateFormat("EE").format(time)
     } else if (calendar.get(Calendar.YEAR) == now.get(Calendar.YEAR)) {

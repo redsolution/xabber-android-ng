@@ -682,6 +682,11 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
                         forwarded = forwarded,
                         conversationType = conversationType
                     )
+                    if (sentId.isNullOrEmpty()) {
+                        Log.w("ChatFragment", "Failed to send message: MessageSender not initialized or error occurred")
+                    } else {
+                        Log.d("ChatFragment", "Sent message via MessageCommonSender: body=$text, recipientJid=${chat.opponentJid}, forwarded=$forwarded")
+                    }
 
                 }
                 binding.chatInput.text?.clear()

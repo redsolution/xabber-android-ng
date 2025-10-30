@@ -376,7 +376,7 @@ class MessageCommonReceiver(private val owner: String) {
                         findLatest(existing)?.apply {
                             body = item.message.body ?: ""
                             isRead = item.isRead
-                            sentDate = item.date.time
+                            sentDate = item.date.time/1000
                         }
                     }
                 } else {

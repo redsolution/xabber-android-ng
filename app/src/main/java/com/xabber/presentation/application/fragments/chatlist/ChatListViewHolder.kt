@@ -326,10 +326,7 @@ class ChatListViewHolder(
                     )
                 }
                 PAYLOAD_CHAT_DATE -> {
-                    val dateObj = Date(chatListDto.lastMessageDate)
-
-                    binding.tvTimestamp.text =
-                        dateObj.toString()
+                    binding.tvTimestamp.text = Date().dateFormat(chatListDto.lastMessageDate)
                 }
                 PAYLOAD_CHAT_MESSAGE_BODY -> {
                     val lastMessageBody = bundle.getString(PAYLOAD_CHAT_MESSAGE_BODY)
