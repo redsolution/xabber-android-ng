@@ -641,7 +641,7 @@ class AttachmentBottomSheet : BottomSheetDialogFragment(R.layout.layout_bottom_s
                     galleryAdapter = null
                 }
 
-                        private fun sendGeolocation(lon: Double?, lat: Double?) {
+                    private fun sendGeolocation(lon: Double?, lat: Double?) {
                     if (lon != null && lat != null) {
                         val geoMessage = MessageReferenceDto(
                             isGeo = true,
