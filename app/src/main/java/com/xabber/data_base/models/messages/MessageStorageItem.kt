@@ -261,12 +261,7 @@ class MessageStorageItem : RealmObject {
     }
 
     fun toMessageDto(): MessageDto? = try {
-        val sentTimestamp = if (sentDate > System.currentTimeMillis() * 10) {
-            Log.w(TAG, "sentDate appears to be in microseconds: $sentDate, dividing by 1000")
-            sentDate / 1000
-        } else {
-            sentDate
-        }
+        val sentTimestamp = sentDate
         Log.d(TAG, "toMessageDto: primary=$primary, sentDate=$sentDate, sentTimestamp=$sentTimestamp, formatted=${Date(sentTimestamp)}")
 
         MessageDto(

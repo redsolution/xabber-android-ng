@@ -474,19 +474,19 @@ class Account : XMPPStreamDelegate {
                     if (uidMatch != null && validationKeyMatch != null && expireMatch != null && secretMatch != null) {
                         val uid = uidMatch.groupValues[1]
                         val validationKey = validationKeyMatch.groupValues[1]
-                        var expireDuration = expireMatch.groupValues[1].toDoubleOrNull() ?: 0.0
+                        var expireDuration = expireMatch.groupValues[1].toLongOrNull() ?: 0L
                         if (expireDuration <= 0) {
                             Log.w(TAG, "Invalid expire duration from server: $expireDuration - defaulting to 3600s")
-                            expireDuration = 3600.0
+                            expireDuration = 3600
                         }
                         val secret = secretMatch.groupValues[1]
-                        val currentTime = System.currentTimeMillis().toDouble() / 1000
+                        val currentTime = System.currentTimeMillis()
                         val expire = currentTime + expireDuration
                         var existingDevice: DeviceStorageItem? = null
                         existingDevice = realm.query<DeviceStorageItem>("uid = $0 AND owner = $1", uid, jid).first().find()
                         realm.write {
                             if (existingDevice != null) {
-                                findLatest(existingDevice!!)?.apply {
+                                findLatest(existingDevice)?.apply {
                                     configure(
                                         owner = jid,
                                         uid = uid,
