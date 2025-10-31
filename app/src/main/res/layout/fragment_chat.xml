@@ -198,6 +198,17 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/pin_panel" />
 
+    <View
+        android:id="@+id/overlay"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:background="#20000000"
+        android:visibility="gone"
+        app:layout_constraintTop_toBottomOf="@id/pin_panel"
+        app:layout_constraintBottom_toTopOf="@id/answer"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
     <ProgressBar
         android:id="@+id/progress_bar"
         android:layout_width="wrap_content"

@@ -139,8 +139,8 @@ class MessageStorageItem : RealmObject {
         this.owner = owner
         this.opponent = opponent
         this.body = message.body ?: ""
-        this.date = date.time/1000
-        this.sentDate = date.time/1000
+        this.date = date.time
+        this.sentDate = date.time
         this.conversationType = conversationTypeByMessage(message)
         this.messageId = message.id ?: ""
         this.archivedId = message.element("archived", namespace = "urn:xmpp:mam:tmp")?.getAttribute("id") ?: ""
@@ -163,8 +163,8 @@ class MessageStorageItem : RealmObject {
         this.opponent = opponent
         this.body = message.body ?: ""
         this.legacyBody = message.body ?: ""
-        this.date = date.time/1000
-        this.sentDate = date.time/1000
+        this.date = date.time
+        this.sentDate = date.time
         this.outgoing = outgoing
         this.isRead = isRead
         this.messageId = message.id ?: ""
@@ -195,7 +195,7 @@ class MessageStorageItem : RealmObject {
         this.outgoing = true
         this.isRead = true
         this.date = System.currentTimeMillis()
-        this.sentDate = this.date/1000
+        this.sentDate = this.date
         this.state = com.xabber.data_base.models.messages.MessageSendingState.NotSent
         this.conversationType = ConversationType.Regular // Default; updated by caller if needed
         this.references = references

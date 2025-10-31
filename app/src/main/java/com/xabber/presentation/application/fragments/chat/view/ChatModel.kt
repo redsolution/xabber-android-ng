@@ -24,6 +24,7 @@ import io.realm.kotlin.notifications.ResultsChange
 import io.realm.kotlin.query.Sort
 import io.realm.kotlin.types.RealmList
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.map
 import java.util.Locale
 import java.util.concurrent.TimeUnit
@@ -60,6 +61,7 @@ class ChatModel(
             .map { changes ->
                 changes.list.mapNotNull { it.toMessageDto() }
             }
+            .debounce(600L)
     }
 
     // === Чтение данных ===

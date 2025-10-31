@@ -540,6 +540,7 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
 
         isLoadingHistory = true
         binding.progressBar.isVisible = true
+        binding.overlay.isVisible = true
         viewModel.setLocked(true)
 
         // Save current scroll position
@@ -558,6 +559,7 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
                     Log.e("ChatView", "Invalid owner JID: ${viewModel.owner}, ${e.message}")
                     isLoadingHistory = false
                     binding.progressBar.isVisible = false
+                    binding.overlay.isVisible = false
                     viewModel.setLocked(false)
                     return@launch
                 }
@@ -567,6 +569,7 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
                     Log.e("ChatView", "Invalid opponent JID: ${viewModel.opponent}, ${e.message}")
                     isLoadingHistory = false
                     binding.progressBar.isVisible = false
+                    binding.overlay.isVisible = false
                     viewModel.setLocked(false)
                     return@launch
                 }
@@ -582,6 +585,7 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
                             lifecycleScope.launch(Dispatchers.Main) {
                                 isLoadingHistory = false
                                 binding.progressBar.isVisible = false
+                                binding.overlay.isVisible = false
                                 viewModel.setLocked(false)
 
                                 val newItemCount = messageAdapter!!.itemCount
@@ -600,6 +604,7 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
                 Log.e("ChatView", "Error loading older messages", e)
                 isLoadingHistory = false
                 binding.progressBar.isVisible = false
+                binding.overlay.isVisible = false
                 viewModel.setLocked(false)
             }
         }
@@ -682,6 +687,8 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
                         forwarded = forwarded,
                         conversationType = conversationType
                     )
+
+
                 }
                 binding.chatInput.text?.clear()
                 binding.answer.isVisible = false

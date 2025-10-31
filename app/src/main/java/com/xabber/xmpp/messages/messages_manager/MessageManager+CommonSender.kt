@@ -139,7 +139,7 @@ class MessageCommonSender(private val owner: String) {
                     conversationType_ = conversationType.rawValue
                     isArchived = false
                     unread = 0
-                    messageDate = Date().time
+                    messageDate = Date().time/1000
                     lastMessage = instance
                     lastMessageId = messageId
                 }, UpdatePolicy.ALL)
@@ -147,7 +147,7 @@ class MessageCommonSender(private val owner: String) {
                     lastReadId = null
                     draftMessage = null
                     lastMessage = instance
-                    messageDate = Date().time
+                    messageDate = Date().time/1000
                 }
             }
         } finally {
