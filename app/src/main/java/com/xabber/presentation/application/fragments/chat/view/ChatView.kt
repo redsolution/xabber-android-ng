@@ -676,18 +676,12 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
                 val conversationType = if (chat.isGroup) ConversationType.Group else ConversationType.Regular
                 val forwarded = if (replyingMessage != null) listOf(replyingMessage!!.primary) else emptyList()
                 lifecycleScope.launch {
-                    val sentId = messageSender?.sendSimpleMessage(
+                    messageSender?.sendSimpleMessage(
                         body = text,
                         recipientJid = chat.opponentJid,
                         forwarded = forwarded,
                         conversationType = conversationType
                     )
-                    if (sentId.isNullOrEmpty()) {
-                        Log.w("ChatFragment", "Failed to send message: MessageSender not initialized or error occurred")
-                    } else {
-                        Log.d("ChatFragment", "Sent message via MessageCommonSender: body=$text, recipientJid=${chat.opponentJid}, forwarded=$forwarded")
-                    }
-
                 }
                 binding.chatInput.text?.clear()
                 binding.answer.isVisible = false

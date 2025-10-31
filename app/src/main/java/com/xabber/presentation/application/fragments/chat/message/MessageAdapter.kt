@@ -161,15 +161,14 @@ class MessageDiffCallback : DiffUtil.ItemCallback<MessageDto>() {
     }
 
     override fun areContentsTheSame(oldItem: MessageDto, newItem: MessageDto): Boolean {
-        return oldItem == newItem // Assuming MessageDto has proper equals() implementation
+//        return oldItem == newItem // Assuming MessageDto has proper equals() implementation
         // Or explicit comparison if needed:
-        // return oldItem.messageBody == newItem.messageBody &&
-        //        oldItem.sentTimestamp == newItem.sentTimestamp &&
-        //        oldItem.isOutgoing == newItem.isOutgoing &&
-        //        oldItem.references == newItem.references &&
-        //        oldItem.isUnread == newItem.isUnread &&
-        //        oldItem.isChecked == newItem.isChecked &&
-        //        oldItem.messageSendingState == newItem.messageSendingState &&
-        //        oldItem.archivedId == newItem.archivedId
+         return oldItem.messageBody == newItem.messageBody &&
+                oldItem.sentTimestamp == newItem.sentTimestamp &&
+                oldItem.isOutgoing == newItem.isOutgoing &&
+                oldItem.references == newItem.references &&
+                oldItem.isUnread == newItem.isUnread &&
+                oldItem.isChecked == newItem.isChecked &&
+                oldItem.archivedId == newItem.archivedId
     }
 }

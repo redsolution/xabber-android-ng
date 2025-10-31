@@ -27,9 +27,9 @@ class DeviceStorageItem : RealmObject {
     var device: String = ""
     var descr: String = ""
     var ip: String = ""
-    var authDate: Double = 1.0
+    var authDate: Long = 0L
     var authCounter: Long = 1 // New field for authCounter
-    var expire: Double = 1.0
+    var expire: Long = 0L
     var resource: String? = null
     var omemoDeviceId: Int = -1
     var secret: String = ""
@@ -44,8 +44,8 @@ class DeviceStorageItem : RealmObject {
         ip: String,
         client: String,
         device: String,
-        expire: Double,
-        authDate: Double,
+        expire: Long,
+        authDate: Long,
         authCounter: Long = this.authCounter, // Preserve existing authCounter if not provided
         descr: String,
         secret: String = this.secret,

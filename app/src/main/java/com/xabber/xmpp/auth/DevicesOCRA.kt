@@ -400,7 +400,7 @@ class DevicesOCRA(
                 val device = query<DeviceStorageItem>("uid = $0 AND owner = $1", deviceId, stream.jid).first().find()
                 if (device != null) {
                     findLatest(device)?.apply {
-                        authDate = System.currentTimeMillis().toDouble() / 1000
+                        authDate = System.currentTimeMillis()
                         authCounter = this@DevicesOCRA.authCounter + 1
                     }
                     Log.d(TAG, "Updated DeviceStorageItem: authDate=${device?.authDate}, authCounter=${device?.authCounter} for deviceId=$deviceId")
