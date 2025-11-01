@@ -127,6 +127,7 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
     private var lastLoadOlderMessagesTime = 0L // For debouncing
     private val debounceInterval = 500L // 500ms debounce
     private var isLoadingHistory = false
+    var isLoading = true
 
     private val requestAudioPermissionResult = registerForActivityResult(
         ActivityResultContracts.RequestPermission(),
@@ -240,11 +241,11 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
             return
         }
 
-        CoroutineScope(Dispatchers.IO).launch {
-            AccountManager.find(bareOwner)?.action { account, stream ->
-                account.messageArchiveManager.syncChat(stream, bareOpponent, viewModel.conversationType)
-            } ?: Log.e("ChatView", "Account not found for owner=$bareOwner")
-        }
+//        CoroutineScope(Dispatchers.IO).launch {
+//            AccountManager.find(bareOwner)?.action { account, stream ->
+//                account.messageArchiveManager.syncChat(stream, bareOpponent, viewModel.conversationType)
+//            } ?: Log.e("ChatView", "Account not found for owner=$bareOwner")
+//        }
 
         messageSender = MessageCommonSender(bareOwner)
         prepareUi(chat)
@@ -262,6 +263,7 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
             restoreDraft()
         }
         viewModel.setLocked(true)
+
         lifecycleScope.launch {
             val account = AccountManager.find(bareOwner)
             if (account != null) {
@@ -279,9 +281,8 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
         }
         viewModel.setLocked(false)
 
-        binding.messageList.post {
-            scrollDown()
-        }
+        binding.messageList.postDelayed({scrollDown()}, 100)
+
     }
 
     private fun prepareUi(chat: ChatListDto) {
@@ -305,6 +306,24 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
             Configuration.ORIENTATION_LANDSCAPE -> {
                 binding.toolbar.setNavigationIcon(null)
                 binding.toolbar.setNavigationOnClickListener(null)
+            }
+        }
+    }
+
+    private val scrollListener = object : RecyclerView.OnScrollListener() {
+        override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
+            super.onScrollStateChanged(recyclerView, newState)
+            // Если загрузка — принудительно останавливаем любой скролл
+            if (isLoadingHistory) {
+                recyclerView.stopScroll()
+            }
+        }
+
+        override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+            super.onScrolled(recyclerView, dx, dy)
+            // Если загрузка — "откатываем" любое движение
+            if (isLoadingHistory && (dx != 0 || dy != 0)) {
+                recyclerView.scrollBy(-dx, -dy)
             }
         }
     }
@@ -535,15 +554,45 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
         }
     }
 
+    @SuppressLint("ClickableViewAccessibility")
+    private fun lockMessageList(isLocked: Boolean) {
+        if (isLocked) {
+            binding.messageList.setOnTouchListener { _, event ->
+                if (isLoadingHistory && (event.action == MotionEvent.ACTION_DOWN || event.action == MotionEvent.ACTION_MOVE)) {
+                    return@setOnTouchListener true
+                }
+                false
+            }
+        } else {
+            binding.messageList.setOnTouchListener(null) // снимаем блокировку
+        }
+    }
+
+    @SuppressLint("ClickableViewAccessibility")
+    private fun setLoadingState(isLoading: Boolean) {
+        isLoadingHistory = isLoading
+        binding.progressBar.isVisible = isLoading
+        binding.overlay.isVisible = isLoading
+
+        if (isLoading) {
+            binding.messageList.setOnTouchListener { _, event ->
+                true
+            }
+            binding.messageList.stopScroll()
+            binding.messageList.addOnScrollListener(scrollListener)
+        } else {
+            binding.messageList.setOnTouchListener(null)
+            binding.messageList.removeOnScrollListener(scrollListener)
+            binding.messageList.requestDisallowInterceptTouchEvent(false)
+        }
+    }
+
+    @SuppressLint("ClickableViewAccessibility")
     private fun loadOlderMessages() {
         if (isLoadingHistory) return
 
-        isLoadingHistory = true
-        binding.progressBar.isVisible = true
-        binding.overlay.isVisible = true
-        viewModel.setLocked(true)
+        setLoadingState(true)
 
-        // Save current scroll position
         val firstVisiblePosition = layoutManager!!.findFirstVisibleItemPosition()
         val firstVisibleView = layoutManager!!.findViewByPosition(firstVisiblePosition)
         val offset = firstVisibleView?.top ?: 0
@@ -557,20 +606,14 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
                     XMPPJID(fullJID = viewModel.owner).bare()
                 } catch (e: IllegalArgumentException) {
                     Log.e("ChatView", "Invalid owner JID: ${viewModel.owner}, ${e.message}")
-                    isLoadingHistory = false
-                    binding.progressBar.isVisible = false
-                    binding.overlay.isVisible = false
-                    viewModel.setLocked(false)
+                    setLoadingState(false)
                     return@launch
                 }
                 val bareOpponent = try {
                     XMPPJID(fullJID = viewModel.opponent).bare()
                 } catch (e: IllegalArgumentException) {
                     Log.e("ChatView", "Invalid opponent JID: ${viewModel.opponent}, ${e.message}")
-                    isLoadingHistory = false
-                    binding.progressBar.isVisible = false
-                    binding.overlay.isVisible = false
-                    viewModel.setLocked(false)
+                    setLoadingState(false)
                     return@launch
                 }
 
@@ -583,11 +626,6 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
                         messageId = firstArchivedId ?: "",
                         callback = {
                             lifecycleScope.launch(Dispatchers.Main) {
-                                isLoadingHistory = false
-                                binding.progressBar.isVisible = false
-                                binding.overlay.isVisible = false
-                                viewModel.setLocked(false)
-
                                 val newItemCount = messageAdapter!!.itemCount
                                 val insertedCount = newItemCount - currentItemCount
                                 if (insertedCount > 0 && firstVisiblePosition != RecyclerView.NO_POSITION) {
@@ -596,16 +634,17 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
                                         offset
                                     )
                                 }
+                                setLoadingState(false)
                             }
                         }
                     )
-                } ?: Log.e("ChatView", "Account not found for owner=$bareOwner")
+                } ?: run {
+                    Log.e("ChatView", "Account not found for owner=$bareOwner")
+                    setLoadingState(false)
+                }
             } catch (e: Exception) {
                 Log.e("ChatView", "Error loading older messages", e)
-                isLoadingHistory = false
-                binding.progressBar.isVisible = false
-                binding.overlay.isVisible = false
-                viewModel.setLocked(false)
+                setLoadingState(false)
             }
         }
     }

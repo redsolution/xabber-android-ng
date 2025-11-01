@@ -14,7 +14,8 @@ data class XMPPMessage(
     val subject: String? = null,
     val thread: String? = null,
     val error: String? = null,
-    val children: List<XMLElement> = emptyList()
+    val children: List<XMLElement> = emptyList(),
+    var originId: String? = null
 ) {
     private val elements = mutableMapOf<String, MutableList<XMLElement>>().apply {
         children.forEach { child ->
@@ -46,15 +47,25 @@ data class XMLElement(
     val attributes: Map<String, String> = emptyMap(),
     val children: List<XMLElement> = emptyList()
 ) {
-    fun element(name: String, namespace: String? = null): XMLElement? {
-        return children.firstOrNull { it.name == name && (it.namespace == namespace || namespace == null) }
-    }
+    // Рекурсивно получаем текстовое содержимое
+    val textContent: String?
+        get() = if (children.isEmpty()) {
+            // Попробуем извлечь текст из raw XML (между тегами)
+            raw.let {
+                val start = it.indexOf('>') + 1
+                val end = it.lastIndexOf('<')
+                if (start in 0 until end) it.substring(start, end).trim() else null
+            }
+        } else {
+            null
+        }
 
-    fun elements(name: String, namespace: String? = null): List<XMLElement> {
-        return children.filter { it.name == name && (it.namespace == namespace || namespace == null) }
-    }
+    // Удобные методы
+    fun element(name: String, namespace: String? = null): XMLElement? =
+        children.firstOrNull { it.name == name && (it.namespace == namespace || namespace == null) }
 
-    fun getAttribute(name: String): String? {
-        return attributes[name]
-    }
+    fun elements(name: String, namespace: String? = null): List<XMLElement> =
+        children.filter { it.name == name && (it.namespace == namespace || namespace == null) }
+
+    fun getAttribute(name: String): String? = attributes[name]
 }

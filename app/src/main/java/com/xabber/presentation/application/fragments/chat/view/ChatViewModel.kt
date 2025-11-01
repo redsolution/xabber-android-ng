@@ -13,6 +13,7 @@ import com.xabber.presentation.application.fragments.chat.view.ChatModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.runBlocking
@@ -81,11 +82,13 @@ class ChatViewModel(
     private fun observeMessages() {
         messagesJob?.cancel()
         messagesJob = viewModelScope.launch {
-            model.observeMessages().collectLatest { messageList ->
-                _messages.value = messageList
-                _unreadCount.value = messageList.count { it.isUnread }
-                Log.d(TAG, "Observed ${messageList.size} messages")
-            }
+            model.observeMessages()
+                .debounce(400L)
+                .collectLatest { messageList ->
+                    Log.d(TAG, "Emit: size=${messageList.size}, newest primary=${messageList.lastOrNull()?.primary}")
+                    _messages.value = messageList
+                    _unreadCount.value = messageList.count { it.isUnread }
+                }
         }
     }
 

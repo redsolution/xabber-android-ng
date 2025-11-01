@@ -8,9 +8,11 @@ import com.xabber.data_base.defaultRealmConfig
 import com.xabber.data_base.models.account.AccountStorageItem
 import com.xabber.data_base.models.last_chats.LastChatsStorageItem
 import com.xabber.data_base.models.messages.MessageReferenceStorageItem
+import com.xabber.data_base.models.messages.MessageSendingState
 import com.xabber.data_base.models.messages.MessageStorageItem
 import com.xabber.data_base.models.roster.RosterStorageItem
 import com.xabber.data_base.models.sync.ConversationType
+import com.xabber.utils.getOriginId
 import com.xabber.utils.parseTimestamp
 import com.xabber.utils.prp
 import com.xabber.xmpp.jid.XMPPJID
@@ -25,6 +27,7 @@ import io.realm.kotlin.types.RealmList
 import io.viascom.nanoid.NanoId
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Mutex
@@ -616,7 +619,7 @@ class MessageArchiveManager(private val owner: String) {
             queryIdsMutex.withLock {
                 if (!queryIds.contains(queryId)) {
                     Log.w(TAG, "Query ID $queryId not found in queryIds, skipping")
-                    return@withContext null
+//                    return@withContext null
                 }
             }
 
@@ -691,6 +694,30 @@ class MessageArchiveManager(private val owner: String) {
 
             instance.queryIds = instance.queryIds?.let { "$it,$queryId" } ?: queryId
 
+            val originId = xmppMessage.getOriginId()  // From utils: element("origin-id")?.getAttribute("id") ?: xmppMessage.id
+            if (originId != null && originId != instance.messageId) {  // Avoid self-loop
+                val existingByOrigin = realm.query<MessageStorageItem>(
+                    "messageId = $0 AND isDeleted = false AND archivedId = ''",  // Stubs have empty archivedId
+                    originId
+                ).first().find()
+                if (existingByOrigin != null) {
+                    // Update local stub with MAM data (preserve messageId=originId)
+                    existingByOrigin.archivedId = instance.archivedId
+                    existingByOrigin.sentDate = delayedDate.time
+                    existingByOrigin.state = MessageSendingState.Sent  // Or parse from stanza (e.g., <time by=owner>)
+                    existingByOrigin.messageId = originId  // Ensure it's originId (not overwritten)
+                    existingByOrigin.editDate = instance.editDate  // Sync edits if any
+                    // Copy other fields as needed: body, references, etc.
+                    existingByOrigin.body = instance.body
+                    existingByOrigin.references = instance.references  // RealmList copy
+                    Log.d(TAG, "Dedup updated stub by originId=$originId → primary=${existingByOrigin.primary}, archivedId=${instance.archivedId}")
+                    return@withContext existingByOrigin  // Return updated, no new insert
+                }
+            }
+            if (originId != null) {
+                instance.messageId = originId  // Store originId in messageId for future dedup
+            }
+
             realm.write {
                 val existing = query<MessageStorageItem>(
                     "primary = $0 OR (archivedId = $1 AND archivedId != '' AND owner = $2 AND opponent = $3 AND conversationType_ = $4)",
@@ -731,36 +758,44 @@ class MessageArchiveManager(private val owner: String) {
     private fun extractReferences(message: XMPPMessage): RealmList<MessageReferenceStorageItem> {
         val references = realmListOf<MessageReferenceStorageItem>()
 
-        // Handle file uploads
+        // 1. Handle file uploads via <reference> (XEP-0363: HTTP File Upload)
         message.element("reference", namespace = "urn:xmpp:reference:0")?.let { ref ->
-            var uri = ref.getAttribute("uri")
-            var mimeType = ref.getAttribute("type")
+            val uri = ref.getAttribute("uri") ?: return@let
+            val mimeType = ref.getAttribute("type")
             val size = ref.getAttribute("size")?.toLongOrNull() ?: 0L
-            var fileName = ref.getAttribute("name")
+            val fileName = ref.getAttribute("name")
 
             val refItem = MessageReferenceStorageItem().apply {
-                primary = "${message.id}_${System.currentTimeMillis()}"
-                uri = uri
-                mimeType = mimeType
+                primary = "${message.id ?: System.currentTimeMillis()}_file_${NanoId.generateOptimized(6, nanoIdAlphabet, nanoIdMask, nanoIdStep)}"
+                this.uri = uri
+                this.mimeType = mimeType!!
                 fileSize = size
-                fileName = fileName
+                this.fileName = fileName!!
             }
             references.add(refItem)
         }
 
-        // Handle geo location
-//        message.element("geoloc", namespace = "http://jabber.org/protocol/geoloc")?.let { geo ->
-//            val lat = geo.element("lat")?.textContent?.toDoubleOrNull() ?: 0.0
-//            val lon = geo.element("lon")?.textContent?.toDoubleOrNull() ?: 0.0
-//
-//            val refItem = MessageReferenceStorageItem().apply {
-//                primary = "${message.id}_geo_${System.currentTimeMillis()}"
-//                isGeo = true
-//                latitude = lat
-//                longitude = lon
-//            }
-//            references.add(refItem)
-//        }
+        // 2. Handle geo location (XEP-0080: User Location)
+        message.element("geoloc", namespace = "http://jabber.org/protocol/geoloc")?.let { geo ->
+            val latElement = geo.element("lat")
+            val lonElement = geo.element("lon")
+            val latStr = latElement?.textContent?.trim()
+            val lonStr = lonElement?.textContent?.trim()
+
+            val lat = latStr?.toDoubleOrNull() ?: return@let
+            val lon = lonStr?.toDoubleOrNull() ?: return@let
+
+            val refItem = MessageReferenceStorageItem().apply {
+                primary = "${message.id ?: System.currentTimeMillis()}_geo_${NanoId.generateOptimized(6, nanoIdAlphabet, nanoIdMask, nanoIdStep)}"
+                isGeo = true
+                latitude = lat
+                longitude = lon
+            }
+            references.add(refItem)
+        }
+
+        // 3. (Optional) Handle other reference types in the future
+        // For example: <reference type="data" ...> for inline data, images, etc.
 
         return references
     }
@@ -841,6 +876,7 @@ class MessageArchiveManager(private val owner: String) {
                         val continueUid = if (task.backward) first else last
                         continueLoadHistory(stream, task, continueUid)
                     } else {
+                        delay(2000L)
                         callbackItem.callback?.invoke()
                         callbacksQueue.remove(callbackItem)
                         interactiveQueue.remove(queryId)
@@ -955,26 +991,16 @@ class MessageArchiveManager(private val owner: String) {
             val subject = element.getElementsByTagName("subject").item(0)?.textContent
             val thread = element.getElementsByTagName("thread").item(0)?.textContent
             val error = element.getElementsByTagName("error").item(0)?.textContent
-            val children = mutableListOf<XMLElement>()
-            val nodeList = element.childNodes
-            for (i in 0 until nodeList.length) {
-                val node = nodeList.item(i)
-                if (node is Element) {
-                    children.add(
-                        XMLElement(
-                            name = node.localName,
-                            namespace = node.namespaceURI,
-                            raw = node.toString(),
-                            attributes = node.attributes.let { attrs ->
-                                (0 until attrs.length).associate { idx ->
-                                    val attr = attrs.item(idx)
-                                    attr.nodeName to attr.nodeValue
-                                }
-                            }
-                        )
-                    )
+            val children = parseChildren(element)
+            var originId: String? = null
+
+            // Extract originId if present
+            children.forEach { child ->
+                if (child.name == "origin-id" && child.namespace == "urn:xmpp:sid:0") {
+                    originId = child.attributes["id"]
                 }
             }
+
             return XMPPMessage(
                 raw = element.toString(),
                 type = type,
@@ -987,11 +1013,38 @@ class MessageArchiveManager(private val owner: String) {
                 thread = thread,
                 error = error,
                 children = children
-            )
+            ).apply { this.originId = originId }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to parse XMPP message: ${e.message}", e)
             return null
         }
+    }
+
+    private fun parseChildren(element: Element): List<XMLElement> {
+        val children = mutableListOf<XMLElement>()
+        val nodeList = element.childNodes
+
+        for (i in 0 until nodeList.length) {
+            val node = nodeList.item(i)
+            if (node is Element && node.localName != "body" && node.localName != "subject" && node.localName != "thread" && node.localName != "error") {  // Skip flat elements already extracted
+                val childAttributes = node.attributes.let { attrs ->
+                    (0 until attrs.length).associate { idx ->
+                        val attr = attrs.item(idx)
+                        attr.nodeName to attr.nodeValue
+                    }
+                }
+                val childChildren = parseChildren(node)  // Recurse
+                val child = XMLElement(
+                    name = node.localName,
+                    namespace = node.namespaceURI,
+                    raw = node.toString(),
+                    attributes = childAttributes,
+                    children = childChildren
+                )
+                children.add(child)
+            }
+        }
+        return children
     }
 
     fun reset() {
