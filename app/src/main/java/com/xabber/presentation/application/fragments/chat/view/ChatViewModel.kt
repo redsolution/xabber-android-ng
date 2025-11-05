@@ -17,6 +17,8 @@ import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 class ChatViewModel(
@@ -56,14 +58,20 @@ class ChatViewModel(
     private var messagesJob: Job? = null
     private var chatJob: Job? = null
     private var loadingJob: Job? = null
+    private val messageListMutex = Mutex()
+    private var localMessageList: MutableList<MessageDto> = mutableListOf()
+    private var isLoadingHistoryFromView = false
 
     private val TAG = "ChatViewModel"
 
     init {
         observeChat()
-        observeMessages()
+        initMessagesListener()
         loadInitialData()
         markAllAsRead()
+    }
+    fun setLoadingHistory(isLoading: Boolean) {
+        isLoadingHistoryFromView = isLoading
     }
 
     private fun observeChat() {
@@ -79,18 +87,48 @@ class ChatViewModel(
         }
     }
 
-    private fun observeMessages() {
-        messagesJob?.cancel()
-        messagesJob = viewModelScope.launch {
-            model.observeMessages()
-                .debounce(400L)
-                .collectLatest { messageList ->
-                    Log.d(TAG, "Emit: size=${messageList.size}, newest primary=${messageList.lastOrNull()?.primary}")
-                    _messages.value = messageList
-                    _unreadCount.value = messageList.count { it.isUnread }
+    fun initMessagesListener() {
+        messagesJob?.cancel() // Отменяем предыдущий job, чтобы избежать дубликатов
+        messagesJob = viewModelScope.launch(Dispatchers.IO) {
+            model.observeMessages() // Flow из Realm, уже с sort и debounce(600L) в модели
+                .debounce(300L) // Дополнительный debounce, как в оригинале (можно уменьшить для faster real-time)
+                .distinctUntilChanged() // Избегаем дубликатов, как в оригинале
+                .collectLatest { incomingMessages -> // collectLatest для real-time обновлений
+                    Log.d(TAG, "Messages Flow collected: ${incomingMessages.size} messages, chatId=$chatId, opponent=$opponent")
+
+                    messageListMutex.withLock {
+                        val currentMessages = localMessageList.associateBy { it.primary }.toMutableMap()
+                        var newMessagesAdded = false // Флаг для новых сообщений (можно использовать для уведомлений)
+
+                        incomingMessages.forEach { newMessage ->
+                            if (!currentMessages.containsKey(newMessage.primary)) {
+                                newMessagesAdded = true
+                            }
+                            currentMessages[newMessage.primary] = newMessage
+                            Log.d(TAG, "Merged message from Flow: primary=${newMessage.primary}, messageId=${newMessage.archivedId}, body=${newMessage.messageBody.take(50)}, sentTimestamp=${newMessage.sentTimestamp}")
+                        }
+
+                        localMessageList.clear()
+                        localMessageList.addAll(currentMessages.values.sortedBy { it.sentTimestamp })
+
+                        // Считаем unread
+                        val unreadCount = localMessageList.count { it.isUnread }
+                        Log.d(TAG, "Collected messages from Flow: ${localMessageList.size} messages, $unreadCount unread, first=${localMessageList.firstOrNull()?.primary}, last=${localMessageList.lastOrNull()?.primary}, lastMessageId=${localMessageList.lastOrNull()?.archivedId}")
+
+                        // Переключаемся на Main для UI-обновлений (как в оригинале)
+                        withContext(Dispatchers.Main) {
+                            _messages.value = localMessageList
+                            _unreadCount.value = unreadCount
+                            if (!isLoadingHistoryFromView) {
+                                _isLoading.value = false  // Скрываем только если НЕ пагинация
+                                Log.d(TAG, "Hiding ProgressBar after Flow update...")
+                            }
+                        }
+                    }
                 }
         }
     }
+
 
     private fun loadInitialData() {
         loadingJob = viewModelScope.launch {
@@ -121,12 +159,34 @@ class ChatViewModel(
     fun insertMessage(id: String, message: MessageDto) {
         viewModelScope.launch {
             model.insertMessage(id, message)
+            // НОВОЕ: Принудительно обновляем localList после write (на случай race)
+            val refreshed = model.getMessages()  // Синхронный query для consistency
+            messageListMutex.withLock {
+                localMessageList.clear()
+                localMessageList.addAll(refreshed.sortedBy { it.sentTimestamp })
+            }
+            withContext(Dispatchers.Main) {
+                _messages.value = localMessageList
+                _unreadCount.value = localMessageList.count { it.isUnread }
+                Log.d(TAG, "Force refresh after insert: ${localMessageList.size} messages")
+            }
         }
     }
 
     fun insertMessagesFromReceiver(messages: List<MessageDto>) {
         viewModelScope.launch {
             model.insertMessagesFromReceiver(messages)
+            // Аналогично: force refresh
+            val refreshed = model.getMessages()
+            messageListMutex.withLock {
+                localMessageList.clear()
+                localMessageList.addAll(refreshed.sortedBy { it.sentTimestamp })
+            }
+            withContext(Dispatchers.Main) {
+                _messages.value = localMessageList
+                _unreadCount.value = localMessageList.count { it.isUnread }
+                Log.d(TAG, "Force refresh after receiver insert: ${messages.size} new msgs")
+            }
         }
     }
 

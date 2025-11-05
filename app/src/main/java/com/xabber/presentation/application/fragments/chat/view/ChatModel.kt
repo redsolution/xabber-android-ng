@@ -61,7 +61,7 @@ class ChatModel(
             .map { changes ->
                 changes.list.mapNotNull { it.toMessageDto() }
             }
-            .debounce(600L)
+            .debounce(300L)
     }
 
     // === Чтение данных ===

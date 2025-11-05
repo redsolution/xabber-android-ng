@@ -122,7 +122,7 @@ class Account : XMPPStreamDelegate {
                 when (item.type) {
                     StanzaItem.StanzaType.ROSTER -> processRosterStanza(item.content, item.stream)
                     StanzaItem.StanzaType.SYNC -> processSyncStanza(item.content, item.stream)
-                    StanzaItem.StanzaType.PRESENCE -> Log.d(TAG, "Skipping PRESENCE")
+                    StanzaItem.StanzaType.PRESENCE -> presenceManager!!.processPresence(item.content)
                     StanzaItem.StanzaType.OTHER -> Log.d(TAG, "Skipping OTHER")
                 }
             }
@@ -625,7 +625,6 @@ class Account : XMPPStreamDelegate {
             stanzaBuffer.emit(StanzaItem(StanzaItem.StanzaType.PRESENCE, presence, stream))
             return true
         }
-        // Process non-post-registration presence synchronously
         return presenceManager?.processPresence(presence) ?: run {
             Log.w(TAG, "PresenceManager not initialized, skipping presence processing")
             false
@@ -797,10 +796,12 @@ class Account : XMPPStreamDelegate {
             var innerBody: String? = null
             var innerType: String? = null
             var innerLang: String? = null
+            var outerFrom: String? = null  // ← НОВОЕ: from/to из внешнего <message>
+            var outerTo: String? = null    // ← НОВОЕ: from/to из внешнего <message>
             var inForwarded = false
             var isArchived = false
             var isCarbon = false
-            var isLastMessage = false
+            var isTmpArchived = false     // ← НОВОЕ: для urn:xmpp:mam:tmp
 
             val factory = XmlPullParserFactory.newInstance()
             factory.isNamespaceAware = true
@@ -813,7 +814,12 @@ class Account : XMPPStreamDelegate {
                     XmlPullParser.START_TAG -> {
                         val tagName = parser.name
                         val namespace = parser.namespace
+
                         if (tagName == "message" && (namespace == "jabber:client" || namespace.isEmpty())) {
+                            // Сохраняем from/to из внешнего message
+                            outerFrom = parser.getAttributeValue(null, "from")?.let { XMPPJID(it).bare() }
+                            outerTo = parser.getAttributeValue(null, "to")?.let { XMPPJID(it).bare() }
+
                             if (!inForwarded) {
                                 messageId = parser.getAttributeValue(null, "id") ?: "unknown_${System.currentTimeMillis()}"
                             } else {
@@ -830,8 +836,9 @@ class Account : XMPPStreamDelegate {
                         } else if (tagName == "sent" && namespace == "urn:xmpp:carbons:2") {
                             isCarbon = true
                             inForwarded = true
-                        } else if (tagName == "last-message") {
-                            isLastMessage = true
+                        } else if (tagName == "archived" && namespace == "urn:xmpp:mam:tmp") {
+                            isTmpArchived = true
+                            inForwarded = true  // ← Ключ: включаем парсинг body
                         } else if (tagName == "forwarded" && namespace == "urn:xmpp:forward:0") {
                             inForwarded = true
                         } else if (tagName in listOf("active", "composing", "inactive", "received", "displayed") &&
@@ -857,19 +864,26 @@ class Account : XMPPStreamDelegate {
             messageId = innerMessageId ?: messageId
 
             if (isChatState && innerBody.isNullOrEmpty()) {
+                Log.d(TAG, "Skipping chat state/marker: $messageId")
                 return true
             }
 
-            val fromJid = innerFrom ?: xmppMessage.from?.bare()
-            val toJid = innerTo ?: xmppMessage.to?.bare()
+            // === КЛЮЧЕВОЕ: Используем outerFrom/outerTo для mam:tmp ===
+            val fromJid = innerFrom ?: outerFrom
+            val toJid = innerTo ?: outerTo
             val body = innerBody ?: xmppMessage.body
+
+            // Лог для отладки
+            Log.d("MESSAGE_TYPE", "detecting, id=$messageId, from=$fromJid, to=$toJid, body=${body?.take(50)}")
+
             if (fromJid == null || toJid == null || body == null) {
-                Log.w(TAG, "Skipping message with missing attributes: id=$messageId, innerFrom=$innerFrom, innerTo=$innerTo, innerBody=$innerBody")
+                Log.w(TAG, "Skipping message with missing attributes: id=$messageId, from=$fromJid, to=$toJid, body=$body")
                 return false
             }
 
             val opponent = if (toJid != jid) toJid else fromJid
             if (opponent == jid) {
+                Log.d(TAG, "Skipping self-message: $messageId")
                 return false
             }
 
@@ -877,44 +891,45 @@ class Account : XMPPStreamDelegate {
             val primary = "${messageId}_$jid"
             val existingMessage = realm.query<MessageStorageItem>("primary = $0", primary).first().find()
             if (existingMessage != null) {
+                Log.d(TAG, "Message already exists: $primary")
                 realm.close()
                 return true
             }
 
-            var containerType: String? = null
-            var innerMessage: XMPPMessage? = null
-            if (isArchived) {
-                containerType = "archived"
-                innerMessage = XMPPMessage(
-                    raw = message, // Use original message as raw
-                    type = innerType,
-                    id = innerMessageId,
-                    from = innerFrom?.let { XMPPJID(fullJID = it) },
-                    to = innerTo?.let { XMPPJID(fullJID = it) },
-                    lang = innerLang,
-                    body = innerBody,
-                    children = xmppMessage.children
-                )
-            } else if (isCarbon) {
-                containerType = "forwarded"
-                innerMessage = XMPPMessage(
-                    raw = message, // Use original message as raw
-                    type = innerType,
-                    id = innerMessageId,
-                    from = innerFrom?.let { XMPPJID(fullJID = it) },
-                    to = innerTo?.let { XMPPJID(fullJID = it) },
-                    lang = innerLang,
-                    body = innerBody,
-                    children = xmppMessage.children
-                )
-            } else if (isLastMessage) {
-                containerType = "last-message"
-                innerMessage = xmppMessage
-            } else {
-                containerType = "runtime"
-                innerMessage = xmppMessage
+            // === КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ: containerType ===
+            val containerType = when {
+                isArchived || isTmpArchived -> "archived"
+                isCarbon -> "forwarded"
+                else -> "runtime"
             }
 
+            Log.d("MESSAGE_TYPE", "Final containerType=$containerType, id=$messageId, body=${body.take(50)}")
+
+            val innerMessage = when (containerType) {
+                "archived" -> XMPPMessage(
+                    raw = message,
+                    type = innerType ?: xmppMessage.type,
+                    id = innerMessageId ?: messageId,
+                    from = fromJid.let { XMPPJID(fullJID = it) },
+                    to = toJid.let { XMPPJID(fullJID = it) },
+                    lang = innerLang,
+                    body = body,
+                    children = xmppMessage.children
+                )
+                "forwarded" -> XMPPMessage(
+                    raw = message,
+                    type = innerType,
+                    id = innerMessageId,
+                    from = innerFrom?.let { XMPPJID(fullJID = it) },
+                    to = innerTo?.let { XMPPJID(fullJID = it) },
+                    lang = innerLang,
+                    body = innerBody,
+                    children = xmppMessage.children
+                )
+                else -> xmppMessage  // runtime
+            }
+
+            // Сохраняем временную станцу только для runtime
             val tempStanza = realm.query<TemporaryMessageStanzaStorageItem>(
                 "primary = $0 AND isProcessed = false", TemporaryMessageStanzaStorageItem.genPrimary(messageId!!, jid)
             ).first().find()
@@ -934,21 +949,21 @@ class Account : XMPPStreamDelegate {
                 }
             }
 
+            // === ОБРАБОТКА ===
             when (containerType) {
                 "archived" -> {
-                    messageArchiveManager.readMessage(message)
+                    messageArchiveManager.readMessage(message, updateLastChat = true)
                 }
                 "forwarded" -> {
-                    messageReceiver.receiveCarbon(innerMessage!!)
-                }
-                "last-message" -> {
-                    messageReceiver.receiveRuntime(innerMessage!!)
+                    messageReceiver.receiveCarbon(innerMessage)
                 }
                 "runtime" -> {
-                    messageReceiver.receiveRuntime(innerMessage!!)
+                    messageReceiver.receiveRuntime(innerMessage)
+                    chatMarkers.read(innerMessage)
                 }
             }
 
+            // Помечаем временную станцу как обработанную
             if (tempStanza != null) {
                 realm.write {
                     val latest = findLatest(tempStanza)
@@ -968,11 +983,9 @@ class Account : XMPPStreamDelegate {
     }
 
 
-
-
     override suspend fun streamDidConnect(stream: Stream): Boolean {
         CoroutineScope(Dispatchers.IO).launch {
-//            presenceManager?.sendInitialPresence()
+            presenceManager?.sendInitialPresence()
             if (!rosterRequested) {
                 rosterManager.request(stream)
                 rosterRequested = true

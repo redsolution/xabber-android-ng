@@ -128,6 +128,7 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
     private val debounceInterval = 500L // 500ms debounce
     private var isLoadingHistory = false
     var isLoading = true
+    private var isFragmentActive = true
 
     private val requestAudioPermissionResult = registerForActivityResult(
         ActivityResultContracts.RequestPermission(),
@@ -589,31 +590,45 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
 
     @SuppressLint("ClickableViewAccessibility")
     private fun loadOlderMessages() {
-        if (isLoadingHistory) return
+        if (isLoadingHistory || !isAdded || lifecycle.currentState < Lifecycle.State.STARTED) return
 
-        setLoadingState(true)
+        setLoadingState(true)  // Ваш код: показывает ProgressBar, блокирует скролл
+        viewModel.setLoadingHistory(true)  // Синхронизация с ViewModel (из предыдущего фикса)
 
-        val firstVisiblePosition = layoutManager!!.findFirstVisibleItemPosition()
-        val firstVisibleView = layoutManager!!.findViewByPosition(firstVisiblePosition)
+        val firstVisiblePosition = layoutManager?.findFirstVisibleItemPosition() ?: RecyclerView.NO_POSITION
+        if (firstVisiblePosition == RecyclerView.NO_POSITION) {
+            setLoadingState(false)
+            viewModel.setLoadingHistory(false)
+            return
+        }
+
+        val firstVisibleView = layoutManager?.findViewByPosition(firstVisiblePosition)
         val offset = firstVisibleView?.top ?: 0
         val firstVisibleItem = messageAdapter?.getMessageItem(firstVisiblePosition)
         val firstArchivedId = firstVisibleItem?.archivedId
-        val currentItemCount = messageAdapter!!.itemCount
+        val currentItemCount = messageAdapter?.itemCount ?: 0
 
-        lifecycleScope.launch {
+        // Используем viewLifecycleOwner.lifecycleScope — отменится при onDestroyView
+        viewLifecycleOwner.lifecycleScope.launch {
             try {
                 val bareOwner = try {
                     XMPPJID(fullJID = viewModel.owner).bare()
                 } catch (e: IllegalArgumentException) {
                     Log.e("ChatView", "Invalid owner JID: ${viewModel.owner}, ${e.message}")
-                    setLoadingState(false)
+                    if (isAdded && lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+                        setLoadingState(false)
+                    }
+                    viewModel.setLoadingHistory(false)
                     return@launch
                 }
                 val bareOpponent = try {
                     XMPPJID(fullJID = viewModel.opponent).bare()
                 } catch (e: IllegalArgumentException) {
                     Log.e("ChatView", "Invalid opponent JID: ${viewModel.opponent}, ${e.message}")
-                    setLoadingState(false)
+                    if (isAdded && lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+                        setLoadingState(false)
+                    }
+                    viewModel.setLoadingHistory(false)
                     return@launch
                 }
 
@@ -625,7 +640,16 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
                         conversationType = viewModel.conversationType,
                         messageId = firstArchivedId ?: "",
                         callback = {
-                            lifecycleScope.launch(Dispatchers.Main) {
+                            // Callback: Проверяем, жив ли фрагмент перед UI-обновлением
+                            if (!isAdded || lifecycle.currentState < Lifecycle.State.STARTED ||
+                                messageAdapter == null || layoutManager == null) {
+                                Log.d("ChatView", "loadOlderMessages callback ignored: fragment not active")
+                                viewModel.setLoadingHistory(false)
+                                return@getPrevHistory
+                            }
+
+                            // Теперь безопасно обновляем UI
+                            viewLifecycleOwner.lifecycleScope.launch(Dispatchers.Main) {
                                 val newItemCount = messageAdapter!!.itemCount
                                 val insertedCount = newItemCount - currentItemCount
                                 if (insertedCount > 0 && firstVisiblePosition != RecyclerView.NO_POSITION) {
@@ -634,17 +658,24 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
                                         offset
                                     )
                                 }
-                                setLoadingState(false)
+                                setLoadingState(false)  // Скрываем ProgressBar
+                                viewModel.setLoadingHistory(false)
                             }
                         }
                     )
                 } ?: run {
                     Log.e("ChatView", "Account not found for owner=$bareOwner")
-                    setLoadingState(false)
+                    if (isAdded && lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+                        setLoadingState(false)
+                    }
+                    viewModel.setLoadingHistory(false)
                 }
             } catch (e: Exception) {
                 Log.e("ChatView", "Error loading older messages", e)
-                setLoadingState(false)
+                if (isAdded && lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+                    setLoadingState(false)
+                }
+                viewModel.setLoadingHistory(false)
             }
         }
     }
@@ -1367,6 +1398,7 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onDestroyView() {
         super.onDestroyView()
+        isFragmentActive = false
         saveLastPosition()
         saveDraft()
         AccountManager.unregisterChatViewModel(getParams().id)

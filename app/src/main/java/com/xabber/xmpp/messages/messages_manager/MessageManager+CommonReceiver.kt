@@ -18,6 +18,7 @@ import com.xabber.utils.toMessageReferenceDto
 import com.xabber.xmpp.groupchat.GroupChatStorageItem
 import com.xabber.xmpp.messages.XMPPMessage
 import com.xabber.xmpp.messages.XMLElement
+import com.xabber.xmpp.messages.message.TemporaryMessageStanzaStorageItem
 import io.realm.kotlin.Realm
 import io.realm.kotlin.ext.query
 import io.realm.kotlin.ext.realmListOf
@@ -40,6 +41,8 @@ class MessageCommonReceiver(private val owner: String) {
     companion object {
         private const val TAG = "MessageCommonReceiver"
     }
+
+    private val chatMarkers = ChatMarkersManager(owner)
 
     data class MessageQueueItem(
         val message: XMPPMessage,
@@ -235,39 +238,55 @@ class MessageCommonReceiver(private val owner: String) {
             receiveArchived(message)
             return
         }
-        val messageId = getOriginId(message) ?: message.id
-        val primary = messageId?.let { MessageStorageItem.genPrimary(it, owner) }
-        if (primary != null) {
-            val existing = realm.query<MessageStorageItem>("primary = $0", primary).first().find()
-            if (existing != null) {
-                return
-            }
-        } else {
-            return
-        }
-        val from = message.from?.bare()
-        val to = message.to?.bare()
-        if (from == null || to == null) {
-            return
-        }
+
+        val messageId = getOriginId(message) ?: message.id ?: return
+        val from = message.from?.bare() ?: return
+        val to = message.to?.bare() ?: return
         val opponent = if (to != owner) to else from
-        if (opponent == owner) {
-            return
-        }
+        if (opponent == owner) return
+
         val isOutgoing = from == owner
         val deliveryTime = parseTimestamp(message, TAG)?.let { Date(it) } ?: Date()
-        val queueItem = MessageQueueItem(
-            message = message,
-            messageId = messageId,
-            archivedFrom = from,
-            isRead = isOutgoing,
-            date = deliveryTime,
-            state = if (isOutgoing) MessageSendingState.Deliver else MessageSendingState.Sent,
-            queryId = getMAMQueryId(message),
-            originalFrom = from,
-            originalOutgoing = isOutgoing
-        )
-        enqueue(queueItem)
+
+        // === КЛЮЧЕВОЕ: Ищем временную станцу ===
+        val tempPrimary = TemporaryMessageStanzaStorageItem.genPrimary(messageId, owner)
+        val tempStanza = realm.query<TemporaryMessageStanzaStorageItem>("primary = $0", tempPrimary).first().find()
+
+        if (tempStanza != null) {
+            // Используем данные из временной станцы
+            val tempMessage = XMPPMessage(tempStanza.stanza)
+            val queueItem = MessageQueueItem(
+                message = tempMessage,
+                messageId = messageId,
+                archivedFrom = from,
+                isRead = isOutgoing,
+                date = Date(tempStanza.date),
+                state = if (isOutgoing) MessageSendingState.Deliver else MessageSendingState.Sent,
+                queryId = getMAMQueryId(message),
+                originalFrom = from,
+                originalOutgoing = isOutgoing
+            )
+            enqueue(queueItem)
+
+            // Удаляем временную станцу
+            realm.writeBlocking {
+                delete(tempStanza)
+            }
+        } else {
+            // Обычный runtime (без tempStanza)
+            val queueItem = MessageQueueItem(
+                message = message,
+                messageId = messageId,
+                archivedFrom = from,
+                isRead = isOutgoing,
+                date = deliveryTime,
+                state = if (isOutgoing) MessageSendingState.Deliver else MessageSendingState.Sent,
+                queryId = getMAMQueryId(message),
+                originalFrom = from,
+                originalOutgoing = isOutgoing
+            )
+            enqueue(queueItem)
+        }
     }
 
     fun updateReadDate(messageId: String, stanzaId: String, jid: String, date: Date) {
@@ -353,6 +372,16 @@ class MessageCommonReceiver(private val owner: String) {
             if (isVoIPMessage(item.message)) {
                 return@forEach
             }
+            if (isChatMarker(item.message)) {
+                Log.d(TAG, "Skipping chat-marker in Receiver: carbonId=${item.messageId}, markerId=${extractMarkerId(item.message)}")
+                return@forEach  // ПОЛНОСТЬЮ ПРОПУСКАЕМ
+            }
+
+            if (item.message.body.isNullOrEmpty()) {
+                Log.w(TAG, "Skipping message without body: messageId=${item.messageId}")
+                return@forEach
+            }
+
 
             val messageId = item.messageId ?: return@forEach
 
@@ -470,6 +499,20 @@ class MessageCommonReceiver(private val owner: String) {
         if (processedMessageIds.size > 1000) {
             processedMessageIds.clear()
         }
+    }
+
+    private fun isChatMarker(message: XMPPMessage): Boolean {
+        val forwarded = getCarbonCopyMessageContainer(message) ?: getArchivedMessageContainer(message) ?: return false
+        return forwarded.element("received", namespace = "urn:xmpp:chat-markers:0") != null ||
+                forwarded.element("displayed", namespace = "urn:xmpp:chat-markers:0") != null ||
+                forwarded.element("acknowledged", namespace = "urn:xmpp:chat-markers:0") != null
+    }
+
+    private fun extractMarkerId(message: XMPPMessage): String? {
+        val forwarded = getCarbonCopyMessageContainer(message) ?: getArchivedMessageContainer(message) ?: return null
+        return forwarded.element("received", namespace = "urn:xmpp:chat-markers:0")?.getAttribute("id")
+            ?: forwarded.element("displayed", namespace = "urn:xmpp:chat-markers:0")?.getAttribute("id")
+            ?: forwarded.element("acknowledged", namespace = "urn:xmpp:chat-markers:0")?.getAttribute("id")
     }
 
     private suspend fun enqueue(item: MessageQueueItem) {

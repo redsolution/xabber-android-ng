@@ -741,6 +741,13 @@ class MessageArchiveManager(private val owner: String) {
                         muteExpired = getMuteExpired(opponent, conversationType, realm),
                         realm = realm
                     )
+                    val chatPrimary = LastChatsStorageItem.genPrimary(opponent, owner, conversationType)
+                    val chat = query<LastChatsStorageItem>("primary = $0", chatPrimary).first().find()
+                    chat?.let {
+                        findLatest(it)?.apply {
+                            messageDate = System.currentTimeMillis() // ← ТРИГГЕР Flow!
+                        }
+                    }
                 }
             }
 
