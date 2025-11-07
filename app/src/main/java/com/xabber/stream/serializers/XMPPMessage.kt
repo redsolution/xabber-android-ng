@@ -47,10 +47,8 @@ data class XMLElement(
     val attributes: Map<String, String> = emptyMap(),
     val children: List<XMLElement> = emptyList()
 ) {
-    // Рекурсивно получаем текстовое содержимое
     val textContent: String?
         get() = if (children.isEmpty()) {
-            // Попробуем извлечь текст из raw XML (между тегами)
             raw.let {
                 val start = it.indexOf('>') + 1
                 val end = it.lastIndexOf('<')

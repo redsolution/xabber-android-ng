@@ -252,12 +252,19 @@ class MessageCommonSender(private val owner: String) {
                                 msg?.apply {
                                     state = MessageSendingState.Deliver
                                 }
-                                query<LastChatsStorageItem>(
+                                val chat = query<LastChatsStorageItem>(
                                     "primary = $0",
-                                    LastChatsStorageItem.genPrimary(msg?.opponent ?: "", msg?.owner ?: "", msg?.conversationType ?: ConversationType.Regular)
-                                ).first().find()?.apply {
-                                    lastMessage = msg
-                                    messageDate = Date().time
+                                    LastChatsStorageItem.genPrimary(opponent, owner, conversationType)
+                                ).first().find()
+                                chat?.let { liveChat ->
+                                    findLatest(liveChat)?.apply {
+                                        lastMessage = msg
+                                        lastMessageId = msg?.messageId ?: ""
+                                        messageDate = msg?.sentDate ?: System.currentTimeMillis()  // ← КРИТИЧЕСКИ ВАЖНО!
+                                        if (!msg?.outgoing!! && muteExpired <= 0) {
+                                            unread = (unread ?: 0) + 1
+                                        }
+                                    }
                                 }
                             }
                         } finally {
