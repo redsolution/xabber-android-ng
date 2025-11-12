@@ -64,7 +64,7 @@ fun Date.getDateTimeText(): String =
 
 @SuppressLint("SimpleDateFormat")
 fun Date.dateFormat(date: Long): String {
-    val time = Date(date*1000)  // КЛЮЧЕВОЕ ИЗМЕНЕНИЕ
+    val time = Date(date*1000)
     val calendar = Calendar.getInstance().apply { this.time = time }
     val now = Calendar.getInstance()
     val yesterday = Calendar.getInstance().apply { add(Calendar.DATE, -1) }

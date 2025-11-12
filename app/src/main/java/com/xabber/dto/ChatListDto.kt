@@ -17,7 +17,7 @@ data class ChatListDto(
     val opponentNickname: String,
     val customNickname: String = "",
     val lastMessageBody: String = "",
-    val lastMessageDate: Long = 0,
+    val lastMessageDate: Long = 0L,
     var lastMessageState: MessageSendingState = MessageSendingState.None,
     val isArchived: Boolean = false,
     val isSynced: Boolean = true,

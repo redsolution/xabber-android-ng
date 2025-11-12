@@ -52,7 +52,7 @@ class LastChatsStorageItem : RealmObject {
     var primary: String = ""  // автоматически jid + owner + conversation type
     var owner: String = ""   // jid юзера
     var jid: String = ""     // jid собеседника
-    var messageDate: Long = 0    // дата последнего сообщения
+    var messageDate: Long = 0L    // дата последнего сообщения
     var lastReadMessageDate: Long = 0
     var rosterItem: RosterStorageItem? = null   // данные собеседника
     var lastMessage: MessageStorageItem? = null  // последнее собщение

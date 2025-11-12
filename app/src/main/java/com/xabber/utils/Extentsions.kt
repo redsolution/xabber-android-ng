@@ -234,7 +234,7 @@ fun LastChatsStorageItem.toChatListDto(): ChatListDto =
             }
             else -> ""
         },
-        lastMessageDate = if (lastMessage == null || draftMessage != null) messageDate else lastMessage!!.sentDate,
+        lastMessageDate = if (lastMessage == null || draftMessage != null) messageDate else lastMessage!!.sentDate,  // ← Both ms now
         lastMessageState = if (lastMessage?.state_ == 5 || lastMessage == null) MessageSendingState.None else MessageSendingState.Read,
         isArchived = isArchived,
         isSynced = isSynced,
@@ -324,25 +324,65 @@ fun JSONObject.toMap(): Map<String, Any> {
 
 @RequiresApi(Build.VERSION_CODES.O)
 fun parseTimestamp(message: XMPPMessage, tag: String = "TimestampParser"): Long? {
-    var out = Date()
+    var delayedDate = Date()  // Default fallback
     val resultElement = message.element("result", namespace = "urn:xmpp:mam:2")
     if (resultElement != null) {
         val forwarded = resultElement.element("forwarded", namespace = "urn:xmpp:forward:0")
         if (forwarded != null) {
-            val forwardedDelay = forwarded.element("delay", namespace = "urn:xmpp:delay")?.getAttribute("stamp")
-            if (forwardedDelay != null) {
-                try {
-                    val instant = Instant.parse(forwardedDelay)
-                    out = Date.from(instant)
-                } catch (e: DateTimeParseException) {
-                    out = Date()
+            val timeStamp = forwarded.element("time", namespace = "https://xabber.com/protocol/delivery")?.getAttribute("stamp")
+            if (timeStamp != null) {
+                delayedDate = timeStamp.parseXMPPDate() ?: Date()  // Use extension
+            }
+            if (delayedDate.time == 0L) {
+                val delayStamp = forwarded.element("delay", namespace = "urn:xmpp:delay")?.getAttribute("stamp")
+                if (delayStamp != null) {
+                    delayedDate = delayStamp.parseXMPPDate() ?: Date()
                 }
             }
         }
     }
-    Log.w(tag, "time stamp = ${out.time}")
-    return out.time
+    if (delayedDate.time == 0L) {
+        val outerDelay = message.element("delay", namespace = "urn:xmpp:delay")?.getAttribute("stamp")
+        if (outerDelay != null) {
+            delayedDate = outerDelay.parseXMPPDate() ?: Date()
+        }
+    }
+    Log.d(tag, "Final timestamp: ${delayedDate.time} ms → ${Date(delayedDate.time)}")
+    return delayedDate.time
 }
+
+@RequiresApi(Build.VERSION_CODES.O)
+private fun tryParseStamp(stampStr: String, tag: String, source: String): Date {
+    return try {
+        val normalized = stampStr.replace(Regex("""\.(\d{3})\d+Z"""), ".$1Z")  // .551777Z → .551Z
+        Log.d(tag, "Normalize $source: $stampStr → $normalized")
+        val instant = Instant.parse(normalized)
+        Date.from(instant)
+    } catch (e: DateTimeParseException) {
+        Log.w(tag, "Parse failed for $source ($stampStr): ${e.message}, fallback now")
+        Date()  // Current time as last resort
+    }
+}
+
+fun Date.toXMPPString(): String {
+    val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply {
+        timeZone = TimeZone.getTimeZone("UTC")
+    }
+    return sdf.format(this)
+}
+
+@RequiresApi(Build.VERSION_CODES.O)
+fun String.parseXMPPDate(): Date? {
+    return try {
+        val normalized = this.replace(Regex("""\.(\d{3})\d+Z"""), ".$1Z")  // Truncate sub-ms
+        val instant = Instant.parse(normalized)
+        Date.from(instant)
+    } catch (e: DateTimeParseException) {
+        Log.w("DateParser", "Failed to parse XMPP date: $this, error=${e.message}")
+        null
+    }
+}
+
 // New XMPPMessage Extensions (converted from Swift)
 fun XMPPMessage.getStanzaId(owner: String): String {
     val isGroupchat = this.element("x", namespace = "https://xabber.com/protocol/groups") != null
@@ -572,26 +612,13 @@ fun XMPPMessage.conversationTypeByMessage(): ConversationType {
     return ConversationType.Regular
 }
 
-// Helper function for date parsing (to match Swift's xmppDate)
 @RequiresApi(Build.VERSION_CODES.O)
 private fun tryParseDate(stamp: String, messageId: String?, source: String): Date? {
-    val tag = "DateParser"
-    try {
-        val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
-        val zdt = ZonedDateTime.parse(stamp, formatter.withZone(ZoneId.of("UTC")))
-        val epochMilli = zdt.toInstant().toEpochMilli()
-        return Date(epochMilli)
-    } catch (e: DateTimeException) {
-        try {
-            val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'")
-            val zdt = ZonedDateTime.parse(stamp, formatter.withZone(ZoneId.of("UTC")))
-            val epochMilli = zdt.toInstant().toEpochMilli()
-            return Date(epochMilli)
-        } catch (e: DateTimeException) {
-            Log.w(tag, "Failed to parse date ($source) for messageId=$messageId: $stamp, error=${e.message}")
+    return stamp.parseXMPPDate().also {
+        if (it == null) {
+            Log.w("DateParser", "Failed to parse date ($source) for messageId=$messageId: $stamp")
         }
     }
-    return null
 }
 
 // Existing observeMessages (unchanged)

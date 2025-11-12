@@ -862,7 +862,7 @@ class MessageArchiveManager(private val owner: String) {
 
         if (message.sentDate > liveChat.messageDate) {
             liveChat.lastMessage = message
-            liveChat.messageDate = message.sentDate
+            liveChat.messageDate = message.sentDate/1000
             liveChat.lastMessageId = message.archivedId
         }
 
@@ -912,7 +912,7 @@ class MessageArchiveManager(private val owner: String) {
                         ).first().find()
                         if (chat != null) {
                             findLatest(chat)?.apply {
-                                if (task.isNormalSynchronousTask || (task.isContinues && complete && count == 0)) {
+                                if (task.isNormalSynchronousTask || (task.isContinues && complete && count < 2)) {
                                     fullArchiveLoaded = true
                                 }
                                 lastLoadedMessageHistoryId = last

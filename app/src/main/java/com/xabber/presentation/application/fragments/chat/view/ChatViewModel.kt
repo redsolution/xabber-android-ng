@@ -91,7 +91,7 @@ class ChatViewModel(
         messagesJob?.cancel() // Отменяем предыдущий job, чтобы избежать дубликатов
         messagesJob = viewModelScope.launch(Dispatchers.IO) {
             model.observeMessages() // Flow из Realm, уже с sort и debounce(600L) в модели
-                .debounce(300L) // Дополнительный debounce, как в оригинале (можно уменьшить для faster real-time)
+                .debounce(600L) // Дополнительный debounce, как в оригинале (можно уменьшить для faster real-time)
                 .distinctUntilChanged() // Избегаем дубликатов, как в оригинале
                 .collectLatest { incomingMessages -> // collectLatest для real-time обновлений
                     Log.d(TAG, "Messages Flow collected: ${incomingMessages.size} messages, chatId=$chatId, opponent=$opponent")

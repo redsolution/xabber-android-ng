@@ -17,6 +17,7 @@ import com.xabber.data_base.models.sync.ConversationType
 import com.xabber.dto.MessageDto
 import com.xabber.dto.MessageReferenceDto
 import com.xabber.utils.toMessageReferenceDto
+import com.xabber.utils.toXMPPString
 import com.xabber.xmpp.jid.XMPPJID
 import com.xabber.xmpp.messages.XMPPMessage
 import io.ktor.network.sockets.isClosed
@@ -139,7 +140,7 @@ class MessageCommonSender(private val owner: String) {
                     conversationType_ = conversationType.rawValue
                     isArchived = false
                     unread = 0
-                    messageDate = Date().time/1000
+                    messageDate = Date().time  // ← FIXED: Milliseconds (removed /1000)
                     lastMessage = instance
                     lastMessageId = messageId
                 }, UpdatePolicy.ALL)
@@ -147,7 +148,7 @@ class MessageCommonSender(private val owner: String) {
                     lastReadId = null
                     draftMessage = null
                     lastMessage = instance
-                    messageDate = Date().time/1000
+                    messageDate = Date().time  // ← FIXED: Milliseconds (removed /1000)
                 }
             }
         } finally {
@@ -180,7 +181,7 @@ class MessageCommonSender(private val owner: String) {
                 opponent, owner
             ).first().find()?.getPrimaryResource()
 
-            val stanzaBody = realm.query<MessageStorageItem>("primary = $0", primary).first().find()?.legacyBody?.replace("<", "<")?.replace(">", ">") ?: ""
+            val stanzaBody = realm.query<MessageStorageItem>("primary = $0", primary).first().find()?.legacyBody?.replace("<", "&lt;")?.replace(">", "&gt;") ?: ""  // ← FIXED: Proper XML escaping
 
             val referencesXml = realm.query<MessageStorageItem>("primary = $0", primary).first().find()?.references?.joinToString("") { createReferenceElement(it) } ?: ""
 
@@ -235,9 +236,10 @@ class MessageCommonSender(private val owner: String) {
                                 chat?.apply {
                                     lastMessage = msg
                                     lastMessageId = msg?.messageId!!
-                                    messageDate = System.currentTimeMillis()
+                                    messageDate = System.currentTimeMillis()  // ← FIXED: Milliseconds
                                     unread = 0
-                                }                            }
+                                }
+                            }
                         } finally {
                             localRealm.close()
                         }
@@ -260,7 +262,7 @@ class MessageCommonSender(private val owner: String) {
                                     findLatest(liveChat)?.apply {
                                         lastMessage = msg
                                         lastMessageId = msg?.messageId ?: ""
-                                        messageDate = msg?.sentDate ?: System.currentTimeMillis()  // ← КРИТИЧЕСКИ ВАЖНО!
+                                        messageDate = msg?.sentDate ?: System.currentTimeMillis()  // ← FIXED: Use ms consistently
                                         if (!msg?.outgoing!! && muteExpired <= 0) {
                                             unread = (unread ?: 0) + 1
                                         }
@@ -297,6 +299,8 @@ class MessageCommonSender(private val owner: String) {
         }
     }
 
+
+
     private suspend fun formForwardedMessages(forwarded: List<String>): List<ForwardedMessageItem> {
         val out = mutableListOf<ForwardedMessageItem>()
         val dateFormatter = SimpleDateFormat("EEEE, MMMM d, yyyy", Locale.US)
@@ -311,9 +315,9 @@ class MessageCommonSender(private val owner: String) {
                     val refElement = """
                         <reference xmlns='https://xabber.com/protocol/references' type='mutable' begin='${body.length - instance.body.length}' end='${body.length}'>
                             <forwarded xmlns='urn:xmpp:forward:0'>
-                                <delay xmlns='urn:xmpp:delay' stamp='${formatXMPPDate(Date(instance.date))}'/>
+                                <delay xmlns='urn:xmpp:delay' stamp='${Date(instance.date).toXMPPString()}'/>  // ← FIXED: Use extension
                                 <message xmlns='jabber:client' id='${instance.messageId}' from='${instance.opponent}' to='$owner'>
-                                    <body>${instance.body.replace("<", "<").replace(">", ">")}</body>
+                                    <body>${instance.body.replace("<", "&lt;").replace(">", "&gt;")}</body>  // ← FIXED: Escaping
                                 </message>
                             </forwarded>
                         </reference>

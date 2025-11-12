@@ -48,7 +48,7 @@ package com.xabber.stream
         @PrimaryKey
         var messageId: String = ""
         var owner: String = ""
-        var timestamp: Long = 0
+        var timestamp: Long = 0L
 
         companion object {
             private const val TAG = "ProcessedMessageid"
@@ -425,8 +425,8 @@ package com.xabber.stream
                         }
                         realm.close()
                     }
-                    val from = item.message.from?.bare() ?: return@withLock
-                    val to = item.message.to?.bare() ?: return@withLock
+                    val from = item.message.from.bare() ?: return@withLock
+                    val to = item.message.to.bare() ?: return@withLock
                     var isOutgoing = item.isArchived ?: (from == jid)
                     val opponent = if (isOutgoing) to else from
                     if (item.message.body.isNullOrEmpty()) {
@@ -467,8 +467,8 @@ package com.xabber.stream
                                 this.owner = jid
                                 this.opponent = opponent
                                 this.body = item.message.body ?: ""
-                                this.date = item.timestamp / 10000
-                                this.sentDate = item.timestamp / 10000
+                                this.date = item.timestamp
+                                this.sentDate = item.timestamp
                                 this.editDate = 0L
                                 this.outgoing = isOutgoing
                                 this.conversationType_ = when {
@@ -493,7 +493,7 @@ package com.xabber.stream
                                     this.conversationType_ = conversationType.rawValue
                                     this.isArchived = false
                                     this.unread = if (isOutgoing || item.isArchived) 0 else 1
-                                    this.messageDate = item.timestamp / 10000
+                                    this.messageDate = item.timestamp
                                     this.lastMessageId = messageId
                                     this.rosterItem = rosterItem
                                     this.lastMessage = message
@@ -503,7 +503,7 @@ package com.xabber.stream
                                 findLatest(chat)?.apply {
                                     if (item.timestamp / 10000 > this.messageDate) {
                                         this.unread = if (isOutgoing || item.isArchived) this.unread else this.unread + 1
-                                        this.messageDate = item.timestamp / 10000
+                                        this.messageDate = item.timestamp
                                         this.lastMessageId = messageId
                                         this.lastMessage = message
                                         this.isArchived = false
@@ -552,7 +552,7 @@ package com.xabber.stream
                             copyToRealm(ProcessedMessageId().apply {
                                 this.messageId = messageId
                                 this.owner = jid
-                                this.timestamp = System.currentTimeMillis()
+                                this.timestamp = item.timestamp/10000
                             }, UpdatePolicy.ALL)
                         }
                         realm.close()

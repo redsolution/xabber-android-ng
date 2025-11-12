@@ -50,7 +50,7 @@ class ChatListViewHolder(
         setAvatar(chatListDto.opponentJid)
         setName(chatListDto.getChatName())
         setTextMessage(chatListDto.draftMessage, chatListDto.lastMessageBody)
-        setTime(chatListDto.lastMessageDate)
+        setTime(chatListDto.lastMessageDate/1000)
         setPin(chatListDto.pinnedDate) // Updated below
         setMuted(chatListDto.muteExpired)
         setUnreadMessages(chatListDto.unread, chatListDto.muteExpired, chatListDto.lastMessageIsOutgoing)
@@ -154,7 +154,7 @@ class ChatListViewHolder(
 
     private fun setTime(time: Long) {
         binding.tvTimestamp.text =
-            Date().dateFormat(time/1000)
+            Date().dateFormat(time)
     }
 
     private fun setupChatStatus(chatListDto: ChatListDto) {
