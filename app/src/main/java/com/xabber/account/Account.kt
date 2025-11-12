@@ -46,6 +46,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.w3c.dom.Node
 import org.xmlpull.v1.XmlPullParser
+import org.xmlpull.v1.XmlPullParserException
 import org.xmlpull.v1.XmlPullParserFactory
 import java.util.Date
 import java.util.Locale
@@ -810,55 +811,65 @@ class Account : XMPPStreamDelegate {
             var eventType = parser.eventType
 
             while (eventType != XmlPullParser.END_DOCUMENT) {
-                when (eventType) {
-                    XmlPullParser.START_TAG -> {
-                        val tagName = parser.name
-                        val namespace = parser.namespace
+                try {
+                    when (eventType) {
+                        XmlPullParser.START_TAG -> {
+                            val tagName = parser.name
+                            val namespace = parser.namespace
 
-                        if (tagName == "message" && (namespace == "jabber:client" || namespace.isEmpty())) {
-                            // Сохраняем from/to из внешнего message
-                            outerFrom = parser.getAttributeValue(null, "from")?.let { XMPPJID(it).bare() }
-                            outerTo = parser.getAttributeValue(null, "to")?.let { XMPPJID(it).bare() }
+                            if (tagName == "message" && (namespace == "jabber:client" || namespace.isEmpty())) {
+                                // Сохраняем from/to из внешнего message
+                                outerFrom = parser.getAttributeValue(null, "from")?.let { XMPPJID(it).bare() }
+                                outerTo = parser.getAttributeValue(null, "to")?.let { XMPPJID(it).bare() }
 
-                            if (!inForwarded) {
-                                messageId = parser.getAttributeValue(null, "id") ?: "unknown_${System.currentTimeMillis()}"
-                            } else {
-                                innerMessageId = parser.getAttributeValue(null, "id") ?: "unknown_${System.currentTimeMillis()}"
-                                innerFrom = parser.getAttributeValue(null, "from")?.let { XMPPJID(it).bare() }
-                                innerTo = parser.getAttributeValue(null, "to")?.let { XMPPJID(it).bare() }
-                                innerType = parser.getAttributeValue(null, "type")
-                                innerLang = parser.getAttributeValue(null, "xml:lang")
+                                if (!inForwarded) {
+                                    messageId = parser.getAttributeValue(null, "id") ?: "unknown_${System.currentTimeMillis()}"
+                                } else {
+                                    innerMessageId = parser.getAttributeValue(null, "id") ?: "unknown_${System.currentTimeMillis()}"
+                                    innerFrom = parser.getAttributeValue(null, "from")?.let { XMPPJID(it).bare() }
+                                    innerTo = parser.getAttributeValue(null, "to")?.let { XMPPJID(it).bare() }
+                                    innerType = parser.getAttributeValue(null, "type")
+                                    innerLang = parser.getAttributeValue(null, "xml:lang")
+                                }
+                            } else if (tagName == "result" && namespace == "urn:xmpp:mam:2") {
+                                messageId = parser.getAttributeValue(null, "id") ?: messageId
+                                inForwarded = true
+                                isArchived = true
+                            } else if (tagName == "sent" && namespace == "urn:xmpp:carbons:2") {
+                                isCarbon = true
+                                inForwarded = true
+                            } else if (tagName == "archived" && namespace == "urn:xmpp:mam:tmp") {
+                                isTmpArchived = true
+                                inForwarded = true  // ← Ключ: включаем парсинг body
+                            } else if (tagName == "forwarded" && namespace == "urn:xmpp:forward:0") {
+                                inForwarded = true
+                            } else if (tagName in listOf("active", "composing", "inactive", "received", "displayed") &&
+                                (namespace == "http://jabber.org/protocol/chatstates" || namespace == "urn:xmpp:chat-markers:0")) {
+                                isChatState = true
+                            } else if (tagName == "body" && inForwarded) {
+                                parser.next()
+                                if (parser.eventType == XmlPullParser.TEXT) {
+                                    innerBody = parser.text.trim()
+                                }
                             }
-                        } else if (tagName == "result" && namespace == "urn:xmpp:mam:2") {
-                            messageId = parser.getAttributeValue(null, "id") ?: messageId
-                            inForwarded = true
-                            isArchived = true
-                        } else if (tagName == "sent" && namespace == "urn:xmpp:carbons:2") {
-                            isCarbon = true
-                            inForwarded = true
-                        } else if (tagName == "archived" && namespace == "urn:xmpp:mam:tmp") {
-                            isTmpArchived = true
-                            inForwarded = true  // ← Ключ: включаем парсинг body
-                        } else if (tagName == "forwarded" && namespace == "urn:xmpp:forward:0") {
-                            inForwarded = true
-                        } else if (tagName in listOf("active", "composing", "inactive", "received", "displayed") &&
-                            (namespace == "http://jabber.org/protocol/chatstates" || namespace == "urn:xmpp:chat-markers:0")) {
-                            isChatState = true
-                        } else if (tagName == "body" && inForwarded) {
-                            parser.next()
-                            if (parser.eventType == XmlPullParser.TEXT) {
-                                innerBody = parser.text.trim()
+                        }
+                        XmlPullParser.END_TAG -> {
+                            val tagName = parser.name
+                            if (tagName == "forwarded" && parser.namespace == "urn:xmpp:forward:0") {
+                                inForwarded = false
                             }
                         }
                     }
-                    XmlPullParser.END_TAG -> {
-                        val tagName = parser.name
-                        if (tagName == "forwarded" && parser.namespace == "urn:xmpp:forward:0") {
-                            inForwarded = false
-                        }
-                    }
+                } catch (e: XmlPullParserException) {
+                    Log.w(TAG, "Malformed XML encountered during parsing, stopping parse: ${e.message}")
+                    break
                 }
-                eventType = parser.next()
+                try {
+                    eventType = parser.next()
+                } catch (e: XmlPullParserException) {
+                    Log.w(TAG, "Failed to advance parser due to malformed XML: ${e.message}")
+                    break
+                }
             }
 
             messageId = innerMessageId ?: messageId
@@ -888,12 +899,14 @@ class Account : XMPPStreamDelegate {
             }
 
             val realm = Realm.open(defaultRealmConfig())
+
+            // ФИКС: Генерируем primary на основе messageId (для runtime/carbon), но НЕ скипаем!
             val primary = "${messageId}_$jid"
             val existingMessage = realm.query<MessageStorageItem>("primary = $0", primary).first().find()
             if (existingMessage != null) {
-                Log.d(TAG, "Message already exists: $primary")
-                realm.close()
-                return true
+                Log.d(TAG, "Message exists (will update): $primary")  // ← Изменено: лог + продолжаем
+            } else {
+                Log.d(TAG, "New message: $primary")
             }
 
             // === КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ: containerType ===
@@ -929,7 +942,7 @@ class Account : XMPPStreamDelegate {
                 else -> xmppMessage  // runtime
             }
 
-            // Сохраняем временную станцу только для runtime
+            // Сохраняем временную станцу только для runtime (если не существует)
             val tempStanza = realm.query<TemporaryMessageStanzaStorageItem>(
                 "primary = $0 AND isProcessed = false", TemporaryMessageStanzaStorageItem.genPrimary(messageId!!, jid)
             ).first().find()
@@ -949,21 +962,19 @@ class Account : XMPPStreamDelegate {
                 }
             }
 
-            // === ОБРАБОТКА ===
             when (containerType) {
                 "archived" -> {
-                    messageArchiveManager.readMessage(message, updateLastChat = true)
+                    messageArchiveManager.readMessage(message, updateLastChat = true)  // ← Upsert здесь
                 }
                 "forwarded" -> {
-                    messageReceiver.receiveCarbon(innerMessage)
+                    messageReceiver.receiveCarbon(innerMessage)  // ← Upsert в receiveCarbon
                 }
                 "runtime" -> {
-                    messageReceiver.receiveRuntime(innerMessage)
+                    messageReceiver.receiveRuntime(innerMessage)  // ← Upsert в receiveRuntime
                     chatMarkers.read(innerMessage)
                 }
             }
 
-            // Помечаем временную станцу как обработанную
             if (tempStanza != null) {
                 realm.write {
                     val latest = findLatest(tempStanza)
@@ -977,11 +988,10 @@ class Account : XMPPStreamDelegate {
             return true
         } catch (e: Exception) {
             Log.e(TAG, "Error handling message: ${e.message}, stanza=$message", e)
-            stream.state = StreamState.NOT_CONNECTING
+            // Do not set stream.state = StreamState.NOT_CONNECTING for parsing errors to avoid disconnecting on malformed messages
             return false
         }
     }
-
 
     override suspend fun streamDidConnect(stream: Stream): Boolean {
         CoroutineScope(Dispatchers.IO).launch {

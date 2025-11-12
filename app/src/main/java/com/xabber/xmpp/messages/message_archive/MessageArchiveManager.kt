@@ -644,16 +644,6 @@ class MessageArchiveManager(private val owner: String) {
                 return@withContext null
             }
 
-            // Проверка queryId (для обычного MAM)
-            if (queryId != null && !queryId.startsWith("tmp:")) {
-                queryIdsMutex.withLock {
-                    if (!queryIds.containsKey(queryId)) {
-                        Log.w(TAG, "Query ID $queryId not found in queryIds, skipping")
-                        return@withContext null
-                    }
-                }
-            }
-
             val xmppMessage = parseXMPPMessage(forwardedMessageElement) ?: return@withContext null
 
             // Skip non-message elements
@@ -713,7 +703,7 @@ class MessageArchiveManager(private val owner: String) {
             }
 
             // Handle references
-            val references = extractReferences(xmppMessage)
+            var references = extractReferences(xmppMessage)
             instance.references = references
 
             // Handle afterburn
@@ -746,7 +736,7 @@ class MessageArchiveManager(private val owner: String) {
                 ).first().find()
                 if (existingByOrigin != null) {
                     existingByOrigin.archivedId = instance.archivedId
-                    existingByOrigin.sentDate = delayedDate.time/1000
+                    existingByOrigin.sentDate = delayedDate.time
                     existingByOrigin.state = MessageSendingState.Sent
                     existingByOrigin.messageId = originId
                     existingByOrigin.editDate = instance.editDate
@@ -768,11 +758,23 @@ class MessageArchiveManager(private val owner: String) {
                 ).first().find()
 
                 if (existing != null) {
-                    // Обновляем только если нужно (например, isRead)
-                    findLatest(existing)?.apply {
-                        isRead = this.isRead
+                    // ФИКС: Полное обновление stub от MAM data
+                    val updated = findLatest(existing)?.apply {
+                        state = MessageSendingState.Sent  // Historical = sent
+                        isRead = instance.isRead  // Calculated (true for outgoing)
+                        if (delayedDate.time > date) {  // Sync accurate MAM stamp if newer
+                            date = delayedDate.time
+                            sentDate = delayedDate.time  // ← Критично: для sort/bind
+                        }
+                        archivedId = instance.archivedId  // Real MAM ID
+                        if (body != instance.body) body = instance.body  // Sync if edited
+                        references = instance.references  // Sync refs
+                        outgoing = instance.outgoing  // Ensure
+                        conversationType_ = instance.conversationType.rawValue
+                        // Log for debug
+                        Log.d(TAG, "Full MAM update for existing $primary: sentDate=${sentDate} (from ${Date(sentDate)}), state=$state, body=${body.take(20)}, archivedId=$archivedId")
                     }
-                    return@write
+                    // Continue to updateLastChat (sets lastMessage if newer)
                 }
 
                 val savedMessage = copyToRealm(instance, UpdatePolicy.ALL)
@@ -921,7 +923,7 @@ class MessageArchiveManager(private val owner: String) {
                         val continueUid = if (task.backward) first else last
                         continueLoadHistory(stream, task, continueUid)
                     } else {
-                        delay(2000L)
+                        delay(1000L)
                         callbackItem.callback?.invoke()
                         callbacksQueue.remove(callbackItem)
                         interactiveQueue.remove(queryId)

@@ -100,9 +100,9 @@ class MessageHeaderViewDecoration(context: Context) : ItemDecoration() {
                 if (holder is MessageViewHolder && holder.needDate) {
                     drawDateMessageHeader(c, parent, child, holder)
                 }
-                if (holder is MessageViewHolder && holder.isUnread) {
-                    drawUnreadMessageHeader(c, parent, child)
-                }
+//                if (holder is MessageViewHolder && holder.isUnread) {
+//                    drawUnreadMessageHeader(c, parent, child)
+//                }
             }
             if (i == 0) {
                 if (holder != null) {
@@ -123,9 +123,9 @@ class MessageHeaderViewDecoration(context: Context) : ItemDecoration() {
         var additionalOffset = 0
         headerViewXMargin = (parent.measuredWidth - width) / 2
         val drawableBounds = Rect()
-        if (needToDrawUnreadHeader(holder)) {
-            additionalOffset = dateLayoutHeight
-        }
+//        if (needToDrawUnreadHeader(holder)) {
+//            additionalOffset = dateLayoutHeight
+//        }
         drawableBounds.left = headerViewXMargin - backgroundDrawableXPadding
         drawableBounds.right = headerViewXMargin + width + backgroundDrawableXPadding
         drawableBounds.bottom = child.top - backgroundDrawableYMargin - additionalOffset
@@ -148,9 +148,9 @@ class MessageHeaderViewDecoration(context: Context) : ItemDecoration() {
         loopIteration: Int
     ): Int {
         var currentLoopIteration = loopIteration
-        if (needToDrawUnreadHeader(holder)) {
-            drawUnreadMessageHeader(canvas, parent, originalChild)
-        }
+//        if (needToDrawUnreadHeader(holder)) {
+//            drawUnreadMessageHeader(canvas, parent, originalChild)
+//        }
         if (parent.childCount > currentLoopIteration + 1) {
             val nextChild = parent.getChildAt(currentLoopIteration + 1)
             val nextHolder = parent.getChildViewHolder(nextChild)
@@ -158,9 +158,9 @@ class MessageHeaderViewDecoration(context: Context) : ItemDecoration() {
                 if (holder.date == nextHolder.date) {
                     return if (checkIfStickyHeaderFitsAboveNextChild(nextChild)) {
                         drawDateStickyHeader(canvas, parent, originalChild, holder, true)
-                        if (needToDrawUnreadHeader(nextHolder)) {
-                            drawUnreadMessageHeader(canvas, parent, nextChild)
-                        }
+//                        if (needToDrawUnreadHeader(nextHolder)) {
+//                            drawUnreadMessageHeader(canvas, parent, nextChild)
+//                        }
                         currentLoopIteration + 1
                     } else {
                         measureFirstChildren(
@@ -173,9 +173,9 @@ class MessageHeaderViewDecoration(context: Context) : ItemDecoration() {
                     }
                 } else {
                     drawDateMessageHeader(canvas, parent, nextChild, nextHolder)
-                    if (needToDrawUnreadHeader(nextHolder)) {
-                        drawUnreadMessageHeader(canvas, parent, nextChild)
-                    }
+//                    if (needToDrawUnreadHeader(nextHolder)) {
+//                        drawUnreadMessageHeader(canvas, parent, nextChild)
+//                    }
                     currentLoopIteration++
                 }
             }
@@ -192,9 +192,9 @@ class MessageHeaderViewDecoration(context: Context) : ItemDecoration() {
         return date.bottom - messageTopBound > alphaThreshold
     }
 
-    private fun needToDrawUnreadHeader(holder: MessageViewHolder): Boolean {
-        return holder.isUnread
-    }
+//    private fun needToDrawUnreadHeader(holder: MessageViewHolder): Boolean {
+//        return holder.isUnread
+//    }
 
     private fun drawDateStickyHeader(
         c: Canvas,
@@ -315,9 +315,9 @@ class MessageHeaderViewDecoration(context: Context) : ItemDecoration() {
         if (holder is MessageViewHolder && holder.needDate) {
             topOffset += dateLayoutHeight
         }
-        if (holder is MessageViewHolder && holder.isUnread) {
-            topOffset += dateLayoutHeight
-        }
+//        if (holder is MessageViewHolder && holder.isUnread) {
+//            topOffset += dateLayoutHeight
+//        }
         outRect[0, topOffset, 0] = 0
     }
 

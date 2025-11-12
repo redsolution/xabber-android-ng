@@ -44,7 +44,7 @@ abstract class MessageViewHolder(
 ) : RecyclerView.ViewHolder(itemView), FilesAdapter.OnFileClickListener {
     var needDate = false
     var date: String? = null
-    var isUnread = false
+//    var isUnread = false
     var messageId: String? = null
 
     private val context: Context = itemView.context
@@ -94,9 +94,11 @@ abstract class MessageViewHolder(
                 if (message.references[0].isGeo) {
                     setIsRecyclable(false) // Prevent recycling for geo messages
                     addGeoLocationBox(message, message.references[0].latitude, message.references[0].longitude)
+                    setIsRecyclable(true)
                 } else if (message.references[0].isVoiceMessage) {
                     setIsRecyclable(false) // Prevent recycling for voice messages
                     addVoiceMessageBox(message.references[0].uri!!, message)
+                    setIsRecyclable(true)
                 } else {
                     setIsRecyclable(true) // Ensure recyclability for other types
                     if (images.isNotEmpty()) addImageAndVideoBox(message, images)
@@ -113,7 +115,7 @@ abstract class MessageViewHolder(
             setItemCheckedBackground(message.isChecked)
         }
         needDate = vhExtraData.isNeedDate
-        isUnread = vhExtraData.isUnread
+//        isUnread = vhExtraData.isUnread
         messageId = message.primary
         date = getDateStringForMessage(message.sentTimestamp)
 
@@ -124,7 +126,7 @@ abstract class MessageViewHolder(
                 "Binding: primary=${message.primary}, isChecked=${message.isChecked}, " +
                         "textLines=${tvMessageText?.lineCount ?: 0}, itemHeight=${itemView.height}, " +
                         "containerHeight=${messageContainer?.height ?: 0}, sentTimestamp=${message.sentTimestamp}, " +
-                        "displayedDate=$date, isUnread=$isUnread"
+                        "displayedDate=$date"
             )
         }
     }

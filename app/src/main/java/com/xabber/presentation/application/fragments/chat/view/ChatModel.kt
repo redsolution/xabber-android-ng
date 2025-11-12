@@ -175,97 +175,110 @@ class ChatModel(
                 primary, messageDto.archivedId, conversationType.rawValue
             ).first().find()
 
+            var targetMessage: MessageStorageItem? = null
+
             if (existing != null) {
-                findLatest(existing)?.apply {
+                targetMessage = findLatest(existing)?.apply {
                     state = messageDto.messageSendingState
-                    isRead = !messageDto.isUnread
+                    isRead = true
+                    // Sync timestamp if MAM provides a more precise/newer one (handles clock skew)
+                    if (messageDto.sentTimestamp > sentDate) {
+                        date = messageDto.sentTimestamp
+                        sentDate = messageDto.sentTimestamp
+                    }
                     if (messageDto.editTimestamp > editDate) {
                         editDate = messageDto.editTimestamp
                         body = messageDto.messageBody
                     }
                 }
                 Log.d(TAG, "Updated existing message: $primary")
-                return@writeBlocking
-            }
-
-            val references: RealmList<MessageReferenceStorageItem> = realmListOf()
-            messageDto.references.forEach { ref ->
-                val refItem = copyToRealm(MessageReferenceStorageItem().apply {
-                    this.primary = "${ref.id}_${System.currentTimeMillis()}"
-                    uri = ref.uri
-                    mimeType = ref.mimeType
-                    isGeo = ref.isGeo
-                    latitude = ref.latitude
-                    longitude = ref.longitude
-                    isAudioMessage = ref.isVoiceMessage
-                    fileName = ref.fileName
-                    fileSize = ref.size
-                }, UpdatePolicy.ALL)
-                references.add(refItem)
-            }
-
-            val validOwner = messageDto.owner.ifEmpty { this@ChatModel.owner }
-            val messageConversationType = if (messageDto.isGroup) ConversationType.Group else conversationType
-            val chatPrimary = LastChatsStorageItem.genPrimary(bareOpponentJid, validOwner, messageConversationType)
-
-            val message = copyToRealm(MessageStorageItem().apply {
-                this.primary = primary
-                this.owner = messageDto.owner
-                this.opponent = bareOpponentJid
-                body = messageDto.messageBody
-                date = messageDto.sentTimestamp
-                sentDate = messageDto.sentTimestamp
-                editDate = messageDto.editTimestamp
-                outgoing = messageDto.isOutgoing
-                isRead = !messageDto.isUnread
-                this.references = references
-                conversationType_ = messageConversationType.rawValue
-                archivedId = messageDto.archivedId
-                state = messageDto.messageSendingState
-                messageId = messageDto.archivedId
-            }, UpdatePolicy.ALL)
-
-            // Update or create LastChatsStorageItem
-            val existingChats = query<LastChatsStorageItem>(
-                "jid = $0 AND owner = $1", bareOpponentJid, messageDto.owner
-            ).find()
-            var targetChat: LastChatsStorageItem? = existingChats.find { it.conversationType_ == messageConversationType.rawValue }
-
-            if (targetChat == null && existingChats.isNotEmpty()) {
-                targetChat = existingChats.firstOrNull()
-                if (targetChat != null && messageDto.isGroup) {
-                    findLatest(targetChat)?.conversationType_ = ConversationType.Group.rawValue
+            } else {
+                val references: RealmList<MessageReferenceStorageItem> = realmListOf()
+                messageDto.references.forEach { ref ->
+                    val refItem = copyToRealm(MessageReferenceStorageItem().apply {
+                        this.primary = "${ref.id}_${System.currentTimeMillis()}"
+                        uri = ref.uri
+                        mimeType = ref.mimeType
+                        isGeo = ref.isGeo
+                        latitude = ref.latitude
+                        longitude = ref.longitude
+                        isAudioMessage = ref.isVoiceMessage
+                        fileName = ref.fileName
+                        fileSize = ref.size
+                    }, UpdatePolicy.ALL)
+                    references.add(refItem)
                 }
+
+                val validOwner = messageDto.owner.ifEmpty { this@ChatModel.owner }
+                val messageConversationType = if (messageDto.isGroup) ConversationType.Group else conversationType
+                val message = copyToRealm(MessageStorageItem().apply {
+                    this.primary = primary
+                    this.owner = messageDto.owner
+                    this.opponent = bareOpponentJid
+                    body = messageDto.messageBody
+                    date = messageDto.sentTimestamp
+                    sentDate = messageDto.sentTimestamp
+                    editDate = messageDto.editTimestamp
+                    outgoing = messageDto.isOutgoing
+                    isRead = !messageDto.isUnread
+                    this.references = references
+                    conversationType_ = messageConversationType.rawValue
+                    archivedId = messageDto.archivedId
+                    state = messageDto.messageSendingState
+                    messageId = messageDto.archivedId
+                }, UpdatePolicy.ALL)
+                targetMessage = message
+                Log.d(TAG, "Inserted new message: $primary")
             }
 
-            if (targetChat != null) {
-                findLatest(targetChat)?.apply {
-                    if (message.sentDate > messageDate) {
-                        lastMessage = message
+            // Always update/create LastChatsStorageItem after message handling
+            targetMessage?.let { message ->
+                val validOwner = messageDto.owner
+                val messageConversationType = if (messageDto.isGroup) ConversationType.Group else conversationType
+
+                val existingChats = query<LastChatsStorageItem>(
+                    "jid = $0 AND owner = $1", bareOpponentJid, messageDto.owner
+                ).find()
+                var targetChat: LastChatsStorageItem? = existingChats.find { it.conversationType_ == messageConversationType.rawValue }
+
+                if (targetChat == null && existingChats.isNotEmpty()) {
+                    targetChat = existingChats.firstOrNull()
+                    if (targetChat != null && messageDto.isGroup) {
+                        findLatest(targetChat)?.conversationType_ = ConversationType.Group.rawValue
+                    }
+                }
+
+                if (targetChat != null) {
+                    findLatest(targetChat)?.apply {
+                        if (message.sentDate > messageDate) {
+                            lastMessage = message
+                            messageDate = message.sentDate
+                            lastMessageId = message.messageId
+                            if (!messageDto.isOutgoing && muteExpired <= 0) {
+                                isArchived = false
+                                unread = (unread ?: 0) + if (messageDto.isUnread) 1 else 0
+                            }
+                        }
+                    }
+                    Log.d(TAG, "Updated existing chat lastMessage: ${targetChat.primary}")
+                } else {
+                    copyToRealm(LastChatsStorageItem().apply {
+                        this.primary = LastChatsStorageItem.genPrimary(bareOpponentJid, validOwner, messageConversationType)
+                        this.owner = messageDto.owner
+                        jid = bareOpponentJid
+                        conversationType_ = messageConversationType.rawValue
                         messageDate = message.sentDate
+                        isSynced = true
+                        isInitialArchiveLoaded = true
+                        lastMessage = message
                         lastMessageId = message.messageId
                         if (!messageDto.isOutgoing && muteExpired <= 0) {
                             isArchived = false
-                            unread = (unread ?: 0) + if (messageDto.isUnread) 1 else 0
+                            unread = if (messageDto.isUnread) 1 else 0
                         }
-                    }
+                    }, UpdatePolicy.ALL)
+                    Log.d(TAG, "Created new chat: ${LastChatsStorageItem.genPrimary(bareOpponentJid, validOwner, messageConversationType)}")
                 }
-            } else {
-                copyToRealm(LastChatsStorageItem().apply {
-                    this.primary = chatPrimary
-                    this.owner = messageDto.owner
-                    jid = bareOpponentJid
-                    conversationType_ = messageConversationType.rawValue
-                    messageDate = message.sentDate
-                    isSynced = true
-                    isInitialArchiveLoaded = true
-                    lastMessage = message
-                    lastMessageId = message.messageId
-                    if (!messageDto.isOutgoing && muteExpired <= 0) {
-                        isArchived = false
-                        unread = if (messageDto.isUnread) 1 else 0
-                    }
-                }, UpdatePolicy.ALL)
             }
         }
     }

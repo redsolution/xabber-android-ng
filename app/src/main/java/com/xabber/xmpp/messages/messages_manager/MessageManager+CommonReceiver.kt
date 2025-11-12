@@ -177,7 +177,7 @@ class MessageCommonReceiver(private val owner: String) {
             message = messageBare,
             messageId = messageId,
             archivedFrom = messageBare.from?.bare(),
-            isRead = false,
+            isRead = true,
             date = deliveryTime!!,
             state = MessageSendingState.Sent,
             queryId = getMAMQueryId(message),
@@ -392,7 +392,7 @@ class MessageCommonReceiver(private val owner: String) {
             }
 
             // Extract archivedId from MAM stanza
-            val archivedId = getOriginId(item.message) ?: item.messageId ?: messageId
+            var archivedId = getOriginId(item.message) ?: item.messageId ?: messageId
             // Check for duplicates in database
             val existing = realm.query<MessageStorageItem>(
                 "primary = $0 OR (archivedId = $1 AND archivedId != '' AND conversationType_ = $2)",
@@ -400,17 +400,17 @@ class MessageCommonReceiver(private val owner: String) {
             ).first().find()
 
             if (existing != null) {
-                if (existing.body != item.message.body || existing.isRead != item.isRead || existing.sentDate != item.date.time) {
-                    realm.writeBlocking {
-                        findLatest(existing)?.apply {
-                            body = item.message.body ?: ""
-                            isRead = item.isRead
-                            sentDate = item.date.time
-                        }
+                realm.writeBlocking {
+                    findLatest(existing)?.apply {
+                        state = item.state  // e.g., Sent for historical
+                        if (item.date.time > sentDate) sentDate = item.date.time
+                        isRead = item.isRead
+                        archivedId = archivedId  // From item if set
+                        if (body != item.message.body) body = item.message.body
+                        Log.d(TAG, "Receiver updated existing: primary=${existing.primary}, state=$state")
                     }
-                } else {
-                    return@forEach
                 }
+                return@forEach  // But since we updated, continue to messageDtos for UI notify
             } else {
                 processedMessageIds.add(messageId)
             }

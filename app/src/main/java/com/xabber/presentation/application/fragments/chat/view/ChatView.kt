@@ -477,7 +477,7 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
         dialog.show(childFragmentManager, AppConstants.DELETING_CHAT_DIALOG_TAG)
     }
 
-    private fun initializeRecyclerView() {
+    private fun     initializeRecyclerView() {
         val isGroup = viewModel.loadChat(getParams().id)!!.isGroup
         messageAdapter = MessageAdapter(
             layoutInflater,
@@ -639,7 +639,27 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
                 val bareOpponent = XMPPJID(fullJID = viewModel.opponent).bare()
 
                 val account = AccountManager.find(bareOwner)
-                account?.action { acc, stream ->
+                if (account == null) {
+                    withContext(Dispatchers.Main) {
+                        setLoadingState(false)
+                        viewModel.setLoadingHistory(false)
+                    }
+                    Log.e("ChatView", "Account not found for owner=$bareOwner")
+                    return@launch
+                }
+
+                account.action { acc, stream ->
+                    // Проверяем, нужно ли загружать полную историю
+                    val shouldLoadFullHistory = acc.messageArchiveManager.checkShouldLoadFullHistory(bareOpponent, viewModel.conversationType)
+                    if (!shouldLoadFullHistory) {
+                        withContext(Dispatchers.Main) {
+                            setLoadingState(false)
+                            viewModel.setLoadingHistory(false)
+                        }
+                        Log.d("ChatView", "Full history already loaded or ongoing task, skipping loadOlderMessages")
+                        return@action
+                    }
+
                     acc.messageArchiveManager.getPrevHistory(
                         stream = stream,
                         jid = bareOpponent,
@@ -649,8 +669,13 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
                             if (!isAdded || lifecycle.currentState < Lifecycle.State.STARTED ||
                                 messageAdapter == null || layoutManager == null) {
                                 Log.d("ChatView", "loadOlderMessages callback ignored: fragment not active")
-                                viewModel.setLoadingHistory(false)
+                                CoroutineScope(Dispatchers.Main).launch {
+                                    withContext(Dispatchers.Main) {
+                                        viewModel.setLoadingHistory(false)
+                                    }
+                                }
                                 return@getPrevHistory
+
                             }
 
                             viewLifecycleOwner.lifecycleScope.launch(Dispatchers.Main) {
@@ -675,19 +700,15 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
                             }
                         }
                     )
-                } ?: run {
-                    Log.e("ChatView", "Account not found for owner=$bareOwner")
+                }
+            } catch (e: Exception) {
+                Log.e("ChatView", "Error loading older messages", e)
+                withContext(Dispatchers.Main) {
                     if (isAdded && lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
                         setLoadingState(false)
                     }
                     viewModel.setLoadingHistory(false)
                 }
-            } catch (e: Exception) {
-                Log.e("ChatView", "Error loading older messages", e)
-                if (isAdded && lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
-                    setLoadingState(false)
-                }
-                viewModel.setLoadingHistory(false)
             }
         }
     }
