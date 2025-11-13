@@ -50,7 +50,7 @@ class ChatListViewHolder(
         setAvatar(chatListDto.opponentJid)
         setName(chatListDto.getChatName())
         setTextMessage(chatListDto.draftMessage, chatListDto.lastMessageBody)
-        setTime(chatListDto.lastMessageDate/1000)
+        setTime(chatListDto.lastMessageDate)  // Fixed: Remove /1000, use ms directly
         setPin(chatListDto.pinnedDate) // Updated below
         setMuted(chatListDto.muteExpired)
         setUnreadMessages(chatListDto.unread, chatListDto.muteExpired, chatListDto.lastMessageIsOutgoing)
@@ -153,8 +153,7 @@ class ChatListViewHolder(
     }
 
     private fun setTime(time: Long) {
-        binding.tvTimestamp.text =
-            Date().dateFormat(time)
+        binding.tvTimestamp.text = time.dateFormat()  // Fixed: Use extension on Long with ms input
     }
 
     private fun setupChatStatus(chatListDto: ChatListDto) {
@@ -326,7 +325,7 @@ class ChatListViewHolder(
                     )
                 }
                 PAYLOAD_CHAT_DATE -> {
-                    binding.tvTimestamp.text = Date().dateFormat(chatListDto.lastMessageDate)
+                    binding.tvTimestamp.text = chatListDto.lastMessageDate.dateFormat()  // Fixed: Use ms directly with Long extension
                 }
                 PAYLOAD_CHAT_MESSAGE_BODY -> {
                     val lastMessageBody = bundle.getString(PAYLOAD_CHAT_MESSAGE_BODY)

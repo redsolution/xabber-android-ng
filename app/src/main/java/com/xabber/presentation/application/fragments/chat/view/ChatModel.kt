@@ -49,6 +49,7 @@ class ChatModel(
                     else -> changes.list.firstOrNull()?.toChatListDto()
                 }
             }
+            .debounce(500L)
     }
 
     fun observeMessages(): Flow<List<MessageDto>> {
@@ -61,7 +62,6 @@ class ChatModel(
             .map { changes ->
                 changes.list.mapNotNull { it.toMessageDto() }
             }
-            .debounce(300L)
     }
 
     // === Чтение данных ===
@@ -162,12 +162,12 @@ class ChatModel(
     // === Запись данных ===
 
     suspend fun insertMessage(chatId: String, messageDto: MessageDto) = with(realm) {
-        writeBlocking {
+        write {
             val bareOpponentJid = XMPPJID(fullJID = messageDto.opponentJid).bare().toString()
             val primary = MessageStorageItem.genPrimary(messageDto.archivedId, messageDto.owner)
             if (primary.isEmpty()) {
                 Log.w(TAG, "Skipping message with invalid primary: archivedId=${messageDto.archivedId}, owner=${messageDto.owner}")
-                return@writeBlocking
+                return@write
             }
 
             val existing = query<MessageStorageItem>(
@@ -191,7 +191,6 @@ class ChatModel(
                         body = messageDto.messageBody
                     }
                 }
-                Log.d(TAG, "Updated existing message: $primary")
             } else {
                 val references: RealmList<MessageReferenceStorageItem> = realmListOf()
                 messageDto.references.forEach { ref ->
@@ -228,7 +227,6 @@ class ChatModel(
                     messageId = messageDto.archivedId
                 }, UpdatePolicy.ALL)
                 targetMessage = message
-                Log.d(TAG, "Inserted new message: $primary")
             }
 
             // Always update/create LastChatsStorageItem after message handling
@@ -260,7 +258,6 @@ class ChatModel(
                             }
                         }
                     }
-                    Log.d(TAG, "Updated existing chat lastMessage: ${targetChat.primary}")
                 } else {
                     copyToRealm(LastChatsStorageItem().apply {
                         this.primary = LastChatsStorageItem.genPrimary(bareOpponentJid, validOwner, messageConversationType)

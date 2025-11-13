@@ -44,7 +44,7 @@ abstract class MessageViewHolder(
 ) : RecyclerView.ViewHolder(itemView), FilesAdapter.OnFileClickListener {
     var needDate = false
     var date: String? = null
-//    var isUnread = false
+    //    var isUnread = false
     var messageId: String? = null
 
     private val context: Context = itemView.context
@@ -67,7 +67,6 @@ abstract class MessageViewHolder(
     }
 
     open fun bind(message: MessageDto, vhExtraData: MessageVhExtraData) {
-        setIsRecyclable(true) // Reset recyclability at the start of binding
         messageContainer?.removeAllViews()
         balloon?.removeAllViews()
 
@@ -100,12 +99,10 @@ abstract class MessageViewHolder(
                     addVoiceMessageBox(message.references[0].uri!!, message)
                     setIsRecyclable(true)
                 } else {
-                    setIsRecyclable(true) // Ensure recyclability for other types
+                    // No need to setIsRecyclable for normal media/files
                     if (images.isNotEmpty()) addImageAndVideoBox(message, images)
                     if (otherFiles.isNotEmpty()) addFilesBox(message, otherFiles)
                 }
-            } else {
-                setIsRecyclable(true) // Ensure recyclability for text messages
             }
             if (message.messageBody.isNotEmpty()) addTextBox(message)
 
@@ -120,15 +117,6 @@ abstract class MessageViewHolder(
         date = getDateStringForMessage(message.sentTimestamp)
 
 
-        itemView.post {
-            Log.d(
-                TAG,
-                "Binding: primary=${message.primary}, isChecked=${message.isChecked}, " +
-                        "textLines=${tvMessageText?.lineCount ?: 0}, itemHeight=${itemView.height}, " +
-                        "containerHeight=${messageContainer?.height ?: 0}, sentTimestamp=${message.sentTimestamp}, " +
-                        "displayedDate=$date"
-            )
-        }
     }
 
     private fun setTime(sentTime: Long, editTime: Long) {
@@ -372,7 +360,7 @@ abstract class MessageViewHolder(
 
     private fun setupOnLongClick(messagePrimary: String, isChecked: Boolean) {
         itemView.setOnLongClickListener {
-            
+
             if (!Check.getSelectedMode()) onViewClickListener?.onLongClick(messagePrimary)
             else onViewClickListener?.checkItem(!isChecked, messagePrimary)
             true

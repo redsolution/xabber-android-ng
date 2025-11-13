@@ -82,6 +82,7 @@ import com.xabber.presentation.application.manage.DisplayManager
 import com.xabber.utils.*
 import com.xabber.utils.custom.PlayerVisualizerView
 import com.xabber.xmpp.jid.XMPPJID
+import com.xabber.xmpp.messages.message_archive.MessageArchiveManager
 import com.xabber.xmpp.messages.messages_manager.MessageCommonSender
 import io.reactivex.rxjava3.disposables.Disposable
 import kotlinx.coroutines.*
@@ -99,7 +100,8 @@ import kotlin.experimental.and
 @RequiresApi(Build.VERSION_CODES.O)
 class ChatView : DetailBaseFragment(R.layout.fragment_chat),
     MessageAdapter.MenuItemListener,
-    MessageAdapter.OnViewClickListener, ReplySwipeCallback.SwipeAction {
+    MessageAdapter.OnViewClickListener, ReplySwipeCallback.SwipeAction,
+    MessageArchiveManager.TemporaryMessageReceiver {
 
     private val binding by viewBinding(FragmentChatBinding::bind)
     private val handler = Handler(Looper.getMainLooper())
@@ -125,7 +127,7 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
     private var isPlaying = false
     private var messageSender: MessageCommonSender? = null
     private var lastLoadOlderMessagesTime = 0L // For debouncing
-    private val debounceInterval = 500L // 500ms debounce
+    private val debounceInterval = 1000L // 500ms debounce
     private var isLoadingHistory = false
     var isLoading = true
     private var isFragmentActive = true
@@ -288,7 +290,26 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
         viewModel.setLocked(false)
 
         binding.messageList.postDelayed({scrollDown()}, 100)
+        AccountManager.find(bareOwner)?.messageArchiveManager?.temporaryMessageReceiver = this
+    }
 
+    override suspend fun didReceiveMessage(item: MessageStorageItem, queryId: String) {
+        val messageDto = item.toMessageDto()
+        viewModel.insertMessage(getParams().id, messageDto!!, fromMAM = true)  // Skip Realm write
+    }
+
+    override fun didReceiveEndPage(
+        queryId: String,
+        fin: Boolean,
+        first: String,
+        last: String,
+        count: Int
+    ) {
+        Log.d("ChatView", "end")
+    }
+
+    override fun didStartPageLoad(queryId: String) {
+        Log.d("ChatView", "mark")
     }
 
     private fun prepareUi(chat: ChatListDto) {
@@ -522,6 +543,9 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
             override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
                 super.onScrolled(recyclerView, dx, dy)
 
+                // Skip all logic if loading (no recursion risk)
+                if (isLoadingHistory) return
+
                 val layoutManager = recyclerView.layoutManager as LinearLayoutManager
                 val lastVisiblePosition = layoutManager.findLastVisibleItemPosition()
                 val totalItemCount = recyclerView.adapter?.itemCount ?: 0
@@ -539,7 +563,7 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
                     isUserScrolling = false
                 }
 
-                // Загрузка старых сообщений
+                // Загрузка старых сообщений (только если НЕ loading)
                 val firstVisiblePosition = layoutManager.findFirstVisibleItemPosition()
                 if (firstVisiblePosition <= 2 && !isLoadingHistory) {
                     val currentTime = System.currentTimeMillis()
@@ -555,7 +579,7 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
 
             override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
                 super.onScrollStateChanged(recyclerView, newState)
-                if (newState == RecyclerView.SCROLL_STATE_IDLE) {
+                if (newState == RecyclerView.SCROLL_STATE_IDLE && !isLoadingHistory) {
                     isUserScrolling = false
                 }
             }
@@ -600,15 +624,16 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
         binding.overlay.isVisible = isLoading
 
         if (isLoading) {
-            binding.messageList.setOnTouchListener { _, event ->
-                true
-            }
+            // Consume touches to prevent scroll
+            binding.messageList.setOnTouchListener { _, _ -> true }
+            // Suppress layout changes (no onScrolled/onLayout calls)
+            binding.messageList.suppressLayout(true)
+            // Stop any ongoing scroll
             binding.messageList.stopScroll()
-            binding.messageList.addOnScrollListener(scrollListener)
         } else {
             binding.messageList.setOnTouchListener(null)
-            binding.messageList.removeOnScrollListener(scrollListener)
-            binding.messageList.requestDisallowInterceptTouchEvent(false)
+            binding.messageList.suppressLayout(false)
+            binding.messageList.requestLayout()  // Trigger re-layout if needed
         }
     }
 

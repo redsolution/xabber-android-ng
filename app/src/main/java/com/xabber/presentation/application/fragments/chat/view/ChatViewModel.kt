@@ -12,6 +12,9 @@ import com.xabber.dto.MessageDto
 import com.xabber.presentation.application.fragments.chat.view.ChatModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
@@ -62,6 +65,18 @@ class ChatViewModel(
     private var localMessageList: MutableList<MessageDto> = mutableListOf()
     private var isLoadingHistoryFromView = false
 
+    // Debounce flow for rapid message inserts (prevents UI jumping)
+    private val messageUpdateFlow = MutableSharedFlow<List<MessageDto>>(replay = 1)
+    private val debounceJob = viewModelScope.launch(SupervisorJob()) {
+        messageUpdateFlow
+            .debounce(200L)  // 200ms debounce for smooth updates
+            .collectLatest { debouncedList ->
+                _messages.value = debouncedList
+                _unreadCount.value = debouncedList.count { it.isUnread }
+                Log.d(TAG, "Debounced UI update: ${debouncedList.size} messages")
+            }
+    }
+
     private val TAG = "ChatViewModel"
 
     init {
@@ -89,43 +104,46 @@ class ChatViewModel(
 
     fun initMessagesListener() {
         messagesJob?.cancel() // Отменяем предыдущий job, чтобы избежать дубликатов
-        messagesJob = viewModelScope.launch(Dispatchers.IO) {
-            model.observeMessages() // Flow из Realm, уже с sort и debounce(600L) в модели
-                .debounce(600L) // Дополнительный debounce, как в оригинале (можно уменьшить для faster real-time)
-                .distinctUntilChanged() // Избегаем дубликатов, как в оригинале
-                .collectLatest { incomingMessages -> // collectLatest для real-time обновлений
-                    Log.d(TAG, "Messages Flow collected: ${incomingMessages.size} messages, chatId=$chatId, opponent=$opponent")
+        messagesJob = viewModelScope.launch(SupervisorJob() + Dispatchers.IO) {
+            try {
+                model.observeMessages() // Flow из Realm, уже с sort и debounce(600L) в модели
+                    .distinctUntilChanged() // Избегаем дубликатов, как в оригинале
+                    .collectLatest { incomingMessages -> // collectLatest для real-time обновлений
+                        Log.d(TAG, "Messages Flow collected: ${incomingMessages.size} messages, chatId=$chatId, opponent=$opponent")
 
-                    messageListMutex.withLock {
-                        val currentMessages = localMessageList.associateBy { it.primary }.toMutableMap()
-                        var newMessagesAdded = false // Флаг для новых сообщений (можно использовать для уведомлений)
+                        messageListMutex.withLock {
+                            val currentMessages = localMessageList.associateBy { it.primary }.toMutableMap()
+                            var newMessagesAdded = false // Флаг для новых сообщений (можно использовать для уведомлений)
 
-                        incomingMessages.forEach { newMessage ->
-                            if (!currentMessages.containsKey(newMessage.primary)) {
-                                newMessagesAdded = true
+                            incomingMessages.forEach { newMessage ->
+                                if (!currentMessages.containsKey(newMessage.primary)) {
+                                    newMessagesAdded = true
+                                }
+                                currentMessages[newMessage.primary] = newMessage
+                                Log.d(TAG, "Merged message from Flow: primary=${newMessage.primary}, messageId=${newMessage.archivedId}, body=${newMessage.messageBody.take(50)}, sentTimestamp=${newMessage.sentTimestamp}")
                             }
-                            currentMessages[newMessage.primary] = newMessage
-                            Log.d(TAG, "Merged message from Flow: primary=${newMessage.primary}, messageId=${newMessage.archivedId}, body=${newMessage.messageBody.take(50)}, sentTimestamp=${newMessage.sentTimestamp}")
-                        }
 
-                        localMessageList.clear()
-                        localMessageList.addAll(currentMessages.values.sortedBy { it.sentTimestamp })
+                            localMessageList.clear()
+                            localMessageList.addAll(currentMessages.values.sortedBy { it.sentTimestamp })
 
-                        // Считаем unread
-                        val unreadCount = localMessageList.count { it.isUnread }
-                        Log.d(TAG, "Collected messages from Flow: ${localMessageList.size} messages, $unreadCount unread, first=${localMessageList.firstOrNull()?.primary}, last=${localMessageList.lastOrNull()?.primary}, lastMessageId=${localMessageList.lastOrNull()?.archivedId}")
+                            // Считаем unread
+                            val unreadCount = localMessageList.count { it.isUnread }
+                            Log.d(TAG, "Collected messages from Flow: ${localMessageList.size} messages, $unreadCount unread, first=${localMessageList.firstOrNull()?.primary}, last=${localMessageList.lastOrNull()?.primary}, lastMessageId=${localMessageList.lastOrNull()?.archivedId}")
 
-                        // Переключаемся на Main для UI-обновлений (как в оригинале)
-                        withContext(Dispatchers.Main) {
-                            _messages.value = localMessageList
-                            _unreadCount.value = unreadCount
-                            if (!isLoadingHistoryFromView) {
-                                _isLoading.value = false  // Скрываем только если НЕ пагинация
-                                Log.d(TAG, "Hiding ProgressBar after Flow update...")
+                            // Переключаемся на Main для UI-обновлений (как в оригинале)
+                            withContext(Dispatchers.Main) {
+                                _messages.value = localMessageList
+                                _unreadCount.value = unreadCount
+                                if (!isLoadingHistoryFromView) {
+                                    _isLoading.value = false  // Скрываем только если НЕ пагинация
+                                    Log.d(TAG, "Hiding ProgressBar after Flow update...")
+                                }
                             }
                         }
                     }
-                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error in messages Flow collector: ${e.message}", e)
+            }
         }
     }
 
@@ -156,20 +174,23 @@ class ChatViewModel(
         }
     }
 
-    fun insertMessage(id: String, message: MessageDto) {
-        viewModelScope.launch {
-            model.insertMessage(id, message)
-            // НОВОЕ: Принудительно обновляем localList после write (на случай race)
-            val refreshed = model.getMessages()  // Синхронный query для consistency
+    fun insertMessage(id: String, message: MessageDto, fromMAM: Boolean = false) {
+        viewModelScope.launch(Dispatchers.IO) {  // IO for merge/sort, then debounce flow for UI
             messageListMutex.withLock {
-                localMessageList.clear()
-                localMessageList.addAll(refreshed.sortedBy { it.sentTimestamp })
+                val idx = localMessageList.indexOfFirst { it.primary == message.primary }
+                if (idx == -1) {
+                    localMessageList.add(message)
+                    localMessageList.sortBy { it.sentTimestamp }
+                } else {
+                    localMessageList[idx] = message
+                }
             }
-            withContext(Dispatchers.Main) {
-                _messages.value = localMessageList
-                _unreadCount.value = localMessageList.count { it.isUnread }
-                Log.d(TAG, "Force refresh after insert: ${localMessageList.size} messages")
+            if (!fromMAM) {  // Persist only if not from MAM (avoids duplicate write)
+                model.insertMessage(id, message)
             }
+            // Emit to debounced flow (UI update delayed 200ms)
+            messageUpdateFlow.tryEmit(localMessageList.toList())
+            Log.d(TAG, "Emitted to debounce flow: ${localMessageList.size} messages, fromMAM=$fromMAM")
         }
     }
 
@@ -182,8 +203,9 @@ class ChatViewModel(
                 localMessageList.clear()
                 localMessageList.addAll(refreshed.sortedBy { it.sentTimestamp })
             }
+            // Emit to debounced flow
+            messageUpdateFlow.tryEmit(localMessageList.toList())
             withContext(Dispatchers.Main) {
-                _messages.value = localMessageList
                 _unreadCount.value = localMessageList.count { it.isUnread }
                 Log.d(TAG, "Force refresh after receiver insert: ${messages.size} new msgs")
             }
@@ -303,6 +325,7 @@ class ChatViewModel(
         messagesJob?.cancel()
         chatJob?.cancel()
         loadingJob?.cancel()
+        debounceJob.cancel()  // Cancel debounce flow
         model.close()
     }
 }

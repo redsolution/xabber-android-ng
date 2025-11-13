@@ -63,8 +63,8 @@ fun Date.getDateTimeText(): String =
     DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(this)
 
 @SuppressLint("SimpleDateFormat")
-fun Date.dateFormat(date: Long): String {
-    val time = Date(date*1000)
+fun Long.dateFormat(): String {  // Fixed: Extension on Long (ms timestamp), no receiver Date, assume ms input
+    val time = Date(this)  // Use as ms directly
     val calendar = Calendar.getInstance().apply { this.time = time }
     val now = Calendar.getInstance()
     val yesterday = Calendar.getInstance().apply { add(Calendar.DATE, -1) }

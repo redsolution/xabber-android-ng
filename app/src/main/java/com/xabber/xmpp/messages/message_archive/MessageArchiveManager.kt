@@ -46,7 +46,8 @@ import kotlin.coroutines.resume
 
 class MessageArchiveManager(private val owner: String) {
     private val namespace = "urn:xmpp:mam:2"
-    private val pageSize = 60
+    private val pageSize = 70
+    private val paginationSize = 120 // Increased for older messages loading
     private val callbacksQueue = mutableSetOf<CallbackQueueItem>()
     private val searchResultsQueries = mutableSetOf<String>()
     private val interactiveQueue = mutableListOf<String>()
@@ -58,6 +59,9 @@ class MessageArchiveManager(private val owner: String) {
     private val queryToReceivedCount = mutableMapOf<String, Int>()
     val queryIds = mutableMapOf<String, CallbackQueueItem>()
     private val queryIdsMutex = Mutex()
+
+
+
 
     data class MAMRequestItem(
         val jid: String?,
@@ -291,15 +295,6 @@ class MessageArchiveManager(private val owner: String) {
                 return@withContext
             }
 
-            // Step 3: Fetch the last message and wait for completion
-//            lastMessageId = suspendCancellableCoroutine { cont ->
-//                CoroutineScope(Dispatchers.IO).launch {
-//                    getLastMessage(stream, jid, conversationType) { archivedId ->
-//                        cont.resume(archivedId)
-//                    }
-//                }
-//            }
-
             // Step 4: Request archive starting from the last message's ID
             val queryId = "MAM:${NanoId.generateOptimized(8, nanoIdAlphabet, nanoIdMask, nanoIdStep)}"
             requestArchive(
@@ -473,7 +468,7 @@ class MessageArchiveManager(private val owner: String) {
             queryId = queryId,
             flipPage = true,
             rsmBefore = if (messageId.isEmpty()) "" else messageId,
-            max = pageSize,
+            max = paginationSize, // Increased for older messages loading
             backward = true,
             callback = callback
         )
@@ -757,29 +752,11 @@ class MessageArchiveManager(private val owner: String) {
                     instance.primary, instance.archivedId, owner, opponent, conversationType.rawValue
                 ).first().find()
 
-                if (existing != null) {
-                    // ФИКС: Полное обновление stub от MAM data
-                    val updated = findLatest(existing)?.apply {
-                        state = MessageSendingState.Sent  // Historical = sent
-                        isRead = instance.isRead  // Calculated (true for outgoing)
-                        if (delayedDate.time > date) {  // Sync accurate MAM stamp if newer
-                            date = delayedDate.time
-                            sentDate = delayedDate.time  // ← Критично: для sort/bind
-                        }
-                        archivedId = instance.archivedId  // Real MAM ID
-                        if (body != instance.body) body = instance.body  // Sync if edited
-                        references = instance.references  // Sync refs
-                        outgoing = instance.outgoing  // Ensure
-                        conversationType_ = instance.conversationType.rawValue
-                        // Log for debug
-                        Log.d(TAG, "Full MAM update for existing $primary: sentDate=${sentDate} (from ${Date(sentDate)}), state=$state, body=${body.take(20)}, archivedId=$archivedId")
-                    }
-                    // Continue to updateLastChat (sets lastMessage if newer)
-                }
 
                 val savedMessage = copyToRealm(instance, UpdatePolicy.ALL)
                 savedMessage.storeStanza(this)
             }
+            temporaryMessageReceiver?.didReceiveMessage(instance, queryId ?: "tmp")
 
             if (updateLastChat) {
                 realm.writeBlocking {
@@ -795,7 +772,6 @@ class MessageArchiveManager(private val owner: String) {
                 }
             }
 
-            temporaryMessageReceiver?.didReceiveMessage(instance, queryId ?: "tmp")
             return@withContext instance
         } catch (e: Exception) {
             Log.e(TAG, "Failed to parse message: ${e.message}", e)
@@ -862,7 +838,7 @@ class MessageArchiveManager(private val owner: String) {
 
         if (message.sentDate > liveChat.messageDate) {
             liveChat.lastMessage = message
-            liveChat.messageDate = message.sentDate/1000
+            liveChat.messageDate = message.sentDate  // Fixed: Use ms consistently, no /1000
             liveChat.lastMessageId = message.archivedId
         }
 
@@ -930,9 +906,8 @@ class MessageArchiveManager(private val owner: String) {
                         queryIds.remove(queryId)
                     }
                 }
-                temporaryMessageReceiver?.didReceiveEndPage(queryId, complete, first, last, count)
             }
-
+            temporaryMessageReceiver?.didReceiveEndPage(queryId, complete, first, last, count)
             true
         } catch (e: Exception) {
             Log.e(TAG, "Failed to parse IQ: ${e.message}, iq=$iq", e)
