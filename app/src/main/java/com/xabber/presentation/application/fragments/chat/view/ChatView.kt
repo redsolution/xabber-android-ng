@@ -127,7 +127,7 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
     private var isPlaying = false
     private var messageSender: MessageCommonSender? = null
     private var lastLoadOlderMessagesTime = 0L // For debouncing
-    private val debounceInterval = 1000L // 500ms debounce
+    private val debounceInterval = 300L // 500ms debounce
     private var isLoadingHistory = false
     var isLoading = true
     private var isFragmentActive = true
@@ -626,8 +626,8 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
         if (isLoading) {
             // Consume touches to prevent scroll
             binding.messageList.setOnTouchListener { _, _ -> true }
-            // Suppress layout changes (no onScrolled/onLayout calls)
-            binding.messageList.suppressLayout(true)
+//            // Suppress layout changes (no onScrolled/onLayout calls)
+//            binding.messageList.suppressLayout(true)
             // Stop any ongoing scroll
             binding.messageList.stopScroll()
         } else {
@@ -639,7 +639,23 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
 
     @SuppressLint("ClickableViewAccessibility")
     private fun loadOlderMessages() {
+        if (viewModel.isArchiveFullyLoaded.value == true) {
+            Log.d("ChatView", "Archive fully loaded, skipping loadOlderMessages")
+            setLoadingState(false)
+            viewModel.setLoadingHistory(false)
+            return
+        }
+
         if (isLoadingHistory || !isAdded || lifecycle.currentState < Lifecycle.State.STARTED) return
+        val chatDto = viewModel.chat.value
+        if (chatDto?.isSynced == true) {
+            Log.d("ChatView", "Archive fully loaded (isSynced=true), skipping loadOlderMessages")
+            return
+        }
+
+        setLoadingState(true)
+        viewModel.setLoadingHistory(true)
+
 
         setLoadingState(true)
         viewModel.setLoadingHistory(true)
@@ -981,6 +997,12 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
             } else {
                 setupOpponentName(it.getChatName())
                 setupMuteIcon(it.muteExpired)
+            }
+        }
+
+        viewModel.isArchiveFullyLoaded.observe(viewLifecycleOwner) { fullyLoaded ->
+            if (fullyLoaded) {
+                Log.d("ChatView", "Archive fully loaded for chatId=${getParams().id} - no more older loads")
             }
         }
 

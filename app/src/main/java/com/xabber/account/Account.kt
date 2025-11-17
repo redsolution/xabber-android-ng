@@ -62,6 +62,7 @@ class Account : XMPPStreamDelegate {
 
     companion object {
         private const val TAG = "Account"
+        private val sharedFactory by lazy { DocumentBuilderFactory.newInstance().apply { isNamespaceAware = true } }
     }
     private var bindingCompleted = false
     private var bindingRequestId: String? = null

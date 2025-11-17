@@ -57,6 +57,10 @@ class ChatViewModel(
     private val _isLocked = MutableLiveData<Boolean>()
     val isLocked: LiveData<Boolean> = _isLocked
 
+    // NEW: Flag for full archive load (prevents further older message loads)
+    private val _isArchiveFullyLoaded = MutableLiveData(false)
+    val isArchiveFullyLoaded: LiveData<Boolean> = _isArchiveFullyLoaded
+
     private val selectedItems = mutableSetOf<String>()
     private var messagesJob: Job? = null
     private var chatJob: Job? = null
@@ -69,7 +73,8 @@ class ChatViewModel(
     private val messageUpdateFlow = MutableSharedFlow<List<MessageDto>>(replay = 1)
     private val debounceJob = viewModelScope.launch(SupervisorJob()) {
         messageUpdateFlow
-            .debounce(200L)  // 200ms debounce for smooth updates
+            .debounce(200)  // ← ADD: 200ms debounce to batch rapid inserts (tune as needed)
+            .distinctUntilChanged()  // ← ADD: Skip identical lists
             .collectLatest { debouncedList ->
                 _messages.value = debouncedList
                 _unreadCount.value = debouncedList.count { it.isUnread }
@@ -89,6 +94,12 @@ class ChatViewModel(
         isLoadingHistoryFromView = isLoading
     }
 
+    // NEW: Set the archive full load flag from MAM end page
+    fun setArchiveFullyLoaded(fullyLoaded: Boolean) {
+        _isArchiveFullyLoaded.value = fullyLoaded
+        Log.d(TAG, "Archive fully loaded set to: $fullyLoaded for chatId=$chatId")
+    }
+
     private fun observeChat() {
         chatJob?.cancel()
         chatJob = viewModelScope.launch {
@@ -102,13 +113,32 @@ class ChatViewModel(
         }
     }
 
+    private fun insertIntoSortedList(list: MutableList<MessageDto>, newItem: MessageDto): Int {
+        // Binary search for insertion point (O(log n))
+        val timestamp = newItem.sentTimestamp
+        var low = 0
+        var high = list.size
+        while (low < high) {
+            val mid = low + (high - low) / 2
+            if (list[mid].sentTimestamp < timestamp) {
+                low = mid + 1
+            } else {
+                high = mid
+            }
+        }
+        // Insert at position (O(n) shift, but only once per message – amortized fine for n=1000)
+        list.add(low, newItem)
+        return low  // Optional: return pos for logging
+    }
+
     fun initMessagesListener() {
         messagesJob?.cancel() // Отменяем предыдущий job, чтобы избежать дубликатов
         messagesJob = viewModelScope.launch(SupervisorJob() + Dispatchers.IO) {
             try {
-                model.observeMessages() // Flow из Realm, уже с sort и debounce(600L) в модели
-                    .distinctUntilChanged() // Избегаем дубликатов, как в оригинале
-                    .collectLatest { incomingMessages -> // collectLatest для real-time обновлений
+                model.observeMessages()
+                    .distinctUntilChanged()
+                    .debounce(100)
+                    .collectLatest { incomingMessages ->
                         Log.d(TAG, "Messages Flow collected: ${incomingMessages.size} messages, chatId=$chatId, opponent=$opponent")
 
                         messageListMutex.withLock {
@@ -175,36 +205,34 @@ class ChatViewModel(
     }
 
     fun insertMessage(id: String, message: MessageDto, fromMAM: Boolean = false) {
-        viewModelScope.launch(Dispatchers.IO) {  // IO for merge/sort, then debounce flow for UI
+        viewModelScope.launch(Dispatchers.IO) {
             messageListMutex.withLock {
                 val idx = localMessageList.indexOfFirst { it.primary == message.primary }
                 if (idx == -1) {
-                    localMessageList.add(message)
-                    localMessageList.sortBy { it.sentTimestamp }
+                    // Binary insert (replaces add + sort)
+                    insertIntoSortedList(localMessageList, message)
                 } else {
+                    // Update in place (no sort needed)
                     localMessageList[idx] = message
                 }
             }
-            if (!fromMAM) {  // Persist only if not from MAM (avoids duplicate write)
+            if (!fromMAM) {
                 model.insertMessage(id, message)
             }
-            // Emit to debounced flow (UI update delayed 200ms)
+            // Emit (copy only once per message)
             messageUpdateFlow.tryEmit(localMessageList.toList())
-            Log.d(TAG, "Emitted to debounce flow: ${localMessageList.size} messages, fromMAM=$fromMAM")
+            Log.d(TAG, "Inserted message ${message.primary} at pos via binary search, total size=${localMessageList.size}, fromMAM=$fromMAM")
         }
     }
 
     fun insertMessagesFromReceiver(messages: List<MessageDto>) {
         viewModelScope.launch {
             model.insertMessagesFromReceiver(messages)
-            // Аналогично: force refresh
             val refreshed = model.getMessages()
             messageListMutex.withLock {
                 localMessageList.clear()
                 localMessageList.addAll(refreshed.sortedBy { it.sentTimestamp })
             }
-            // Emit to debounced flow
-            messageUpdateFlow.tryEmit(localMessageList.toList())
             withContext(Dispatchers.Main) {
                 _unreadCount.value = localMessageList.count { it.isUnread }
                 Log.d(TAG, "Force refresh after receiver insert: ${messages.size} new msgs")

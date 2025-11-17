@@ -877,6 +877,29 @@ class MessageArchiveManager(private val owner: String) {
 
             queryToReceivedCount[queryId] = (queryToReceivedCount[queryId] ?: 0) + count
 
+            if (complete) {
+                queryIdsMutex.withLock {
+                    val callbackItem = queryIds[queryId]
+                    callbackItem?.task?.let { task ->
+                        realm.writeBlocking {
+                            val chatPrimary = LastChatsStorageItem.genPrimary(
+                                task.jid ?: owner,
+                                owner,
+                                task.conversationType
+                            )
+                            val chat = query<LastChatsStorageItem>("primary = $0", chatPrimary).first().find()
+                            chat?.let {
+                                findLatest(it)?.apply {
+                                    isSynced = true
+                                    fullArchiveLoaded = true
+                                    Log.d(TAG, "MAM archive fully loaded for chat $chatPrimary (complete=true)")
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             queryIdsMutex.withLock {
                 val callbackItem = queryIds[queryId]
                 if (callbackItem != null) {

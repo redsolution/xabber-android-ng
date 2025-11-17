@@ -44,12 +44,8 @@ class ChatModel(
         return realm.query<LastChatsStorageItem>("primary = $0", chatId)
             .asFlow()
             .map { changes ->
-                when (changes) {
-                    is ResultsChange<*> -> changes.list.firstOrNull()?.toChatListDto()
-                    else -> changes.list.firstOrNull()?.toChatListDto()
-                }
+                    changes.list.firstOrNull()?.toChatListDto()
             }
-            .debounce(500L)
     }
 
     fun observeMessages(): Flow<List<MessageDto>> {

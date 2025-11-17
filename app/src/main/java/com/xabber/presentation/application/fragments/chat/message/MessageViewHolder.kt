@@ -33,6 +33,7 @@ import com.xabber.utils.StringUtils
 import com.xabber.utils.StringUtils.getDateStringForMessage
 import com.xabber.utils.custom.CorrectlyTouchEventTextView
 import com.xabber.utils.custom.PlayerVisualizerView
+import java.io.File
 import java.util.*
 import java.util.concurrent.TimeUnit
 
@@ -91,13 +92,11 @@ abstract class MessageViewHolder(
         if (message.displayType != MessageDisplayType.System) {
             if (message.references.size > 0) {
                 if (message.references[0].isGeo) {
-                    setIsRecyclable(false) // Prevent recycling for geo messages
+                    // REMOVED: setIsRecyclable(false/true) - unnecessary for sync inflate, causes recycling mismatches
                     addGeoLocationBox(message, message.references[0].latitude, message.references[0].longitude)
-                    setIsRecyclable(true)
                 } else if (message.references[0].isVoiceMessage) {
-                    setIsRecyclable(false) // Prevent recycling for voice messages
+                    // REMOVED: setIsRecyclable(false/true) - unnecessary for sync inflate, causes recycling mismatches
                     addVoiceMessageBox(message.references[0].uri!!, message)
-                    setIsRecyclable(true)
                 } else {
                     // No need to setIsRecyclable for normal media/files
                     if (images.isNotEmpty()) addImageAndVideoBox(message, images)

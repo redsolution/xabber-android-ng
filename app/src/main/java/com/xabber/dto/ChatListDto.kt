@@ -20,7 +20,7 @@ data class ChatListDto(
     val lastMessageDate: Long = 0L,
     var lastMessageState: MessageSendingState = MessageSendingState.None,
     val isArchived: Boolean = false,
-    val isSynced: Boolean = true,
+    val isSynced: Boolean = false,
     var draftMessage: String? = null,
     val hasAttachment: Boolean = false,    // вложения
     val isSystemMessage: Boolean = false,  // курсивом
