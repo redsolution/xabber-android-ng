@@ -43,14 +43,11 @@ class MessageAdapter(
         fun onLocationClick(latitude: Double, longitude: Double)
     }
 
-    init {
-        setHasStableIds(true)
 
-    }
 
-    override fun getItemId(position: Int): Long {
-        return getItem(position).primary.hashCode().toLong()
-    }
+//    override fun getItemId(position: Int): Long {
+//        return getItem(position).primary.hashCode().toLong()
+//    }
 
     override fun getItemViewType(position: Int): Int {
         val message = getItem(position)

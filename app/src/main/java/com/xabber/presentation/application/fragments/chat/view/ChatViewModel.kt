@@ -11,9 +11,18 @@ import com.xabber.dto.ChatListDto
 import com.xabber.dto.MessageDto
 import com.xabber.presentation.application.fragments.chat.view.ChatModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.shareIn
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.debounce
@@ -70,17 +79,14 @@ class ChatViewModel(
     private var isLoadingHistoryFromView = false
 
     // Debounce flow for rapid message inserts (prevents UI jumping)
-    private val messageUpdateFlow = MutableSharedFlow<List<MessageDto>>(replay = 1)
-    private val debounceJob = viewModelScope.launch(SupervisorJob()) {
-        messageUpdateFlow
-            .debounce(200)  // ← ADD: 200ms debounce to batch rapid inserts (tune as needed)
-            .distinctUntilChanged()  // ← ADD: Skip identical lists
-            .collectLatest { debouncedList ->
-                _messages.value = debouncedList
-                _unreadCount.value = debouncedList.count { it.isUnread }
-                Log.d(TAG, "Debounced UI update: ${debouncedList.size} messages")
-            }
-    }
+    private val _messagesTrigger = Channel<Unit>(Channel.CONFLATED)
+    @OptIn(FlowPreview::class)
+    private val messagesFlow = _messagesTrigger.receiveAsFlow()
+        .onStart { emit(Unit) }
+        .map { localMessageList } // ← БЕЗ toList()! Уже безопасно
+        .debounce(400)
+        .distinctUntilChanged()
+        .shareIn(viewModelScope, SharingStarted.Lazily, replay = 1)
 
     private val TAG = "ChatViewModel"
 
@@ -89,6 +95,14 @@ class ChatViewModel(
         initMessagesListener()
         loadInitialData()
         markAllAsRead()
+
+        viewModelScope.launch(Dispatchers.Main) {
+            messagesFlow.collect { list ->
+                _messages.value = list
+                _unreadCount.value = list.count { it.isUnread }
+                if (!isLoadingHistoryFromView) _isLoading.value = false
+            }
+        }
     }
     fun setLoadingHistory(isLoading: Boolean) {
         isLoadingHistoryFromView = isLoading
@@ -160,15 +174,8 @@ class ChatViewModel(
                             val unreadCount = localMessageList.count { it.isUnread }
                             Log.d(TAG, "Collected messages from Flow: ${localMessageList.size} messages, $unreadCount unread, first=${localMessageList.firstOrNull()?.primary}, last=${localMessageList.lastOrNull()?.primary}, lastMessageId=${localMessageList.lastOrNull()?.archivedId}")
 
-                            // Переключаемся на Main для UI-обновлений (как в оригинале)
-                            withContext(Dispatchers.Main) {
-                                _messages.value = localMessageList
-                                _unreadCount.value = unreadCount
-                                if (!isLoadingHistoryFromView) {
-                                    _isLoading.value = false  // Скрываем только если НЕ пагинация
-                                    Log.d(TAG, "Hiding ProgressBar after Flow update...")
-                                }
-                            }
+
+                            _messagesTrigger.trySend(Unit)
                         }
                     }
             } catch (e: Exception) {
@@ -220,7 +227,7 @@ class ChatViewModel(
                 model.insertMessage(id, message)
             }
             // Emit (copy only once per message)
-            messageUpdateFlow.tryEmit(localMessageList.toList())
+            _messagesTrigger.trySend(Unit)
             Log.d(TAG, "Inserted message ${message.primary} at pos via binary search, total size=${localMessageList.size}, fromMAM=$fromMAM")
         }
     }
@@ -353,7 +360,6 @@ class ChatViewModel(
         messagesJob?.cancel()
         chatJob?.cancel()
         loadingJob?.cancel()
-        debounceJob.cancel()  // Cancel debounce flow
         model.close()
     }
 }

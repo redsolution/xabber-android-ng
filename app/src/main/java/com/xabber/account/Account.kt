@@ -787,211 +787,212 @@ class Account : XMPPStreamDelegate {
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
-    override suspend fun didReceiveMessage(message: String, stream: Stream): Boolean {
-        try {
-            val xmppMessage = XMPPMessage(message)
-            var messageId = xmppMessage.id
-            var isChatState = false
-            var innerMessageId: String? = null
-            var innerFrom: String? = null
-            var innerTo: String? = null
-            var innerBody: String? = null
-            var innerType: String? = null
-            var innerLang: String? = null
-            var outerFrom: String? = null  // ← НОВОЕ: from/to из внешнего <message>
-            var outerTo: String? = null    // ← НОВОЕ: from/to из внешнего <message>
-            var inForwarded = false
-            var isArchived = false
-            var isCarbon = false
-            var isTmpArchived = false     // ← НОВОЕ: для urn:xmpp:mam:tmp
+    override fun didReceiveMessage(message: XMPPMessage, stream: Stream) {
 
-            val factory = XmlPullParserFactory.newInstance()
-            factory.isNamespaceAware = true
-            val parser = factory.newPullParser()
-            parser.setInput(nl.adaptivity.xmlutil.core.impl.multiplatform.StringReader(message))
-            var eventType = parser.eventType
-
-            while (eventType != XmlPullParser.END_DOCUMENT) {
-                try {
-                    when (eventType) {
-                        XmlPullParser.START_TAG -> {
-                            val tagName = parser.name
-                            val namespace = parser.namespace
-
-                            if (tagName == "message" && (namespace == "jabber:client" || namespace.isEmpty())) {
-                                // Сохраняем from/to из внешнего message
-                                outerFrom = parser.getAttributeValue(null, "from")?.let { XMPPJID(it).bare() }
-                                outerTo = parser.getAttributeValue(null, "to")?.let { XMPPJID(it).bare() }
-
-                                if (!inForwarded) {
-                                    messageId = parser.getAttributeValue(null, "id") ?: "unknown_${System.currentTimeMillis()}"
-                                } else {
-                                    innerMessageId = parser.getAttributeValue(null, "id") ?: "unknown_${System.currentTimeMillis()}"
-                                    innerFrom = parser.getAttributeValue(null, "from")?.let { XMPPJID(it).bare() }
-                                    innerTo = parser.getAttributeValue(null, "to")?.let { XMPPJID(it).bare() }
-                                    innerType = parser.getAttributeValue(null, "type")
-                                    innerLang = parser.getAttributeValue(null, "xml:lang")
-                                }
-                            } else if (tagName == "result" && namespace == "urn:xmpp:mam:2") {
-                                messageId = parser.getAttributeValue(null, "id") ?: messageId
-                                inForwarded = true
-                                isArchived = true
-                            } else if (tagName == "sent" && namespace == "urn:xmpp:carbons:2") {
-                                isCarbon = true
-                                inForwarded = true
-                            } else if (tagName == "archived" && namespace == "urn:xmpp:mam:tmp") {
-                                isTmpArchived = true
-                                inForwarded = true  // ← Ключ: включаем парсинг body
-                            } else if (tagName == "forwarded" && namespace == "urn:xmpp:forward:0") {
-                                inForwarded = true
-                            } else if (tagName in listOf("active", "composing", "inactive", "received", "displayed") &&
-                                (namespace == "http://jabber.org/protocol/chatstates" || namespace == "urn:xmpp:chat-markers:0")) {
-                                isChatState = true
-                            } else if (tagName == "body" && inForwarded) {
-                                parser.next()
-                                if (parser.eventType == XmlPullParser.TEXT) {
-                                    innerBody = parser.text.trim()
-                                }
-                            }
-                        }
-                        XmlPullParser.END_TAG -> {
-                            val tagName = parser.name
-                            if (tagName == "forwarded" && parser.namespace == "urn:xmpp:forward:0") {
-                                inForwarded = false
-                            }
-                        }
-                    }
-                } catch (e: XmlPullParserException) {
-                    Log.w(TAG, "Malformed XML encountered during parsing, stopping parse: ${e.message}")
-                    break
-                }
-                try {
-                    eventType = parser.next()
-                } catch (e: XmlPullParserException) {
-                    Log.w(TAG, "Failed to advance parser due to malformed XML: ${e.message}")
-                    break
-                }
-            }
-
-            messageId = innerMessageId ?: messageId
-
-            if (isChatState && innerBody.isNullOrEmpty()) {
-                Log.d(TAG, "Skipping chat state/marker: $messageId")
-                return true
-            }
-
-            // === КЛЮЧЕВОЕ: Используем outerFrom/outerTo для mam:tmp ===
-            val fromJid = innerFrom ?: outerFrom
-            val toJid = innerTo ?: outerTo
-            val body = innerBody ?: xmppMessage.body
-
-            // Лог для отладки
-            Log.d("MESSAGE_TYPE", "detecting, id=$messageId, from=$fromJid, to=$toJid, body=${body?.take(50)}")
-
-            if (fromJid == null || toJid == null || body == null) {
-                Log.w(TAG, "Skipping message with missing attributes: id=$messageId, from=$fromJid, to=$toJid, body=$body")
-                return false
-            }
-
-            val opponent = if (toJid != jid) toJid else fromJid
-            if (opponent == jid) {
-                Log.d(TAG, "Skipping self-message: $messageId")
-                return false
-            }
-
-            val realm = Realm.open(defaultRealmConfig())
-
-            // ФИКС: Генерируем primary на основе messageId (для runtime/carbon), но НЕ скипаем!
-            val primary = "${messageId}_$jid"
-            val existingMessage = realm.query<MessageStorageItem>("primary = $0", primary).first().find()
-            if (existingMessage != null) {
-                Log.d(TAG, "Message exists (will update): $primary")  // ← Изменено: лог + продолжаем
-            } else {
-                Log.d(TAG, "New message: $primary")
-            }
-
-            // === КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ: containerType ===
-            val containerType = when {
-                isArchived || isTmpArchived -> "archived"
-                isCarbon -> "forwarded"
-                else -> "runtime"
-            }
-
-            Log.d("MESSAGE_TYPE", "Final containerType=$containerType, id=$messageId, body=${body.take(50)}")
-
-            val innerMessage = when (containerType) {
-                "archived" -> XMPPMessage(
-                    raw = message,
-                    type = innerType ?: xmppMessage.type,
-                    id = innerMessageId ?: messageId,
-                    from = fromJid.let { XMPPJID(fullJID = it) },
-                    to = toJid.let { XMPPJID(fullJID = it) },
-                    lang = innerLang,
-                    body = body,
-                    children = xmppMessage.children
-                )
-                "forwarded" -> XMPPMessage(
-                    raw = message,
-                    type = innerType,
-                    id = innerMessageId,
-                    from = innerFrom?.let { XMPPJID(fullJID = it) },
-                    to = innerTo?.let { XMPPJID(fullJID = it) },
-                    lang = innerLang,
-                    body = innerBody,
-                    children = xmppMessage.children
-                )
-                else -> xmppMessage  // runtime
-            }
-
-            // Сохраняем временную станцу только для runtime (если не существует)
-            val tempStanza = realm.query<TemporaryMessageStanzaStorageItem>(
-                "primary = $0 AND isProcessed = false", TemporaryMessageStanzaStorageItem.genPrimary(messageId!!, jid)
-            ).first().find()
-
-            if (tempStanza == null && !isChatState && containerType == "runtime") {
-                realm.write {
-                    val newTempStanza = TemporaryMessageStanzaStorageItem().apply {
-                        this.messageId = messageId
-                        this.primary = primary
-                        this.owner = jid
-                        this.jid = opponent
-                        this.isProcessed = false
-                        this.date = parseTimestamp(xmppMessage)!!
-                        this.stanza = message
-                    }
-                    copyToRealm(newTempStanza, UpdatePolicy.ALL)
-                }
-            }
-
-            when (containerType) {
-                "archived" -> {
-                    messageArchiveManager.readMessage(message, updateLastChat = true)  // ← Upsert здесь
-                }
-                "forwarded" -> {
-                    messageReceiver.receiveCarbon(innerMessage)  // ← Upsert в receiveCarbon
-                }
-                "runtime" -> {
-                    messageReceiver.receiveRuntime(innerMessage)  // ← Upsert в receiveRuntime
-                    chatMarkers.read(innerMessage)
-                }
-            }
-
-            if (tempStanza != null) {
-                realm.write {
-                    val latest = findLatest(tempStanza)
-                    if (latest != null) {
-                        latest.isProcessed = true
-                    }
-                }
-            }
-            realm.close()
-
-            return true
-        } catch (e: Exception) {
-            Log.e(TAG, "Error handling message: ${e.message}, stanza=$message", e)
-            // Do not set stream.state = StreamState.NOT_CONNECTING for parsing errors to avoid disconnecting on malformed messages
-            return false
-        }
+//        try {
+//            val xmppMessage = XMPPMessage(message)
+//            var messageId = xmppMessage.id
+//            var isChatState = false
+//            var innerMessageId: String? = null
+//            var innerFrom: String? = null
+//            var innerTo: String? = null
+//            var innerBody: String? = null
+//            var innerType: String? = null
+//            var innerLang: String? = null
+//            var outerFrom: String? = null  // ← НОВОЕ: from/to из внешнего <message>
+//            var outerTo: String? = null    // ← НОВОЕ: from/to из внешнего <message>
+//            var inForwarded = false
+//            var isArchived = false
+//            var isCarbon = false
+//            var isTmpArchived = false     // ← НОВОЕ: для urn:xmpp:mam:tmp
+//
+//            val factory = XmlPullParserFactory.newInstance()
+//            factory.isNamespaceAware = true
+//            val parser = factory.newPullParser()
+//            parser.setInput(nl.adaptivity.xmlutil.core.impl.multiplatform.StringReader(message))
+//            var eventType = parser.eventType
+//
+//            while (eventType != XmlPullParser.END_DOCUMENT) {
+//                try {
+//                    when (eventType) {
+//                        XmlPullParser.START_TAG -> {
+//                            val tagName = parser.name
+//                            val namespace = parser.namespace
+//
+//                            if (tagName == "message" && (namespace == "jabber:client" || namespace.isEmpty())) {
+//                                // Сохраняем from/to из внешнего message
+//                                outerFrom = parser.getAttributeValue(null, "from")?.let { XMPPJID(it).bare() }
+//                                outerTo = parser.getAttributeValue(null, "to")?.let { XMPPJID(it).bare() }
+//
+//                                if (!inForwarded) {
+//                                    messageId = parser.getAttributeValue(null, "id") ?: "unknown_${System.currentTimeMillis()}"
+//                                } else {
+//                                    innerMessageId = parser.getAttributeValue(null, "id") ?: "unknown_${System.currentTimeMillis()}"
+//                                    innerFrom = parser.getAttributeValue(null, "from")?.let { XMPPJID(it).bare() }
+//                                    innerTo = parser.getAttributeValue(null, "to")?.let { XMPPJID(it).bare() }
+//                                    innerType = parser.getAttributeValue(null, "type")
+//                                    innerLang = parser.getAttributeValue(null, "xml:lang")
+//                                }
+//                            } else if (tagName == "result" && namespace == "urn:xmpp:mam:2") {
+//                                messageId = parser.getAttributeValue(null, "id") ?: messageId
+//                                inForwarded = true
+//                                isArchived = true
+//                            } else if (tagName == "sent" && namespace == "urn:xmpp:carbons:2") {
+//                                isCarbon = true
+//                                inForwarded = true
+//                            } else if (tagName == "archived" && namespace == "urn:xmpp:mam:tmp") {
+//                                isTmpArchived = true
+//                                inForwarded = true  // ← Ключ: включаем парсинг body
+//                            } else if (tagName == "forwarded" && namespace == "urn:xmpp:forward:0") {
+//                                inForwarded = true
+//                            } else if (tagName in listOf("active", "composing", "inactive", "received", "displayed") &&
+//                                (namespace == "http://jabber.org/protocol/chatstates" || namespace == "urn:xmpp:chat-markers:0")) {
+//                                isChatState = true
+//                            } else if (tagName == "body" && inForwarded) {
+//                                parser.next()
+//                                if (parser.eventType == XmlPullParser.TEXT) {
+//                                    innerBody = parser.text.trim()
+//                                }
+//                            }
+//                        }
+//                        XmlPullParser.END_TAG -> {
+//                            val tagName = parser.name
+//                            if (tagName == "forwarded" && parser.namespace == "urn:xmpp:forward:0") {
+//                                inForwarded = false
+//                            }
+//                        }
+//                    }
+//                } catch (e: XmlPullParserException) {
+//                    Log.w(TAG, "Malformed XML encountered during parsing, stopping parse: ${e.message}")
+//                    break
+//                }
+//                try {
+//                    eventType = parser.next()
+//                } catch (e: XmlPullParserException) {
+//                    Log.w(TAG, "Failed to advance parser due to malformed XML: ${e.message}")
+//                    break
+//                }
+//            }
+//
+//            messageId = innerMessageId ?: messageId
+//
+//            if (isChatState && innerBody.isNullOrEmpty()) {
+//                Log.d(TAG, "Skipping chat state/marker: $messageId")
+//                return true
+//            }
+//
+//            // === КЛЮЧЕВОЕ: Используем outerFrom/outerTo для mam:tmp ===
+//            val fromJid = innerFrom ?: outerFrom
+//            val toJid = innerTo ?: outerTo
+//            val body = innerBody ?: xmppMessage.body
+//
+//            // Лог для отладки
+//            Log.d("MESSAGE_TYPE", "detecting, id=$messageId, from=$fromJid, to=$toJid, body=${body?.take(50)}")
+//
+//            if (fromJid == null || toJid == null || body == null) {
+//                Log.w(TAG, "Skipping message with missing attributes: id=$messageId, from=$fromJid, to=$toJid, body=$body")
+//                return false
+//            }
+//
+//            val opponent = if (toJid != jid) toJid else fromJid
+//            if (opponent == jid) {
+//                Log.d(TAG, "Skipping self-message: $messageId")
+//                return false
+//            }
+//
+//            val realm = Realm.open(defaultRealmConfig())
+//
+//            // ФИКС: Генерируем primary на основе messageId (для runtime/carbon), но НЕ скипаем!
+//            val primary = "${messageId}_$jid"
+//            val existingMessage = realm.query<MessageStorageItem>("primary = $0", primary).first().find()
+//            if (existingMessage != null) {
+//                Log.d(TAG, "Message exists (will update): $primary")  // ← Изменено: лог + продолжаем
+//            } else {
+//                Log.d(TAG, "New message: $primary")
+//            }
+//
+//            // === КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ: containerType ===
+//            val containerType = when {
+//                isArchived || isTmpArchived -> "archived"
+//                isCarbon -> "forwarded"
+//                else -> "runtime"
+//            }
+//
+//            Log.d("MESSAGE_TYPE", "Final containerType=$containerType, id=$messageId, body=${body.take(50)}")
+//
+//            val innerMessage = when (containerType) {
+//                "archived" -> XMPPMessage(
+//                    raw = message,
+//                    type = innerType ?: xmppMessage.type,
+//                    id = innerMessageId ?: messageId,
+//                    from = fromJid.let { XMPPJID(fullJID = it) },
+//                    to = toJid.let { XMPPJID(fullJID = it) },
+//                    lang = innerLang,
+//                    body = body,
+//                    children = xmppMessage.children
+//                )
+//                "forwarded" -> XMPPMessage(
+//                    raw = message,
+//                    type = innerType,
+//                    id = innerMessageId,
+//                    from = innerFrom?.let { XMPPJID(fullJID = it) },
+//                    to = innerTo?.let { XMPPJID(fullJID = it) },
+//                    lang = innerLang,
+//                    body = innerBody,
+//                    children = xmppMessage.children
+//                )
+//                else -> xmppMessage  // runtime
+//            }
+//
+//            // Сохраняем временную станцу только для runtime (если не существует)
+//            val tempStanza = realm.query<TemporaryMessageStanzaStorageItem>(
+//                "primary = $0 AND isProcessed = false", TemporaryMessageStanzaStorageItem.genPrimary(messageId!!, jid)
+//            ).first().find()
+//
+//            if (tempStanza == null && !isChatState && containerType == "runtime") {
+//                realm.write {
+//                    val newTempStanza = TemporaryMessageStanzaStorageItem().apply {
+//                        this.messageId = messageId
+//                        this.primary = primary
+//                        this.owner = jid
+//                        this.jid = opponent
+//                        this.isProcessed = false
+//                        this.date = parseTimestamp(xmppMessage)!!
+//                        this.stanza = message
+//                    }
+//                    copyToRealm(newTempStanza, UpdatePolicy.ALL)
+//                }
+//            }
+//
+//            when (containerType) {
+//                "archived" -> {
+//                    messageArchiveManager.readMessage(message, updateLastChat = true)  // ← Upsert здесь
+//                }
+//                "forwarded" -> {
+//                    messageReceiver.receiveCarbon(innerMessage)  // ← Upsert в receiveCarbon
+//                }
+//                "runtime" -> {
+//                    messageReceiver.receiveRuntime(innerMessage)  // ← Upsert в receiveRuntime
+//                    chatMarkers.read(innerMessage)
+//                }
+//            }
+//
+//            if (tempStanza != null) {
+//                realm.write {
+//                    val latest = findLatest(tempStanza)
+//                    if (latest != null) {
+//                        latest.isProcessed = true
+//                    }
+//                }
+//            }
+//            realm.close()
+//
+//            return true
+//        } catch (e: Exception) {
+//            Log.e(TAG, "Error handling message: ${e.message}, stanza=$message", e)
+//            // Do not set stream.state = StreamState.NOT_CONNECTING for parsing errors to avoid disconnecting on malformed messages
+//            return false
+//        }
     }
 
     override suspend fun streamDidConnect(stream: Stream): Boolean {
@@ -1008,32 +1009,25 @@ class Account : XMPPStreamDelegate {
     }
 
     override suspend fun streamBinding(stream: Stream): Boolean {
-        try {
-            val bindId = NanoId.generateOptimized(9, "_-0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", 63, 16)
-            val resourceId = NanoId.generateOptimized(8, "0123456789ABC Chaz6", 63, 16)
-            val bindRequest = """
+        val bindId = NanoId.generateOptimized(9, "_-0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", 63, 16)
+        val resourceId = NanoId.generateOptimized(8, "0123456789ABC Chaz6", 63, 16)
+        val bindRequest = """
                 <iq type='set' id='$bindId'>
                     <bind xmlns='urn:ietf:params:xml:ns:xmpp-bind'>
                         <resource>xabber-android-$resourceId</resource>
                     </bind>
                 </iq>
             """.trimIndent()
-            return withContext(Dispatchers.IO) {
-                if (stream.socket?.write(bindRequest) == true) {
-                    Log.d(TAG, "Sent bind request for JID: $jid")
-                    true
-                } else {
-                    Log.e(TAG, "Failed to send bind request for JID: $jid")
-                    onErrorCallback?.invoke("Failed to send resource binding request")
-                    stream.state = StreamState.NOT_CONNECTING
-                    false
-                }
+        return withContext(Dispatchers.IO) {
+            if (stream.socket?.write(bindRequest) == true) {
+                Log.d(TAG, "Sent bind request for JID: $jid")
+                true
+            } else {
+                Log.e(TAG, "Failed to send bind request for JID: $jid")
+                onErrorCallback?.invoke("Failed to send resource binding request")
+                stream.state = StreamState.NOT_CONNECTING
+                false
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error during resource binding for JID: $jid: ${e.message}", e)
-            onErrorCallback?.invoke("Resource binding error: ${e.message}")
-            stream.state = StreamState.NOT_CONNECTING
-            return false
         }
     }
 
@@ -1274,45 +1268,47 @@ class Account : XMPPStreamDelegate {
     }
 
     override suspend fun streamCarbonsSend(stream: Stream): Boolean = withContext(Dispatchers.IO) {
-        if (stream.state != StreamState.CONNECTED) {
-            Log.w(
-                TAG,
-                "Cannot send carbons enable: Stream is not in CONNECTED state, current state: ${stream.state}"
-            )
-            onErrorCallback?.invoke("Cannot send carbons enable: Not connected")
-            return@withContext false
-        }
-        if (stream.socket == null || stream.socket?.getSocket()?.isClosed == true) {
-            Log.e(TAG, "Cannot send carbons enable: Socket is null or closed")
-            onErrorCallback?.invoke("Cannot send carbons enable: Connection closed")
-            stream.state = StreamState.NOT_CONNECTING
-            return@withContext false
-        }
-        try {
-            val id = NanoId.generateOptimized(
-                9,
-                "_-0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ",
-                63,
-                16
-            )
-            val carbonsStanza = """
+
+        val id = NanoId.generateOptimized(
+            9,
+            "_-0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ",
+            63,
+            16
+        )
+        val carbonsStanza = """
                 <iq type="set" to="$jid" id="$id">
                     <enable xmlns="urn:xmpp:carbons:2"/>
                 </iq>
             """.trimIndent()
-            if (stream.socket?.write(carbonsStanza) == true) {
-                Log.d(TAG, "Sent carbons enable stanza for JID: $jid with id: $id")
-                return@withContext true
-            } else {
-                Log.e(TAG, "Failed to send carbons enable stanza for JID: $jid")
-                onErrorCallback?.invoke("Failed to send carbons enable stanza")
-                return@withContext false
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error sending carbons enable for JID: $jid: ${e.message}", e)
-            onErrorCallback?.invoke("Carbons enable error: ${e.message}")
+        if (stream.socket?.write(carbonsStanza) == true) {
+            Log.d(TAG, "Sent carbons enable stanza for JID: $jid with id: $id")
+            return@withContext true
+        } else {
+            Log.e(TAG, "Failed to send carbons enable stanza for JID: $jid")
+            onErrorCallback?.invoke("Failed to send carbons enable stanza")
             return@withContext false
         }
+
+//        if (stream.state != StreamState.CONNECTED) {
+//            Log.w(
+//                TAG,
+//                "Cannot send carbons enable: Stream is not in CONNECTED state, current state: ${stream.state}"
+//            )
+//            onErrorCallback?.invoke("Cannot send carbons enable: Not connected")
+//            return@withContext false
+//        }
+//        if (stream.socket == null || stream.socket?.getSocket()?.isClosed == true) {
+//            Log.e(TAG, "Cannot send carbons enable: Socket is null or closed")
+//            onErrorCallback?.invoke("Cannot send carbons enable: Connection closed")
+//            stream.state = StreamState.NOT_CONNECTING
+//            return@withContext false
+//        }
+//        try {
+//        } catch (e: Exception) {
+//            Log.e(TAG, "Error sending carbons enable for JID: $jid: ${e.message}", e)
+//            onErrorCallback?.invoke("Carbons enable error: ${e.message}")
+//            return@withContext false
+//        }
     }
 
     fun extractHostFromJid(jid: String): String {

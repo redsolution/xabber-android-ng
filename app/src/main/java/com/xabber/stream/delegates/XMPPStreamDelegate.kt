@@ -2,6 +2,7 @@ package com.xabber.stream.delegates
 
 import com.xabber.stream.Stream
 import com.xabber.stream.serializers.XMPPIQ
+import com.xabber.xmpp.messages.XMPPMessage
 
 interface XMPPStreamDelegate {
     suspend fun didReceiveIQ(iq: XMPPIQ, stream: Stream): Boolean
@@ -20,7 +21,7 @@ interface XMPPStreamDelegate {
 
     fun didReceiveProceed(proceed: String, stream: Stream): Boolean
 
-    suspend fun didReceiveMessage(message: String, stream: Stream): Boolean
+    fun didReceiveMessage(message: XMPPMessage, stream: Stream)
 
     suspend fun streamDidConnect(stream: Stream): Boolean
 

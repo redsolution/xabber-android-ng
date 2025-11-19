@@ -7,6 +7,8 @@ import com.xabber.stream.Stream
 import com.xabber.data_base.defaultRealmConfig
 import com.xabber.data_base.models.account.AccountStorageItem
 import com.xabber.data_base.models.last_chats.LastChatsStorageItem
+import com.xabber.data_base.models.messages.MessageForwardsInlineStorageItem
+import com.xabber.data_base.models.messages.MessageForwardsInlineStorageItemKind
 import com.xabber.data_base.models.messages.MessageReferenceStorageItem
 import com.xabber.data_base.models.messages.MessageSendingState
 import com.xabber.data_base.models.messages.MessageStorageItem
@@ -681,10 +683,21 @@ class MessageArchiveManager(private val owner: String) {
                 ?.getAttribute("timer")?.toDoubleOrNull() ?: 0.0
 
             // === КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: isRead для mam:tmp ===
-            var isRead = if (isTmpArchived) {
+            val isRead = if (isTmpArchived) {
                 originalOutgoing  // для tmp — unread если incoming
             } else {
                 true  // для старого MAM из <result> — всегда read
+            }
+
+            val hasForwardedReference = xmppMessage.children.any { child ->
+                child.name == "reference" &&
+                        child.namespace == "https://xabber.com/protocol/references" &&
+                        child.element("forwarded", namespace = "urn:xmpp:forward") != null
+            }
+
+            if (hasForwardedReference) {
+                Log.d(TAG, "Skipping forwarded message (will be processed as inline forward): archivedId=$archivedIdFromTmp")
+                return@withContext null // ← Полностью скипаем сохранение как MessageStorageItem
             }
 
             // Create message instance
@@ -781,47 +794,50 @@ class MessageArchiveManager(private val owner: String) {
         }
     }
 
+
+
     private fun extractReferences(message: XMPPMessage): RealmList<MessageReferenceStorageItem> {
         val references = realmListOf<MessageReferenceStorageItem>()
 
-        // 1. Handle file uploads via <reference> (XEP-0363: HTTP File Upload)
-        message.element("reference", namespace = "urn:xmpp:reference:0")?.let { ref ->
-            val uri = ref.getAttribute("uri") ?: return@let
-            val mimeType = ref.getAttribute("type")
-            val size = ref.getAttribute("size")?.toLongOrNull() ?: 0L
-            val fileName = ref.getAttribute("name")
+        message.children.forEach { child ->
+            if (child.name == "reference" && child.namespace == "https://xabber.com/protocol/references") {
+                val forwarded = child.element("forwarded", namespace = "urn:xmpp:forward:0")
+                val forwardedMessage = forwarded?.element("message", namespace = "jabber:client")
 
-            val refItem = MessageReferenceStorageItem().apply {
-                primary = "${message.id ?: System.currentTimeMillis()}_file_${NanoId.generateOptimized(6, nanoIdAlphabet, nanoIdMask, nanoIdStep)}"
-                this.uri = uri
-                this.mimeType = mimeType!!
-                fileSize = size
-                this.fileName = fileName!!
+                if (forwardedMessage != null) {
+                    // Это пересланное сообщение — сохраняем как inline forward
+                    val inlineForward = MessageForwardsInlineStorageItem().apply {
+                        messageId = forwardedMessage.getAttribute("id") ?: ""
+                        owner = this@MessageArchiveManager.owner
+                        jid = forwardedMessage.getAttribute("from") ?: ""
+                        forwardJid = jid
+                        forwardNickname = "" // можно заполнить из roster
+                        body = forwardedMessage.element("body")?.textContent ?: ""
+                        kind_ = MessageForwardsInlineStorageItemKind.quote.rawValue
+                        isOutgoing = false
+                        originalDate = parseTimestamp(XMPPMessage(forwardedMessage.raw))
+                    }
+                    // Если нужно — рекурсивно обработать вложенные forwards
+                    // inlineForward.subforwards.addAll(...)
+
+                    // Но главное — НЕ создаём MessageStorageItem!
+                    Log.d(TAG, "Detected inline forward: ${inlineForward.body.take(50)}")
+                    return realmListOf() // ← Возвращаем пустой список references
+                } else {
+                    // Обычная reference (файл, гео и т.д.)
+                    val uri = child.getAttribute("uri") ?: return@forEach
+                    val refItem = MessageReferenceStorageItem().apply {
+                        primary = "${child.getAttribute("id") ?: System.currentTimeMillis()}_ref"
+                        this.uri = uri
+                        mimeType = child.getAttribute("type") ?: ""
+                        fileSize = child.getAttribute("size")?.toLongOrNull() ?: 0L
+                        fileName = child.getAttribute("name") ?: ""
+                        isGeo = child.getAttribute("type") == "geo"
+                    }
+                    references.add(refItem)
+                }
             }
-            references.add(refItem)
         }
-
-        // 2. Handle geo location (XEP-0080: User Location)
-        message.element("geoloc", namespace = "http://jabber.org/protocol/geoloc")?.let { geo ->
-            val latElement = geo.element("lat")
-            val lonElement = geo.element("lon")
-            val latStr = latElement?.textContent?.trim()
-            val lonStr = lonElement?.textContent?.trim()
-
-            val lat = latStr?.toDoubleOrNull() ?: return@let
-            val lon = lonStr?.toDoubleOrNull() ?: return@let
-
-            val refItem = MessageReferenceStorageItem().apply {
-                primary = "${message.id ?: System.currentTimeMillis()}_geo_${NanoId.generateOptimized(6, nanoIdAlphabet, nanoIdMask, nanoIdStep)}"
-                isGeo = true
-                latitude = lat
-                longitude = lon
-            }
-            references.add(refItem)
-        }
-
-        // 3. (Optional) Handle other reference types in the future
-        // For example: <reference type="data" ...> for inline data, images, etc.
 
         return references
     }
@@ -918,11 +934,20 @@ class MessageArchiveManager(private val owner: String) {
                             }
                         }
                     }
-                    if (task.isContinues && !complete && count > 0) {
-                        val continueUid = if (task.backward) first else last
-                        continueLoadHistory(stream, task, continueUid)
+                    if (task.isContinues) {
+                        if (!complete && count > 0) {
+                            val continueUid = if (task.backward) first else last
+                            continueLoadHistory(stream, task, continueUid)
+                        } else {
+                            // Последняя страница — завершаем
+                            delay(300L) // чуть меньше, чтобы не ждать лишнего
+                            callbackItem.callback?.invoke()
+                            callbacksQueue.remove(callbackItem)
+                            interactiveQueue.remove(queryId)
+                            queryIds.remove(queryId)
+                        }
                     } else {
-                        delay(1000L)
+                        // Не continues — просто завершаем
                         callbackItem.callback?.invoke()
                         callbacksQueue.remove(callbackItem)
                         interactiveQueue.remove(queryId)

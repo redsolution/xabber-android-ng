@@ -16,6 +16,7 @@ package com.xabber.stream
     import com.xabber.dto.MessageDto
     import com.xabber.dto.MessageReferenceDto
     import com.xabber.utils.parseTimestamp
+    import com.xabber.utils.parseXMPPDate
     import com.xabber.utils.toMessageReferenceDto
     import com.xabber.xmpp.dns.DNSResolver
     import com.xabber.xmpp.jid.XMPPJID
@@ -197,7 +198,7 @@ package com.xabber.stream
                 Log.d(TAG, "XMPP stream initiation started, waiting for server response")
                 clearStaleTemporaryMessages()
                 logUnprocessedMessages(jid)
-                retryUnprocessedMessages()
+//                retryUnprocessedMessages()
                 debugDatabaseState()
                 return@withContext null
             } catch (e: Exception) {
@@ -352,11 +353,13 @@ package com.xabber.stream
                         try {
                             when (tagName) {
                                 "iq" -> {
+//                                    TODO val result = delegate call result, addd return XMPP ERROR Stanza, <iq type=error
                                     val iq = parseIQ(stanza)
                                     delegate?.didReceiveIQ(iq!!, this@Stream)
                                 }
                                 "message" -> {
-                                    delegate?.didReceiveMessage(stanza, this@Stream)
+                                    val message = parseMessage(stanza)!!
+                                    delegate?.didReceiveMessage(message, this@Stream)
                                 }
                                 "presence" -> {
                                     delegate?.didReceivePresence(stanza, this@Stream)
@@ -410,7 +413,7 @@ package com.xabber.stream
                         Log.w(TAG, "Skipping invalid queue item: id=${item.message.id}, from=${item.message.from?.bare()}, to=${item.message.to?.bare()}, stanza=${item.stanza}")
                         return@withLock
                     }
-                    val messageId = item.message.id!!
+                    val messageId = item.message.id
                     if (messageId in processedIds) {
                         Log.d(TAG, "Already processed messageId=$messageId, checking if in MessageStorageItem")
                         val realm = Realm.open(defaultRealmConfig())
@@ -598,22 +601,23 @@ package com.xabber.stream
         }
 
         suspend fun retryUnprocessedMessages() {
-            val realm = Realm.open(defaultRealmConfig())
-            val unprocessed = realm.query<TemporaryMessageStanzaStorageItem>("owner = $0 AND isProcessed = false", jid).find()
-            unprocessed.forEach { stanza ->
-                Log.d(TAG, "Retrying unprocessed message: id=${stanza.messageId}, primary=${stanza.primary}, stanza=${stanza.stanza}")
-                withContext(Dispatchers.IO) {
-                    delegate?.didReceiveMessage(stanza.stanza, this@Stream)
-                    realm.write {
-                        val latest = findLatest(stanza)
-                        if (latest != null) {
-                            latest.isProcessed = true
-                            Log.d(TAG, "Marked retried message as processed: id=${stanza.messageId}, primary=${stanza.primary}")
-                        }
-                    }
-                }
-            }
-            realm.close()
+//            val realm = Realm.open(defaultRealmConfig())
+//            val unprocessed = realm.query<TemporaryMessageStanzaStorageItem>("owner = $0 AND isProcessed = false", jid).find()
+//            unprocessed.forEach { stanza ->
+//                Log.d(TAG, "Retrying unprocessed message: id=${stanza.messageId}, primary=${stanza.primary}, stanza=${stanza.stanza}")
+//                withContext(Dispatchers.IO) {
+//
+//                    delegate?.didReceiveMessage(message, this@Stream)
+//                    realm.write {
+//                        val latest = findLatest(stanza)
+//                        if (latest != null) {
+//                            latest.isProcessed = true
+//                            Log.d(TAG, "Marked retried message as processed: id=${stanza.messageId}, primary=${stanza.primary}")
+//                        }
+//                    }
+//                }
+//            }
+//            realm.close()
         }
 
         suspend fun logUnprocessedMessages(owner: String) {
@@ -673,7 +677,72 @@ package com.xabber.stream
                     content
                 )
             } catch (e: Exception) {
-                Log.e(TAG, "Error parsing IQ: ${e.message}, stanza=$stanza", e)
+                Log.e(TAG, "Error parsing IQ: error ${e.message}, stanza=$stanza", e)
+                return null
+            }
+        }
+
+        fun parseMessage(stanza: String): XMPPMessage? {
+            try {
+
+                val type = Regex("""type=['"]([^'"]+)['"]""").find(stanza)?.groupValues?.get(1) ?: return null
+                val id = Regex("""id=['"]([^'"]+)['"]""").find(stanza)?.groupValues?.get(1)
+                val from: XMPPJID? = Regex("""from=["']([^"']+)["']""").find(stanza)?.groupValues?.get(1)
+                    ?.let { XMPPJID(it) }
+                val to: XMPPJID? = Regex("""to=["']([^"']+)["']""").find(stanza)?.groupValues?.get(1)
+                    ?.let { XMPPJID(it) }
+                val error = if (type == "error") {
+                    val errorStart = stanza.indexOf("<error")
+                    if (errorStart != -1) {
+                        val errorEnd = stanza.indexOf("</error>", errorStart) + 8
+                        stanza.substring(errorStart, errorEnd)
+                    } else null
+                } else null
+                val body = stanza.indexOf("<body").takeIf { it >= 0 }?.let { bodyStartIndex ->
+                    val bodyOpenEnd = stanza.indexOf('>', bodyStartIndex + 1).takeIf { it >= 0 } ?: return null
+                    val bodyCloseStart = stanza.indexOf("</body>", bodyOpenEnd).takeIf { it >= 0 } ?: return null
+                    stanza.substring(bodyOpenEnd + 1, bodyCloseStart).trim().takeIf { it.isNotEmpty() }
+                }
+                val thread = stanza.indexOf("<thread").takeIf { it >= 0 }?.let { start ->
+                    val openEnd = stanza.indexOf('>', start + 1).takeIf { it >= 0 } ?: return@let null
+                    val close = stanza.indexOf("</thread>", openEnd).takeIf { it >= 0 } ?: return@let null
+                    stanza.substring(openEnd + 1, close).trim().takeIf { it.isNotEmpty() }
+                }
+                val originId = """<origin-id[^>]+xmlns=['"]urn:xmpp:sid:0['"][^>]*id=['"]([^'"]+)['"]""".toRegex(RegexOption.IGNORE_CASE)
+                    .find(stanza)?.groupValues?.get(1)
+                    ?: """<origin-id[^>]+id=['"]([^'"]+)['"][^>]*xmlns=['"]urn:xmpp:sid:0['"]""".toRegex(RegexOption.IGNORE_CASE)
+                        .find(stanza)?.groupValues?.get(1)
+
+                val date = run {
+                    val delayMatch = """<delay[^>]+stamp=['"]([^'"]+)['"]""".toRegex(RegexOption.IGNORE_CASE).find(stanza)
+                    val timeMatch = """<time[^>]+stamp=['"]([^'"]+)['"]""".toRegex(RegexOption.IGNORE_CASE).find(stanza)
+
+                    val stamp = delayMatch?.groupValues?.get(1) ?: timeMatch?.groupValues?.get(1) ?: return@run null
+
+                    try {
+                        val cleaned = stamp.removeSuffix("Z").replace(Regex("\\.\\d{3,6}"), "")
+                        val instant = java.time.Instant.parse("${cleaned}Z")
+                        instant.toEpochMilli()
+                    } catch (e: Exception) {
+                        null
+                    }
+                }
+
+                return XMPPMessage(
+                    raw = stanza,
+                    type = type,
+                    id = id,
+                    from = from,
+                    to = to,
+                    body = body,
+                    date = date,
+                    thread = thread,
+                    error = error,
+                    originId = originId
+                )
+
+            } catch (e: Exception) {
+                Log.e(TAG, "Error parsing message: error ${e.message}, stanza=$stanza", e)
                 return null
             }
         }
@@ -707,13 +776,12 @@ package com.xabber.stream
             }
         }
 
-        open fun onNotConnecting() {}
-        open suspend fun onStreamOpen() {}
-        open suspend fun onProceed() {
+         fun onNotConnecting() {}
+         suspend fun onStreamOpen() {}
+         suspend fun onProceed() {
             Log.d(TAG, "Awaiting stream features after TLS upgrade for JID: $jid")
         }
-        open suspend fun onProcessAuth() {
+         suspend fun onProcessAuth() {
             Log.d(TAG, "Awaiting authentication response for JID: $jid")
         }
-        open suspend fun onConnected() {}
     }
