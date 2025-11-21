@@ -605,195 +605,137 @@ class MessageArchiveManager(private val owner: String) {
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
-    suspend fun readMessage(message: String, updateLastChat: Boolean = false): MessageStorageItem? = withContext(Dispatchers.IO) {
+    suspend fun readMessage(
+        message: XMPPMessage,
+        updateLastChat: Boolean = false,
+        queryId: String? = null  // теперь можно передать явно, если нужно
+    ): MessageStorageItem? = withContext(Dispatchers.IO) {
         val realm = Realm.open(defaultRealmConfig())
         try {
-            val factory = DocumentBuilderFactory.newInstance().apply { isNamespaceAware = true }
-            val document = factory.newDocumentBuilder().parse(message.byteInputStream())
-            val rootElement = document.documentElement
-
-            // === НОВАЯ ЛОГИКА: поддержка mam:tmp БЕЗ <result> ===
-            var forwardedMessageElement: Element? = null
-            var queryId: String? = null
-            var archivedIdFromTmp: String? = null
-            var isTmpArchived = false
-
-            // 1. Пытаемся найти <result> (классический MAM)
-            val resultElement = rootElement.getElementsByTagNameNS(namespace, "result").item(0) as? Element
-            if (resultElement != null) {
-                queryId = resultElement.getAttribute("queryid")
-                val forwarded = resultElement.getElementsByTagNameNS("urn:xmpp:forward:0", "forwarded").item(0) as? Element
-                forwardedMessageElement = forwarded?.getElementsByTagName("message")?.item(0) as? Element
-            } else {
-                // 2. Если нет <result> — ищем прямой <message> с <archived xmlns='urn:xmpp:mam:tmp'/>
-                if (rootElement.localName == "message" && (rootElement.namespaceURI == "jabber:client" || rootElement.namespaceURI.isNullOrEmpty())) {
-                    val archivedTmp = rootElement.getElementsByTagNameNS("urn:xmpp:mam:tmp", "archived").item(0) as? Element
-                    if (archivedTmp != null) {
-                        archivedIdFromTmp = archivedTmp.getAttribute("id").takeIf { it.isNotEmpty() }
-                        forwardedMessageElement = rootElement
-                        queryId = "tmp:${archivedTmp.getAttribute("by")}:${archivedIdFromTmp}"
-                        isTmpArchived = true
-                    }
-                }
-            }
-
-            if (forwardedMessageElement == null) {
+            // 1. Проверяем, это вообще сообщение с текстом или служебное
+            if (isChatStateOrMarker(message) || message.type == "headline") {
                 return@withContext null
             }
 
-            val xmppMessage = parseXMPPMessage(forwardedMessageElement) ?: return@withContext null
+            val from = message.from?.bare() ?: return@withContext null
+            val to = message.to?.bare() ?: return@withContext null
 
-            // Skip non-message elements
-            if (isChatStateOrMarker(xmppMessage) || xmppMessage.type == "headline") {
-                return@withContext null
-            }
-
-            val from = xmppMessage.from?.bare() ?: return@withContext null
-            val to = xmppMessage.to?.bare() ?: return@withContext null
-
-            val isGroupChat = xmppMessage.element("x", namespace = "https://xabber.com/protocol/groups") != null
+            val isGroupChat = message.hasElement("x", "https://xabber.com/protocol/groups")
             val conversationType = if (isGroupChat) ConversationType.Group else ConversationType.Regular
 
             val originalOutgoing = if (isGroupChat) {
-                val userId = xmppMessage.element("x", namespace = "https://xabber.com/protocol/groups")
-                    ?.element("reference", namespace = "https://xabber.com/protocol/references")
-                    ?.element("user", namespace = "https://xabber.com/protocol/groups")?.getAttribute("id")
-                userId == owner
+                message.element("x", "https://xabber.com/protocol/groups")
+                    ?.element("reference", "https://xabber.com/protocol/references")
+                    ?.element("user", "https://xabber.com/protocol/groups")
+                    ?.getAttribute("id") == owner
             } else {
                 from == owner
             }
 
-            val opponent = if (originalOutgoing) to else from
+            var opponent = if (originalOutgoing) to else from
+            if (opponent == owner) return@withContext null // self-message
 
-            var delayedDate = Date()
-            val delayElement = forwardedMessageElement.getElementsByTagNameNS("urn:xmpp:delay", "delay").item(0) as? Element
-            val stampStr = delayElement?.getAttribute("stamp") ?: xmppMessage.element("time", namespace = "https://xabber.com/protocol/delivery")?.getAttribute("stamp")
-            if (stampStr != null && stampStr.isNotEmpty()) {
-                try {
-                    val instant = Instant.parse(stampStr)
-                    delayedDate = Date.from(instant)
-                } catch (e: DateTimeParseException) {
-                    delayedDate = Date()
-                }
-            }
+            val timestamp = message.date?.let { Date(it) } ?: Date()
+            var body = message.body?.takeIf { it.isNotBlank() } ?: return@withContext null
 
-            val isEncrypted = xmppMessage.hasElement("encrypted", namespace = "urn:xmpp:omemo:2")
-            val omemoError = isEncrypted && !xmppMessage.hasElement("omemo-result__system", namespace = "urn:xmpp:omemo:0")
-            val afterburnInterval = xmppMessage.element("ephemeral", namespace = "urn:xmpp:ephemeral:0")
-                ?.getAttribute("timer")?.toDoubleOrNull() ?: 0.0
-
-            // === КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: isRead для mam:tmp ===
-            val isRead = if (isTmpArchived) {
-                originalOutgoing  // для tmp — unread если incoming
-            } else {
-                true  // для старого MAM из <result> — всегда read
-            }
-
-            val hasForwardedReference = xmppMessage.children.any { child ->
-                child.name == "reference" &&
-                        child.namespace == "https://xabber.com/protocol/references" &&
-                        child.element("forwarded", namespace = "urn:xmpp:forward") != null
-            }
+            // Пропускаем inline forwards — они обрабатываются отдельно
+            val hasForwardedReference = message.elements("reference", "https://xabber.com/protocol/references")
+                .any { it.element("forwarded", "urn:xmpp:forward:0") != null }
 
             if (hasForwardedReference) {
-                Log.d(TAG, "Skipping forwarded message (will be processed as inline forward): archivedId=$archivedIdFromTmp")
-                return@withContext null // ← Полностью скипаем сохранение как MessageStorageItem
+                Log.d(TAG, "Skipping inline forwarded message (processed as quote)")
+                return@withContext null
             }
 
-            // Create message instance
-            val instance = MessageStorageItem()
-            instance.conversationType_ = conversationType.rawValue
+            var archivedId = message.element("archived", "urn:xmpp:mam:tmp")?.getAttribute("id")
+                ?: message.element("stanza-id")?.getAttribute("id")
+                ?: message.element("archived")?.getAttribute("id")
+                ?: ""
 
-            if (isSystemMessage(xmppMessage)) {
-                instance.configureSystemMessage(xmppMessage, owner, opponent, delayedDate)
-            } else {
-                instance.configureIncomingMessage(xmppMessage, owner, opponent, originalOutgoing, isRead, delayedDate, isEncrypted)
-            }
+            val originId = message.originId ?: message.id
 
-            // Handle references
-            var references = extractReferences(xmppMessage)
-            instance.references = references
-
-            // Handle afterburn
-            if (afterburnInterval > 0) {
-                instance.afterburnInterval = afterburnInterval.toLong()
-                instance.burnDate = (delayedDate.time + afterburnInterval).toLong()
-                if (instance.burnDate <= System.currentTimeMillis().toDouble()) {
-                    instance.isDeleted = true
-                    instance.body = ""
-                }
-            }
-
-            // queryIds только для настоящих MAM-запросов
-            if (queryId != null && !queryId.startsWith("tmp:")) {
-                instance.queryIds = instance.queryIds?.let { "$it,$queryId" } ?: queryId
-            }
-
-            // archivedId
-            instance.archivedId = archivedIdFromTmp
-                ?: resultElement?.getAttribute("id")
-                        ?: xmppMessage.element("stanza-id")?.getAttribute("id")
-                        ?: xmppMessage.element("archived")?.getAttribute("id")
-                        ?: ""
-
-            val originId = xmppMessage.getOriginId()
-            if (originId != null && originId != instance.messageId) {
+            // Дедупликация по originId (если это MAM-сообщение, а у нас уже есть stub)
+            if (originId != null) {
                 val existingByOrigin = realm.query<MessageStorageItem>(
-                    "messageId = $0 AND isDeleted = false AND archivedId = ''",
-                    originId
+                    "messageId = $0 AND archivedId = '' AND owner = $1",
+                    originId, owner
                 ).first().find()
+
                 if (existingByOrigin != null) {
-                    existingByOrigin.archivedId = instance.archivedId
-                    existingByOrigin.sentDate = delayedDate.time
-                    existingByOrigin.state = MessageSendingState.Sent
-                    existingByOrigin.messageId = originId
-                    existingByOrigin.editDate = instance.editDate
-                    existingByOrigin.body = instance.body
-                    existingByOrigin.references = instance.references
-                    existingByOrigin.isRead = isRead
-                    Log.d(TAG, "Dedup updated stub by originId=$originId → archivedId=${instance.archivedId}")
+                    realm.write {
+                        findLatest(existingByOrigin)?.apply {
+                            this.archivedId = archivedId
+                            this.sentDate = timestamp.time
+                            this.body = body
+                            this.isRead = true
+                            this.state = MessageSendingState.Sent
+                        }
+                    }
+                    Log.d(TAG, "Updated stub → real message: originId=$originId, archivedId=$archivedId")
+                    temporaryMessageReceiver?.didReceiveMessage(existingByOrigin, queryId ?: "mam")
                     return@withContext existingByOrigin
                 }
             }
-            if (originId != null) {
-                instance.messageId = originId
+
+            // Создаём новое сообщение
+            val instance = MessageStorageItem().apply {
+                owner = this@MessageArchiveManager.owner
+                opponent = this.opponent
+                messageId = originId ?: NanoId.generate()
+                body = this.body
+                outgoing = originalOutgoing
+                isRead = true  // MAM = всегда прочитано
+                sentDate = timestamp.time
+                date = timestamp.time
+                conversationType_ = conversationType.rawValue
+                archivedId = this.archivedId
+                this.queryIds = queryId
+
+                // References
+                references = extractReferences(message)
+
+                // Afterburn
+                message.element("ephemeral", "urn:xmpp:ephemeral:0")
+                    ?.getAttribute("timer")
+                    ?.toDoubleOrNull()
+                    ?.let { seconds ->
+                        afterburnInterval = seconds.toLong()
+                        burnDate = (timestamp.time + (seconds * 1000).toLong())
+                        if (burnDate <= System.currentTimeMillis()) {
+                            isDeleted = true
+                            this.body = ""
+                        }
+                    }
             }
 
             realm.write {
-                val existing = query<MessageStorageItem>(
-                    "primary = $0 OR (archivedId = $1 AND archivedId != '' AND owner = $2 AND opponent = $3 AND conversationType_ = $4)",
-                    instance.primary, instance.archivedId, owner, opponent, conversationType.rawValue
-                ).first().find()
-
-
-                val savedMessage = copyToRealm(instance, UpdatePolicy.ALL)
-                savedMessage.storeStanza(this)
+                val saved = copyToRealm(instance, UpdatePolicy.ALL)
+                saved.storeStanza(this) // если всё ещё нужен raw XML — сохраняем
             }
-            temporaryMessageReceiver?.didReceiveMessage(instance, queryId ?: "tmp")
+
+            temporaryMessageReceiver?.didReceiveMessage(instance, queryId ?: "mam")
 
             if (updateLastChat) {
                 realm.writeBlocking {
-                    val mute = getMuteExpired(opponent, conversationType, realm)
-
                     updateLastChatItem(
                         chatPrimary = LastChatsStorageItem.genPrimary(opponent, owner, conversationType),
                         message = instance,
                         isIncoming = !originalOutgoing,
-                        muteExpired = mute,
+                        muteExpired = getMuteExpired(opponent, conversationType, realm),
                         realm = this
                     )
                 }
             }
 
             return@withContext instance
+
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to parse message: ${e.message}", e)
+            Log.e(TAG, "Failed to read MAM message: ${e.message}", e)
             null
         } finally {
             realm.close()
         }
     }
-
 
 
     private fun extractReferences(message: XMPPMessage): RealmList<MessageReferenceStorageItem> {

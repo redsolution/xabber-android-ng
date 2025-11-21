@@ -20,12 +20,17 @@ import com.xabber.xmpp.messages.XMPPMessage
 import com.xabber.xmpp.messages.XMLElement
 import com.xabber.xmpp.messages.message.TemporaryMessageStanzaStorageItem
 import io.realm.kotlin.Realm
+import io.realm.kotlin.UpdatePolicy
 import io.realm.kotlin.ext.query
 import io.realm.kotlin.ext.realmListOf
+import io.viascom.nanoid.NanoId
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
 import java.util.Date
 import java.util.UUID
@@ -39,8 +44,48 @@ class MessageCommonReceiver(private val owner: String) {
     companion object {
         private const val TAG = "MessageCommonReceiver"
     }
-
+    private var queueJob: Job? = null  // ← Это и есть наш "DisposeBag"!
+    private val messagesQueue = MutableStateFlow(mutableSetOf<MessageQueueItem>())
     private val chatMarkers = ChatMarkersManager(owner)
+    private val messageQueryIds = mutableSetOf<String>()
+
+    data class PrereadedMessagesItem(
+        val messageId: String,
+        val stanzaId: String,
+        val date: Date,
+        val jid: String
+    ) {
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (other !is PrereadedMessagesItem) return false
+            return messageId == other.messageId && jid == other.jid && stanzaId == other.stanzaId
+        }
+
+        override fun hashCode(): Int {
+            var result = messageId.hashCode()
+            result = 31 * result + stanzaId.hashCode()
+            result = 31 * result + jid.hashCode()
+            return result
+        }
+    }
+
+    data class PrereadedConversationItem(
+        val conversationType: ConversationType,
+        val date: Date,
+        val jid: String
+    ) {
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (other !is PrereadedConversationItem) return false
+            return conversationType == other.conversationType && jid == other.jid
+        }
+
+        override fun hashCode(): Int {
+            var result = conversationType.rawValue.hashCode()
+            result = 31 * result + jid.hashCode()
+            return result
+        }
+    }
 
     data class MessageQueueItem(
         val message: XMPPMessage,
@@ -66,6 +111,10 @@ class MessageCommonReceiver(private val owner: String) {
         override fun hashCode(): Int {
             return messageId?.hashCode() ?: 0
         }
+    }
+
+    init {
+        subscribeReceiver()
     }
 
     fun receiveClientSyncRaw(
@@ -222,11 +271,8 @@ class MessageCommonReceiver(private val owner: String) {
     }
 
     suspend fun receiveRuntime(message: XMPPMessage) {
-        if (!isValidMessage(message)) {
-            return
-        }
-        if (message.element("result", namespace = "urn:xmpp:mam:2") != null || message.raw.contains("urn:xmpp:mam:2")) {
-            receiveArchived(message)
+        if (message.body.isNullOrBlank()) {
+            Log.d(TAG, "Skipping runtime message without body")
             return
         }
 
@@ -237,7 +283,7 @@ class MessageCommonReceiver(private val owner: String) {
         if (opponent == owner) return
 
         val isOutgoing = from == owner
-        val deliveryTime = parseTimestamp(message, TAG)?.let { Date(it) } ?: Date()
+        val deliveryTime = message.date?.let { Date(it) } ?: Date()
 
         val queueItem = MessageQueueItem(
             message = message,
@@ -246,7 +292,6 @@ class MessageCommonReceiver(private val owner: String) {
             isRead = isOutgoing,
             date = deliveryTime,
             state = if (isOutgoing) MessageSendingState.Deliver else MessageSendingState.Sent,
-            queryId = getMAMQueryId(message),
             originalFrom = from,
             originalOutgoing = isOutgoing
         )
@@ -260,184 +305,118 @@ class MessageCommonReceiver(private val owner: String) {
     private val prereadedMessages = mutableSetOf<PrereadedMessagesItem>()
     private val prereadedConversation = mutableSetOf<PrereadedConversationItem>()
 
-    data class PrereadedMessagesItem(
-        val messageId: String,
-        val stanzaId: String,
-        val date: Date,
-        val jid: String
-    ) {
-        override fun equals(other: Any?): Boolean {
-            if (this === other) return true
-            if (other !is PrereadedMessagesItem) return false
-            return messageId == other.messageId && jid == other.jid && stanzaId == other.stanzaId
-        }
 
-        override fun hashCode(): Int {
-            var result = messageId.hashCode()
-            result = 31 * result + stanzaId.hashCode()
-            result = 31 * result + jid.hashCode()
-            return result
-        }
-    }
 
-    data class PrereadedConversationItem(
-        val conversationType: ConversationType,
-        val date: Date,
-        val jid: String
-    ) {
-        override fun equals(other: Any?): Boolean {
-            if (this === other) return true
-            if (other !is PrereadedConversationItem) return false
-            return conversationType == other.conversationType && jid == other.jid
-        }
-
-        override fun hashCode(): Int {
-            var result = conversationType.rawValue.hashCode()
-            result = 31 * result + jid.hashCode()
-            return result
-        }
-    }
-
+    @OptIn(FlowPreview::class)
     fun subscribeReceiver() {
-
+        queueJob?.cancel()
+        queueJob = scope.launch {
+            messagesQueue
+                .debounce(1) // ← 1 мс — как в Swift, почти мгновенно, но без спама
+                .collect { results ->
+                    if (results.isNotEmpty()) {
+                        val copy = results.toSet()
+                        processQueue(copy) { saved ->
+                            saved?.let {
+                                scope.launch {
+                                    save(it)
+                                }
+                            }
+                        }
+                        AccountManager.find(owner)?.chatMarkers?.deleteEphemeralMessages()
+                    }
+                }
+        }
     }
 
     fun unsubscribeReceiver() {
-
+        queueJob?.cancel()
+        queueJob = null
+        clearQueue()
     }
 
-    private suspend fun processQueue(item: MessageQueueItem, callback: suspend (List<MessageDto>?) -> Unit) {
-        val messageDtos = mutableListOf<MessageDto>()
+    private fun processQueue(items: Set<MessageQueueItem>, callback: (List<MessageStorageItem>?) -> Unit) {
+        if (items.isEmpty()) return callback(null)
 
-        if (isVoIPMessage(item.message)) {
-            return
-        }
-        if (isChatMarker(item.message)) {
-            Log.d(TAG, "Skipping chat-marker in Receiver: carbonId=${item.messageId}, markerId=${extractMarkerId(item.message)}")
-            return  // ПОЛНОСТЬЮ ПРОПУСКАЕМ
-        }
+        val sorted = items.sortedBy { it.date }
+        val result = mutableListOf<MessageStorageItem>()
 
-        if (item.message.body.isNullOrEmpty()) {
-            Log.w(TAG, "Skipping message without body: messageId=${item.messageId}")
-            return
-        }
+        for (item in sorted) {
+            if (isVoIPMessage(item.message)) continue
 
+            val instance = MessageStorageItem()
+            val from = item.message.from?.bare() ?: item.archivedFrom ?: item.originalFrom
+            val to = item.message.to?.bare() ?: continue
+            if (to == owner && from == owner) continue
 
-        val messageId = item.messageId ?: return
+            val opponent = if (to != owner) to else from
 
-        var primary = MessageStorageItem.genPrimary(messageId, owner)
-        if (primary == "_$owner" || primary.isEmpty()) {
-            Log.w(TAG, "Skipping message with invalid primary: messageId=$messageId")
-            return
-        }
+            // Определяем originalOutgoing (точно как в Swift)
+            item.originalOutgoing = if (item.message.hasElement("x", "https://xabber.com/protocol/groups")) {
+                val userId = item.message.element("x", "https://xabber.com/protocol/groups")
+                    ?.element("reference")?.element("user", "https://xabber.com/protocol/groups")
+                    ?.getAttribute("id")
+                userId == owner
+            } else {
+                from == owner
+            }
 
-        // Extract archivedId from MAM stanza
-        var archivedId = getOriginId(item.message) ?: item.messageId ?: messageId
-        // Check for duplicates in database
-        val existing = realm.query<MessageStorageItem>(
-            "primary = $0 OR (archivedId = $1 AND archivedId != '' AND conversationType_ = $2)",
-            primary, archivedId, conversationTypeByMessage(item.message).rawValue
-        ).first().find()
+            val conversationType = conversationTypeByMessage(item.message)
 
-        if (existing != null) {
-            realm.writeBlocking {
-                findLatest(existing)?.apply {
-                    state = item.state  // e.g., Sent for historical
-                    if (item.date.time > sentDate) sentDate = item.date.time
-                    isRead = item.isRead
-                    archivedId = archivedId  // From item if set
-                    if (body != item.message.body) body = item.message.body
-                    Log.d(TAG, "Receiver updated existing: primary=${existing.primary}, state=$state")
+            // isRead с учётом prereaded
+            var finalIsRead = item.isRead
+            val readDate = item.readDate
+                ?: prereadedMessages.firstOrNull { it.messageId == item.messageId }?.date
+                ?: prereadedConversation.firstOrNull { it.jid == opponent && it.conversationType == conversationType }?.date
+
+            if (readDate != null && item.date < readDate) {
+                finalIsRead = true
+            }
+
+            // Afterburn
+            val afterburnInterval = item.message.element("ephemeral", "urn:xmpp:ephemeral:0")
+                ?.getAttribute("timer")?.toDoubleOrNull() ?: 0.0
+
+            if (item.message.hasElement("system", "urn:xmpp:system") ||
+                item.message.hasElement("x", "https://xabber.com/protocol/groups#system-message")) {
+                instance.configureSystemMessage(item.message, owner, opponent, item.date)
+            } else {
+                instance.configureIncomingMessage(
+                    message = item.message,
+                    owner = owner,
+                    opponent = opponent,
+                    outgoing = item.originalOutgoing,
+                    isRead = finalIsRead,
+                    date = item.date,
+                    isEncrypted = item.message.hasElement("encrypted")
+                )
+            }
+
+            instance.state = item.state
+            instance.afterburnInterval = afterburnInterval.toLong()
+            if (afterburnInterval > 0 && readDate != null) {
+                instance.readDate = readDate.time / 1000
+                instance.burnDate = (readDate.time / 1000) + afterburnInterval.toLong()
+                if (instance.burnDate <= System.currentTimeMillis() / 1000) {
+                    instance.isDeleted = true
+                    instance.body = ""
                 }
             }
-            return // But since we updated, continue to messageDtos for UI notify
-        } else {
-            processedMessageIds.add(messageId)
-        }
 
-        val from = item.message.from?.bare() ?: item.archivedFrom ?: item.originalFrom
-        val to = item.message.to?.bare() ?: return
-        val opponent = if (to != owner) to else from
-        if (opponent == owner) {
-            return
-        }
-
-        val isOutgoing = item.originalOutgoing // Rely solely on originalOutgoing
-        val conversationType = conversationTypeByMessage(item.message)
-        val readDate = if (item.isRead) {
-            item.readDate ?: prereadedMessages.firstOrNull { it.messageId == messageId }?.date
-        } else null
-        val isRead = readDate?.let { item.date.time < it.time } ?: (item.state == MessageSendingState.Read || isOutgoing)
-
-        // Process references
-        val references = realmListOf<MessageReferenceStorageItem>()
-        item.message.children.forEach { child ->
-            if (child.name == "reference" && child.namespace == "https://xabber.com/protocol/references") {
-                val forwardedMessage = child.element("forwarded", namespace = "urn:xmpp:forward:0")
-                    ?.element("message", namespace = "jabber:client")
-                if (forwardedMessage != null) {
-                    val forwardedMessageId = forwardedMessage.attributes["id"] ?: return@forEach
-                    if (processedMessageIds.contains(forwardedMessageId)) {
-                        return@forEach
-                    }
-                }
-                val ref = realm.write {
-                    copyToRealm(MessageReferenceStorageItem().apply {
-                        primary = "${child.attributes["id"]}_${System.currentTimeMillis()}"
-                        uri = child.attributes["uri"]
-                        mimeType = child.attributes["type"].toString()
-                        isGeo = child.attributes["type"] == "geo"
-                        latitude = child.attributes["latitude"]?.toDoubleOrNull() ?: 0.0
-                        longitude = child.attributes["longitude"]?.toDoubleOrNull() ?: 0.0
-                        isAudioMessage = child.attributes["type"]?.contains("audio") == true
-                        fileName = child.attributes["name"].toString()
-                        fileSize = child.attributes["size"]?.toLongOrNull() ?: 0L
-                    })
-                }
-                references.add(ref)
+            instance.queryIds = item.queryId
+            instance.trustedSource = item.clientSyncMessage || (item.queryId?.let { messageQueryIds.contains(it) } ?: false)
+            if (item.queryId != null && !item.clientSyncMessage) {
+                messageQueryIds += item.queryId
             }
+
+            instance.messageId = item.messageId ?: item.message.originId ?: NanoId.generate()
+            instance.updatePrimary()
+
+            result += instance
         }
 
-        // Create MessageDto
-        val messageDto = MessageDto(
-            primary = primary,
-            isOutgoing = isOutgoing,
-            owner = owner,
-            opponentJid = opponent,
-            messageBody = item.message.body ?: "",
-            messageSendingState = item.state,
-            sentTimestamp = item.date.time,
-            editTimestamp = 0,
-            displayType = if (parseSystemMessageMetadata(item.message) != null) MessageDisplayType.System else MessageDisplayType.Text,
-            canEditMessage = isOutgoing,
-            canDeleteMessage = isOutgoing,
-            urlAvatar = null,
-            isGroup = conversationType == ConversationType.Group,
-            kind = null,
-            isSelected = false,
-            references = references.mapNotNull { it.toMessageReferenceDto() } as ArrayList<MessageReferenceDto>,
-            isUnread = !isRead,
-            isChecked = false,
-            archivedId = archivedId
-        )
-
-        messageDtos.add(messageDto)
-
-        // Immediate notification to ChatViewModel
-        save(listOf(messageDto)) // Immediate DB save!
-        val chatId = LastChatsStorageItem.genPrimary(opponent, owner, conversationType)
-        val chatViewModel = AccountManager.getChatViewModel(chatId)
-        chatViewModel?.insertMessagesFromReceiver(listOf(messageDto))
-
-
-        // TODO refactor functions to accept only one item, not array
-        save(messageDtos)
-        callback(messageDtos)
-
-        // Clear processedMessageIds periodically
-        if (processedMessageIds.size > 1000) {
-            processedMessageIds.clear()
-        }
+        callback(result)
+        items.forEach { clearQueue(it) }
     }
 
     private fun isChatMarker(message: XMPPMessage): Boolean {
@@ -455,78 +434,103 @@ class MessageCommonReceiver(private val owner: String) {
     }
 
     private fun enqueue(item: MessageQueueItem) {
-
+        val set = messagesQueue.value.toMutableSet()
+        set += item
+        messagesQueue.value = set
     }
 
-    private suspend fun save(messages: List<MessageDto>) {
+    private fun enqueue(collection: List<MessageQueueItem>) {
+        val set = messagesQueue.value.toMutableSet()
+        set += collection
+        messagesQueue.value = set
+    }
+
+    private fun clearQueue(item: MessageQueueItem) {
+        val set = messagesQueue.value.toMutableSet()
+        set -= item
+        messagesQueue.value = set
+    }
+
+    private fun clearQueue() {
+        messagesQueue.value = mutableSetOf()
+    }
+
+    private suspend fun save(messages: List<MessageStorageItem>, silentNotifications: Boolean = false) {
+        if (messages.isEmpty()) return
+
         try {
-            realm.write {
-                messages.forEach { messageDto ->
-                    val existing = query<MessageStorageItem>("archivedId = $0 AND archivedId != ''", messageDto.archivedId).first().find()
-                    if (existing != null) {
-                        return@forEach
+            realm.writeBlocking {
+                messages.forEach { msg ->
+                    // Дедупликация по archivedId (если пришло из MAM)
+                    if (!msg.archivedId.isNullOrBlank()) {
+                        val existingByArchived = query<MessageStorageItem>(
+                            "archivedId = $0 AND archivedId != '' AND owner = $1",
+                            msg.archivedId, owner
+                        ).first().find()
+
+                        if (existingByArchived != null) {
+                            Log.d(TAG, "Message already exists by archivedId=${msg.archivedId}, skipping save")
+                            return@forEach
+                        }
                     }
-                    val rreferences = realmListOf<MessageReferenceStorageItem>()
-                    messageDto.references.forEach { ref ->
-                        val refItem = copyToRealm(MessageReferenceStorageItem().apply {
-                            primary = "${ref.id}_${System.currentTimeMillis()}"
-                            uri = ref.uri
-                            mimeType = ref.mimeType
-                            isGeo = ref.isGeo
-                            latitude = ref.latitude
-                            longitude = ref.longitude
-                            isAudioMessage = ref.isVoiceMessage
-                            fileName = ref.fileName
-                            fileSize = ref.size
-                        })
-                        rreferences.add(refItem)
-                    }
-                    val bareOpponentJid = messageDto.opponentJid.removeSuffix("/${messageDto.opponentJid.substringAfterLast("/")}")
-                    val message = copyToRealm(MessageStorageItem().apply {
-                        primary = messageDto.primary
-                        owner = messageDto.owner
-                        opponent = bareOpponentJid
-                        body = messageDto.messageBody
-                        date = messageDto.sentTimestamp
-                        sentDate = messageDto.sentTimestamp
-                        editDate = messageDto.editTimestamp
-                        outgoing = messageDto.isOutgoing
-                        isRead = !messageDto.isUnread
-                        references = rreferences
-                        conversationType_ = if (messageDto.isGroup) "https://xabber.com/protocol/groups" else "urn:xabber:chat"
-                        archivedId = messageDto.archivedId
-                    })
-                    val chatId = LastChatsStorageItem.genPrimary(messageDto.opponentJid, messageDto.owner, ConversationType.fromRaw(if (messageDto.isGroup) "https://xabber.com/protocol/groups" else "urn:xabber:chat"))
-                    val chat = query<LastChatsStorageItem>("primary = $0", chatId).first().find()
+
+                    // Сохраняем сам объект
+                    val savedMessage = copyToRealm(msg, UpdatePolicy.ALL)
+
+                    // Сохраняем станзу (если нужно)
+                    savedMessage.storeStanza(this)
+
+                    // Обновляем LastChatsStorageItem
+                    val conversationType = ConversationType.fromRaw(savedMessage.conversationType_)
+                    val chatPrimary = LastChatsStorageItem.genPrimary(savedMessage.opponent, owner, conversationType)
+                    val chat = query<LastChatsStorageItem>("primary = $0", chatPrimary).first().find()
+
                     if (chat != null) {
                         findLatest(chat)?.apply {
-                            lastMessage = message
-                            messageDate = message.sentDate
-                            if (!messageDto.isOutgoing && muteExpired <= 0) {
+                            lastMessage = savedMessage
+                            lastMessageId = savedMessage.archivedId.takeIf { it.isNotBlank() } ?: savedMessage.messageId
+                            messageDate = savedMessage.sentDate
+
+                            if (!savedMessage.outgoing && muteExpired <= 0 && !savedMessage.isRead) {
                                 isArchived = false
-                                unread = (unread ?: 0) + if (messageDto.isUnread) 1 else 0
+                                unread = (unread ?: 0) + 1
                             }
                         }
                     }
                 }
             }
-            messages.forEach { message ->
-                val conversationType = ConversationType.fromRaw(if (message.isGroup) "https://xabber.com/protocol/groups" else "urn:xabber:chat")
-                val chatId = LastChatsStorageItem.genPrimary(message.opponentJid, message.owner, conversationType)
-                val chatViewModel = AccountManager.getChatViewModel(chatId)
-                if (chatViewModel != null) {
-                    chatViewModel.insertMessagesFromReceiver(listOf(message))
-                }
-            }
+
+            // Уведомляем UI (ChatViewModel) — без создания DTO здесь!
+//            messages.forEach { msg ->
+//                msg.toMessageDto()?.let { dto ->
+//                    val conversationType = ConversationType.fromRaw(msg.conversationType_)
+//                    val chatId = LastChatsStorageItem.genPrimary(msg.opponent, owner, conversationType)
+//                    AccountManager.getChatViewModel(chatId)
+//                        ?.insertMessagesFromReceiver(listOf(dto))
+//                }
+//            }
+
+            // Удаляем сгоревшие сообщения (afterburn)
+            AccountManager.find(owner)?.chatMarkers?.deleteEphemeralMessages()
+
         } catch (e: Exception) {
             Log.e(TAG, "Error saving messages: ${e.message}", e)
         }
     }
 
-
-    fun storeMessagesNow() {
-
+    suspend fun storeMessagesNow() {
+        val copy = messagesQueue.value.toSet()
+        clearQueue()
+        processQueue(copy) { saved ->
+            saved?.let {
+                scope.launch {
+                    save(it)
+                }
+            }
+        }
+        AccountManager.find(owner)?.chatMarkers?.deleteEphemeralMessages()
     }
+
 
     private fun getOriginId(message: XMPPMessage): String? {
         return message.element("origin-id", namespace = "urn:xmpp:sid:0")?.getAttribute("id")

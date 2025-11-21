@@ -16,6 +16,15 @@ import com.xabber.data_base.models.messages.MessageSendingState
 import com.xabber.data_base.models.messages.MessageStorageItem
 import com.xabber.data_base.models.sync.ConversationType
 import com.xabber.utils.custom.NickGenerator
+import com.xabber.utils.getArchivedMessageContainer
+import com.xabber.utils.getCarbonCopyMessageContainer
+import com.xabber.utils.getCarbonForwardedMessageContainer
+import com.xabber.utils.getForwardedMessage
+import com.xabber.utils.getQueryId
+import com.xabber.utils.isArchivedMessage
+import com.xabber.utils.isCarbonCopy
+import com.xabber.utils.isCarbonForwarded
+import com.xabber.utils.isForwardedMessage
 import com.xabber.utils.parseTimestamp
 import com.xabber.xmpp.XEP_0CCC.ClientSynchronizationManager
 import com.xabber.xmpp.auth.DevicesOCRA
@@ -787,214 +796,53 @@ class Account : XMPPStreamDelegate {
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
-    override fun didReceiveMessage(message: XMPPMessage, stream: Stream) {
+    override suspend fun didReceiveMessage(message: XMPPMessage, stream: Stream) {
+        try {
+            val isMamClassic = message.hasElement("result", "urn:xmpp:mam:2")
+            val isMamTmp = message.hasElement("archived", "urn:xmpp:mam:tmp")
+            val isMamArchived = isMamClassic || isMamTmp
+            val isCarbonSent = message.isCarbonCopy()
+            val isCarbonReceived = message.isCarbonForwarded()
 
-//        try {
-//            val xmppMessage = XMPPMessage(message)
-//            var messageId = xmppMessage.id
-//            var isChatState = false
-//            var innerMessageId: String? = null
-//            var innerFrom: String? = null
-//            var innerTo: String? = null
-//            var innerBody: String? = null
-//            var innerType: String? = null
-//            var innerLang: String? = null
-//            var outerFrom: String? = null  // ← НОВОЕ: from/to из внешнего <message>
-//            var outerTo: String? = null    // ← НОВОЕ: from/to из внешнего <message>
-//            var inForwarded = false
-//            var isArchived = false
-//            var isCarbon = false
-//            var isTmpArchived = false     // ← НОВОЕ: для urn:xmpp:mam:tmp
-//
-//            val factory = XmlPullParserFactory.newInstance()
-//            factory.isNamespaceAware = true
-//            val parser = factory.newPullParser()
-//            parser.setInput(nl.adaptivity.xmlutil.core.impl.multiplatform.StringReader(message))
-//            var eventType = parser.eventType
-//
-//            while (eventType != XmlPullParser.END_DOCUMENT) {
-//                try {
-//                    when (eventType) {
-//                        XmlPullParser.START_TAG -> {
-//                            val tagName = parser.name
-//                            val namespace = parser.namespace
-//
-//                            if (tagName == "message" && (namespace == "jabber:client" || namespace.isEmpty())) {
-//                                // Сохраняем from/to из внешнего message
-//                                outerFrom = parser.getAttributeValue(null, "from")?.let { XMPPJID(it).bare() }
-//                                outerTo = parser.getAttributeValue(null, "to")?.let { XMPPJID(it).bare() }
-//
-//                                if (!inForwarded) {
-//                                    messageId = parser.getAttributeValue(null, "id") ?: "unknown_${System.currentTimeMillis()}"
-//                                } else {
-//                                    innerMessageId = parser.getAttributeValue(null, "id") ?: "unknown_${System.currentTimeMillis()}"
-//                                    innerFrom = parser.getAttributeValue(null, "from")?.let { XMPPJID(it).bare() }
-//                                    innerTo = parser.getAttributeValue(null, "to")?.let { XMPPJID(it).bare() }
-//                                    innerType = parser.getAttributeValue(null, "type")
-//                                    innerLang = parser.getAttributeValue(null, "xml:lang")
-//                                }
-//                            } else if (tagName == "result" && namespace == "urn:xmpp:mam:2") {
-//                                messageId = parser.getAttributeValue(null, "id") ?: messageId
-//                                inForwarded = true
-//                                isArchived = true
-//                            } else if (tagName == "sent" && namespace == "urn:xmpp:carbons:2") {
-//                                isCarbon = true
-//                                inForwarded = true
-//                            } else if (tagName == "archived" && namespace == "urn:xmpp:mam:tmp") {
-//                                isTmpArchived = true
-//                                inForwarded = true  // ← Ключ: включаем парсинг body
-//                            } else if (tagName == "forwarded" && namespace == "urn:xmpp:forward:0") {
-//                                inForwarded = true
-//                            } else if (tagName in listOf("active", "composing", "inactive", "received", "displayed") &&
-//                                (namespace == "http://jabber.org/protocol/chatstates" || namespace == "urn:xmpp:chat-markers:0")) {
-//                                isChatState = true
-//                            } else if (tagName == "body" && inForwarded) {
-//                                parser.next()
-//                                if (parser.eventType == XmlPullParser.TEXT) {
-//                                    innerBody = parser.text.trim()
-//                                }
-//                            }
-//                        }
-//                        XmlPullParser.END_TAG -> {
-//                            val tagName = parser.name
-//                            if (tagName == "forwarded" && parser.namespace == "urn:xmpp:forward:0") {
-//                                inForwarded = false
-//                            }
-//                        }
-//                    }
-//                } catch (e: XmlPullParserException) {
-//                    Log.w(TAG, "Malformed XML encountered during parsing, stopping parse: ${e.message}")
-//                    break
-//                }
-//                try {
-//                    eventType = parser.next()
-//                } catch (e: XmlPullParserException) {
-//                    Log.w(TAG, "Failed to advance parser due to malformed XML: ${e.message}")
-//                    break
-//                }
-//            }
-//
-//            messageId = innerMessageId ?: messageId
-//
-//            if (isChatState && innerBody.isNullOrEmpty()) {
-//                Log.d(TAG, "Skipping chat state/marker: $messageId")
-//                return true
-//            }
-//
-//            // === КЛЮЧЕВОЕ: Используем outerFrom/outerTo для mam:tmp ===
-//            val fromJid = innerFrom ?: outerFrom
-//            val toJid = innerTo ?: outerTo
-//            val body = innerBody ?: xmppMessage.body
-//
-//            // Лог для отладки
-//            Log.d("MESSAGE_TYPE", "detecting, id=$messageId, from=$fromJid, to=$toJid, body=${body?.take(50)}")
-//
-//            if (fromJid == null || toJid == null || body == null) {
-//                Log.w(TAG, "Skipping message with missing attributes: id=$messageId, from=$fromJid, to=$toJid, body=$body")
-//                return false
-//            }
-//
-//            val opponent = if (toJid != jid) toJid else fromJid
-//            if (opponent == jid) {
-//                Log.d(TAG, "Skipping self-message: $messageId")
-//                return false
-//            }
-//
-//            val realm = Realm.open(defaultRealmConfig())
-//
-//            // ФИКС: Генерируем primary на основе messageId (для runtime/carbon), но НЕ скипаем!
-//            val primary = "${messageId}_$jid"
-//            val existingMessage = realm.query<MessageStorageItem>("primary = $0", primary).first().find()
-//            if (existingMessage != null) {
-//                Log.d(TAG, "Message exists (will update): $primary")  // ← Изменено: лог + продолжаем
-//            } else {
-//                Log.d(TAG, "New message: $primary")
-//            }
-//
-//            // === КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ: containerType ===
-//            val containerType = when {
-//                isArchived || isTmpArchived -> "archived"
-//                isCarbon -> "forwarded"
-//                else -> "runtime"
-//            }
-//
-//            Log.d("MESSAGE_TYPE", "Final containerType=$containerType, id=$messageId, body=${body.take(50)}")
-//
-//            val innerMessage = when (containerType) {
-//                "archived" -> XMPPMessage(
-//                    raw = message,
-//                    type = innerType ?: xmppMessage.type,
-//                    id = innerMessageId ?: messageId,
-//                    from = fromJid.let { XMPPJID(fullJID = it) },
-//                    to = toJid.let { XMPPJID(fullJID = it) },
-//                    lang = innerLang,
-//                    body = body,
-//                    children = xmppMessage.children
-//                )
-//                "forwarded" -> XMPPMessage(
-//                    raw = message,
-//                    type = innerType,
-//                    id = innerMessageId,
-//                    from = innerFrom?.let { XMPPJID(fullJID = it) },
-//                    to = innerTo?.let { XMPPJID(fullJID = it) },
-//                    lang = innerLang,
-//                    body = innerBody,
-//                    children = xmppMessage.children
-//                )
-//                else -> xmppMessage  // runtime
-//            }
-//
-//            // Сохраняем временную станцу только для runtime (если не существует)
-//            val tempStanza = realm.query<TemporaryMessageStanzaStorageItem>(
-//                "primary = $0 AND isProcessed = false", TemporaryMessageStanzaStorageItem.genPrimary(messageId!!, jid)
-//            ).first().find()
-//
-//            if (tempStanza == null && !isChatState && containerType == "runtime") {
-//                realm.write {
-//                    val newTempStanza = TemporaryMessageStanzaStorageItem().apply {
-//                        this.messageId = messageId
-//                        this.primary = primary
-//                        this.owner = jid
-//                        this.jid = opponent
-//                        this.isProcessed = false
-//                        this.date = parseTimestamp(xmppMessage)!!
-//                        this.stanza = message
-//                    }
-//                    copyToRealm(newTempStanza, UpdatePolicy.ALL)
-//                }
-//            }
-//
-//            when (containerType) {
-//                "archived" -> {
-//                    messageArchiveManager.readMessage(message, updateLastChat = true)  // ← Upsert здесь
-//                }
-//                "forwarded" -> {
-//                    messageReceiver.receiveCarbon(innerMessage)  // ← Upsert в receiveCarbon
-//                }
-//                "runtime" -> {
-//                    messageReceiver.receiveRuntime(innerMessage)  // ← Upsert в receiveRuntime
-//                    chatMarkers.read(innerMessage)
-//                }
-//            }
-//
-//            if (tempStanza != null) {
-//                realm.write {
-//                    val latest = findLatest(tempStanza)
-//                    if (latest != null) {
-//                        latest.isProcessed = true
-//                    }
-//                }
-//            }
-//            realm.close()
-//
-//            return true
-//        } catch (e: Exception) {
-//            Log.e(TAG, "Error handling message: ${e.message}, stanza=$message", e)
-//            // Do not set stream.state = StreamState.NOT_CONNECTING for parsing errors to avoid disconnecting on malformed messages
-//            return false
-//        }
+            val realMessage: XMPPMessage = when {
+                isMamClassic -> message.getArchivedMessageContainer() ?: message
+                isMamTmp -> message  // mam:tmp — это и есть реальное сообщение!
+                isCarbonSent || isCarbonReceived ->
+                    message.getCarbonCopyMessageContainer() ?: message.getCarbonForwardedMessageContainer() ?: message
+                else -> message
+            }
+
+            val messageId = realMessage.originId ?: realMessage.id ?: "unknown_${System.currentTimeMillis()}"
+            val body = realMessage.body?.takeIf { it.isNotBlank() } ?: return
+
+            // Чат-стейты и маркеры — пропускаем
+            if (realMessage.hasElement("active") ||
+                realMessage.hasElement("composing") ||
+                realMessage.hasElement("inactive") ||
+                realMessage.hasElement("received", "urn:xmpp:chat-markers:0")) {
+                if (realMessage.hasElement("received", "urn:xmpp:chat-markers:0")) {
+                    chatMarkers.read(realMessage)
+                }
+                return
+            }
+
+            when {
+                isMamClassic || isMamTmp -> {
+                    messageArchiveManager.readMessage(realMessage, updateLastChat = true, queryId = message.getQueryId())
+                    return
+                }
+                isCarbonSent || isCarbonReceived -> {
+                    messageReceiver.receiveCarbon(realMessage)
+                }
+                else -> {
+                    messageReceiver.receiveRuntime(realMessage)
+                    chatMarkers.read(realMessage)
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in didReceiveMessage: ${e.message}", e)
+        }
     }
-
     override suspend fun streamDidConnect(stream: Stream): Boolean {
         CoroutineScope(Dispatchers.IO).launch {
             presenceManager?.sendInitialPresence()

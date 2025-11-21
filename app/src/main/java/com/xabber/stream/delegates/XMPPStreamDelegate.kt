@@ -21,7 +21,7 @@ interface XMPPStreamDelegate {
 
     fun didReceiveProceed(proceed: String, stream: Stream): Boolean
 
-    fun didReceiveMessage(message: XMPPMessage, stream: Stream)
+    suspend fun  didReceiveMessage(message: XMPPMessage, stream: Stream)
 
     suspend fun streamDidConnect(stream: Stream): Boolean
 

@@ -17,6 +17,7 @@ package com.xabber.stream
     import com.xabber.dto.MessageReferenceDto
     import com.xabber.utils.parseTimestamp
     import com.xabber.utils.parseXMPPDate
+    import com.xabber.utils.parseXMPPDateToMillis
     import com.xabber.utils.toMessageReferenceDto
     import com.xabber.xmpp.dns.DNSResolver
     import com.xabber.xmpp.jid.XMPPJID
@@ -360,6 +361,7 @@ package com.xabber.stream
                                 "message" -> {
                                     val message = parseMessage(stanza)!!
                                     delegate?.didReceiveMessage(message, this@Stream)
+
                                 }
                                 "presence" -> {
                                     delegate?.didReceivePresence(stanza, this@Stream)
@@ -684,65 +686,135 @@ package com.xabber.stream
 
         fun parseMessage(stanza: String): XMPPMessage? {
             try {
-
-                val type = Regex("""type=['"]([^'"]+)['"]""").find(stanza)?.groupValues?.get(1) ?: return null
-                val id = Regex("""id=['"]([^'"]+)['"]""").find(stanza)?.groupValues?.get(1)
-                val from: XMPPJID? = Regex("""from=["']([^"']+)["']""").find(stanza)?.groupValues?.get(1)
-                    ?.let { XMPPJID(it) }
-                val to: XMPPJID? = Regex("""to=["']([^"']+)["']""").find(stanza)?.groupValues?.get(1)
-                    ?.let { XMPPJID(it) }
-                val error = if (type == "error") {
-                    val errorStart = stanza.indexOf("<error")
-                    if (errorStart != -1) {
-                        val errorEnd = stanza.indexOf("</error>", errorStart) + 8
-                        stanza.substring(errorStart, errorEnd)
-                    } else null
-                } else null
-                val body = stanza.indexOf("<body").takeIf { it >= 0 }?.let { bodyStartIndex ->
-                    val bodyOpenEnd = stanza.indexOf('>', bodyStartIndex + 1).takeIf { it >= 0 } ?: return null
-                    val bodyCloseStart = stanza.indexOf("</body>", bodyOpenEnd).takeIf { it >= 0 } ?: return null
-                    stanza.substring(bodyOpenEnd + 1, bodyCloseStart).trim().takeIf { it.isNotEmpty() }
+                val factory = XmlPullParserFactory.newInstance().apply {
+                    isNamespaceAware = true
                 }
-                val thread = stanza.indexOf("<thread").takeIf { it >= 0 }?.let { start ->
-                    val openEnd = stanza.indexOf('>', start + 1).takeIf { it >= 0 } ?: return@let null
-                    val close = stanza.indexOf("</thread>", openEnd).takeIf { it >= 0 } ?: return@let null
-                    stanza.substring(openEnd + 1, close).trim().takeIf { it.isNotEmpty() }
+                val parser = factory.newPullParser()
+                parser.setInput(StringReader(stanza))
+
+                var type: String? = null
+                var id: String? = null
+                var from: XMPPJID? = null
+                var to: XMPPJID? = null
+                var lang: String? = null
+
+                var realFrom: XMPPJID? = null
+                var realTo: XMPPJID? = null
+                var realId: String? = null
+                var body: String? = null
+                var originId: String? = null
+                var timestamp: Long? = null
+
+                var inForwarded = false
+                var inRealMessage = false
+
+                var event = parser.eventType
+                while (event != XmlPullParser.END_DOCUMENT) {
+                    when (event) {
+                        XmlPullParser.START_TAG -> {
+                            when (parser.name) {
+                                "message" -> {
+                                    if (parser.depth == 1) {
+                                        type = parser.getAttributeValue(null, "type")
+                                        id = parser.getAttributeValue(null, "id")
+                                        from = parser.getAttributeValue(null, "from")?.let { XMPPJID(it) }
+                                        to = parser.getAttributeValue(null, "to")?.let { XMPPJID(it) }
+                                        lang = parser.getAttributeValue(null, "xml:lang")
+                                        inRealMessage = true
+                                    } else if (inForwarded) {
+                                        realFrom = parser.getAttributeValue(null, "from")?.let { XMPPJID(it) } ?: from
+                                        realTo = parser.getAttributeValue(null, "to")?.let { XMPPJID(it) } ?: to
+                                        realId = parser.getAttributeValue(null, "id") ?: id
+                                        inRealMessage = true
+                                    }
+                                }
+                                "archived" -> {
+                                    if (parser.getNamespace() == "urn:xmpp:mam:tmp") {
+                                        // Это mam:tmp — считаем как forwarded!
+                                        inForwarded = true
+                                        inRealMessage = true  // тело будет внутри этого же <message>
+                                    }
+                                }
+
+                                "forwarded" -> {
+                                    if (parser.getNamespace() == "urn:xmpp:forward:0") {
+                                        inForwarded = true
+                                        inRealMessage = false
+                                    }
+                                }
+
+                                "delay" -> {
+                                    if (parser.getNamespace() == "urn:xmpp:delay") {
+                                        val stamp = parser.getAttributeValue(null, "stamp") ?: ""
+                                        if (stamp.isNotBlank()) {
+                                            timestamp = stamp.parseXMPPDateToMillis()
+                                        }
+                                    }
+                                }
+
+                                "time" -> {
+                                    if (parser.getNamespace() == "https://xabber.com/protocol/delivery") {
+                                        val stamp = parser.getAttributeValue(null, "stamp") ?: ""
+                                        if (stamp.isNotBlank()) {
+                                            timestamp = stamp.parseXMPPDateToMillis()
+                                        }
+                                    }
+                                }
+
+                                "body" -> {
+                                    if (inRealMessage) {
+                                        body = parser.nextText().takeIf { it.isNotBlank() }
+                                    }
+                                }
+
+                                "origin-id" -> {
+                                    if (parser.getNamespace() == "urn:xmpp:sid:0") {
+                                        originId = parser.getAttributeValue(null, "id")
+                                    }
+                                }
+                            }
+                        }
+
+                        XmlPullParser.END_TAG -> {
+                            if (parser.name == "forwarded") {
+                                inForwarded = false
+                            }
+                        }
+                    }
+                    event = parser.next()
                 }
-                val originId = """<origin-id[^>]+xmlns=['"]urn:xmpp:sid:0['"][^>]*id=['"]([^'"]+)['"]""".toRegex(RegexOption.IGNORE_CASE)
-                    .find(stanza)?.groupValues?.get(1)
-                    ?: """<origin-id[^>]+id=['"]([^'"]+)['"][^>]*xmlns=['"]urn:xmpp:sid:0['"]""".toRegex(RegexOption.IGNORE_CASE)
-                        .find(stanza)?.groupValues?.get(1)
 
-                val date = run {
-                    val delayMatch = """<delay[^>]+stamp=['"]([^'"]+)['"]""".toRegex(RegexOption.IGNORE_CASE).find(stanza)
-                    val timeMatch = """<time[^>]+stamp=['"]([^'"]+)['"]""".toRegex(RegexOption.IGNORE_CASE).find(stanza)
+                val finalFrom = realFrom ?: from
+                val finalTo = realTo ?: to
+                val finalId = realId ?: id
 
-                    val stamp = delayMatch?.groupValues?.get(1) ?: timeMatch?.groupValues?.get(1) ?: return@run null
+                if (body.isNullOrBlank()) {
+                    val hasKnownExtension = stanza.contains("http://jabber.org/protocol/chatstates") ||
+                            stanza.contains("urn:xmpp:chat-markers") ||
+                            stanza.contains("urn:xmpp:carbons") ||
+                            stanza.contains("urn:xmpp:forward") ||
+                            stanza.contains("propose") || stanza.contains("accept") ||
+                            type == "headline"
 
-                    try {
-                        val cleaned = stamp.removeSuffix("Z").replace(Regex("\\.\\d{3,6}"), "")
-                        val instant = java.time.Instant.parse("${cleaned}Z")
-                        instant.toEpochMilli()
-                    } catch (e: Exception) {
-                        null
+                    if (!hasKnownExtension && type != "error") {
+                        return null
                     }
                 }
 
                 return XMPPMessage(
                     raw = stanza,
-                    type = type,
-                    id = id,
-                    from = from,
-                    to = to,
+                    type = type ?: "chat",
+                    id = finalId,
+                    from = finalFrom,
+                    to = finalTo,
+                    lang = lang,
+                    date = timestamp,
                     body = body,
-                    date = date,
-                    thread = thread,
-                    error = error,
                     originId = originId
                 )
 
             } catch (e: Exception) {
-                Log.e(TAG, "Error parsing message: error ${e.message}, stanza=$stanza", e)
+                Log.e("Stream", "Failed to parse message: ${e.message}\nStanza: ${stanza.take(500)}", e)
                 return null
             }
         }

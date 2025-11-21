@@ -83,7 +83,7 @@ class ChatViewModel(
     @OptIn(FlowPreview::class)
     private val messagesFlow = _messagesTrigger.receiveAsFlow()
         .onStart { emit(Unit) }
-        .map { localMessageList } // ← БЕЗ toList()! Уже безопасно
+        .map { localMessageList.toList() }
         .debounce(400)
         .distinctUntilChanged()
         .shareIn(viewModelScope, SharingStarted.Lazily, replay = 1)
@@ -216,17 +216,14 @@ class ChatViewModel(
             messageListMutex.withLock {
                 val idx = localMessageList.indexOfFirst { it.primary == message.primary }
                 if (idx == -1) {
-                    // Binary insert (replaces add + sort)
                     insertIntoSortedList(localMessageList, message)
                 } else {
-                    // Update in place (no sort needed)
                     localMessageList[idx] = message
                 }
             }
             if (!fromMAM) {
                 model.insertMessage(id, message)
             }
-            // Emit (copy only once per message)
             _messagesTrigger.trySend(Unit)
             Log.d(TAG, "Inserted message ${message.primary} at pos via binary search, total size=${localMessageList.size}, fromMAM=$fromMAM")
         }

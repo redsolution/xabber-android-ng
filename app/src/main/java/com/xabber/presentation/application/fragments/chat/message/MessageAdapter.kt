@@ -80,6 +80,10 @@ class MessageAdapter(
     }
 
     override fun onBindViewHolder(holder: MessageViewHolder, position: Int) {
+        if (position < 0 || position >= currentList.size) {
+            Log.w("MessageAdapter", "Invalid position $position, size=${currentList.size}")
+            return
+        }
         val message = getItem(position)
         holder.messageId = message.primary
         val extraData = MessageVhExtraData(

@@ -679,3 +679,15 @@ fun observeMessages(
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
+fun String.parseXMPPDateToMillis(): Long? {
+    return try {
+        // Обрезаем лишние микросекунды: 2025-11-06T09:25:38.495080Z → 2025-11-06T09:25:38.495Z
+        val normalized = this.replace(Regex("""\.(\d{3})\d{3,6}Z$"""), ".$1Z")
+        val instant = Instant.parse(normalized)
+        instant.toEpochMilli()
+    } catch (e: Exception) {
+        Log.w("DateParser", "Failed to parse XMPP timestamp: $this", e)
+        null
+    }
+}
