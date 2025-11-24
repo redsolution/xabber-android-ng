@@ -1,366 +1,192 @@
 package com.xabber.presentation.application.fragments.chatlist
 
-import android.os.Build
 import android.util.Log
-import androidx.annotation.RequiresApi
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.xabber.R
 import com.xabber.account.AccountManager
-import com.xabber.data_base.dao.LastChatStorageItemDao
-import com.xabber.data_base.defaultRealmConfig
-import com.xabber.data_base.models.last_chats.LastChatsStorageItem
-import com.xabber.data_base.models.messages.MessageSendingState
 import com.xabber.data_base.models.messages.MessageStorageItem
-import com.xabber.data_base.models.presences.ResourceStatus
-import com.xabber.data_base.models.presences.RosterItemEntity
-import com.xabber.data_base.models.roster.RosterStorageItem
-import com.xabber.data_base.models.sync.ConversationType
-import com.xabber.dto.AccountDto
 import com.xabber.dto.ChatListDto
-import com.xabber.utils.toAccountDto
-import com.xabber.utils.toChatListDto
+import com.xabber.presentation.application.fragments.chatlist.view.ChatListModel
 import io.realm.kotlin.Realm
 import io.realm.kotlin.ext.query
-import io.realm.kotlin.ext.realmSetOf
-import io.realm.kotlin.types.RealmSet
 import io.realm.kotlin.notifications.ResultsChange
 import io.realm.kotlin.notifications.UpdatedResults
-import io.realm.kotlin.query.Sort
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
-@RequiresApi(Build.VERSION_CODES.O)
 class ChatListViewModel : ViewModel() {
-    val realm = Realm.open(defaultRealmConfig())
-    private val lastChatDao = LastChatStorageItemDao(realm)
-    private val accountStorageItemDao = AccountManager
-    private var job: Job? = null
-    private val _chats = MutableLiveData<ArrayList<ChatListDto>>()
-    val chats: LiveData<ArrayList<ChatListDto>> = _chats
-    private var chatListDto = ArrayList<ChatListDto>()
+
+    private val model = ChatListModel()
+    private val mutex = Mutex()
+    private var localChatList: List<ChatListDto> = emptyList()
+
+    private val _chats = MutableLiveData<List<ChatListDto>>()
+    val chats: LiveData<List<ChatListDto>> = _chats
+
     private val _selectedChatId = MutableLiveData<String?>()
     val selectedChatId: LiveData<String?> = _selectedChatId
-    private val _showUnreadOnly = MutableLiveData<Boolean>()
+
+    private val _showUnreadOnly = MutableLiveData(false)
     val showUnreadOnly: LiveData<Boolean> = _showUnreadOnly
 
+    private var chatsJob: Job? = null
+    private var accountsJob: Job? = null
+
+    // Дебонс как в ChatViewModel
+    private val updateTrigger = Channel<Unit>(Channel.CONFLATED)
+    private val updateFlow = updateTrigger.receiveAsFlow()
+        .onStart { emit(Unit) }
+        .debounce(150)
+        .map { localChatList }
+        .distinctUntilChanged()
+        .shareIn(viewModelScope, SharingStarted.Lazily, replay = 1)
+
     init {
-        _showUnreadOnly.value = false
-        insertTestChat()
-        getChatList()
-        CoroutineScope(Dispatchers.IO).launch {
-            checkLastChats()
-        }
-    }
-
-    private suspend fun checkLastChats() {
-        withContext(Dispatchers.IO) {
-            realm.write {
-                val chats = query<LastChatsStorageItem>(
-                    "conversationType_ IN {'${ConversationType.Regular.rawValue}', '${ConversationType.Group.rawValue}', '${ConversationType.Channel.rawValue}', '${ConversationType.Favorites.rawValue}'}"
-                ).find()
-
+        observeEnabledAccounts()
+        observeChats()
+        viewModelScope.launch(Dispatchers.Main) {
+            updateFlow.collect { list ->
+                _chats.value = list
             }
         }
     }
 
-    fun isSavedHas(jid: String): Boolean {
-        var exists = false
-        realm.writeBlocking {
-            exists = this.query(
-                LastChatsStorageItem::class,
-                "jid = $0 AND conversationType_ = $1",
-                jid,
-                ConversationType.Favorites.rawValue
-            ).first().find() != null
-        }
-        return exists
-    }
-
-    fun getAccountsAmount(): Int {
-        var amount = 0
-        realm.writeBlocking {
-            amount = this.query(com.xabber.data_base.models.account.AccountStorageItem::class, "enabled = true").find().size
-        }
-        return amount
-    }
-
-    fun setShowUnreadOnly(show: Boolean) {
-        _showUnreadOnly.value = show
-        initDataListener()
-        getChatList()
-    }
-
-    fun selectChat(chatId: String) {
-        _selectedChatId.value = chatId
-    }
-
-    fun initDataListener() {
-        job?.cancel()
-        val accounts = getEnableAccountList()
-        val query = if (showUnreadOnly.value == true) {
-            "owner IN {${accounts.joinToString { "'$it'" }}} AND isArchived = false AND unread > 0 AND conversationType_ IN {'${ConversationType.Regular.rawValue}', '${ConversationType.Group.rawValue}', '${ConversationType.Channel.rawValue}', '${ConversationType.Favorites.rawValue}'}"
-        } else {
-            "owner IN {${accounts.joinToString { "'$it'" }}} AND isArchived = false AND conversationType_ IN {'${ConversationType.Regular.rawValue}', '${ConversationType.Group.rawValue}', '${ConversationType.Channel.rawValue}', '${ConversationType.Favorites.rawValue}'}"
-        }
-        job = viewModelScope.launch(Dispatchers.IO) {
-            val request = realm.query(LastChatsStorageItem::class, query)
-                .sort("pinnedPosition" to Sort.DESCENDING, "messageDate" to Sort.DESCENDING)
-            request.asFlow().collect { changes: ResultsChange<LastChatsStorageItem> ->
-                when (changes) {
-                    is UpdatedResults -> {
-                        val dataSource = ArrayList<ChatListDto>()
-                        dataSource.addAll(changes.list.map { it.toChatListDto() })
-                        val accountItems = realm.query(com.xabber.data_base.models.account.AccountStorageItem::class, "enabled = true").find()
-                        val accountDtoList = accountItems.map { it.toAccountDto() }
-                        val accountHashMap = HashMap<String, AccountDto>()
-                        accountDtoList.forEach { accountHashMap[it.id] = it }
-                        dataSource.forEach { chatListDto ->
-                            val ac = accountHashMap[chatListDto.owner]
-                            if (ac != null) {
-                                chatListDto.colorKey = ac.colorKey
+    // Используем Realm Flow напрямую — как у тебя в ChatViewModel
+    private fun observeEnabledAccounts() {
+        accountsJob?.cancel()
+        accountsJob = viewModelScope.launch(Dispatchers.IO) {
+            Realm.open(com.xabber.data_base.defaultRealmConfig())
+                .query<com.xabber.data_base.models.account.AccountStorageItem>("enabled = true")
+                .asFlow()
+                .collect { changes ->
+                    when (changes) {
+                        is UpdatedResults -> {
+                            val ownerIds = changes.list.map { it.jid }.toSet()
+                            if (ownerIds.isEmpty()) {
+                                mutex.withLock {
+                                    localChatList = emptyList()
+                                    updateTrigger.trySend(Unit)
+                                }
+                            } else {
+                                observeChats(ownerIds)
                             }
                         }
-                        chatListDto = dataSource
-                        launch(Dispatchers.Main) {
-                            _chats.postValue(chatListDto)
+                        else -> {}
+                    }
+                }
+        }
+    }
+
+    private fun observeChats(ownerIds: Set<String> = emptySet()) {
+        chatsJob?.cancel()
+        chatsJob = viewModelScope.launch(Dispatchers.IO) {
+            val effectiveOwners = if (ownerIds.isNotEmpty()) ownerIds else getEnabledOwnerIdsBlocking()
+            val unreadOnly = _showUnreadOnly.value == true
+
+            model.observeChats(unreadOnly, effectiveOwners)
+                .catch { Log.e("ChatListVM", "Error observing chats", it) }
+                .collect { incomingList ->
+                    mutex.withLock {
+                        localChatList = incomingList.map { chat ->
+                            val colorKey = AccountManager.getAccount(chat.owner)?.colorKey ?: "blue"
+                            chat.copy(colorKey = colorKey)
                         }
+                        updateTrigger.trySend(Unit)
                     }
-                    else -> {}
                 }
-            }
         }
     }
 
-    private fun getEnableAccountList(): RealmSet<String> {
-        val enabledAccountsIds = realmSetOf<String>()
-        realm.writeBlocking {
-            val enabledAccounts = this.query(com.xabber.data_base.models.account.AccountStorageItem::class, "enabled = true").find()
-            enabledAccounts.forEach { account -> enabledAccountsIds.add(account.primary) }
+    private fun getEnabledOwnerIdsBlocking(): Set<String> {
+        return runBlocking(Dispatchers.IO) {
+            Realm.open(com.xabber.data_base.defaultRealmConfig())
+                .query<com.xabber.data_base.models.account.AccountStorageItem>("enabled = true")
+                .find()
+                .map { it.jid }
+                .toSet()
         }
-        return enabledAccountsIds
     }
 
-    fun initAccountDataListener() {
-        viewModelScope.launch(Dispatchers.IO) {
-            val request = realm.query(com.xabber.data_base.models.account.AccountStorageItem::class)
-            request.asFlow().collect { changes: ResultsChange<com.xabber.data_base.models.account.AccountStorageItem> ->
-                when (changes) {
-                    is UpdatedResults -> {
-                        getChatList()
-                    }
-                    else -> {}
-                }
-            }
+    fun selectChat(id: String?) {
+        _selectedChatId.value = id
+    }
+
+    fun toggleUnreadOnly() {
+        _showUnreadOnly.value = !_showUnreadOnly.value!!
+        observeChats() // перезапускаем
+    }
+
+    fun isSavedHas(ownerJid: String): Boolean {
+        return runBlocking(Dispatchers.IO) {
+            Realm.open(com.xabber.data_base.defaultRealmConfig())
+                .query<com.xabber.data_base.models.last_chats.LastChatsStorageItem>(
+                    "owner = $0 AND jid = $1 AND conversationType_ = $2",
+                    ownerJid, ownerJid, com.xabber.data_base.models.sync.ConversationType.Regular.rawValue
+                )
+                .first()
+                .find() != null
         }
     }
 
     fun getChatList() {
-        val accounts = getEnableAccountList()
-        val query = if (showUnreadOnly.value == true) {
-            "owner IN {${accounts.joinToString { "'$it'" }}} AND isArchived = false AND unread > 0 AND conversationType_ IN {'${ConversationType.Regular.rawValue}', '${ConversationType.Group.rawValue}', '${ConversationType.Channel.rawValue}', '${ConversationType.Favorites.rawValue}'}"
-        } else {
-            "owner IN {${accounts.joinToString { "'$it'" }}} AND isArchived = false AND conversationType_ IN {'${ConversationType.Regular.rawValue}', '${ConversationType.Group.rawValue}', '${ConversationType.Channel.rawValue}', '${ConversationType.Favorites.rawValue}'}"
-        }
         viewModelScope.launch(Dispatchers.IO) {
-            val realmList = realm.query(LastChatsStorageItem::class, query)
-                .sort("pinnedPosition" to Sort.DESCENDING, "messageDate" to Sort.DESCENDING).find()
-            realmList.forEach { chat ->
-                Log.d("ChatListViewModel", "Chat: jid=${chat.jid}, owner=${chat.owner}, type=${chat.conversationType_}, isArchived=${chat.isArchived}, unread=${chat.unread}, messageDate=${chat.messageDate}")
-            }
-            val dataSource = ArrayList<ChatListDto>()
-            dataSource.addAll(realmList.map { it.toChatListDto() })
-            val accountItems = realm.query(com.xabber.data_base.models.account.AccountStorageItem::class, "enabled = true").find()
-            val accountDtoList = accountItems.map { it.toAccountDto() }
-            val accountHashMap = HashMap<String, AccountDto>()
-            accountDtoList.forEach { accountHashMap[it.id] = it }
-            dataSource.forEach { chatListDto ->
-                val ac = accountHashMap[chatListDto.owner]
-                if (ac != null) {
-                    chatListDto.colorKey = ac.colorKey
-                }
-            }
-            chatListDto = dataSource
-            withContext(Dispatchers.Main) {
-                _chats.value = chatListDto
-            }
+            observeChats()
         }
     }
 
-    fun pinChat(id: String) {
+    fun forwardMessage(chatId: String, text: String) {
         viewModelScope.launch(Dispatchers.IO) {
-            lastChatDao.setPinnedPosition(id, System.currentTimeMillis())
-        }
-    }
+            try {
+                val realm = Realm.open(com.xabber.data_base.defaultRealmConfig())
+                realm.write {
+                    val lastChat = query<com.xabber.data_base.models.last_chats.LastChatsStorageItem>(
+                        "primary = '$chatId'"
+                    ).first().find() ?: return@write
 
-    fun unPinChat(id: String) {
-        viewModelScope.launch(Dispatchers.IO) {
-            lastChatDao.setPinnedPosition(id, -1)
-        }
-    }
-
-    fun setArchived(id: String) {
-        viewModelScope.launch(Dispatchers.IO) {
-            lastChatDao.setArchived(id)
-        }
-    }
-
-    fun deleteChat(id: String) {
-        viewModelScope.launch(Dispatchers.IO) {
-            lastChatDao.deleteItem(id)
-        }
-    }
-
-    fun setMute(id: String, muteExpired: Long) {
-        viewModelScope.launch(Dispatchers.IO) {
-            lastChatDao.setMuteExpired(id, muteExpired)
-        }
-    }
-
-    fun markAllChatsAsUnread() {
-        viewModelScope.launch(Dispatchers.IO) {
-            realm.writeBlocking {
-                val items = this.query(
-                    LastChatsStorageItem::class,
-                    "conversationType_ IN {'${ConversationType.Regular.rawValue}', '${ConversationType.Group.rawValue}', '${ConversationType.Channel.rawValue}', '${ConversationType.Favorites.rawValue}'}"
-                ).find()
-                items.forEach { findLatest(it)?.unread = 0 }
-                val messages = this.query(
-                    MessageStorageItem::class,
-                    "conversationType_ IN {'${ConversationType.Regular.rawValue}', '${ConversationType.Group.rawValue}', '${ConversationType.Channel.rawValue}', '${ConversationType.Favorites.rawValue}'}"
-                ).find()
-                messages.forEach { findLatest(it)?.isRead = true }
-            }
-            checkLastChats()
-        }
-    }
-
-    fun forwardMessage(id: String, text: String) {
-        viewModelScope.launch(Dispatchers.IO) {
-            realm.write {
-                val item = query(LastChatsStorageItem::class, "primary = '$id'").first().find()
-                if (item != null) {
                     val newMessageTimestamp = System.currentTimeMillis()
-                    // Check for the latest message in the chat
-                    val latestMessage = query<MessageStorageItem>(
-                        "owner = $0 AND opponent = $1 AND conversationType_ = $2 AND isDeleted = false",
-                        item.owner, item.jid, item.conversationType_
-                    ).sort("sentDate", Sort.DESCENDING).first().find()
-
                     val message = copyToRealm(MessageStorageItem().apply {
-                        primary = MessageStorageItem.genPrimary("message_${newMessageTimestamp}", item.owner)
-                        owner = item.owner
-                        opponent = item.jid
+                        primary = com.xabber.data_base.models.messages.MessageStorageItem.genPrimary("forward_${newMessageTimestamp}", lastChat.owner)
+                        owner = lastChat.owner
+                        opponent = lastChat.jid
                         body = text
                         date = newMessageTimestamp
                         sentDate = newMessageTimestamp
-                        editDate = 0
                         outgoing = true
-                        conversationType_ = ConversationType.Regular.rawValue
-                        isRead = true // Forwarded messages are typically marked as read
+                        conversationType_ = lastChat.conversationType_
+                        isRead = true
+                        state = com.xabber.data_base.models.messages.MessageSendingState.Sent
                     })
 
-                    findLatest(item)?.apply {
-                        // Update only if the new message has a higher timestamp
-                        if (latestMessage == null || newMessageTimestamp > latestMessage.sentDate) {
-                            lastMessage = message
-                            lastMessageId = message.messageId
-                            messageDate = newMessageTimestamp
-                            unread = 0
-                        }
+                    findLatest(lastChat)?.apply {
+                        lastMessage = message
+                        lastMessageId = message.messageId
+                        messageDate = newMessageTimestamp
+                        unread = 0
                     }
                 }
-            }
-            checkLastChats()
-        }
-    }
-
-    fun chatIsEmpty(): Boolean {
-        var result = true
-        realm.writeBlocking {
-            val lastChats = this.query(
-                LastChatsStorageItem::class,
-                "conversationType_ IN {'${ConversationType.Regular.rawValue}', '${ConversationType.Group.rawValue}', '${ConversationType.Channel.rawValue}', '${ConversationType.Favorites.rawValue}'}"
-            ).find()
-            if (lastChats.isNotEmpty()) result = false
-        }
-        return result
-    }
-
-//    fun insertContactAndChat(contactJid: String, customName: String) {
-//        val contactOwner = getMainAccountPrimary()
-//        if (contactOwner != null) {
-//            viewModelScope.launch(Dispatchers.IO) {
-//                realm.write {
-//                    val existingChat = query<LastChatsStorageItem>(
-//                        "primary = $0",
-//                        LastChatsStorageItem.genPrimary(contactJid, contactOwner, ConversationType.Regular)
-//                    ).first().find()
-//                    if (existingChat == null) {
-//                        val existingRosterItem = query<RosterStorageItem>(
-//                            "primary = $0",
-//                            RosterStorageItem.genPrimary(contactJid, contactOwner)
-//                        ).first().find()
-//                        val rosterItem = existingRosterItem ?: copyToRealm(RosterStorageItem().apply {
-//                            primary = RosterStorageItem.genPrimary(contactJid, contactOwner)
-//                            owner = contactOwner
-//                            jid = contactJid
-//                            customNickname = customName
-//                        })
-//                        copyToRealm(LastChatsStorageItem().apply {
-//                            primary = LastChatsStorageItem.genPrimary(contactJid, contactOwner, ConversationType.Regular)
-//                            muteExpired = -1
-//                            owner = contactOwner
-//                            jid = contactJid
-//                            conversationType_ = ConversationType.Regular.rawValue
-//                            messageDate = System.currentTimeMillis()
-//                            this.rosterItem = rosterItem
-//                            rosterItem.associatedLastChat = this
-//                        })
-//                        Log.d("ChatListViewModel", "Inserted contact and chat for jid $contactJid")
-//                    } else {
-//                        Log.d("ChatListViewModel", "Chat already exists for jid $contactJid, skipping insertion")
-//                    }
-//                }
-//                checkLastChats()
-//            }
-//        }
-//    }
-
-    fun insertTestChat() {
-        val contactOwner = getMainAccountPrimary()
-        if (contactOwner != null) {
-//            insertContactAndChat("test@xabber.com", "Test Contact")
-            Log.d("ChatListViewModel", "Inserted test chat for owner $contactOwner")
-        } else {
-            Log.w("ChatListViewModel", "No main account found, skipping test chat insertion")
-        }
-    }
-
-    private fun getMainAccountPrimary(): String? {
-        val primary = accountStorageItemDao.getMainAccountPrimary()
-        return primary
-    }
-
-    fun setColor(id: String, color: String) {
-        viewModelScope.launch(Dispatchers.IO) {
-            realm.writeBlocking {
-                val item = this.query(com.xabber.data_base.models.account.AccountStorageItem::class, "primary = '$id'").first().find()
-                if (item != null) findLatest(item)?.colorKey = color
+                realm.close()
+            } catch (e: Exception) {
+                Log.e("ChatListVM", "Failed to forward message", e)
             }
         }
     }
 
+    fun pinChat(id: String) = viewModelScope.launch(Dispatchers.IO) { model.pinChat(id) }
+    fun unpinChat(id: String) = viewModelScope.launch(Dispatchers.IO) { model.unpinChat(id) }
+    fun archiveChat(id: String) = viewModelScope.launch(Dispatchers.IO) { model.setArchived(id) }
+    fun muteChat(id: String, until: Long) = viewModelScope.launch(Dispatchers.IO) { model.setMute(id, until) }
+    fun deleteChat(id: String) = viewModelScope.launch(Dispatchers.IO) { model.deleteChat(id) }
+    fun markAllAsRead() = viewModelScope.launch(Dispatchers.IO) { model.markAllAsRead() }
 
-    @RequiresApi(Build.VERSION_CODES.N)
     override fun onCleared() {
         super.onCleared()
-        job?.cancel()
-        realm.close()
+        chatsJob?.cancel()
+        accountsJob?.cancel()
+        model.close()
     }
 }

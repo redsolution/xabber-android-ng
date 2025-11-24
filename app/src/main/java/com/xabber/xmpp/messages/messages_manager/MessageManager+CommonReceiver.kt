@@ -500,15 +500,6 @@ class MessageCommonReceiver(private val owner: String) {
                 }
             }
 
-            // Уведомляем UI (ChatViewModel) — без создания DTO здесь!
-//            messages.forEach { msg ->
-//                msg.toMessageDto()?.let { dto ->
-//                    val conversationType = ConversationType.fromRaw(msg.conversationType_)
-//                    val chatId = LastChatsStorageItem.genPrimary(msg.opponent, owner, conversationType)
-//                    AccountManager.getChatViewModel(chatId)
-//                        ?.insertMessagesFromReceiver(listOf(dto))
-//                }
-//            }
 
             // Удаляем сгоревшие сообщения (afterburn)
             AccountManager.find(owner)?.chatMarkers?.deleteEphemeralMessages()

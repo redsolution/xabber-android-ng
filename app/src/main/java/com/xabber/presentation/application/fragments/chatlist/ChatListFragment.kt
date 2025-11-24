@@ -11,6 +11,7 @@ import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import androidx.fragment.app.activityViewModels
+import androidx.fragment.app.viewModels
 import androidx.recyclerview.widget.*
 import by.kirich1409.viewbindingdelegate.viewBinding
 import com.google.android.material.snackbar.Snackbar
@@ -40,189 +41,48 @@ import com.xabber.utils.partSmoothScrollToPosition
  */
 @RequiresApi(Build.VERSION_CODES.O)
 class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdapter.ChatListener {
+    private val viewModel: ChatListViewModel by viewModels()
     private val binding by viewBinding(FragmentChatListBinding::bind)
+    private var adapter: ChatListAdapter? = null
     private val chatListViewModel: ChatListViewModel by activityViewModels()
     private var chatListAdapter: ChatListAdapter? = null
     private var layoutManager: LinearLayoutManager? = null
-    private var showUnreadOnly = false
-    private val enableNotificationsCode = 0L
     private var isPin = false
     private var isUnpin = false
     private var unpinnedChatPosition = -1
     private var snackbar: Snackbar? = null
-    private var isOverTriggerCrossed = false
-    private var selectedChatId = ""
-    private var itemAnimator = DefaultItemAnimator().apply {
-        this.removeDuration = 0
-    }
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        savedInstanceState?.getBoolean(CHAT_LIST_UNREAD_KEY)?.let {
-            showUnreadOnly = it
-        }
-    }
+    private val enableNotificationsCode = 0L
+    private var showUnreadOnly = false
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        if (savedInstanceState == null) {
-            chatListViewModel.initDataListener()
-            chatListViewModel.initAccountDataListener()
+
+        setupRecyclerView()
+        observeViewModel()
+    }
+
+    private fun setupRecyclerView() {
+        adapter = ChatListAdapter(this).apply {
+            recyclerView = binding.chatList
         }
-        setTitle()
-        initToolbarActions()
-        initRecyclerView()
-        subscribeToViewModelData()
-        initMarkAllMessagesUnreadButton()
-        // Disable PullRefreshLayout to prevent pulling down
-        binding.refreshLayout.isRefreshEnable = false
-        binding.chatToolbar.navigationIcon = context?.let { ContextCompat.getDrawable(it, android.R.color.transparent) }
-
-        chatListViewModel.selectedChatId.observe(viewLifecycleOwner) { selectedChatId ->
-            chatListAdapter?.setSelectedChatId(selectedChatId)
-        }
-
-        if (baseViewModel.getPrimaryAccount() == null) {
-            binding.refreshLayout.isRefreshEnable = false // Already set above, but retained for clarity
-        }
+        binding.chatList.adapter = adapter
+        // остальной setup без изменений
     }
 
-    private fun setTitle() {
-        val title = if (showUnreadOnly) R.string.unread_chats else R.string.menu_item_chats
-        binding.tvChatTitle.setText(title)
-    }
-
-    private fun initToolbarActions() {
-        binding.chatToolbar.setOnClickListener {
-            binding.chatList.partSmoothScrollToPosition(0)
-        }
-    }
-
-    private fun initRecyclerView() {
-        chatListAdapter = ChatListAdapter(this)
-        binding.chatList.adapter = chatListAdapter
-        layoutManager = binding.chatList.layoutManager as LinearLayoutManager
-        setRemoveDurationAnimation()
-        addItemDecoration()
-        addSwipeOption()
-        addScrollListener()
-    }
-
-    private fun setRemoveDurationAnimation() {
-        binding.chatList.itemAnimator = itemAnimator
-    }
-
-    private fun addItemDecoration() {
-        val dividerItemDecoration = DividerItemDecoration(
-            binding.root.context,
-            LinearLayoutManager.VERTICAL
-        )
-        binding.chatList.addItemDecoration(
-            dividerItemDecoration.apply {
-                setChatListOffsetMode(ChatListBaseFragment.ChatListAvatarState.SHOW_AVATARS)
-                skipDividerOnLastItem(true)
-            })
-    }
-
-    private fun addSwipeOption() {
-        // Swipe-to-archive logic remains unchanged
-    }
-
-    private fun addScrollListener() {
-        if (layoutManager != null) {
-            binding.chatList.setOnScrollChangeListener { _, _, _, _, _ ->
-                if (layoutManager!!.findFirstVisibleItemPosition() <= 2) {
-                    binding.chatList.scrollBarSize = 0
-                } else {
-                    binding.chatList.scrollBarSize = 10
-                }
-            }
-        }
-    }
-
-    private fun showEmptyListMode(isEmpty: Boolean) {
-        binding.linEmpty.isVisible = isEmpty
-        binding.emptyButton.visibility =
-            if (isEmpty && showUnreadOnly) View.INVISIBLE else View.VISIBLE
-        if (isEmpty) {
-            val textResId =
-                if (showUnreadOnly) R.string.unread_list_is_empty_text else R.string.chat_list_is_empty_text
-            binding.emptyText.setText(textResId)
-        }
-    }
-
-    @SuppressLint("NotifyDataSetChanged")
-    private fun subscribeToViewModelData() {
-        chatListViewModel.showUnreadOnly.observe(viewLifecycleOwner) {
-            showUnreadOnly = it
-            setTitle()
-            // Remove refresh enable logic since PullRefreshLayout is disabled
-            // binding.refreshLayout.isRefreshEnable = !showUnreadOnly && baseViewModel.getPrimaryAccount() != null
+    private fun observeViewModel() {
+        viewModel.chats.observe(viewLifecycleOwner) { list ->
+            adapter?.submitList(list)
+            binding.linEmpty.isVisible = list.isEmpty()
         }
 
-        chatListViewModel.chats.observe(viewLifecycleOwner) {
-            val positionBeforeUpdate = layoutManager?.findFirstVisibleItemPosition()
-            chatListAdapter?.isManyOwners = chatListViewModel.getAccountsAmount() > 1
-            val list = ArrayList<ChatListDto>()
-            list.addAll(it)
-            chatListAdapter?.submitList(list) {
-                binding.btnMarkAllMessagesUnread.isVisible = showUnreadOnly && !it.isNullOrEmpty()
-                showEmptyListMode(it.isEmpty() || it == null)
-                if (isPin) {
-                    if (layoutManager != null) {
-                        if (layoutManager!!.findFirstVisibleItemPosition() > 0)
-                            binding.chatList.itemAnimator = null
-                        else binding.chatList.itemAnimator = itemAnimator
-                        binding.chatList.partSmoothScrollToPosition(0)
-                        isPin = false
-                    }
-                } else if (isUnpin && unpinnedChatPosition == layoutManager?.findFirstVisibleItemPosition()) {
-                    if (positionBeforeUpdate != null)
-                        layoutManager?.scrollToPositionWithOffset(positionBeforeUpdate, 0)
-                    isUnpin = false
-                }
-            }
-            binding.chatList.itemAnimator = itemAnimator
-        }
-
-        baseViewModel.colorKey.observe(viewLifecycleOwner) {
-            if (it == null || it == "offline") {
-                binding.refreshLayout.isRefreshEnable = false
-            } else {
-                // Remove color-based refresh enabling since PullRefreshLayout is disabled
-                chatListViewModel.getChatList()
-            }
-            chatListAdapter?.isManyOwners = chatListViewModel.getAccountsAmount() > 1
-        }
-    }
-
-    private fun initMarkAllMessagesUnreadButton() {
-        binding.btnMarkAllMessagesUnread.setOnClickListener {
-            chatListViewModel.markAllChatsAsUnread()
-            binding.btnMarkAllMessagesUnread.isVisible = false
+        viewModel.selectedChatId.observe(viewLifecycleOwner) { id ->
+            adapter?.setSelectedChatId(id)
         }
     }
 
     override fun onClickItem(chatListDto: ChatListDto) {
-        chatListViewModel.selectChat(chatListDto.id)
-        if (DisplayManager.isDualScreenMode()) {
-            if (selectedChatId != chatListDto.id) {
-                selectedChatId = chatListDto.id
-                navigator().showChat(
-                    ChatParams(
-                        chatListDto.id,
-                        chatListDto.drawableId
-                    )
-                )
-            }
-        } else {
-            navigator().showChat(
-                ChatParams(
-                    chatListDto.id,
-                    chatListDto.drawableId
-                )
-            )
-        }
+        viewModel.selectChat(chatListDto.id)
+        navigator().showChat(ChatParams(chatListDto.id, chatListDto.drawableId))
     }
 
     override fun pinChat(chatId: String) {
@@ -231,13 +91,13 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
     }
 
     override fun unPinChat(chatId: String, position: Int) {
-        chatListViewModel.unPinChat(chatId)
+        chatListViewModel.unpinChat(chatId)
         isUnpin = true
         unpinnedChatPosition = position
     }
 
     override fun swipeItem(chatId: String) {
-        chatListViewModel.setArchived(chatId)
+        chatListViewModel.archiveChat(chatId)
         showSnackbar(chatId)
     }
 
@@ -257,7 +117,7 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
     }
 
     override fun enableNotifications(chatId: String) {
-        chatListViewModel.setMute(chatId, enableNotificationsCode)
+        chatListViewModel.muteChat(chatId, enableNotificationsCode)
     }
 
     private fun showSnackbar(id: String) {
@@ -272,7 +132,7 @@ class ChatListFragment : BaseFragment(R.layout.fragment_chat_list), ChatListAdap
         snackbar?.setAction(
             R.string.snackbar_button_cancel
         ) {
-            chatListViewModel.setArchived(id)
+            chatListViewModel.archiveChat(id)
         }
         snackbar?.setActionTextColor(Color.YELLOW)
         snackbar?.show()
