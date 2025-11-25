@@ -73,7 +73,7 @@ class SwipeToArchiveCallback(private val adapter: ChatListAdapter) :
     }
 
     override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
-        adapter.onSwipeChatItem(viewHolder.absoluteAdapterPosition)
+//        adapter.onSwipeChatItem(viewHolder.absoluteAdapterPosition)
     }
 
 }

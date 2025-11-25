@@ -1,77 +1,39 @@
 package com.xabber.presentation.application.fragments.chatlist
 
-import android.annotation.SuppressLint
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.core.content.ContextCompat
-import androidx.core.view.isVisible
 import androidx.recyclerview.widget.DiffUtil
-import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.xabber.R
 import com.xabber.databinding.ItemChatListBinding
 import com.xabber.dto.ChatListDto
-import com.xabber.data_base.models.messages.MessageSendingState
 import com.xabber.presentation.AppConstants
-import com.xabber.utils.custom.SwipeToArchiveCallback
 
 class ChatListAdapter(
     private val listener: ChatListener
 ) : ListAdapter<ChatListDto, ChatListViewHolder>(DiffUtilCallback) {
-    lateinit var recyclerView: RecyclerView
-    var isManyOwners = false
-    private var selectedChatId: String? = null
+
+    var selectedChatId: String? = null
+        private set
+
+    private object SelectionPayload
 
     interface ChatListener {
-        fun onClickItem(chatListDto: ChatListDto)
+        fun onClickItem(chat: ChatListDto)
         fun pinChat(chatId: String)
         fun unPinChat(chatId: String, position: Int)
         fun swipeItem(chatId: String)
-        fun deleteChat(chatName: String, chatId: String)
-        fun clearHistory(chatName: String, chatId: String)
+        fun deleteChat(name: String, chatId: String)
+        fun clearHistory(name: String, chatId: String)
         fun turnOfNotifications(chatId: String)
         fun enableNotifications(chatId: String)
     }
 
-    companion object {
-        const val NORMAL_CHAT = 1
-        const val PAYLOAD_SELECTION = "PAYLOAD_SELECTION"
-    }
-
-    fun setSelectedChatId(newSelectedChatId: String?) {
-        val oldSelectedChatId = selectedChatId
-        selectedChatId = newSelectedChatId
-
-        val previousAnimator = recyclerView.itemAnimator
-        recyclerView.itemAnimator = null
-
-        if (oldSelectedChatId != null) {
-            val oldPosition = currentList.indexOfFirst { it.id == oldSelectedChatId }
-            if (oldPosition != -1) notifyItemChanged(oldPosition, PAYLOAD_SELECTION)
-        }
-        if (newSelectedChatId != null) {
-            val newPosition = currentList.indexOfFirst { it.id == newSelectedChatId }
-            if (newPosition != -1) notifyItemChanged(newPosition, PAYLOAD_SELECTION)
-        }
-
-        recyclerView.itemAnimator = previousAnimator
-    }
-
-    override fun onAttachedToRecyclerView(recycler: RecyclerView) {
-        this.recyclerView = recycler
-        ItemTouchHelper(SwipeToArchiveCallback(this)).attachToRecyclerView(recycler)
-        super.onAttachedToRecyclerView(recycler)
-    }
-
-    override fun getItemViewType(position: Int): Int {
-        return NORMAL_CHAT
-    }
-
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ChatListViewHolder {
-        val inflater = LayoutInflater.from(parent.context)
-        val binding = ItemChatListBinding.inflate(inflater, parent, false)
+        val binding = ItemChatListBinding.inflate(LayoutInflater.from(parent.context), parent, false)
         return ChatListViewHolder(binding)
     }
 
@@ -81,80 +43,76 @@ class ChatListAdapter(
         updateBackground(holder, chat)
     }
 
-    override fun onBindViewHolder(
-        holder: ChatListViewHolder,
-        position: Int,
-        payloads: MutableList<Any>
-    ) {
+    override fun onBindViewHolder(holder: ChatListViewHolder, position: Int, payloads: MutableList<Any>) {
         val chat = getItem(position)
+
         if (payloads.isEmpty()) {
             holder.bind(chat, listener)
-            updateBackground(holder, chat)
-        } else if (payloads.contains(PAYLOAD_SELECTION)) {
-            updateBackground(holder, chat)
         } else {
-            holder.bind(chat, listener, payloads)
-            updateBackground(holder, chat)
+            val hasSelectionPayload = payloads.any { it === SelectionPayload || (it is Bundle && it.containsKey("selection_payload")) }
+            if (hasSelectionPayload) {
+                updateBackground(holder, chat)
+            }
+
+            val bundlePayloads = payloads.filterIsInstance<Bundle>()
+            if (bundlePayloads.isNotEmpty()) {
+                holder.bind(chat, listener, bundlePayloads)
+            }
         }
+
+        updateBackground(holder, chat)
     }
 
+
+    fun setSelectedChatId(newId: String?) {
+        if (selectedChatId == newId) return
+        val oldId = selectedChatId
+        selectedChatId = newId
+        notifyItemChangedIfNeeded(oldId)
+        notifyItemChangedIfNeeded(newId)
+    }
+
+    private fun notifyItemChangedIfNeeded(chatId: String?) {
+        chatId ?: return
+        val position = currentList.indexOfFirst { it.id == chatId }
+        if (position != -1) {
+            notifyItemChanged(position, SelectionPayload)
+        }
+    }
     private fun updateBackground(holder: ChatListViewHolder, chat: ChatListDto) {
-        if (chat.id == selectedChatId) {
+        val isSelected = chat.id == selectedChatId
+        val bgRes = if (isSelected) {
+            R.color.grey_200
+        } else if (chat.pinnedDate > 0) {
+            R.drawable.clickable_pinned_chat_background
+        } else {
+            R.drawable.clickable_view_group_background
+        }
+
+        if (isSelected) {
             holder.binding.chatGround.setBackgroundColor(
                 ContextCompat.getColor(holder.itemView.context, R.color.grey_200)
             )
         } else {
-            holder.binding.chatGround.setBackgroundResource(
-                if (chat.pinnedDate > 0) R.drawable.clickable_pinned_chat_background
-                else R.drawable.clickable_view_group_background
-            )
+            holder.binding.chatGround.setBackgroundResource(bgRes)
         }
     }
 
-    fun onSwipeChatItem(position: Int) {
-        listener.swipeItem(currentList[position].id)
-    }
+    object DiffUtilCallback : DiffUtil.ItemCallback<ChatListDto>() {
+        override fun areItemsTheSame(old: ChatListDto, new: ChatListDto) = old.id == new.id
+        override fun areContentsTheSame(old: ChatListDto, new: ChatListDto) = old == new
 
-    private object DiffUtilCallback : DiffUtil.ItemCallback<ChatListDto>() {
-        override fun areItemsTheSame(oldItem: ChatListDto, newItem: ChatListDto) =
-            oldItem.id == newItem.id
-
-        override fun areContentsTheSame(oldItem: ChatListDto, newItem: ChatListDto) =
-            oldItem == newItem
-
-        override fun getChangePayload(oldItem: ChatListDto, newItem: ChatListDto): Any {
-            val diffBundle = Bundle()
-            if (oldItem.unread != newItem.unread) diffBundle.putString(
-                AppConstants.PAYLOAD_UNREAD_CHAT,
-                newItem.unread
-            )
-            if (oldItem.pinnedDate != newItem.pinnedDate) diffBundle.putLong(
-                AppConstants.PAYLOAD_PINNED_POSITION_CHAT,
-                newItem.pinnedDate
-            )
-            if (oldItem.muteExpired != newItem.muteExpired) diffBundle.putLong(
-                AppConstants.PAYLOAD_MUTE_EXPIRED_CHAT,
-                newItem.muteExpired
-            )
-            if (oldItem.lastMessageDate != newItem.lastMessageDate) diffBundle.putLong(
-                AppConstants.PAYLOAD_CHAT_DATE, newItem.lastMessageDate
-            )
-            if (oldItem.lastMessageBody != newItem.lastMessageBody) diffBundle.putString(
-                AppConstants.PAYLOAD_CHAT_MESSAGE_BODY, newItem.lastMessageBody
-            )
-            if (oldItem.lastMessageState != newItem.lastMessageState) diffBundle.putParcelable(
-                AppConstants.PAYLOAD_CHAT_MESSAGE_STATE, newItem.lastMessageState
-            )
-            if (oldItem.draftMessage != newItem.draftMessage) diffBundle.putString(
-                AppConstants.PAYLOAD_CHAT_DRAFT_MESSAGE, newItem.draftMessage
-            )
-            if (oldItem.customNickname != newItem.customNickname) diffBundle.putString(
-                AppConstants.PAYLOAD_CHAT_CUSTOM_NAME, newItem.customNickname
-            )
-            if (oldItem.colorKey != newItem.colorKey) diffBundle.putString(
-                AppConstants.PAYLOAD_CHAT_COLOR, newItem.colorKey
-            )
-            return diffBundle
+        override fun getChangePayload(old: ChatListDto, new: ChatListDto): Any? {
+            val bundle = Bundle()
+            if (old.unread != new.unread) bundle.putString(AppConstants.PAYLOAD_UNREAD_CHAT, new.unread)
+            if (old.pinnedDate != new.pinnedDate) bundle.putLong(AppConstants.PAYLOAD_PINNED_POSITION_CHAT, new.pinnedDate)
+            if (old.muteExpired != new.muteExpired) bundle.putLong(AppConstants.PAYLOAD_MUTE_EXPIRED_CHAT, new.muteExpired)
+            if (old.lastMessageDate != new.lastMessageDate) bundle.putLong(AppConstants.PAYLOAD_CHAT_DATE, new.lastMessageDate)
+            if (old.lastMessageBody != new.lastMessageBody) bundle.putString(AppConstants.PAYLOAD_CHAT_MESSAGE_BODY, new.lastMessageBody)
+            if (old.draftMessage != new.draftMessage) bundle.putString(AppConstants.PAYLOAD_CHAT_DRAFT_MESSAGE, new.draftMessage)
+            if (old.customNickname != new.customNickname) bundle.putString(AppConstants.PAYLOAD_CHAT_CUSTOM_NAME, new.customNickname)
+            if (old.colorKey != new.colorKey) bundle.putString(AppConstants.PAYLOAD_CHAT_COLOR, new.colorKey)
+            return if (bundle.isEmpty) null else bundle
         }
     }
 }

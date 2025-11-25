@@ -2,6 +2,7 @@ package com.xabber.data_base.dao
 
 import com.xabber.data_base.models.last_chats.LastChatsStorageItem
 import io.realm.kotlin.Realm
+import io.realm.kotlin.ext.query
 
 class LastChatStorageItemDao(private val realm: Realm) {
 
@@ -53,6 +54,13 @@ class LastChatStorageItemDao(private val realm: Realm) {
                 this.query(LastChatsStorageItem::class, "primary = '$primary'").first().find()
             if (item != null)
                 item.muteExpired = muteExpired
+        }
+    }
+    suspend fun markAllAsRead() {
+        realm.write {
+            query<LastChatsStorageItem>().find().forEach { item ->
+                item.unread = 0
+            }
         }
     }
 

@@ -691,3 +691,19 @@ fun String.parseXMPPDateToMillis(): Long? {
         null
     }
 }
+
+fun List<ChatListDto>.applyAccountColors(): List<ChatListDto> {
+    val realm = Realm.open(defaultRealmConfig())
+    try {
+        val accountMap = realm.query<com.xabber.data_base.models.account.AccountStorageItem>("enabled = true")
+            .find()
+            .associate { it.primary to it.colorKey }
+
+        this.forEach { dto ->
+            accountMap[dto.owner]?.let { dto.colorKey = it }
+        }
+    } finally {
+        realm.close()
+    }
+    return this
+}

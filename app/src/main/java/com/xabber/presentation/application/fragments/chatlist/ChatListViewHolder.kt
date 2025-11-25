@@ -286,7 +286,11 @@ class ChatListViewHolder(
         listener: ChatListAdapter.ChatListener,
         payloads: List<Any>
     ) {
-        val bundle = payloads.last() as Bundle
+        val bundlePayloads = payloads.filterIsInstance<Bundle>()
+        if (bundlePayloads.isEmpty()) return
+
+        val bundle = bundlePayloads.last()
+
         for (key in bundle.keySet()) {
             when (key) {
                 AppConstants.PAYLOAD_UNREAD_CHAT -> {
@@ -329,9 +333,10 @@ class ChatListViewHolder(
                 }
                 PAYLOAD_CHAT_MESSAGE_BODY -> {
                     val lastMessageBody = bundle.getString(PAYLOAD_CHAT_MESSAGE_BODY)
-                    binding.tvChatListLastMessage.text = lastMessageBody
-                    binding.imMessageStatus.isVisible =
-                        (lastMessageBody!!.isNotEmpty() && chatListDto.lastMessageIsOutgoing)
+                    if (lastMessageBody != null && lastMessageBody.isNotEmpty()) {
+                        binding.tvChatListLastMessage.text = lastMessageBody
+                        binding.imMessageStatus.isVisible = chatListDto.lastMessageIsOutgoing && chatListDto.draftMessage == null && chatListDto.unread.isEmpty()
+                    }
                 }
                 PAYLOAD_CHAT_DRAFT_MESSAGE -> {
                     val draftMessage = bundle.getString(PAYLOAD_CHAT_DRAFT_MESSAGE)

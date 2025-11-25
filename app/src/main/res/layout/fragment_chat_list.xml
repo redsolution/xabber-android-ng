@@ -5,7 +5,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/grey_300"
-    tools:context=".presentation.application.fragments.chatlist.ChatListFragment">
+    tools:context=".presentation.application.fragments.chatlist.ChatListView">
 
     <com.google.android.material.appbar.AppBarLayout
         android:id="@+id/appbar"

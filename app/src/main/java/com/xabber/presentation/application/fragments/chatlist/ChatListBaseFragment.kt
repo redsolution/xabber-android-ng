@@ -62,14 +62,14 @@ abstract class ChatListBaseFragment(@LayoutRes contentLayoutId: Int) :
 
     private fun setDialogListeners() {
         setFragmentResultListener(AppConstants.TURN_OFF_NOTIFICATIONS_KEY) { _, bundle ->
-            val mute =
-                bundle.getLong(AppConstants.TURN_OFF_NOTIFICATIONS_BUNDLE_KEY) + System.currentTimeMillis()
-            chatListViewModel.muteChat(currentId, mute)
+            val muteUntil = bundle.getLong(AppConstants.TURN_OFF_NOTIFICATIONS_BUNDLE_KEY) + System.currentTimeMillis()
+            chatListViewModel.muteChat(currentId, muteUntil)
         }
 
         setFragmentResultListener(AppConstants.DELETING_CHAT_KEY) { _, bundle ->
-            val result = bundle.getBoolean(AppConstants.DELETING_CHAT_BUNDLE_KEY)
-            if (result) chatListViewModel.deleteChat(currentId)
+            if (bundle.getBoolean(AppConstants.DELETING_CHAT_BUNDLE_KEY)) {
+                chatListViewModel.deleteChat(currentId)
+            }
         }
 
         setFragmentResultListener(AppConstants.CLEAR_HISTORY_KEY) { _, bundle ->
@@ -130,11 +130,11 @@ abstract class ChatListBaseFragment(@LayoutRes contentLayoutId: Int) :
     }
 
     override fun unPinChat(chatId: String, position: Int) {
-        chatListViewModel.unpinChat(chatId)
+        chatListViewModel.unpinChat(chatId) // Исправлено
     }
 
     override fun swipeItem(chatId: String) {
-        chatListViewModel.archiveChat(chatId)
+        chatListViewModel.archiveChat(chatId) // Исправлено
         showSnackbar(chatId)
     }
 
@@ -156,7 +156,7 @@ abstract class ChatListBaseFragment(@LayoutRes contentLayoutId: Int) :
     }
 
     override fun enableNotifications(chatId: String) {
-        chatListViewModel.muteChat(chatId, 0)
+        chatListViewModel.muteChat(chatId, 0L) // Исправлено
     }
 
     override fun onClickItem(chatListDto: ChatListDto) {

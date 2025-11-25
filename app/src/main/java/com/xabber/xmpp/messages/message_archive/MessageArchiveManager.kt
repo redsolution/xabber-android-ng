@@ -794,17 +794,19 @@ class MessageArchiveManager(private val owner: String) {
         val chat = realm.query<LastChatsStorageItem>("primary = $0", chatPrimary).first().find() ?: return
         val liveChat = realm.findLatest(chat) ?: return
 
-        if (message.sentDate > liveChat.messageDate) {
+        liveChat.messageDate = message.sentDate
+
+        if (message.sentDate > (liveChat.lastMessage?.sentDate ?: 0L)) {
             liveChat.lastMessage = message
-            liveChat.messageDate = message.sentDate  // Fixed: Use ms consistently, no /1000
             liveChat.lastMessageId = message.archivedId
         }
 
         if (isIncoming && muteExpired <= 0 && !message.isRead) {
-            liveChat.isArchived = false
             liveChat.unread = (liveChat.unread ?: 0) + 1
+            liveChat.isArchived = false
         }
     }
+
 
     private fun getMuteExpired(jid: String, conversationType: ConversationType, realm: Realm): Long {
         return realm.query<LastChatsStorageItem>(

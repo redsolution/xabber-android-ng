@@ -60,7 +60,7 @@ import com.xabber.presentation.application.fragments.chat.ChatParams
 import com.xabber.presentation.application.fragments.chat.ChatSettingsFragment
 import com.xabber.presentation.application.fragments.chat.ChatSettingsManager
 import com.xabber.presentation.application.fragments.chat.view.ChatView
-import com.xabber.presentation.application.fragments.chatlist.ChatListFragment
+import com.xabber.presentation.application.fragments.chatlist.ChatListView
 import com.xabber.presentation.application.fragments.chatlist.ChatListViewModel
 import com.xabber.presentation.application.fragments.chatlist.add.NewChatFragment
 import com.xabber.presentation.application.fragments.chatlist.add.NewContactFragment
@@ -269,7 +269,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
             if (supportFragmentManager.findFragmentById(R.id.application_container) == null) {
                 supportFragmentManager.commit {
                     setReorderingAllowed(true)
-                    replace(R.id.application_container, ChatListFragment())
+                    replace(R.id.application_container, ChatListView())
                     addToBackStack("chat_list_root")
                 }
             }
@@ -345,11 +345,11 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
 
     private fun handleChatsNavigation() {
         val currentFragment = supportFragmentManager.findFragmentById(R.id.application_container)
-        if (currentFragment !is ChatListFragment) {
+        if (currentFragment !is ChatListView) {
             closeDetail()
             supportFragmentManager.commit {
                 setReorderingAllowed(true)
-                replace(R.id.application_container, ChatListFragment())
+                replace(R.id.application_container, ChatListView())
                 addToBackStack("chat_list_root")
             }
         }
@@ -629,11 +629,11 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
             drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_UNLOCKED)
             binding.toolbarNav.isVisible = true
             setupNavigationDrawer()
-        } else if (currentFragment == null || currentFragment !is ChatListFragment) {
+        } else if (currentFragment == null || currentFragment !is ChatListView) {
             Log.d("ApplicationActivity", "Replacing with ChatListFragment")
             supportFragmentManager.commit {
                 setReorderingAllowed(true)
-                replace(R.id.application_container, ChatListFragment())
+                replace(R.id.application_container, ChatListView())
                 addToBackStack("chat_list_root")
             }
             drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_UNLOCKED)
@@ -816,11 +816,11 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
             // Refresh the navigation drawer
             setupNavigationDrawer()
             // Ensure the main fragment is shown (e.g., ChatListFragment)
-            if (supportFragmentManager.findFragmentById(R.id.application_container) !is ChatListFragment) {
+            if (supportFragmentManager.findFragmentById(R.id.application_container) !is ChatListView) {
                 Log.d("ApplicationActivity", "Replacing fragment with ChatListFragment")
                 supportFragmentManager.commit {
                     setReorderingAllowed(true)
-                    replace(R.id.application_container, ChatListFragment())
+                    replace(R.id.application_container, ChatListView())
                     addToBackStack("chat_list_root")
                 }
             } else {
@@ -1191,13 +1191,13 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
     }
 
     private fun updateToolbarAppearance(appFragment: Fragment?) {
-        binding.toolbarNav.isVisible = appFragment is ChatListFragment
+        binding.toolbarNav.isVisible = appFragment is ChatListView
         drawerLayout.setDrawerLockMode(
             if (binding.toolbarNav.isVisible) DrawerLayout.LOCK_MODE_UNLOCKED
             else DrawerLayout.LOCK_MODE_LOCKED_CLOSED
         )
         // Remove navigation icon if not ChatListFragment
-        if (appFragment !is ChatListFragment) {
+        if (appFragment !is ChatListView) {
             binding.toolbarNav.navigationIcon = null
         } else {
             // Restore navigation icon for ChatListFragment (assuming it uses the drawer icon)
@@ -1207,7 +1207,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
     }
 
     private fun showUnreadChats(showUnread: Boolean) {
-        if (activeFragment is ChatListFragment) chatListViewModel.toggleUnreadOnly()
+        if (activeFragment is ChatListView) chatListViewModel.toggleUnreadOnly()
         setupIconChat(showUnread)
     }
 
@@ -1292,11 +1292,11 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
                     supportFragmentManager.removeOnBackStackChangedListener(this)
                 }
             })
-        } else if (currentFragment !is ChatListFragment) {
+        } else if (currentFragment !is ChatListView) {
             Log.d("ApplicationActivity", "Replacing with ChatListFragment")
             supportFragmentManager.commit {
                 setReorderingAllowed(true)
-                replace(R.id.application_container, ChatListFragment())
+                replace(R.id.application_container, ChatListView())
                 addToBackStack("chat_list_root")
             }
             // Clear detail_container and close SlidingPaneLayout in portrait mode
@@ -1379,7 +1379,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
     }
 
     override fun showChatFragment() {
-        launchDetailInStack(ChatListFragment())
+        launchDetailInStack(ChatListView())
     }
 
     override fun showAccount(jid: String) {

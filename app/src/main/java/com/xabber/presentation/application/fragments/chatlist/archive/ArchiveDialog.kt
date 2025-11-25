@@ -149,7 +149,6 @@ class ArchiveDialog : BaseFragment(R.layout.fragment_archive),
     private fun subscribeOnViewModelData() {
         viewModel.chatList.observe(viewLifecycleOwner) {
             val positionBeforeUpdate = layoutManager?.findFirstVisibleItemPosition()
-            adapter?.isManyOwners = viewModel.getAccountsAmount() > 1
             val list = ArrayList<ChatListDto>()
             list.addAll(it)
             adapter?.submitList(list) {
