@@ -12,7 +12,7 @@ import android.util.Log;
 
 import androidx.annotation.Nullable;
 
-import com.theeasiestway.opus.Opus;
+//import com.theeasiestway.opus.Opus;
 
 public class RecordService extends Service {
 
@@ -44,7 +44,7 @@ public class RecordService extends Service {
     private static final int CMD_RECORD_TOGGLE  = 30003;
 
     //private OpusPlayer mPlayer;
-    private Opus mRecorder;
+//    private Opus mRecorder;
     //private OpusConverter mConverter;
     //private OpusTrackInfo mTrackInfo;
 
@@ -56,7 +56,7 @@ public class RecordService extends Service {
 
     public void onCreate() {
         super.onCreate();
-        mRecorder = new Opus();
+//        mRecorder = new Opus();
 
    //     mRecorder.setEventSender(mEvent);
 

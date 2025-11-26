@@ -47,14 +47,14 @@ android {
         viewBinding true
     }
 
-    buildToolsVersion '35.0.1'
+    buildToolsVersion '36.1.0'
     namespace 'com.xabber'
 }
 
 
 dependencies {
     api fileTree(dir: 'src/main/java', include: '*.jar')
-    api files('src/main/java/opus.aar')
+//    api files('src/main/java/opus.aar')
 
     // Android Support
     implementation 'androidx.core:core-ktx:1.10.1'

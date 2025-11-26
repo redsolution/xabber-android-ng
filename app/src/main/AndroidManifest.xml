@@ -64,7 +64,6 @@
             android:name=".presentation.application.fragments.chat.geo.PickGeolocationActivity"
             android:theme="@style/PickGeolocationActivity" />
 
-        <service android:name=".service.RecordService" />
 
         <provider
             android:name="androidx.core.content.FileProvider"
