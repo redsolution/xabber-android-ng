@@ -828,7 +828,7 @@ class Account : XMPPStreamDelegate {
 
             when {
                 isMamClassic || isMamTmp -> {
-                    messageArchiveManager.readMessage(realMessage, updateLastChat = true, queryId = message.getQueryId())
+                    messageArchiveManager.readMessage(realMessage, queryId = message.getQueryId())
                     return
                 }
                 isCarbonSent || isCarbonReceived -> {

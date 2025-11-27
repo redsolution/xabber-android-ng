@@ -484,16 +484,15 @@ class MessageCommonReceiver(private val owner: String) {
                     val conversationType = ConversationType.fromRaw(savedMessage.conversationType_)
                     val chatPrimary = LastChatsStorageItem.genPrimary(savedMessage.opponent, owner, conversationType)
                     val chat = query<LastChatsStorageItem>("primary = $0", chatPrimary).first().find()
-
                     if (chat != null) {
                         findLatest(chat)?.apply {
-                            lastMessage = savedMessage
-                            lastMessageId = savedMessage.archivedId.takeIf { it.isNotBlank() } ?: savedMessage.messageId
-                            messageDate = savedMessage.sentDate
+                            val currentLastDate = lastMessage?.sentDate ?: 0L
 
-                            if (!savedMessage.outgoing && muteExpired <= 0 && !savedMessage.isRead) {
-                                isArchived = false
-                                unread = (unread ?: 0) + 1
+                            // Обновляем lastMessage и messageDate ТОЛЬКО если новое сообщение новее
+                            if (savedMessage.sentDate > currentLastDate) {
+                                lastMessage = savedMessage
+                                lastMessageId = savedMessage.archivedId.takeIf { it.isNotBlank() } ?: savedMessage.messageId
+                                messageDate = savedMessage.sentDate  // теперь можно без проверки, т.к. уже > current
                             }
                         }
                     }

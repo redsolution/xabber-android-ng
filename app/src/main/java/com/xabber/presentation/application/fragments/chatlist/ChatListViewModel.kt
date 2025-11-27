@@ -9,6 +9,7 @@ import androidx.lifecycle.viewModelScope
 import com.xabber.dto.ChatListDto
 import com.xabber.utils.applyAccountColors
 import com.xabber.utils.toChatListDto
+import io.realm.kotlin.notifications.UpdatedResults
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -23,7 +24,7 @@ class ChatListViewModel : ViewModel() {
 
     private val _selectedChatId = MutableLiveData<String?>()
     val selectedChatId: LiveData<String?> = _selectedChatId
-
+    private var lastEmittedList: List<ChatListDto>? = null
     private val _showUnreadOnly = MutableLiveData(false)
     val showUnreadOnly: LiveData<Boolean> = _showUnreadOnly
 
@@ -42,20 +43,30 @@ class ChatListViewModel : ViewModel() {
         chatsJob?.cancel()
         chatsJob = viewModelScope.launch {
             model.getChatsFlow(_showUnreadOnly.value == true).collectLatest { changes ->
-                if (changes is io.realm.kotlin.notifications.UpdatedResults) {
+                if (changes is UpdatedResults) {
                     val list = changes.list
                         .map { it.toChatListDto() }
-                        .applyAccountColors()  // Теперь работает!
-                    _chats.postValue(list)
+                        .applyAccountColors()
+                        .sortedWith(compareByDescending<ChatListDto> { it.pinnedDate.takeIf { it > 0L } ?: Long.MAX_VALUE }
+                            .thenByDescending { it.lastMessageDate })  // ← Сортировка в VM по DTO логике (pinned DESC, then date DESC)
+                    if (list != lastEmittedList) {
+                        lastEmittedList = list
+                        _chats.postValue(list)
+                    }
                 }
             }
         }
         // Первичная загрузка
         viewModelScope.launch {
-            _chats.value = model.getChatsSnapshot(_showUnreadOnly.value == true)
-                .applyAccountColors()  // И здесь тоже
+            val snapshotList = model.getChatsSnapshot(_showUnreadOnly.value == true)
+                .applyAccountColors()
+                .sortedWith(compareByDescending<ChatListDto> { it.pinnedDate.takeIf { it > 0L } ?: Long.MAX_VALUE }
+                    .thenByDescending { it.lastMessageDate })  // ← Аналогично для snapshot
+            _chats.value = snapshotList
         }
+
     }
+
 
     fun toggleUnreadOnly() {
         _showUnreadOnly.value = !(_showUnreadOnly.value ?: false)

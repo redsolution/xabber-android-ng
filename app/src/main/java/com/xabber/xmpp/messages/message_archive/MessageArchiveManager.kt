@@ -14,14 +14,11 @@ import com.xabber.data_base.models.messages.MessageSendingState
 import com.xabber.data_base.models.messages.MessageStorageItem
 import com.xabber.data_base.models.roster.RosterStorageItem
 import com.xabber.data_base.models.sync.ConversationType
-import com.xabber.utils.getOriginId
 import com.xabber.utils.parseTimestamp
 import com.xabber.utils.prp
 import com.xabber.xmpp.jid.XMPPJID
 import com.xabber.xmpp.messages.XMPPMessage
 import com.xabber.xmpp.messages.XMLElement
-import com.xabber.xmpp.messages.messages_manager.MessageCommonReceiver
-import io.realm.kotlin.MutableRealm
 import io.realm.kotlin.Realm
 import io.realm.kotlin.UpdatePolicy
 import io.realm.kotlin.ext.query
@@ -32,24 +29,20 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.w3c.dom.Element
 import java.text.SimpleDateFormat
-import java.time.Instant
-import java.time.format.DateTimeParseException
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
 import javax.xml.parsers.DocumentBuilderFactory
-import kotlin.coroutines.resume
 
 class MessageArchiveManager(private val owner: String) {
     private val namespace = "urn:xmpp:mam:2"
     private val pageSize = 70
-    private val paginationSize = 120 // Increased for older messages loading
+    private val paginationSize = 70 // Increased for older messages loading
     private val callbacksQueue = mutableSetOf<CallbackQueueItem>()
     private val searchResultsQueries = mutableSetOf<String>()
     private val interactiveQueue = mutableListOf<String>()
@@ -459,9 +452,10 @@ class MessageArchiveManager(private val owner: String) {
         jid: String,
         conversationType: ConversationType,
         messageId: String,
-        callback: (() -> Unit)? = null
+        onComplete: (() -> Unit)? = null
     ) = withContext(Dispatchers.IO) {
         val queryId = "MAM:${NanoId.generateOptimized(6, nanoIdAlphabet, nanoIdMask, nanoIdStep)}"
+
         requestArchive(
             stream = stream,
             jid = jid,
@@ -470,11 +464,12 @@ class MessageArchiveManager(private val owner: String) {
             queryId = queryId,
             flipPage = true,
             rsmBefore = if (messageId.isEmpty()) "" else messageId,
-            max = paginationSize, // Increased for older messages loading
+            max = paginationSize,
             backward = true,
-            callback = callback
+            callback = onComplete
         )
     }
+
     @RequiresApi(Build.VERSION_CODES.O)
     suspend fun getNextHistory(
         stream: Stream,
@@ -607,7 +602,6 @@ class MessageArchiveManager(private val owner: String) {
     @RequiresApi(Build.VERSION_CODES.O)
     suspend fun readMessage(
         message: XMPPMessage,
-        updateLastChat: Boolean = false,
         queryId: String? = null  // теперь можно передать явно, если нужно
     ): MessageStorageItem? = withContext(Dispatchers.IO) {
         val realm = Realm.open(defaultRealmConfig())
@@ -715,17 +709,6 @@ class MessageArchiveManager(private val owner: String) {
 
             temporaryMessageReceiver?.didReceiveMessage(instance, queryId ?: "mam")
 
-            if (updateLastChat) {
-                realm.writeBlocking {
-                    updateLastChatItem(
-                        chatPrimary = LastChatsStorageItem.genPrimary(opponent, owner, conversationType),
-                        message = instance,
-                        isIncoming = !originalOutgoing,
-                        muteExpired = getMuteExpired(opponent, conversationType, realm),
-                        realm = this
-                    )
-                }
-            }
 
             return@withContext instance
 
@@ -784,28 +767,6 @@ class MessageArchiveManager(private val owner: String) {
         return references
     }
 
-    private fun updateLastChatItem(
-        chatPrimary: String,
-        message: MessageStorageItem,
-        isIncoming: Boolean,
-        muteExpired: Long,
-        realm: MutableRealm
-    ) {
-        val chat = realm.query<LastChatsStorageItem>("primary = $0", chatPrimary).first().find() ?: return
-        val liveChat = realm.findLatest(chat) ?: return
-
-        liveChat.messageDate = message.sentDate
-
-        if (message.sentDate > (liveChat.lastMessage?.sentDate ?: 0L)) {
-            liveChat.lastMessage = message
-            liveChat.lastMessageId = message.archivedId
-        }
-
-        if (isIncoming && muteExpired <= 0 && !message.isRead) {
-            liveChat.unread = (liveChat.unread ?: 0) + 1
-            liveChat.isArchived = false
-        }
-    }
 
 
     private fun getMuteExpired(jid: String, conversationType: ConversationType, realm: Realm): Long {

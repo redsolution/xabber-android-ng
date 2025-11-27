@@ -1,20 +1,25 @@
 package com.xabber.presentation.application.fragments.chat.viewmodel
 
+import android.os.Build
 import android.util.Log
+import androidx.annotation.RequiresApi
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.xabber.account.AccountManager
+import com.xabber.data_base.models.messages.MessageStorageItem
 import com.xabber.data_base.models.sync.ConversationType
 import com.xabber.dto.AccountDto
 import com.xabber.dto.ChatListDto
 import com.xabber.dto.MessageDto
 import com.xabber.presentation.application.fragments.chat.view.ChatModel
+import com.xabber.xmpp.jid.XMPPJID
+import com.xabber.xmpp.messages.message_archive.MessageArchiveManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.shareIn
@@ -23,28 +28,26 @@ import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
+@RequiresApi(Build.VERSION_CODES.O)
 class ChatViewModel(
     private val chatId: String,
     val owner: String,
     val opponent: String,
     val conversationType: ConversationType
-) : ViewModel() {
+) : ViewModel(), MessageArchiveManager.TemporaryMessageReceiver {
 
     private val model = ChatModel(chatId, owner, opponent, conversationType)
-
+    private var isLoadingOlderMessages = false
     private val _chat = MutableLiveData<ChatListDto?>()
     val chat: LiveData<ChatListDto?> = _chat
-
+    private var currentOlderLoadQueryId: String? = null
     private val _messages = MutableLiveData<List<MessageDto>>()
     val messages: LiveData<List<MessageDto>> = _messages
 
@@ -65,7 +68,8 @@ class ChatViewModel(
 
     private val _isLocked = MutableLiveData<Boolean>()
     val isLocked: LiveData<Boolean> = _isLocked
-
+    private val _isLoadingOlder = MutableLiveData<Boolean>(false)
+    val isLoadingOlder: LiveData<Boolean> = _isLoadingOlder
     // NEW: Flag for full archive load (prevents further older message loads)
     private val _isArchiveFullyLoaded = MutableLiveData(false)
     val isArchiveFullyLoaded: LiveData<Boolean> = _isArchiveFullyLoaded
@@ -76,7 +80,6 @@ class ChatViewModel(
     private var loadingJob: Job? = null
     private val messageListMutex = Mutex()
     private var localMessageList: MutableList<MessageDto> = mutableListOf()
-    private var isLoadingHistoryFromView = false
 
     // Debounce flow for rapid message inserts (prevents UI jumping)
     private val _messagesTrigger = Channel<Unit>(Channel.CONFLATED)
@@ -100,20 +103,108 @@ class ChatViewModel(
             messagesFlow.collect { list ->
                 _messages.value = list
                 _unreadCount.value = list.count { it.isUnread }
-                if (!isLoadingHistoryFromView) _isLoading.value = false
             }
         }
     }
-    fun setLoadingHistory(isLoading: Boolean) {
-        isLoadingHistoryFromView = isLoading
+
+    fun setLoadingOlder(loading: Boolean) {
+        if (_isLoadingOlder.value != loading) {
+            _isLoadingOlder.postValue(loading)
+        }
     }
 
-    // NEW: Set the archive full load flag from MAM end page
+    fun initialSyncChat() {
+        setLocked(true)
+            viewModelScope.launch {
+                val bareOwner = XMPPJID(fullJID = loadChat(chatId)!!.owner).bare()
+                val bareOpponent = XMPPJID(fullJID = loadChat(chatId)!!.opponentJid).bare()
+                val account = AccountManager.find(bareOwner)
+                if (account != null) {
+                    account.action { acc, stream ->
+                        Log.d("ChatView", "Starting MAM sync for chat: owner=$chat, opponent=$bareOpponent, type=${conversationType}")
+                        acc.messageArchiveManager.syncChat(
+                            stream = stream,
+                            jid = bareOpponent,
+                            conversationType = conversationType
+                        )
+                    }
+                } else {
+                    Log.e("ChatView", "Account not found for owner=$bareOwner")
+                }
+            }
+        setLocked(false)
+    }
+
+    override fun didReceiveEndPage(
+        queryId: String,
+        fin: Boolean,
+        first: String,
+        last: String,
+        count: Int
+    ) {
+        if (queryId != currentOlderLoadQueryId) return
+
+        viewModelScope.launch(Dispatchers.Main) {
+            setLoadingOlder(false)  // <--- ЕДИНСТВЕННОЕ место выключения
+            if (fin || count == 0) {
+                setArchiveFullyLoaded(true)
+            }
+        }
+    }
+
+    override fun didStartPageLoad(queryId: String) {
+        currentOlderLoadQueryId = queryId
+        setLoadingOlder(true)
+    }
+
+    override suspend fun didReceiveMessage(item: MessageStorageItem, queryId: String) {
+        // Важно: это вызывается в IO-потоке
+        val messageDto = item.toMessageDto() ?: return
+
+        withContext(Dispatchers.Main) {
+            insertMessage(chatId, messageDto, fromMAM = true)
+        }
+    }
+
+    fun loadOlderMessages(firstVisibleArchivedId: String? = null) {
+        if (isLoadingOlderMessages || _isArchiveFullyLoaded.value == true) return
+
+        isLoadingOlderMessages = true
+        setLoadingOlder(true)
+
+        viewModelScope.launch {
+            try {
+                val bareOwner = XMPPJID(fullJID = owner).bare()
+                val bareOpponent = XMPPJID(fullJID = opponent).bare()
+                val account = AccountManager.find(bareOwner) ?: return@launch
+
+                // Обязательно устанавливаем receiver ДО запроса!
+                account.messageArchiveManager.temporaryMessageReceiver = this@ChatViewModel
+
+                account.action { acc, stream ->
+                    acc.messageArchiveManager.getPrevHistory(
+                        stream = stream,
+                        jid = bareOpponent,
+                        conversationType = conversationType,
+                        messageId = firstVisibleArchivedId.orEmpty()
+                    )
+                }
+            } catch (e: Exception) {
+                Log.e("ChatVM", "loadOlderMessages error", e)
+                withContext(Dispatchers.Main) {
+                    isLoadingOlderMessages = false
+                }
+            }
+        }
+    }
+
+
+
     fun setArchiveFullyLoaded(fullyLoaded: Boolean) {
-        _isArchiveFullyLoaded.value = fullyLoaded
-        Log.d(TAG, "Archive fully loaded set to: $fullyLoaded for chatId=$chatId")
+        if (fullyLoaded != _isArchiveFullyLoaded.value) {
+            _isArchiveFullyLoaded.postValue(fullyLoaded)
+        }
     }
-
     private fun observeChat() {
         chatJob?.cancel()
         chatJob = viewModelScope.launch {
