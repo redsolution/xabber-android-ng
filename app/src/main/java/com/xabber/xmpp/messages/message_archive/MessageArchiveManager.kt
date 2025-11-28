@@ -452,7 +452,7 @@ class MessageArchiveManager(private val owner: String) {
         jid: String,
         conversationType: ConversationType,
         messageId: String,
-        onComplete: (() -> Unit)? = null
+        callback: (() -> Unit)?
     ) = withContext(Dispatchers.IO) {
         val queryId = "MAM:${NanoId.generateOptimized(6, nanoIdAlphabet, nanoIdMask, nanoIdStep)}"
 
@@ -466,7 +466,7 @@ class MessageArchiveManager(private val owner: String) {
             rsmBefore = if (messageId.isEmpty()) "" else messageId,
             max = paginationSize,
             backward = true,
-            callback = onComplete
+            callback = callback
         )
     }
 

@@ -100,8 +100,7 @@ import kotlin.experimental.and
 @RequiresApi(Build.VERSION_CODES.O)
 class ChatView : DetailBaseFragment(R.layout.fragment_chat),
     MessageAdapter.MenuItemListener,
-    MessageAdapter.OnViewClickListener, ReplySwipeCallback.SwipeAction,
-    MessageArchiveManager.TemporaryMessageReceiver {
+    MessageAdapter.OnViewClickListener, ReplySwipeCallback.SwipeAction{
 
     private val binding by viewBinding(FragmentChatBinding::bind)
     private val handler = Handler(Looper.getMainLooper())
@@ -126,16 +125,11 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
     private var ignoreReceiver = true
     private var isPlaying = false
     private var messageSender: MessageCommonSender? = null
-    private var lastLoadOlderMessagesTime = 0L // For debouncing
-    private val debounceInterval = 300L // 500ms debounce
-    var isLoading = true
     private var isFragmentActive = true
     private var isArchiveFullyLoaded = false
     private var isLoadingOlderMessages = false
-    private var isUserScrolling = false
     private var isAtBottom = true
-    private val SCROLL_THRESHOLD = 200 // px — если ближе 200px к низу → считаем "внизу"
-
+    private var isUserScrollingUp = false     // To detect direction
 
     private val requestAudioPermissionResult = registerForActivityResult(
         ActivityResultContracts.RequestPermission(),
@@ -227,21 +221,6 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        viewModel.isLoadingOlder.observe(viewLifecycleOwner) { isLoading ->
-            binding.progressBar.isVisible = isLoading
-            binding.overlay.isVisible = isLoading
-
-            if (isLoading) {
-                // Полная блокировка тачей и скролла
-                binding.messageList.setOnTouchListener { _, _ -> true }
-                binding.messageList.suppressLayout(true)  // API 31+, но безопасно
-                binding.messageList.stopScroll()
-            } else {
-                binding.messageList.setOnTouchListener(null)
-                binding.messageList.suppressLayout(false)
-                binding.messageList.requestLayout()
-            }
-        }
         val chat = viewModel.loadChat(getParams().id)
         if (chat == null) {
             navigator().closeDetail()
@@ -285,46 +264,7 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
 
         binding.messageList.postDelayed({scrollDown()}, 100)
 
-        viewModel.isArchiveFullyLoaded.observe(viewLifecycleOwner) { fullyLoaded ->
-            isArchiveFullyLoaded = fullyLoaded
-            if (fullyLoaded) {
-                Log.d("ChatView", "Архив полностью загружен — больше не грузим")
-                setLoadingState(false)  // на всякий случай
-                isLoadingOlderMessages = false
-            }
-        }
 
-        AccountManager.find(bareOwner)?.messageArchiveManager?.temporaryMessageReceiver = this
-    }
-
-    override suspend fun didReceiveMessage(item: MessageStorageItem, queryId: String) {
-        val messageDto = item.toMessageDto()
-        viewModel.insertMessage(getParams().id, messageDto!!, fromMAM = true)  // Skip Realm write
-    }
-
-    override fun didReceiveEndPage(
-        queryId: String,
-        fin: Boolean,
-        first: String,
-        last: String,
-        count: Int
-    ) {
-        Log.d("ChatView", "MAM page ended: fin=$fin, count=$count")
-
-        lifecycleScope.launch(Dispatchers.Main) {
-            isLoadingOlderMessages = false
-            setLoadingState(false)
-
-            if (fin || count == 0) {
-                Log.d("ChatView", "Архив исчерпан (fin=$fin, count=$count)")
-                viewModel.setArchiveFullyLoaded(true)
-                isArchiveFullyLoaded = true
-            }
-        }
-    }
-
-    override fun didStartPageLoad(queryId: String) {
-        Log.d("ChatView", "mark")
     }
 
     private fun prepareUi(chat: ChatListDto) {
@@ -555,35 +495,21 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
 
     private fun addScrollListener() {
         binding.messageList.addOnScrollListener(object : RecyclerView.OnScrollListener() {
-            private var wasAtTop = false
+            private var previousFirstVisibleItem = -1
 
             override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
-                super.onScrolled(recyclerView, dx, dy)
                 val layoutManager = recyclerView.layoutManager as LinearLayoutManager
                 val firstVisiblePosition = layoutManager.findFirstVisibleItemPosition()
 
-                // Определяем, что пользователь в самом верху
-                val isAtTop = firstVisiblePosition <= 3 // небольшая погрешность для плавности
+                // Подгрузка старых сообщений
+                if (firstVisiblePosition <= 5 && dy < 0) {
+                    viewModel.loadOlderMessages() // ← Только вызов!
+                }
 
                 // Кнопка "вниз"
                 val unreadCount = viewModel.unreadCount.value ?: 0
+                val isAtBottom = layoutManager.findLastVisibleItemPosition() >= (messageAdapter?.itemCount ?: 0) - 3
                 binding.downScroller.isVisible = !isAtBottom && unreadCount > 0
-
-                // === ПОДГРУЗКА СТАРЫХ СООБЩЕНИЙ ===
-                if (isAtTop && !wasAtTop && !isLoadingOlderMessages && !isArchiveFullyLoaded) {
-                    // Пользователь только что долистал до верха
-                    loadOlderMessages()
-                }
-
-                wasAtTop = isAtTop
-
-                // Определяем, внизу ли (для автоскролла при новых сообщениях)
-                val lastVisiblePosition = layoutManager.findLastVisibleItemPosition()
-                val totalCount = messageAdapter?.itemCount ?: 0
-                val nowAtBottom = lastVisiblePosition >= totalCount - 3
-                if (nowAtBottom != isAtBottom) {
-                    isAtBottom = nowAtBottom
-                }
             }
         })
 
@@ -594,15 +520,9 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
     }
 
     private fun loadOlderMessages() {
-        if (isLoadingOlderMessages || isArchiveFullyLoaded) return
-
         isLoadingOlderMessages = true
-        setLoadingState(true)  // ← твоя блокировка UI
-
-        val firstMessage = messageAdapter?.currentList?.firstOrNull()
-        val beforeId = firstMessage?.archivedId
-
-        viewModel.loadOlderMessages(beforeId)
+        viewModel.loadOlderMessages()
+        isLoadingOlderMessages = false
     }
 
     private fun scrollDownSmooth() {
@@ -617,23 +537,7 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
         }
     }
 
-    @SuppressLint("ClickableViewAccessibility")
-    private fun setLoadingState(isLoading: Boolean) {
-        isLoadingOlderMessages = isLoading
-        binding.progressBar.isVisible = isLoading
-        binding.overlay.isVisible = isLoading
-
-        if (isLoading) {
-            binding.messageList.setOnTouchListener { _, _ -> true } // блокируем скролл
-            binding.messageList.stopScroll()
-        } else {
-            binding.messageList.setOnTouchListener(null)
-            binding.messageList.requestLayout()
-        }
-    }
-
-
-    private fun scrollToFirstUnread() {
+     private fun scrollToFirstUnread() {
         val unreadCount = viewModel.unreadCount.value ?: 0
         if (unreadCount > 0 && messageAdapter != null && messageAdapter!!.itemCount > 0) {
             // Since ViewModel has messageList updated, use it
@@ -878,10 +782,11 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
                 setupMuteIcon(it.muteExpired)
             }
         }
-
-        viewModel.isArchiveFullyLoaded.observe(viewLifecycleOwner) { fullyLoaded ->
-            if (fullyLoaded) {
-                Log.d("ChatView", "Archive fully loaded for chatId=${getParams().id} - no more older loads")
+        viewModel.isLoadingHistory.observe(viewLifecycleOwner) { loading ->
+            binding.progressBar.isVisible = loading
+            binding.overlay.isVisible = loading
+            if (loading) {
+                binding.messageList.stopScroll()
             }
         }
 
@@ -908,19 +813,9 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
             }
         }
 
-        viewModel.unreadCount.observe(viewLifecycleOwner) { unread ->
-            if (!isAdded || !lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
-                return@observe
-            }
-            lifecycleScope.launch(Dispatchers.Main) {
-                showUnreadBadge(unread)
-                binding.downScroller.isVisible = unread > 0 && layoutManager != null && messageAdapter != null
-            }
-        }
 
-        viewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
-            binding.progressBar.isVisible = isLoading
-        }
+
+
 
         viewModel.selectedCount.observe(viewLifecycleOwner) {
 

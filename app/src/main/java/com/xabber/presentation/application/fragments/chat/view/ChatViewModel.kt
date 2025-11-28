@@ -54,9 +54,6 @@ class ChatViewModel(
     private val _unreadCount = MutableLiveData<Int>()
     val unreadCount: LiveData<Int> = _unreadCount
 
-    private val _isLoading = MutableLiveData<Boolean>()
-    val isLoading: LiveData<Boolean> = _isLoading
-
     private val _muteExpired = MutableLiveData<Long>()
     val muteExpired: LiveData<Long> = _muteExpired
 
@@ -66,20 +63,18 @@ class ChatViewModel(
     private val _selectedCount = MutableLiveData<Int>()
     val selectedCount: LiveData<Int> = _selectedCount
 
-    private val _isLocked = MutableLiveData<Boolean>()
-    val isLocked: LiveData<Boolean> = _isLocked
-    private val _isLoadingOlder = MutableLiveData<Boolean>(false)
-    val isLoadingOlder: LiveData<Boolean> = _isLoadingOlder
-    // NEW: Flag for full archive load (prevents further older message loads)
-    private val _isArchiveFullyLoaded = MutableLiveData(false)
-    val isArchiveFullyLoaded: LiveData<Boolean> = _isArchiveFullyLoaded
-
     private val selectedItems = mutableSetOf<String>()
     private var messagesJob: Job? = null
     private var chatJob: Job? = null
     private var loadingJob: Job? = null
     private val messageListMutex = Mutex()
     private var localMessageList: MutableList<MessageDto> = mutableListOf()
+
+    private val _isLoadingHistory = MutableLiveData<Boolean>(false)
+    val isLoadingHistory: LiveData<Boolean> = _isLoadingHistory
+
+    private val _isArchiveFullyLoaded = MutableLiveData<Boolean>(false)
+    val isArchiveFullyLoaded: LiveData<Boolean> = _isArchiveFullyLoaded
 
     // Debounce flow for rapid message inserts (prevents UI jumping)
     private val _messagesTrigger = Channel<Unit>(Channel.CONFLATED)
@@ -107,32 +102,25 @@ class ChatViewModel(
         }
     }
 
-    fun setLoadingOlder(loading: Boolean) {
-        if (_isLoadingOlder.value != loading) {
-            _isLoadingOlder.postValue(loading)
-        }
-    }
 
     fun initialSyncChat() {
-        setLocked(true)
-            viewModelScope.launch {
-                val bareOwner = XMPPJID(fullJID = loadChat(chatId)!!.owner).bare()
-                val bareOpponent = XMPPJID(fullJID = loadChat(chatId)!!.opponentJid).bare()
-                val account = AccountManager.find(bareOwner)
-                if (account != null) {
-                    account.action { acc, stream ->
-                        Log.d("ChatView", "Starting MAM sync for chat: owner=$chat, opponent=$bareOpponent, type=${conversationType}")
-                        acc.messageArchiveManager.syncChat(
-                            stream = stream,
-                            jid = bareOpponent,
-                            conversationType = conversationType
-                        )
-                    }
-                } else {
-                    Log.e("ChatView", "Account not found for owner=$bareOwner")
+        viewModelScope.launch {
+            val bareOwner = XMPPJID(fullJID = loadChat(chatId)!!.owner).bare()
+            val bareOpponent = XMPPJID(fullJID = loadChat(chatId)!!.opponentJid).bare()
+            val account = AccountManager.find(bareOwner)
+            if (account != null) {
+                account.action { acc, stream ->
+                    Log.d("ChatView", "Starting MAM sync for chat: owner=$chat, opponent=$bareOpponent, type=${conversationType}")
+                    acc.messageArchiveManager.syncChat(
+                        stream = stream,
+                        jid = bareOpponent,
+                        conversationType = conversationType
+                    )
                 }
+            } else {
+                Log.e("ChatView", "Account not found for owner=$bareOwner")
             }
-        setLocked(false)
+        }
     }
 
     override fun didReceiveEndPage(
@@ -144,67 +132,62 @@ class ChatViewModel(
     ) {
         if (queryId != currentOlderLoadQueryId) return
 
-        viewModelScope.launch(Dispatchers.Main) {
-            setLoadingOlder(false)  // <--- ЕДИНСТВЕННОЕ место выключения
-            if (fin || count == 0) {
-                setArchiveFullyLoaded(true)
-            }
+        if (fin || count < 70) { // pageSize = 70
+            _isArchiveFullyLoaded.postValue(true)
         }
+        _isLoadingHistory.postValue(false)
     }
 
     override fun didStartPageLoad(queryId: String) {
-        currentOlderLoadQueryId = queryId
-        setLoadingOlder(true)
     }
 
     override suspend fun didReceiveMessage(item: MessageStorageItem, queryId: String) {
-        // Важно: это вызывается в IO-потоке
         val messageDto = item.toMessageDto() ?: return
-
         withContext(Dispatchers.Main) {
             insertMessage(chatId, messageDto, fromMAM = true)
         }
     }
 
-    fun loadOlderMessages(firstVisibleArchivedId: String? = null) {
-        if (isLoadingOlderMessages || _isArchiveFullyLoaded.value == true) return
-
-        isLoadingOlderMessages = true
-        setLoadingOlder(true)
+    fun loadOlderMessages() {
+        if (_isLoadingHistory.value == true || _isArchiveFullyLoaded.value == true) return
 
         viewModelScope.launch {
+            _isLoadingHistory.value = true
+
             try {
                 val bareOwner = XMPPJID(fullJID = owner).bare()
                 val bareOpponent = XMPPJID(fullJID = opponent).bare()
                 val account = AccountManager.find(bareOwner) ?: return@launch
 
-                // Обязательно устанавливаем receiver ДО запроса!
+                // Назначаем временный ресивер — сам ViewModel
                 account.messageArchiveManager.temporaryMessageReceiver = this@ChatViewModel
+
+                // Получаем ID первого видимого сообщения (или пустую строку, если вверху)
+                val firstMessage = localMessageList.firstOrNull()
+                val beforeId = firstMessage?.archivedId ?: ""
 
                 account.action { acc, stream ->
                     acc.messageArchiveManager.getPrevHistory(
                         stream = stream,
                         jid = bareOpponent,
                         conversationType = conversationType,
-                        messageId = firstVisibleArchivedId.orEmpty()
+                        messageId = beforeId,
+                        callback = {
+                            // Этот callback вызывается после завершения запроса
+                            viewModelScope.launch(Dispatchers.Main) {
+                                _isLoadingHistory.value = false
+                            }
+                        }
                     )
                 }
             } catch (e: Exception) {
-                Log.e("ChatVM", "loadOlderMessages error", e)
-                withContext(Dispatchers.Main) {
-                    isLoadingOlderMessages = false
-                }
+                Log.e(TAG, "Error loading older messages", e)
+                _isLoadingHistory.value = false
             }
         }
     }
 
 
-
-    fun setArchiveFullyLoaded(fullyLoaded: Boolean) {
-        if (fullyLoaded != _isArchiveFullyLoaded.value) {
-            _isArchiveFullyLoaded.postValue(fullyLoaded)
-        }
-    }
     private fun observeChat() {
         chatJob?.cancel()
         chatJob = viewModelScope.launch {
@@ -219,7 +202,6 @@ class ChatViewModel(
     }
 
     private fun insertIntoSortedList(list: MutableList<MessageDto>, newItem: MessageDto): Int {
-        // Binary search for insertion point (O(log n))
         val timestamp = newItem.sentTimestamp
         var low = 0
         var high = list.size
@@ -278,12 +260,10 @@ class ChatViewModel(
 
     private fun loadInitialData() {
         loadingJob = viewModelScope.launch {
-            _isLoading.value = true
             val initialMessages = model.getMessages()
             _messages.value = initialMessages
             _unreadCount.value = initialMessages.count { it.isUnread }
             markAsReadOnLoad(initialMessages)  // Mark unread on initial load to prevent bind-loop
-            _isLoading.value = false
         }
     }
 
@@ -434,9 +414,7 @@ class ChatViewModel(
 
     fun getAccount(id: String): AccountDto? = runBlocking { model.getAccount(id) }
 
-    fun setLocked(locked: Boolean) {
-        _isLocked.value = locked
-    }
+
 
     fun updateMessagesAndUnread(messages: List<MessageDto>) {
         _messages.value = messages
