@@ -43,11 +43,13 @@ class MessageAdapter(
         fun onLocationClick(latitude: Double, longitude: Double)
     }
 
+    init {
+        setHasStableIds(true)
+    }
 
-
-//    override fun getItemId(position: Int): Long {
-//        return getItem(position).primary.hashCode().toLong()
-//    }
+    override fun getItemId(position: Int): Long {
+        return getItem(position).primary.hashCode().toLong()
+    }
 
     override fun getItemViewType(position: Int): Int {
         val message = getItem(position)
@@ -80,11 +82,8 @@ class MessageAdapter(
     }
 
     override fun onBindViewHolder(holder: MessageViewHolder, position: Int) {
-        if (position < 0 || position >= currentList.size) {
-            Log.w("MessageAdapter", "Invalid position $position, size=${currentList.size}")
-            return
-        }
         val message = getItem(position)
+        Log.v(TAG, "Binding message: primary=${message.primary}, body=${message.messageBody.take(50)}, isOutgoing=${message.isOutgoing}, isUnread=${message.isUnread}, isChecked=${message.isChecked}")
         holder.messageId = message.primary
         val extraData = MessageVhExtraData(
             isUnread = message.isUnread && (firstUnreadMessageID == null || message.primary == firstUnreadMessageID),
@@ -162,15 +161,12 @@ class MessageDiffCallback : DiffUtil.ItemCallback<MessageDto>() {
     }
 
     override fun areContentsTheSame(oldItem: MessageDto, newItem: MessageDto): Boolean {
-        return oldItem.messageBody == newItem.messageBody &&
+         return oldItem.messageBody == newItem.messageBody &&
                 oldItem.sentTimestamp == newItem.sentTimestamp &&
-                oldItem.editTimestamp == newItem.editTimestamp &&  // ← Добавлено
-                oldItem.messageSendingState == newItem.messageSendingState &&  // ← Добавлено (state changes)
                 oldItem.isOutgoing == newItem.isOutgoing &&
                 oldItem.references == newItem.references &&
                 oldItem.isUnread == newItem.isUnread &&
                 oldItem.isChecked == newItem.isChecked &&
-                oldItem.archivedId == newItem.archivedId &&
-                oldItem.displayType == newItem.displayType  // ← Добавлено
+                oldItem.archivedId == newItem.archivedId
     }
 }

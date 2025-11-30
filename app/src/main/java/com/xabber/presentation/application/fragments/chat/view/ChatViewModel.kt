@@ -1,58 +1,43 @@
 package com.xabber.presentation.application.fragments.chat.viewmodel
 
-import android.os.Build
 import android.util.Log
-import androidx.annotation.RequiresApi
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.xabber.account.AccountManager
-import com.xabber.data_base.models.messages.MessageStorageItem
 import com.xabber.data_base.models.sync.ConversationType
 import com.xabber.dto.AccountDto
 import com.xabber.dto.ChatListDto
 import com.xabber.dto.MessageDto
 import com.xabber.presentation.application.fragments.chat.view.ChatModel
-import com.xabber.xmpp.jid.XMPPJID
-import com.xabber.xmpp.messages.message_archive.MessageArchiveManager
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.flow.receiveAsFlow
-import kotlinx.coroutines.flow.shareIn
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.onStart
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.debounce
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
-@RequiresApi(Build.VERSION_CODES.O)
 class ChatViewModel(
     private val chatId: String,
     val owner: String,
     val opponent: String,
     val conversationType: ConversationType
-) : ViewModel(), MessageArchiveManager.TemporaryMessageReceiver {
+) : ViewModel() {
 
     private val model = ChatModel(chatId, owner, opponent, conversationType)
-    private var isLoadingOlderMessages = false
+
     private val _chat = MutableLiveData<ChatListDto?>()
     val chat: LiveData<ChatListDto?> = _chat
-    private var currentOlderLoadQueryId: String? = null
+
     private val _messages = MutableLiveData<List<MessageDto>>()
     val messages: LiveData<List<MessageDto>> = _messages
 
     private val _unreadCount = MutableLiveData<Int>()
     val unreadCount: LiveData<Int> = _unreadCount
+
+    private val _isLoading = MutableLiveData<Boolean>()
+    val isLoading: LiveData<Boolean> = _isLoading
 
     private val _muteExpired = MutableLiveData<Long>()
     val muteExpired: LiveData<Long> = _muteExpired
@@ -63,130 +48,22 @@ class ChatViewModel(
     private val _selectedCount = MutableLiveData<Int>()
     val selectedCount: LiveData<Int> = _selectedCount
 
+    private val _isLocked = MutableLiveData<Boolean>()
+    val isLocked: LiveData<Boolean> = _isLocked
+
     private val selectedItems = mutableSetOf<String>()
     private var messagesJob: Job? = null
     private var chatJob: Job? = null
     private var loadingJob: Job? = null
-    private val messageListMutex = Mutex()
-    private var localMessageList: MutableList<MessageDto> = mutableListOf()
-
-    private val _isLoadingHistory = MutableLiveData<Boolean>(false)
-    val isLoadingHistory: LiveData<Boolean> = _isLoadingHistory
-
-    private val _isArchiveFullyLoaded = MutableLiveData<Boolean>(false)
-    val isArchiveFullyLoaded: LiveData<Boolean> = _isArchiveFullyLoaded
-
-    // Debounce flow for rapid message inserts (prevents UI jumping)
-    private val _messagesTrigger = Channel<Unit>(Channel.CONFLATED)
-    @OptIn(FlowPreview::class)
-    private val messagesFlow = _messagesTrigger.receiveAsFlow()
-        .onStart { emit(Unit) }
-        .map { localMessageList.toList() }
-        .debounce(400)
-        .distinctUntilChanged()
-        .shareIn(viewModelScope, SharingStarted.Lazily, replay = 1)
 
     private val TAG = "ChatViewModel"
 
     init {
         observeChat()
-        initMessagesListener()
+        observeMessages()
         loadInitialData()
         markAllAsRead()
-
-        viewModelScope.launch(Dispatchers.Main) {
-            messagesFlow.collect { list ->
-                _messages.value = list
-                _unreadCount.value = list.count { it.isUnread }
-            }
-        }
     }
-
-
-    fun initialSyncChat() {
-        viewModelScope.launch {
-            val bareOwner = XMPPJID(fullJID = loadChat(chatId)!!.owner).bare()
-            val bareOpponent = XMPPJID(fullJID = loadChat(chatId)!!.opponentJid).bare()
-            val account = AccountManager.find(bareOwner)
-            if (account != null) {
-                account.action { acc, stream ->
-                    Log.d("ChatView", "Starting MAM sync for chat: owner=$chat, opponent=$bareOpponent, type=${conversationType}")
-                    acc.messageArchiveManager.syncChat(
-                        stream = stream,
-                        jid = bareOpponent,
-                        conversationType = conversationType
-                    )
-                }
-            } else {
-                Log.e("ChatView", "Account not found for owner=$bareOwner")
-            }
-        }
-    }
-
-    override fun didReceiveEndPage(
-        queryId: String,
-        fin: Boolean,
-        first: String,
-        last: String,
-        count: Int
-    ) {
-        if (queryId != currentOlderLoadQueryId) return
-
-        if (fin || count < 70) { // pageSize = 70
-            _isArchiveFullyLoaded.postValue(true)
-        }
-        _isLoadingHistory.postValue(false)
-    }
-
-    override fun didStartPageLoad(queryId: String) {
-    }
-
-    override suspend fun didReceiveMessage(item: MessageStorageItem, queryId: String) {
-        val messageDto = item.toMessageDto() ?: return
-        withContext(Dispatchers.Main) {
-            insertMessage(chatId, messageDto, fromMAM = true)
-        }
-    }
-
-    fun loadOlderMessages() {
-        if (_isLoadingHistory.value == true || _isArchiveFullyLoaded.value == true) return
-
-        viewModelScope.launch {
-            _isLoadingHistory.value = true
-
-            try {
-                val bareOwner = XMPPJID(fullJID = owner).bare()
-                val bareOpponent = XMPPJID(fullJID = opponent).bare()
-                val account = AccountManager.find(bareOwner) ?: return@launch
-
-                // Назначаем временный ресивер — сам ViewModel
-                account.messageArchiveManager.temporaryMessageReceiver = this@ChatViewModel
-
-                // Получаем ID первого видимого сообщения (или пустую строку, если вверху)
-                val firstMessage = localMessageList.firstOrNull()
-                val beforeId = firstMessage?.archivedId ?: ""
-
-                account.action { acc, stream ->
-                    acc.messageArchiveManager.getPrevHistory(
-                        stream = stream,
-                        jid = bareOpponent,
-                        conversationType = conversationType,
-                        messageId = beforeId,
-                        callback = {
-                            // Этот callback вызывается после завершения запроса
-                            viewModelScope.launch(Dispatchers.Main) {
-                                _isLoadingHistory.value = false
-                            }
-                        }
-                    )
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error loading older messages", e)
-                _isLoadingHistory.value = false
-            }
-        }
-    }
-
 
     private fun observeChat() {
         chatJob?.cancel()
@@ -201,69 +78,25 @@ class ChatViewModel(
         }
     }
 
-    private fun insertIntoSortedList(list: MutableList<MessageDto>, newItem: MessageDto): Int {
-        val timestamp = newItem.sentTimestamp
-        var low = 0
-        var high = list.size
-        while (low < high) {
-            val mid = low + (high - low) / 2
-            if (list[mid].sentTimestamp < timestamp) {
-                low = mid + 1
-            } else {
-                high = mid
-            }
-        }
-        // Insert at position (O(n) shift, but only once per message – amortized fine for n=1000)
-        list.add(low, newItem)
-        return low  // Optional: return pos for logging
-    }
-
-    fun initMessagesListener() {
-        messagesJob?.cancel() // Отменяем предыдущий job, чтобы избежать дубликатов
-        messagesJob = viewModelScope.launch(SupervisorJob() + Dispatchers.IO) {
-            try {
-                model.observeMessages()
-                    .distinctUntilChanged()
-                    .debounce(100)
-                    .collectLatest { incomingMessages ->
-                        Log.d(TAG, "Messages Flow collected: ${incomingMessages.size} messages, chatId=$chatId, opponent=$opponent")
-
-                        messageListMutex.withLock {
-                            val currentMessages = localMessageList.associateBy { it.primary }.toMutableMap()
-                            var newMessagesAdded = false // Флаг для новых сообщений (можно использовать для уведомлений)
-
-                            incomingMessages.forEach { newMessage ->
-                                if (!currentMessages.containsKey(newMessage.primary)) {
-                                    newMessagesAdded = true
-                                }
-                                currentMessages[newMessage.primary] = newMessage
-                                Log.d(TAG, "Merged message from Flow: primary=${newMessage.primary}, messageId=${newMessage.archivedId}, body=${newMessage.messageBody.take(50)}, sentTimestamp=${newMessage.sentTimestamp}")
-                            }
-
-                            localMessageList.clear()
-                            localMessageList.addAll(currentMessages.values.sortedBy { it.sentTimestamp })
-
-                            // Считаем unread
-                            val unreadCount = localMessageList.count { it.isUnread }
-                            Log.d(TAG, "Collected messages from Flow: ${localMessageList.size} messages, $unreadCount unread, first=${localMessageList.firstOrNull()?.primary}, last=${localMessageList.lastOrNull()?.primary}, lastMessageId=${localMessageList.lastOrNull()?.archivedId}")
-
-
-                            _messagesTrigger.trySend(Unit)
-                        }
-                    }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error in messages Flow collector: ${e.message}", e)
+    private fun observeMessages() {
+        messagesJob?.cancel()
+        messagesJob = viewModelScope.launch {
+            model.observeMessages().collectLatest { messageList ->
+                _messages.value = messageList
+                _unreadCount.value = messageList.count { it.isUnread }
+                Log.d(TAG, "Observed ${messageList.size} messages")
             }
         }
     }
-
 
     private fun loadInitialData() {
         loadingJob = viewModelScope.launch {
+            _isLoading.value = true
             val initialMessages = model.getMessages()
             _messages.value = initialMessages
             _unreadCount.value = initialMessages.count { it.isUnread }
             markAsReadOnLoad(initialMessages)  // Mark unread on initial load to prevent bind-loop
+            _isLoading.value = false
         }
     }
 
@@ -282,36 +115,15 @@ class ChatViewModel(
         }
     }
 
-    fun insertMessage(id: String, message: MessageDto, fromMAM: Boolean = false) {
-        viewModelScope.launch(Dispatchers.IO) {
-            messageListMutex.withLock {
-                val idx = localMessageList.indexOfFirst { it.primary == message.primary }
-                if (idx == -1) {
-                    insertIntoSortedList(localMessageList, message)
-                } else {
-                    localMessageList[idx] = message
-                }
-            }
-            if (!fromMAM) {
-                model.insertMessage(id, message)
-            }
-            _messagesTrigger.trySend(Unit)
-            Log.d(TAG, "Inserted message ${message.primary} at pos via binary search, total size=${localMessageList.size}, fromMAM=$fromMAM")
+    fun insertMessage(id: String, message: MessageDto) {
+        viewModelScope.launch {
+            model.insertMessage(id, message)
         }
     }
 
     fun insertMessagesFromReceiver(messages: List<MessageDto>) {
         viewModelScope.launch {
             model.insertMessagesFromReceiver(messages)
-            val refreshed = model.getMessages()
-            messageListMutex.withLock {
-                localMessageList.clear()
-                localMessageList.addAll(refreshed.sortedBy { it.sentTimestamp })
-            }
-            withContext(Dispatchers.Main) {
-                _unreadCount.value = localMessageList.count { it.isUnread }
-                Log.d(TAG, "Force refresh after receiver insert: ${messages.size} new msgs")
-            }
         }
     }
 
@@ -414,7 +226,9 @@ class ChatViewModel(
 
     fun getAccount(id: String): AccountDto? = runBlocking { model.getAccount(id) }
 
-
+    fun setLocked(locked: Boolean) {
+        _isLocked.value = locked
+    }
 
     fun updateMessagesAndUnread(messages: List<MessageDto>) {
         _messages.value = messages

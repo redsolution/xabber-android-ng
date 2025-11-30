@@ -1,15 +1,26 @@
 package com.xabber.data_base.models.messages
 
+import android.os.Build
 import android.util.Log
+import androidx.annotation.RequiresApi
+import com.xabber.common.CommonConfigManager
+import com.xabber.common.SettingManager
+import com.xabber.data_base.models.last_chats.LastChatsStorageItem
+import com.xabber.data_base.models.roster.RosterStorageItem
+import com.xabber.data_base.models.roster.Subscription
 import com.xabber.utils.prp
 import com.xabber.utils.toMap
 import com.xabber.xmpp.messages.XMPPMessage
 import com.xabber.data_base.models.sync.ConversationType
 import com.xabber.dto.MessageDto
 import com.xabber.dto.MessageReferenceDto
+import com.xabber.presentation.XabberApplication.Companion.applicationContext
 import com.xabber.xmpp.messages.message.MessageStanzaStorageItem
+import com.xabber.xmpp.notifications.NotifyManager
 import io.realm.kotlin.MutableRealm
+import io.realm.kotlin.Realm
 import io.realm.kotlin.UpdatePolicy
+import io.realm.kotlin.ext.query
 import io.realm.kotlin.ext.realmListOf
 import io.realm.kotlin.types.RealmList
 import io.realm.kotlin.types.RealmObject
@@ -212,15 +223,264 @@ class MessageStorageItem : RealmObject {
 
     }
 
-    fun save(realm: MutableRealm, silentNotifications: Boolean): Boolean {
+    @RequiresApi(Build.VERSION_CODES.O)
+    fun save(
+        realm: Realm,
+        commitTransaction: Boolean = true,
+        silentNotifications: Boolean = false
+    ): Boolean {
+        if (opponent.isBlank()) return false
+
+//        val autoDeleteInterval = CommonConfigManager.config.auto_delete_messages_interval
+//        if (autoDeleteInterval > 0 && date < System.currentTimeMillis() - autoDeleteInterval * 1000L) {
+//            return false
+//        }
+
+        if (primary.isBlank()) updatePrimary()
+
         return try {
-            realm.copyToRealm(this, UpdatePolicy.ALL)
-            Log.d(TAG, "Successfully saved message: primary=$primary, messageId=$messageId, owner=$owner, opponent=$opponent, body=$body, state=$state, isRead=$isRead")
+            val existing = realm.query<MessageStorageItem>("primary == $0", primary).first().find()
+            if (existing != null) {
+                if (trustedSource && !existing.trustedSource) {
+                    if (commitTransaction) {
+                        realm.writeBlocking {
+                            if (archivedId.isNotBlank()) existing.archivedId = this@MessageStorageItem.archivedId
+                            existing.trustedSource = true
+                            existing.previousId = this@MessageStorageItem.previousId
+                        }
+                    } else {
+                        if (archivedId.isNotBlank()) existing.archivedId = archivedId
+                        existing.trustedSource = true
+                        existing.previousId = previousId
+                    }
+                }
+
+                if (queryIds?.contains("history") == true) {
+                    if (commitTransaction) {
+                        realm.writeBlocking {
+                            val old = existing.queryIds.orEmpty()
+                            val new = this@MessageStorageItem.queryIds.orEmpty()
+                            existing.queryIds = if (old.isNotEmpty() && new.isNotEmpty()) "$old,$new" else old + new
+                        }
+                    } else {
+                        val old = existing.queryIds.orEmpty()
+                        val new = queryIds.orEmpty()
+                        existing.queryIds = if (old.isNotEmpty() && new.isNotEmpty()) "$old,$new" else old + new
+                    }
+                }
+                return false
+            }
+
+            val lastChatPrimary = LastChatsStorageItem.genPrimary(opponent, owner, conversationType)
+            var lastChat = realm.query<LastChatsStorageItem>("primary == $0", lastChatPrimary).first().find()
+            val isNewChat = lastChat == null
+            if (isNewChat) {
+                lastChat = LastChatsStorageItem().apply {
+                    jid = opponent
+                    this.owner = this@MessageStorageItem.owner
+                    conversationType = this@MessageStorageItem.conversationType
+                    primary = lastChatPrimary
+                }
+            }
+
+            var shouldNotify = false
+
+            if (commitTransaction) {
+                realm.writeBlocking {
+                    val message = copyToRealm(this@MessageStorageItem, UpdatePolicy.ALL)
+
+                    val lastMessageDate = lastChat!!.lastMessage?.date ?: 0L
+                    if (lastMessageDate > message.date) {
+                        message.isRead = true
+                        if (message.outgoing && message.archivedId.isNotBlank()) {
+                            val archivedTime = message.archivedId.toLongOrNull() ?: 0L
+                            lastChat!!.deliveredId?.toLongOrNull()?.let { if (it > archivedTime) message.state = MessageSendingState.Deliver }
+                            lastChat!!.displayedId?.toLongOrNull()?.let { if (it > archivedTime) message.state = MessageSendingState.Read }
+                        }
+                    } else {
+                        shouldNotify = true
+                        lastChat!!.apply {
+                            messageDate = message.sentDate
+                            if (!message.isDeleted) lastMessage = message
+                            lastMessageId = message.messageId
+
+                            val timer = message.references.firstOrNull()?.metadata?.get("ephemeral-timer") as? Int
+                            if (timer != null) {
+                                afterburnIntervalLastUpdate = message.date / 1000.0
+                                afterburnInterval = timer.toDouble()
+                            } else if (message.afterburnInterval > -1 && afterburnIntervalLastUpdate < message.date / 1000.0) {
+                                afterburnIntervalLastUpdate = message.date / 1000.0
+                                afterburnInterval = message.afterburnInterval.toDouble()
+                            }
+
+                            if (!message.isRead && !message.outgoing && message.forceUnreadState != true) unread += 1
+                            else if (message.outgoing) unread = 0
+
+                            if (isArchived && !isMuted) isArchived = false
+
+                            val rosterPrimary = RosterStorageItem.genPrimary(message.opponent, message.owner)
+                            val rosterItem = query<RosterStorageItem>("primary == $0", rosterPrimary).first().find()
+                            if (rosterItem != null) this.rosterItem = rosterItem
+                        }
+                    }
+
+                    if (isNewChat) {
+                        val rosterPrimary = RosterStorageItem.genPrimary(opponent, owner)
+                        var rosterItem = query<RosterStorageItem>("primary == $0", rosterPrimary).first().find()
+                        if (rosterItem == null) {
+                            rosterItem = RosterStorageItem().apply {
+                                jid = opponent
+                                this.owner = this@MessageStorageItem.owner
+                                subscription = Subscription.UNDEFINED
+                                primary = rosterPrimary
+                            }
+                            copyToRealm(rosterItem, UpdatePolicy.ALL)
+                        }
+                        lastChat!!.rosterItem = rosterItem
+                    }
+
+                    copyToRealm(lastChat!!, UpdatePolicy.ALL)
+                }
+            } else {
+                realm.writeBlocking {
+                    shouldNotify = true
+                    copyToRealm(this as RealmObject, UpdatePolicy.ALL)
+                    lastChat!!.apply {
+                        messageDate = sentDate
+                        if (!isDeleted) lastMessage = this@MessageStorageItem
+                        lastMessageId = messageId
+
+                        val timer =
+                            references.firstOrNull()?.metadata?.get("ephemeral-timer") as? Int
+                        if (timer != null) {
+                            afterburnIntervalLastUpdate = date / 1000.0
+                            afterburnInterval = timer.toDouble()
+                        } else if (afterburnInterval > -1 && afterburnIntervalLastUpdate < date / 1000.0) {
+                            afterburnIntervalLastUpdate = date / 1000.0
+                            afterburnInterval = this@MessageStorageItem.afterburnInterval.toDouble()
+                        }
+
+                        if (!isRead && !outgoing && forceUnreadState != true) unread += 1
+                        else if (outgoing) unread = 0
+
+                        if (isArchived && !isMuted) isArchived = false
+
+                        val rosterPrimary = RosterStorageItem.genPrimary(opponent, owner)
+                        val rosterItem =
+                            realm.query<RosterStorageItem>("primary == $0", rosterPrimary).first()
+                                .find()
+                        if (rosterItem != null) this.rosterItem = rosterItem
+                    }
+
+                    if (isNewChat) {
+                        val rosterPrimary = RosterStorageItem.genPrimary(opponent, owner)
+                        var rosterItem =
+                            realm.query<RosterStorageItem>("primary == $0", rosterPrimary).first()
+                                .find()
+                        if (rosterItem == null) {
+                            rosterItem = RosterStorageItem().apply {
+                                jid = opponent
+                                owner = this@MessageStorageItem.owner
+                                subscription = Subscription.UNDEFINED
+                                primary = rosterPrimary
+                            }
+                            copyToRealm(rosterItem, UpdatePolicy.ALL)
+                        }
+                        lastChat!!.rosterItem = rosterItem
+                    }
+
+                    copyToRealm(lastChat!!, UpdatePolicy.ALL)
+                }
+            }
+
+            if (!silentNotifications && shouldNotify && !isRead && !outgoing && archivedId.isNotBlank()) {
+                if (date >= System.currentTimeMillis() - 10000) {
+                    NotifyManager.shared.update(
+                        context = applicationContext(),
+                        message = body.takeIf { it.isNotBlank() } ?: "New message",
+                        messageId = archivedId,
+                        username = null,
+                        opponent = opponent,
+                        owner = owner,
+                        date = Date(date),
+                        displayName = "",      // или имя контакта, если доступно
+                        imageUrl = null,       // или URL аватарки
+                        conversationType = conversationType
+                    )
+                }
+            }
+
             true
         } catch (e: Exception) {
-            Log.e(TAG, "Error saving message $primary: ${e.message}", e)
+            Log.e(TAG, "Failed to save message $primary", e)
             false
         }
+    }
+
+    // Вынесена только одна внутренняя функция — чтобы не дублировать код
+    private fun doSaveInsideTransaction(
+        realm: MutableRealm,
+        lastChat: LastChatsStorageItem,
+        isNewChat: Boolean,
+        shouldNotify: Boolean
+    ) {
+        realm.copyToRealm(this@MessageStorageItem, UpdatePolicy.ALL)
+
+        val lastMessageDate = lastChat.lastMessage?.date ?: 0L
+        if (lastMessageDate > this@MessageStorageItem.date) {
+            this@MessageStorageItem.isRead = true
+            if (outgoing && archivedId.isNotBlank()) {
+                val archivedTime = archivedId.toLongOrNull() ?: 0L
+                lastChat.deliveredId?.toLongOrNull()?.let { if (it > archivedTime) state = MessageSendingState.Deliver }
+                lastChat.displayedId?.toLongOrNull()?.let { if (it > archivedTime) state = MessageSendingState.Read }
+            }
+        } else {
+            lastChat.apply {
+                messageDate = this@MessageStorageItem.sentDate
+                if (!this@MessageStorageItem.isDeleted) lastMessage = this@MessageStorageItem
+                lastMessageId = this@MessageStorageItem.messageId
+
+                val timer = this@MessageStorageItem.references.firstOrNull()?.metadata?.get("ephemeral-timer") as? Int
+                if (timer != null) {
+                    afterburnIntervalLastUpdate = this@MessageStorageItem.date / 1000.0
+                    afterburnInterval = timer.toDouble()
+                } else if (this@MessageStorageItem.afterburnInterval > -1 &&
+                    afterburnIntervalLastUpdate < this@MessageStorageItem.date / 1000.0
+                ) {
+                    afterburnIntervalLastUpdate = this@MessageStorageItem.date / 1000.0
+                    afterburnInterval = this@MessageStorageItem.afterburnInterval.toDouble()
+                }
+
+                if (!this@MessageStorageItem.isRead && !this@MessageStorageItem.outgoing && this@MessageStorageItem.forceUnreadState != true) {
+                    unread += 1
+                } else if (this@MessageStorageItem.outgoing) {
+                    unread = 0
+                }
+
+                if (isArchived && !isMuted) isArchived = false
+
+                val rosterPrimary = RosterStorageItem.genPrimary(opponent, this@MessageStorageItem.owner)
+                val rosterItem = realm.query<RosterStorageItem>("primary == $0", rosterPrimary).first().find()
+                if (rosterItem != null) this.rosterItem = rosterItem
+            }
+        }
+
+        if (isNewChat) {
+            val rosterPrimary = RosterStorageItem.genPrimary(opponent, owner)
+            var rosterItem = realm.query<RosterStorageItem>("primary == $0", rosterPrimary).first().find()
+            if (rosterItem == null) {
+                rosterItem = RosterStorageItem().apply {
+                    jid = opponent
+                    this.owner = this@MessageStorageItem.owner
+//                    subscribtion = Subscription.undefined
+                    primary = rosterPrimary
+                }
+                realm.copyToRealm(rosterItem, UpdatePolicy.ALL)
+            }
+            lastChat.rosterItem = rosterItem
+        }
+
+        realm.copyToRealm(lastChat, UpdatePolicy.ALL)
     }
 
     fun storeStanza(realm: MutableRealm) {
