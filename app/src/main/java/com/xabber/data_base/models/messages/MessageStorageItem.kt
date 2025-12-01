@@ -384,7 +384,7 @@ class MessageStorageItem : RealmObject {
                                 subscription = Subscription.UNDEFINED
                                 primary = rosterPrimary
                             }
-                            copyToRealm(rosterItem, UpdatePolicy.ALL)
+                            copyToRealm(rosterItem!!, UpdatePolicy.ALL)
                         }
                         lastChat!!.rosterItem = rosterItem
                     }

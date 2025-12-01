@@ -162,6 +162,7 @@ class MessageCommonReceiver(private val owner: String) {
             originalOutgoing = messageBare.from?.bare() == owner
         )
         enqueue(queueItem)
+        storeMessagesNow()
     }
 
     suspend fun receiveCarbon(message: XMPPMessage) {
@@ -185,6 +186,8 @@ class MessageCommonReceiver(private val owner: String) {
         )
         processedMessageIds.add(messageId)
         enqueue(queueItem)
+        storeMessagesNow()
+
     }
 
     suspend fun receiveCarbonForwarded(message: XMPPMessage) {
@@ -231,6 +234,8 @@ class MessageCommonReceiver(private val owner: String) {
             originalOutgoing = from == owner
         )
         enqueue(queueItem)
+        storeMessagesNow()
+
     }
 
     fun updateReadDate(messageId: String, stanzaId: String, jid: String, date: Date) {
