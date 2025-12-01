@@ -44,7 +44,7 @@ class MessageCommonReceiver(private val owner: String) {
 
     private val processedMessageIds = mutableSetOf<String>()
     private val messageQueryIds = mutableSetOf<String>()
-
+    val seenQueryIds = mutableSetOf<String>()
     private val prereadedMessages = mutableSetOf<PrereadedMessagesItem>()
     private val prereadedConversation = mutableSetOf<PrereadedConversationItem>()
 
@@ -69,8 +69,16 @@ class MessageCommonReceiver(private val owner: String) {
         var originalFrom: String = "",
         var originalOutgoing: Boolean = false
     ) {
-        override fun equals(other: Any?): Boolean = (other as? MessageQueueItem)?.messageId == messageId
-        override fun hashCode(): Int = messageId?.hashCode() ?: 0
+        override fun equals(other: Any?): Boolean =
+            other is MessageQueueItem &&
+                    message.raw == other.message.raw &&  // ← Critical: use raw XML
+                    date.time == other.date.time
+
+        override fun hashCode(): Int {
+            var result = message.raw.hashCode()
+            result = 31 * result + date.time.hashCode()
+            return result
+        }
     }
 
     data class PrereadedMessagesItem(
@@ -166,28 +174,30 @@ class MessageCommonReceiver(private val owner: String) {
     }
 
     suspend fun receiveCarbon(message: XMPPMessage) {
-        val messageBare = getCarbonCopyMessageContainer(message) ?: return
-        val messageId = getOriginId(messageBare) ?: messageBare.id ?: return
-        if (processedMessageIds.contains(messageId)) return
+        val isSentCarbon = message.element("sent", "urn:xmpp:carbons:2") != null
+        val forwarded = message.element("forwarded", "urn:xmpp:forward:0") ?: return
+        val innerMessage = forwarded.element("message", "jabber:client") ?: return
+        val bareMessage = XMPPMessage(innerMessage.raw)
 
-        val primary = MessageStorageItem.genPrimary(messageId, owner)
-        if (realm.query<MessageStorageItem>("primary == $0", primary).first().find() != null) return
+        val messageId = getOriginId(bareMessage) ?: bareMessage.id ?: return
+        if (processedMessageIds.contains(messageId)) return
+        processedMessageIds.add(messageId)
+
+        val isRead = isSentCarbon  // Only own sent carbons are read
+        val state = if (isSentCarbon) MessageSendingState.Sent else MessageSendingState.Deliver
 
         val queueItem = MessageQueueItem(
-            message = messageBare,
+            message = bareMessage,
             messageId = messageId,
-            archivedFrom = messageBare.from?.bare(),
-            isRead = true,
-            date = getDeliveryTime(messageBare, owner) ?: Date(),
-            state = MessageSendingState.Sent,
+            archivedFrom = bareMessage.from?.bare(),
+            isRead = isRead,
+            date = getDeliveryTime(bareMessage, owner) ?: Date(),
+            state = state,
             queryId = getMAMQueryId(message),
-            originalFrom = messageBare.from?.bare() ?: "",
-            originalOutgoing = messageBare.from?.bare() == owner
+            originalOutgoing = isSentCarbon
         )
-        processedMessageIds.add(messageId)
         enqueue(queueItem)
         storeMessagesNow()
-
     }
 
     suspend fun receiveCarbonForwarded(message: XMPPMessage) {
@@ -276,8 +286,9 @@ class MessageCommonReceiver(private val owner: String) {
         Log.d(TAG, "Queue cleared: size=${messagesQueue.value.size}")
     }
 
-    private fun processQueue(items: List<MessageQueueItem>) {
+    private suspend fun processQueue(items: List<MessageQueueItem>) {
         val sorted = items.sortedBy { it.date }
+
         for (item in sorted) {
             if (isVoIPMessage(item.message)) continue
 
@@ -285,12 +296,13 @@ class MessageCommonReceiver(private val owner: String) {
             val to = item.message.to?.bare() ?: continue
             if (to == owner && from == owner) continue
 
-            val opponent = if (to != owner) to else from
+            var opponent = if (to != owner) to else from
 
-            // Определяем исходящее (точно как в Swift)
+            // Определяем исходящее — как в Swift
             val isOutgoing = if (item.message.hasElement("x", "https://xabber.com/protocol/groups")) {
                 item.message.element("x", "https://xabber.com/protocol/groups")
-                    ?.element("reference")?.element("user", "https://xabber.com/protocol/groups")
+                    ?.element("reference")
+                    ?.element("user", "https://xabber.com/protocol/groups")
                     ?.getAttribute("id") == owner
             } else {
                 from == owner
@@ -298,20 +310,28 @@ class MessageCommonReceiver(private val owner: String) {
 
             val conversationType = conversationTypeByMessage(item.message)
 
-            // preread
+            // Preread logic
             var isRead = item.isRead
             val readDate = item.readDate
                 ?: prereadedMessages.firstOrNull { it.messageId == item.messageId }?.date
                 ?: prereadedConversation.firstOrNull { it.jid == opponent && it.conversationType == conversationType }?.date
 
-            if (readDate != null && item.date < readDate) {
+            if (readDate != null && item.date.before(readDate)) {
                 isRead = true
             }
 
             val afterburnInterval = item.message.element("ephemeral", "urn:xmpp:ephemeral:0")
                 ?.getAttribute("timer")?.toDoubleOrNull() ?: 0.0
 
+            // Создаём unmanaged объект — только для передачи данных
             val messageItem = MessageStorageItem().apply {
+                owner = this@MessageCommonReceiver.owner
+                opponent = opponent
+                outgoing = isOutgoing
+                this.isRead = isRead
+                date = item.date.time
+                sentDate = item.date.time
+
                 if (item.message.hasElement("system", "urn:xmpp:system") ||
                     item.message.hasElement("x", "https://xabber.com/protocol/groups#system-message")
                 ) {
@@ -330,6 +350,7 @@ class MessageCommonReceiver(private val owner: String) {
 
                 state = item.state
                 this.afterburnInterval = afterburnInterval.toLong()
+
                 if (afterburnInterval > 0 && readDate != null) {
                     this.readDate = readDate.time / 1000
                     this.burnDate = (readDate.time / 1000) + afterburnInterval.toLong()
@@ -339,22 +360,32 @@ class MessageCommonReceiver(private val owner: String) {
                     }
                 }
 
+                messageId = item.messageId ?: item.message.originId ?: NanoId.generate()
+                updatePrimary()
+
                 queryIds = item.queryId
                 trustedSource = item.clientSyncMessage || (item.queryId?.let { messageQueryIds.contains(it) } ?: false)
                 if (item.queryId != null && !item.clientSyncMessage) {
                     messageQueryIds += item.queryId
                 }
 
-                messageId = item.messageId ?: item.message.originId ?: NanoId.generate()
-                updatePrimary()
+                // Важно: archivedId может быть в MAM-сообщении
+                archivedId = item.message.element("archived", "urn:xmpp:mam:tmp")?.getAttribute("id")
+                    ?: item.message.element("result", "urn:xmpp:mam:2")?.getAttribute("id")
+                            ?: archivedId
             }
 
-            messageItem.save(realm, commitTransaction = true, silentNotifications = false)
+            // ← ВОТ ЭТО ВСЁ, ЧТО НУЖНО:
+            messageItem.save(silentNotifications = true)
         }
+
+        // Уведомления и эпhemerals — после всей пачки
+        AccountManager.find(owner)?.chatMarkers?.deleteEphemeralMessages()
     }
 
     private fun enqueue(item: MessageQueueItem) {
         val set = messagesQueue.value.toMutableSet()
+        if (set.contains(item)) return  // ← Now works correctly!
         set += item
         messagesQueue.value = set
     }
@@ -365,6 +396,7 @@ class MessageCommonReceiver(private val owner: String) {
         processQueue(items)
         AccountManager.find(owner)?.chatMarkers?.deleteEphemeralMessages()
     }
+
 
     // MARK: - Helpers
 
