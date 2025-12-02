@@ -145,6 +145,7 @@ fun Activity.lockScreenRotation(isLock: Boolean) {
             val display: Display? = if (SDK_INT >= Build.VERSION_CODES.R) {
                 this.display
             } else {
+                @Suppress("DEPRECATION")
                 windowManager.defaultDisplay
             }
             var rotation = 0
@@ -323,32 +324,40 @@ fun JSONObject.toMap(): Map<String, Any> {
 }
 
 @RequiresApi(Build.VERSION_CODES.O)
-fun parseTimestamp(message: XMPPMessage, tag: String = "TimestampParser"): Long? {
-    var delayedDate = Date()  // Default fallback
-    val resultElement = message.element("result", namespace = "urn:xmpp:mam:2")
-    if (resultElement != null) {
-        val forwarded = resultElement.element("forwarded", namespace = "urn:xmpp:forward:0")
-        if (forwarded != null) {
-            val timeStamp = forwarded.element("time", namespace = "https://xabber.com/protocol/delivery")?.getAttribute("stamp")
-            if (timeStamp != null) {
-                delayedDate = timeStamp.parseXMPPDate() ?: Date()  // Use extension
-            }
-            if (delayedDate.time == 0L) {
-                val delayStamp = forwarded.element("delay", namespace = "urn:xmpp:delay")?.getAttribute("stamp")
-                if (delayStamp != null) {
-                    delayedDate = delayStamp.parseXMPPDate() ?: Date()
-                }
-            }
+fun parseTimestamp(message: XMPPMessage, owner: String, tag: String = "TimestampParser"): Long {
+    // 1. Runtime / Carbons — ищем <time by=owner> прямо в сообщении
+    Log.w(tag, "ANALYSYS OF TIMESTAMP OF MESSAGE $message")
+    message.element("time", "https://xabber.com/protocol/delivery")
+        ?.takeIf { it.getAttribute("by") == owner }
+        ?.getAttribute("stamp")
+        ?.let { stamp ->
+            stamp.parseXMPPDateToMillis()?.let { return it }
         }
-    }
-    if (delayedDate.time == 0L) {
-        val outerDelay = message.element("delay", namespace = "urn:xmpp:delay")?.getAttribute("stamp")
-        if (outerDelay != null) {
-            delayedDate = outerDelay.parseXMPPDate() ?: Date()
+
+    // 2. MAM — ищем внутри <result><forwarded><message><time by=owner>
+    message.element("result", "urn:xmpp:mam:2")
+        ?.element("forwarded", "urn:xmpp:forward:0")
+        ?.element("message", "jabber:client")
+        ?.element("time", "https://xabber.com/protocol/delivery")
+        ?.takeIf { it.getAttribute("by") == owner }
+        ?.getAttribute("stamp")
+        ?.let { stamp ->
+            stamp.parseXMPPDateToMillis()?.let { return it }
         }
+
+    // 3. Fallback: <delay> (внутри forwarded или снаружи)
+    val delayStamp = message.element("result")
+        ?.element("forwarded")
+        ?.element("delay", "urn:xmpp:delay")
+        ?.getAttribute("stamp")
+        ?: message.element("delay", "urn:xmpp:delay")?.getAttribute("stamp")
+
+    if (delayStamp != null) {
+        delayStamp.parseXMPPDateToMillis()?.let { return it }
     }
-    Log.d(tag, "Final timestamp: ${delayedDate.time} ms → ${Date(delayedDate.time)}")
-    return delayedDate.time
+
+    Log.w(tag, "No timestamp found in message, using current time as fallback")
+    return System.currentTimeMillis()
 }
 
 @RequiresApi(Build.VERSION_CODES.O)
@@ -636,13 +645,13 @@ fun observeMessages(
         val results = query.find()
 
         val listener: (ResultsChange<MessageStorageItem>) -> Unit = { change ->
-            val messages = change.list.mapNotNull { item ->
+            val messages = change.list.map { item ->
                 MessageDto(
                     primary = item.primary,
                     isOutgoing = item.outgoing,
                     owner = item.owner,
                     opponentJid = item.opponent,
-                    messageBody = item.body ?: "",
+                    messageBody = item.body,
                     messageSendingState = when {
                         item.isRead -> MessageSendingState.Read
                         item.outgoing -> MessageSendingState.Deliver
@@ -652,7 +661,7 @@ fun observeMessages(
                     editTimestamp = item.editDate,
                     displayType = when (item.displayAs) {
                         "system" -> MessageDisplayType.System
-                        else -> if (item.body.isNullOrEmpty() && item.references.isNotEmpty()) MessageDisplayType.Images else MessageDisplayType.Text
+                        else -> if (item.body.isEmpty() && item.references.isNotEmpty()) MessageDisplayType.Images else MessageDisplayType.Text
                     },
                     canEditMessage = item.outgoing,
                     canDeleteMessage = item.outgoing,
@@ -680,16 +689,13 @@ fun observeMessages(
 }
 
 @RequiresApi(Build.VERSION_CODES.O)
-fun String.parseXMPPDateToMillis(): Long? {
-    return try {
-        // Обрезаем лишние микросекунды: 2025-11-06T09:25:38.495080Z → 2025-11-06T09:25:38.495Z
-        val normalized = this.replace(Regex("""\.(\d{3})\d{3,6}Z$"""), ".$1Z")
-        val instant = Instant.parse(normalized)
-        instant.toEpochMilli()
-    } catch (e: Exception) {
-        Log.w("DateParser", "Failed to parse XMPP timestamp: $this", e)
-        null
-    }
+fun String.parseXMPPDateToMillis(): Long? = try {
+    // 2025-09-18T07:54:08.153013Z → обрезаем до .153Z
+    val normalized = this.replace(Regex("""\.(\d{3})\d{0,6}Z$"""), ".$1Z")
+    Instant.parse(normalized).toEpochMilli()
+} catch (e: Exception) {
+    Log.w("DateParser", "Failed to parse timestamp: $this", e)
+    null
 }
 
 fun List<ChatListDto>.applyAccountColors(): List<ChatListDto> {

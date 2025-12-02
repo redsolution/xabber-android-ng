@@ -139,7 +139,7 @@ class MessageCommonReceiver(private val owner: String) {
             messageId = messageId,
             archivedFrom = message.from?.bare(),
             isRead = message.from?.bare() == owner,
-            date = getDeliveryTime(messageBare, owner) ?: date,
+            date = Date(messageBare.date ?: System.currentTimeMillis()),
             state = MessageSendingState.Deliver,
             clientSyncMessage = true,
             queryId = getMAMQueryId(message)
@@ -163,7 +163,7 @@ class MessageCommonReceiver(private val owner: String) {
             messageId = messageId,
             archivedFrom = messageBare.from?.bare(),
             isRead = messageBare.from?.bare() == owner,
-            date = getDeliveryTime(messageBare, owner) ?: Date(),
+            date = Date(parseTimestamp(messageBare, owner, TAG)),
             state = MessageSendingState.Deliver,
             queryId = getMAMQueryId(message),
             originalFrom = messageBare.from?.bare() ?: "",
@@ -191,7 +191,7 @@ class MessageCommonReceiver(private val owner: String) {
             messageId = messageId,
             archivedFrom = bareMessage.from?.bare(),
             isRead = isRead,
-            date = getDeliveryTime(bareMessage, owner) ?: Date(),
+            date = Date(message.date ?: System.currentTimeMillis()),
             state = state,
             queryId = getMAMQueryId(message),
             originalOutgoing = isSentCarbon
@@ -217,7 +217,7 @@ class MessageCommonReceiver(private val owner: String) {
             messageId = messageId,
             archivedFrom = from,
             isRead = from == owner,
-            date = getDeliveryTime(message, owner) ?: Date(),
+            date = Date(parseTimestamp(message, owner, TAG)),
             state = if (from == owner) MessageSendingState.Deliver else MessageSendingState.Sent,
             originalFrom = from,
             originalOutgoing = from == owner
@@ -238,7 +238,7 @@ class MessageCommonReceiver(private val owner: String) {
             messageId = messageId,
             archivedFrom = from,
             isRead = from == owner,
-            date = getDeliveryTime(message, owner) ?: Date(),
+            date = Date(message.date ?: System.currentTimeMillis()),
             state = if (from == owner) MessageSendingState.Deliver else MessageSendingState.Sent,
             originalFrom = from,
             originalOutgoing = from == owner

@@ -226,7 +226,7 @@ class MessageStorageItem : RealmObject {
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
-    fun save(
+    suspend fun save(
         realm: Realm = Realm.open(defaultRealmConfig()), // можно передать снаружи
         silentNotifications: Boolean = false
     ): Boolean {
@@ -234,7 +234,7 @@ class MessageStorageItem : RealmObject {
         if (primary.isBlank()) updatePrimary()
 
         return try {
-            realm.writeBlocking {
+            realm.write {
                 // 1. Ищем существующее сообщение по primary
                 val existing = query<MessageStorageItem>("primary == $0", primary).first().find()
 
@@ -271,7 +271,7 @@ class MessageStorageItem : RealmObject {
                     if (updated) {
                         Log.d(TAG, "Updated existing message: primary=$primary, trusted=$trustedSource, queryIds=${existing.queryIds}")
                     }
-                    return@writeBlocking // ← ВАЖНО: выходим, не создаём дубликат
+                    return@write
                 }
 
                 // 2. Сообщения нет — создаём новое

@@ -629,7 +629,7 @@ class MessageArchiveManager(private val owner: String) {
             var opponent = if (originalOutgoing) to else from
             if (opponent == owner) return@withContext null // self-message
 
-            val timestamp = message.date?.let { Date(it) } ?: Date()
+            val timestamp = Date(parseTimestamp(message, owner, TAG))
             var body = message.body?.takeIf { it.isNotBlank() } ?: return@withContext null
 
             // Пропускаем inline forwards — они обрабатываются отдельно
@@ -740,7 +740,7 @@ class MessageArchiveManager(private val owner: String) {
                         body = forwardedMessage.element("body")?.textContent ?: ""
                         kind_ = MessageForwardsInlineStorageItemKind.quote.rawValue
                         isOutgoing = false
-                        originalDate = parseTimestamp(XMPPMessage(forwardedMessage.raw))
+                        originalDate = parseTimestamp(XMPPMessage(forwardedMessage.raw), owner)
                     }
                     // Если нужно — рекурсивно обработать вложенные forwards
                     // inlineForward.subforwards.addAll(...)
