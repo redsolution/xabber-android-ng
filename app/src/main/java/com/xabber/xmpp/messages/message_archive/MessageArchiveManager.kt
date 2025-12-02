@@ -629,7 +629,7 @@ class MessageArchiveManager(private val owner: String) {
             var opponent = if (originalOutgoing) to else from
             if (opponent == owner) return@withContext null // self-message
 
-            val timestamp = Date(parseTimestamp(message, owner, TAG))
+            val timestamp = Date(message.date ?: System.currentTimeMillis())
             var body = message.body?.takeIf { it.isNotBlank() } ?: return@withContext null
 
             // Пропускаем inline forwards — они обрабатываются отдельно
@@ -740,7 +740,7 @@ class MessageArchiveManager(private val owner: String) {
                         body = forwardedMessage.element("body")?.textContent ?: ""
                         kind_ = MessageForwardsInlineStorageItemKind.quote.rawValue
                         isOutgoing = false
-                        originalDate = parseTimestamp(XMPPMessage(forwardedMessage.raw), owner)
+                        originalDate = message.date ?: System.currentTimeMillis()
                     }
                     // Если нужно — рекурсивно обработать вложенные forwards
                     // inlineForward.subforwards.addAll(...)
@@ -938,9 +938,7 @@ class MessageArchiveManager(private val owner: String) {
         return sdf.format(date)
     }
 
-    private fun getDelayedDate(message: XMPPMessage): Date? {
-        return parseTimestamp(message, TAG)?.let { Date(it) }
-    }
+
 
     private fun isSystemMessage(message: XMPPMessage): Boolean {
         return message.hasElement("system", namespace = "urn:xmpp:system") ||
@@ -955,45 +953,6 @@ class MessageArchiveManager(private val owner: String) {
                 message.element("displayed", namespace = "urn:xmpp:chat-markers:0") != null
     }
 
-    private fun parseXMPPMessage(element: Element): XMPPMessage? {
-        try {
-            val id = element.getAttribute("id")
-            val from = element.getAttribute("from")?.let { XMPPJID(it) }
-            val to = element.getAttribute("to")?.let { XMPPJID(it) }
-            val type = element.getAttribute("type")
-            val lang = element.getAttribute("xml:lang")
-            val body = element.getElementsByTagName("body").item(0)?.textContent
-            val subject = element.getElementsByTagName("subject").item(0)?.textContent
-            val thread = element.getElementsByTagName("thread").item(0)?.textContent
-            val error = element.getElementsByTagName("error").item(0)?.textContent
-            val children = parseChildren(element)
-            var originId: String? = null
-
-            // Extract originId if present
-            children.forEach { child ->
-                if (child.name == "origin-id" && child.namespace == "urn:xmpp:sid:0") {
-                    originId = child.attributes["id"]
-                }
-            }
-
-            return XMPPMessage(
-                raw = element.toString(),
-                type = type,
-                id = id,
-                from = from,
-                to = to,
-                lang = lang,
-                body = body,
-                subject = subject,
-                thread = thread,
-                error = error,
-                children = children
-            ).apply { this.originId = originId }
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to parse XMPP message: ${e.message}", e)
-            return null
-        }
-    }
 
     private fun parseChildren(element: Element): List<XMLElement> {
         val children = mutableListOf<XMLElement>()

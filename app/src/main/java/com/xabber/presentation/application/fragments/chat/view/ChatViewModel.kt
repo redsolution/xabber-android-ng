@@ -175,38 +175,40 @@ class ChatViewModel(
     }
 
     fun selectMessage(primary: String, checked: Boolean) {
-        viewModelScope.launch(Dispatchers.IO) {
-            if (checked) {
-                selectedItems.add(primary)
-            } else {
-                selectedItems.remove(primary)
-            }
+        viewModelScope.launch(Dispatchers.Main) { // сразу на Main
+            if (checked) selectedItems.add(primary)
+            else selectedItems.remove(primary)
 
-            // Обновляем список сообщений, чтобы отразить выбор
-            _messages.value?.let { currentMessages ->
-                val updatedMessages = currentMessages.map { msg ->
-                    msg.copy(
+            _selectedCount.value = selectedItems.size
+
+            // Обновляем ТОЛЬКО нужные элементы в адаптере
+            val currentList = _messages.value ?: return@launch
+            currentList.forEachIndexed { index, msg ->
+                if (msg.primary == primary || selectedItems.contains(msg.primary) != msg.isSelected) {
+                    // Только если изменилось состояние
+                    val updated = msg.copy(
                         isSelected = selectedItems.contains(msg.primary),
                         isChecked = selectedItems.contains(msg.primary)
                     )
-                }
-
-                withContext(Dispatchers.Main) {
-                    _selectedCount.value = selectedItems.size
-                    _messages.value = updatedMessages
+                    // Используем submitList с тем же списком, но с изменённым объектом
+                    val newList = currentList.toMutableList().apply { this[index] = updated }
+                    _messages.value = newList // ListAdapter умно обработает
                 }
             }
         }
     }
+
     fun clearAllSelected() {
         selectedItems.clear()
         _selectedCount.value = 0
         _messages.value = _messages.value?.map { it.copy(isSelected = false, isChecked = false) }
     }
 
-    fun isOutgoing(): Boolean = selectedItems.size == 1 && runBlocking { model.isOutgoing(selectedItems) }
+    suspend fun isOutgoing(): Boolean = withContext(Dispatchers.IO) {
+        selectedItems.size == 1 && model.isOutgoing(selectedItems)
+    }
 
-    fun getSelectedText(): String = runBlocking { model.getSelectedText(selectedItems) }
+    suspend fun getSelectedText(): String = withContext(Dispatchers.IO) {  model.getSelectedText(selectedItems) }
 
     fun getForwardMessagesText(): String = runBlocking { model.getForwardMessagesText(selectedItems) }
 

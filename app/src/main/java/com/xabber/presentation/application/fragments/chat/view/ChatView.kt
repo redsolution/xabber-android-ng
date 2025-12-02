@@ -884,13 +884,15 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
         }
 
         viewModel.selectedCount.observe(viewLifecycleOwner) {
-
-            if (it > 0) {
-                binding.selectMessagesToolbar.tvMessagesCount.text = it.toString()
-                binding.selectMessagesToolbar.toolbarSelectedMessages.menu.findItem(R.id.edit_message).isVisible = it == 1 && viewModel.isOutgoing()
-                binding.interaction.linReply.isVisible = it == 1
-            } else {
-                enableSelectionMode(false)
+            lifecycleScope.launch {
+                if (it > 0) {
+                    binding.selectMessagesToolbar.tvMessagesCount.text = it.toString()
+                    binding.selectMessagesToolbar.toolbarSelectedMessages.menu.findItem(R.id.edit_message).isVisible =
+                        it == 1 && viewModel.isOutgoing()
+                    binding.interaction.linReply.isVisible = it == 1
+                } else {
+                    enableSelectionMode(false)
+                }
             }
         }
     }
