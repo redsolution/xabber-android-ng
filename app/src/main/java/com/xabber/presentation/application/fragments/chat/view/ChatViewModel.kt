@@ -204,11 +204,15 @@ class ChatViewModel(
         _messages.value = _messages.value?.map { it.copy(isSelected = false, isChecked = false) }
     }
 
+    suspend fun getOldestArchivedId(): String? = withContext(Dispatchers.IO) {
+        model.getOldestArchivedId()
+    }
+
     suspend fun isOutgoing(): Boolean = withContext(Dispatchers.IO) {
         selectedItems.size == 1 && model.isOutgoing(selectedItems)
     }
 
-    suspend fun getSelectedText(): String = withContext(Dispatchers.IO) {  model.getSelectedText(selectedItems) }
+    fun getSelectedText(): String = runBlocking {  model.getSelectedText(selectedItems) }
 
     fun getForwardMessagesText(): String = runBlocking { model.getForwardMessagesText(selectedItems) }
 

@@ -547,8 +547,7 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
         val firstVisiblePosition = layoutManager!!.findFirstVisibleItemPosition()
         val firstVisibleView = layoutManager!!.findViewByPosition(firstVisiblePosition)
         val offset = firstVisibleView?.top ?: 0
-        val firstVisibleItem = messageAdapter?.getMessageItem(firstVisiblePosition)
-        val firstArchivedId = firstVisibleItem?.archivedId
+
         val currentItemCount = messageAdapter!!.itemCount
 
         lifecycleScope.launch {
@@ -573,14 +572,15 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
                     viewModel.setLocked(false)
                     return@launch
                 }
-
+                val oldestArchivedId = viewModel.getOldestArchivedId()
+                Log.w("VIEWCHATVIEW", "$bareOpponent, $oldestArchivedId")
                 val account = AccountManager.find(bareOwner)
                 account?.action { acc, stream ->
                     acc.messageArchiveManager.getPrevHistory(
                         stream = stream,
                         jid = bareOpponent,
                         conversationType = viewModel.conversationType,
-                        messageId = firstArchivedId ?: "",
+                        messageId = oldestArchivedId ?: "",
                         callback = {
                             lifecycleScope.launch(Dispatchers.Main) {
                                 isLoadingHistory = false

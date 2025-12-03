@@ -156,7 +156,10 @@ class MessageStorageItem : RealmObject {
         this.sentDate = date.time
         this.conversationType = conversationTypeByMessage(message)
         this.messageId = message.id ?: ""
-        this.archivedId = message.element("archived", namespace = "urn:xmpp:mam:tmp")?.getAttribute("id") ?: ""
+        this.archivedId = message.element("archived", "urn:xmpp:mam:tmp")?.getAttribute("id")
+            ?: message.element("stanza-id")?.getAttribute("id")
+            ?: message.element("archived")?.getAttribute("id")
+            ?: ""
         this.displayAs = "system"
         this.state = MessageSendingState.None
         updatePrimary()
@@ -182,7 +185,10 @@ class MessageStorageItem : RealmObject {
         this.isRead = isRead
         this.messageId = message.id ?: ""
         this.conversationType = conversationTypeByMessage(message)
-        this.archivedId = message.element("archived", namespace = "urn:xmpp:mam:tmp")?.getAttribute("id") ?: ""
+        this.archivedId = message.element("archived", "urn:xmpp:mam:tmp")?.getAttribute("id")
+            ?: message.element("stanza-id")?.getAttribute("id")
+            ?: message.element("archived")?.getAttribute("id")
+            ?: ""
         if (isEncrypted) {
             this.body = "Processing encrypted message..."
             this.legacyBody = this.body
@@ -262,11 +268,7 @@ class MessageStorageItem : RealmObject {
                         }
                     }
 
-                    // Если это более доверенный источник — можно обновить archivedId и т.д.
-                    if (archivedId.isNotBlank() && existing.archivedId.isBlank()) {
-                        existing.archivedId = archivedId
-                        updated = true
-                    }
+
 
                     if (updated) {
                         Log.d(TAG, "Updated existing message: primary=$primary, trusted=$trustedSource, queryIds=${existing.queryIds}")
@@ -286,7 +288,7 @@ class MessageStorageItem : RealmObject {
                         primary = lastChatPrimary
                     }.also { copyToRealm(it) } // сразу сохраняем в Realm!
 
-                val isNewChat = lastChat == null
+                val isNewChat = false
                 if (isNewChat) {
                     lastChat = LastChatsStorageItem().apply {
                         jid = opponent

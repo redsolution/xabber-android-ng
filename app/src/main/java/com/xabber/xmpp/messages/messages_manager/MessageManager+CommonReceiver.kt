@@ -373,7 +373,9 @@ class MessageCommonReceiver(private val owner: String) {
                 archivedId = item.message.element("archived", "urn:xmpp:mam:tmp")?.getAttribute("id")
                     ?: item.message.element("result", "urn:xmpp:mam:2")?.getAttribute("id")
                             ?: archivedId
+                Log.w("CHECK", "check it RECEIVER $archivedId")
             }
+
 
             // ← ВОТ ЭТО ВСЁ, ЧТО НУЖНО:
             messageItem.save(silentNotifications = true)
@@ -413,9 +415,7 @@ class MessageCommonReceiver(private val owner: String) {
         parseTimestamp(message, TAG)?.let { Date(it) }
 
     private fun getArchivedMessageContainer(message: XMPPMessage): XMPPMessage? {
-        val forwarded = message.element("forwarded", "urn:xmpp:forward:0") ?: return null
-        val inner = forwarded.element("message", "jabber:client") ?: return null
-        return XMPPMessage(inner.raw, children = message.children)
+        return message
     }
 
     private fun getCarbonCopyMessageContainer(message: XMPPMessage): XMPPMessage? {

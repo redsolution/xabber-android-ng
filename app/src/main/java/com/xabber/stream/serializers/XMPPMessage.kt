@@ -15,7 +15,8 @@ data class XMPPMessage(
     val thread: String? = null,
     val error: String? = null,
     val children: List<XMLElement> = emptyList(),
-    var originId: String? = null
+    var originId: String? = null,
+    var archivedId: String? = null
 ) {
     private val elements = mutableMapOf<String, MutableList<XMLElement>>().apply {
         children.forEach { child ->

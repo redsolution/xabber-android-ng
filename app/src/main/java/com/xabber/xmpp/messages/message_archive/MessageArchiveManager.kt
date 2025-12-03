@@ -641,10 +641,11 @@ class MessageArchiveManager(private val owner: String) {
                 return@withContext null
             }
 
-            var archivedId = message.element("archived", "urn:xmpp:mam:tmp")?.getAttribute("id")
+            val archivedId = message.archivedId
                 ?: message.element("stanza-id")?.getAttribute("id")
-                ?: message.element("archived")?.getAttribute("id")
+                ?: message.element("archived", "urn:xmpp:mam:tmp")?.getAttribute("id")
                 ?: ""
+            Log.w("CHECK", "check it MAM $archivedId")
 
             val originId = message.originId ?: message.id
 
@@ -673,16 +674,16 @@ class MessageArchiveManager(private val owner: String) {
 
             // Создаём новое сообщение
             val instance = MessageStorageItem().apply {
-                owner = this@MessageArchiveManager.owner
-                opponent = this.opponent
-                messageId = originId ?: NanoId.generate()
-                body = this.body
-                outgoing = originalOutgoing
-                isRead = true  // MAM = всегда прочитано
-                sentDate = timestamp.time
-                date = timestamp.time
-                conversationType_ = conversationType.rawValue
-                archivedId = this.archivedId
+                this.owner = this@MessageArchiveManager.owner
+                this.opponent = opponent
+                this.messageId = originId ?: NanoId.generate()
+                this.body = body
+                this.outgoing = originalOutgoing
+                this.isRead = true
+                this.sentDate = timestamp.time
+                this.date = timestamp.time
+                this.conversationType_ = conversationType.rawValue
+                this.archivedId = archivedId          // ← вот оно!
                 this.queryIds = queryId
 
                 // References

@@ -544,6 +544,7 @@ package com.xabber.stream
                                 isChecked = false,
                                 archivedId = message.archivedId
                             )
+                            Log.w("CHECK", "check it STREA ${message.archivedId}")
 
                             val chatViewModel = AccountManager.getChatViewModel(chatPrimary)
                             if (chatViewModel != null) {
@@ -704,7 +705,7 @@ package com.xabber.stream
                 var body: String? = null
                 var originId: String? = null
                 var timestamp: Long? = null
-
+                var archivedId: String? = null
                 var inForwarded = false
                 var inRealMessage = false
 
@@ -713,6 +714,13 @@ package com.xabber.stream
                     when (event) {
                         XmlPullParser.START_TAG -> {
                             when (parser.name) {
+                                "result" -> {
+                                    if (parser.getNamespace() == "urn:xmpp:mam:2") {
+                                        archivedId = parser.getAttributeValue(null, "id")
+                                        val queryId = parser.getAttributeValue(null, "queryid")
+                                        Log.d("XMPPMessage", "Parsed MAM <result id='$archivedId' queryid='$queryId'>")
+                                    }
+                                }
                                 "message" -> {
                                     if (parser.depth == 1) {
                                         type = parser.getAttributeValue(null, "type")
@@ -810,7 +818,8 @@ package com.xabber.stream
                     lang = lang,
                     date = timestamp,
                     body = body,
-                    originId = originId
+                    originId = originId,
+                    archivedId = archivedId
                 )
 
             } catch (e: Exception) {
