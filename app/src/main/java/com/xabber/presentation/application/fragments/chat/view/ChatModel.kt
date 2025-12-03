@@ -99,6 +99,16 @@ class ChatModel(
             }
         }
     }
+    suspend fun getOldestArchivedId(): String? = with(realm) {
+        query<MessageStorageItem>(
+            "owner = $0 AND opponent = $1 AND conversationType_ = $2 AND isDeleted = false AND archivedId != '' AND archivedId != NULL",
+            owner, opponent, conversationType.rawValue
+        )
+            .sort("sentDate", Sort.ASCENDING)
+            .first()
+            .find()
+            ?.archivedId
+    }
 
     suspend fun getSelectedMessage(selectedItems: Set<String>): MessageDto? = with(realm) {
         if (selectedItems.isNotEmpty()) {
@@ -159,19 +169,7 @@ class ChatModel(
         query<MessageStorageItem>("primary = $0", primary).first().find()?.outgoing ?: false
     }
 
-    suspend fun getOldestArchivedId(): String? = with(realm) {
-        val result = query<MessageStorageItem>(
-            "owner = $0 AND opponent = $1 AND conversationType_ = $2 AND isDeleted = false AND archivedId != ''",
-            owner, opponent, conversationType.rawValue
-        )
-            .sort("sentDate", Sort.ASCENDING)
-            .first()
-            .find()
 
-        val id = result?.archivedId
-        Log.d("ChatModel", "getOldestArchivedId() → $id (from ${result?.primary})")
-        return id?.takeIf { it.isNotEmpty() }
-    }
     // === Запись данных ===
 
     suspend fun insertMessage(chatId: String, messageDto: MessageDto) = with(realm) {

@@ -159,7 +159,7 @@ class MessageStorageItem : RealmObject {
         this.archivedId = message.element("archived", "urn:xmpp:mam:tmp")?.getAttribute("id")
             ?: message.element("stanza-id")?.getAttribute("id")
             ?: message.element("archived")?.getAttribute("id")
-            ?: ""
+            ?: archivedId
         this.displayAs = "system"
         this.state = MessageSendingState.None
         updatePrimary()
@@ -188,7 +188,7 @@ class MessageStorageItem : RealmObject {
         this.archivedId = message.element("archived", "urn:xmpp:mam:tmp")?.getAttribute("id")
             ?: message.element("stanza-id")?.getAttribute("id")
             ?: message.element("archived")?.getAttribute("id")
-            ?: ""
+            ?: archivedId
         if (isEncrypted) {
             this.body = "Processing encrypted message..."
             this.legacyBody = this.body
@@ -251,10 +251,10 @@ class MessageStorageItem : RealmObject {
                     if (trustedSource && !existing.trustedSource) {
                         existing.trustedSource = true
                         existing.previousId = previousId
-                        if (archivedId.isNotBlank()) existing.archivedId = archivedId
+                        existing.archivedId = archivedId
                         updated = true
                     }
-
+                    Log.w("ARCHIVE CHECK", "checking id $archivedId")
                     queryIds?.let { newIds ->
                         val old = existing.queryIds.orEmpty()
                         val combined = if (old.isNotEmpty() && newIds.isNotEmpty()) {

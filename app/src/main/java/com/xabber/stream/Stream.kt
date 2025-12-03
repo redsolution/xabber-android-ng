@@ -698,7 +698,6 @@ package com.xabber.stream
                 var from: XMPPJID? = null
                 var to: XMPPJID? = null
                 var lang: String? = null
-
                 var realFrom: XMPPJID? = null
                 var realTo: XMPPJID? = null
                 var realId: String? = null

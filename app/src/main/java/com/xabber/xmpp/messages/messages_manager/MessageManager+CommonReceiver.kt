@@ -147,28 +147,30 @@ class MessageCommonReceiver(private val owner: String) {
     }
 
     suspend fun receiveArchived(message: XMPPMessage) {
-        if (!isValidMessage(message)) return
+//        if (!message.hasElement("result", "urn:xmpp:mam:2") &&
+//            !message.hasElement("archived", "urn:xmpp:mam:tmp")) {
+//            return
+//        }
+        val date = getDelayedDate(message) ?: Date()
         val messageBare = getArchivedMessageContainer(message) ?: return
-        val messageId = getOriginId(messageBare) ?: messageBare.id ?: return
-
+        val messageId = getOriginId(messageBare) ?: messageBare.id!!
         if (processedMessageIds.contains(messageId)) return
         processedMessageIds.add(messageId)
-
         val primary = MessageStorageItem.genPrimary(messageId, owner)
-        val existing = realm.query<MessageStorageItem>("primary == $0", primary).first().find()
-        if (existing != null) return
-
+        if (realm.query<MessageStorageItem>("primary == $0", primary).first().find() != null) {
+            return
+        }
         val queueItem = MessageQueueItem(
             message = messageBare,
             messageId = messageId,
-            archivedFrom = messageBare.from?.bare(),
-            isRead = messageBare.from?.bare() == owner,
-            date = Date(parseTimestamp(messageBare, owner, TAG)),
+            archivedFrom = message.from?.bare(),
+            isRead = true,
+            date = date,
             state = MessageSendingState.Deliver,
-            queryId = getMAMQueryId(message),
-            originalFrom = messageBare.from?.bare() ?: "",
-            originalOutgoing = messageBare.from?.bare() == owner
+            queryId = getMAMQueryId(message)
         )
+        Log.w("CHECK", "check it RECEIVER MAM $queueItem")
+
         enqueue(queueItem)
         storeMessagesNow()
     }
@@ -196,6 +198,7 @@ class MessageCommonReceiver(private val owner: String) {
             queryId = getMAMQueryId(message),
             originalOutgoing = isSentCarbon
         )
+
         enqueue(queueItem)
         storeMessagesNow()
     }
@@ -369,11 +372,9 @@ class MessageCommonReceiver(private val owner: String) {
                     messageQueryIds += item.queryId
                 }
 
-                // Важно: archivedId может быть в MAM-сообщении
                 archivedId = item.message.element("archived", "urn:xmpp:mam:tmp")?.getAttribute("id")
                     ?: item.message.element("result", "urn:xmpp:mam:2")?.getAttribute("id")
-                            ?: archivedId
-                Log.w("CHECK", "check it RECEIVER $archivedId")
+                    ?: archivedId
             }
 
 
@@ -397,6 +398,7 @@ class MessageCommonReceiver(private val owner: String) {
         messagesQueue.value = mutableSetOf()
         processQueue(items)
         AccountManager.find(owner)?.chatMarkers?.deleteEphemeralMessages()
+        Log.w("CHECK", "STORED")
     }
 
 

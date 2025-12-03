@@ -800,49 +800,118 @@ class Account : XMPPStreamDelegate {
         try {
             val isMamClassic = message.hasElement("result", "urn:xmpp:mam:2")
             val isMamTmp = message.hasElement("archived", "urn:xmpp:mam:tmp")
-            val isMamArchived = isMamClassic || isMamTmp
             val isCarbonSent = message.isCarbonCopy()
             val isCarbonReceived = message.isCarbonForwarded()
+            val isLastMessage = message.hasElement("last-message", "https://xabber.com/protocol/synchronization")
 
+            // Извлекаем реальное сообщение из контейнера
             val realMessage: XMPPMessage = when {
                 isMamClassic -> message.getArchivedMessageContainer() ?: message
-                isMamTmp -> message  // mam:tmp — это и есть реальное сообщение!
-                isCarbonSent || isCarbonReceived ->
-                    message.getCarbonCopyMessageContainer() ?: message.getCarbonForwardedMessageContainer() ?: message
+                isMamTmp -> message
+                isCarbonSent -> message.getCarbonCopyMessageContainer() ?: message
+                isCarbonReceived -> message.getCarbonForwardedMessageContainer() ?: message
                 else -> message
             }
 
-            val messageId = realMessage.originId ?: realMessage.id ?: "unknown_${System.currentTimeMillis()}"
+            // Чат-стейты и маркеры — сразу отсекаем
+//            if (realMessage.hasChatState() || realMessage.hasChatMarker()) {
+//                if (realMessage.hasChatMarker()) {
+//                    chatMarkers.read(realMessage)
+//                }
+//                return true
+//            }
+
+            val messageId = realMessage.originId ?: realMessage.id
+            ?: "unknown_${System.currentTimeMillis()}"
+
             val body = realMessage.body?.takeIf { it.isNotBlank() } ?: return
 
-            // Чат-стейты и маркеры — пропускаем
-            if (realMessage.hasElement("active") ||
-                realMessage.hasElement("composing") ||
-                realMessage.hasElement("inactive") ||
-                realMessage.hasElement("received", "urn:xmpp:chat-markers:0")) {
-                if (realMessage.hasElement("received", "urn:xmpp:chat-markers:0")) {
-                    chatMarkers.read(realMessage)
+            // === КРИТИЧЕСКАЯ ЧАСТЬ: проверка дубликатов и временные стэнзы ===
+            val primaryKey = "${messageId}_$jid"
+            val realm = Realm.open(defaultRealmConfig())
+            try {
+                val existing = realm.query<MessageStorageItem>("primary = $0", primaryKey).first().find()
+                if (existing != null) {
+                    return  // уже есть — дубликат
                 }
-                return
+
+                // Сохраняем временную стэнзу для runtime-сообщений (чтобы потом заменить на архивную)
+                if (!isMamClassic && !isMamTmp && !isCarbonSent && !isCarbonReceived && !isLastMessage) {
+                    val tempPrimary = TemporaryMessageStanzaStorageItem.genPrimary(messageId, jid)
+                    val existingTemp = realm.query<TemporaryMessageStanzaStorageItem>(
+                        "primary = $0 AND isProcessed = false", tempPrimary
+                    ).first().find()
+
+                    if (existingTemp == null) {
+                        realm.write {
+                            val temp = TemporaryMessageStanzaStorageItem().apply {
+                                this.messageId = messageId
+                                this.primary = primaryKey
+                                this.owner = jid
+                                this.jid = realMessage.from?.bare() ?: realMessage.to?.bare() ?: ""
+                                this.isProcessed = false
+                                this.date = realMessage.date ?: System.currentTimeMillis()
+                                this.stanza = message.raw ?: ""
+                            }
+                            copyToRealm(temp, UpdatePolicy.ALL)
+                        }
+                    }
+                }
+
+                // === Основная маршрутизация ===
+                when {
+                    // 1. Классический MAM (urn:xmpp:mam:2) — всегда в архив
+                    message.hasElement("result", "urn:xmpp:mam:2") -> {
+                        val archivedMessage = message.getArchivedMessageContainer() ?: message
+                        messageReceiver.receiveArchived(archivedMessage)
+                    }
+
+                    // 2. MAM-tmp — тоже архив, но без <result>, просто с <archived xmlns="urn:xmpp:mam:tmp"/>
+                    message.hasElement("archived", "urn:xmpp:mam:tmp") -> {
+                        messageReceiver.receiveArchived(message)
+                    }
+
+                    // 3. Carbons (отправленные/полученные с других устройств)
+                    message.isCarbonCopy() || message.isCarbonForwarded() -> {
+                        val carbonMessage = message.getCarbonCopyMessageContainer()
+                            ?: message.getCarbonForwardedMessageContainer()
+                            ?: message
+                        messageReceiver.receiveCarbon(carbonMessage)
+                    }
+
+                    // 4. last-message из синхронизации (XEP-0CCC)
+                    message.hasElement("last-message", "https://xabber.com/protocol/synchronization") -> {
+                        messageReceiver.receiveRuntime(message)
+                    }
+
+                    // 5. Всё остальное — живые сообщения в реальном времени
+                    else -> {
+                        messageReceiver.receiveRuntime(message)
+                        chatMarkers.read(message) // только для живых
+                    }
+                }
+
+                // Помечаем временную стэнзу как обработанную (если была)
+                if (!isMamClassic && !isMamTmp) {
+                    realm.write {
+                        val temp = query<TemporaryMessageStanzaStorageItem>(
+                            "primary = $0 AND isProcessed = false",
+                            TemporaryMessageStanzaStorageItem.genPrimary(messageId, jid)
+                        ).first().find()
+                        temp?.let { findLatest(it)?.isProcessed = true }
+                    }
+                }
+            } finally {
+                realm.close()
             }
 
-            when {
-                isMamClassic || isMamTmp -> {
-                    messageArchiveManager.readMessage(realMessage, queryId = message.getQueryId())
-                    return
-                }
-                isCarbonSent || isCarbonReceived -> {
-                    messageReceiver.receiveCarbon(realMessage)
-                }
-                else -> {
-                    messageReceiver.receiveRuntime(realMessage)
-                    chatMarkers.read(realMessage)
-                }
-            }
+            return
         } catch (e: Exception) {
             Log.e(TAG, "Error in didReceiveMessage: ${e.message}", e)
+            return
         }
     }
+
     override suspend fun streamDidConnect(stream: Stream): Boolean {
         CoroutineScope(Dispatchers.IO).launch {
             presenceManager?.sendInitialPresence()
