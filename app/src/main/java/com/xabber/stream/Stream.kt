@@ -698,82 +698,87 @@ package com.xabber.stream
                 var from: XMPPJID? = null
                 var to: XMPPJID? = null
                 var lang: String? = null
+
+                var body: String? = null
+                var originId: String? = null
+                var archivedId: String? = null
+                var queryId: String? = null
+                var timestamp: Long? = null
+
                 var realFrom: XMPPJID? = null
                 var realTo: XMPPJID? = null
                 var realId: String? = null
-                var body: String? = null
-                var originId: String? = null
-                var timestamp: Long? = null
-                var archivedId: String? = null
+
                 var inForwarded = false
-                var inRealMessage = false
+                var inResult = false
+                var currentMessageDepth = 0
+                var targetMessageDepth = -1 // в каком <message> мы ищем body
 
                 var event = parser.eventType
                 while (event != XmlPullParser.END_DOCUMENT) {
                     when (event) {
                         XmlPullParser.START_TAG -> {
                             when (parser.name) {
-                                "result" -> {
-                                    if (parser.getNamespace() == "urn:xmpp:mam:2") {
-                                        archivedId = parser.getAttributeValue(null, "id")
-                                        val queryId = parser.getAttributeValue(null, "queryid")
-                                        Log.d("XMPPMessage", "Parsed MAM <result id='$archivedId' queryid='$queryId'>")
-                                    }
-                                }
                                 "message" -> {
-                                    if (parser.depth == 1) {
-                                        type = parser.getAttributeValue(null, "type")
+                                    currentMessageDepth++
+                                    if (currentMessageDepth == 1) {
+                                        // Внешний <message>
+                                        type = parser.getAttributeValue(null, "type") ?: "chat"
                                         id = parser.getAttributeValue(null, "id")
                                         from = parser.getAttributeValue(null, "from")?.let { XMPPJID(it) }
                                         to = parser.getAttributeValue(null, "to")?.let { XMPPJID(it) }
                                         lang = parser.getAttributeValue(null, "xml:lang")
-                                        inRealMessage = true
-                                    } else if (inForwarded) {
+                                    }
+                                    if (inForwarded && targetMessageDepth == -1) {
+                                        // Это внутреннее сообщение в <forwarded> — оно и есть "настоящее"
+                                        targetMessageDepth = currentMessageDepth
                                         realFrom = parser.getAttributeValue(null, "from")?.let { XMPPJID(it) } ?: from
                                         realTo = parser.getAttributeValue(null, "to")?.let { XMPPJID(it) } ?: to
                                         realId = parser.getAttributeValue(null, "id") ?: id
-                                        inRealMessage = true
+                                        type = parser.getAttributeValue(null, "type") ?: type ?: "chat"
                                     }
                                 }
-                                "archived" -> {
-                                    if (parser.getNamespace() == "urn:xmpp:mam:tmp") {
-                                        // Это mam:tmp — считаем как forwarded!
-                                        inForwarded = true
-                                        inRealMessage = true  // тело будет внутри этого же <message>
+                                "result" -> {
+                                    if (parser.getNamespace() == "urn:xmpp:mam:2") {
+                                        inResult = true
+                                        archivedId = parser.getAttributeValue(null, "id")
+                                        queryId = parser.getAttributeValue(null, "queryid")
                                     }
                                 }
-
                                 "forwarded" -> {
                                     if (parser.getNamespace() == "urn:xmpp:forward:0") {
                                         inForwarded = true
-                                        inRealMessage = false
                                     }
                                 }
-
                                 "delay" -> {
                                     if (parser.getNamespace() == "urn:xmpp:delay") {
-                                        val stamp = parser.getAttributeValue(null, "stamp") ?: ""
-                                        if (stamp.isNotBlank()) {
-                                            timestamp = stamp.parseXMPPDateToMillis()
+                                        val stamp = parser.getAttributeValue(null, "stamp")
+                                        if (stamp != null) {
+                                            timestamp = stamp.parseXMPPDateToMillis() ?: timestamp
                                         }
                                     }
                                 }
-
                                 "time" -> {
                                     if (parser.getNamespace() == "https://xabber.com/protocol/delivery") {
-                                        val stamp = parser.getAttributeValue(null, "stamp") ?: ""
-                                        if (stamp.isNotBlank()) {
-                                            timestamp = stamp.parseXMPPDateToMillis()
+                                        val stamp = parser.getAttributeValue(null, "stamp")
+                                        if (stamp != null) {
+                                            val timeMillis = stamp.parseXMPPDateToMillis()
+                                            if (timeMillis != null && (timestamp == null || timeMillis > timestamp)) {
+                                                timestamp = timeMillis
+                                            }
                                         }
                                     }
                                 }
-
                                 "body" -> {
-                                    if (inRealMessage) {
-                                        body = parser.nextText().takeIf { it.isNotBlank() }
+                                    // Считываем body только из целевого <message>
+                                    if (targetMessageDepth == -1) targetMessageDepth = currentMessageDepth
+                                    if (currentMessageDepth == targetMessageDepth) {
+                                        val text = parser.nextText()
+                                        if (text.isNotBlank()) {
+                                            body = text.trim()
+                                        }
                                     }
                                 }
-
                                 "origin-id" -> {
                                     if (parser.getNamespace() == "urn:xmpp:sid:0") {
                                         originId = parser.getAttributeValue(null, "id")
@@ -781,8 +786,10 @@ package com.xabber.stream
                                 }
                             }
                         }
-
                         XmlPullParser.END_TAG -> {
+                            if (parser.name == "message") {
+                                currentMessageDepth--
+                            }
                             if (parser.name == "forwarded") {
                                 inForwarded = false
                             }
@@ -791,26 +798,33 @@ package com.xabber.stream
                     event = parser.next()
                 }
 
+                // Если нет forwarded — значит, это прямое сообщение
                 val finalFrom = realFrom ?: from
                 val finalTo = realTo ?: to
-                val finalId = realId ?: id
+                val finalId = realId ?: originId ?: id
 
-                if (body.isNullOrBlank()) {
+                // Если нет body и нет известных расширений — игнорируем (chatstate, markers и т.п.)
+                if (body == null) {
                     val hasKnownExtension = stanza.contains("http://jabber.org/protocol/chatstates") ||
                             stanza.contains("urn:xmpp:chat-markers") ||
+                            stanza.contains("urn:xmpp:receipt") ||
                             stanza.contains("urn:xmpp:carbons") ||
-                            stanza.contains("urn:xmpp:forward") ||
-                            stanza.contains("propose") || stanza.contains("accept") ||
-                            type == "headline"
+                            type == "headline" || type == "error"
 
-                    if (!hasKnownExtension && type != "error") {
+                    if (!hasKnownExtension) {
                         return null
                     }
                 }
 
+                // Если timestamp не нашли — попробуем из delay/time в forwarded
+                if (timestamp == null && stanza.contains("<delay")) {
+                    val delayMatch = Regex("""<delay[^>]+stamp=['"]([^'"]+)['"]""").find(stanza)
+                    timestamp = delayMatch?.groupValues?.get(1)?.parseXMPPDateToMillis()
+                }
+
                 return XMPPMessage(
                     raw = stanza,
-                    type = type ?: "chat",
+                    type = type,
                     id = finalId,
                     from = finalFrom,
                     to = finalTo,
@@ -818,11 +832,14 @@ package com.xabber.stream
                     date = timestamp,
                     body = body,
                     originId = originId,
-                    archivedId = archivedId
-                )
+                    archivedId = archivedId ?: queryId?.let { "query:$it" } // fallback
+                ).also {
+                    // Дополнительно: можно сохранить queryId где-нибудь, если нужно
+                    Log.d("XMPPMessage", "Parsed: id=${it.id}, from=${it.from}, body='${it.body}', archivedId=${it.archivedId}, date=${it.date}")
+                }
 
             } catch (e: Exception) {
-                Log.e("Stream", "Failed to parse message: ${e.message}\nStanza: ${stanza.take(500)}", e)
+                Log.e("Stream", "Failed to parse message stanza: ${e.message}\nStanza: ${stanza.take(1000)}", e)
                 return null
             }
         }

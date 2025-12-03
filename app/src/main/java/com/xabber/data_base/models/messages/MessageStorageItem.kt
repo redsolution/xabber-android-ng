@@ -233,7 +233,7 @@ class MessageStorageItem : RealmObject {
 
     @RequiresApi(Build.VERSION_CODES.O)
     suspend fun save(
-        realm: Realm = Realm.open(defaultRealmConfig()), // можно передать снаружи
+        realm: Realm, // можно передать снаружи
         silentNotifications: Boolean = false
     ): Boolean {
         if (opponent.isBlank() || owner.isBlank()) return false
@@ -254,7 +254,6 @@ class MessageStorageItem : RealmObject {
                         existing.archivedId = archivedId
                         updated = true
                     }
-                    Log.w("ARCHIVE CHECK", "checking id $archivedId")
                     queryIds?.let { newIds ->
                         val old = existing.queryIds.orEmpty()
                         val combined = if (old.isNotEmpty() && newIds.isNotEmpty()) {
@@ -267,8 +266,6 @@ class MessageStorageItem : RealmObject {
                             updated = true
                         }
                     }
-
-
 
                     if (updated) {
                         Log.d(TAG, "Updated existing message: primary=$primary, trusted=$trustedSource, queryIds=${existing.queryIds}")
@@ -292,7 +289,7 @@ class MessageStorageItem : RealmObject {
                 if (isNewChat) {
                     lastChat = LastChatsStorageItem().apply {
                         jid = opponent
-                        this.owner = owner
+                        owner = owner
                         conversationType = managedMessage.conversationType
                         primary = lastChatPrimary
                     }

@@ -299,7 +299,7 @@ class MessageCommonReceiver(private val owner: String) {
             val to = item.message.to?.bare() ?: continue
             if (to == owner && from == owner) continue
 
-            var opponent = if (to != owner) to else from
+            val opponent = if (to != owner) to else from
 
             // Определяем исходящее — как в Swift
             val isOutgoing = if (item.message.hasElement("x", "https://xabber.com/protocol/groups")) {
@@ -329,7 +329,7 @@ class MessageCommonReceiver(private val owner: String) {
             // Создаём unmanaged объект — только для передачи данных
             val messageItem = MessageStorageItem().apply {
                 owner = this@MessageCommonReceiver.owner
-                opponent = opponent
+                this.opponent = opponent
                 outgoing = isOutgoing
                 this.isRead = isRead
                 date = item.date.time
@@ -372,17 +372,15 @@ class MessageCommonReceiver(private val owner: String) {
                     messageQueryIds += item.queryId
                 }
 
-                archivedId = item.message.element("archived", "urn:xmpp:mam:tmp")?.getAttribute("id")
+                archivedId = item.message.archivedId
                     ?: item.message.element("result", "urn:xmpp:mam:2")?.getAttribute("id")
-                    ?: archivedId
+                            ?: item.message.element("archived", "urn:xmpp:mam:tmp")?.getAttribute("id")
+                            ?: ""
+
             }
-
-
-            // ← ВОТ ЭТО ВСЁ, ЧТО НУЖНО:
-            messageItem.save(silentNotifications = true)
+            messageItem.save(silentNotifications = true, realm = realm)
         }
 
-        // Уведомления и эпhemerals — после всей пачки
         AccountManager.find(owner)?.chatMarkers?.deleteEphemeralMessages()
     }
 
@@ -398,7 +396,6 @@ class MessageCommonReceiver(private val owner: String) {
         messagesQueue.value = mutableSetOf()
         processQueue(items)
         AccountManager.find(owner)?.chatMarkers?.deleteEphemeralMessages()
-        Log.w("CHECK", "STORED")
     }
 
 

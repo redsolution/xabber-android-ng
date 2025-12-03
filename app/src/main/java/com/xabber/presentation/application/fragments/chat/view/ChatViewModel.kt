@@ -212,7 +212,7 @@ class ChatViewModel(
         selectedItems.size == 1 && model.isOutgoing(selectedItems)
     }
 
-    fun getSelectedText(): String = runBlocking {  model.getSelectedText(selectedItems) }
+    fun getSelectedText(): String = runBlocking{  model.getSelectedText(selectedItems) }
 
     fun getForwardMessagesText(): String = runBlocking { model.getForwardMessagesText(selectedItems) }
 

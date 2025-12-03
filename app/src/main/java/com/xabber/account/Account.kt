@@ -812,6 +812,7 @@ class Account : XMPPStreamDelegate {
                 isCarbonReceived -> message.getCarbonForwardedMessageContainer() ?: message
                 else -> message
             }
+//            Log.w(TAG, "extracted message $realMessage")
 
             // Чат-стейты и маркеры — сразу отсекаем
 //            if (realMessage.hasChatState() || realMessage.hasChatMarker()) {
