@@ -462,7 +462,7 @@ class MessageArchiveManager(private val owner: String) {
             isContinues = false,
             conversationType = conversationType,
             queryId = queryId,
-            flipPage = true,
+            flipPage = false,
             rsmBefore = messageId,
             max = paginationSize,
             backward = true,

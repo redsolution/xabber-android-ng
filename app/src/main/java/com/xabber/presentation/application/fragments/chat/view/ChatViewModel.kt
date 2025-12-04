@@ -204,8 +204,8 @@ class ChatViewModel(
         _messages.value = _messages.value?.map { it.copy(isSelected = false, isChecked = false) }
     }
 
-    suspend fun getOldestArchivedId(): String? = withContext(Dispatchers.IO) {
-        model.getOldestArchivedId()
+    suspend fun getOldestMessageId(): String? = withContext(Dispatchers.IO) {
+        model.getOldestMessageId()
     }
 
     suspend fun isOutgoing(): Boolean = withContext(Dispatchers.IO) {

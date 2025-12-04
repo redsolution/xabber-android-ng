@@ -25,6 +25,7 @@ import io.realm.kotlin.ext.query
 import io.realm.kotlin.ext.realmListOf
 import io.realm.kotlin.types.RealmList
 import io.realm.kotlin.types.RealmObject
+import io.realm.kotlin.types.annotations.Index
 import io.realm.kotlin.types.annotations.PrimaryKey
 import kotlinx.coroutines.CoroutineScope
 import org.json.JSONObject
@@ -60,11 +61,14 @@ class MessageStorageItem : RealmObject {
 
     @PrimaryKey
     var primary: String = ""
+    @Index
     var owner: String = ""
+    @Index
     var opponent: String = ""
     var body: String = ""
     var legacyBody: String = ""
     var date: Long = 0
+    @Index
     var sentDate: Long = 0L
     var editDate: Long = 0L
     var readDate: Long? = null
@@ -75,12 +79,14 @@ class MessageStorageItem : RealmObject {
     var trustedSource: Boolean = false
     var previousId: String? = null
     var archivedId: String = ""
+    @Index
     var isDeleted: Boolean = false
     var state_: Int = MessageSendingState.None.rawValue
     var systemMetadata_: String? = null
     var references: RealmList<MessageReferenceStorageItem> = realmListOf()
     var messageError: String? = null
     var messageErrorCode: String? = null
+    @Index
     var conversationType_: String = ConversationType.Regular.rawValue
     var inlineForwards: RealmList<MessageForwardsInlineStorageItem> = realmListOf()
     var errorMetadata_: String? = null

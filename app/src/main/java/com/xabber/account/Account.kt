@@ -31,7 +31,6 @@ import com.xabber.xmpp.auth.DevicesOCRA
 import com.xabber.xmpp.device.DeviceStorageItem
 import com.xabber.xmpp.jid.XMPPJID
 import com.xabber.xmpp.messages.XMPPMessage
-import com.xabber.xmpp.messages.message.TemporaryMessageStanzaStorageItem
 import com.xabber.xmpp.messages.message_archive.MessageArchiveManager
 import com.xabber.xmpp.messages.messages_manager.ChatMarkersManager
 import com.xabber.xmpp.messages.messages_manager.MessageCommonReceiver
@@ -827,36 +826,13 @@ class Account : XMPPStreamDelegate {
 
             val body = realMessage.body?.takeIf { it.isNotBlank() } ?: return
 
-            // === КРИТИЧЕСКАЯ ЧАСТЬ: проверка дубликатов и временные стэнзы ===
+            // === КРИТИЧЕСКАЯ ЧАСТЬ: проверка дубликатов ===
             val primaryKey = "${messageId}_$jid"
             val realm = Realm.open(defaultRealmConfig())
             try {
                 val existing = realm.query<MessageStorageItem>("primary = $0", primaryKey).first().find()
                 if (existing != null) {
                     return  // уже есть — дубликат
-                }
-
-                // Сохраняем временную стэнзу для runtime-сообщений (чтобы потом заменить на архивную)
-                if (!isMamClassic && !isMamTmp && !isCarbonSent && !isCarbonReceived && !isLastMessage) {
-                    val tempPrimary = TemporaryMessageStanzaStorageItem.genPrimary(messageId, jid)
-                    val existingTemp = realm.query<TemporaryMessageStanzaStorageItem>(
-                        "primary = $0 AND isProcessed = false", tempPrimary
-                    ).first().find()
-
-                    if (existingTemp == null) {
-                        realm.write {
-                            val temp = TemporaryMessageStanzaStorageItem().apply {
-                                this.messageId = messageId
-                                this.primary = primaryKey
-                                this.owner = jid
-                                this.jid = realMessage.from?.bare() ?: realMessage.to?.bare() ?: ""
-                                this.isProcessed = false
-                                this.date = realMessage.date ?: System.currentTimeMillis()
-                                this.stanza = message.raw ?: ""
-                            }
-                            copyToRealm(temp, UpdatePolicy.ALL)
-                        }
-                    }
                 }
 
                 // === Основная маршрутизация ===
@@ -891,17 +867,6 @@ class Account : XMPPStreamDelegate {
                         chatMarkers.read(message) // только для живых
                     }
                 }
-
-                // Помечаем временную стэнзу как обработанную (если была)
-                if (!isMamClassic && !isMamTmp) {
-                    realm.write {
-                        val temp = query<TemporaryMessageStanzaStorageItem>(
-                            "primary = $0 AND isProcessed = false",
-                            TemporaryMessageStanzaStorageItem.genPrimary(messageId, jid)
-                        ).first().find()
-                        temp?.let { findLatest(it)?.isProcessed = true }
-                    }
-                }
             } finally {
                 realm.close()
             }
@@ -927,7 +892,7 @@ class Account : XMPPStreamDelegate {
     }
 
     override suspend fun streamBinding(stream: Stream): Boolean {
-        val bindId = NanoId.generateOptimized(9, "_-0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", 63, 16)
+        val bindId = NanoId.generateOptimized(9, "-0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", 63, 16)
         val resourceId = NanoId.generateOptimized(8, "0123456789ABC Chaz6", 63, 16)
         val bindRequest = """
                 <iq type='set' id='$bindId'>
@@ -1258,4 +1223,3 @@ class Account : XMPPStreamDelegate {
         return queryIds
     }
 }
-

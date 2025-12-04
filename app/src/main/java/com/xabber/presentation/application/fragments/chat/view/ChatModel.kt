@@ -23,9 +23,12 @@ import io.realm.kotlin.ext.realmListOf
 import io.realm.kotlin.notifications.ResultsChange
 import io.realm.kotlin.query.Sort
 import io.realm.kotlin.types.RealmList
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 
@@ -51,6 +54,7 @@ class ChatModel(
             }
     }
 
+    @OptIn(FlowPreview::class)
     fun observeMessages(): Flow<List<MessageDto>> {
         return realm.query<MessageStorageItem>(
             "owner = $0 AND opponent = $1 AND conversationType_ = $2 AND isDeleted = false",
@@ -61,7 +65,7 @@ class ChatModel(
             .map { changes ->
                 changes.list.mapNotNull { it.toMessageDto() }
             }
-            .debounce(50L)
+            .debounce(500L)
     }
 
     // === Чтение данных ===
@@ -99,15 +103,17 @@ class ChatModel(
             }
         }
     }
-    suspend fun getOldestArchivedId(): String? = with(realm) {
-        query<MessageStorageItem>(
-            "owner = $0 AND opponent = $1 AND conversationType_ = $2 AND isDeleted = false AND archivedId != '' AND archivedId != NULL",
+
+    suspend fun getOldestMessageId(): String? = with(realm) {
+        val oldest = query<MessageStorageItem>(
+            "owner == $0 AND opponent == $1 AND conversationType_ == $2",
             owner, opponent, conversationType.rawValue
         )
-            .sort("sentDate", Sort.ASCENDING)
+            .sort("sentDate", Sort.DESCENDING)
             .first()
             .find()
-            ?.archivedId
+        Log.w(TAG, "message id check $oldest")
+        oldest?.messageId
     }
 
     suspend fun getSelectedMessage(selectedItems: Set<String>): MessageDto? = with(realm) {

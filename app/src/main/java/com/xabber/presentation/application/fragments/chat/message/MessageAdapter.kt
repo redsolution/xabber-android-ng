@@ -161,15 +161,20 @@ class MessageDiffCallback : DiffUtil.ItemCallback<MessageDto>() {
     }
 
     override fun areContentsTheSame(oldItem: MessageDto, newItem: MessageDto): Boolean {
-        return oldItem.messageBody == newItem.messageBody &&
-                oldItem.sentTimestamp == newItem.sentTimestamp &&
-                oldItem.isOutgoing == newItem.isOutgoing &&
-                oldItem.isUnread == newItem.isUnread &&
-                oldItem.isSelected == newItem.isSelected &&
-                oldItem.isChecked == newItem.isChecked &&
-                oldItem.references.size == newItem.references.size &&
-                oldItem.references.zip(newItem.references).all { (a, b) ->
-                    a.id == b.id && a.uri == b.uri && a.isVoiceMessage == b.isVoiceMessage
-                }
+        if (oldItem.messageBody != newItem.messageBody ||
+            oldItem.sentTimestamp != newItem.sentTimestamp ||
+            oldItem.isOutgoing != newItem.isOutgoing ||
+            oldItem.isUnread != newItem.isUnread ||
+            oldItem.isSelected != newItem.isSelected ||
+            oldItem.isChecked != newItem.isChecked) return false
+
+        if (oldItem.references.size != newItem.references.size) return false
+
+        // Early exit if no refs
+        if (oldItem.references.isEmpty()) return true
+
+        return oldItem.references.zip(newItem.references).all { (a, b) ->
+            a.id == b.id && a.uri == b.uri && a.isVoiceMessage == b.isVoiceMessage
+        }
     }
 }

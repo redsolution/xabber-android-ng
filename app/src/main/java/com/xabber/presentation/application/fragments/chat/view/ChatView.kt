@@ -240,11 +240,7 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
             return
         }
 
-        CoroutineScope(Dispatchers.IO).launch {
-            AccountManager.find(bareOwner)?.action { account, stream ->
-                account.messageArchiveManager.syncChat(stream, bareOpponent, viewModel.conversationType)
-            } ?: Log.e("ChatView", "Account not found for owner=$bareOwner")
-        }
+
 
         messageSender = MessageCommonSender(bareOwner)
         prepareUi(chat)
@@ -865,8 +861,15 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
         }
 
         viewModel.messages.observe(viewLifecycleOwner) { messages ->
+            // Check if we were at the bottom before updating the list
+            val wasAtBottom = isAtBottom()
             // Update adapter
-            messageAdapter?.submitList(messages)
+            messageAdapter?.submitList(messages) {
+                // After list is committed, scroll if we were at bottom
+                if (wasAtBottom) {
+                    scrollDown()
+                }
+            }
         }
 
         viewModel.unreadCount.observe(viewLifecycleOwner) { unread ->
@@ -895,6 +898,14 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
                 }
             }
         }
+    }
+
+    private fun isAtBottom(): Boolean {
+        return layoutManager?.let { lm ->
+            val lastVisibleItemPosition = lm.findLastVisibleItemPosition()
+            val itemCount = messageAdapter?.itemCount ?: 0
+            lastVisibleItemPosition >= itemCount - 1
+        } ?: false
     }
 
     private fun setupOpponentName(opponentName: String?) {
