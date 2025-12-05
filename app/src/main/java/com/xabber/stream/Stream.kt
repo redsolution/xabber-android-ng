@@ -330,8 +330,12 @@ class Stream(var jid: String, var port: Int = 5222) {
                             break
                         }
                         if (nextOpen != -1 && nextOpen < nextClose) {
+                            val gtPos = content.indexOf(">", nextOpen)
+                            if (gtPos == -1) {
+                                break
+                            }
                             openTags++
-                            currentIndex = content.indexOf(">", nextOpen) + 1
+                            currentIndex = gtPos + 1
                         } else {
                             openTags--
                             currentIndex = nextClose + "</$tagName>".length

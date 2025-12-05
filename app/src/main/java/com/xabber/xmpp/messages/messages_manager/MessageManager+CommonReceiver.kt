@@ -248,7 +248,6 @@ class MessageCommonReceiver(private val owner: String) {
         )
         enqueue(queueItem)
         storeMessagesNow()
-
     }
 
     fun updateReadDate(messageId: String, stanzaId: String, jid: String, date: Date) {

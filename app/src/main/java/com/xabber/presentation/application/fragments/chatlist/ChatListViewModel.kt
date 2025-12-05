@@ -47,8 +47,8 @@ class ChatListViewModel : ViewModel() {
                     val list = changes.list
                         .map { it.toChatListDto() }
                         .applyAccountColors()
-                        .sortedWith(compareByDescending<ChatListDto> { it.pinnedDate.takeIf { it > 0L } ?: Long.MAX_VALUE }
-                            .thenByDescending { it.lastMessageDate })  // ← Сортировка в VM по DTO логике (pinned DESC, then date DESC)
+                        .sortedWith(compareByDescending<ChatListDto> { it.pinnedDate }
+                            .thenByDescending { it.lastMessageDate })  // Fixed: Use pinnedDate directly (DESC), unpinned (-1/0) after pinned
                     if (list != lastEmittedList) {
                         lastEmittedList = list
                         _chats.postValue(list)
@@ -60,13 +60,11 @@ class ChatListViewModel : ViewModel() {
         viewModelScope.launch {
             val snapshotList = model.getChatsSnapshot(_showUnreadOnly.value == true)
                 .applyAccountColors()
-                .sortedWith(compareByDescending<ChatListDto> { it.pinnedDate.takeIf { it > 0L } ?: Long.MAX_VALUE }
-                    .thenByDescending { it.lastMessageDate })  // ← Аналогично для snapshot
+                .sortedWith(compareByDescending<ChatListDto> { it.pinnedDate }
+                    .thenByDescending { it.lastMessageDate })  // Fixed: Same for snapshot
             _chats.value = snapshotList
         }
-
     }
-
 
     fun toggleUnreadOnly() {
         _showUnreadOnly.value = !(_showUnreadOnly.value ?: false)
