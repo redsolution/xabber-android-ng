@@ -106,28 +106,28 @@ class MessageCommonReceiver(private val owner: String) {
 
     // MARK: - Public API
 
-    fun receiveClientSyncRaw(
+    suspend fun receiveClientSyncRaw(
         message: XMPPMessage,
-        groupchatUserCard: String? = null,
-        isRead: Boolean,
-        state: MessageSendingState,
-        date: Date,
-        readDate: Date? = null
-    ): MessageQueueItem {
+    ) {
+
         val messageId = getOriginId(message) ?: message.id
-        return MessageQueueItem(
+        val messageBare = getArchivedMessageContainer(message)
+        Log.w(TAG, "receiveClientSyncRaw working!")
+        val queueItem = MessageQueueItem(
             message = message,
             messageId = messageId,
             archivedFrom = message.from?.bare(),
-            isRead = isRead,
-            date = date,
-            state = state,
-            forceUnreadState = isRead,
+            isRead = message.from?.bare() == owner,
+            date = Date(messageBare?.date ?: System.currentTimeMillis()),
+            state = MessageSendingState.Deliver,
+            forceUnreadState = message.from?.bare() == owner,
             clientSyncMessage = true,
-            queryId = getMAMQueryId(message),
-            groupchatUserCard = groupchatUserCard,
-            readDate = readDate
+            queryId = getMAMQueryId(message)
         )
+        enqueue(queueItem)
+        storeMessagesNow()
+        Log.w("CHECK", "check it RECEIVER SYNC $queueItem, ${message.body}, id:${message.id}, from=${message.from}, to=${message.to}")
+
     }
 
     fun receiveTemporary(message: XMPPMessage): MessageQueueItem? {
@@ -169,7 +169,7 @@ class MessageCommonReceiver(private val owner: String) {
             state = MessageSendingState.Deliver,
             queryId = getMAMQueryId(message)
         )
-        Log.w("CHECK", "check it RECEIVER MAM $queueItem")
+        Log.w("CHECK", "check it RECEIVER MAM $queueItem, ${message.body}, id:${message.id}, from=${message.from}, to=${message.to}")
 
         enqueue(queueItem)
         storeMessagesNow()
@@ -198,6 +198,7 @@ class MessageCommonReceiver(private val owner: String) {
             queryId = getMAMQueryId(message),
             originalOutgoing = isSentCarbon
         )
+        Log.w("CHECK", "check it RECEIVER Carbon $queueItem, ${message.body}, id:${message.id}, from=${message.from}, to=${message.to}")
 
         enqueue(queueItem)
         storeMessagesNow()
@@ -233,7 +234,16 @@ class MessageCommonReceiver(private val owner: String) {
         val messageId = getOriginId(message) ?: message.id ?: return
         val from = message.from?.bare() ?: return
         val to = message.to?.bare() ?: return
-        val opponent = if (to != owner) to else from
+        val isOutgoing = if (message.hasElement("x", "https://xabber.com/protocol/groups")) {
+            // групповой чат — особый случай
+            message.element("x", "https://xabber.com/protocol/groups")
+                ?.element("reference")
+                ?.element("user", "https://xabber.com/protocol/groups")
+                ?.getAttribute("id") == owner
+        } else {
+            from == owner   // обычный чат — исходящее, если from == наш аккаунт
+        }
+        val opponent = if (isOutgoing) to else from
         if (opponent == owner) return
 
         val queueItem = MessageQueueItem(
@@ -246,6 +256,8 @@ class MessageCommonReceiver(private val owner: String) {
             originalFrom = from,
             originalOutgoing = from == owner
         )
+        Log.w("CHECK", "check it RECEIVER runtime $queueItem, ${message.body}, id:${message.id}, from=${message.from}, to=${message.to}")
+
         enqueue(queueItem)
         storeMessagesNow()
     }
@@ -294,22 +306,21 @@ class MessageCommonReceiver(private val owner: String) {
         for (item in sorted) {
             if (isVoIPMessage(item.message)) continue
 
+            // Извлекаем from/to из вложенного сообщения
             val from = item.message.from?.bare() ?: item.archivedFrom ?: item.originalFrom
-            val to = item.message.to?.bare() ?: continue
-            if (to == owner && from == owner) continue
+            val to   = item.message.to?.bare()   ?: continue
 
-            val opponent = if (to != owner) to else from
+            if (from.isBlank() || to.isBlank()) continue
 
-            // Определяем исходящее — как в Swift
-            val isOutgoing = if (item.message.hasElement("x", "https://xabber.com/protocol/groups")) {
-                item.message.element("x", "https://xabber.com/protocol/groups")
-                    ?.element("reference")
-                    ?.element("user", "https://xabber.com/protocol/groups")
-                    ?.getAttribute("id") == owner
-            } else {
-                from == owner
+            // Ключевое исправление
+            val isOutgoing = from == owner
+            val opponent   = if (isOutgoing) to else from
+
+            // Защита от самосообщений (на всякий случай)
+            if (opponent == owner) {
+                Log.w(TAG, "Skipping self-message: from=$from, to=$to")
+                continue
             }
-
             val conversationType = conversationTypeByMessage(item.message)
 
             // Preread logic
@@ -377,6 +388,7 @@ class MessageCommonReceiver(private val owner: String) {
                             ?: ""
 
             }
+            Log.w(TAG, "MEssage parameters: id:${messageItem.messageId}, from=${messageItem.owner}, to=${messageItem.opponent}, outgoing=${messageItem.outgoing}")
             messageItem.save(silentNotifications = true, realm = realm)
         }
 

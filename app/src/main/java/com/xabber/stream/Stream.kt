@@ -795,7 +795,6 @@ class Stream(var jid: String, var port: Int = 5222) {
                 archivedId = archivedId ?: queryId?.let { "query:$it" } // fallback
             ).also {
                 // Дополнительно: можно сохранить queryId где-нибудь, если нужно
-                Log.d("XMPPMessage", "Parsed: id=${it.id}, from=${it.from}, body='${it.body}', archivedId=${it.archivedId}, date=${it.date}")
             }
 
         } catch (e: Exception) {

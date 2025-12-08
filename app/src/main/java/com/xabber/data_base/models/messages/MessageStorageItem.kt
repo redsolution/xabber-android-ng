@@ -312,7 +312,6 @@ class MessageStorageItem : RealmObject {
                         if (!managedMessage.isDeleted) this.lastMessage = managedMessage
                         lastMessageId = managedMessage.messageId
 
-                        // Ephemeral timer
                         val timer = managedMessage.references.firstOrNull()?.metadata?.get("ephemeral-timer") as? Int
                         if (timer != null) {
                             afterburnIntervalLastUpdate = managedMessage.date / 1000.0
@@ -324,7 +323,6 @@ class MessageStorageItem : RealmObject {
                             afterburnInterval = managedMessage.afterburnInterval.toDouble()
                         }
 
-                        // Unread counter
                         if (!managedMessage.isRead && !managedMessage.outgoing && forceUnreadState != true) {
                             unread += 1
                         } else if (managedMessage.outgoing) {
@@ -333,13 +331,11 @@ class MessageStorageItem : RealmObject {
 
                         if (isArchived && !isMuted) isArchived = false
 
-                        // Roster link
                         val rosterPrimary = RosterStorageItem.genPrimary(opponent, owner)
                         val rosterItem = query<RosterStorageItem>("primary == $0", rosterPrimary).first().find()
                         if (rosterItem != null) this.rosterItem = rosterItem
                     }
                 } else {
-                    // Очень старое сообщение — считаем прочитанным
                     managedMessage.isRead = true
                 }
 
@@ -360,24 +356,6 @@ class MessageStorageItem : RealmObject {
                         lastChat.rosterItem = rosterItem
                     }
                 }
-
-
-                // Уведомления — вынесены за транзакцию
-//                if (!silentNotifications && shouldNotify && !managedMessage.isRead && !managedMessage.outgoing && managedMessage.archivedId.isNotBlank()) {
-//                    if (managedMessage.date >= System.currentTimeMillis() - 10_000) {
-//                        CoroutineScope(Dispatchers.Main).launch {
-//                            NotifyManager.shared.update(
-//                                    context = applicationContext(),
-//                            message = managedMessage.body.takeIf { it.isNotBlank() } ?: "New message",
-//                            messageId = managedMessage.archivedId,
-//                            opponent = managedMessage.opponent,
-//                            owner = managedMessage.owner,
-//                            date = Date(managedMessage.date),
-//                            conversationType = managedMessage.conversationType
-//                            )
-//                        }
-//                    }
-//                }
             }
 
             true

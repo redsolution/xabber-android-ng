@@ -324,10 +324,7 @@ abstract class MessageViewHolder(
         statusIcon.isVisible = messageDto.isOutgoing && messageDto.messageSendingState != MessageSendingState.Uploading
         if (statusIcon.isVisible) {
             MessageDeliveryStatusHelper.setupStatusImageView(messageDto, statusIcon)
-            Log.d(
-                TAG,
-                "Set status icon for messageId=$messageId: state=${messageDto.messageSendingState}"
-            )
+
         }
     }
 

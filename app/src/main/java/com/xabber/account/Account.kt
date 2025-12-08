@@ -858,7 +858,7 @@ class Account : XMPPStreamDelegate {
 
                     // 4. last-message из синхронизации (XEP-0CCC)
                     message.hasElement("last-message", "https://xabber.com/protocol/synchronization") -> {
-                        messageReceiver.receiveRuntime(message)
+                        messageReceiver.receiveClientSyncRaw(message)
                     }
 
                     // 5. Всё остальное — живые сообщения в реальном времени

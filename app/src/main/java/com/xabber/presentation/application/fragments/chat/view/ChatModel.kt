@@ -57,7 +57,7 @@ class ChatModel(
     @OptIn(FlowPreview::class)
     fun observeMessages(): Flow<List<MessageDto>> {
         return realm.query<MessageStorageItem>(
-            "owner = $0 AND opponent = $1 AND conversationType_ = $2 AND isDeleted = false",
+            "owner = $0 AND opponent = $1 AND conversationType_ = $2",
             owner, opponent, conversationType.rawValue
         )
             .sort("sentDate", Sort.ASCENDING)
@@ -257,13 +257,19 @@ class ChatModel(
 
             if (targetChat != null) {
                 findLatest(targetChat)?.apply {
-                    if (message.sentDate > messageDate) {
+                    if (message.sentDate >= messageDate) {
                         lastMessage = message
                         messageDate = message.sentDate
                         lastMessageId = message.messageId
+                        // Always update to ensure flow emission
+                        isSynced = true
                         if (!messageDto.isOutgoing && muteExpired <= 0) {
                             isArchived = false
                             unread = (unread ?: 0) + if (messageDto.isUnread) 1 else 0
+                        } else if (messageDto.isOutgoing) {
+                            // Reset unread count for outgoing messages to ensure UI update
+                            unread = 0
+                            isArchived = false
                         }
                     }
                 }
@@ -281,6 +287,9 @@ class ChatModel(
                     if (!messageDto.isOutgoing && muteExpired <= 0) {
                         isArchived = false
                         unread = if (messageDto.isUnread) 1 else 0
+                    } else if (messageDto.isOutgoing) {
+                        isArchived = false
+                        unread = 0
                     }
                 }, UpdatePolicy.ALL)
             }

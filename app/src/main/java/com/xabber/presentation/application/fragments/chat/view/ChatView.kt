@@ -17,16 +17,19 @@ import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import android.text.Editable
+import android.text.InputType
 import android.text.TextWatcher
 import android.util.Log
 import android.view.*
 import android.view.animation.Animation
 import android.view.animation.AnimationUtils
 import android.view.animation.TranslateAnimation
+import android.widget.EditText
 import android.widget.PopupMenu
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
+import androidx.appcompat.app.AlertDialog
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
@@ -101,6 +104,9 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
     MessageAdapter.MenuItemListener,
     MessageAdapter.OnViewClickListener, ReplySwipeCallback.SwipeAction {
 
+
+    private var botJob: Job? = null
+    private var botCounter = 0L   // счётчик сообщений (Long, чтобы не переполнялся)
     private val binding by viewBinding(FragmentChatBinding::bind)
     private val handler = Handler(Looper.getMainLooper())
     private var messageAdapter: MessageAdapter? = null
@@ -364,7 +370,16 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
             popup.menu.findItem(R.id.disable_notifications).isVisible = muteExpired <= 0
             popup.setOnMenuItemClickListener { menuItem ->
                 when (menuItem.itemId) {
-                    R.id.call_out -> sendIncomingMessages(chat.owner, chat.opponentJid)
+                    R.id.call_out -> {
+                        if (botJob?.isActive == true) {
+                            botJob?.cancel()
+                            botJob = null
+                            showToast("Бот остановлен")
+                        } else {
+                            showStartNumberDialog()
+                        }
+                        true
+                    }
                     R.id.disable_notifications -> disableNotifications()
                     R.id.enable_notifications -> enableNotifications()
                     R.id.clear_message_history -> clearHistory(chat)
@@ -373,6 +388,41 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
                 true
             }
             popup.show()
+        }
+    }
+
+    private fun showStartNumberDialog() {
+        val input = EditText(requireContext()).apply {
+            inputType = InputType.TYPE_CLASS_NUMBER
+            hint = "Например: 1"
+            setText("1")
+            setSelection(text.length)
+        }
+
+        AlertDialog.Builder(requireContext())
+            .setTitle("Бот: с какого числа начать?")
+            .setView(input)
+            .setPositiveButton("Запустить") { _, _ ->
+                val startStr = input.text.toString().trim()
+                val startNum = startStr.toLongOrNull() ?: 1L
+                startNumberBot(startNum)
+                showToast("Бот запущен с $startNum")
+            }
+            .setNegativeButton("Отмена", null)
+            .show()
+    }
+
+    private fun startNumberBot(startFrom: Long) {
+        var counter = startFrom
+
+        botJob = lifecycleScope.launch {
+            while (isActive) {
+                binding.chatInput.setText(counter.toString())
+                binding.buttonSendMessage.performClick()
+
+                counter++
+                delay(30_000L) // каждые 5 секунд
+            }
         }
     }
 
@@ -1343,6 +1393,7 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
         super.onDestroyView()
         saveLastPosition()
         saveDraft()
+        botJob?.cancel()
         AccountManager.unregisterChatViewModel(getParams().id)
         messageSender?.unsubscribeSender()
         onBackPressedCallback.remove()

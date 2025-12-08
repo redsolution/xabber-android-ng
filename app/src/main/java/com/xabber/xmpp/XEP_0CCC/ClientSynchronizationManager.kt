@@ -222,12 +222,12 @@ class ClientSynchronizationManager(owner: String) {
                                 if (messageId.isEmpty()) {
                                     return@let
                                 }
-                                val from = it.getAttribute("from")?.let { XMPPJID(it).bare() } ?: jid
-                                val to = it.getAttribute("to")?.let { XMPPJID(it).bare() } ?: owner
+                                val fromJid = it.getAttribute("from")?.let { XMPPJID(it).bare() } ?: jid
+                                val toJid   = it.getAttribute("to")?.let { XMPPJID(it).bare() } ?: owner
                                 val body = it.getElementsByTagName("body").item(0)?.textContent?.trim() ?: ""
-                                if (body.isEmpty()) {
-                                    return@let
-                                }
+                                if (body.isEmpty()) return@let
+                                val isOutgoing = fromJid == owner
+                                val opponent   = if (isOutgoing) toJid else fromJid
                                 val rawStamp = conversation.getAttribute("stamp")?.takeIf { it.isNotBlank() }
                                 val timestamp = rawStamp?.toLongOrNull()
 
@@ -238,22 +238,23 @@ class ClientSynchronizationManager(owner: String) {
                                         primary = messagePrimary
                                         this.messageId = messageId
                                         this.owner = owner
-                                        this.opponent = from
+                                        this.opponent = opponent
                                         this.body = body
-                                        this.date = timestamp!!/1000
-                                        this.sentDate = timestamp/1000
+                                        this.date = timestamp!! / 1000
+                                        this.sentDate = timestamp / 1000
                                         this.editDate = 0L
-                                        this.outgoing = from == owner // Fixed: Correctly set outgoing based on from == owner
+                                        this.outgoing = isOutgoing
                                         this.conversationType_ = type
                                         this.isRead = unreadCount == 0L
                                         this.state = MessageSendingState.Sent
-                                    }, UpdatePolicy.ALL)
+                                        updatePrimary()
+                                   }, UpdatePolicy.ALL)
                                 } else {
                                     existingMessage
                                 }
                                 messageDate = timestamp!!
                                 lastMessageId = messageId
-                                Log.d("ClientSyncManager", "Set lastMessage for jid=$jid, messageId=$messageId, outgoing=${lastMessage!!.outgoing}, from=$from, to=$to")
+                                Log.d("ClientSyncManager", "Set lastMessage for jid=$jid, messageId=$messageId, outgoing=${lastMessage!!.outgoing}, from=$fromJid, to=$toJid")
                             }
                         }
                     }
