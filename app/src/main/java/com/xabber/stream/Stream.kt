@@ -361,9 +361,17 @@ class Stream(var jid: String, var port: Int = 5222) {
                                 delegate?.didReceiveIQ(iq!!, this@Stream)
                             }
                             "message" -> {
-                                val message = parseMessage(stanza)!!
+                                var message = parseMessage(stanza)
+                                if (message == null) {
+                                    message = extractFallbackMessage(stanza)
+                                    if (message != null) {
+                                        Log.w(TAG, "Used fallback parsing for message: id=${message.id}")
+                                    } else {
+                                        Log.e(TAG, "Failed to parse/fallback message, skipping: ${stanza.take(500)}...")
+                                        return@launch
+                                    }
+                                }
                                 delegate?.didReceiveMessage(message, this@Stream)
-
                             }
                             "presence" -> {
                                 delegate?.didReceivePresence(stanza, this@Stream)
@@ -399,6 +407,35 @@ class Stream(var jid: String, var port: Int = 5222) {
         }
     }
 
+    private fun extractFallbackMessage(stanza: String): XMPPMessage? {
+        val idMatch = Regex("""id=['"]([^'"]+)['"]""").find(stanza)
+        val fromMatch = Regex("""from=['"]([^'"]+)['"]""").find(stanza)
+        val toMatch = Regex("""to=['"]([^'"]+)['"]""").find(stanza)
+        val bodyMatch = Regex("""<body[^>]*>([^<]+)</body>""", RegexOption.DOT_MATCHES_ALL).find(stanza)
+        val originMatch = Regex("""<origin-id[^>]+id=['"]([^'"]+)['"]""").find(stanza)
+        val archivedMatch = Regex("""<archived[^>]+id=['"]([^'"]+)['"]""").find(stanza)
+        val stampMatch = Regex("""stamp=['"]([^'"]+)['"]""").find(stanza)
+
+        val id = idMatch?.groupValues?.get(1) ?: return null
+        val fromStr = fromMatch?.groupValues?.get(1) ?: return null
+        val toStr = toMatch?.groupValues?.get(1) ?: return null
+        val body = bodyMatch?.groupValues?.get(1)?.trim()?.takeIf { it.isNotBlank() } ?: return null
+        val originId = originMatch?.groupValues?.get(1)
+        val archivedId = archivedMatch?.groupValues?.get(1) ?: ""
+        val timestamp = stampMatch?.groupValues?.get(1)?.parseXMPPDateToMillis() ?: System.currentTimeMillis()
+
+        return XMPPMessage(
+            raw = stanza,
+            type = "chat",
+            id = id,
+            from = try { XMPPJID(fromStr) } catch (e: Exception) { return null },
+            to = try { XMPPJID(toStr) } catch (e: Exception) { return null },
+            date = timestamp,
+            body = body,
+            originId = originId,
+            archivedId = archivedId
+        )
+    }
 
     private suspend fun processMessageQueue() {
         val processedIds = mutableSetOf<String>()
