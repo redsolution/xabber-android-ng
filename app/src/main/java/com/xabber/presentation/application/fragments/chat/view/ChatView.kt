@@ -421,7 +421,7 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
                 binding.buttonSendMessage.performClick()
 
                 counter++
-                delay(30_000L) // каждые 5 секунд
+                delay(5_000L) // каждые 5 секунд
             }
         }
     }
@@ -585,9 +585,9 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
         if (isLoadingHistory) return
 
         isLoadingHistory = true
-        binding.progressBar.isVisible = true
-        binding.overlay.isVisible = true
-        viewModel.setLocked(true)
+//        binding.progressBar.isVisible = true
+//        binding.overlay.isVisible = true
+//        viewModel.setLocked(true)
 
         // Save current scroll position
         val firstVisiblePosition = layoutManager!!.findFirstVisibleItemPosition()
@@ -604,9 +604,9 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
                 } catch (e: IllegalArgumentException) {
                     Log.e("ChatView", "Invalid owner JID: ${viewModel.owner}, ${e.message}")
                     isLoadingHistory = false
-                    binding.progressBar.isVisible = false
-                    binding.overlay.isVisible = false
-                    viewModel.setLocked(false)
+//                    binding.progressBar.isVisible = false
+//                    binding.overlay.isVisible = false
+//                    viewModel.setLocked(false)
                     return@launch
                 }
                 val bareOpponent = try {
@@ -614,9 +614,9 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
                 } catch (e: IllegalArgumentException) {
                     Log.e("ChatView", "Invalid opponent JID: ${viewModel.opponent}, ${e.message}")
                     isLoadingHistory = false
-                    binding.progressBar.isVisible = false
-                    binding.overlay.isVisible = false
-                    viewModel.setLocked(false)
+//                    binding.progressBar.isVisible = false
+//                    binding.overlay.isVisible = false
+//                    viewModel.setLocked(false)
                     return@launch
                 }
 
@@ -630,9 +630,9 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
                         callback = {
                             lifecycleScope.launch(Dispatchers.Main) {
                                 isLoadingHistory = false
-                                binding.progressBar.isVisible = false
-                                binding.overlay.isVisible = false
-                                viewModel.setLocked(false)
+//                                binding.progressBar.isVisible = false
+//                                binding.overlay.isVisible = false
+//                                viewModel.setLocked(false)
 
                                 val newItemCount = messageAdapter!!.itemCount
                                 val insertedCount = newItemCount - currentItemCount
@@ -649,9 +649,10 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
             } catch (e: Exception) {
                 Log.e("ChatView", "Error loading older messages", e)
                 isLoadingHistory = false
-                binding.progressBar.isVisible = false
-                binding.overlay.isVisible = false
-                viewModel.setLocked(false)
+//                binding.progressBar.isVisible = false
+//                binding.overlay.isVisible = false
+//                viewModel.setLocked(false)
+                return@launch
             }
         }
     }

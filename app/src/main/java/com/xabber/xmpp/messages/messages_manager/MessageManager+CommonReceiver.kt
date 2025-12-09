@@ -32,6 +32,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.util.Date
 import java.util.UUID
 import kotlin.collections.HashSet
@@ -41,7 +43,7 @@ class MessageCommonReceiver(private val owner: String) {
 
     private val realm: Realm by lazy { Realm.open(defaultRealmConfig()) }
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-
+    private val processMutex = Mutex()
     private val processedMessageIds = mutableSetOf<String>()
     private val messageQueryIds = mutableSetOf<String>()
     val seenQueryIds = mutableSetOf<String>()
@@ -274,9 +276,11 @@ class MessageCommonReceiver(private val owner: String) {
             messagesQueue
                 .debounce(1)
                 .collect { items ->
-                    if (items.isNotEmpty()) {
-                        processQueue(items.toList())
-                        AccountManager.find(owner)?.chatMarkers?.deleteEphemeralMessages()
+                    processMutex.withLock {
+                        if (items.isNotEmpty()) {
+                            processQueue(items.toList())
+                            AccountManager.find(owner)?.chatMarkers?.deleteEphemeralMessages()
+                        }
                     }
                 }
         }
@@ -395,18 +399,23 @@ class MessageCommonReceiver(private val owner: String) {
         AccountManager.find(owner)?.chatMarkers?.deleteEphemeralMessages()
     }
 
-    private fun enqueue(item: MessageQueueItem) {
-        val set = messagesQueue.value.toMutableSet()
-        if (set.contains(item)) return  // ← Now works correctly!
-        set += item
-        messagesQueue.value = set
+    private suspend fun enqueue(item: MessageQueueItem) {
+        processMutex.withLock {
+            val set = messagesQueue.value.toMutableSet()
+            if (set.contains(item)) return@withLock
+            set += item
+            messagesQueue.value = set
+        }
     }
-
     suspend fun storeMessagesNow() {
-        val items = messagesQueue.value.toList()
-        messagesQueue.value = mutableSetOf()
-        processQueue(items)
-        AccountManager.find(owner)?.chatMarkers?.deleteEphemeralMessages()
+        processMutex.withLock {
+            val items = messagesQueue.value.toList()
+            messagesQueue.value = mutableSetOf()
+            if (items.isNotEmpty()) {
+                processQueue(items)
+                AccountManager.find(owner)?.chatMarkers?.deleteEphemeralMessages()
+            }
+        }
     }
 
 
