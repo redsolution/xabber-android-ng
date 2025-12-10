@@ -98,7 +98,23 @@ class MessageHeaderViewDecoration(context: Context) : ItemDecoration() {
             val holder = parent.getChildViewHolder(child)
             if (i != 0) {
                 if (holder is MessageViewHolder && holder.needDate) {
-                    drawDateMessageHeader(c, parent, child, holder)
+                    // Проверяем, нет ли уже на экране другого сообщения с той же датой выше
+                    val currentDate = holder.date
+                    var shouldDraw = true
+
+                    // Проверяем все видимые View выше текущего
+                    for (j in 0 until i) {
+                        val prevChild = parent.getChildAt(j)
+                        val prevHolder = parent.getChildViewHolder(prevChild)
+                        if (prevHolder is MessageViewHolder && prevHolder.needDate && prevHolder.date == currentDate) {
+                            shouldDraw = false
+                            break
+                        }
+                    }
+
+                    if (shouldDraw) {
+                        drawDateMessageHeader(c, parent, child, holder)
+                    }
                 }
 //                if (holder is MessageViewHolder && holder.isUnread) {
 //                    drawUnreadMessageHeader(c, parent, child)

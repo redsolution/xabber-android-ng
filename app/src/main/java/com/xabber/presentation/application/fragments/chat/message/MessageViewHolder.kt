@@ -45,7 +45,7 @@ abstract class MessageViewHolder(
 ) : RecyclerView.ViewHolder(itemView), FilesAdapter.OnFileClickListener {
     var needDate = false
     var date: String? = null
-    //    var isUnread = false
+    var isUnread = false
     var messageId: String? = null
 
     private val context: Context = itemView.context
@@ -111,7 +111,7 @@ abstract class MessageViewHolder(
             setItemCheckedBackground(message.isChecked)
         }
         needDate = vhExtraData.isNeedDate
-//        isUnread = vhExtraData.isUnread
+        isUnread = vhExtraData.isUnread
         messageId = message.primary
         date = getDateStringForMessage(message.sentTimestamp)
 

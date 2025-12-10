@@ -12,11 +12,13 @@ import com.xabber.dto.MessageDto
 import com.xabber.presentation.application.fragments.chat.view.ChatModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
+import java.util.concurrent.atomic.AtomicInteger
 
 class ChatViewModel(
     private val chatId: String,
@@ -29,6 +31,10 @@ class ChatViewModel(
 
     private val _chat = MutableLiveData<ChatListDto?>()
     val chat: LiveData<ChatListDto?> = _chat
+
+    private val activeArchiveLoads = AtomicInteger(0)
+    private val _isArchiveLoading = MutableLiveData<Boolean>()
+    val isArchiveLoading: LiveData<Boolean> = _isArchiveLoading
 
     private val _messages = MutableLiveData<List<MessageDto>>()
     val messages: LiveData<List<MessageDto>> = _messages
@@ -64,6 +70,24 @@ class ChatViewModel(
         loadInitialData()
         markAllAsRead()
     }
+
+    fun startArchiveLoad() {
+        val wasZero = activeArchiveLoads.getAndIncrement() == 0
+        if (wasZero) {
+            _isArchiveLoading.postValue(true)
+        }
+    }
+
+    fun finishArchiveLoad() {
+        val becameZero = activeArchiveLoads.decrementAndGet() == 0
+        if (becameZero) {
+            viewModelScope.launch {
+                delay(300) // 500 (debounce) + запас 200 мс
+                _isArchiveLoading.postValue(false)
+            }
+        }
+    }
+
 
     private fun observeChat() {
         chatJob?.cancel()

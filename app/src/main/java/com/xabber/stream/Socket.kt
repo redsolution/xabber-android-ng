@@ -561,7 +561,23 @@ class Socket(private val host: String, private val port: Int) {
                 startReadingLoop()
             }
             Log.d(TAG, "TLS upgrade completed successfully")
+            reader?.cancel()
             tlsHandshaking = false
+
+// 2. Пересоздаём reader
+            reader = socket?.openReadChannel()
+            if (reader == null) {
+                Log.e(TAG, "Failed to reopen reader after TLS")
+                closeInternal()
+                return@withContext false
+            }
+
+// 3. Только теперь запускаем основной цикл чтения
+            if (isReadingLoopActive) {
+                Log.w(TAG, "Old reading loop still active — should not happen")
+                // Можно принудительно убить старый scope, если нужно
+            }
+            startReadingLoop()  // ← только один раз, после пересоздания reader
             return@withContext true
         } catch (e: Exception) {
             Log.e(TAG, "Failed to upgrade to TLS: ${e.message}", e)

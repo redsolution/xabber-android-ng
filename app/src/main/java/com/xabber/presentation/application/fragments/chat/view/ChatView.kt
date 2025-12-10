@@ -263,7 +263,6 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
         } else {
             restoreDraft()
         }
-        viewModel.setLocked(true)
         lifecycleScope.launch {
             val account = AccountManager.find(bareOwner)
             if (account != null) {
@@ -279,7 +278,6 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
                 Log.e("ChatView", "Account not found for owner=$bareOwner")
             }
         }
-        viewModel.setLocked(false)
 
         binding.messageList.post {
             scrollDown()
@@ -585,9 +583,10 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
         if (isLoadingHistory) return
 
         isLoadingHistory = true
-//        binding.progressBar.isVisible = true
-//        binding.overlay.isVisible = true
-//        viewModel.setLocked(true)
+        viewModel.startArchiveLoad()          // ← включаем блокировку
+        binding.progressBar.isVisible = true
+        binding.overlay.isVisible = true
+        viewModel.setLocked(true)
 
         // Save current scroll position
         val firstVisiblePosition = layoutManager!!.findFirstVisibleItemPosition()
@@ -604,9 +603,6 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
                 } catch (e: IllegalArgumentException) {
                     Log.e("ChatView", "Invalid owner JID: ${viewModel.owner}, ${e.message}")
                     isLoadingHistory = false
-//                    binding.progressBar.isVisible = false
-//                    binding.overlay.isVisible = false
-//                    viewModel.setLocked(false)
                     return@launch
                 }
                 val bareOpponent = try {
@@ -614,9 +610,6 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
                 } catch (e: IllegalArgumentException) {
                     Log.e("ChatView", "Invalid opponent JID: ${viewModel.opponent}, ${e.message}")
                     isLoadingHistory = false
-//                    binding.progressBar.isVisible = false
-//                    binding.overlay.isVisible = false
-//                    viewModel.setLocked(false)
                     return@launch
                 }
 
@@ -630,10 +623,15 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
                         callback = {
                             lifecycleScope.launch(Dispatchers.Main) {
                                 isLoadingHistory = false
-//                                binding.progressBar.isVisible = false
-//                                binding.overlay.isVisible = false
-//                                viewModel.setLocked(false)
+                                // Убираем локальные флаги UI
+                                binding.progressBar.isVisible = false
+                                binding.overlay.isVisible = false
+                                viewModel.setLocked(false)
 
+                                // ← Главное: завершаем загрузку архива
+                                viewModel.finishArchiveLoad()
+
+                                // Восстанавливаем позицию
                                 val newItemCount = messageAdapter!!.itemCount
                                 val insertedCount = newItemCount - currentItemCount
                                 if (insertedCount > 0 && firstVisiblePosition != RecyclerView.NO_POSITION) {
@@ -649,9 +647,6 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
             } catch (e: Exception) {
                 Log.e("ChatView", "Error loading older messages", e)
                 isLoadingHistory = false
-//                binding.progressBar.isVisible = false
-//                binding.overlay.isVisible = false
-//                viewModel.setLocked(false)
                 return@launch
             }
         }
@@ -909,6 +904,12 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
 
         viewModel.muteExpired.observe(viewLifecycleOwner) {
             if (it != null) setupMuteIcon(it)
+        }
+
+        viewModel.isArchiveLoading.observe(viewLifecycleOwner) { loading ->
+            binding.overlay.isVisible = loading
+            binding.progressBar.isVisible = loading
+            viewModel.setLocked(loading)
         }
 
         viewModel.messages.observe(viewLifecycleOwner) { messages ->
