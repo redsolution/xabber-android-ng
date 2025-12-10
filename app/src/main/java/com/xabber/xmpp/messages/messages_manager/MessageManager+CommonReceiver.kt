@@ -258,7 +258,7 @@ class MessageCommonReceiver(private val owner: String) {
             originalFrom = from,
             originalOutgoing = from == owner
         )
-        Log.w("CHECK", "check it RECEIVER runtime $queueItem, ${message.body}, id:${message.id}, from=${message.from}, to=${message.to}")
+//        Log.w("CHECK", "check it RECEIVER runtime $queueItem, ${message.body}, id:${message.id}, from=${message.from}, to=${message.to}")
 
         enqueue(queueItem)
         storeMessagesNow()
@@ -392,7 +392,7 @@ class MessageCommonReceiver(private val owner: String) {
                             ?: ""
 
             }
-            Log.w(TAG, "MEssage parameters: id:${messageItem.messageId}, from=${messageItem.owner}, to=${messageItem.opponent}, outgoing=${messageItem.outgoing}")
+//            Log.w(TAG, "MEssage parameters: id:${messageItem.messageId}, from=${messageItem.owner}, to=${messageItem.opponent}, outgoing=${messageItem.outgoing}")
             messageItem.save(silentNotifications = true, realm = realm)
         }
 

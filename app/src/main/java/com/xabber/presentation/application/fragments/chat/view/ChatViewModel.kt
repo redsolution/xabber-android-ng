@@ -82,7 +82,7 @@ class ChatViewModel(
         val becameZero = activeArchiveLoads.decrementAndGet() == 0
         if (becameZero) {
             viewModelScope.launch {
-                delay(300) // 500 (debounce) + запас 200 мс
+                delay(600) // 500 (debounce) + запас 200 мс
                 _isArchiveLoading.postValue(false)
             }
         }

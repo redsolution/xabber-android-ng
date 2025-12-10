@@ -361,13 +361,19 @@ class Stream(var jid: String, var port: Int = 5222) {
                                 delegate?.didReceiveIQ(iq!!, this@Stream)
                             }
                             "message" -> {
-                                var message = parseMessage(stanza)
+                                var message = try {
+                                    parseMessage(stanza)
+                                } catch (e: Exception) {
+                                    Log.w(TAG, "parseMessage failed, using fallback: ${e.message}")
+                                    null
+                                }
+
                                 if (message == null) {
                                     message = extractFallbackMessage(stanza)
                                     if (message != null) {
                                         Log.w(TAG, "Used fallback parsing for message: id=${message.id}")
                                     } else {
-                                        Log.e(TAG, "Failed to parse/fallback message, skipping: ${stanza.take(500)}...")
+                                        Log.e(TAG, "Both parsers failed, dropping message")
                                         return@launch
                                     }
                                 }
