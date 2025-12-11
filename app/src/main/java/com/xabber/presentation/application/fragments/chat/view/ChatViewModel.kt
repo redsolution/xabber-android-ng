@@ -119,9 +119,11 @@ class ChatViewModel(
             val initialMessages = model.getMessages()
             _messages.value = initialMessages
             _unreadCount.value = initialMessages.count { it.isUnread }
-            markAsReadOnLoad(initialMessages)  // Mark unread on initial load to prevent bind-loop
             _isLoading.value = false
         }
+    }
+    fun markAsRead(id: String) {
+        viewModelScope.launch { model.markAsRead(id) }
     }
 
     private suspend fun markAsReadOnLoad(messages: List<MessageDto>) {
@@ -175,7 +177,7 @@ class ChatViewModel(
     }
 
     fun markAllAsRead() {
-        viewModelScope.launch { model.markAllMessageUnread(chatId) }
+        viewModelScope.launch { model.markAllAsRead(chatId) }
     }
 
     fun saveDraft(id: String, draft: String?) {

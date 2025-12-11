@@ -176,6 +176,27 @@ class ChatModel(
     }
 
 
+    suspend fun markAllAsRead(chatId: String) = with(realm) {
+        write {
+            query<LastChatsStorageItem>("primary = $0", chatId).first().find()?.let { chat ->
+                val owner = chat.owner
+                val opponent = chat.jid
+                query<MessageStorageItem>(
+                    "isRead = false AND owner = $0 AND opponent = $1 AND conversationType_ = $2",
+                    owner, opponent, chat.conversationType.rawValue
+                ).find().forEach { it.isRead = true }
+                // Reset unread count in chat
+                findLatest(chat)?.unread = 0
+            }
+        }
+    }
+
+    suspend fun markAsRead(id: String) = with(realm) {
+        writeBlocking {
+            query<MessageStorageItem>("primary = $0", id).first().find()?.isRead = true
+        }
+    }
+
     // === Запись данных ===
 
     suspend fun insertMessage(chatId: String, messageDto: MessageDto) = with(realm) {

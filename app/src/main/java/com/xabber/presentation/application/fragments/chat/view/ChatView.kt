@@ -502,7 +502,8 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
             layoutInflater,
             this,
             onViewClickListener = this,
-            isGroup = isGroup
+            isGroup = isGroup,
+            onBindListener = ::onBind
         )
         binding.messageList.adapter = messageAdapter
         layoutManager = LinearLayoutManager(context).apply {
@@ -1422,7 +1423,7 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
 
     fun onBind(message: MessageDto?) {
         if (message != null && message.isUnread && !message.isOutgoing) {
-            viewModel.setUnread(message.primary)
+            viewModel.markAsRead(message.primary)
         }
     }
 
