@@ -419,7 +419,7 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
                 binding.buttonSendMessage.performClick()
 
                 counter++
-                delay(5_000L) // каждые 5 секунд
+                delay(500L) // каждые 5 секунд
             }
         }
     }
@@ -552,7 +552,7 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
                     }
 
                     val lastVisible = layoutManager!!.findLastVisibleItemPosition()
-                    if (lastVisible >= messageAdapter!!.itemCount - 1) {
+                    if (lastVisible >= messageAdapter!!.itemCount - 3) {  // Hide if within last 3 items
                         binding.downScroller.isVisible = false
                     } else {
                         if (currentVoiceRecordingState !in listOf(
@@ -570,7 +570,7 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
         binding.btnDownward.setOnClickListener {
             val lastVisiblePosition = layoutManager!!.findLastVisibleItemPosition()
             if (viewModel.unreadCount.value == 0 ||
-                lastVisiblePosition + 2 >= messageAdapter!!.itemCount - viewModel.unreadCount.value!!) {
+                lastVisiblePosition + 3 >= messageAdapter!!.itemCount) {  // Simplified, no unread in condition
                 scrollDown()
                 binding.tvNewReceivedCount.text = ""
                 binding.tvNewReceivedCount.isVisible = false
@@ -931,7 +931,10 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
             }
             lifecycleScope.launch(Dispatchers.Main) {
                 showUnreadBadge(unread)
-                binding.downScroller.isVisible = unread > 0 && layoutManager != null && messageAdapter != null
+                binding.downScroller.isVisible = unread > 0 &&
+                        layoutManager != null &&
+                        messageAdapter != null &&
+                        !isAtBottom()  // Add this check
             }
         }
 
@@ -957,7 +960,7 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
         return layoutManager?.let { lm ->
             val lastVisibleItemPosition = lm.findLastVisibleItemPosition()
             val itemCount = messageAdapter?.itemCount ?: 0
-            lastVisibleItemPosition >= itemCount - 1
+            lastVisibleItemPosition >= itemCount - 3  // Changed to -3
         } ?: false
     }
 
