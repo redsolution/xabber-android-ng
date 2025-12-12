@@ -10,6 +10,9 @@ enum class ConversationType(val rawValue: String) {
         Notifications("urn:xabber:xen:0"),
         Favorites("urn:xabber:favorites:0");
 
+        val isEncrypted: Boolean
+                get() = this in listOf(Omemo, Omemo1, Axolotl)
+
         companion object {
                 fun fromRaw(value: String): ConversationType {
                         return values().firstOrNull { it.rawValue == value } ?: Regular

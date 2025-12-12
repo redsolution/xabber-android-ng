@@ -1,6 +1,9 @@
 package com.xabber.presentation.application.fragments.chat.view
 
+import android.os.Build
 import android.util.Log
+import androidx.annotation.RequiresApi
+import com.xabber.account.AccountManager
 import com.xabber.data_base.defaultRealmConfig
 import com.xabber.data_base.models.account.AccountStorageItem
 import com.xabber.data_base.models.last_chats.LastChatsStorageItem
@@ -13,6 +16,7 @@ import com.xabber.dto.AccountDto
 import com.xabber.dto.ChatListDto
 import com.xabber.dto.MessageDto
 import com.xabber.dto.MessageReferenceDto
+import com.xabber.stream.StreamState
 import com.xabber.utils.toAccountDto
 import com.xabber.utils.toChatListDto
 import com.xabber.xmpp.jid.XMPPJID
@@ -28,6 +32,7 @@ import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Locale
 import java.util.concurrent.TimeUnit
@@ -176,27 +181,75 @@ class ChatModel(
     }
 
 
-    suspend fun markAllAsRead(chatId: String) = with(realm) {
-        write {
+    @RequiresApi(Build.VERSION_CODES.O)
+    suspend fun markAllAsRead(chatId: String) = withContext(Dispatchers.IO) {
+        var lastReadPrimary: String? = null
+
+        realm.write {
             query<LastChatsStorageItem>("primary = $0", chatId).first().find()?.let { chat ->
                 val owner = chat.owner
                 val opponent = chat.jid
-                query<MessageStorageItem>(
+                val convType = chat.conversationType
+
+                val unreadMessages = query<MessageStorageItem>(
                     "isRead = false AND owner = $0 AND opponent = $1 AND conversationType_ = $2",
-                    owner, opponent, chat.conversationType.rawValue
-                ).find().forEach { it.isRead = true }
-                // Reset unread count in chat
+                    owner, opponent, convType.rawValue
+                ).find()
+
+                unreadMessages.forEach { msg ->
+                    msg.isRead = true
+                    msg.readDate = System.currentTimeMillis() / 1000
+                    msg.state = MessageSendingState.Read
+                }
+
+                // Берём primary последнего сообщения
+                chat.lastMessage?.let { lastMsg ->
+                    if (!lastMsg.outgoing) {
+                        lastReadPrimary = lastMsg.primary
+                    }
+                }
+
                 findLatest(chat)?.unread = 0
             }
         }
-    }
 
-    suspend fun markAsRead(id: String) = with(realm) {
-        writeBlocking {
-            query<MessageStorageItem>("primary = $0", id).first().find()?.isRead = true
+        // Отправляем displayed только для последнего прочитанного сообщения
+        lastReadPrimary?.let { primary ->
+            sendDisplayedIfNeeded(primary)
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
+    suspend fun markAsRead(id: String) = withContext(Dispatchers.IO) {
+        var messagePrimaryToMark: String? = null
+
+        realm.writeBlocking {
+            query<MessageStorageItem>("primary = $0", id).first().find()?.let { msg ->
+                if (!msg.isRead) {
+                    msg.isRead = true
+                    msg.readDate = System.currentTimeMillis() / 1000
+                    msg.state = MessageSendingState.Read
+
+                    // Сохраняем primary ДО выхода из writeBlocking!
+                    messagePrimaryToMark = msg.primary
+                }
+            }
+        }
+
+        // Теперь безопасно — вне writeBlocking и в правильном потоке
+        messagePrimaryToMark?.let { primary ->
+            sendDisplayedIfNeeded(primary)
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.O)
+    private suspend fun sendDisplayedIfNeeded(messagePrimary: String) {
+        val account = AccountManager.find(owner) ?: return
+        val stream = account.stream ?: return
+        if (stream.state != StreamState.CONNECTED) return
+
+        account.chatMarkers.displayed(stream, messagePrimary)
+    }
     // === Запись данных ===
 
     suspend fun insertMessage(chatId: String, messageDto: MessageDto) = with(realm) {

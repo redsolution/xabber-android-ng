@@ -811,22 +811,18 @@ class Account : XMPPStreamDelegate {
                 isCarbonReceived -> message.getCarbonForwardedMessageContainer() ?: message
                 else -> message
             }
-//            Log.w(TAG, "extracted message $realMessage")
 
-            // Чат-стейты и маркеры — сразу отсекаем
-//            if (realMessage.hasChatState() || realMessage.hasChatMarker()) {
-//                if (realMessage.hasChatMarker()) {
-//                    chatMarkers.read(realMessage)
-//                }
-//                return true
-//            }
+            // ВАЖНО: обрабатываем чат-маркеры ДО любых проверок на дубликаты
+            chatMarkers.read(realMessage)
 
-            val messageId = realMessage.originId ?: realMessage.id
-            ?: "unknown_${System.currentTimeMillis()}"
+            val messageId = realMessage.originId ?: realMessage.id ?: "unknown_${System.currentTimeMillis()}"
 
-            val body = realMessage.body?.takeIf { it.isNotBlank() } ?: return
+            // Если это чисто маркер без тела — дальше можно не идти
+            if (realMessage.body.isNullOrBlank() && realMessage.children.isEmpty()) {
+                return
+            }
 
-            // === КРИТИЧЕСКАЯ ЧАСТЬ: проверка дубликатов ===
+            // === Проверка дубликатов ===
             val primaryKey = "${messageId}_$jid"
             val realm = Realm.open(defaultRealmConfig())
             try {
@@ -837,44 +833,29 @@ class Account : XMPPStreamDelegate {
 
                 // === Основная маршрутизация ===
                 when {
-                    // 1. Классический MAM (urn:xmpp:mam:2) — всегда в архив
-                    message.hasElement("result", "urn:xmpp:mam:2") -> {
-                        val archivedMessage = message.getArchivedMessageContainer() ?: message
+                    isMamClassic || isMamTmp -> {
+                        val archivedMessage = if (isMamClassic) message.getArchivedMessageContainer() ?: message else message
                         messageReceiver.receiveArchived(archivedMessage)
                     }
-
-                    // 2. MAM-tmp — тоже архив, но без <result>, просто с <archived xmlns="urn:xmpp:mam:tmp"/>
-                    message.hasElement("archived", "urn:xmpp:mam:tmp") -> {
-                        messageReceiver.receiveArchived(message)
-                    }
-
-                    // 3. Carbons (отправленные/полученные с других устройств)
-                    message.isCarbonCopy() || message.isCarbonForwarded() -> {
+                    isCarbonSent || isCarbonReceived -> {
                         val carbonMessage = message.getCarbonCopyMessageContainer()
                             ?: message.getCarbonForwardedMessageContainer()
                             ?: message
                         messageReceiver.receiveCarbon(carbonMessage)
                     }
-
-                    // 4. last-message из синхронизации (XEP-0CCC)
-                    message.hasElement("last-message", "https://xabber.com/protocol/synchronization") -> {
+                    isLastMessage -> {
                         messageReceiver.receiveClientSyncRaw(message)
                     }
-
-                    // 5. Всё остальное — живые сообщения в реальном времени
                     else -> {
-                        messageReceiver.receiveRuntime(message)
-                        chatMarkers.read(message) // только для живых
+                        messageReceiver.receiveRuntime(realMessage)
+                        // chatMarkers.read(realMessage) уже вызван выше
                     }
                 }
             } finally {
                 realm.close()
             }
-
-            return
         } catch (e: Exception) {
             Log.e(TAG, "Error in didReceiveMessage: ${e.message}", e)
-            return
         }
     }
 

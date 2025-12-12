@@ -114,7 +114,7 @@ class ChatMarkersManager(private val owner: String, withoutAfterburnTimer: Boole
 
                 if (collection.isEmpty()) return@write
 
-                val jids = collection.mapNotNull { it.opponent }.toSet()
+                val jids = collection.map { it.opponent }.toSet()
                 val chats = query<LastChatsStorageItem>(
                     "owner = $0 AND jid IN $1", owner, jids.toList()
                 ).find()
@@ -148,7 +148,7 @@ class ChatMarkersManager(private val owner: String, withoutAfterburnTimer: Boole
 
         val toJid = message.from!!
         val messageId = message.id ?: getOriginId(message)!!
-        val elementId = "ChatMarkers_${NanoId.generateOptimized(8, "_-0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", 63, 16)}"
+        val elementId = "ChatMarkers_${NanoId.generateOptimized(8, "-0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", 63, 16)}"
         val received = XMLElement(
             name = "received",
             namespace = getPrimaryNamespace(),
@@ -179,7 +179,7 @@ class ChatMarkersManager(private val owner: String, withoutAfterburnTimer: Boole
            }
         }
 
-        return false
+        return true
     }
 
     private suspend fun onReceived(message: XMPPMessage): Boolean {
@@ -350,67 +350,81 @@ class ChatMarkersManager(private val owner: String, withoutAfterburnTimer: Boole
                 val instance = query<MessageStorageItem>("primary = $0", messagePrimary).first().find() ?: return@write
                 if (instance.outgoing) return@write
 
-                val elementId = "ChatMarkers_${NanoId.generateOptimized(8, "_-0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", 63, 16)}"
-                val displayed = XMLElement(
-                    name = "displayed",
-                    namespace = getPrimaryNamespace(),
-                    raw = "<displayed xmlns='${getPrimaryNamespace()}' id='${instance.messageId}'/>",
-                    attributes = mapOf("id" to instance.messageId),
-                    children = emptyList()
-                )
+                val elementId = "ChatMarkers_${NanoId.generateOptimized(8, "-0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", 63, 16)}"
 
-                val stanzaInstance = query<MessageStanzaStorageItem>(
-                    "primary = $0", "${messagePrimary}_stanza"
-                ).first().find()
-                stanzaInstance?.let { stanza ->
-                    // Parse stanza.stanza XML and extract stanza-id elements if needed
-                    // For simplicity, assuming no stanza-id elements are added here
+                // Собираем <displayed ...>
+                val displayedChildren = mutableListOf<String>()
+                val stanzaInstance = query<MessageStanzaStorageItem>("primary = $0", "${messagePrimary}_stanza").first().find()
+                stanzaInstance?.stanza?.let { rawStanza ->
+                    val stanzaIdRegex = Regex("<stanza-id[^>]*by=['\"]$owner['\"][^>]*id=['\"]([^'\"]+)['\"][^>]*/?>")
+                    stanzaIdRegex.findAll(rawStanza).forEach { match ->
+                        val id = match.groupValues[1]
+                        displayedChildren.add("<stanza-id xmlns='urn:xmpp:sid:0' by='$owner' id='$id'/>")
+                    }
                 }
 
-                val response = XMPPMessage(
-                    raw = "",
-                    type = "chat",
-                    id = elementId,
-                    to = XMPPJID(fullJID = instance.opponent),
-                    children = listOf(displayed)
-                )
+                val displayedInner = displayedChildren.joinToString("")
+                val displayedXml = """
+                <displayed xmlns='${getPrimaryNamespace()}' id='${instance.messageId}'>
+                    $displayedInner
+                </displayed>
+            """.trimIndent()
+
+                // Собираем <conversation ...>
                 val conversationType = instance.conversationType
-                val conversation = XMLElement(
-                    name = "conversation",
-                    namespace = "https://xabber.com/protocol/synchronization",
-                    raw = "<conversation xmlns='https://xabber.com/protocol/synchronization' type='${conversationType.rawValue}' jid='${instance.opponent}'/>",
-                    attributes = mapOf("type" to conversationType.rawValue, "jid" to instance.opponent),
-                    children = emptyList()
-                )
-                response.addElement(conversation)
+                val conversationXml = """
+                <conversation xmlns='https://xabber.com/protocol/synchronization' type='${conversationType.rawValue}' jid='${instance.opponent}'/>
+            """.trimIndent()
+
+                // Добавляем encryption + store при шифровании
+                val extraElements = mutableListOf<String>()
+                if (conversationType.isEncrypted) {
+                    extraElements.add("<encryption xmlns='urn:xmpp:eme:0' namespace='${conversationType.rawValue}'/>")
+                    extraElements.add("<store xmlns='urn:xmpp:hints:2'/>")
+                }
+
+                // Финальная станза
+                val finalStanza = """
+                <message type='chat' to='${instance.opponent}' id='$elementId'>
+                    $displayedXml
+                    $conversationXml
+                    ${extraElements.joinToString("")}
+                </message>
+            """.trimIndent()
+
+                Log.d("ChatMarkersManager", "Sending displayed marker:\n$finalStanza")
 
                 runBlocking {
-                    stream.socket?.write(response.raw)
+                    stream.socket?.write(finalStanza)
                 }
 
+                // Обновляем readDate / burnDate (уже правильно)
                 val collection = query<MessageStorageItem>(
                     "owner = $0 AND opponent = $1 AND date < $2 AND burnDate < 0",
                     owner, instance.opponent, instance.date
                 ).find()
 
                 findLatest(instance)?.let { msg ->
-                    if (msg.readDate!! < 1 && msg.burnDate < 1 && msg.afterburnInterval > 0) {
-                        msg.readDate = System.currentTimeMillis() / 1000
+                    if ((msg.readDate ?: 0) < 1) msg.readDate = System.currentTimeMillis() / 1000
+                    if (msg.afterburnInterval > 0 && (msg.burnDate ?: 0) < 1) {
                         msg.burnDate = System.currentTimeMillis() / 1000 + msg.afterburnInterval
                     }
                 }
 
                 collection.forEach { msg ->
-                    if (msg.readDate!! < 1 && msg.burnDate < 1 && msg.afterburnInterval > 0) {
-                        msg.readDate = System.currentTimeMillis() / 1000
+                    if ((msg.readDate ?: 0) < 1) msg.readDate = System.currentTimeMillis() / 1000
+                    if (msg.afterburnInterval > 0 && (msg.burnDate ?: 0) < 1) {
                         msg.burnDate = System.currentTimeMillis() / 1000 + msg.afterburnInterval
                     }
                 }
+
+                Log.w("CHAT MARKERS", "DISPLAYED SENT for primary=$messagePrimary")
             }
         } catch (e: Exception) {
-            Log.e("ChatMarkersManager", "Error in displayed: ${e.message}")
+            Log.e("ChatMarkersManager", "Error in displayed: ${e.message}", e)
         }
     }
+
 
     private fun getOriginId(message: XMPPMessage): String? {
         return message.element("origin-id", namespace = "urn:xmpp:sid:0")?.getAttribute("id")

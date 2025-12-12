@@ -101,10 +101,12 @@ class MessageCommonSender(private val owner: String) {
             Log.w(TAG, "sendSimpleMessage: Empty body and no forwarded messages, skipping")
             return ""
         }
-        var messageId = NanoId.generate(8)  // Changed to var
-        Log.d(TAG, "sendSimpleMessage: messageId=$messageId, recipientJid=$recipientJid, body=$body, forwarded=$forwarded")
+
+        var messageId = NanoId.generate(8)
         val forwardedMessages = formForwardedMessages(forwarded)
-        val legacyBody = forwardedMessages.joinToString("\n") { it.body } + (if (forwardedMessages.isNotEmpty()) "\n" else "") + body
+        val legacyBody = forwardedMessages.joinToString("\n") { it.body } +
+                (if (forwardedMessages.isNotEmpty()) "\n" else "") + body
+
         val realm = Realm.open(defaultRealmConfig())
         val instance = MessageStorageItem().apply {
             configureOutgoingMessage(
@@ -119,43 +121,69 @@ class MessageCommonSender(private val owner: String) {
             conversationType_ = conversationType.rawValue
             state = MessageSendingState.Sending
         }
+
+        // Values we need after Realm is closed
+        var prevMessagePrimary: String? = null
+        var prevMessageOutgoing = true
+
         try {
             realm.writeBlocking {
+                // ---- Duplicate ID handling ----
                 val existing = query<MessageStorageItem>("owner = $0 AND messageId = $1", owner, messageId).first().find()
                 if (existing != null) {
                     Log.w(TAG, "Duplicate messageId=$messageId found, generating new ID")
-                    messageId = UUID.randomUUID().toString()  // Update the local messageId var
+                    messageId = UUID.randomUUID().toString()
                     instance.messageId = messageId
                     instance.updatePrimary()
                 }
+
                 copyToRealm(instance, UpdatePolicy.ALL)
-                Log.d(TAG, "Saved MessageStorageItem: primary=${instance.primary}, messageId=$messageId, body=$body")
-                val chat = query<LastChatsStorageItem>(
-                    "primary = $0",
-                    LastChatsStorageItem.genPrimary(recipientJid, owner, conversationType)
-                ).first().find() ?: copyToRealm(LastChatsStorageItem().apply {
-                    primary = LastChatsStorageItem.genPrimary(recipientJid, owner, conversationType)
-                    jid = recipientJid
-                    this.owner = this@MessageCommonSender.owner
-                    conversationType_ = conversationType.rawValue
-                    isArchived = false
-                    unread = 0
-                    messageDate = Date().time  // ← FIXED: Milliseconds (removed /1000)
-                    lastMessage = instance
-                    lastMessageId = messageId
-                }, UpdatePolicy.ALL)
+
+                // ---- Safe logging (no Realm objects) ----
+                Log.d(TAG, "Saved outgoing message primary=${instance.primary}, messageId=$messageId")
+
+                val chatPrimary = LastChatsStorageItem.genPrimary(recipientJid, owner, conversationType)
+                val chat = query<LastChatsStorageItem>("primary = $0", chatPrimary).first().find()
+                    ?: copyToRealm(LastChatsStorageItem().apply {
+                        primary = chatPrimary
+                        jid = recipientJid
+                        this.owner = this@MessageCommonSender.owner
+                        conversationType_ = conversationType.rawValue
+                        isArchived = false
+                        unread = 0
+                        messageDate = Date().time
+                        lastMessage = instance
+                        lastMessageId = messageId
+                    }, UpdatePolicy.ALL)
+
+                // ---- Capture previous message data while Realm is open ----
+                chat.lastMessage?.let { prev ->
+                    prevMessagePrimary = prev.primary
+                    prevMessageOutgoing = prev.outgoing
+                }
+
+                // ---- Update chat ----
                 chat.apply {
                     lastReadId = null
                     draftMessage = null
                     lastMessage = instance
-                    messageDate = Date().time  // ← FIXED: Milliseconds (removed /1000)
+                    messageDate = Date().time
                 }
-            }
+            } // ← write transaction ends here
         } finally {
             realm.close()
         }
+
+        if (prevMessagePrimary != null && !prevMessageOutgoing) {
+            AccountManager.find(owner)?.action { user, stream ->
+                scope.launch {
+                    user.chatMarkers.displayed(stream, prevMessagePrimary!!)
+                }
+            }
+        }
+
         processSender(instance.primary, forwardedMessages)
-        return messageId  // Now returns the final (possibly updated) messageId
+        return messageId
     }
 
     private suspend fun processSender(
