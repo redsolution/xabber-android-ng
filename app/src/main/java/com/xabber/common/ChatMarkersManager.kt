@@ -22,6 +22,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -344,87 +345,154 @@ class ChatMarkersManager(private val owner: String, withoutAfterburnTimer: Boole
         stream.socket?.write(message.raw)
     }
 
-    suspend fun displayed(stream: Stream, messagePrimary: String) {
-        try {
-            realm.write {
-                val instance = query<MessageStorageItem>("primary = $0", messagePrimary).first().find() ?: return@write
-                if (instance.outgoing) return@write
+//    suspend fun displayed(stream: Stream, messagePrimary: String) {
+//        try {
+//            realm.write {
+//                val instance = query<MessageStorageItem>("primary = $0", messagePrimary).first().find() ?: return@write
+//                if (instance.outgoing) return@write
+//
+//                val elementId = "ChatMarkers_${NanoId.generateOptimized(8, "-0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", 63, 16)}"
+//
+//                // Собираем <displayed ...>
+//                val displayedChildren = mutableListOf<String>()
+//                val stanzaInstance = query<MessageStanzaStorageItem>("primary = $0", "${messagePrimary}_stanza").first().find()
+//                stanzaInstance?.stanza?.let { rawStanza ->
+//                    val stanzaIdRegex = Regex("<stanza-id[^>]*by=['\"]$owner['\"][^>]*id=['\"]([^'\"]+)['\"][^>]*/?>")
+//                    stanzaIdRegex.findAll(rawStanza).forEach { match ->
+//                        val id = match.groupValues[1]
+//                        displayedChildren.add("<stanza-id xmlns='urn:xmpp:sid:0' by='$owner' id='$id'/>")
+//                    }
+//                }
+//
+//                val displayedInner = displayedChildren.joinToString("")
+//                val displayedXml = """
+//                <displayed xmlns='${getPrimaryNamespace()}' id='${instance.messageId}'>
+//                    $displayedInner
+//                </displayed>
+//            """.trimIndent()
+//
+//                // Собираем <conversation ...>
+//                val conversationType = instance.conversationType
+//                val conversationXml = """
+//                <conversation xmlns='https://xabber.com/protocol/synchronization' type='${conversationType.rawValue}' jid='${instance.opponent}'/>
+//            """.trimIndent()
+//
+//                // Добавляем encryption + store при шифровании
+//                val extraElements = mutableListOf<String>()
+//                if (conversationType.isEncrypted) {
+//                    extraElements.add("<encryption xmlns='urn:xmpp:eme:0' namespace='${conversationType.rawValue}'/>")
+//                    extraElements.add("<store xmlns='urn:xmpp:hints:2'/>")
+//                }
+//
+//                // Финальная станза
+//                val finalStanza = """
+//                <message type='chat' to='${instance.opponent}' id='$elementId'>
+//                    $displayedXml
+//                    $conversationXml
+//                    ${extraElements.joinToString("")}
+//                </message>
+//            """.trimIndent()
+//
+//                Log.d("ChatMarkersManager", "Sending displayed marker:\n$finalStanza")
+//
+//                CoroutineScope(Dispatchers.IO).launch {
+//                    try {
+//                        stream.socket?.write(finalStanza)
+//                    } catch (e: Exception) {
+//                        Log.e("ChatMarkersManager", "Failed to send displayed marker", e)
+//                    }
+//                }
+//                // Обновляем readDate / burnDate (уже правильно)
+//                val collection = query<MessageStorageItem>(
+//                    "owner = $0 AND opponent = $1 AND date < $2 AND burnDate < 0",
+//                    owner, instance.opponent, instance.date
+//                ).find()
+//
+//                findLatest(instance)?.let { msg ->
+//                    if ((msg.readDate ?: 0) < 1) msg.readDate = System.currentTimeMillis() / 1000
+//                    if (msg.afterburnInterval > 0 && (msg.burnDate ?: 0) < 1) {
+//                        msg.burnDate = System.currentTimeMillis() / 1000 + msg.afterburnInterval
+//                    }
+//                }
+//
+//                collection.forEach { msg ->
+//                    if ((msg.readDate ?: 0) < 1) msg.readDate = System.currentTimeMillis() / 1000
+//                    if (msg.afterburnInterval > 0 && (msg.burnDate ?: 0) < 1) {
+//                        msg.burnDate = System.currentTimeMillis() / 1000 + msg.afterburnInterval
+//                    }
+//                }
+//
+//                Log.w("CHAT MARKERS", "DISPLAYED SENT for primary=$messagePrimary")
+//            }
+//        } catch (e: Exception) {
+//            Log.e("ChatMarkersManager", "Error in displayed: ${e.message}", e)
+//        }
+//    }
+suspend fun displayed(stream: Stream, messagePrimary: String) = withContext(Dispatchers.IO) {
+    var opponent: String? = null
+    var messageId: String? = null
+    var conversationType: ConversationType? = null
 
-                val elementId = "ChatMarkers_${NanoId.generateOptimized(8, "-0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", 63, 16)}"
+    realm.write {
+        val msg = query<MessageStorageItem>("primary = $0", messagePrimary).first().find() ?: return@write
+        if (msg.outgoing) return@write
 
-                // Собираем <displayed ...>
-                val displayedChildren = mutableListOf<String>()
-                val stanzaInstance = query<MessageStanzaStorageItem>("primary = $0", "${messagePrimary}_stanza").first().find()
-                stanzaInstance?.stanza?.let { rawStanza ->
-                    val stanzaIdRegex = Regex("<stanza-id[^>]*by=['\"]$owner['\"][^>]*id=['\"]([^'\"]+)['\"][^>]*/?>")
-                    stanzaIdRegex.findAll(rawStanza).forEach { match ->
-                        val id = match.groupValues[1]
-                        displayedChildren.add("<stanza-id xmlns='urn:xmpp:sid:0' by='$owner' id='$id'/>")
-                    }
-                }
+        opponent = msg.opponent
+        messageId = msg.messageId
+        conversationType = msg.conversationType
 
-                val displayedInner = displayedChildren.joinToString("")
-                val displayedXml = """
-                <displayed xmlns='${getPrimaryNamespace()}' id='${instance.messageId}'>
-                    $displayedInner
-                </displayed>
-            """.trimIndent()
-
-                // Собираем <conversation ...>
-                val conversationType = instance.conversationType
-                val conversationXml = """
-                <conversation xmlns='https://xabber.com/protocol/synchronization' type='${conversationType.rawValue}' jid='${instance.opponent}'/>
-            """.trimIndent()
-
-                // Добавляем encryption + store при шифровании
-                val extraElements = mutableListOf<String>()
-                if (conversationType.isEncrypted) {
-                    extraElements.add("<encryption xmlns='urn:xmpp:eme:0' namespace='${conversationType.rawValue}'/>")
-                    extraElements.add("<store xmlns='urn:xmpp:hints:2'/>")
-                }
-
-                // Финальная станза
-                val finalStanza = """
-                <message type='chat' to='${instance.opponent}' id='$elementId'>
-                    $displayedXml
-                    $conversationXml
-                    ${extraElements.joinToString("")}
-                </message>
-            """.trimIndent()
-
-                Log.d("ChatMarkersManager", "Sending displayed marker:\n$finalStanza")
-
-                runBlocking {
-                    stream.socket?.write(finalStanza)
-                }
-
-                // Обновляем readDate / burnDate (уже правильно)
-                val collection = query<MessageStorageItem>(
-                    "owner = $0 AND opponent = $1 AND date < $2 AND burnDate < 0",
-                    owner, instance.opponent, instance.date
-                ).find()
-
-                findLatest(instance)?.let { msg ->
-                    if ((msg.readDate ?: 0) < 1) msg.readDate = System.currentTimeMillis() / 1000
-                    if (msg.afterburnInterval > 0 && (msg.burnDate ?: 0) < 1) {
-                        msg.burnDate = System.currentTimeMillis() / 1000 + msg.afterburnInterval
-                    }
-                }
-
-                collection.forEach { msg ->
-                    if ((msg.readDate ?: 0) < 1) msg.readDate = System.currentTimeMillis() / 1000
-                    if (msg.afterburnInterval > 0 && (msg.burnDate ?: 0) < 1) {
-                        msg.burnDate = System.currentTimeMillis() / 1000 + msg.afterburnInterval
-                    }
-                }
-
-                Log.w("CHAT MARKERS", "DISPLAYED SENT for primary=$messagePrimary")
-            }
-        } catch (e: Exception) {
-            Log.e("ChatMarkersManager", "Error in displayed: ${e.message}", e)
+        // Обновляем readDate / burnDate
+        if ((msg.readDate ?: 0) < 1) msg.readDate = System.currentTimeMillis() / 1000
+        if (msg.afterburnInterval > 0 && (msg.burnDate ?: 0) < 1) {
+            msg.burnDate = System.currentTimeMillis() / 1000 + msg.afterburnInterval
         }
     }
 
+    // Отправляем маркер — полностью асинхронно и неблокирующе
+    opponent?.let { opp ->
+        messageId?.let { mid ->
+            conversationType?.let { type ->
+                try {
+                    val elementId = "ChatMarkers_${NanoId.generateOptimized(8, "-0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", 63, 16)}"
+
+                    val displayedChildren = mutableListOf<String>()
+                    val stanzaInstance = realm.query<MessageStanzaStorageItem>(
+                        "primary = $0", "${messagePrimary}_stanza"
+                    ).first().find()
+
+                    stanzaInstance?.stanza?.let { raw ->
+                        val regex = Regex("<stanza-id[^>]*by=['\"]$owner['\"][^>]*id=['\"]([^'\"]+)['\"][^>]*>")
+                        regex.findAll(raw).forEach { match ->
+                            val id = match.groupValues[1]
+                            displayedChildren.add("<stanza-id xmlns='urn:xmpp:sid:0' by='$owner' id='$id'/>")
+                        }
+                    }
+
+                    val displayedInner = displayedChildren.joinToString("")
+                    val displayedXml = "<displayed xmlns='${getPrimaryNamespace()}' id='$mid'>$displayedInner</displayed>"
+
+                    val conversationXml = "<conversation xmlns='https://xabber.com/protocol/synchronization' type='${type.rawValue}' jid='$opp'/>"
+
+                    val extra = if (type.isEncrypted) {
+                        "<encryption xmlns='urn:xmpp:eme:0' namespace='${type.rawValue}'/><store xmlns='urn:xmpp:hints:2'/>"
+                    } else ""
+
+                    val stanza = """
+                        <message type='chat' to='$opp' id='$elementId'>
+                            $displayedXml
+                            $conversationXml
+                            $extra
+                        </message>
+                    """.trimIndent()
+
+                    stream.socket?.write(stanza) // ← НЕ блокирует UI!
+                } catch (e: Exception) {
+                    Log.e("ChatMarkersManager", "Failed to send displayed marker", e)
+                }
+            }
+        }
+    }
+}
 
     private fun getOriginId(message: XMPPMessage): String? {
         return message.element("origin-id", namespace = "urn:xmpp:sid:0")?.getAttribute("id")

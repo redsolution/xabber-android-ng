@@ -202,18 +202,19 @@ class ChatModel(
                     msg.state = MessageSendingState.Read
                 }
 
-                // Берём primary последнего сообщения
+                // Берём primary последнего прочитанного сообщения
                 chat.lastMessage?.let { lastMsg ->
                     if (!lastMsg.outgoing) {
                         lastReadPrimary = lastMsg.primary
                     }
                 }
 
+                // Сбрасываем счётчик в самом чате
                 findLatest(chat)?.unread = 0
             }
         }
 
-        // Отправляем displayed только для последнего прочитанного сообщения
+        // Отправляем displayed только для последнего сообщения
         lastReadPrimary?.let { primary ->
             sendDisplayedIfNeeded(primary)
         }
@@ -222,21 +223,32 @@ class ChatModel(
     @RequiresApi(Build.VERSION_CODES.O)
     suspend fun markAsRead(id: String) = withContext(Dispatchers.IO) {
         var messagePrimaryToMark: String? = null
+        var chatPrimaryToUpdate: String? = null
 
-        realm.writeBlocking {
+        realm.write {
             query<MessageStorageItem>("primary = $0", id).first().find()?.let { msg ->
-                if (!msg.isRead) {
+                if (!msg.isRead && !msg.outgoing) {
                     msg.isRead = true
                     msg.readDate = System.currentTimeMillis() / 1000
                     msg.state = MessageSendingState.Read
 
-                    // Сохраняем primary ДО выхода из writeBlocking!
                     messagePrimaryToMark = msg.primary
+                    chatPrimaryToUpdate = LastChatsStorageItem.genPrimary(msg.opponent, msg.owner, msg.conversationType)
                 }
             }
         }
 
-        // Теперь безопасно — вне writeBlocking и в правильном потоке
+        // Обновляем счётчик в чате
+        chatPrimaryToUpdate?.let { primary ->
+            realm.write{
+                query<LastChatsStorageItem>("primary = $0", primary).first().find()?.let { chat ->
+                    chat.unread = chat.unread - 1
+                    if (chat.unread < 0) chat.unread = 0
+                }
+            }
+        }
+
+        // Отправляем displayed маркер
         messagePrimaryToMark?.let { primary ->
             sendDisplayedIfNeeded(primary)
         }

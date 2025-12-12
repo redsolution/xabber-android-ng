@@ -389,37 +389,63 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
         }
     }
 
+    @SuppressLint("MissingInflatedId")
     private fun showStartNumberDialog() {
-        val input = EditText(requireContext()).apply {
-            inputType = InputType.TYPE_CLASS_NUMBER
-            hint = "Например: 1"
-            setText("1")
-            setSelection(text.length)
-        }
+        val layout = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_bot_settings, null)
+
+        val etStartFrom = layout.findViewById<EditText>(R.id.et_start_from)
+        val etDuration = layout.findViewById<EditText>(R.id.et_duration_minutes)
+        val etInterval = layout.findViewById<EditText>(R.id.et_interval_seconds)
+
+        etStartFrom.setText("1")
+        etDuration.setText("10")     // по умолчанию 10 минут
+        etInterval.setText("3")      // по умолчанию 3 секунды
 
         AlertDialog.Builder(requireContext())
-            .setTitle("Бот: с какого числа начать?")
-            .setView(input)
+            .setTitle("Настройки бота")
+            .setView(layout)
             .setPositiveButton("Запустить") { _, _ ->
-                val startStr = input.text.toString().trim()
-                val startNum = startStr.toLongOrNull() ?: 1L
-                startNumberBot(startNum)
-                showToast("Бот запущен с $startNum")
+                val startNum = etStartFrom.text.toString().toLongOrNull() ?: 1L
+                val durationMinutes = etDuration.text.toString().toLongOrNull() ?: 10L
+                val intervalSeconds = etInterval.text.toString().toLongOrNull() ?: 3L
+
+                startNumberBot(
+                    startFrom = startNum,
+                    durationMinutes = durationMinutes,
+                    intervalSeconds = intervalSeconds
+                )
+                showToast("Бот запущен: $durationMinutes мс, каждые $intervalSeconds мс")
             }
             .setNegativeButton("Отмена", null)
             .show()
     }
 
-    private fun startNumberBot(startFrom: Long) {
-        var counter = startFrom
+    private fun startNumberBot(
+        startFrom: Long,
+        durationMinutes: Long,
+        intervalSeconds: Long
+    ) {
+        // Отменяем старый, если был
+        botJob?.cancel()
+        botCounter = startFrom
+
+        val durationMillis = durationMinutes
+        val intervalMillis = intervalSeconds
+        val startTime = System.currentTimeMillis()
 
         botJob = lifecycleScope.launch {
             while (isActive) {
-                binding.chatInput.setText(counter.toString())
+                val elapsed = System.currentTimeMillis() - startTime
+                if (elapsed >= durationMillis) {
+                    showToast("Бот завершил работу по таймеру")
+                    break
+                }
+
+                binding.chatInput.setText(botCounter.toString())
                 binding.buttonSendMessage.performClick()
 
-                counter++
-                delay(500L) // каждые 5 секунд
+                botCounter++
+                delay(intervalMillis)
             }
         }
     }
