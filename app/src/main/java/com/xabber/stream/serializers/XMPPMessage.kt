@@ -44,7 +44,7 @@ data class XMPPMessage(
 data class XMLElement(
     val name: String,
     val namespace: String? = null,
-    val raw: String,
+    var raw: String,
     val attributes: Map<String, String> = emptyMap(),
     var children: List<XMLElement> = emptyList()
 ) {

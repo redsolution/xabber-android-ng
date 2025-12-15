@@ -140,6 +140,7 @@ class ChatMarkersManager(private val owner: String, withoutAfterburnTimer: Boole
     }
 
     private suspend fun setReceived(message: XMPPMessage): Boolean {
+        Log.w("CHECK ENGINE", "CHECK of xmppmessage: ${message.children}")
         if (message.element("markable", namespace = getPrimaryNamespace()) == null ||
             message.from?.bare() == null ||
             (message.id == null && getOriginId(message) == null)
