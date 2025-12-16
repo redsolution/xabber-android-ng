@@ -498,7 +498,6 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
     private fun handleCallsNavigation() {
         val widthDp = DisplayManager.getWidthDp()
         val orientation = resources.configuration.orientation
-        chatListViewModel.toggleUnreadOnly()
         if (activeFragment !is CallsFragment) {
             if (orientation == Configuration.ORIENTATION_LANDSCAPE) {
                 // Dual-screen mode: Add CallFiltersFragment to main container and CallsFragment to detail
@@ -537,7 +536,6 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
     private fun handleContactsNavigation() {
         val widthDp = DisplayManager.getWidthDp()
         val orientation = resources.configuration.orientation
-        chatListViewModel.toggleUnreadOnly()
         // Check if there's an active chat in the detail container
         val currentDetailFragment = supportFragmentManager.findFragmentById(R.id.detail_container)
         val isChatActive = currentDetailFragment is ChatView
@@ -575,7 +573,6 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
     }
 
     private fun handleDiscoverNavigation() {
-        chatListViewModel.toggleUnreadOnly()
         closeDetail()
         if (activeFragment !is DiscoverFragment) {
             replaceFragment(DiscoverFragment())

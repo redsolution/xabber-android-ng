@@ -185,14 +185,17 @@ class ChatMarkersManager(private val owner: String, withoutAfterburnTimer: Boole
     }
 
     private suspend fun onReceived(message: XMPPMessage): Boolean {
+        Log.w("CHECK ENGINE", "CHECK onReceived of xmppmessage: ${message.children}")
+
         val received = message.element("received", namespace = getPrimaryNamespace()) ?: return false
-        val jid = message.from?.bare() ?: return false
         val messageId = received.getAttribute("id") ?: return false
+
+        val jid = if (message.from?.bare() == owner) message.to?.bare() else message.from?.bare() ?: return false
 
         try {
             realm.write {
                 val instance = query<MessageStorageItem>(
-                    "owner = $0 AND opponent = $1 AND messageId = $2 AND state_ < ${MessageSendingState.Deliver}",
+                    "owner = $0 AND opponent = $1 AND messageId = $2 AND state_ < ${MessageSendingState.Deliver.rawValue}",
                     owner, jid, messageId
                 ).first().find() ?: return@write
 
@@ -200,78 +203,94 @@ class ChatMarkersManager(private val owner: String, withoutAfterburnTimer: Boole
             }
             return true
         } catch (e: Exception) {
-            Log.e("ChatMarkersManager", "Error in onReceived: ${e.message}")
+            Log.e("ChatMarkersManager", "Error in onReceived: ${e.message}", e)
             return false
         }
     }
 
     private suspend fun onDisplayed(message: XMPPMessage, archivedDate: Date? = null, delayed: Boolean = false): Boolean {
         val displayed = message.element("displayed", namespace = getPrimaryNamespace()) ?: return false
-        val jid = if (message.from?.bare() == owner) message.to?.bare() else message.from?.bare() ?: return false
-        val messageId = displayed.getAttribute("id") ?: return false
+        Log.w("CHECK ENGINE", "CHECK onDisplayed of xmppmessage: ${message.children}")
+
+        // ID исходного сообщения — из атрибута id элемента <displayed>
+        val targetMessageId = displayed.getAttribute("id") ?: return false
+
+        // Определяем оппонента (из внутреннего сообщения, которое уже правильно распаршено)
+        val outgoing = message.from?.bare() == owner
+        val jid = if (outgoing) message.to?.bare() else message.from?.bare() ?: return false
 
         var date = archivedDate ?: getDelayedDate(message) ?: getDeliveryDate(message) ?: Date()
-        val stanzaId = displayed.elements("stanza-id").firstOrNull { it.getAttribute("by") == owner }?.getAttribute("id") ?: "no-stanza-id"
+
+        val stanzaId = displayed.elements("stanza-id")
+            .firstOrNull { it.getAttribute("by") == owner }
+            ?.getAttribute("id") ?: "no-stanza-id"
 
         if (!delayed) {
             if (jid != null) {
-                AccountManager.find(owner)?.messageReceiver?.updateReadDate(messageId, stanzaId, jid, date)
+                AccountManager.find(owner)?.messageReceiver?.updateReadDate(targetMessageId, stanzaId, jid, date)
             }
             CoroutineScope(Dispatchers.IO).launch {
-                delay(200) // Simulate asyncAfter
+                delay(200)
                 onDisplayed(message, date, true)
             }
         }
 
         try {
             realm.write {
-                val instance = query<MessageStorageItem>(
+                // Находим сообщение, которое было прочитано собеседником
+                val targetMessage = query<MessageStorageItem>(
                     "owner = $0 AND opponent = $1 AND messageId = $2",
-                    owner, jid, messageId
-                ).first().find() ?: return@write
+                    owner, jid, targetMessageId
+                ).first().find()
 
-                val collection = query<MessageStorageItem>(
-                    "owner = $0 AND opponent = $1 AND date <= $2 AND burnDate < 1 AND state_ != ${MessageSendingState.Error}",
-                    owner, jid, instance.date
+                if (targetMessage == null) {
+                    Log.w("ChatMarkersManager", "Target message not found for displayed marker: messageId=$targetMessageId, jid=$jid")
+                    return@write
+                }
+
+                Log.d("ChatMarkersManager", "Marking messages as read up to messageId=$targetMessageId (date=${targetMessage.date})")
+
+                // Все сообщения в чате до (и включая) targetMessage помечаем прочитанными
+                val messagesToMark = query<MessageStorageItem>(
+                    "owner = $0 AND opponent = $1 AND date <= $2 AND isRead = false",
+                    owner, jid, targetMessage.date
                 ).find()
 
-                findLatest(instance)?.let { msg ->
-                    val chat = query<LastChatsStorageItem>(
-                        "primary = $0",
-                        jid?.let { LastChatsStorageItem.genPrimary(it, owner, msg.conversationType) }
-                    ).first().find()
-                    if (chat?.lastMessage?.primary == msg.primary) {
-                        chat.unread = 0
+                messagesToMark.forEach { msg ->
+                    msg.isRead = true
+                    msg.state = MessageSendingState.Read
+                    if ((msg.readDate ?: 0L) < 1) {
+                        msg.readDate = date.time / 1000
                     }
-
-                    if (msg.readDate!! < 1) {
-                        msg.readDate = (date.time / 1000)
-                    }
-                    if (msg.afterburnInterval > 0 && msg.burnDate < 1) {
+                    if (msg.afterburnInterval > 0 && (msg.burnDate ?: 0L) < 1) {
                         msg.burnDate = (date.time / 1000) + msg.afterburnInterval
                     }
-                    msg.state = MessageSendingState.Read
-                    msg.isRead = true
                 }
 
-                collection.forEach { msg ->
-                    if (msg.readDate!! < 1) {
-                        msg.readDate = (date.time / 1000)
-                    }
-                    if (msg.afterburnInterval > 0 && msg.burnDate < 1) {
-                        msg.burnDate = (date.time / 1000) + msg.afterburnInterval
-                    }
-                    msg.state = MessageSendingState.Read
-                    msg.isRead = true
+                // Обновляем чат: обнуляем счётчик непрочитанных, если прочитано последнее сообщение
+                val chatPrimary =
+                    jid?.let { LastChatsStorageItem.genPrimary(it, owner, ConversationType.Regular) } // можно улучшить, если тип чата известен
+                val chat = query<LastChatsStorageItem>("primary = $0", chatPrimary).first().find()
+                chat?.let {
+                    // Пересчитываем реальное количество непрочитанных (на случай, если были пропуски)
+                    val actualUnread = query<MessageStorageItem>(
+                        "owner = $0 AND opponent = $1 AND isRead = false AND isDeleted = false",
+                        owner, jid
+                    ).count().find()
+
+                    it.unread = actualUnread.toInt()
+                    Log.d("ChatMarkersManager", "Updated chat unread count to $actualUnread for jid=$jid")
                 }
             }
+
             deleteEphemeralMessages()
             return true
         } catch (e: Exception) {
-            Log.e("ChatMarkersManager", "Error in onDisplayed: ${e.message}")
+            Log.e("ChatMarkersManager", "Error in onDisplayed: ${e.message}", e)
             return false
         }
     }
+
 
     private suspend fun onCarbonsSentDisplayed(message: XMPPMessage): Boolean {
         if (!isCarbonCopy(message)) return false

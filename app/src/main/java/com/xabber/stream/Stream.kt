@@ -688,7 +688,6 @@ class Stream(var jid: String, var port: Int = 5222) {
         }
     }
 
-
     fun parseMessage(stanza: String): XMPPMessage? {
         try {
             val factory = XmlPullParserFactory.newInstance().apply {
@@ -714,141 +713,123 @@ class Stream(var jid: String, var port: Int = 5222) {
             var realId: String? = null
 
             var inForwarded = false
+            var inResult = false
             var currentMessageDepth = 0
-            var targetMessageDepth = -1  // Depth of the message whose children we collect
+            var targetMessageDepth = -1
 
-            // For preserving full child hierarchy of the target <message>
-            val elementStack = mutableListOf<XMLElement>()
-            val rawBuilders = mutableListOf<StringBuilder>()
-            val targetChildren = mutableListOf<XMLElement>()
+            // Список для хранения только <displayed> элемента (если есть)
+            val messageChildren = mutableListOf<XMLElement>()
 
             var event = parser.eventType
             while (event != XmlPullParser.END_DOCUMENT) {
                 when (event) {
                     XmlPullParser.START_TAG -> {
-                        val name = parser.name
-                        val namespace = parser.namespace.ifEmpty { null }
-                        val attrs = mutableMapOf<String, String>()
-                        for (i in 0 until parser.attributeCount) {
-                            attrs[parser.getAttributeName(i)] = parser.getAttributeValue(i)
-                        }
-
-                        // === Original logic: extract known fields ===
-                        when (name) {
+                        when (parser.name) {
                             "message" -> {
                                 currentMessageDepth++
                                 if (currentMessageDepth == 1) {
-                                    type = attrs["type"] ?: "chat"
-                                    id = attrs["id"]
-                                    from = attrs["from"]?.let { XMPPJID(it) }
-                                    to = attrs["to"]?.let { XMPPJID(it) }
-                                    lang = attrs["xml:lang"]
+                                    type = parser.getAttributeValue(null, "type") ?: "chat"
+                                    id = parser.getAttributeValue(null, "id")
+                                    from = parser.getAttributeValue(null, "from")?.let { XMPPJID(it) }
+                                    to = parser.getAttributeValue(null, "to")?.let { XMPPJID(it) }
+                                    lang = parser.getAttributeValue(null, "xml:lang")
                                 }
-                                // Improved target detection (from new version)
-                                if (targetMessageDepth == -1) {
-                                    if (inForwarded) {
-                                        targetMessageDepth = currentMessageDepth
-                                        realFrom = attrs["from"]?.let { XMPPJID(it) } ?: from
-                                        realTo = attrs["to"]?.let { XMPPJID(it) } ?: to
-                                        realId = attrs["id"] ?: id
-                                        type = attrs["type"] ?: type ?: "chat"
-                                    } else {
-                                        // Direct message → root is target
-                                        targetMessageDepth = 1
-                                        realFrom = from
-                                        realTo = to
-                                        realId = id
-                                    }
+                                if (inForwarded && targetMessageDepth == -1) {
+                                    targetMessageDepth = currentMessageDepth
+                                    realFrom = parser.getAttributeValue(null, "from")?.let { XMPPJID(it) } ?: from
+                                    realTo = parser.getAttributeValue(null, "to")?.let { XMPPJID(it) } ?: to
+                                    realId = parser.getAttributeValue(null, "id") ?: id
+                                    type = parser.getAttributeValue(null, "type") ?: type ?: "chat"
                                 }
                             }
                             "result" -> {
-                                if (namespace == "urn:xmpp:mam:2") {
-                                    archivedId = attrs["id"]
-                                    queryId = attrs["queryid"]
+                                if (parser.namespace == "urn:xmpp:mam:2") {
+                                    inResult = true
+                                    archivedId = parser.getAttributeValue(null, "id")
+                                    queryId = parser.getAttributeValue(null, "queryid")
                                 }
                             }
                             "forwarded" -> {
-                                if (namespace == "urn:xmpp:forward:0") {
+                                if (parser.namespace == "urn:xmpp:forward:0") {
                                     inForwarded = true
                                 }
                             }
                             "delay" -> {
-                                if (namespace == "urn:xmpp:delay") {
-                                    attrs["stamp"]?.let {
-                                        timestamp = it.parseXMPPDateToMillis() ?: timestamp
-                                    }
+                                if (parser.namespace == "urn:xmpp:delay") {
+                                    val stamp = parser.getAttributeValue(null, "stamp")
+                                    stamp?.let { timestamp = it.parseXMPPDateToMillis() ?: timestamp }
                                 }
                             }
                             "time" -> {
-                                if (namespace == "https://xabber.com/protocol/delivery") {
-                                    attrs["stamp"]?.let {
-                                        val t = it.parseXMPPDateToMillis()
-                                        if (t != null && (timestamp == null || t > timestamp!!)) timestamp = t
+                                if (parser.namespace == "https://xabber.com/protocol/delivery") {
+                                    val stamp = parser.getAttributeValue(null, "stamp")
+                                    stamp?.let {
+                                        val timeMillis = it.parseXMPPDateToMillis()
+                                        if (timeMillis != null && (timestamp == null || timeMillis > timestamp!!)) {
+                                            timestamp = timeMillis
+                                        }
                                     }
-                                }
-                            }
-                            "origin-id" -> {
-                                if (namespace == "urn:xmpp:sid:0") {
-                                    originId = attrs["id"]
                                 }
                             }
                             "body" -> {
-                                // === Critical: use original working body extraction ===
-                                if (currentMessageDepth == targetMessageDepth) {
-                                    val text = parser.nextText()
-                                    if (text.isNotBlank()) {
-                                        body = text.trim()
-                                    }
+                                if (currentMessageDepth == targetMessageDepth || targetMessageDepth == -1) {
+                                    val text = parser.nextText().trim()
+                                    if (text.isNotBlank()) body = text
+                                }
+                            }
+                            "origin-id" -> {
+                                if (parser.namespace == "urn:xmpp:sid:0") {
+                                    originId = parser.getAttributeValue(null, "id")
+                                }
+                            }
+                            "displayed" -> {
+                                if (parser.namespace == "urn:xmpp:chat-markers:0" &&
+                                    currentMessageDepth == targetMessageDepth
+                                ) {
+                                    val displayedId = parser.getAttributeValue(null, "id")
+                                    val attributes = mutableMapOf<String, String>()
+                                    displayedId?.let { attributes["id"] = it }
+
+                                    val displayedInnerChildren = parseChildren(parser, "displayed")
+
+                                    messageChildren.add(
+                                        XMLElement(
+                                            name = "displayed",
+                                            namespace = "urn:xmpp:chat-markers:0",
+                                            raw = "",
+                                            attributes = attributes,
+                                            children = displayedInnerChildren
+                                        )
+                                    )
+
+                                }
+                            }
+                            "received" -> {
+                                if (parser.namespace == "urn:xmpp:chat-markers:0" &&
+                                    currentMessageDepth == targetMessageDepth
+                                ) {
+                                    val receivedId = parser.getAttributeValue(null, "id")
+                                    val attributes = mutableMapOf<String, String>()
+                                    receivedId?.let { attributes["id"] = it }
+
+                                    val receivedInnerChildren = parseChildren(parser, "received")
+
+                                    messageChildren.add(
+                                        XMLElement(
+                                            name = "received",
+                                            namespace = "urn:xmpp:chat-markers:0",
+                                            raw = "",
+                                            attributes = attributes,
+                                            children = receivedInnerChildren
+                                        )
+                                    )
                                 }
                             }
                         }
-
-                        // === New logic: build element hierarchy and raw XML ===
-                        if (targetMessageDepth != -1 && currentMessageDepth >= targetMessageDepth) {
-                            val element = XMLElement(
-                                name = name,
-                                namespace = namespace,
-                                raw = "",
-                                attributes = attrs.toMap(),
-                                children = mutableListOf()
-                            )
-
-                            val openingTag = buildString {
-                                append("<$name")
-                                if (namespace != null) append(" xmlns='$namespace'")
-                                attrs.forEach { (k, v) -> append(" $k='$v'") }
-                                append(">")
-                            }
-                            rawBuilders.add(StringBuilder(openingTag))
-                            elementStack.add(element)
-
-                            // Add to hierarchy
-                            if (elementStack.size == 1) {
-                                targetChildren.add(element)
-                            } else {
-                                (elementStack[elementStack.size - 2].children as MutableList).add(element)
-                            }
-                        }
                     }
-
-                    XmlPullParser.TEXT -> {
-                        val text = parser.text
-                        if (text.isNotBlank() && targetMessageDepth != -1 && currentMessageDepth >= targetMessageDepth && rawBuilders.isNotEmpty()) {
-                            rawBuilders.last().append(text.escapeXml())
-                        }
-                    }
-
                     XmlPullParser.END_TAG -> {
-                        val name = parser.name
-                        if (name == "message") currentMessageDepth--
-                        if (name == "forwarded") inForwarded = false
-
-                        // Close element if we're inside target scope
-                        if (targetMessageDepth != -1 && currentMessageDepth + 1 >= targetMessageDepth && elementStack.isNotEmpty()) {
-                            val element = elementStack.removeLast()
-                            rawBuilders.last().append("</$name>")
-                            element.raw = rawBuilders.removeLast().toString()
-                        }
+                        if (parser.name == "message") currentMessageDepth--
+                        if (parser.name == "forwarded") inForwarded = false
                     }
                 }
                 event = parser.next()
@@ -858,26 +839,21 @@ class Stream(var jid: String, var port: Int = 5222) {
             val finalTo = realTo ?: to
             val finalId = realId ?: originId ?: id
 
-            // === Use original filtering logic (safe and proven) ===
+            // Если нет body, но есть известные расширения (включая chat-markers) — не отбрасываем
             if (body == null) {
-                val hasKnownExtension = stanza.contains("http://jabber.org/protocol/chatstates") ||
-                        stanza.contains("urn:xmpp:chat-markers") ||
+                val hasKnownExtension = stanza.contains("urn:xmpp:chat-markers:0") ||
+                        stanza.contains("http://jabber.org/protocol/chatstates") ||
                         stanza.contains("urn:xmpp:receipt") ||
                         stanza.contains("urn:xmpp:carbons") ||
                         type == "headline" || type == "error"
 
-                if (!hasKnownExtension && targetChildren.isEmpty()) {
-                    return null
-                }
+                if (!hasKnownExtension) return null
             }
 
-            // === Original fallback timestamp ===
-            if (timestamp == null) {
-                Regex("""<delay[^>]+stamp=['"]([^'"]+)['"]""").find(stanza)?.groupValues?.get(1)
-                    ?.let { timestamp = it.parseXMPPDateToMillis() }
+            if (timestamp == null && stanza.contains("<delay")) {
+                val delayMatch = Regex("""<delay[^>]+stamp=['"]([^'"]+)['"]""").find(stanza)
+                timestamp = delayMatch?.groupValues?.get(1)?.parseXMPPDateToMillis()
             }
-
-            Log.w("CHECK ENGINE", "CHECK STREAM XMPP MESSAGE FORMING: $targetChildren")
 
             return XMPPMessage(
                 raw = stanza,
@@ -890,7 +866,7 @@ class Stream(var jid: String, var port: Int = 5222) {
                 body = body,
                 originId = originId,
                 archivedId = archivedId ?: queryId?.let { "query:$it" },
-                children = targetChildren  // Now fully populated for both direct and forwarded messages
+                children = messageChildren
             )
 
         } catch (e: Exception) {
@@ -899,10 +875,57 @@ class Stream(var jid: String, var port: Int = 5222) {
         }
     }
 
-    // Helper remains the same
-    private fun String.escapeXml(): String = replace("&", "&amp;")
-        .replace("<", "&lt;")
-        .replace(">", "&gt;")
+    // Полностью переписанная функция parseChildren — без рекурсии, итеративная
+    private fun parseChildren(parser: XmlPullParser, untilTag: String): MutableList<XMLElement> {
+        val children = mutableListOf<XMLElement>()
+        val stack = mutableListOf<String>() // для отслеживания открытых тегов
+
+        var event = parser.next() // переходим к первому событию внутри родителя
+        while (event != XmlPullParser.END_DOCUMENT) {
+            when (event) {
+                XmlPullParser.START_TAG -> {
+                    val name = parser.name
+                    val namespace = parser.namespace ?: ""
+                    val attributes = mutableMapOf<String, String>()
+                    for (i in 0 until parser.attributeCount) {
+                        attributes[parser.getAttributeName(i)] = parser.getAttributeValue(i)
+                    }
+
+                    // Создаём элемент (вложенные дети будут добавлены позже)
+                    val element = XMLElement(
+                        name = name,
+                        namespace = namespace,
+                        raw = "",
+                        attributes = attributes,
+                        children = mutableListOf() // временно пустой, заполним ниже
+                    )
+                    children.add(element)
+                    stack.add(name)
+
+                    // Если тег самозакрывающийся — сразу закрываем
+                    if (parser.isEmptyElementTag) {
+                        stack.removeLastOrNull()
+                    }
+                }
+                XmlPullParser.END_TAG -> {
+                    val closedTag = parser.name
+                    if (closedTag == untilTag && stack.isEmpty()) {
+                        // Мы закрыли родительский тег — выходим
+                        return children
+                    }
+                    if (stack.isNotEmpty() && stack.last() == closedTag) {
+                        stack.removeLast()
+                    }
+                }
+            }
+            // Если мы закрыли все вложенные теги и встретили закрытие untilTag — выходим
+            if (event == XmlPullParser.END_TAG && parser.name == untilTag && stack.isEmpty()) {
+                break
+            }
+            event = parser.next()
+        }
+        return children
+    }
 
     suspend fun close() = withContext(Dispatchers.IO) {
         synchronized(connectionLock) {
