@@ -1,6 +1,7 @@
 package com.xabber.presentation.onboarding.fragments.signin
 
 import android.content.Context
+import android.os.Build
 import android.os.Bundle
 import android.text.*
 import android.text.method.LinkMovementMethod
@@ -12,6 +13,7 @@ import android.view.inputmethod.InputMethodManager
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
+import androidx.annotation.RequiresApi
 import androidx.core.view.isInvisible
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
@@ -42,6 +44,7 @@ class SigninFragment : Fragment(R.layout.fragment_signin) {
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         // Initialize AccountManager with application context
@@ -111,33 +114,42 @@ class SigninFragment : Fragment(R.layout.fragment_signin) {
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     private fun initButton() {
         with(binding) {
             btnConnect.setOnClickListener {
+                btnConnect.isEnabled = false  // Disable immediately to prevent multiple clicks
+
                 val jid = editTextLogin.text?.trim().toString().let {
                     if (!it.contains('@')) "$it@$host" else it
                 }
                 val username = jid.split("@")[0]
                 val password = editTextPassword.text?.trim().toString()
+
                 Log.d("SigninFragment", "Sign-in attempt with jid: $jid, username: $username")
+
                 if (!viewModel.isJidValid(jid)) {
                     binding.signinSubtitle1.isInvisible = true
                     binding.errorSubtitle.isVisible = true
                     binding.errorSubtitle.text = "Invalid JID format"
+                    btnConnect.isEnabled = true  // Re-enable on quick validation failure
                     return@setOnClickListener
                 }
+
                 lifecycleScope.launch {
                     try {
                         val success = AccountManager.login(jid, username, password)
                         if (success) {
                             Log.d("SigninFragment", "Account creation (login) successful for jid $jid, navigating to ApplicationActivity")
                             navigator().goToApplicationActivity()
+                            // No re-enable needed: navigation occurs, fragment lifecycle ends
                         } else {
                             Log.w("SigninFragment", "Account creation (login) failed for jid $jid")
                             binding.signinSubtitle1.isInvisible = true
                             binding.errorSubtitle.isVisible = true
                             binding.errorSubtitle.text = "Failed to create account"
                             Toast.makeText(requireContext(), "Failed to create account", Toast.LENGTH_LONG).show()
+                            btnConnect.isEnabled = true  // Re-enable on failure
                         }
                     } catch (e: IllegalArgumentException) {
                         Log.w("SigninFragment", "Account creation error for jid $jid: ${e.message}")
@@ -157,12 +169,14 @@ class SigninFragment : Fragment(R.layout.fragment_signin) {
                                 Toast.makeText(requireContext(), "Error: ${e.message}", Toast.LENGTH_LONG).show()
                             }
                         }
+                        btnConnect.isEnabled = true  // Re-enable on exception
                     } catch (e: Exception) {
                         Log.e("SigninFragment", "Unexpected error during account creation for jid $jid: ${e.message}", e)
                         binding.signinSubtitle1.isInvisible = true
                         binding.errorSubtitle.isVisible = true
                         binding.errorSubtitle.text = "Unexpected error: ${e.message}"
                         Toast.makeText(requireContext(), "Unexpected error: ${e.message}", Toast.LENGTH_LONG).show()
+                        btnConnect.isEnabled = true  // Re-enable on unexpected error
                     }
                 }
             }
