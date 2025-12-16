@@ -901,6 +901,7 @@ class Socket(private val host: String, private val port: Int) {
             socket = null
             reader = null
             writer = null
+            messageCallback = null
             if (scope.isActive) {
                 scope.cancel("Socket closed")
             }

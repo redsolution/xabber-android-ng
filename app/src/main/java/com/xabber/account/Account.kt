@@ -362,22 +362,21 @@ class Account : XMPPStreamDelegate {
     @RequiresApi(Build.VERSION_CODES.O)
     suspend fun connectStream(): Boolean = withContext(Dispatchers.IO) {
         try {
-            stream?.let {
-                val connectError = it.connect()
-                if (connectError == null) {
-                    presenceManager = PresenceManager(jid, it.socket!!)
-                    statusMessage.onNext("Online")
-                    Log.d(TAG, "Stream connected for $jid")
-                    return@withContext true
-                } else {
-                    statusMessage.onNext("Offline")
-                    Log.e(TAG, "Stream connection failed for $jid: $connectError")
-                    onErrorCallback?.invoke(connectError)
-                    return@withContext false
-                }
-            } ?: run {
-                Log.w(TAG, "No Stream initialized for $jid")
-                onErrorCallback?.invoke("No connection initialized")
+            // Всегда гарантируем свежий Stream перед подключением
+            if (stream == null || stream?.socket != null || stream?.messageCallbackChannel?.isClosedForSend == true) {
+                initializeStream()  // создаёт новый Stream, старый закрывает
+            }
+
+            val connectError = stream!!.connect()
+            if (connectError == null) {
+                presenceManager = PresenceManager(jid, stream!!.socket!!)
+                statusMessage.onNext("Online")
+                Log.d(TAG, "Stream connected for $jid")
+                return@withContext true
+            } else {
+                statusMessage.onNext("Offline")
+                Log.e(TAG, "Stream connection failed for $jid: $connectError")
+                onErrorCallback?.invoke(connectError)
                 return@withContext false
             }
         } catch (e: Exception) {
@@ -411,11 +410,8 @@ class Account : XMPPStreamDelegate {
         messageReceiver.unsubscribeReceiver()
         statusMessage.onNext("Offline")
         rosterRequested = false
-        synchronized(this@Account) {
-            presenceStanzas.clear() // Clear buffer on close
-        }
         stanzaProcessingScope.cancel()
-        Log.d(TAG, "Stream closed for $jid")
+        Log.d(TAG, "Stream fully closed and cleaned for $jid")
     }
 
 

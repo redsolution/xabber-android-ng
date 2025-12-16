@@ -422,7 +422,6 @@ object AccountManager {
                 Log.d("AccountManager", "Successfully logged out account with jid $jid")
                 true
             } else {
-                Log.w("AccountManager", "Failed to delete account with jid $jid in logout")
                 false
             }
         } catch (e: Exception) {

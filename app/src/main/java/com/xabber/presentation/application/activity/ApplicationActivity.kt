@@ -373,7 +373,6 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
 
         val widthDp = DisplayManager.getWidthDp()
         val orientation = resources.configuration.orientation
-        chatListViewModel.toggleUnreadOnly()
         // Check if there's an active chat in the detail container
         val currentDetailFragment = supportFragmentManager.findFragmentById(R.id.detail_container)
         val isChatActive = currentDetailFragment is ChatView
@@ -416,7 +415,6 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
 
         val widthDp = DisplayManager.getWidthDp()
         val orientation = resources.configuration.orientation
-        chatListViewModel.toggleUnreadOnly()
         // Check if there's an active chat in the detail container
         val currentDetailFragment = supportFragmentManager.findFragmentById(R.id.detail_container)
         val isChatActive = currentDetailFragment is ChatView
@@ -458,7 +456,6 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
 
         val widthDp = DisplayManager.getWidthDp()
         val orientation = resources.configuration.orientation
-        chatListViewModel.toggleUnreadOnly()
         // Check if there's an active chat in the detail container
         val currentDetailFragment = supportFragmentManager.findFragmentById(R.id.detail_container)
         val isChatActive = currentDetailFragment is ChatView

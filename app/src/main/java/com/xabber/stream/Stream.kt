@@ -931,8 +931,6 @@ class Stream(var jid: String, var port: Int = 5222) {
         synchronized(connectionLock) {
             socket = null
             state = StreamState.NOT_CONNECTING
-            messageCallbackChannel.close()
-            messageQueue.close()
             Log.d(TAG, "Stream closed for $jid")
         }
         socket?.close()
