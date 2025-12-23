@@ -14,12 +14,12 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import com.bumptech.glide.Glide
 import com.xabber.R
-import com.xabber.dto.MessageDto
-import com.xabber.dto.MessageReferenceDto
+import com.xabber.data_base.models.messages.MessageReferenceStorageItem
+import com.xabber.data_base.models.messages.MessageStorageItem
 import com.xabber.presentation.application.fragments.chat.ChatSettingsManager
 import com.xabber.presentation.application.fragments.chat.StatusMaker
 import com.xabber.presentation.application.manage.DisplayManager
-import com.xabber.utils.StringUtils
+import com.xabber.utils.StringUtils.getTimeText
 import com.xabber.utils.custom.ShapeOfView
 import com.xabber.utils.dp
 import java.util.*
@@ -32,14 +32,14 @@ class ImageGridBuilder {
     }
 
     fun bindView(
-        view: View, message: MessageDto,
-        images: ArrayList<MessageReferenceDto>
+        view: View, message: MessageStorageItem,
+        images: ArrayList<MessageReferenceStorageItem>
     ) {
         val cornerRadius =
             if (ChatSettingsManager.cornerValue > 5) (ChatSettingsManager.cornerValue - 4) else 1  // радиус закругления уголка картинки
 
         val isNeedRoundBottomCorners =
-            message.messageBody.isEmpty() && message.references.size == images.size
+            message.body.isEmpty() && message.references.size == images.size
 
         var index = 0
         loop@ for (image in images) {
@@ -70,14 +70,12 @@ class ImageGridBuilder {
             messageInfo.setBackgroundResource(timeStampBackground)
 
             val tvTime = view.findViewById<TextView>(R.id.tv_image_sending_time)
-            val date =
-                Date(if (message.editTimestamp > 0) message.editTimestamp else message.sentTimestamp)
-            val time = StringUtils.getTimeText(view.context, date)
-            tvTime.text = if (message.editTimestamp > 0) view.context.resources.getString(R.string.edit) + " $time" else time
+            val date = Date(if (message.editDate > 0) message.editDate else message.sentDate)
+            val time = getTimeText(view.context, date)
+            tvTime.text = if (message.editDate > 0) view.context.resources.getString(R.string.edit) + " $time" else time
 
-            val statusIcon =
-                view.findViewById<ImageView>(R.id.iv_image_message_status)    // статус сообщения
-            val iconAndTint = StatusMaker.deliverMessageStatusIcon(message.messageSendingState)
+            val statusIcon = view.findViewById<ImageView>(R.id.iv_image_message_status)    // статус сообщения
+            val iconAndTint = StatusMaker.deliverMessageStatusIcon(message.state)
             val icon = iconAndTint.first
             val tint = iconAndTint.second
             if (icon != null && tint != null) {
@@ -93,7 +91,7 @@ class ImageGridBuilder {
     private fun bindImage(
         view: View,
         index: Int,
-        image: MessageReferenceDto,
+        image: MessageReferenceStorageItem,
         cornerRadius: Int,
         isNeedRoundBottomCorners: Boolean,
         imagesSize: Int
@@ -192,7 +190,7 @@ class ImageGridBuilder {
         shape?.setDrawable(shapeDrawable)
         val videoLabel = getVideoLabel(view, index)
         videoLabel?.isVisible =
-            FileCategory.determineFileCategory(image.mimeType) == FileCategory.VIDEO  // показываем значок "видео" если это видео
+            FileCategory.determineFileCategory(image.mimeType ?: "") == FileCategory.VIDEO  // показываем значок "видео" если это видео
         val imageView = getImageView(view, index)
 
         if (imageView != null) {
@@ -287,5 +285,4 @@ class ImageGridBuilder {
     companion object {
         private const val MAX_IMAGE_IN_GRID = 6
     }
-
 }

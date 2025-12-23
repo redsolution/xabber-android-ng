@@ -3,22 +3,22 @@ package com.xabber.presentation.application.fragments.chat.message
 import android.view.View
 import android.widget.ImageView
 import com.xabber.R
-import com.xabber.dto.MessageDto
 import com.xabber.data_base.models.messages.MessageSendingState
+import com.xabber.data_base.models.messages.MessageStorageItem
 
 object MessageDeliveryStatusHelper {
-    fun setupStatusImageView(messageRealmObject: MessageDto, imageView: ImageView) {
+    fun setupStatusImageView(message: MessageStorageItem, imageView: ImageView) {
         imageView.visibility =
-            if (messageRealmObject.messageBody == null || !messageRealmObject.isOutgoing) {
+            if (message.body.isEmpty() || !message.outgoing) {
                 View.GONE
             } else {
                 View.VISIBLE
             }
-        imageView.setImageResource(getMessageStatusIconResource(messageRealmObject))
+        imageView.setImageResource(getMessageStatusIconResource(message))
     }
 
-    fun getMessageStatusIconResource(messageRealmObject: MessageDto): Int =
-        getMessageStatusIconResourceByStatus(messageRealmObject.messageSendingState)
+    fun getMessageStatusIconResource(message: MessageStorageItem): Int =
+        getMessageStatusIconResourceByStatus(message.state)
 
     fun getMessageStatusIconResourceByStatus(messageStatus: MessageSendingState): Int {
         return when (messageStatus) {
@@ -28,6 +28,5 @@ object MessageDeliveryStatusHelper {
             MessageSendingState.Error -> R.drawable.ic_exclamation_mark_outline
             else -> R.drawable.ic_clock_outline
         }
-
     }
 }

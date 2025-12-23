@@ -2,7 +2,7 @@ package com.xabber.presentation.application.fragments.chat.message
 
 import android.view.LayoutInflater
 import android.view.View
-import com.xabber.dto.MessageDto
+import com.xabber.data_base.models.messages.MessageStorageItem
 import com.xabber.presentation.application.fragments.chat.MessageAdapter
 import com.xabber.presentation.application.fragments.chat.MessageVhExtraData
 
@@ -12,8 +12,8 @@ class SystemMessageVH internal constructor(
     onViewClickListener: MessageAdapter.OnViewClickListener?
 ) : MessageViewHolder(itemView, inflater, listener, onViewClickListener) {
 
-    override fun bind(message: MessageDto, vhExtraData: MessageVhExtraData) {
+    override fun bind(message: MessageStorageItem, vhExtraData: MessageVhExtraData) {
         super.bind(message, vhExtraData)
-        tvMessageText?.text = message.messageBody
+        tvMessageText?.text = message.body
     }
 }

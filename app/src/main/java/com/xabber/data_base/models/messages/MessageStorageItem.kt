@@ -13,8 +13,6 @@ import com.xabber.utils.prp
 import com.xabber.utils.toMap
 import com.xabber.xmpp.messages.XMPPMessage
 import com.xabber.data_base.models.sync.ConversationType
-import com.xabber.dto.MessageDto
-import com.xabber.dto.MessageReferenceDto
 import com.xabber.presentation.XabberApplication.Companion.applicationContext
 import com.xabber.xmpp.messages.message.MessageStanzaStorageItem
 import com.xabber.xmpp.notifications.NotifyManager
@@ -164,8 +162,8 @@ class MessageStorageItem : RealmObject {
         this.messageId = message.id ?: ""
         this.archivedId = message.element("archived", "urn:xmpp:mam:tmp")?.getAttribute("id")
             ?: message.element("stanza-id")?.getAttribute("id")
-            ?: message.element("archived")?.getAttribute("id")
-            ?: archivedId
+                    ?: message.element("archived")?.getAttribute("id")
+                    ?: archivedId
         this.displayAs = "system"
         this.state = MessageSendingState.None
         updatePrimary()
@@ -193,8 +191,8 @@ class MessageStorageItem : RealmObject {
         this.conversationType = conversationTypeByMessage(message)
         this.archivedId = message.element("archived", "urn:xmpp:mam:tmp")?.getAttribute("id")
             ?: message.element("stanza-id")?.getAttribute("id")
-            ?: message.element("archived")?.getAttribute("id")
-            ?: archivedId
+                    ?: message.element("archived")?.getAttribute("id")
+                    ?: archivedId
         if (isEncrypted) {
             this.body = "Processing encrypted message..."
             this.legacyBody = this.body
@@ -466,60 +464,5 @@ class MessageStorageItem : RealmObject {
         }.also {
             Log.d(TAG, "Determined conversationType=${it.rawValue} for messageId=${message.id}, to=$to")
         }
-    }
-
-    fun toMessageDto(): MessageDto? = try {
-        val sentTimestamp = sentDate
-        Log.d(TAG, "toMessageDto: primary=$primary, sentDate=$sentDate, sentTimestamp=$sentTimestamp, formatted=${Date(sentTimestamp)}")
-
-        MessageDto(
-            primary = primary,
-            isOutgoing = outgoing,
-            owner = owner,
-            opponentJid = opponent,
-            messageBody = body ?: "",
-            messageSendingState = when {
-                isRead -> MessageSendingState.Read
-                outgoing -> MessageSendingState.Deliver
-                else -> MessageSendingState.Sent
-            },
-            sentTimestamp = sentTimestamp,
-            editTimestamp = editDate,
-            displayType = when {
-                conversationType_ == "https://xabber.com/protocol/groups#system-message" -> MessageDisplayType.System
-                body.isNullOrEmpty() && references.isNotEmpty() -> MessageDisplayType.Images
-                else -> MessageDisplayType.Text
-            },
-            canEditMessage = outgoing,
-            canDeleteMessage = outgoing,
-            urlAvatar = null,
-            isGroup = conversationType_ == "https://xabber.com/protocol/groups",
-            kind = null,
-            isSelected = false,
-            references = references.mapNotNull { ref ->
-                try {
-                    MessageReferenceDto(
-                        id = ref.primary,
-                        uri = ref.uri,
-                        mimeType = ref.mimeType,
-                        isGeo = ref.isGeo,
-                        latitude = ref.latitude,
-                        longitude = ref.longitude,
-                        isVoiceMessage = ref.isAudioMessage,
-                        fileName = ref.fileName,
-                        size = ref.fileSize
-                    )
-                } catch (e: Exception) {
-                    Log.e(TAG, "Failed to map reference: ${e.message}")
-                    null
-                }
-            } as ArrayList<MessageReferenceDto>,
-            isUnread = !isRead,
-            isChecked = false,
-            archivedId = archivedId
-        )
-    } catch (e: Exception) {
-        Log.e(TAG, "Failed to create MessageDto: ${e.message}")
-        null
     }
 }

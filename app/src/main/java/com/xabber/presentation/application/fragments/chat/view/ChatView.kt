@@ -47,6 +47,7 @@ import com.xabber.R
 import com.xabber.account.AccountManager
 import com.xabber.data_base.models.last_chats.LastChatsStorageItem
 import com.xabber.data_base.models.messages.MessageDisplayType
+import com.xabber.data_base.models.messages.MessageReferenceStorageItem
 import com.xabber.data_base.models.messages.MessageSendingState
 import com.xabber.data_base.models.messages.MessageStorageItem
 import com.xabber.data_base.models.presences.ResourceStatus
@@ -54,7 +55,6 @@ import com.xabber.data_base.models.presences.RosterItemEntity
 import com.xabber.data_base.models.sync.ConversationType
 import com.xabber.databinding.FragmentChatBinding
 import com.xabber.dto.ChatListDto
-import com.xabber.dto.MessageDto
 import com.xabber.dto.MessageReferenceDto
 import com.xabber.presentation.AppConstants
 import com.xabber.presentation.AppConstants.CHAT_MESSAGE_TEXT_KEY
@@ -87,6 +87,8 @@ import com.xabber.utils.custom.PlayerVisualizerView
 import com.xabber.xmpp.jid.XMPPJID
 import com.xabber.xmpp.messages.messages_manager.MessageCommonSender
 import io.reactivex.rxjava3.disposables.Disposable
+import io.realm.kotlin.ext.realmListOf
+import io.realm.kotlin.types.RealmList
 import kotlinx.coroutines.*
 import org.koin.androidx.viewmodel.ext.android.viewModel
 import org.koin.core.parameter.parametersOf
@@ -118,7 +120,7 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
     private var editMessageId: String? = null
     private val enableNotificationsCode = 0L
     private var isSelectedMode = false
-    private var replyingMessage: MessageDto? = null
+    private var replyingMessage: MessageStorageItem? = null
     private var currentVoiceRecordingState = VoiceRecordState.NotRecording
     private var recordSaveAllowed = false
     private var recordingPath: String? = null
@@ -607,15 +609,29 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
     }
 
     private fun loadOlderMessages() {
+        // Защита от доступа после уничтожения view
+        if (!isAdded || lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED).not()) {
+            return
+        }
+
+        // Проверяем, полностью ли загружена история
+        val chatDto = viewModel.loadChat(getParams().id)
+        if (chatDto?.isSynced == true ) {
+            // История полностью загружена — больше старых сообщений нет
+            return
+        }
+
         if (isLoadingHistory) return
 
         isLoadingHistory = true
-        viewModel.startArchiveLoad()          // ← включаем блокировку
-        binding.progressBar.isVisible = true
-        binding.overlay.isVisible = true
+        viewModel.startArchiveLoad()
+
+        if (lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+            binding.progressBar.isVisible = true
+            binding.overlay.isVisible = true
+        }
         viewModel.setLocked(true)
 
-        // Save current scroll position
         val firstVisiblePosition = layoutManager!!.findFirstVisibleItemPosition()
         val firstVisibleView = layoutManager!!.findViewByPosition(firstVisiblePosition)
         val offset = firstVisibleView?.top ?: 0
@@ -625,20 +641,8 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
 
         lifecycleScope.launch {
             try {
-                val bareOwner = try {
-                    XMPPJID(fullJID = viewModel.owner).bare()
-                } catch (e: IllegalArgumentException) {
-                    Log.e("ChatView", "Invalid owner JID: ${viewModel.owner}, ${e.message}")
-                    isLoadingHistory = false
-                    return@launch
-                }
-                val bareOpponent = try {
-                    XMPPJID(fullJID = viewModel.opponent).bare()
-                } catch (e: IllegalArgumentException) {
-                    Log.e("ChatView", "Invalid opponent JID: ${viewModel.opponent}, ${e.message}")
-                    isLoadingHistory = false
-                    return@launch
-                }
+                val bareOwner = XMPPJID(fullJID = viewModel.owner).bare()
+                val bareOpponent = XMPPJID(fullJID = viewModel.opponent).bare()
 
                 val account = AccountManager.find(bareOwner)
                 account?.action { acc, stream ->
@@ -650,22 +654,23 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
                         callback = {
                             lifecycleScope.launch(Dispatchers.Main) {
                                 isLoadingHistory = false
-                                // Убираем локальные флаги UI
-                                binding.progressBar.isVisible = false
-                                binding.overlay.isVisible = false
                                 viewModel.setLocked(false)
-
-                                // ← Главное: завершаем загрузку архива
                                 viewModel.finishArchiveLoad()
 
-                                // Восстанавливаем позицию
-                                val newItemCount = messageAdapter!!.itemCount
-                                val insertedCount = newItemCount - currentItemCount
-                                if (insertedCount > 0 && firstVisiblePosition != RecyclerView.NO_POSITION) {
-                                    layoutManager!!.scrollToPositionWithOffset(
-                                        firstVisiblePosition + insertedCount,
-                                        offset
-                                    )
+                                if (lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED) && isAdded) {
+                                    binding.progressBar.isVisible = false
+                                    binding.overlay.isVisible = false
+
+                                    if (messageAdapter != null && layoutManager != null) {
+                                        val newItemCount = messageAdapter!!.itemCount
+                                        val insertedCount = newItemCount - currentItemCount
+                                        if (insertedCount > 0 && firstVisiblePosition != RecyclerView.NO_POSITION) {
+                                            layoutManager!!.scrollToPositionWithOffset(
+                                                firstVisiblePosition + insertedCount,
+                                                offset
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -673,8 +678,15 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
                 } ?: Log.e("ChatView", "Account not found for owner=$bareOwner")
             } catch (e: Exception) {
                 Log.e("ChatView", "Error loading older messages", e)
-                isLoadingHistory = false
-                return@launch
+                lifecycleScope.launch(Dispatchers.Main) {
+                    isLoadingHistory = false
+                    viewModel.setLocked(false)
+                    viewModel.finishArchiveLoad()
+                    if (lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED) && isAdded) {
+                        binding.progressBar.isVisible = false
+                        binding.overlay.isVisible = false
+                    }
+                }
             }
         }
     }
@@ -684,7 +696,7 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
         if (unreadCount > 0 && messageAdapter != null && messageAdapter!!.itemCount > 0) {
             // Since ViewModel has messageList updated, use it
             val messages = viewModel.messages.value ?: emptyList()
-            val position = messages.indexOfFirst { it.isUnread }
+            val position = messages.indexOfFirst { !it.isRead }
             if (position >= 0) {
                 layoutManager?.scrollToPositionWithOffset(position, 200)
                 binding.tvNewReceivedCount.text = unreadCount.toString()
@@ -915,13 +927,15 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
     }
 
     private fun subscribeToChatData(chat: ChatListDto) {
-        viewModel.chat.observe(viewLifecycleOwner) {
-            if (it == null) {
+        viewModel.chat.observe(viewLifecycleOwner) { lastChat ->
+            if (lastChat == null) {
                 Log.w("ChatView", "Chat is null, closing fragment")
                 navigator().closeDetail()
             } else {
-                setupOpponentName(it.getChatName())
-                setupMuteIcon(it.muteExpired)
+                // Используем rosterItem?.displayName или jid
+                val name = lastChat.rosterItem?.displayName ?: lastChat.jid
+                setupOpponentName(name)
+                setupMuteIcon(lastChat.muteExpired)
             }
         }
 
@@ -1033,45 +1047,6 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
         }
     }
 
-    private fun sendIncomingMessages(owner: String, opponentJid: String) {
-        var a = 0
-        val textRandom = arrayListOf(
-            "Привет",
-            "Компания «Ростелеком» открыла новый сезон строительства оптических линий связи на Южном Урале. Первым объектом для подключения стал жилой дом Челябинска в ЖК «Ньютон» на Комсомольском проспекте, 141. После его сдачи жители 132 квартир смогут пользоваться интернетом на скорости до 1 Гбит/с.",
-            "Да",
-            "В торжественной презентации старта нового сезона стройки приняли участие хоккеисты"
-        )
-        val references = ArrayList<MessageReferenceDto>()
-        references.add(MessageReferenceDto("$a 1 ${System.currentTimeMillis()}", isGeo = true, latitude = 56.98, longitude = 67.09, size = 0L))
-        lifecycleScope.launch {
-            for (i in 0 until 10) {
-                delay(1000)
-                a++
-                val chat = viewModel.loadChat(getParams().id)!!
-                val m = MessageDto(
-                    "$a $opponentJid ${System.currentTimeMillis()}",
-                    false,
-                    owner,
-                    opponentJid,
-                    "$a ${textRandom.random()}",
-                    MessageSendingState.Sent,
-                    System.currentTimeMillis(),
-                    0,
-                    MessageDisplayType.Text,
-                    false,
-                    false,
-                    null,
-                    isUnread = true,
-                    isGroup = chat.isGroup, // Set isGroup based on chat
-                    kind = null,
-                    isSelected = false,
-                    references = references,
-                    isChecked = false
-                )
-                viewModel.insertMessage(getParams().id, m)
-            }
-        }
-    }
 
     private fun onGotGalleryPermissionResult(grantResults: Map<String, Boolean>) {
         if (grantResults.entries.all { it.value }) showAttachBottomSheet()
@@ -1183,36 +1158,33 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
         binding.linRecordLock.invalidate()
         enableStandardPanelButtons(true)
         beginTimer(false)
-        val reference = MessageReferenceDto(
-            "a ${System.currentTimeMillis()}",
-            uri = path,
-            size = 0L,
-            isVoiceMessage = true
-        )
-        val list = ArrayList<MessageReferenceDto>()
-        list.add(reference)
-        viewModel.insertMessage(
-            getParams().id, MessageDto(
-                "${System.currentTimeMillis()}",
-                true,
-                viewModel.loadChat(getParams().id)!!.owner,
-                viewModel.loadChat(getParams().id)!!.opponentJid,
-                "",
-                MessageSendingState.Deliver,
-                System.currentTimeMillis(),
-                0,
-                MessageDisplayType.Text,
-                true,
-                true,
-                null,
-                isSelected = false,
-                isUnread = false,
-                isGroup = viewModel.loadChat(getParams().id)!!.isGroup,
-                kind = null,
-                references = list,
-                isChecked = false
-            )
-        )
+
+        val references: RealmList<MessageReferenceStorageItem> = realmListOf()
+        val reference = MessageReferenceStorageItem().apply {
+            this.uri = path
+            this.isAudioMessage = true
+            this.fileSize = File(path).length()
+            // mimeType, fileName и другие поля — по необходимости
+        }
+        references.add(reference)
+
+        val message = MessageStorageItem().apply {
+            this.messageId = "${System.currentTimeMillis()}"
+            this.owner = viewModel.loadChat(getParams().id)!!.owner
+            this.opponent = viewModel.loadChat(getParams().id)!!.opponentJid
+            this.body = ""
+            this.outgoing = true
+            this.isRead = true
+            this.date = System.currentTimeMillis()
+            this.sentDate = this.date
+            this.state = MessageSendingState.Deliver
+            this.conversationType = if (viewModel.loadChat(getParams().id)!!.isGroup) ConversationType.Group else ConversationType.Regular
+            this.references = references
+            updatePrimary() // важно!
+        }
+
+        viewModel.insertMessage(getParams().id, message)
+
         manageVoiceMessage(recordSaveAllowed)
         hideRecordPanel()
         scrollDown()
@@ -1302,15 +1274,15 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
         copyTextMessage(text)
     }
 
-    override fun pinMessage(messageDto: MessageDto) {
+    override fun pinMessage(message: MessageStorageItem) {
         binding.pinPanel.isVisible = true
-        binding.tvPinOwner.text = if (messageDto.isOutgoing) messageDto.owner else binding.tvChatTitle.text.toString()
-        binding.tvPinContent.text = messageDto.messageBody
+        binding.tvPinOwner.text = if (message.outgoing) message.owner else binding.tvChatTitle.text.toString()
+        binding.tvPinContent.text = message.body
         binding.pinPanel.setOnClickListener {
-            val position = viewModel.getPositionMessage(viewModel.lastPositionPrimary(messageDto.primary))
+            val position = viewModel.getPositionMessage(viewModel.lastPositionPrimary(message.primary))
             binding.messageList.scrollToPosition(position)
             lifecycleScope.launch {
-                viewModel.selectMessage(messageDto.primary, true)
+                viewModel.selectMessage(message.primary, true)
             }
             handler.postDelayed(cancelSelected, 1000)
         }
@@ -1318,21 +1290,26 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
             binding.pinPanel.isVisible = false
         }
     }
-    override fun forwardMessage(messageDto: MessageDto) {
-        val text = "${messageDto.owner}\n${messageDto.messageBody}"
+
+
+    override fun forwardMessage(message: MessageStorageItem) {
+        val text = "$$ {message.owner}\n $${message.body}"
         val chat = viewModel.loadChat(getParams().id)
         navigator().showForwardFragment(text, viewModel.getAccount(chat!!.owner)?.jid ?: "")
     }
 
-    override fun replyMessage(messageDto: MessageDto) {
+    override fun replyMessage(message: MessageStorageItem) {
         binding.answer.isVisible = true
-        binding.replyMessageTitle.text = if (messageDto.isOutgoing) messageDto.owner else binding.tvChatTitle.text.toString()
-        binding.replyMessageContent.text = messageDto.messageBody
+        binding.replyMessageTitle.text = if (message.outgoing) message.owner else binding.tvChatTitle.text.toString()
+        binding.replyMessageContent.text = message.body
         binding.close.setOnClickListener {
             binding.replyMessageTitle.text = ""
             binding.replyMessageContent.text = ""
             binding.answer.isVisible = false
+            replyingMessage = null
         }
+        replyingMessage = message
+        setupInputButtons()
     }
 
     override fun editMessage(primary: String, text: String) {
@@ -1356,7 +1333,11 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
         }
     }
     override fun onFullSwipe(position: Int) {
-        handler.postDelayed(reply, 1500)
+        val message = messageAdapter?.getMessageItem(position)
+        if (message != null) {
+            replyingMessage = message
+            handler.postDelayed(reply, 1500)
+        }
     }
 
     private val onBackPressedCallback = object : OnBackPressedCallback(true) {
@@ -1450,8 +1431,8 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
         }
     }
 
-    fun onBind(message: MessageDto?) {
-        if (message != null && message.isUnread && !message.isOutgoing) {
+    fun onBind(message: MessageStorageItem?) {
+        if (message != null && !message.isRead && !message.outgoing) {
             viewModel.markAsRead(message.primary)
         }
     }

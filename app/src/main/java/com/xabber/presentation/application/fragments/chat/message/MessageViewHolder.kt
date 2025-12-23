@@ -19,9 +19,9 @@ import androidx.core.view.isVisible
 import androidx.recyclerview.widget.RecyclerView
 import com.xabber.R
 import com.xabber.data_base.models.messages.MessageDisplayType
+import com.xabber.data_base.models.messages.MessageReferenceStorageItem
 import com.xabber.data_base.models.messages.MessageSendingState
-import com.xabber.dto.MessageDto
-import com.xabber.dto.MessageReferenceDto
+import com.xabber.data_base.models.messages.MessageStorageItem
 import com.xabber.presentation.XabberApplication
 import com.xabber.presentation.application.fragments.chat.ChatSettingsManager
 import com.xabber.presentation.application.fragments.chat.Check
@@ -29,11 +29,10 @@ import com.xabber.presentation.application.fragments.chat.HttpFileUploadManager
 import com.xabber.presentation.application.fragments.chat.MessageAdapter
 import com.xabber.presentation.application.fragments.chat.MessageVhExtraData
 import com.xabber.presentation.application.fragments.chat.audio.VoiceMessagePresenterManager
-import com.xabber.utils.StringUtils
 import com.xabber.utils.StringUtils.getDateStringForMessage
+import com.xabber.utils.StringUtils.getTimeText
 import com.xabber.utils.custom.CorrectlyTouchEventTextView
 import com.xabber.utils.custom.PlayerVisualizerView
-import java.io.File
 import java.util.*
 import java.util.concurrent.TimeUnit
 
@@ -67,63 +66,66 @@ abstract class MessageViewHolder(
         setIsRecyclable(true)
     }
 
-    open fun bind(message: MessageDto, vhExtraData: MessageVhExtraData) {
+    open fun bind(message: MessageStorageItem, vhExtraData: MessageVhExtraData) {
         messageContainer?.removeAllViews()
         balloon?.removeAllViews()
 
-        val images = ArrayList<MessageReferenceDto>()
-        val otherFiles = ArrayList<MessageReferenceDto>()
+        val images = ArrayList<MessageReferenceStorageItem>()
+        val otherFiles = ArrayList<MessageReferenceStorageItem>()
 
         if (message.references.isNotEmpty()) {
             for (reference in message.references) {
-                val category = FileCategory.determineFileCategory(reference.mimeType)
-                if (category == FileCategory.IMAGE || category == FileCategory.VIDEO)
+                val category = FileCategory.determineFileCategory(reference.mimeType ?: "")
+                if (category == FileCategory.IMAGE || category == FileCategory.VIDEO) {
                     images.add(reference)
-                else otherFiles.add(reference)
+                } else {
+                    otherFiles.add(reference)
+                }
             }
         }
 
         val needTail = if (message.references.isNotEmpty()) {
             if (message.references[0].isGeo) false
-            else if (message.references[0].isVoiceMessage) vhExtraData.isNeedTail
-            else if (otherFiles.isEmpty() && message.messageBody.isEmpty()) false else vhExtraData.isNeedTail
+            else if (message.references[0].isAudioMessage) vhExtraData.isNeedTail
+            else if (otherFiles.isEmpty() && message.body.isEmpty()) false else vhExtraData.isNeedTail
         } else vhExtraData.isNeedTail
 
-        if (message.displayType != MessageDisplayType.System) {
-            if (message.references.size > 0) {
+        val displayType = when {
+            message.displayAs_ == "system" || message.conversationType_ == "https://xabber.com/protocol/groups#system-message" -> MessageDisplayType.System
+            message.body.isEmpty() && message.references.isNotEmpty() -> MessageDisplayType.Images
+            else -> MessageDisplayType.Text
+        }
+
+        if (displayType != MessageDisplayType.System) {
+            if (message.references.isNotEmpty()) {
                 if (message.references[0].isGeo) {
-                    // REMOVED: setIsRecyclable(false/true) - unnecessary for sync inflate, causes recycling mismatches
-                    addGeoLocationBox(message, message.references[0].latitude, message.references[0].longitude)
-                } else if (message.references[0].isVoiceMessage) {
-                    // REMOVED: setIsRecyclable(false/true) - unnecessary for sync inflate, causes recycling mismatches
+                    addGeoLocationBox(message, message.references[0].latitude ?: 0.0, message.references[0].longitude ?: 0.0)
+                } else if (message.references[0].isAudioMessage) {
                     addVoiceMessageBox(message.references[0].uri!!, message)
                 } else {
-                    // No need to setIsRecyclable for normal media/files
                     if (images.isNotEmpty()) addImageAndVideoBox(message, images)
                     if (otherFiles.isNotEmpty()) addFilesBox(message, otherFiles)
                 }
             }
-            if (message.messageBody.isNotEmpty()) addTextBox(message)
+            if (message.body.isNotEmpty()) addTextBox(message)
 
-            setupOnClick(message)
-            setupOnLongClick(message.primary, message.isChecked)
-            setBalloonBackground(message.isOutgoing, needTail)
-            setItemCheckedBackground(message.isChecked)
+            setupOnClick(message, vhExtraData.isChecked)
+            setupOnLongClick(message.primary, vhExtraData.isChecked)
+            setBalloonBackground(message.outgoing, needTail)
+            setItemCheckedBackground(vhExtraData.isChecked)
         }
+
         needDate = vhExtraData.isNeedDate
         isUnread = vhExtraData.isUnread
         messageId = message.primary
-        date = getDateStringForMessage(message.sentTimestamp)
-
-
+        date = getDateStringForMessage(message.sentDate)
     }
 
     private fun setTime(sentTime: Long, editTime: Long) {
         val date = Date(if (editTime > 0) editTime else sentTime)
-        val time = StringUtils.getTimeText(context, date)
+        val time = getTimeText(context, date)
         tvTime?.text = if (editTime > 0) context.getString(R.string.edit) + " $time" else time
         tvTime?.setTextColor(ContextCompat.getColor(context, R.color.black))
-
     }
 
     private fun setBalloonBackground(isOutgoing: Boolean, needTail: Boolean) {
@@ -161,14 +163,14 @@ abstract class MessageViewHolder(
         itemView.setBackgroundColor(ContextCompat.getColor(context, if (isChecked) R.color.selected else R.color.transparent))
     }
 
-    private fun addGeoLocationBox(message: MessageDto, latitude: Double, longitude: Double) {
+    private fun addGeoLocationBox(message: MessageStorageItem, latitude: Double, longitude: Double) {
         val geoLocationBox = GeoLocationBuilder()
         val geoLocationView: View = geoLocationBox.inflateView(messageContainer!!)
         geoLocationBox.addGeoLocationBox(geoLocationView, message, latitude, longitude, onViewClickListener)
         messageContainer?.addView(geoLocationView)
     }
 
-    private fun addVoiceMessageBox(path: String, message: MessageDto) {
+    private fun addVoiceMessageBox(path: String, message: MessageStorageItem) {
         val voiceMessageBox = inflater.inflate(R.layout.voice_message_box, messageContainer, false)
         voiceMessageBox.layoutParams = LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.WRAP_CONTENT,
@@ -215,7 +217,7 @@ abstract class MessageViewHolder(
         }
     }
 
-    private fun addImageAndVideoBox(message: MessageDto, images: ArrayList<MessageReferenceDto>) {
+    private fun addImageAndVideoBox(message: MessageStorageItem, images: ArrayList<MessageReferenceStorageItem>) {
         val builder = ImageGridBuilder()
         val imageGridView: View = builder.inflateView(messageContainer!!, images.size)
         imageGridView.layoutParams = LinearLayout.LayoutParams(
@@ -227,7 +229,7 @@ abstract class MessageViewHolder(
         val infoStamp = imageGridView.findViewById<LinearLayoutCompat>(R.id.message_info)
         val imageTime = imageGridView.findViewById<TextView>(R.id.tv_image_sending_time)
         val status = imageGridView.findViewById<ImageView>(R.id.iv_image_message_status)
-        infoStamp.isVisible = message.messageBody.isEmpty() && message.references.size == images.size
+        infoStamp.isVisible = message.body.isEmpty() && message.references.size == images.size
         if (infoStamp.isVisible) {
             setImageTime(imageTime, message)
             setStatusIcon(status, message)
@@ -257,13 +259,12 @@ abstract class MessageViewHolder(
         image5?.setOnClickListener(onClickListener)
     }
 
-    private fun setImageTime(imageTime: TextView, message: MessageDto) {
-        val date = Date(if (message.editTimestamp > 0) message.editTimestamp else message.sentTimestamp)
-        val time = StringUtils.getTimeText(context, date)
-        imageTime.text = if (message.editTimestamp > 0) "edit $time" else time
-        // Reuse validation for image timestamp
+    private fun setImageTime(imageTime: TextView, message: MessageStorageItem) {
+        val date = Date(if (message.editDate > 0) message.editDate else message.sentDate)
+        val time = getTimeText(context, date)
+        imageTime.text = if (message.editDate > 0) "edit $time" else time
         val currentTime = System.currentTimeMillis()
-        val sentTime = message.sentTimestamp
+        val sentTime = message.sentDate
         val isSuspicious = sentTime > currentTime + 3_600_000 || sentTime < currentTime - 365L * 24 * 60 * 60 * 1000
         if (isSuspicious) {
             Log.w(
@@ -275,32 +276,31 @@ abstract class MessageViewHolder(
             imageTime.text = context.getString(R.string.invalid_timestamp)
         } else {
             imageTime.setTextColor(ContextCompat.getColor(context, R.color.black))
-
         }
     }
 
-    private fun addFilesBox(message: MessageDto, files: ArrayList<MessageReferenceDto>) {
+    private fun addFilesBox(message: MessageStorageItem, files: ArrayList<MessageReferenceStorageItem>) {
         val filesBox = inflater.inflate(R.layout.files_box, messageContainer, false)
         filesBox.layoutParams = LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.WRAP_CONTENT,
             LinearLayout.LayoutParams.WRAP_CONTENT
         )
         messageContainer?.addView(filesBox)
-        val adapter = FilesAdapter(files, message.sentTimestamp, this)
+        val adapter = FilesAdapter(files, message.sentDate, this)
         val recyclerView = filesBox.findViewById<RecyclerView>(R.id.file_list_rv)
         recyclerView.adapter = adapter
         adapter.submitList(files)
         setMessageInfo(message)
     }
 
-    private fun addTextBox(message: MessageDto) {
+    private fun addTextBox(message: MessageStorageItem) {
         val textBox = inflater.inflate(R.layout.text_box, messageContainer, false)
         textBox.layoutParams = LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.WRAP_CONTENT,
             LinearLayout.LayoutParams.WRAP_CONTENT
         )
         messageContainer?.addView(textBox)
-        setMessageText(message.messageBody)
+        setMessageText(message.body)
         setMessageInfo(message)
     }
 
@@ -308,43 +308,40 @@ abstract class MessageViewHolder(
         tvMessageText = itemView.findViewById(R.id.message_text)
         tvMessageText?.text = if (text.isEmpty()) context.getString(R.string.empty_message) else text
         tvMessageText?.movementMethod = CorrectlyTouchEventTextView.LocalLinkMovementMethod
-        tvMessageText?.post {
-
-        }
+        tvMessageText?.post {}
     }
 
-    private fun setMessageInfo(message: MessageDto) {
+    private fun setMessageInfo(message: MessageStorageItem) {
         tvTime = itemView.findViewById(R.id.message_time)
         statusIcon = itemView.findViewById(R.id.message_status_icon)
-        setTime(message.sentTimestamp, message.editTimestamp)
+        setTime(message.sentDate, message.editDate)
         if (statusIcon != null) setStatusIcon(statusIcon!!, message)
     }
 
-    private fun setStatusIcon(statusIcon: ImageView, messageDto: MessageDto) {
-        statusIcon.isVisible = messageDto.isOutgoing && messageDto.messageSendingState != MessageSendingState.Uploading
+    private fun setStatusIcon(statusIcon: ImageView, message: MessageStorageItem) {
+        statusIcon.isVisible = message.outgoing && message.state != MessageSendingState.Uploading
         if (statusIcon.isVisible) {
-            MessageDeliveryStatusHelper.setupStatusImageView(messageDto, statusIcon)
-
+            MessageDeliveryStatusHelper.setupStatusImageView(message, statusIcon)
         }
     }
 
-    private fun setupOnClick(message: MessageDto) {
+    private fun setupOnClick(message: MessageStorageItem, isChecked: Boolean) {
         itemView.setOnClickListener {
             if (Check.getSelectedMode()) {
-                onViewClickListener?.checkItem(!message.isChecked, message.primary)
+                onViewClickListener?.checkItem(!isChecked, message.primary)
             } else {
                 if (menuItemListener != null) {
                     val popup = PopupMenu(it.context, it, Gravity.START)
                     popup.setForceShowIcon(true)
-                    popup.inflate(if (message.isOutgoing) R.menu.popup_menu_message_outgoing else R.menu.popup_menu_message_incoming)
+                    popup.inflate(if (message.outgoing) R.menu.popup_menu_message_outgoing else R.menu.popup_menu_message_incoming)
                     popup.setOnMenuItemClickListener { menuItem ->
                         when (menuItem.itemId) {
-                            R.id.copy -> menuItemListener.copyText(message.messageBody)
+                            R.id.copy -> menuItemListener.copyText(message.body)
                             R.id.pin -> menuItemListener.pinMessage(message)
                             R.id.forward -> menuItemListener.forwardMessage(message)
                             R.id.reply -> menuItemListener.replyMessage(message)
                             R.id.delete_message -> menuItemListener.deleteMessage(message.primary)
-                            R.id.edit -> menuItemListener.editMessage(message.primary, message.messageBody)
+                            R.id.edit -> menuItemListener.editMessage(message.primary, message.body)
                         }
                         true
                     }
@@ -356,7 +353,6 @@ abstract class MessageViewHolder(
 
     private fun setupOnLongClick(messagePrimary: String, isChecked: Boolean) {
         itemView.setOnLongClickListener {
-
             if (!Check.getSelectedMode()) onViewClickListener?.onLongClick(messagePrimary)
             else onViewClickListener?.checkItem(!isChecked, messagePrimary)
             true

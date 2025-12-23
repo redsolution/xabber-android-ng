@@ -14,7 +14,6 @@ import com.xabber.data_base.models.messages.MessageSendingState
 import com.xabber.data_base.models.messages.MessageStorageItem
 import com.xabber.data_base.models.roster.RosterStorageItem
 import com.xabber.data_base.models.sync.ConversationType
-import com.xabber.dto.MessageDto
 import com.xabber.dto.MessageReferenceDto
 import com.xabber.utils.toMessageReferenceDto
 import com.xabber.utils.toXMPPString
@@ -316,6 +315,7 @@ class MessageCommonSender(private val owner: String) {
                                     LastChatsStorageItem.genPrimary(msg?.opponent ?: "", msg?.owner ?: "", msg?.conversationType ?: ConversationType.Regular)
                                 ).first().find()?.hasErrorInChat = true
                             }
+
                         } finally {
                             localRealm.close()
                         }
@@ -415,35 +415,11 @@ class MessageCommonSender(private val owner: String) {
         return stanza
     }
 
-    private fun notifyChatViewModel(instance: MessageStorageItem) {
-        val conversationType = ConversationType.fromRaw(instance.conversationType_)
-        val chatId = LastChatsStorageItem.genPrimary(instance.opponent, instance.owner, conversationType)
-        val messageDto = MessageDto(
-            primary = instance.primary,
-            isOutgoing = instance.outgoing,
-            owner = instance.owner,
-            opponentJid = instance.opponent,
-            messageBody = instance.body,
-            messageSendingState = when {
-                instance.isRead -> MessageSendingState.Read
-                instance.outgoing -> MessageSendingState.Deliver
-                else -> MessageSendingState.Sent
-            },
-            sentTimestamp = instance.sentDate,
-            editTimestamp = instance.editDate,
-            displayType = MessageDisplayType.Text,
-            canEditMessage = instance.outgoing,
-            canDeleteMessage = instance.outgoing,
-            urlAvatar = null,
-            isGroup = instance.conversationType_ == "https://xabber.com/protocol/groups",
-            kind = null,
-            isSelected = false,
-            references = instance.references.map { it.toMessageReferenceDto() } as ArrayList<MessageReferenceDto>,
-            isUnread = !instance.isRead,
-            isChecked = false
-        )
-        AccountManager.getChatViewModel(chatId)?.insertMessagesFromReceiver(listOf(messageDto))
-        Log.d(TAG, "Notified ChatViewModel: chatId=$chatId, messageId=${instance.messageId}")
+    private fun notifyChatViewModel(message: MessageStorageItem) {
+        val conversationType = ConversationType.fromRaw(message.conversationType_)
+        val chatId = LastChatsStorageItem.genPrimary(message.opponent, message.owner, conversationType)
+        AccountManager.getChatViewModel(chatId)?.insertMessage(chatId, message)
+        Log.d(TAG, "Notified ChatViewModel directly with MessageStorageItem: primary=${message.primary}")
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
@@ -494,6 +470,9 @@ class MessageCommonSender(private val owner: String) {
                                     }
                                     notifyChatViewModel(instance)
                                 }
+                            }
+                            realm.query<MessageStorageItem>("primary = $0", MessageStorageItem.genPrimary(item.messageId, owner)).first().find()?.let {
+                                notifyChatViewModel(it)
                             }
                         } finally {
                             realm.close()

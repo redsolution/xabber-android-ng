@@ -7,21 +7,25 @@ import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import com.xabber.R
 import com.xabber.databinding.ItemFileMessageBinding
-import com.xabber.dto.MessageReferenceDto
+import com.xabber.data_base.models.messages.MessageReferenceStorageItem
 
-
-class FilesAdapter(private val files: ArrayList<MessageReferenceDto>, private val timeStamp: Long, private val listener: OnFileClickListener) :
-    ListAdapter<MessageReferenceDto, FileViewHolder>(object :
-        DiffUtil.ItemCallback<MessageReferenceDto>() {
-        override fun areItemsTheSame(oldItem: MessageReferenceDto, newItem: MessageReferenceDto) =
-            oldItem == newItem
+class FilesAdapter(
+    private val files: ArrayList<MessageReferenceStorageItem>,
+    private val timeStamp: Long,
+    private val listener: OnFileClickListener
+) : ListAdapter<MessageReferenceStorageItem, FileViewHolder>(
+    object : DiffUtil.ItemCallback<MessageReferenceStorageItem>() {
+        override fun areItemsTheSame(
+            oldItem: MessageReferenceStorageItem,
+            newItem: MessageReferenceStorageItem
+        ) = oldItem.primary == newItem.primary
 
         override fun areContentsTheSame(
-            oldItem: MessageReferenceDto,
-            newItem: MessageReferenceDto
-        ) =
-            oldItem == newItem
-    }) {
+            oldItem: MessageReferenceStorageItem,
+            newItem: MessageReferenceStorageItem
+        ) = oldItem == newItem
+    }
+) {
 
     interface OnFileClickListener {
         fun onFileClick(path: String)
@@ -34,12 +38,17 @@ class FilesAdapter(private val files: ArrayList<MessageReferenceDto>, private va
     }
 
     override fun onBindViewHolder(holder: FileViewHolder, position: Int) {
+        val currentItem = getItem(position)
         val icon = holder.view.findViewById<ImageView>(R.id.ivFileIcon)
-        icon.setImageResource(getFileIconByCategory(FileCategory.determineFileCategory(files[position].mimeType)))
+        icon.setImageResource(
+            getFileIconByCategory(
+                FileCategory.determineFileCategory(currentItem.mimeType ?: "")
+            )
+        )
         holder.view.setOnClickListener {
-          if (files[position].uri != null)  listener.onFileClick(files[position].uri!!)
+            if (currentItem.uri != null) listener.onFileClick(currentItem.uri!!)
         }
-        holder.bind(files[position])
+        holder.bind(currentItem)
     }
 
     override fun getItemCount() = files.size
@@ -60,5 +69,4 @@ class FilesAdapter(private val files: ArrayList<MessageReferenceDto>, private va
             else -> R.drawable.ic_file
         }
     }
-
 }

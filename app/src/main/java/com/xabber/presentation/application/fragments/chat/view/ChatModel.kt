@@ -7,15 +7,11 @@ import com.xabber.account.AccountManager
 import com.xabber.data_base.defaultRealmConfig
 import com.xabber.data_base.models.account.AccountStorageItem
 import com.xabber.data_base.models.last_chats.LastChatsStorageItem
-import com.xabber.data_base.models.messages.MessageDisplayType
-import com.xabber.data_base.models.messages.MessageReferenceStorageItem
 import com.xabber.data_base.models.messages.MessageSendingState
 import com.xabber.data_base.models.messages.MessageStorageItem
 import com.xabber.data_base.models.sync.ConversationType
 import com.xabber.dto.AccountDto
 import com.xabber.dto.ChatListDto
-import com.xabber.dto.MessageDto
-import com.xabber.dto.MessageReferenceDto
 import com.xabber.stream.StreamState
 import com.xabber.utils.toAccountDto
 import com.xabber.utils.toChatListDto
@@ -32,10 +28,7 @@ import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.util.Locale
-import java.util.concurrent.TimeUnit
 
 class ChatModel(
     private val chatId: String,
@@ -48,28 +41,26 @@ class ChatModel(
 
     // === Наблюдение за данными (Flows) ===
 
-    fun observeChat(): Flow<ChatListDto?> {
+    fun observeChat(): Flow<LastChatsStorageItem?> {
         return realm.query<LastChatsStorageItem>("primary = $0", chatId)
             .asFlow()
             .map { changes ->
                 when (changes) {
-                    is ResultsChange<*> -> changes.list.firstOrNull()?.toChatListDto()
-                    else -> changes.list.firstOrNull()?.toChatListDto()
+                    is ResultsChange<*> -> changes.list.firstOrNull()
+                    else -> changes.list.firstOrNull()
                 }
             }
     }
 
     @OptIn(FlowPreview::class)
-    fun observeMessages(): Flow<List<MessageDto>> {
+    fun observeMessages(): Flow<List<MessageStorageItem>> {
         return realm.query<MessageStorageItem>(
             "owner = $0 AND opponent = $1 AND conversationType_ = $2",
             owner, opponent, conversationType.rawValue
         )
             .sort("sentDate", Sort.ASCENDING)
             .asFlow()
-            .map { changes ->
-                changes.list.mapNotNull { it.toMessageDto() }
-            }
+            .map { changes -> changes.list }
             .debounce(300L)
     }
 
@@ -79,14 +70,13 @@ class ChatModel(
         query<LastChatsStorageItem>("primary = $0", chatId).first().find()?.toChatListDto()
     }
 
-    suspend fun getMessages(): List<MessageDto> = with(realm) {
+    suspend fun getMessages(): List<MessageStorageItem> = with(realm) {
         query<MessageStorageItem>(
             "owner = $0 AND opponent = $1 AND conversationType_ = $2 AND isDeleted = false",
             owner, opponent, conversationType.rawValue
         )
             .sort("sentDate", Sort.ASCENDING)
             .find()
-            .mapNotNull { it.toMessageDto() }
     }
 
     suspend fun getDraft(id: String): String? = with(realm) {
@@ -97,15 +87,9 @@ class ChatModel(
         query<LastChatsStorageItem>("primary = $0", id).first().find()?.rosterItem?.primary
     }
 
-    suspend fun getAccount(id: String): AccountDto? = with(realm) {
-        query<AccountStorageItem>("primary = $0", id).first().find()?.toAccountDto()
-    }
-
-    suspend fun getMessage(primary: String?): MessageDto? = with(realm) {
+    suspend fun getMessage(primary: String?): MessageStorageItem? = with(realm) {
         primary?.let {
-            query<MessageStorageItem>("primary = $0", it).first().find()?.let { item ->
-                item.toMessageDto()
-            }
+            query<MessageStorageItem>("primary = $0", it).first().find()
         }
     }
 
@@ -121,12 +105,10 @@ class ChatModel(
         oldest?.messageId
     }
 
-    suspend fun getSelectedMessage(selectedItems: Set<String>): MessageDto? = with(realm) {
+    suspend fun getSelectedMessage(selectedItems: Set<String>): MessageStorageItem? = with(realm) {
         if (selectedItems.isNotEmpty()) {
             val id = selectedItems.first()
-            query<MessageStorageItem>("primary = $0", id).first().find()?.let { item ->
-                item.toMessageDto()
-            }
+            query<MessageStorageItem>("primary = $0", id).first().find()
         } else null
     }
 
@@ -159,7 +141,7 @@ class ChatModel(
 
     suspend fun getMessageId(selectedItems: Set<String>): String = selectedItems.firstOrNull() ?: ""
 
-    suspend fun getMessagePosition(primary: String, messages: List<MessageDto>): Int {
+    suspend fun getMessagePosition(primary: String, messages: List<MessageStorageItem>): Int {
         return messages.indexOfFirst { it.primary == primary }
     }
 
@@ -167,7 +149,7 @@ class ChatModel(
         query<LastChatsStorageItem>("primary = $0", id).first().find()?.lastPosition ?: ""
     }
 
-    suspend fun getPositionMessage(lastPosition: String, messages: List<MessageDto>): Int {
+    suspend fun getPositionMessage(lastPosition: String, messages: List<MessageStorageItem>): Int {
         messages.forEachIndexed { index, message ->
             if (message.primary == lastPosition) return index
         }
@@ -179,7 +161,6 @@ class ChatModel(
         val primary = selectedItems.first()
         query<MessageStorageItem>("primary = $0", primary).first().find()?.outgoing ?: false
     }
-
 
     @RequiresApi(Build.VERSION_CODES.O)
     suspend fun markAllAsRead(chatId: String) = withContext(Dispatchers.IO) {
@@ -202,19 +183,16 @@ class ChatModel(
                     msg.state = MessageSendingState.Read
                 }
 
-                // Берём primary последнего прочитанного сообщения
                 chat.lastMessage?.let { lastMsg ->
                     if (!lastMsg.outgoing) {
                         lastReadPrimary = lastMsg.primary
                     }
                 }
 
-                // Сбрасываем счётчик в самом чате
                 findLatest(chat)?.unread = 0
             }
         }
 
-        // Отправляем displayed только для последнего сообщения
         lastReadPrimary?.let { primary ->
             sendDisplayedIfNeeded(primary)
         }
@@ -238,9 +216,8 @@ class ChatModel(
             }
         }
 
-        // Обновляем счётчик в чате
         chatPrimaryToUpdate?.let { primary ->
-            realm.write{
+            realm.write {
                 query<LastChatsStorageItem>("primary = $0", primary).first().find()?.let { chat ->
                     chat.unread = chat.unread - 1
                     if (chat.unread < 0) chat.unread = 0
@@ -248,7 +225,6 @@ class ChatModel(
             }
         }
 
-        // Отправляем displayed маркер
         messagePrimaryToMark?.let { primary ->
             sendDisplayedIfNeeded(primary)
         }
@@ -262,98 +238,69 @@ class ChatModel(
 
         account.chatMarkers.displayed(stream, messagePrimary)
     }
+
     // === Запись данных ===
 
-    suspend fun insertMessage(chatId: String, messageDto: MessageDto) = with(realm) {
+    suspend fun insertMessage(chatId: String, message: MessageStorageItem) = with(realm) {
         writeBlocking {
-            val bareOpponentJid = XMPPJID(fullJID = messageDto.opponentJid).bare().toString()
-            val primary = MessageStorageItem.genPrimary(messageDto.archivedId, messageDto.owner)
+            val bareOpponentJid = XMPPJID(fullJID = message.opponent).bare().toString()
+            val primary = MessageStorageItem.genPrimary(message.archivedId, message.owner)
             if (primary.isEmpty()) {
-                Log.w(TAG, "Skipping message with invalid primary: archivedId=${messageDto.archivedId}, owner=${messageDto.owner}")
+                Log.w(TAG, "Skipping message with invalid primary: archivedId=${message.archivedId}, owner=${message.owner}")
                 return@writeBlocking
             }
 
             val existing = query<MessageStorageItem>(
                 "primary = $0 OR (archivedId = $1 AND archivedId != '' AND conversationType_ = $2)",
-                primary, messageDto.archivedId, conversationType.rawValue
+                primary, message.archivedId, conversationType.rawValue
             ).first().find()
 
             if (existing != null) {
                 findLatest(existing)?.apply {
-                    state = messageDto.messageSendingState
-                    isRead = !messageDto.isUnread
-                    if (messageDto.editTimestamp > editDate) {
-                        editDate = messageDto.editTimestamp
-                        body = messageDto.messageBody
+                    state = message.state
+                    isRead = message.isRead
+                    if (message.editDate > editDate) {
+                        editDate = message.editDate
+                        body = message.body
                     }
                 }
                 Log.d(TAG, "Updated existing message: $primary")
                 return@writeBlocking
             }
 
-            val references: RealmList<MessageReferenceStorageItem> = realmListOf()
-            messageDto.references.forEach { ref ->
-                val refItem = copyToRealm(MessageReferenceStorageItem().apply {
-                    this.primary = "${ref.id}_${System.currentTimeMillis()}"
-                    uri = ref.uri
-                    mimeType = ref.mimeType
-                    isGeo = ref.isGeo
-                    latitude = ref.latitude
-                    longitude = ref.longitude
-                    isAudioMessage = ref.isVoiceMessage
-                    fileName = ref.fileName
-                    fileSize = ref.size
-                }, UpdatePolicy.ALL)
-                references.add(refItem)
-            }
-
-            val validOwner = messageDto.owner.ifEmpty { this@ChatModel.owner }
-            val messageConversationType = if (messageDto.isGroup) ConversationType.Group else conversationType
+            val validOwner = message.owner.ifEmpty { this@ChatModel.owner }
+            val messageConversationType = if (message.conversationType == ConversationType.Group) ConversationType.Group else conversationType
             val chatPrimary = LastChatsStorageItem.genPrimary(bareOpponentJid, validOwner, messageConversationType)
 
-            val message = copyToRealm(MessageStorageItem().apply {
+            val managedMessage = copyToRealm(message.apply {
                 this.primary = primary
-                this.owner = messageDto.owner
                 this.opponent = bareOpponentJid
-                body = messageDto.messageBody
-                date = messageDto.sentTimestamp
-                sentDate = messageDto.sentTimestamp
-                editDate = messageDto.editTimestamp
-                outgoing = messageDto.isOutgoing
-                isRead = !messageDto.isUnread
-                this.references = references
                 conversationType_ = messageConversationType.rawValue
-                archivedId = messageDto.archivedId
-                state = messageDto.messageSendingState
-                messageId = messageDto.archivedId
             }, UpdatePolicy.ALL)
 
-            // Update or create LastChatsStorageItem
             val existingChats = query<LastChatsStorageItem>(
-                "jid = $0 AND owner = $1", bareOpponentJid, messageDto.owner
+                "jid = $0 AND owner = $1", bareOpponentJid, validOwner
             ).find()
             var targetChat: LastChatsStorageItem? = existingChats.find { it.conversationType_ == messageConversationType.rawValue }
 
             if (targetChat == null && existingChats.isNotEmpty()) {
                 targetChat = existingChats.firstOrNull()
-                if (targetChat != null && messageDto.isGroup) {
+                if (targetChat != null && messageConversationType == ConversationType.Group) {
                     findLatest(targetChat)?.conversationType_ = ConversationType.Group.rawValue
                 }
             }
 
             if (targetChat != null) {
                 findLatest(targetChat)?.apply {
-                    if (message.sentDate >= messageDate) {
-                        lastMessage = message
-                        messageDate = message.sentDate
-                        lastMessageId = message.messageId
-                        // Always update to ensure flow emission
+                    if (managedMessage.sentDate >= messageDate) {
+                        lastMessage = managedMessage
+                        messageDate = managedMessage.sentDate
+                        lastMessageId = managedMessage.messageId
                         isSynced = true
-                        if (!messageDto.isOutgoing && muteExpired <= 0) {
+                        if (!managedMessage.outgoing && muteExpired <= 0) {
                             isArchived = false
-                            unread = (unread ?: 0) + if (messageDto.isUnread) 1 else 0
-                        } else if (messageDto.isOutgoing) {
-                            // Reset unread count for outgoing messages to ensure UI update
+                            unread = (unread ?: 0) + if (!managedMessage.isRead) 1 else 0
+                        } else if (managedMessage.outgoing) {
                             unread = 0
                             isArchived = false
                         }
@@ -362,18 +309,18 @@ class ChatModel(
             } else {
                 copyToRealm(LastChatsStorageItem().apply {
                     this.primary = chatPrimary
-                    this.owner = messageDto.owner
+                    this.owner = validOwner
                     jid = bareOpponentJid
                     conversationType_ = messageConversationType.rawValue
-                    messageDate = message.sentDate
+                    messageDate = managedMessage.sentDate
                     isSynced = true
                     isInitialArchiveLoaded = true
-                    lastMessage = message
-                    lastMessageId = message.messageId
-                    if (!messageDto.isOutgoing && muteExpired <= 0) {
+                    lastMessage = managedMessage
+                    lastMessageId = managedMessage.messageId
+                    if (!managedMessage.outgoing && muteExpired <= 0) {
                         isArchived = false
-                        unread = if (messageDto.isUnread) 1 else 0
-                    } else if (messageDto.isOutgoing) {
+                        unread = if (!managedMessage.isRead) 1 else 0
+                    } else if (managedMessage.outgoing) {
                         isArchived = false
                         unread = 0
                     }
@@ -382,7 +329,7 @@ class ChatModel(
         }
     }
 
-    suspend fun insertMessagesFromReceiver(messages: List<MessageDto>) {
+    suspend fun insertMessagesFromReceiver(messages: List<MessageStorageItem>) {
         messages.forEach { insertMessage(chatId, it) }
     }
 
@@ -391,7 +338,6 @@ class ChatModel(
             query<MessageStorageItem>("primary = $0", primary).first().find()?.let { delete(it) }
         }
         if (forAll) {
-            // TODO: Implement server request to delete message
             Log.d(TAG, "Server delete for all not implemented")
         }
     }
@@ -477,10 +423,11 @@ class ChatModel(
         }
     }
 
-    // === Утилиты ===
+    suspend fun getAccount(id: String): AccountDto? = with(realm) {
+        query<AccountStorageItem>("primary = $0", id).first().find()?.toAccountDto()
+    }
 
     suspend fun getVoiceLength(path: String): Long {
-        // TODO: Implement voice length calculation
         return 0L
     }
 

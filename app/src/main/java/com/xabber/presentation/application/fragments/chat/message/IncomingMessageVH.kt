@@ -6,7 +6,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.core.view.isVisible
 import com.xabber.R
-import com.xabber.dto.MessageDto
+import com.xabber.data_base.models.messages.MessageStorageItem
 import com.xabber.presentation.application.fragments.chat.MessageAdapter
 import com.xabber.presentation.application.fragments.chat.MessageVhExtraData
 
@@ -16,12 +16,11 @@ class IncomingMessageVH(
     onViewClickListener: MessageAdapter.OnViewClickListener?
 ) : MessageViewHolder(itemView, inflater, menuItemListener, onViewClickListener) {
 
-    override fun bind(message: MessageDto, vhExtraData: MessageVhExtraData) {
+    override fun bind(message: MessageStorageItem, vhExtraData: MessageVhExtraData) {
         super.bind(message, vhExtraData)
         val tvName = itemView.findViewById<TextView>(R.id.tv_message_username)
         if (tvName != null) {
-            tvName.isVisible = vhExtraData.isNeedName && message.isGroup
-            // Ensure tvName has fixed height or overlaps to avoid expansion
+            tvName.isVisible = vhExtraData.isNeedName && vhExtraData.isGroup
             tvName.layoutParams?.height = LinearLayout.LayoutParams.WRAP_CONTENT
         }
     }

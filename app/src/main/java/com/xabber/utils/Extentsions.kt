@@ -44,7 +44,6 @@ import com.xabber.data_base.models.sync.ConversationType
 import com.xabber.dto.AccountDto
 import com.xabber.dto.AvatarDto
 import com.xabber.dto.ChatListDto
-import com.xabber.dto.MessageDto
 import com.xabber.dto.MessageReferenceDto
 import com.xabber.presentation.onboarding.fragments.signup.emoji.EmojiTypeDto
 import com.xabber.xmpp.groupchat.GroupChatStorageItem
@@ -630,63 +629,6 @@ private fun tryParseDate(stamp: String, messageId: String?, source: String): Dat
     }
 }
 
-// Existing observeMessages (unchanged)
-fun observeMessages(
-    owner: String,
-    opponent: String,
-    conversationType: ConversationType
-): Flow<List<MessageDto>> {
-    return callbackFlow {
-        val realm = Realm.open(defaultRealmConfig())
-        val query = realm.query<MessageStorageItem>(
-            "owner = $0 AND opponent = $1 AND isDeleted = false AND conversationType_ = $2",
-            owner, opponent, conversationType.rawValue
-        ).sort("date", io.realm.kotlin.query.Sort.ASCENDING)
-        val results = query.find()
-
-        val listener: (ResultsChange<MessageStorageItem>) -> Unit = { change ->
-            val messages = change.list.map { item ->
-                MessageDto(
-                    primary = item.primary,
-                    isOutgoing = item.outgoing,
-                    owner = item.owner,
-                    opponentJid = item.opponent,
-                    messageBody = item.body,
-                    messageSendingState = when {
-                        item.isRead -> MessageSendingState.Read
-                        item.outgoing -> MessageSendingState.Deliver
-                        else -> MessageSendingState.Sent
-                    },
-                    sentTimestamp = item.sentDate,
-                    editTimestamp = item.editDate,
-                    displayType = when (item.displayAs) {
-                        "system" -> MessageDisplayType.System
-                        else -> if (item.body.isEmpty() && item.references.isNotEmpty()) MessageDisplayType.Images else MessageDisplayType.Text
-                    },
-                    canEditMessage = item.outgoing,
-                    canDeleteMessage = item.outgoing,
-                    urlAvatar = null,
-                    isGroup = item.conversationType_ == "https://xabber.com/protocol/groups",
-                    kind = null,
-                    isSelected = false,
-                    references = item.references.map { it.toMessageReferenceDto() } as ArrayList<MessageReferenceDto>,
-                    isUnread = !item.isRead,
-                    isChecked = false,
-                    archivedId = item.archivedId
-                )
-            }
-            trySend(messages).isSuccess
-        }
-
-        results.asFlow().collect { change ->
-            listener(change)
-        }
-
-        awaitClose {
-            realm.close()
-        }
-    }
-}
 
 @RequiresApi(Build.VERSION_CODES.O)
 fun String.parseXMPPDateToMillis(): Long? = try {

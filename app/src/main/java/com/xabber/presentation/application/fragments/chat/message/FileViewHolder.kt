@@ -1,15 +1,10 @@
 package com.xabber.presentation.application.fragments.chat.message
 
 import android.annotation.SuppressLint
-import android.util.Log
 import android.view.View
 import androidx.recyclerview.widget.RecyclerView
-import com.xabber.R
-import com.xabber.databinding.ItemChatListBinding
-import com.xabber.databinding.ItemFileBinding
 import com.xabber.databinding.ItemFileMessageBinding
-import com.xabber.dto.MessageReferenceDto
-import java.lang.String
+import com.xabber.data_base.models.messages.MessageReferenceStorageItem
 import kotlin.math.log10
 import kotlin.math.pow
 
@@ -18,13 +13,13 @@ class FileViewHolder(private val binding: ItemFileMessageBinding) :
     val view: View
         get() = itemView
 
-    fun bind(reference: MessageReferenceDto) {
-        binding.tvFileName.text = reference.fileName
-        binding.tvFileSize.text = formatFileSize(reference.size)
+    fun bind(reference: MessageReferenceStorageItem) {
+        binding.tvFileName.text = reference.fileName ?: ""
+        binding.tvFileSize.text = formatFileSize(reference.fileSize ?: 0L)
     }
 
     @SuppressLint("DefaultLocale")
-    fun formatFileSize(fileSize: Long): kotlin.String {
+    fun formatFileSize(fileSize: Long): String {
         if (fileSize <= 0) {
             return "0 B"
         }

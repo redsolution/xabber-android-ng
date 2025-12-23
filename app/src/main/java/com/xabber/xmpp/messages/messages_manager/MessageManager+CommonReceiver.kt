@@ -11,8 +11,6 @@ import com.xabber.data_base.models.messages.MessageReferenceStorageItem
 import com.xabber.data_base.models.messages.MessageSendingState
 import com.xabber.data_base.models.messages.MessageStorageItem
 import com.xabber.data_base.models.sync.ConversationType
-import com.xabber.dto.MessageDto
-import com.xabber.dto.MessageReferenceDto
 import com.xabber.utils.parseTimestamp
 import com.xabber.utils.toMessageReferenceDto
 import com.xabber.xmpp.groupchat.GroupChatStorageItem

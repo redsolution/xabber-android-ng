@@ -1,21 +1,23 @@
 package com.xabber.presentation.application.fragments.chat.viewmodel
 
+import android.os.Build
 import android.util.Log
+import androidx.annotation.RequiresApi
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.xabber.data_base.models.last_chats.LastChatsStorageItem
+import com.xabber.data_base.models.messages.MessageStorageItem
 import com.xabber.data_base.models.sync.ConversationType
 import com.xabber.dto.AccountDto
 import com.xabber.dto.ChatListDto
-import com.xabber.dto.MessageDto
 import com.xabber.presentation.application.fragments.chat.view.ChatModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import java.util.concurrent.atomic.AtomicInteger
@@ -29,15 +31,15 @@ class ChatViewModel(
 
     private val model = ChatModel(chatId, owner, opponent, conversationType)
 
-    private val _chat = MutableLiveData<ChatListDto?>()
-    val chat: LiveData<ChatListDto?> = _chat
+    private val _chat = MutableLiveData<LastChatsStorageItem?>()
+    val chat: LiveData<LastChatsStorageItem?> = _chat
 
     private val activeArchiveLoads = AtomicInteger(0)
     private val _isArchiveLoading = MutableLiveData<Boolean>()
     val isArchiveLoading: LiveData<Boolean> = _isArchiveLoading
 
-    private val _messages = MutableLiveData<List<MessageDto>>()
-    val messages: LiveData<List<MessageDto>> = _messages
+    private val _messages = MutableLiveData<List<MessageStorageItem>>()
+    val messages: LiveData<List<MessageStorageItem>> = _messages
 
     private val _unreadCount = MutableLiveData<Int>()
     val unreadCount: LiveData<Int> = _unreadCount
@@ -82,21 +84,20 @@ class ChatViewModel(
         val becameZero = activeArchiveLoads.decrementAndGet() == 0
         if (becameZero) {
             viewModelScope.launch {
-                delay(600) // 500 (debounce) + запас 200 мс
+                delay(600)
                 _isArchiveLoading.postValue(false)
             }
         }
     }
 
-
     private fun observeChat() {
         chatJob?.cancel()
         chatJob = viewModelScope.launch {
-            model.observeChat().collectLatest { chatDto ->
-                _chat.value = chatDto
-                chatDto?.let {
+            model.observeChat().collectLatest { chatItem ->
+                _chat.value = chatItem
+                chatItem?.let {
                     _muteExpired.value = it.muteExpired
-                    _opponentName.value = it.getChatName()
+                    _opponentName.value = it.jid // or rosterItem?.customNickname if available
                 }
             }
         }
@@ -107,7 +108,7 @@ class ChatViewModel(
         messagesJob = viewModelScope.launch {
             model.observeMessages().collectLatest { messageList ->
                 _messages.value = messageList
-                _unreadCount.value = messageList.count { it.isUnread }
+                _unreadCount.value = messageList.count { !it.isRead && !it.outgoing }
                 Log.d(TAG, "Observed ${messageList.size} messages")
             }
         }
@@ -118,17 +119,14 @@ class ChatViewModel(
             _isLoading.value = true
             val initialMessages = model.getMessages()
             _messages.value = initialMessages
-            _unreadCount.value = initialMessages.count { it.isUnread }
+            _unreadCount.value = initialMessages.count { !it.isRead && !it.outgoing }
             _isLoading.value = false
         }
     }
+
+    @RequiresApi(Build.VERSION_CODES.O)
     fun markAsRead(id: String) {
         viewModelScope.launch { model.markAsRead(id) }
-    }
-
-    private suspend fun markAsReadOnLoad(messages: List<MessageDto>) {
-        val unreadIds = messages.filter { it.isUnread && !it.isOutgoing }.map { it.primary }
-        unreadIds.forEach { model.setUnread(it) }
     }
 
     fun loadChat(id: String): ChatListDto? = runBlocking { model.getChat() }
@@ -137,17 +135,17 @@ class ChatViewModel(
         viewModelScope.launch {
             val messages = model.getMessages()
             _messages.value = messages
-            _unreadCount.value = messages.count { it.isUnread }
+            _unreadCount.value = messages.count { !it.isRead && !it.outgoing }
         }
     }
 
-    fun insertMessage(id: String, message: MessageDto) {
+    fun insertMessage(id: String, message: MessageStorageItem) {
         viewModelScope.launch {
             model.insertMessage(id, message)
         }
     }
 
-    fun insertMessagesFromReceiver(messages: List<MessageDto>) {
+    fun insertMessagesFromReceiver(messages: List<MessageStorageItem>) {
         viewModelScope.launch {
             model.insertMessagesFromReceiver(messages)
         }
@@ -176,6 +174,7 @@ class ChatViewModel(
         viewModelScope.launch { model.setUnread(id) }
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     fun markAllAsRead() {
         viewModelScope.launch { model.markAllAsRead(chatId) }
     }
@@ -201,33 +200,18 @@ class ChatViewModel(
     }
 
     fun selectMessage(primary: String, checked: Boolean) {
-        viewModelScope.launch(Dispatchers.Main) { // сразу на Main
-            if (checked) selectedItems.add(primary)
-            else selectedItems.remove(primary)
+        if (checked) selectedItems.add(primary)
+        else selectedItems.remove(primary)
 
-            _selectedCount.value = selectedItems.size
+        _selectedCount.value = selectedItems.size
 
-            // Обновляем ТОЛЬКО нужные элементы в адаптере
-            val currentList = _messages.value ?: return@launch
-            currentList.forEachIndexed { index, msg ->
-                if (msg.primary == primary || selectedItems.contains(msg.primary) != msg.isSelected) {
-                    // Только если изменилось состояние
-                    val updated = msg.copy(
-                        isSelected = selectedItems.contains(msg.primary),
-                        isChecked = selectedItems.contains(msg.primary)
-                    )
-                    // Используем submitList с тем же списком, но с изменённым объектом
-                    val newList = currentList.toMutableList().apply { this[index] = updated }
-                    _messages.value = newList // ListAdapter умно обработает
-                }
-            }
-        }
+        // No need to update list items for isSelected/isChecked since we removed those fields
+        // Selection state is managed separately in adapter via extra data
     }
 
     fun clearAllSelected() {
         selectedItems.clear()
         _selectedCount.value = 0
-        _messages.value = _messages.value?.map { it.copy(isSelected = false, isChecked = false) }
     }
 
     suspend fun getOldestMessageId(): String? = withContext(Dispatchers.IO) {
@@ -238,11 +222,11 @@ class ChatViewModel(
         selectedItems.size == 1 && model.isOutgoing(selectedItems)
     }
 
-    fun getSelectedText(): String = runBlocking{  model.getSelectedText(selectedItems) }
+    fun getSelectedText(): String = runBlocking { model.getSelectedText(selectedItems) }
 
     fun getForwardMessagesText(): String = runBlocking { model.getForwardMessagesText(selectedItems) }
 
-    fun getMessage(): MessageDto? = runBlocking { model.getSelectedMessage(selectedItems) }
+    fun getMessage(): MessageStorageItem? = runBlocking { model.getSelectedMessage(selectedItems) }
 
     fun getSelectedMessageText(): String = runBlocking { model.getSelectedMessageText(selectedItems) }
 
@@ -258,13 +242,14 @@ class ChatViewModel(
 
     fun getAccount(id: String): AccountDto? = runBlocking { model.getAccount(id) }
 
+
     fun setLocked(locked: Boolean) {
         _isLocked.value = locked
     }
 
-    fun updateMessagesAndUnread(messages: List<MessageDto>) {
+    fun updateMessagesAndUnread(messages: List<MessageStorageItem>) {
         _messages.value = messages
-        _unreadCount.value = messages.count { it.isUnread }
+        _unreadCount.value = messages.count { !it.isRead && !it.outgoing }
     }
 
     override fun onCleared() {

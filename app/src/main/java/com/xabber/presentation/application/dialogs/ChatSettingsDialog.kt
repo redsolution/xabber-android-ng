@@ -11,36 +11,34 @@ import androidx.fragment.app.DialogFragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import by.kirich1409.viewbindingdelegate.viewBinding
 import com.xabber.R
-import com.xabber.data_base.defaultRealmConfig
 import com.xabber.data_base.models.messages.MessageSendingState
+import com.xabber.data_base.models.messages.MessageStorageItem
 import com.xabber.databinding.FragmentChatSettingsBinding
-import com.xabber.dto.MessageDto
 import com.xabber.presentation.AppConstants
 import com.xabber.presentation.application.contract.navigator
-import com.xabber.presentation.application.fragments.DetailBaseFragment
 import com.xabber.presentation.application.fragments.chat.ChatSettingsManager
 import com.xabber.presentation.application.fragments.chat.Gradient
 import com.xabber.presentation.application.fragments.chat.GradientAdapter
 import com.xabber.presentation.application.fragments.chat.MessageAdapter
-import io.realm.kotlin.Realm
 
 class ChatSettingsDialog : DialogFragment(R.layout.fragment_chat_settings),
     GradientAdapter.TryOnWallpaper {
     private val binding by viewBinding(FragmentChatSettingsBinding::bind)
     private var adapter: MessageAdapter? = null
-    val list = ArrayList<MessageDto>()
+    private val demoMessages = ArrayList<MessageStorageItem>()
     private var gradientAdapter: GradientAdapter? = null
 
     override fun onStart() {
         super.onStart()
         val dialog = dialog
         if (dialog != null) {
-            val width = (resources.displayMetrics.widthPixels * 0.8).toInt() // 90% of screen width
+            val width = (resources.displayMetrics.widthPixels * 0.8).toInt()
             val height = (resources.displayMetrics.heightPixels * 0.95).toInt()
             dialog.window?.setLayout(width, height)
-            dialog.window?.setGravity(Gravity.CENTER) // Center the dialog
+            dialog.window?.setGravity(Gravity.CENTER)
         }
     }
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -48,53 +46,51 @@ class ChatSettingsDialog : DialogFragment(R.layout.fragment_chat_settings),
     ): View? {
         return inflater.inflate(R.layout.fragment_chat_settings, container, false)
     }
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        val realm = Realm.open(defaultRealmConfig()) // Initialize Realm
 
         binding.rvChatDemonstration.layoutManager = LinearLayoutManager(requireContext())
-        list.add(
-            MessageDto(
-                ",hjjp",
-                false,
-                "hh",
-                opponentJid = "jhg",
-                "Как дела?",
-                messageSendingState = MessageSendingState.Sending,
-                System.currentTimeMillis(),
-                canEditMessage = false,
-                isGroup = false,
-                canDeleteMessage = false
-            )
+
+        // Create demo messages using MessageStorageItem (unmanaged instances for preview)
+        val currentTime = System.currentTimeMillis()
+        demoMessages.add(
+            MessageStorageItem().apply {
+                primary = "demo_incoming_1"
+                owner = "demo_owner"
+                opponent = "demo_opponent"
+                body = "Как дела?"
+                outgoing = false
+                isRead = true
+                sentDate = currentTime - 60000
+                state = MessageSendingState.None
+            }
         )
-        list.add(
-            MessageDto(
-                ",hjj",
-                true,
-                "hh",
-                opponentJid = "jhg",
-                "Отлично!  \uD83D\uDE0E\nПриезжай в гости" ,
-                messageSendingState = MessageSendingState.Read,
-                System.currentTimeMillis(),
-                canEditMessage = false,
-                isGroup = false,
-                canDeleteMessage = false
-            )
+        demoMessages.add(
+            MessageStorageItem().apply {
+                primary = "demo_outgoing_1"
+                owner = "demo_owner"
+                opponent = "demo_opponent"
+                body = "Отлично!  \uD83D\uDE0E\nПриезжай в гости"
+                outgoing = true
+                isRead = true
+                sentDate = currentTime - 30000
+                state = MessageSendingState.Read
+            }
         )
-        list.add(
-            MessageDto(
-                ",h;ljj",
-                false,
-                "hh",
-                opponentJid = "jhg",
-                "Уже лечу))))",
-                messageSendingState = MessageSendingState.Sending,
-                System.currentTimeMillis(),
-                canEditMessage = false,
-                isGroup = false,
-                canDeleteMessage = false
-            )
+        demoMessages.add(
+            MessageStorageItem().apply {
+                primary = "demo_incoming_2"
+                owner = "demo_owner"
+                opponent = "demo_opponent"
+                body = "Уже лечу))))"
+                outgoing = false
+                isRead = false
+                sentDate = currentTime
+                state = MessageSendingState.None
+            }
         )
+
         adapter = MessageAdapter(
             layoutInflater,
             listener = null,
@@ -102,6 +98,8 @@ class ChatSettingsDialog : DialogFragment(R.layout.fragment_chat_settings),
             isGroup = false
         )
         binding.rvChatDemonstration.adapter = adapter
+        adapter?.submitList(demoMessages.toList()) // Initial submit
+
         binding.seekBar.progress = ChatSettingsManager.cornerValue
         binding.tvProgressValue.text = ChatSettingsManager.cornerValue.toString()
         binding.seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
@@ -110,128 +108,35 @@ class ChatSettingsDialog : DialogFragment(R.layout.fragment_chat_settings),
                 binding.tvProgressValue.text = value.toString()
                 ChatSettingsManager.defineMessageDrawable(
                     binding.seekBar.progress,
-                    ChatSettingsManager.messageTypeValue!!.rawValue, binding.bottomTails.isChecked
+                    ChatSettingsManager.messageTypeValue!!.rawValue,
+                    binding.bottomTails.isChecked
                 )
                 adapter?.notifyDataSetChanged()
             }
 
-            override fun onStartTrackingTouch(seekBar: SeekBar?) {
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
 
-            }
-
-            override fun onStopTrackingTouch(seekBar: SeekBar?) {
-
-            }
-
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
         })
 
-        if (ChatSettingsManager.bottom) binding.bottomTails.isChecked =
-            true else binding.topTails.isChecked = true
-        binding.topTails.setOnClickListener {
-            val type = when (binding.radioGroup.checkedRadioButtonId) {
-                R.id.bubble -> 1
-                R.id.corner -> 2
-                R.id.curvy -> 3
-                R.id.smooth -> 4
-                R.id.stripes -> 5
-                R.id.wedge -> 6
-                else -> {
-                    4
-                }
-            }
-            ChatSettingsManager.defineMessageDrawable(
-                binding.seekBar.progress,
-                type,
-                binding.bottomTails.isChecked
-            )
-            adapter?.notifyDataSetChanged()
-        }
+        if (ChatSettingsManager.bottom) binding.bottomTails.isChecked = true
+        else binding.topTails.isChecked = true
 
-        binding.bottomTails.setOnClickListener {
-            val type = when (binding.radioGroup.checkedRadioButtonId) {
-                R.id.bubble -> 1
-                R.id.corner -> 2
-                R.id.curvy -> 3
-                R.id.smooth -> 4
-                R.id.stripes -> 5
-                R.id.wedge -> 6
-                else -> {
-                    4
-                }
-            }
-            ChatSettingsManager.defineMessageDrawable(
-                binding.seekBar.progress,
-                type,
-                binding.bottomTails.isChecked
-            )
-            adapter?.notifyDataSetChanged()
-        }
+        binding.topTails.setOnClickListener { updateDrawablesAndNotify() }
+        binding.bottomTails.setOnClickListener { updateDrawablesAndNotify() }
 
-        binding.radioGroup.setOnCheckedChangeListener { radioGroup, checkedId ->
-            radioGroup.jumpDrawablesToCurrentState()
-        }
+        binding.radioGroup.setOnCheckedChangeListener { _, _ -> updateDrawablesAndNotify() }
+
+        binding.bubble.setOnClickListener { updateDrawablesAndNotify() }
+        binding.corner.setOnClickListener { updateDrawablesAndNotify() }
+        binding.curvy.setOnClickListener { updateDrawablesAndNotify() }
+        binding.smooth.setOnClickListener { updateDrawablesAndNotify() }
+        binding.stripes.setOnClickListener { updateDrawablesAndNotify() }
+        binding.wedge.setOnClickListener { updateDrawablesAndNotify() }
+
         binding.radioGroup.check(getCheckedItemId())
 
-        binding.bubble.setOnClickListener {
-            val type = 1
-            ChatSettingsManager.defineMessageDrawable(
-                binding.seekBar.progress,
-                type,
-                binding.bottomTails.isChecked
-            )
-            adapter?.notifyDataSetChanged()
-        }
-
-        binding.corner.setOnClickListener {
-            val type = 2
-            ChatSettingsManager.defineMessageDrawable(
-                binding.seekBar.progress,
-                type,
-                binding.bottomTails.isChecked
-            )
-            adapter?.notifyDataSetChanged()
-        }
-
-        binding.curvy.setOnClickListener {
-            val type = 3
-            ChatSettingsManager.defineMessageDrawable(
-                binding.seekBar.progress,
-                type,
-                binding.bottomTails.isChecked
-            )
-            adapter?.notifyDataSetChanged()
-        }
-
-        binding.smooth.setOnClickListener {
-            val type = 4
-            ChatSettingsManager.defineMessageDrawable(
-                binding.seekBar.progress,
-                type,
-                binding.bottomTails.isChecked
-            )
-            adapter?.notifyDataSetChanged()
-        }
-
-        binding.stripes.setOnClickListener {
-            val type = 5
-            ChatSettingsManager.defineMessageDrawable(
-                binding.seekBar.progress,
-                type,
-                binding.bottomTails.isChecked
-            )
-            adapter?.notifyDataSetChanged()
-        }
-
-        binding.wedge.setOnClickListener {
-            val type = 6
-            ChatSettingsManager.defineMessageDrawable(
-                binding.seekBar.progress,
-                type,
-                binding.bottomTails.isChecked
-            )
-            adapter?.notifyDataSetChanged()
-        }
-        val drawable = when(ChatSettingsManager.gradient) {
+        val drawable = when (ChatSettingsManager.gradient) {
             1 -> R.drawable.gradient_bordo
             2 -> R.drawable.gradient_red
             3 -> R.drawable.gradient_orange
@@ -243,20 +148,20 @@ class ChatSettingsDialog : DialogFragment(R.layout.fragment_chat_settings),
             else -> R.drawable.gradient_blue
         }
         binding.frameGradient.setBackgroundResource(drawable)
-        val layoutManager =
-            LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
-        binding.rvGradients.layoutManager = layoutManager
-        val list = ArrayList<Gradient>()
-        list.add(Gradient(R.drawable.gradient_bordo, 1))
-        list.add(Gradient(R.drawable.gradient_red, 2))
-        list.add(Gradient(R.drawable.gradient_orange, 3))
-        list.add(Gradient(R.drawable.gradient_yellish_blue, 4))
-        list.add(Gradient(R.drawable.gradient_light_green, 5))
-        list.add(Gradient(R.drawable.gradient_light_yellish_blue, 6))
-        list.add(Gradient(R.drawable.gradient_blue, 7))
-        list.add(Gradient(R.drawable.gradient_purple, 8))
 
-        gradientAdapter = GradientAdapter(this, list, arrayListOf(ChatSettingsManager.gradient-1))
+        val layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
+        binding.rvGradients.layoutManager = layoutManager
+        val gradientList = ArrayList<Gradient>()
+        gradientList.add(Gradient(R.drawable.gradient_bordo, 1))
+        gradientList.add(Gradient(R.drawable.gradient_red, 2))
+        gradientList.add(Gradient(R.drawable.gradient_orange, 3))
+        gradientList.add(Gradient(R.drawable.gradient_yellish_blue, 4))
+        gradientList.add(Gradient(R.drawable.gradient_light_green, 5))
+        gradientList.add(Gradient(R.drawable.gradient_light_yellish_blue, 6))
+        gradientList.add(Gradient(R.drawable.gradient_blue, 7))
+        gradientList.add(Gradient(R.drawable.gradient_purple, 8))
+
+        gradientAdapter = GradientAdapter(this, gradientList, arrayListOf(ChatSettingsManager.gradient - 1))
         binding.rvGradients.adapter = gradientAdapter
 
         binding.radioGroupDesign.check(getCheckedDesign())
@@ -291,8 +196,27 @@ class ChatSettingsDialog : DialogFragment(R.layout.fragment_chat_settings),
             ChatSettingsManager.designType = 6
             binding.rvChatDemonstration.setBackgroundResource(R.drawable.summer_repeat)
         }
+
         binding.toolbar.setNavigationIcon(R.drawable.ic_arrow_left_white)
-        binding.toolbar.setNavigationOnClickListener{dismiss()}
+        binding.toolbar.setNavigationOnClickListener { dismiss() }
+    }
+
+    private fun updateDrawablesAndNotify() {
+        val type = when (binding.radioGroup.checkedRadioButtonId) {
+            R.id.bubble -> 1
+            R.id.corner -> 2
+            R.id.curvy -> 3
+            R.id.smooth -> 4
+            R.id.stripes -> 5
+            R.id.wedge -> 6
+            else -> 4
+        }
+        ChatSettingsManager.defineMessageDrawable(
+            binding.seekBar.progress,
+            type,
+            binding.bottomTails.isChecked
+        )
+        adapter?.notifyDataSetChanged()
     }
 
     private fun getCheckedDesign(): Int {
@@ -303,9 +227,7 @@ class ChatSettingsDialog : DialogFragment(R.layout.fragment_chat_settings),
             4 -> R.id.flowers
             5 -> R.id.meadow
             6 -> R.id.summer
-            else -> {
-                R.id.space
-            }
+            else -> R.id.space
         }
     }
 
@@ -329,23 +251,7 @@ class ChatSettingsDialog : DialogFragment(R.layout.fragment_chat_settings),
             4 -> R.id.smooth
             5 -> R.id.stripes
             6 -> R.id.wedge
-            else -> {
-                R.id.smooth
-            }
-        }
-    }
-
-    private fun getTypeChecked(): Int {
-        return when (binding.radioGroup.checkedRadioButtonId) {
-            R.id.bubble -> 1
-            R.id.corner -> 2
-            R.id.curvy -> 3
-            R.id.smooth -> 4
-            R.id.stripes -> 5
-            R.id.wedge -> 6
-            else -> {
-                4
-            }
+            else -> R.id.smooth
         }
     }
 
@@ -356,25 +262,30 @@ class ChatSettingsDialog : DialogFragment(R.layout.fragment_chat_settings),
     }
 
     private fun saveSettings() {
-        val cornerPref =
-            activity?.getSharedPreferences(AppConstants.SHARED_PREF_CORNER, Context.MODE_PRIVATE)
-                ?: return
-        val typePref =
-            activity?.getSharedPreferences(AppConstants.SHARED_PREF_TYPE, Context.MODE_PRIVATE)
-                ?: return
-        val botPref =
-            activity?.getSharedPreferences(AppConstants.SHARED_PREF_TAIL_POSITION, Context.MODE_PRIVATE)
-                ?: return
-        val gradientPref =
-            activity?.getSharedPreferences(AppConstants.SHARED_PREF_GRADIENT, Context.MODE_PRIVATE) ?: return
+        val cornerPref = activity?.getSharedPreferences(AppConstants.SHARED_PREF_CORNER, Context.MODE_PRIVATE) ?: return
+        val typePref = activity?.getSharedPreferences(AppConstants.SHARED_PREF_TYPE, Context.MODE_PRIVATE) ?: return
+        val botPref = activity?.getSharedPreferences(AppConstants.SHARED_PREF_TAIL_POSITION, Context.MODE_PRIVATE) ?: return
+        val gradientPref = activity?.getSharedPreferences(AppConstants.SHARED_PREF_GRADIENT, Context.MODE_PRIVATE) ?: return
         val designPref = activity?.getSharedPreferences(AppConstants.SHARED_PREF_CHAT_DESIGN, Context.MODE_PRIVATE) ?: return
 
-        val bi = binding.bottomTails.isChecked
+        val isBottom = binding.bottomTails.isChecked
         cornerPref.edit()?.putInt(AppConstants.CORNER_KEY, binding.seekBar.progress)?.apply()
         typePref.edit()?.putInt(AppConstants.TYPE_TAIL_KEY, getTypeChecked())?.apply()
-        botPref.edit()?.putBoolean(AppConstants.TAIL_POSITION, bi)?.apply()
+        botPref.edit()?.putBoolean(AppConstants.TAIL_POSITION, isBottom)?.apply()
         gradientPref.edit()?.putInt(AppConstants.GRADIENT, ChatSettingsManager.gradient)?.apply()
         designPref.edit()?.putInt(AppConstants.CHAT_DESIGN_TYPE, getDesign())?.apply()
+    }
+
+    private fun getTypeChecked(): Int {
+        return when (binding.radioGroup.checkedRadioButtonId) {
+            R.id.bubble -> 1
+            R.id.corner -> 2
+            R.id.curvy -> 3
+            R.id.smooth -> 4
+            R.id.stripes -> 5
+            R.id.wedge -> 6
+            else -> 4
+        }
     }
 
     override fun onClickElement(gradient: Gradient) {
@@ -383,7 +294,7 @@ class ChatSettingsDialog : DialogFragment(R.layout.fragment_chat_settings),
     }
 
     private fun getDesign(): Int {
-        return when(binding.radioGroupDesign.checkedRadioButtonId) {
+        return when (binding.radioGroupDesign.checkedRadioButtonId) {
             R.id.space -> 1
             R.id.cats -> 2
             R.id.hearts -> 3
@@ -393,6 +304,4 @@ class ChatSettingsDialog : DialogFragment(R.layout.fragment_chat_settings),
             else -> 1
         }
     }
-
-
 }

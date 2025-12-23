@@ -13,10 +13,7 @@ import com.xabber.data_base.models.messages.MessageReferenceStorageItem
 import com.xabber.data_base.models.messages.MessageStorageItem
 import com.xabber.data_base.models.sync.ConversationType
 import com.xabber.dto.MediaDto
-import com.xabber.dto.MessageDto
-import com.xabber.dto.MessageReferenceDto
 import com.xabber.presentation.XabberApplication
-import com.xabber.utils.toMessageReferenceDto
 import io.realm.kotlin.Realm
 import io.realm.kotlin.ext.query
 import io.realm.kotlin.ext.realmListOf
@@ -127,57 +124,44 @@ class MediaViewModel : ViewModel() {
         realm.close()
     }
 
-
-    fun insertMessageList(messages: ArrayList<MessageDto>, chatId: String) {
+    fun insertMessageList(messages: List<MessageStorageItem>, chatId: String) {
         viewModelScope.launch(Dispatchers.IO) {
-
             realm.writeBlocking {
-                for (i in 0 until messages.size) {
-                    val rreferences = realmListOf<MessageReferenceStorageItem>()
-                    for (j in 0 until messages[i].references.size) {
-                        val ref = this.copyToRealm(MessageReferenceStorageItem().apply {
-                            primary = messages[i].references[j].id + "${System.currentTimeMillis()}"
-                            uri = messages[i].references[j].uri
-                            mimeType = messages[i].references[j].mimeType
-                            isGeo = messages[i].references[j].isGeo
-                            latitude = messages[i].references[j].latitude
-                            longitude = messages[i].references[j].longitude
-                            isAudioMessage = messages[i].references[j].isVoiceMessage
-                            fileName = messages[i].references[j].fileName
-                            fileSize = messages[i].references[j].size
-                        })
-                        rreferences.add(ref)
+                var lastChat: LastChatsStorageItem? =
+                    query<LastChatsStorageItem>("primary = $0", chatId).first().find()
+
+                for (message in messages) {
+                    // Assume incoming messages are unmanaged with possibly unmanaged references
+                    val managedMessage = copyToRealm(message)
+
+                    if (lastChat == null) {
+                        lastChat = copyToRealm(
+                            LastChatsStorageItem().apply {
+                                primary = chatId
+                                // Other required fields should be set by caller or defaults
+                            }
+                        )
                     }
-                    val message = this.copyToRealm(MessageStorageItem().apply {
-                        primary = messages[i].primary
-                        owner = messages[i].owner
-                        opponent = messages[i].opponentJid
-                        body = messages[i].messageBody
-                        date = messages[i].sentTimestamp
-                        sentDate = messages[i].sentTimestamp
-                        editDate = messages[i].editTimestamp
-                        outgoing = messages[i].isOutgoing
-                        isRead = !messages[i].isUnread
-                        references = rreferences
-                        conversationType_ = ConversationType.Channel.toString()
-                    })
-                    val item: LastChatsStorageItem? =
-                        this.query(LastChatsStorageItem::class, "primary = '$chatId'").first()
-                            .find()
-                    item?.lastMessage = message
-                    item?.messageDate = message.date
-//                var oldValue = item?.unread ?: 0
-//                oldValue++
-//                item?.unread = if (messageDto.isOutgoing || isReaded) 0 else oldValue
-                    item?.lastMessage?.outgoing = messages[i].isOutgoing
-                    if (item != null) {
-                        if (!messages[i].isOutgoing && item.muteExpired <= 0) item.isArchived = false
+
+                    lastChat.apply {
+                        this.lastMessage = managedMessage
+                        this.messageDate = managedMessage.sentDate
+                        this.lastMessageId = managedMessage.messageId
+
+                        // Basic unread handling (incoming non-read messages increment unread)
+                        if (!managedMessage.outgoing && !managedMessage.isRead && muteExpired <= 0) {
+                            unread += 1
+                        } else if (managedMessage.outgoing) {
+                            unread = 0
+                        }
+
+                        if (!managedMessage.outgoing && muteExpired <= 0) {
+                            isArchived = false
+                        }
                     }
                 }
             }
             _complited.postValue(true)
         }
     }
-
-
 }

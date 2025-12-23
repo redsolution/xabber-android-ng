@@ -13,12 +13,7 @@ import com.xabber.data_base.models.messages.MessageSendingState
 import com.xabber.data_base.models.messages.MessageStorageItem
 import com.xabber.data_base.models.roster.RosterStorageItem
 import com.xabber.data_base.models.sync.ConversationType
-import com.xabber.dto.MessageDto
-import com.xabber.dto.MessageReferenceDto
-import com.xabber.utils.parseTimestamp
-import com.xabber.utils.parseXMPPDate
 import com.xabber.utils.parseXMPPDateToMillis
-import com.xabber.utils.toMessageReferenceDto
 import com.xabber.xmpp.dns.DNSResolver
 import com.xabber.xmpp.jid.XMPPJID
 import com.xabber.xmpp.messages.XMPPMessage
@@ -530,6 +525,9 @@ class Stream(var jid: String, var port: Int = 5222) {
                             this.archivedId = item.message.element("archived", namespace = "urn:xmpp:mam:tmp")?.getAttribute("id") ?: ""
                         }, UpdatePolicy.ALL)
 
+                        // Log archivedId for debugging (previously inside DTO block)
+                        Log.w("CHECK", "check it STREAM ${message.archivedId}")
+
                         val conversationType = ConversationType.fromRaw(message.conversationType_)
                         val chatPrimary = LastChatsStorageItem.genPrimary(opponent, jid, conversationType)
                         val chat = query<LastChatsStorageItem>("primary = $0", chatPrimary).first().find()
@@ -562,46 +560,11 @@ class Stream(var jid: String, var port: Int = 5222) {
                             }
                         }
 
-                        val messageDto = MessageDto(
-                            primary = message.primary,
-                            isOutgoing = message.outgoing,
-                            owner = message.owner,
-                            opponentJid = message.opponent,
-                            messageBody = message.body,
-                            messageSendingState = when {
-                                message.isRead -> MessageSendingState.Read
-                                message.outgoing -> MessageSendingState.Deliver
-                                else -> MessageSendingState.Sent
-                            },
-                            sentTimestamp = message.sentDate,
-                            editTimestamp = message.editDate,
-                            displayType = if (message.displayAs == "system") MessageDisplayType.System else MessageDisplayType.Text,
-                            canEditMessage = message.outgoing,
-                            canDeleteMessage = message.outgoing,
-                            urlAvatar = null,
-                            isGroup = message.conversationType_ == "https://xabber.com/protocol/groups",
-                            kind = null,
-                            isSelected = false,
-                            references = message.references.map { it.toMessageReferenceDto() } as ArrayList<MessageReferenceDto>,
-                            isUnread = !message.isRead,
-                            isChecked = false,
-                            archivedId = message.archivedId
-                        )
-                        Log.w("CHECK", "check it STREA ${message.archivedId}")
-
-                        val chatViewModel = AccountManager.getChatViewModel(chatPrimary)
-                        if (chatViewModel != null) {
-                            chatViewModel.insertMessagesFromReceiver(listOf(messageDto))
-                            Log.d(TAG, "Notified ChatViewModel for chatId=$chatPrimary with message $messageId, body=${message.body.take(50)}, timestamp=${item.timestamp}, isOutgoing=$isOutgoing, thread=${Thread.currentThread().id}")
-                        } else {
-                            Log.w(TAG, "ChatViewModel not found for chatId=$chatPrimary, messageId=$messageId")
-                        }
-
                         processedIds.add(messageId)
                         copyToRealm(ProcessedMessageId().apply {
                             this.messageId = messageId
                             this.owner = jid
-                            this.timestamp = item.timestamp/10000
+                            this.timestamp = item.timestamp / 10000
                         }, UpdatePolicy.ALL)
                     }
                     realm.close()
@@ -611,7 +574,6 @@ class Stream(var jid: String, var port: Int = 5222) {
             }
         }
     }
-
 
     suspend fun debugDatabaseState() {
         val realm = Realm.open(defaultRealmConfig())

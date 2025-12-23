@@ -1,8 +1,6 @@
 package com.xabber.presentation.application.fragments.chat.message
 
 import android.annotation.SuppressLint
-import android.graphics.Bitmap
-import android.graphics.Canvas
 import android.graphics.drawable.ShapeDrawable
 import android.graphics.drawable.shapes.RoundRectShape
 import android.os.Handler
@@ -12,17 +10,15 @@ import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ImageView
 import android.widget.TextView
 import androidx.appcompat.widget.LinearLayoutCompat
 import com.xabber.R
-import com.xabber.dto.MessageDto
+import com.xabber.data_base.models.messages.MessageStorageItem
 import com.xabber.presentation.application.fragments.chat.ChatSettingsManager
 import com.xabber.presentation.application.fragments.chat.MessageAdapter
-import com.xabber.utils.StringUtils
+import com.xabber.utils.StringUtils.getTimeText
 import com.xabber.utils.custom.ShapeOfView
 import com.xabber.utils.dp
-import okhttp3.*
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
@@ -37,19 +33,17 @@ class GeoLocationBuilder {
 
     @SuppressLint("ClickableViewAccessibility")
     fun addGeoLocationBox(
-        view: View, message: MessageDto,
+        view: View, message: MessageStorageItem,
         latitude: Double,
         longitude: Double, onViewClickListener: MessageAdapter.OnViewClickListener?
     ) {
-        val mapImage = view.findViewById<ImageView>(R.id.map_image)
         val shape = view.findViewById<ShapeOfView>(R.id.geo_shape)
         val timeStamp = view.findViewById<LinearLayoutCompat>(R.id.message_info)
         val tvTime = view.findViewById<TextView>(R.id.tv_image_sending_time)
-        val date =
-            Date(if (message.editTimestamp > 0) message.editTimestamp else message.sentTimestamp)
-        val time = StringUtils.getTimeText(view.context, date)
+        val date = Date(if (message.editDate > 0) message.editDate else message.sentDate)
+        val time = getTimeText(view.context, date)
         tvTime?.text =
-            if (message.editTimestamp > 0) view.context.resources.getString(R.string.edit) + " $time" else time
+            if (message.editDate > 0) view.context.resources.getString(R.string.edit) + " $time" else time
         val radius =
             if (ChatSettingsManager.cornerValue > 4) (ChatSettingsManager.cornerValue - 4) else 1
         val timeStampRadius = if (radius > 3) radius - 3 else 1
@@ -67,23 +61,21 @@ class GeoLocationBuilder {
         )
         val shapeDrawable = ShapeDrawable(RoundRectShape(cornerRadii, null, null))
         shape.setDrawable(shapeDrawable)
-       val map = view.findViewById<MapView>(R.id.map)
+        val map = view.findViewById<MapView>(R.id.map)
         map.apply {
             val location = GeoPoint(latitude, longitude)
-            map.controller.setCenter(location)
-            map.setTileSource(TileSourceFactory.MAPNIK)
-            map.isTilesScaledToDpi = true
-            map.controller?.setZoom(15.5)
+            controller.setCenter(location)
+            setTileSource(TileSourceFactory.MAPNIK)
+            isTilesScaledToDpi = true
+            controller?.setZoom(15.5)
         }
         map?.zoomController?.onDetach()
         map?.setOnTouchListener { _, motionEvent ->
             when (motionEvent.action) {
                 MotionEvent.ACTION_UP -> onViewClickListener?.onLocationClick(latitude, longitude)
             }; true
-
         }
     }
-
 
     private fun getTimeStampBackground(timeStampRadius: Int): Int {
         return when (timeStampRadius) {
@@ -100,10 +92,7 @@ class GeoLocationBuilder {
             11 -> R.drawable.time_stamp_11px
             12 -> R.drawable.time_stamp_12px
             13 -> R.drawable.time_stamp_13px
-
             else -> R.drawable.time_stamp_1px
         }
     }
 }
-
-
