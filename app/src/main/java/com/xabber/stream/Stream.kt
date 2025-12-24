@@ -300,7 +300,8 @@ class Stream(var jid: String, var port: Int = 5222) {
                     "iq" -> "iq"
                     "presence" -> "presence"
                     "message" -> "message"
-                    else -> content.substring(start + 1, content.indexOf(">", start).takeIf { it != -1 } ?: content.length).split(Regex("\\s+"))[0]
+                    else -> content.substring(start + 1, content.indexOf(">", start).takeIf { it != -1 } ?: content.length)
+                        .split(Regex("\\s+"))[0]
                 }
 
                 val tagEnd = content.indexOf(">", nextStart.first)
@@ -347,57 +348,105 @@ class Stream(var jid: String, var port: Int = 5222) {
                 val stanza = content.substring(nextStart.first, fullEnd)
                 Log.d("XMPP STANZA", "RECV:$stanza")
 
-                stanzaProcessingScope.launch {
-                    try {
-                        when (tagName) {
-                            "iq" -> {
-//                                    TODO val result = delegate call result, addd return XMPP ERROR Stanza, <iq type=error
-                                val iq = parseIQ(stanza)
-                                delegate?.didReceiveIQ(iq!!, this@Stream)
-                            }
-                            "message" -> {
-                                var message = try {
-                                    parseMessage(stanza)
+                // Обработка каждой отдельной станзы в отдельном try-catch,
+                // чтобы ошибка в одной станзе не прерывала цикл обработки остальных
+                try {
+                    when (tagName) {
+                        "iq" -> {
+                            val iq = parseIQ(stanza)
+                            stanzaProcessingScope.launch {
+                                try {
+                                    delegate?.didReceiveIQ(iq!!, this@Stream)
                                 } catch (e: Exception) {
-                                    Log.w(TAG, "parseMessage failed, using fallback: ${e.message}")
-                                    null
+                                    Log.e(TAG, "Delegate error on IQ: ${e.message}", e)
                                 }
-
-                                if (message == null) {
-                                    message = extractFallbackMessage(stanza)
-                                    if (message != null) {
-                                        Log.w(TAG, "Used fallback parsing for message: id=${message.id}")
-                                    } else {
-                                        Log.e(TAG, "Both parsers failed, dropping message")
-                                        return@launch
-                                    }
-                                }
-                                delegate?.didReceiveMessage(message, this@Stream)
-                            }
-                            "presence" -> {
-                                delegate?.didReceivePresence(stanza, this@Stream)
-                            }
-                            "challenge" -> {
-                                delegate?.didReceiveChallenge(stanza, this@Stream)
-                            }
-                            "success" -> {
-                                delegate?.didReceiveSuccess(stanza, this@Stream)
-                            }
-                            "proceed" -> {
-                                delegate?.didReceiveProceed(stanza, this@Stream)
-                            }
-                            "failure" -> {
-                                delegate?.didReceiveFailure(stanza, this@Stream)
-                            }
-                            else -> {
-                                Log.w(TAG, "Unhandled stanza type: $tagName, stanza: ${stanza.take(200)}")
-                                onErrorCallback?.invoke("Unhandled stanza type: $tagName")
                             }
                         }
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Error processing stanza: ${e.message}, stanza=$stanza", e)
-                        onErrorCallback?.invoke("Error processing stanza: ${e.message}")
+                        "message" -> {
+                            var message: XMPPMessage? = null
+
+                            // Первичный парсер
+                            try {
+                                message = parseMessage(stanza)
+                            } catch (e: XmlPullParserException) {
+                                Log.w(TAG, "Primary parser failed (malformed XML): ${e.message}")
+                            } catch (e: Exception) {
+                                Log.w(TAG, "Primary parser failed: ${e.message}", e)
+                            }
+
+                            // Fallback-парсер, если первичный не справился
+                            if (message == null) {
+                                message = extractFallbackMessage(stanza)
+                                if (message != null) {
+                                    Log.i(TAG, "Recovered via fallback parser: id=${message.id}, body=${message.body?.take(50)}")
+                                } else {
+                                    Log.w(TAG, "Both parsers failed – skipping malformed message")
+                                    // Продолжаем обработку следующей станзы
+                                }
+                            }
+
+                            // Передаём сообщение делегату, если удалось получить
+                            if (message != null) {
+                                stanzaProcessingScope.launch {
+                                    try {
+                                        delegate?.didReceiveMessage(message, this@Stream)
+                                    } catch (e: Exception) {
+                                        Log.e(TAG, "Delegate error on message: ${e.message}", e)
+                                    }
+                                }
+                            }
+                        }
+                        "presence" -> {
+                            stanzaProcessingScope.launch {
+                                try {
+                                    delegate?.didReceivePresence(stanza, this@Stream)
+                                } catch (e: Exception) {
+                                    Log.e(TAG, "Delegate error on presence: ${e.message}", e)
+                                }
+                            }
+                        }
+                        "challenge" -> {
+                            stanzaProcessingScope.launch {
+                                try {
+                                    delegate?.didReceiveChallenge(stanza, this@Stream)
+                                } catch (e: Exception) {
+                                    Log.e(TAG, "Delegate error on challenge: ${e.message}", e)
+                                }
+                            }
+                        }
+                        "success" -> {
+                            stanzaProcessingScope.launch {
+                                try {
+                                    delegate?.didReceiveSuccess(stanza, this@Stream)
+                                } catch (e: Exception) {
+                                    Log.e(TAG, "Delegate error on success: ${e.message}", e)
+                                }
+                            }
+                        }
+                        "proceed" -> {
+                            stanzaProcessingScope.launch {
+                                try {
+                                    delegate?.didReceiveProceed(stanza, this@Stream)
+                                } catch (e: Exception) {
+                                    Log.e(TAG, "Delegate error on proceed: ${e.message}", e)
+                                }
+                            }
+                        }
+                        "failure" -> {
+                            stanzaProcessingScope.launch {
+                                try {
+                                    delegate?.didReceiveFailure(stanza, this@Stream)
+                                } catch (e: Exception) {
+                                    Log.e(TAG, "Delegate error on failure: ${e.message}", e)
+                                }
+                            }
+                        }
+                        else -> {
+                            Log.w(TAG, "Unhandled stanza type: $tagName, stanza preview: ${stanza.take(200)}")
+                        }
                     }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Unexpected error while processing stanza (continuing with next): ${e.message}\nStanza preview: ${stanza.take(500)}", e)
                 }
 
                 content = content.substring(fullEnd).trimStart()
@@ -405,6 +454,10 @@ class Stream(var jid: String, var port: Int = 5222) {
             }
             streamBuffer.clear()
             streamBuffer.append(content)
+
+            if (processedStanzas > 0) {
+                Log.d(TAG, "Processed $processedStanzas stanzas in this chunk")
+            }
         }
     }
 

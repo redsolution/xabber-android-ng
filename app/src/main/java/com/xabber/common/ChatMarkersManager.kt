@@ -189,17 +189,20 @@ class ChatMarkersManager(private val owner: String, withoutAfterburnTimer: Boole
 
         val received = message.element("received", namespace = getPrimaryNamespace()) ?: return false
         val messageId = received.getAttribute("id") ?: return false
-
         val jid = if (message.from?.bare() == owner) message.to?.bare() else message.from?.bare() ?: return false
 
         try {
             realm.write {
+                // Находим исходящее сообщение и обновляем его состояние до Deliver
                 val instance = query<MessageStorageItem>(
-                    "owner = $0 AND opponent = $1 AND messageId = $2 AND state_ < ${MessageSendingState.Deliver.rawValue}",
+                    "owner = $0 AND opponent = $1 AND messageId = $2 AND outgoing = true AND state_ < ${MessageSendingState.Deliver.rawValue}",
                     owner, jid, messageId
-                ).first().find() ?: return@write
+                ).first().find()
 
-                findLatest(instance)?.state = MessageSendingState.Deliver
+                if (instance != null) {
+                    instance.state = MessageSendingState.Deliver
+                    Log.d("ChatMarkersManager", "Updated outgoing message state to Deliver: messageId=$messageId")
+                }
             }
             return true
         } catch (e: Exception) {
@@ -207,7 +210,6 @@ class ChatMarkersManager(private val owner: String, withoutAfterburnTimer: Boole
             return false
         }
     }
-
     private suspend fun onDisplayed(message: XMPPMessage, archivedDate: Date? = null, delayed: Boolean = false): Boolean {
         val displayed = message.element("displayed", namespace = getPrimaryNamespace()) ?: return false
         Log.w("CHECK ENGINE", "CHECK onDisplayed of xmppmessage: ${message.children}")
@@ -237,23 +239,25 @@ class ChatMarkersManager(private val owner: String, withoutAfterburnTimer: Boole
 
         try {
             realm.write {
-                // Находим сообщение, которое было прочитано собеседником
+                // 1. Находим ЦЕЛЕВОЕ исходящее сообщение по messageId
                 val targetMessage = query<MessageStorageItem>(
-                    "owner = $0 AND opponent = $1 AND messageId = $2",
+                    "owner = $0 AND opponent = $1 AND messageId = $2 AND outgoing = true",
                     owner, jid, targetMessageId
                 ).first().find()
 
-                if (targetMessage == null) {
-                    Log.w("ChatMarkersManager", "Target message not found for displayed marker: messageId=$targetMessageId, jid=$jid")
-                    return@write
+                if (targetMessage != null) {
+                    // Явно обновляем состояние исходящего сообщения
+                    targetMessage.state = MessageSendingState.Read
+                    if ((targetMessage.readDate ?: 0L) < 1) {
+                        targetMessage.readDate = date.time / 1000
+                    }
+                    Log.d("ChatMarkersManager", "Updated outgoing message state to Read: messageId=$targetMessageId")
                 }
 
-                Log.d("ChatMarkersManager", "Marking messages as read up to messageId=$targetMessageId (date=${targetMessage.date})")
-
-                // Все сообщения в чате до (и включая) targetMessage помечаем прочитанными
+                // 2. Помечаем все сообщения до этого (включая входящие) как прочитанные
                 val messagesToMark = query<MessageStorageItem>(
                     "owner = $0 AND opponent = $1 AND date <= $2 AND isRead = false",
-                    owner, jid, targetMessage.date
+                    owner, jid, (targetMessage?.date ?: date.time)
                 ).find()
 
                 messagesToMark.forEach { msg ->
@@ -267,12 +271,10 @@ class ChatMarkersManager(private val owner: String, withoutAfterburnTimer: Boole
                     }
                 }
 
-                // Обновляем чат: обнуляем счётчик непрочитанных, если прочитано последнее сообщение
-                val chatPrimary =
-                    jid?.let { LastChatsStorageItem.genPrimary(it, owner, ConversationType.Regular) } // можно улучшить, если тип чата известен
+                // 3. Обновляем счётчик непрочитанных в чате
+                val chatPrimary = jid?.let { LastChatsStorageItem.genPrimary(it, owner, ConversationType.Regular) }
                 val chat = query<LastChatsStorageItem>("primary = $0", chatPrimary).first().find()
                 chat?.let {
-                    // Пересчитываем реальное количество непрочитанных (на случай, если были пропуски)
                     val actualUnread = query<MessageStorageItem>(
                         "owner = $0 AND opponent = $1 AND isRead = false AND isDeleted = false",
                         owner, jid

@@ -119,7 +119,7 @@ class MessageCommonReceiver(private val owner: String) {
             archivedFrom = message.from?.bare(),
             isRead = message.from?.bare() == owner,
             date = Date(messageBare?.date ?: System.currentTimeMillis()),
-            state = MessageSendingState.Deliver,
+            state = MessageSendingState.Sent,
             forceUnreadState = message.from?.bare() == owner,
             clientSyncMessage = true,
             queryId = getMAMQueryId(message)
@@ -140,7 +140,7 @@ class MessageCommonReceiver(private val owner: String) {
             archivedFrom = message.from?.bare(),
             isRead = message.from?.bare() == owner,
             date = Date(messageBare.date ?: System.currentTimeMillis()),
-            state = MessageSendingState.Deliver,
+            state = MessageSendingState.Sent,
             clientSyncMessage = true,
             queryId = getMAMQueryId(message)
         )
@@ -166,7 +166,7 @@ class MessageCommonReceiver(private val owner: String) {
             archivedFrom = message.from?.bare(),
             isRead = true,
             date = date,
-            state = MessageSendingState.Deliver,
+            state = MessageSendingState.Sent,
             queryId = getMAMQueryId(message)
         )
         Log.w("CHECK", "check it RECEIVER MAM $queueItem, ${message.body}, id:${message.id}, from=${message.from}, to=${message.to}")
@@ -186,7 +186,7 @@ class MessageCommonReceiver(private val owner: String) {
         processedMessageIds.add(messageId)
 
         val isRead = isSentCarbon  // Only own sent carbons are read
-        val state = if (isSentCarbon) MessageSendingState.Sent else MessageSendingState.Deliver
+        val state = MessageSendingState.Sent
 
         val queueItem = MessageQueueItem(
             message = bareMessage,
@@ -222,7 +222,7 @@ class MessageCommonReceiver(private val owner: String) {
             archivedFrom = from,
             isRead = from == owner,
             date = Date(parseTimestamp(message, owner, TAG)),
-            state = if (from == owner) MessageSendingState.Deliver else MessageSendingState.Sent,
+            state = MessageSendingState.Sent,
             originalFrom = from,
             originalOutgoing = from == owner
         )
@@ -252,7 +252,7 @@ class MessageCommonReceiver(private val owner: String) {
             archivedFrom = from,
             isRead = from == owner,
             date = Date(message.date ?: System.currentTimeMillis()),
-            state = if (from == owner) MessageSendingState.Deliver else MessageSendingState.Sent,
+            state = MessageSendingState.Sent,
             originalFrom = from,
             originalOutgoing = from == owner
         )

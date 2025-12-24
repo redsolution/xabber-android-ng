@@ -808,6 +808,7 @@ class Account : XMPPStreamDelegate {
                 else -> message
             }
 
+
             // ВАЖНО: обрабатываем чат-маркеры ДО любых проверок на дубликаты
             chatMarkers.read(realMessage)
 

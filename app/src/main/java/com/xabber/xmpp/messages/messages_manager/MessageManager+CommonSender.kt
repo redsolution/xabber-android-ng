@@ -279,7 +279,7 @@ class MessageCommonSender(private val owner: String) {
                             localRealm.writeBlocking {
                                 val msg = query<MessageStorageItem>("primary = $0", primary).first().find()
                                 msg?.apply {
-                                    state = MessageSendingState.Deliver
+                                    state = MessageSendingState.Sent
                                 }
                                 val chat = query<LastChatsStorageItem>(
                                     "primary = $0",

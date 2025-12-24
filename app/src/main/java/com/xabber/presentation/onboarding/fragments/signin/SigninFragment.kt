@@ -1,5 +1,6 @@
 package com.xabber.presentation.onboarding.fragments.signin
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Build
 import android.os.Bundle
@@ -114,6 +115,7 @@ class SigninFragment : Fragment(R.layout.fragment_signin) {
         }
     }
 
+    @SuppressLint("SetTextI18n")
     @RequiresApi(Build.VERSION_CODES.O)
     private fun initButton() {
         with(binding) {

@@ -71,7 +71,7 @@ class MessageStorageItem : RealmObject {
     var editDate: Long = 0L
     var readDate: Long? = null
     var outgoing: Boolean = false
-    var isRead: Boolean = outgoing
+    var isRead: Boolean = false
     var displayAs_: String = ""
     var messageId: String = ""
     var trustedSource: Boolean = false
@@ -134,7 +134,7 @@ class MessageStorageItem : RealmObject {
             }
         }
 
-    var state: com.xabber.data_base.models.messages.MessageSendingState
+    var state: MessageSendingState
         get() = com.xabber.data_base.models.messages.MessageSendingState.entries.firstOrNull { it.rawValue == state_ } ?: com.xabber.data_base.models.messages.MessageSendingState.None
         set(newValue) {
             state_ = newValue.rawValue
