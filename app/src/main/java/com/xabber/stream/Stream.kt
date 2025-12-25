@@ -820,6 +820,29 @@ class Stream(var jid: String, var port: Int = 5222) {
                                 }
                             }
                             "received" -> {
+                                if (parser.namespace == "https://xabber.com/protocol/delivery" &&
+                                    (currentMessageDepth == targetMessageDepth || targetMessageDepth == -1)
+                                ) {
+                                    val attributes = mutableMapOf<String, String>()
+                                    for (i in 0 until parser.attributeCount) {
+                                        attributes[parser.getAttributeName(i)] = parser.getAttributeValue(i)
+                                    }
+
+                                    val innerChildren = parseChildren(parser, "received")
+
+                                    messageChildren.add(
+                                        XMLElement(
+                                            name = "received",
+                                            namespace = "https://xabber.com/protocol/delivery",
+                                            raw = "",
+                                            attributes = attributes,
+                                            children = innerChildren
+                                        )
+                                    )
+                                }
+                            }
+
+                            "received" -> {
                                 if (parser.namespace == "urn:xmpp:chat-markers:0" &&
                                     (currentMessageDepth == targetMessageDepth || targetMessageDepth == -1)
                                 ) {
@@ -840,6 +863,7 @@ class Stream(var jid: String, var port: Int = 5222) {
                                     )
                                 }
                             }
+
                         }
                     }
                     XmlPullParser.END_TAG -> {

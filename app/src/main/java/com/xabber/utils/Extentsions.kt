@@ -235,7 +235,7 @@ fun LastChatsStorageItem.toChatListDto(): ChatListDto =
             else -> ""
         },
         lastMessageDate = if (lastMessage == null || draftMessage != null) messageDate else lastMessage!!.sentDate,  // ← Both ms now
-        lastMessageState = if (lastMessage?.state_ == 5 || lastMessage == null) MessageSendingState.None else MessageSendingState.Read,
+        lastMessageState = lastMessage?.state ?: MessageSendingState.None,
         isArchived = isArchived,
         isSynced = isSynced,
         draftMessage = draftMessage,

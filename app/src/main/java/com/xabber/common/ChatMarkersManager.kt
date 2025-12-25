@@ -241,28 +241,43 @@ class ChatMarkersManager(private val owner: String, withoutAfterburnTimer: Boole
 
         try {
             realm.write {
-                // 1. Находим ЦЕЛЕВОЕ исходящее сообщение по messageId
+                // 1. Находим ЦЕЛЕВОЕ исходящее сообщение по messageId и обновляем его
                 val targetMessage = query<MessageStorageItem>(
                     "owner = $0 AND opponent = $1 AND messageId = $2 AND outgoing = true",
                     owner, jid, targetMessageId
                 ).first().find()
 
                 if (targetMessage != null) {
-                    // Явно обновляем состояние исходящего сообщения
                     targetMessage.state = MessageSendingState.Read
                     if ((targetMessage.readDate ?: 0L) < 1) {
                         targetMessage.readDate = date.time / 1000
                     }
-                    Log.d("ChatMarkersManager", "Updated outgoing message state to Read: messageId=$targetMessageId")
+                    Log.d("ChatMarkersManager", "Updated target outgoing message to Read: messageId=$targetMessageId")
                 }
 
-                // 2. Помечаем все сообщения до этого (включая входящие) как прочитанные
-                val messagesToMark = query<MessageStorageItem>(
-                    "owner = $0 AND opponent = $1 AND date <= $2 AND isRead = false",
+                // 2. Обновляем ВСЕ исходящие сообщения до указанного времени (включительно)
+                val outgoingMessagesToMark = query<MessageStorageItem>(
+                    "owner = $0 AND opponent = $1 AND outgoing = true AND date <= $2 AND state_ < ${MessageSendingState.Read.rawValue}",
                     owner, jid, (targetMessage?.date ?: date.time)
                 ).find()
 
-                messagesToMark.forEach { msg ->
+                outgoingMessagesToMark.forEach { msg ->
+                    msg.state = MessageSendingState.Read
+                    if ((msg.readDate ?: 0L) < 1) {
+                        msg.readDate = date.time / 1000
+                    }
+                    if (msg.afterburnInterval > 0 && (msg.burnDate ?: 0L) < 1) {
+                        msg.burnDate = (date.time / 1000) + msg.afterburnInterval
+                    }
+                }
+
+                // 3. Обновляем ВСЕ входящие сообщения до указанного времени
+                val incomingMessagesToMark = query<MessageStorageItem>(
+                    "owner = $0 AND opponent = $1 AND outgoing = false AND date <= $2 AND isRead = false",
+                    owner, jid, (targetMessage?.date ?: date.time)
+                ).find()
+
+                incomingMessagesToMark.forEach { msg ->
                     msg.isRead = true
                     msg.state = MessageSendingState.Read
                     if ((msg.readDate ?: 0L) < 1) {
@@ -273,7 +288,7 @@ class ChatMarkersManager(private val owner: String, withoutAfterburnTimer: Boole
                     }
                 }
 
-                // 3. Обновляем счётчик непрочитанных в чате
+                // 4. Обновляем счётчик непрочитанных
                 val chatPrimary = jid?.let { LastChatsStorageItem.genPrimary(it, owner, ConversationType.Regular) }
                 val chat = query<LastChatsStorageItem>("primary = $0", chatPrimary).first().find()
                 chat?.let {
@@ -295,6 +310,31 @@ class ChatMarkersManager(private val owner: String, withoutAfterburnTimer: Boole
         }
     }
 
+    private suspend fun onServerDeliveryReceived(message: XMPPMessage): Boolean {
+        val delivery = message.element("received", namespace = "https://xabber.com/protocol/delivery") ?: return false
+        val originIdElement = delivery.element("origin-id", namespace = "urn:xmpp:sid:0")
+        val messageId = originIdElement?.getAttribute("id") ?: return false
+
+        Log.d("ChatMarkers", "Server delivery confirmation for messageId=$messageId")
+
+        try {
+            realm.write {
+                val targetMessage = query<MessageStorageItem>(
+                    "owner = $0 AND messageId = $1 AND outgoing = true AND state_ < ${MessageSendingState.Deliver.rawValue}",
+                    owner, messageId
+                ).first().find()
+
+                if (targetMessage != null) {
+                    targetMessage.state = MessageSendingState.Deliver
+                    Log.d("ChatMarkers", "Updated outgoing message to Deliver: messageId=$messageId")
+                }
+            }
+            return true
+        } catch (e: Exception) {
+            Log.e("ChatMarkers", "Error updating delivery status: ${e.message}", e)
+            return false
+        }
+    }
 
     private suspend fun onCarbonsSentDisplayed(message: XMPPMessage): Boolean {
         if (!isCarbonCopy(message)) return false
@@ -337,6 +377,7 @@ class ChatMarkersManager(private val owner: String, withoutAfterburnTimer: Boole
 
     suspend fun read(message: XMPPMessage): Boolean {
         return when {
+            onServerDeliveryReceived(message) -> true
             onCarbonsSentDisplayed(message) -> true
             onCarbonsForwardedDisplayed(message) -> true
             onArchivedDisplayed(message) -> true
