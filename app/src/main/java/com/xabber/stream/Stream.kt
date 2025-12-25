@@ -799,7 +799,7 @@ class Stream(var jid: String, var port: Int = 5222) {
                             }
                             "displayed" -> {
                                 if (parser.namespace == "urn:xmpp:chat-markers:0" &&
-                                    currentMessageDepth == targetMessageDepth
+                                    (currentMessageDepth == targetMessageDepth || targetMessageDepth == -1)
                                 ) {
                                     val displayedId = parser.getAttributeValue(null, "id")
                                     val attributes = mutableMapOf<String, String>()
@@ -821,7 +821,7 @@ class Stream(var jid: String, var port: Int = 5222) {
                             }
                             "received" -> {
                                 if (parser.namespace == "urn:xmpp:chat-markers:0" &&
-                                    currentMessageDepth == targetMessageDepth
+                                    (currentMessageDepth == targetMessageDepth || targetMessageDepth == -1)
                                 ) {
                                     val receivedId = parser.getAttributeValue(null, "id")
                                     val attributes = mutableMapOf<String, String>()

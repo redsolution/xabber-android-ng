@@ -211,17 +211,19 @@ class ChatMarkersManager(private val owner: String, withoutAfterburnTimer: Boole
         }
     }
     private suspend fun onDisplayed(message: XMPPMessage, archivedDate: Date? = null, delayed: Boolean = false): Boolean {
-        val displayed = message.element("displayed", namespace = getPrimaryNamespace()) ?: return false
-        Log.w("CHECK ENGINE", "CHECK onDisplayed of xmppmessage: ${message.children}")
-
+        val displayed = message.element("displayed", namespace = getPrimaryNamespace()) ?: run {
+            Log.w("ChatMarkers", "No <displayed> element found")
+            return false
+        }
         // ID исходного сообщения — из атрибута id элемента <displayed>
         val targetMessageId = displayed.getAttribute("id") ?: return false
+            Log.d("ChatMarkers", "Processing displayed marker for messageId=$targetMessageId")
 
         // Определяем оппонента (из внутреннего сообщения, которое уже правильно распаршено)
         val outgoing = message.from?.bare() == owner
         val jid = if (outgoing) message.to?.bare() else message.from?.bare() ?: return false
-
-        var date = archivedDate ?: getDelayedDate(message) ?: getDeliveryDate(message) ?: Date()
+        Log.d("ChatMarkers", "Opponent JID = $jid, outgoing=${message.from?.bare() == owner}")
+        val date = archivedDate ?: getDelayedDate(message) ?: getDeliveryDate(message) ?: Date()
 
         val stanzaId = displayed.elements("stanza-id")
             .firstOrNull { it.getAttribute("by") == owner }

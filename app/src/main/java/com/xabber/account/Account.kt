@@ -793,6 +793,7 @@ class Account : XMPPStreamDelegate {
     @RequiresApi(Build.VERSION_CODES.O)
     override suspend fun didReceiveMessage(message: XMPPMessage, stream: Stream) {
         try {
+            chatMarkers.read(message)
             val isMamClassic = message.hasElement("result", "urn:xmpp:mam:2")
             val isMamTmp = message.hasElement("archived", "urn:xmpp:mam:tmp")
             val isCarbonSent = message.isCarbonCopy()
