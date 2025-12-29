@@ -104,7 +104,6 @@ class MessageCommonReceiver(private val owner: String) {
         subscribeReceiver()
     }
 
-    // MARK: - Public API
 
     suspend fun receiveClientSyncRaw(
         message: XMPPMessage,
@@ -252,7 +251,7 @@ class MessageCommonReceiver(private val owner: String) {
             archivedFrom = from,
             isRead = from == owner,
             date = Date(message.date ?: System.currentTimeMillis()),
-            state = MessageSendingState.Sent,
+            state = MessageSendingState.Deliver,
             originalFrom = from,
             originalOutgoing = from == owner
         )

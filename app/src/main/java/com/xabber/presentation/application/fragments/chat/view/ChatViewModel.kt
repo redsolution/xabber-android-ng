@@ -7,12 +7,14 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.xabber.account.AccountManager
 import com.xabber.data_base.models.last_chats.LastChatsStorageItem
 import com.xabber.data_base.models.messages.MessageStorageItem
 import com.xabber.data_base.models.sync.ConversationType
 import com.xabber.dto.AccountDto
 import com.xabber.dto.ChatListDto
 import com.xabber.presentation.application.fragments.chat.view.ChatModel
+import com.xabber.xmpp.jid.XMPPJID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -84,7 +86,6 @@ class ChatViewModel(
         val becameZero = activeArchiveLoads.decrementAndGet() == 0
         if (becameZero) {
             viewModelScope.launch {
-                delay(600)
                 _isArchiveLoading.postValue(false)
             }
         }
@@ -99,6 +100,36 @@ class ChatViewModel(
                     _muteExpired.value = it.muteExpired
                     _opponentName.value = it.jid // or rosterItem?.customNickname if available
                 }
+            }
+        }
+    }
+
+    fun loadOlderMessages(firstArchivedId: String?) {
+        viewModelScope.launch {
+            try {
+                startArchiveLoad() // включаем индикатор загрузки
+
+                val bareOwner = XMPPJID(fullJID = owner).bare()
+                val bareOpponent = XMPPJID(fullJID = opponent).bare()
+
+                val account = AccountManager.find(bareOwner)
+                account?.action { acc, stream ->
+                    acc.messageArchiveManager.getPrevHistory(
+                        stream = stream,
+                        jid = bareOpponent,
+                        conversationType = conversationType,
+                        messageId = firstArchivedId ?: "",
+                        callback = {
+                            // Выполняется на фоне, переключаемся на Main для обновления UI
+                            viewModelScope.launch(Dispatchers.Main) {
+                                finishArchiveLoad() // выключаем индикатор
+                            }
+                        }
+                    )
+                } ?: Log.e("ChatViewModel", "Account not found for owner=$bareOwner")
+            } catch (e: Exception) {
+                Log.e("ChatViewModel", "Error loading older messages", e)
+                finishArchiveLoad()
             }
         }
     }
@@ -204,9 +235,6 @@ class ChatViewModel(
         else selectedItems.remove(primary)
 
         _selectedCount.value = selectedItems.size
-
-        // No need to update list items for isSelected/isChecked since we removed those fields
-        // Selection state is managed separately in adapter via extra data
     }
 
     fun clearAllSelected() {

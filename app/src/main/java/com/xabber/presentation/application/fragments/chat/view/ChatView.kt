@@ -609,84 +609,45 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
     }
 
     private fun loadOlderMessages() {
-        // Защита от доступа после уничтожения view
-        if (!isAdded || lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED).not()) {
+        if (!isAdded || !lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
             return
         }
 
-        // Проверяем, полностью ли загружена история
         val chatDto = viewModel.loadChat(getParams().id)
-        if (chatDto?.isSynced == true ) {
-            // История полностью загружена — больше старых сообщений нет
+        if (chatDto?.isSynced == true) {
+            // История полностью синхронизирована — больше загружать нечего
             return
         }
 
         if (isLoadingHistory) return
-
         isLoadingHistory = true
-        viewModel.startArchiveLoad()
 
-        if (lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
-            binding.progressBar.isVisible = true
-            binding.overlay.isVisible = true
-        }
-        viewModel.setLocked(true)
-
+        // Определяем ID сообщения, от которого нужно загрузить предыдущую порцию
         val firstVisiblePosition = layoutManager!!.findFirstVisibleItemPosition()
-        val firstVisibleView = layoutManager!!.findViewByPosition(firstVisiblePosition)
-        val offset = firstVisibleView?.top ?: 0
         val firstVisibleItem = messageAdapter?.getMessageItem(firstVisiblePosition)
         val firstArchivedId = firstVisibleItem?.archivedId
+
+        // Делегируем всю работу ViewModel
+        viewModel.loadOlderMessages(firstArchivedId)
+
+        // Сохраняем параметры для корректного скролла после вставки новых сообщений
+        val firstVisibleView = layoutManager!!.findViewByPosition(firstVisiblePosition)
+        val offset = firstVisibleView?.top ?: 0
         val currentItemCount = messageAdapter!!.itemCount
 
-        lifecycleScope.launch {
-            try {
-                val bareOwner = XMPPJID(fullJID = viewModel.owner).bare()
-                val bareOpponent = XMPPJID(fullJID = viewModel.opponent).bare()
-
-                val account = AccountManager.find(bareOwner)
-                account?.action { acc, stream ->
-                    acc.messageArchiveManager.getPrevHistory(
-                        stream = stream,
-                        jid = bareOpponent,
-                        conversationType = viewModel.conversationType,
-                        messageId = firstArchivedId ?: "",
-                        callback = {
-                            lifecycleScope.launch(Dispatchers.Main) {
-                                isLoadingHistory = false
-                                viewModel.setLocked(false)
-                                viewModel.finishArchiveLoad()
-
-                                if (lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED) && isAdded) {
-                                    binding.progressBar.isVisible = false
-                                    binding.overlay.isVisible = false
-
-                                    if (messageAdapter != null && layoutManager != null) {
-                                        val newItemCount = messageAdapter!!.itemCount
-                                        val insertedCount = newItemCount - currentItemCount
-                                        if (insertedCount > 0 && firstVisiblePosition != RecyclerView.NO_POSITION) {
-                                            layoutManager!!.scrollToPositionWithOffset(
-                                                firstVisiblePosition + insertedCount,
-                                                offset
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
+        // Наблюдатель за изменениями списка сообщений автоматически выполнит скролл
+        viewModel.messages.observe(viewLifecycleOwner) { messages ->
+            // Этот код выполнится после того, как новые сообщения будут вставлены
+            if (isLoadingHistory) {
+                val newItemCount = messages.size
+                val insertedCount = newItemCount - currentItemCount
+                if (insertedCount > 0 && firstVisiblePosition != RecyclerView.NO_POSITION) {
+                    layoutManager!!.scrollToPositionWithOffset(
+                        firstVisiblePosition + insertedCount,
+                        offset
                     )
-                } ?: Log.e("ChatView", "Account not found for owner=$bareOwner")
-            } catch (e: Exception) {
-                Log.e("ChatView", "Error loading older messages", e)
-                lifecycleScope.launch(Dispatchers.Main) {
-                    isLoadingHistory = false
-                    viewModel.setLocked(false)
-                    viewModel.finishArchiveLoad()
-                    if (lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED) && isAdded) {
-                        binding.progressBar.isVisible = false
-                        binding.overlay.isVisible = false
-                    }
                 }
+                isLoadingHistory = false
             }
         }
     }
@@ -926,6 +887,7 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
         }
     }
 
+    @SuppressLint("SetTextI18n")
     private fun subscribeToChatData(chat: ChatListDto) {
         viewModel.chat.observe(viewLifecycleOwner) { lastChat ->
             if (lastChat == null) {
@@ -951,14 +913,26 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
             binding.overlay.isVisible = loading
             binding.progressBar.isVisible = loading
             viewModel.setLocked(loading)
+
+            // Блокировка/разблокировка UI
+            binding.messageList.isNestedScrollingEnabled = !loading
+            binding.chatInput.isEnabled = !loading
+            binding.buttonSendMessage.isEnabled = !loading && (binding.chatInput.text.toString().trim().isNotEmpty() || replyingMessage != null)
+            binding.buttonAttach.isEnabled = !loading
+            binding.btnRecord.isEnabled = !loading
+            binding.buttonEmoticon.isEnabled = !loading
+            binding.btnDownward.isEnabled = !loading
+
+            // Опционально: блокировать свайп для ответа
+            replySwipeCallback?.setSwipeEnabled(!loading)
+            lifecycleScope.launch {
+                delay(1000)
+            }
         }
 
         viewModel.messages.observe(viewLifecycleOwner) { messages ->
-            // Check if we were at the bottom before updating the list
             val wasAtBottom = isAtBottom()
-            // Update adapter
             messageAdapter?.submitList(messages) {
-                // After list is committed, scroll if we were at bottom
                 if (wasAtBottom) {
                     scrollDown()
                 }
