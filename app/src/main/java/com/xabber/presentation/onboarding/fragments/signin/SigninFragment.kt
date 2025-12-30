@@ -158,10 +158,10 @@ class SigninFragment : Fragment(R.layout.fragment_signin) {
                         binding.signinSubtitle1.isInvisible = true
                         binding.errorSubtitle.isVisible = true
                         when (e.message) {
-                            "Account already exists" -> {
-                                binding.errorSubtitle.text = "Account already exists"
-                                Toast.makeText(requireContext(), "Account already exists, please choose another JID", Toast.LENGTH_LONG).show()
-                            }
+//                            "Account already exists" -> {
+//                                binding.errorSubtitle.text = "Account already exists"
+//                                Toast.makeText(requireContext(), "Account already exists, please choose another JID", Toast.LENGTH_LONG).show()
+//                            }
                             "Invalid credentials" -> {
                                 binding.errorSubtitle.text = "Invalid JID, username, or password"
                                 Toast.makeText(requireContext(), "Invalid JID, username, or password", Toast.LENGTH_LONG).show()

@@ -5,6 +5,7 @@ import android.icu.util.TimeZone
 import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
+import androidx.appcompat.app.AlertDialog
 import com.xabber.stream.Stream
 import com.xabber.stream.StreamState
 import com.xabber.stream.serializers.XMPPIQ
@@ -15,6 +16,7 @@ import com.xabber.data_base.models.last_chats.LastChatsStorageItem
 import com.xabber.data_base.models.messages.MessageSendingState
 import com.xabber.data_base.models.messages.MessageStorageItem
 import com.xabber.data_base.models.sync.ConversationType
+import com.xabber.presentation.application.activity.ApplicationActivity
 import com.xabber.utils.custom.NickGenerator
 import com.xabber.utils.getArchivedMessageContainer
 import com.xabber.utils.getCarbonCopyMessageContainer
@@ -362,6 +364,18 @@ class Account : XMPPStreamDelegate {
     @RequiresApi(Build.VERSION_CODES.O)
     suspend fun connectStream(): Boolean = withContext(Dispatchers.IO) {
         try {
+            if (stream == null || stream?.socket != null || stream?.messageCallbackChannel?.isClosedForSend == true) {
+                initializeStream()  // создаёт новый Stream, старый закрывает
+            }
+
+            // Добавляем обработчик ошибки чтения
+            stream!!.socket?.setOnReadLoopError {
+                // Переходим на главный поток для показа диалога
+                CoroutineScope(Dispatchers.Main).launch {
+                    showReconnectDialog()
+                }
+            }
+
             // Всегда гарантируем свежий Stream перед подключением
             if (stream == null || stream?.socket != null || stream?.messageCallbackChannel?.isClosedForSend == true) {
                 initializeStream()  // создаёт новый Stream, старый закрывает
@@ -385,6 +399,27 @@ class Account : XMPPStreamDelegate {
             statusMessage.onNext("Offline")
             return@withContext false
         }
+    }
+
+    private fun showReconnectDialog() {
+        val activity = ApplicationActivity.currentActivity
+            ?: return
+
+        // Избегаем повторного показа диалога
+        if (activity.isFinishing || activity.isDestroyed) return
+
+        AlertDialog.Builder(activity)
+            .setTitle("Ошибка соединения")
+            .setMessage("Соединение с сервером было неожиданно разорвано. Попробовать переподключиться?")
+            .setPositiveButton("Повторить") { _, _ ->
+                // Запускаем переподключение
+                CoroutineScope(Dispatchers.IO).launch {
+                    connectStream()
+                }
+            }
+            .setNegativeButton("Отмена", null)
+            .setCancelable(false)
+            .show()
     }
 
     private suspend fun syncAllChats(stream: Stream) = withContext(Dispatchers.IO) {

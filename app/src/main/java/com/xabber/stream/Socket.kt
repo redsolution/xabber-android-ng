@@ -2,6 +2,7 @@ package com.xabber.stream
 
 import android.os.Build
 import android.util.Log
+import android.widget.Toast
 import androidx.annotation.RequiresApi
 import com.xabber.data_base.models.account.AccountStorageItem
 import com.xabber.presentation.XabberApplication
@@ -115,6 +116,12 @@ class Socket(private val host: String, private val port: Int) {
     private var tlsHandshaking = false
     private var isReadingLoopActive = false
     private var domain: String = host
+    private var onReadLoopError: (() -> Unit)? = null   // Новый callback
+
+    fun setOnReadLoopError(callback: () -> Unit) {
+        onReadLoopError = callback
+    }
+
 
     fun setMessageCallback(callback: (String) -> Unit) {
         messageCallback = callback
@@ -639,6 +646,16 @@ class Socket(private val host: String, private val port: Int) {
                 continue
             } catch (e: ClosedByteChannelException) {
                 Log.w(TAG, "Reader channel closed in read loop: ${e.message}", e)
+                onReadLoopError?.invoke()
+                // Display user notification on the main thread
+                scope.launch(Dispatchers.Main) {
+                    Toast.makeText(
+                        XabberApplication.applicationContext(),
+                        "Произошла ошибка сети. Требуется перезагрузка приложения.",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+
                 break
             } catch (e: Exception) {
                 Log.e(TAG, "Error in read loop: ${e.message}", e)

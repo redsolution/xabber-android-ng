@@ -118,6 +118,11 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
     private var isLoggingOut: Boolean = false // Prevent multiple logout calls
     private var isUpdatingUI: Boolean = false // Prevent recursive UI updates
 
+    companion object {
+        var currentActivity: ApplicationActivity? = null
+            private set
+    }
+
     @RequiresApi(Build.VERSION_CODES.O)
     @SuppressLint("WrongViewCast")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -130,7 +135,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         setContentView(binding.root)
         initViews()
         setupStatusBar()
-
+        currentActivity = this
         setupNavigationDrawer()
 
 
@@ -1525,6 +1530,9 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
 
     override fun onDestroy() {
         super.onDestroy()
+        if (currentActivity == this) {
+            currentActivity = null
+        }
         assist?.onDestroy()
         val sharedPreferences = getSharedPreferences(AppConstants.SHARED_PREF_MASK, Context.MODE_PRIVATE)
         sharedPreferences.unregisterOnSharedPreferenceChangeListener(this)
