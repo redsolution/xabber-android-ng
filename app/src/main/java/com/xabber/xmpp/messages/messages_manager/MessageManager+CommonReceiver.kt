@@ -164,7 +164,7 @@ class MessageCommonReceiver(private val owner: String) {
             messageId = messageId,
             archivedFrom = message.from?.bare(),
             isRead = true,
-            date = date,
+            date = Date(message.date ?: System.currentTimeMillis()),
             state = MessageSendingState.Sent,
             queryId = getMAMQueryId(message)
         )
@@ -220,7 +220,7 @@ class MessageCommonReceiver(private val owner: String) {
             messageId = messageId,
             archivedFrom = from,
             isRead = from == owner,
-            date = Date(parseTimestamp(message, owner, TAG)),
+            date = Date(parseTimestamp(message, owner, TAG)!!),
             state = MessageSendingState.Sent,
             originalFrom = from,
             originalOutgoing = from == owner

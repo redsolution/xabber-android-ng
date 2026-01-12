@@ -1,5 +1,6 @@
 package com.xabber.xmpp.messages.messages_manager
 
+import android.annotation.SuppressLint
 import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
@@ -210,6 +211,7 @@ class ChatMarkersManager(private val owner: String, withoutAfterburnTimer: Boole
             return false
         }
     }
+    @SuppressLint("SuspiciousIndentation")
     private suspend fun onDisplayed(message: XMPPMessage, archivedDate: Date? = null, delayed: Boolean = false): Boolean {
         val displayed = message.element("displayed", namespace = getPrimaryNamespace()) ?: run {
             Log.w("ChatMarkers", "No <displayed> element found")
@@ -241,7 +243,6 @@ class ChatMarkersManager(private val owner: String, withoutAfterburnTimer: Boole
 
         try {
             realm.write {
-                // 1. Находим ЦЕЛЕВОЕ исходящее сообщение по messageId и обновляем его
                 val targetMessage = query<MessageStorageItem>(
                     "owner = $0 AND opponent = $1 AND messageId = $2 AND outgoing = true",
                     owner, jid, targetMessageId
@@ -255,7 +256,6 @@ class ChatMarkersManager(private val owner: String, withoutAfterburnTimer: Boole
                     Log.d("ChatMarkersManager", "Updated target outgoing message to Read: messageId=$targetMessageId")
                 }
 
-                // 2. Обновляем ВСЕ исходящие сообщения до указанного времени (включительно)
                 val outgoingMessagesToMark = query<MessageStorageItem>(
                     "owner = $0 AND opponent = $1 AND outgoing = true AND date <= $2 AND state_ < ${MessageSendingState.Read.rawValue}",
                     owner, jid, (targetMessage?.date ?: date.time)
@@ -271,7 +271,6 @@ class ChatMarkersManager(private val owner: String, withoutAfterburnTimer: Boole
                     }
                 }
 
-                // 3. Обновляем ВСЕ входящие сообщения до указанного времени
                 val incomingMessagesToMark = query<MessageStorageItem>(
                     "owner = $0 AND opponent = $1 AND outgoing = false AND date <= $2 AND isRead = false",
                     owner, jid, (targetMessage?.date ?: date.time)
@@ -288,7 +287,6 @@ class ChatMarkersManager(private val owner: String, withoutAfterburnTimer: Boole
                     }
                 }
 
-                // 4. Обновляем счётчик непрочитанных
                 val chatPrimary = jid?.let { LastChatsStorageItem.genPrimary(it, owner, ConversationType.Regular) }
                 val chat = query<LastChatsStorageItem>("primary = $0", chatPrimary).first().find()
                 chat?.let {

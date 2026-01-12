@@ -122,6 +122,7 @@ class ChatViewModel(
                         callback = {
                             // Выполняется на фоне, переключаемся на Main для обновления UI
                             viewModelScope.launch(Dispatchers.Main) {
+                                delay(1500L)
                                 finishArchiveLoad() // выключаем индикатор
                             }
                         }

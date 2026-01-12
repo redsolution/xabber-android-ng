@@ -459,9 +459,10 @@ class Account : XMPPStreamDelegate {
             }
             // Buffer roster and sync IQ stanzas post-registration
             if (stream.state == StreamState.CONNECTED || stream.state == StreamState.BINDING) {
-                if (iq.queryNamespace == "jabber:iq:roster" || iq.queryContent?.contains("<item") == true) {
-                    stanzaBuffer.emit(StanzaItem(StanzaItem.StanzaType.ROSTER, iq.raw, stream))
-                    return true
+                if (iq.type == "result" && iq.queryNamespace == "jabber:iq:roster") {
+                    // This is almost certainly our roster push / roster result
+                    Log.w(TAG, "ROSTER IQ $iq")
+                    return rosterManager.read(iq)   // <--- call directly, do not buffer
                 }
                 if (iq.queryNamespace == "https://xabber.com/protocol/synchronization") {
                     stanzaBuffer.emit(StanzaItem(StanzaItem.StanzaType.SYNC, iq.raw, stream))
@@ -825,81 +826,82 @@ class Account : XMPPStreamDelegate {
         return true
     }
 
-    @RequiresApi(Build.VERSION_CODES.O)
     override suspend fun didReceiveMessage(message: XMPPMessage, stream: Stream) {
-        try {
-            chatMarkers.read(message)
-            val isMamClassic = message.hasElement("result", "urn:xmpp:mam:2")
-            val isMamTmp = message.hasElement("archived", "urn:xmpp:mam:tmp")
-            val isCarbonSent = message.isCarbonCopy()
-            val isCarbonReceived = message.isCarbonForwarded()
-            val isLastMessage = message.hasElement("last-message", "https://xabber.com/protocol/synchronization")
+        // 1. Always process chat markers first — they can come in any message
+        chatMarkers.read(message)
 
-            // Извлекаем реальное сообщение из контейнера
-            val realMessage: XMPPMessage = when {
-                isMamClassic -> message.getArchivedMessageContainer() ?: message
-                isMamTmp -> message
-                isCarbonSent -> message.getCarbonCopyMessageContainer() ?: message
-                isCarbonReceived -> message.getCarbonForwardedMessageContainer() ?: message
-                else -> message
+        // ────────────────────────────────────────────────────────────────
+        //  Important: we determine the *nature* of the message
+        //             based on the **outer** container
+        // ────────────────────────────────────────────────────────────────
+
+        val isMamResult = message.hasElement("result", "urn:xmpp:mam:2") ||
+                message.raw.contains("""<result\b[^>]*xmlns\s*=\s*["']urn:xmpp:mam:2["']""".toRegex(RegexOption.IGNORE_CASE))
+
+        val isMamTmp = message.hasElement("archived", "urn:xmpp:mam:tmp") ||
+                message.raw.contains("""<archived\b[^>]*xmlns\s*=\s*["']urn:xmpp:mam:tmp["']""".toRegex(RegexOption.IGNORE_CASE))
+        Log.w(TAG, "Outer message analysis:")
+        Log.w(TAG, "  • has <result urn:xmpp:mam:2> = $isMamResult")
+        Log.w(TAG, "  • has <archived urn:xmpp:mam:tmp> = $isMamTmp")
+        Log.w(TAG, "  • raw outer message contains 'result' = ${message.raw.contains("result", ignoreCase = true)}")
+        Log.w(TAG, "  • raw outer message contains 'mam:2' = ${message.raw.contains("mam:2")}")
+        val isCarbon         = message.isCarbonCopy() || message.isCarbonForwarded()
+        val isClientSyncLast = message.hasElement("last-message", "https://xabber.com/protocol/synchronization")
+
+        // Extract "real payload" depending on container type
+        val payload = when {
+            isMamResult      -> message.getArchivedMessageContainer() ?: message
+            isMamTmp         -> message  // tmp variant usually doesn't wrap again
+            isCarbon         -> message.getCarbonCopyMessageContainer()
+                ?: message.getCarbonForwardedMessageContainer()
+                ?: message
+            else             -> message
+        }
+
+        // Very important: skip empty / service messages early
+        if (payload.body.isNullOrBlank() && payload.children.isEmpty()) {
+            return
+        }
+
+        // ────────────────────────────────────────────────────────────────
+        //                    Routing based on ORIGIN
+        // ────────────────────────────────────────────────────────────────
+        when {
+            isMamResult || isMamTmp -> {
+                // All history — classic MAM + your temporary archived variant
+                Log.w(TAG, "messageReceiver.receiveArchived")
+                messageReceiver.receiveArchived(payload)
             }
 
+            isCarbon -> {
+                Log.w(TAG, "messageReceiver.receiveCarbon")
 
-            // ВАЖНО: обрабатываем чат-маркеры ДО любых проверок на дубликаты
-            chatMarkers.read(realMessage)
-
-            val messageId = realMessage.originId ?: realMessage.id ?: "unknown_${System.currentTimeMillis()}"
-
-            // Если это чисто маркер без тела — дальше можно не идти
-            if (realMessage.body.isNullOrBlank() && realMessage.children.isEmpty()) {
-                return
+                messageReceiver.receiveCarbon(payload)
             }
 
-            // === Проверка дубликатов ===
-            val primaryKey = "${messageId}_$jid"
-            val realm = Realm.open(defaultRealmConfig())
-            try {
-                val existing = realm.query<MessageStorageItem>("primary = $0", primaryKey).first().find()
-                if (existing != null) {
-                    return  // уже есть — дубликат
-                }
+            isClientSyncLast -> {
+                Log.w(TAG, "messageReceiver.receiveClientSyncRaw")
 
-                // === Основная маршрутизация ===
-                when {
-                    isMamClassic || isMamTmp -> {
-                        val archivedMessage = if (isMamClassic) message.getArchivedMessageContainer() ?: message else message
-                        messageReceiver.receiveArchived(archivedMessage)
-                    }
-                    isCarbonSent || isCarbonReceived -> {
-                        val carbonMessage = message.getCarbonCopyMessageContainer()
-                            ?: message.getCarbonForwardedMessageContainer()
-                            ?: message
-                        messageReceiver.receiveCarbon(carbonMessage)
-                    }
-                    isLastMessage -> {
-                        messageReceiver.receiveClientSyncRaw(message)
-                    }
-                    else -> {
-                        messageReceiver.receiveRuntime(realMessage)
-                        // chatMarkers.read(realMessage) уже вызван выше
-                    }
-                }
-            } finally {
-                realm.close()
+                messageReceiver.receiveClientSyncRaw(payload)
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error in didReceiveMessage: ${e.message}", e)
+
+            // Only real live messages should fall here
+            else -> {
+                Log.w(TAG, "messageReceiver.receiveRuntime")
+
+                messageReceiver.receiveRuntime(payload)
+            }
         }
     }
 
     override suspend fun streamDidConnect(stream: Stream): Boolean {
         CoroutineScope(Dispatchers.IO).launch {
-            presenceManager?.sendInitialPresence()
             if (!rosterRequested) {
                 rosterManager.request(stream)
                 rosterRequested = true
             }
             streamCarbonsSend(stream)
+            presenceManager?.sendInitialPresence()
             streamSyncRequest(stream)
         }
         return true
