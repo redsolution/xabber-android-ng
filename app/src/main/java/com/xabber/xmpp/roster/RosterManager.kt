@@ -74,6 +74,7 @@ class RosterManager(private val owner: String, private val realm: Realm) {
     init {
         scope.launch {
             startRosterProcessing()
+            Log.w(TAG, "ROSTER MANAGER START")
         }
     }
 

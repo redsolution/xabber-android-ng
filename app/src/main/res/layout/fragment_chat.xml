@@ -202,7 +202,7 @@
         android:id="@+id/overlay"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:background="#40000000"
+        android:background="#30000000"
         android:clickable="true"
         android:focusable="true"
         android:visibility="gone"

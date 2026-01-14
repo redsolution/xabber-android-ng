@@ -460,9 +460,8 @@ class Account : XMPPStreamDelegate {
             // Buffer roster and sync IQ stanzas post-registration
             if (stream.state == StreamState.CONNECTED || stream.state == StreamState.BINDING) {
                 if (iq.type == "result" && iq.queryNamespace == "jabber:iq:roster") {
-                    // This is almost certainly our roster push / roster result
-                    Log.w(TAG, "ROSTER IQ $iq")
-                    return rosterManager.read(iq)   // <--- call directly, do not buffer
+                    Log.w(TAG, "ROSTER IQ: $iq")
+                    return rosterManager.read(iq)
                 }
                 if (iq.queryNamespace == "https://xabber.com/protocol/synchronization") {
                     stanzaBuffer.emit(StanzaItem(StanzaItem.StanzaType.SYNC, iq.raw, stream))
@@ -840,11 +839,6 @@ class Account : XMPPStreamDelegate {
 
         val isMamTmp = message.hasElement("archived", "urn:xmpp:mam:tmp") ||
                 message.raw.contains("""<archived\b[^>]*xmlns\s*=\s*["']urn:xmpp:mam:tmp["']""".toRegex(RegexOption.IGNORE_CASE))
-        Log.w(TAG, "Outer message analysis:")
-        Log.w(TAG, "  • has <result urn:xmpp:mam:2> = $isMamResult")
-        Log.w(TAG, "  • has <archived urn:xmpp:mam:tmp> = $isMamTmp")
-        Log.w(TAG, "  • raw outer message contains 'result' = ${message.raw.contains("result", ignoreCase = true)}")
-        Log.w(TAG, "  • raw outer message contains 'mam:2' = ${message.raw.contains("mam:2")}")
         val isCarbon         = message.isCarbonCopy() || message.isCarbonForwarded()
         val isClientSyncLast = message.hasElement("last-message", "https://xabber.com/protocol/synchronization")
 

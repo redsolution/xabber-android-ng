@@ -214,7 +214,6 @@ class ChatMarkersManager(private val owner: String, withoutAfterburnTimer: Boole
     @SuppressLint("SuspiciousIndentation")
     private suspend fun onDisplayed(message: XMPPMessage, archivedDate: Date? = null, delayed: Boolean = false): Boolean {
         val displayed = message.element("displayed", namespace = getPrimaryNamespace()) ?: run {
-            Log.w("ChatMarkers", "No <displayed> element found")
             return false
         }
         // ID исходного сообщения — из атрибута id элемента <displayed>

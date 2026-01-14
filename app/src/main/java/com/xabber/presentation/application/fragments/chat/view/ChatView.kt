@@ -571,7 +571,7 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
                 if (layoutManager != null) {
                     val firstVisiblePosition = layoutManager!!.findFirstVisibleItemPosition()
 
-                    if (firstVisiblePosition <= 2 && !isLoadingHistory) {
+                    if (firstVisiblePosition <= 20 && !isLoadingHistory) {
                         val currentTime = System.currentTimeMillis()
                         if (currentTime - lastLoadOlderMessagesTime >= debounceInterval) {
                             lastLoadOlderMessagesTime = currentTime
@@ -580,7 +580,7 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
                     }
 
                     val lastVisible = layoutManager!!.findLastVisibleItemPosition()
-                    if (lastVisible >= messageAdapter!!.itemCount - 3) {  // Hide if within last 3 items
+                    if (lastVisible >= messageAdapter!!.itemCount - 3) {
                         binding.downScroller.isVisible = false
                     } else {
                         if (currentVoiceRecordingState !in listOf(
@@ -598,7 +598,7 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
         binding.btnDownward.setOnClickListener {
             val lastVisiblePosition = layoutManager!!.findLastVisibleItemPosition()
             if (viewModel.unreadCount.value == 0 ||
-                lastVisiblePosition + 3 >= messageAdapter!!.itemCount) {  // Simplified, no unread in condition
+                lastVisiblePosition + 3 >= messageAdapter!!.itemCount) {
                 scrollDown()
                 binding.tvNewReceivedCount.text = ""
                 binding.tvNewReceivedCount.isVisible = false
@@ -911,8 +911,12 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
 
         viewModel.isArchiveLoading.observe(viewLifecycleOwner) { loading ->
             binding.overlay.isVisible = loading
-            binding.progressBar.isVisible = loading
             viewModel.setLocked(loading)
+
+            // Немедленная остановка любого текущего скролла (включая инерцию/fling)
+            if (loading) {
+                binding.messageList.stopScroll()
+            }
 
             // Блокировка/разблокировка UI
             binding.messageList.isNestedScrollingEnabled = !loading
@@ -923,6 +927,11 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
             binding.buttonEmoticon.isEnabled = !loading
             binding.btnDownward.isEnabled = !loading
 
+            // Опционально: блокировать свайп для ответа
+            replySwipeCallback?.setSwipeEnabled(!loading)
+
+            // Скрытие/показ заголовков дат (из предыдущих правок)
+            binding.messageList.invalidateItemDecorations()
             // Опционально: блокировать свайп для ответа
             replySwipeCallback?.setSwipeEnabled(!loading)
             lifecycleScope.launch {

@@ -136,7 +136,7 @@ class MessageHeaderViewDecoration(context: Context) : ItemDecoration() {
         holder: MessageViewHolder
     ) {
         val width = measureText(paintFont, holder.date)
-        var additionalOffset = 0
+        val additionalOffset = 0
         headerViewXMargin = (parent.measuredWidth - width) / 2
         val drawableBounds = Rect()
 //        if (needToDrawUnreadHeader(holder)) {

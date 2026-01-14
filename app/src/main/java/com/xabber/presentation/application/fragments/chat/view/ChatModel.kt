@@ -61,7 +61,7 @@ class ChatModel(
             .sort("sentDate", Sort.ASCENDING)
             .asFlow()
             .map { changes -> changes.list }
-            .debounce(300L)
+            .debounce(100L)
     }
 
     // === Чтение данных ===

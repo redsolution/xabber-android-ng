@@ -325,7 +325,7 @@ fun JSONObject.toMap(): Map<String, Any> {
 @RequiresApi(Build.VERSION_CODES.O)
 fun parseTimestamp(message: XMPPMessage, owner: String, tag: String = "TimestampParser"): Long {
     // 1. Runtime / Carbons — ищем <time by=owner> прямо в сообщении
-    Log.w(tag, "ANALYSYS OF TIMESTAMP OF MESSAGE $message")
+//    Log.w(tag, "ANALYSYS OF TIMESTAMP OF MESSAGE $message")
     message.element("time", "https://xabber.com/protocol/delivery")
         ?.takeIf { it.getAttribute("by") == owner }
         ?.getAttribute("stamp")
@@ -355,7 +355,7 @@ fun parseTimestamp(message: XMPPMessage, owner: String, tag: String = "Timestamp
         delayStamp.parseXMPPDateToMillis()?.let { return it }
     }
 
-    Log.w(tag, "No timestamp found in message, using current time as fallback")
+//    Log.w(tag, "No timestamp found in message, using current time as fallback")
     return System.currentTimeMillis()
 }
 
