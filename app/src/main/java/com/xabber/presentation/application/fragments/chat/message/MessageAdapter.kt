@@ -7,12 +7,8 @@ import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.xabber.R
-import com.xabber.data_base.models.messages.MessageDisplayType
 import com.xabber.data_base.models.messages.MessageStorageItem
-import com.xabber.presentation.application.fragments.chat.message.IncomingMessageVH
-import com.xabber.presentation.application.fragments.chat.message.MessageViewHolder
-import com.xabber.presentation.application.fragments.chat.message.OutgoingMessageVH
-import com.xabber.presentation.application.fragments.chat.message.SystemMessageVH
+import com.xabber.presentation.application.fragments.chat.message.*
 import com.xabber.utils.isSameDayWith
 
 class MessageAdapter(
@@ -21,7 +17,7 @@ class MessageAdapter(
     private val onViewClickListener: OnViewClickListener? = null,
     private val isGroup: Boolean,
     private val onBindListener: ((MessageStorageItem?) -> Unit)? = null
-) : ListAdapter<MessageStorageItem, MessageViewHolder>(MessageDiffCallback()) {
+) : ListAdapter<ChatItem, RecyclerView.ViewHolder>(ChatItemDiffCallback()) {
 
     private var firstUnreadMessageID: String? = null
     private val checkedItemIds: MutableList<String> = ArrayList()
@@ -48,90 +44,144 @@ class MessageAdapter(
     }
 
     override fun getItemId(position: Int): Long {
-        return getItem(position).primary.hashCode().toLong()
+        return getItem(position).id.hashCode().toLong()
     }
 
     override fun getItemViewType(position: Int): Int {
-        val message = getItem(position)
-        val isSystem = message.displayAs_ == "system" || message.conversationType_ == "https://xabber.com/protocol/groups#system-message"
-        return when {
-            isSystem -> SYSTEM_MESSAGE
-            message.outgoing -> OUTGOING_MESSAGE
-            else -> INCOMING_MESSAGE
+        return when (val item = getItem(position)) {
+            is ChatItem.MessageItem -> {
+                val message = item.message
+                val isSystem = message.displayAs_ == "system" ||
+                        message.conversationType_ == "https://xabber.com/protocol/groups#system-message"
+                when {
+                    isSystem -> VIEW_TYPE_SYSTEM_MESSAGE
+                    message.outgoing -> VIEW_TYPE_OUTGOING_MESSAGE
+                    else -> VIEW_TYPE_INCOMING_MESSAGE
+                }
+            }
+            is ChatItem.DateHeaderItem -> VIEW_TYPE_DATE_HEADER
+            is ChatItem.UnreadMarkerItem -> VIEW_TYPE_UNREAD_MARKER
         }
     }
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): MessageViewHolder {
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
         return when (viewType) {
-            OUTGOING_MESSAGE -> OutgoingMessageVH(
+            VIEW_TYPE_OUTGOING_MESSAGE -> OutgoingMessageVH(
                 LayoutInflater.from(parent.context).inflate(R.layout.item_message_outgoing, parent, false),
                 layoutInflater, listener, onViewClickListener
             )
-            INCOMING_MESSAGE -> IncomingMessageVH(
+            VIEW_TYPE_INCOMING_MESSAGE -> IncomingMessageVH(
                 LayoutInflater.from(parent.context).inflate(R.layout.item_message_incoming, parent, false),
                 layoutInflater, listener, onViewClickListener
             )
-            SYSTEM_MESSAGE -> SystemMessageVH(
+            VIEW_TYPE_SYSTEM_MESSAGE -> SystemMessageVH(
                 LayoutInflater.from(parent.context).inflate(R.layout.item_message_system, parent, false),
                 layoutInflater, listener, onViewClickListener
             )
+            VIEW_TYPE_DATE_HEADER -> DateHeaderVH(
+                LayoutInflater.from(parent.context).inflate(R.layout.item_date_header, parent, false)
+            )
+//            VIEW_TYPE_UNREAD_MARKER -> UnreadMarkerVH(
+//                LayoutInflater.from(parent.context).inflate(R.layout.item_unread_marker, parent, false)
+//            )
             else -> throw IllegalStateException("Unsupported view type: $viewType")
         }
     }
 
-    override fun onBindViewHolder(holder: MessageViewHolder, position: Int) {
-        val message = getItem(position)
-        Log.v(TAG, "Binding message: primary=${message.primary}, body=${message.body.take(50)}, isOutgoing=${message.outgoing}, isRead=${message.isRead}, isChecked=${checkedItemIds.contains(message.primary)}")
-        holder.messageId = message.primary
-        val extraData = MessageVhExtraData(
-            isUnread = !message.isRead && (firstUnreadMessageID == null || message.primary == firstUnreadMessageID),
-            isChecked = checkedItemIds.contains(message.primary),
-            isNeedTail = isMessageNeedTail(position),
-            isNeedDate = isMessageNeedDate(position),
-            isNeedName = isMessageNeedName(position),
-            isGroup = isGroup
-        )
+    override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
         when (holder) {
-            is IncomingMessageVH -> holder.bind(message, extraData)
-            is OutgoingMessageVH -> holder.bind(message, extraData)
-            is SystemMessageVH -> holder.bind(message, extraData)
+            is MessageViewHolder -> {
+                val item = getItem(position) as ChatItem.MessageItem
+                holder.messageId = item.message.primary
+                val extraData = MessageVhExtraData(
+                    isUnread = !item.message.isRead && (firstUnreadMessageID == null || item.message.primary == firstUnreadMessageID),
+                    isChecked = checkedItemIds.contains(item.message.primary),
+                    isNeedTail = isMessageNeedTail(position),
+                    isNeedDate = false, // Dates are separate items now
+                    isNeedName = isMessageNeedName(position),
+                    isGroup = isGroup
+                )
+                when (holder) {
+                    is IncomingMessageVH -> holder.bind(item.message, extraData)
+                    is OutgoingMessageVH -> holder.bind(item.message, extraData)
+                    is SystemMessageVH -> holder.bind(item.message, extraData)
+                }
+                onBindListener?.invoke(item.message)
+            }
+            is DateHeaderVH -> {
+                val item = getItem(position) as ChatItem.DateHeaderItem
+                holder.bind(item.formattedDate)
+            }
+//            is UnreadMarkerVH -> {
+//                val item = getItem(position) as ChatItem.UnreadMarkerItem
+//                holder.bind(item.count)
+//            }
         }
-        onBindListener?.invoke(message)
-    }
-
-    private fun isMessageNeedDate(position: Int): Boolean {
-        val message = getItem(position)
-        val previousMessage = getItemOrNull(position - 1) ?: return true
-        return !message.sentDate.isSameDayWith(previousMessage.sentDate)
     }
 
     private fun isMessageNeedTail(position: Int): Boolean {
+        // Нужно найти соседние сообщения, пропуская заголовки дат
+        val currentMessage = getMessageAtPosition(position) ?: return true
+
         if (ChatSettingsManager.bottom) {
-            val message = getItem(position)
-            val nextMessage = getItemOrNull(position + 1) ?: return true
-            return if (message.references.size > 0 && message.body.isEmpty()) false
-            else message.outgoing != nextMessage.outgoing
+            // Ищем следующее сообщение
+            var nextPos = position + 1
+            while (nextPos < itemCount) {
+                val nextMessage = getMessageAtPosition(nextPos)
+                if (nextMessage != null) {
+                    return if (currentMessage.references.size > 0 && currentMessage.body.isEmpty()) false
+                    else currentMessage.outgoing != nextMessage.outgoing
+                }
+                nextPos++
+            }
+            return true
         } else {
-            val message = getItem(position)
-            val preMessage = getItemOrNull(position - 1) ?: return true
-            return if (message.references.size > 0 && message.body.isEmpty()) false
-            else message.outgoing != preMessage.outgoing
+            // Ищем предыдущее сообщение
+            var prevPos = position - 1
+            while (prevPos >= 0) {
+                val prevMessage = getMessageAtPosition(prevPos)
+                if (prevMessage != null) {
+                    return if (currentMessage.references.size > 0 && currentMessage.body.isEmpty()) false
+                    else currentMessage.outgoing != prevMessage.outgoing
+                }
+                prevPos--
+            }
+            return true
         }
     }
 
     private fun isMessageNeedName(position: Int): Boolean {
         if (!isGroup) return false
-        val message = getItem(position)
-        val preMessage = getItemOrNull(position - 1) ?: return true
-        return message.outgoing != preMessage.outgoing || message.opponent != preMessage.opponent
+
+        val currentMessage = getMessageAtPosition(position) ?: return true
+
+        // Ищем предыдущее сообщение
+        var prevPos = position - 1
+        while (prevPos >= 0) {
+            val prevMessage = getMessageAtPosition(prevPos)
+            if (prevMessage != null) {
+                return currentMessage.outgoing != prevMessage.outgoing || currentMessage.opponent != prevMessage.opponent
+            }
+            prevPos--
+        }
+        return true
     }
 
-    private fun getItemOrNull(position: Int): MessageStorageItem? {
+    private fun getMessageAtPosition(position: Int): MessageStorageItem? {
+        if (position !in 0 until itemCount) return null
+        val item = getItem(position)
+        return if (item is ChatItem.MessageItem) item.message else null
+    }
+
+    // Публичный метод для получения ChatItem по позиции
+    fun getChatItem(position: Int): ChatItem? {
         return if (position in 0 until itemCount) getItem(position) else null
     }
 
-    fun getMessageItem(position: Int): MessageStorageItem? =
-        if (position in 0 until itemCount) getItem(position) else null
+    fun getMessageItem(position: Int): MessageStorageItem? {
+        val item = getChatItem(position)
+        return if (item is ChatItem.MessageItem) item.message else null
+    }
 
     fun setFirstUnreadMessageId(id: String?) {
         firstUnreadMessageID = id
@@ -139,43 +189,54 @@ class MessageAdapter(
     }
 
     private fun notifyUnreadState() {
-        getCurrentList().forEachIndexed { index, message ->
-            if (!message.isRead && (firstUnreadMessageID == null || message.primary == firstUnreadMessageID)) {
-                notifyItemChanged(index)
+        for (i in 0 until itemCount) {
+            val item = getItem(i)
+            if (item is ChatItem.MessageItem) {
+                if (!item.message.isRead && (firstUnreadMessageID == null || item.message.primary == firstUnreadMessageID)) {
+                    notifyItemChanged(i)
+                }
             }
         }
     }
 
+    // Метод для обратной совместимости (можно удалить позже)
+    fun submitMessageList(messages: List<MessageStorageItem>) {
+        submitList(messages.toChatItems())
+    }
+
     companion object {
-        const val INCOMING_MESSAGE = 1
-        const val OUTGOING_MESSAGE = 2
-        const val SYSTEM_MESSAGE = 3
+        const val VIEW_TYPE_INCOMING_MESSAGE = 1
+        const val VIEW_TYPE_OUTGOING_MESSAGE = 2
+        const val VIEW_TYPE_SYSTEM_MESSAGE = 3
+        const val VIEW_TYPE_DATE_HEADER = 4
+        const val VIEW_TYPE_UNREAD_MARKER = 5
     }
 }
 
-class MessageDiffCallback : DiffUtil.ItemCallback<MessageStorageItem>() {
-    override fun areItemsTheSame(oldItem: MessageStorageItem, newItem: MessageStorageItem): Boolean {
-        return oldItem.primary == newItem.primary
+class ChatItemDiffCallback : DiffUtil.ItemCallback<ChatItem>() {
+    override fun areItemsTheSame(oldItem: ChatItem, newItem: ChatItem): Boolean {
+        return oldItem.id == newItem.id
     }
 
-    override fun areContentsTheSame(oldItem: MessageStorageItem, newItem: MessageStorageItem): Boolean {
-        if (oldItem.body != newItem.body ||
-            oldItem.sentDate != newItem.sentDate ||
-            oldItem.editDate != newItem.editDate ||
-            oldItem.outgoing != newItem.outgoing ||
-            oldItem.isRead != newItem.isRead ||
-            oldItem.state_ != newItem.state_) return false
-
-        if (oldItem.references.size != newItem.references.size) return false
-
-        val oldRefs = oldItem.references.toList()
-        val newRefs = newItem.references.toList()
-        return oldRefs.zip(newRefs).all { (oldRef, newRef) ->
-            oldRef.primary == newRef.primary &&
-                    oldRef.uri == newRef.uri &&
-                    oldRef.isAudioMessage == newRef.isAudioMessage &&
-                    oldRef.mimeType == newRef.mimeType
-            // Add further fields (e.g., fileSize, fileName) if they affect display
+    override fun areContentsTheSame(oldItem: ChatItem, newItem: ChatItem): Boolean {
+        return when {
+            oldItem is ChatItem.MessageItem && newItem is ChatItem.MessageItem -> {
+                val oldMessage = oldItem.message
+                val newMessage = newItem.message
+                oldMessage.body == newMessage.body &&
+                        oldMessage.sentDate == newMessage.sentDate &&
+                        oldMessage.editDate == newMessage.editDate &&
+                        oldMessage.outgoing == newMessage.outgoing &&
+                        oldMessage.isRead == newMessage.isRead &&
+                        oldMessage.state_ == newMessage.state_
+            }
+            oldItem is ChatItem.DateHeaderItem && newItem is ChatItem.DateHeaderItem -> {
+                oldItem.date == newItem.date && oldItem.formattedDate == newItem.formattedDate
+            }
+            oldItem is ChatItem.UnreadMarkerItem && newItem is ChatItem.UnreadMarkerItem -> {
+                oldItem.count == newItem.count
+            }
+            else -> false
         }
     }
 }

@@ -540,7 +540,6 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
         }
         binding.messageList.layoutManager = layoutManager
         addSwipeCallback()
-        addMessageHeaderViewDecoration()
         addScrollListener()
         binding.messageList.itemAnimator = null
     }
@@ -571,7 +570,7 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
                 if (layoutManager != null) {
                     val firstVisiblePosition = layoutManager!!.findFirstVisibleItemPosition()
 
-                    if (firstVisiblePosition <= 20 && !isLoadingHistory) {
+                    if (firstVisiblePosition <= 5 && !isLoadingHistory) {
                         val currentTime = System.currentTimeMillis()
                         if (currentTime - lastLoadOlderMessagesTime >= debounceInterval) {
                             lastLoadOlderMessagesTime = currentTime
@@ -590,6 +589,16 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
                             )) {
                             binding.downScroller.isVisible = viewModel.unreadCount.value ?: 0 > 0
                         }
+                    }
+                }
+            }
+
+            override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
+                super.onScrollStateChanged(recyclerView, newState)
+                if (newState == RecyclerView.SCROLL_STATE_IDLE) {
+                    // После полной остановки скролла (включая инерцию) перерисовываем заголовки дат
+                    recyclerView.post {
+                        recyclerView.invalidateItemDecorations()
                     }
                 }
             }
@@ -624,23 +633,21 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
 
         // Определяем ID сообщения, от которого нужно загрузить предыдущую порцию
         val firstVisiblePosition = layoutManager!!.findFirstVisibleItemPosition()
-        val firstVisibleItem = messageAdapter?.getMessageItem(firstVisiblePosition)
+        val firstVisibleItem = viewModel.getMessageItemByPosition(firstVisiblePosition)
         val firstArchivedId = firstVisibleItem?.archivedId
-
-        // Делегируем всю работу ViewModel
-        viewModel.loadOlderMessages(firstArchivedId)
 
         // Сохраняем параметры для корректного скролла после вставки новых сообщений
         val firstVisibleView = layoutManager!!.findViewByPosition(firstVisiblePosition)
         val offset = firstVisibleView?.top ?: 0
         val currentItemCount = messageAdapter!!.itemCount
 
+        // Делегируем всю работу ViewModel
+        viewModel.loadOlderMessages(firstArchivedId)
+
         // Наблюдатель за изменениями списка сообщений автоматически выполнит скролл
-        viewModel.messages.observe(viewLifecycleOwner) { messages ->
-            // Этот код выполнится после того, как новые сообщения будут вставлены
+        viewModel.chatItems.observe(viewLifecycleOwner) { items ->
             if (isLoadingHistory) {
-                val newItemCount = messages.size
-                val insertedCount = newItemCount - currentItemCount
+                val insertedCount = items.size - currentItemCount
                 if (insertedCount > 0 && firstVisiblePosition != RecyclerView.NO_POSITION) {
                     layoutManager!!.scrollToPositionWithOffset(
                         firstVisiblePosition + insertedCount,
@@ -655,14 +662,16 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
     private fun scrollToFirstUnread() {
         val unreadCount = viewModel.unreadCount.value ?: 0
         if (unreadCount > 0 && messageAdapter != null && messageAdapter!!.itemCount > 0) {
-            // Since ViewModel has messageList updated, use it
-            val messages = viewModel.messages.value ?: emptyList()
-            val position = messages.indexOfFirst { !it.isRead }
+            val items = viewModel.chatItems.value ?: emptyList()
+            val position = items.indexOfFirst {
+                it is ChatItem.MessageItem && !it.message.isRead
+            }
             if (position >= 0) {
                 layoutManager?.scrollToPositionWithOffset(position, 200)
                 binding.tvNewReceivedCount.text = unreadCount.toString()
                 binding.tvNewReceivedCount.isVisible = true
-                messageAdapter?.setFirstUnreadMessageId(messages[position].primary)
+                val messageItem = items[position] as ChatItem.MessageItem
+                messageAdapter?.setFirstUnreadMessageId(messageItem.message.primary)
             }
         }
     }
@@ -917,6 +926,12 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
             if (loading) {
                 binding.messageList.stopScroll()
             }
+            if (!loading) {
+                // После полной синхронизации архива тоже отложенно перерисовываем
+                binding.messageList.post {
+                    binding.messageList.invalidateItemDecorations()
+                }
+            }
 
             // Блокировка/разблокировка UI
             binding.messageList.isNestedScrollingEnabled = !loading
@@ -939,9 +954,9 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
             }
         }
 
-        viewModel.messages.observe(viewLifecycleOwner) { messages ->
+        viewModel.chatItems.observe(viewLifecycleOwner) { items ->
             val wasAtBottom = isAtBottom()
-            messageAdapter?.submitList(messages) {
+            messageAdapter?.submitList(items) {
                 if (wasAtBottom) {
                     scrollDown()
                 }
@@ -983,7 +998,7 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
         return layoutManager?.let { lm ->
             val lastVisibleItemPosition = lm.findLastVisibleItemPosition()
             val itemCount = messageAdapter?.itemCount ?: 0
-            lastVisibleItemPosition >= itemCount - 3  // Changed to -3
+            lastVisibleItemPosition >= itemCount - 3
         } ?: false
     }
 
@@ -1304,7 +1319,6 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
     }
 
     override fun onLongClick(primary: String) {
-
         enableSelectionMode(true)
         Check.setSelectedMode(true)
         lifecycleScope.launch {
@@ -1315,8 +1329,9 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
             messageAdapter?.notifyItemChanged(position)
         }
     }
+
     override fun onFullSwipe(position: Int) {
-        val message = messageAdapter?.getMessageItem(position)
+        val message = viewModel.getMessageItemByPosition(position)
         if (message != null) {
             replyingMessage = message
             handler.postDelayed(reply, 1500)

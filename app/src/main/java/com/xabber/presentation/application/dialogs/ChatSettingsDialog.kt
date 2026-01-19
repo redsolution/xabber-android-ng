@@ -98,7 +98,7 @@ class ChatSettingsDialog : DialogFragment(R.layout.fragment_chat_settings),
             isGroup = false
         )
         binding.rvChatDemonstration.adapter = adapter
-        adapter?.submitList(demoMessages.toList()) // Initial submit
+//        adapter?.submitList(demoMessages.toList()) // Initial submit
 
         binding.seekBar.progress = ChatSettingsManager.cornerValue
         binding.tvProgressValue.text = ChatSettingsManager.cornerValue.toString()

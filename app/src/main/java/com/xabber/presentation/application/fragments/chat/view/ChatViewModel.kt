@@ -13,6 +13,8 @@ import com.xabber.data_base.models.messages.MessageStorageItem
 import com.xabber.data_base.models.sync.ConversationType
 import com.xabber.dto.AccountDto
 import com.xabber.dto.ChatListDto
+import com.xabber.presentation.application.fragments.chat.message.ChatItem
+import com.xabber.presentation.application.fragments.chat.message.toChatItems
 import com.xabber.presentation.application.fragments.chat.view.ChatModel
 import com.xabber.xmpp.jid.XMPPJID
 import kotlinx.coroutines.Dispatchers
@@ -24,6 +26,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import java.util.concurrent.atomic.AtomicInteger
 
+@RequiresApi(Build.VERSION_CODES.O)
 class ChatViewModel(
     private val chatId: String,
     val owner: String,
@@ -40,8 +43,9 @@ class ChatViewModel(
     private val _isArchiveLoading = MutableLiveData<Boolean>()
     val isArchiveLoading: LiveData<Boolean> = _isArchiveLoading
 
-    private val _messages = MutableLiveData<List<MessageStorageItem>>()
-    val messages: LiveData<List<MessageStorageItem>> = _messages
+    // Убираем старый LiveData messages и добавляем chatItems
+    private val _chatItems = MutableLiveData<List<ChatItem>>()
+    val chatItems: LiveData<List<ChatItem>> = _chatItems
 
     private val _unreadCount = MutableLiveData<Int>()
     val unreadCount: LiveData<Int> = _unreadCount
@@ -60,6 +64,10 @@ class ChatViewModel(
 
     private val _isLocked = MutableLiveData<Boolean>()
     val isLocked: LiveData<Boolean> = _isLocked
+
+    // Для обратной совместимости (можно временно оставить)
+    private val _messages = MutableLiveData<List<MessageStorageItem>>()
+    val messages: LiveData<List<MessageStorageItem>> = _messages
 
     private val selectedItems = mutableSetOf<String>()
     private var messagesJob: Job? = null
@@ -139,9 +147,18 @@ class ChatViewModel(
         messagesJob?.cancel()
         messagesJob = viewModelScope.launch {
             model.observeMessages().collectLatest { messageList ->
+                // Сохраняем для обратной совместимости
                 _messages.value = messageList
-                _unreadCount.value = messageList.count { !it.isRead && !it.outgoing }
-                Log.d(TAG, "Observed ${messageList.size} messages")
+
+                // Вычисляем количество непрочитанных
+                val unread = messageList.count { !it.isRead && !it.outgoing }
+                _unreadCount.value = unread
+
+                // Преобразуем в ChatItems
+                val chatItems = messageList.toChatItems(unread)
+                _chatItems.value = chatItems
+
+                Log.d(TAG, "Observed ${messageList.size} messages -> ${chatItems.size} chat items")
             }
         }
     }
@@ -150,8 +167,17 @@ class ChatViewModel(
         loadingJob = viewModelScope.launch {
             _isLoading.value = true
             val initialMessages = model.getMessages()
+
+            // Для обратной совместимости
             _messages.value = initialMessages
-            _unreadCount.value = initialMessages.count { !it.isRead && !it.outgoing }
+
+            val unread = initialMessages.count { !it.isRead && !it.outgoing }
+            _unreadCount.value = unread
+
+            // Преобразуем в ChatItems
+            val chatItems = initialMessages.toChatItems(unread)
+            _chatItems.value = chatItems
+
             _isLoading.value = false
         }
     }
@@ -166,8 +192,16 @@ class ChatViewModel(
     fun getMessageList(id: String) {
         viewModelScope.launch {
             val messages = model.getMessages()
+
+            // Для обратной совместимости
             _messages.value = messages
-            _unreadCount.value = messages.count { !it.isRead && !it.outgoing }
+
+            val unread = messages.count { !it.isRead && !it.outgoing }
+            _unreadCount.value = unread
+
+            // Преобразуем в ChatItems
+            val chatItems = messages.toChatItems(unread)
+            _chatItems.value = chatItems
         }
     }
 
@@ -261,9 +295,20 @@ class ChatViewModel(
 
     fun getMessageId(): String = runBlocking { model.getMessageId(selectedItems) }
 
-    fun getMessagePosition(primary: String): Int = _messages.value?.indexOfFirst { it.primary == primary } ?: -1
+    // Обновляем метод для работы с ChatItems
+    fun getMessagePosition(primary: String): Int {
+        val items = _chatItems.value ?: return -1
+        return items.indexOfFirst {
+            it is ChatItem.MessageItem && it.message.primary == primary
+        }
+    }
 
-    fun getPositionMessage(lastPosition: String): Int = _messages.value?.indexOfFirst { it.primary == lastPosition } ?: 0
+    fun getPositionMessage(lastPosition: String): Int {
+        val items = _chatItems.value ?: return 0
+        return items.indexOfFirst {
+            it is ChatItem.MessageItem && it.message.primary == lastPosition
+        }
+    }
 
     fun lastPositionPrimary(id: String): String = runBlocking { model.lastPositionPrimary(id) }
 
@@ -271,14 +316,31 @@ class ChatViewModel(
 
     fun getAccount(id: String): AccountDto? = runBlocking { model.getAccount(id) }
 
-
     fun setLocked(locked: Boolean) {
         _isLocked.value = locked
     }
 
     fun updateMessagesAndUnread(messages: List<MessageStorageItem>) {
+        // Для обратной совместимости
         _messages.value = messages
-        _unreadCount.value = messages.count { !it.isRead && !it.outgoing }
+
+        val unread = messages.count { !it.isRead && !it.outgoing }
+        _unreadCount.value = unread
+
+        // Преобразуем в ChatItems
+        val chatItems = messages.toChatItems(unread)
+        _chatItems.value = chatItems
+    }
+
+    // Новый метод для получения MessageStorageItem по position из ChatItems
+    fun getMessageItemByPosition(position: Int): MessageStorageItem? {
+        val items = _chatItems.value ?: return null
+        if (position !in 0 until items.size) return null
+
+        return when (val item = items[position]) {
+            is ChatItem.MessageItem -> item.message
+            else -> null
+        }
     }
 
     override fun onCleared() {
