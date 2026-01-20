@@ -570,7 +570,8 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
                 if (layoutManager != null) {
                     val firstVisiblePosition = layoutManager!!.findFirstVisibleItemPosition()
 
-                    if (firstVisiblePosition <= 5 && !isLoadingHistory) {
+                    // Проверяем, достигли ли мы самого начала списка (первого сообщения)
+                    if (firstVisiblePosition == 0) {
                         val currentTime = System.currentTimeMillis()
                         if (currentTime - lastLoadOlderMessagesTime >= debounceInterval) {
                             lastLoadOlderMessagesTime = currentTime
@@ -596,7 +597,6 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
             override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
                 super.onScrollStateChanged(recyclerView, newState)
                 if (newState == RecyclerView.SCROLL_STATE_IDLE) {
-                    // После полной остановки скролла (включая инерцию) перерисовываем заголовки дат
                     recyclerView.post {
                         recyclerView.invalidateItemDecorations()
                     }
@@ -623,40 +623,83 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
         }
 
         val chatDto = viewModel.loadChat(getParams().id)
+        // Проверяем, полностью ли синхронизирован архив
         if (chatDto?.isSynced == true) {
             // История полностью синхронизирована — больше загружать нечего
+            Log.d("ChatView", "Archive is fully synced, no more messages to load")
             return
         }
 
-        if (isLoadingHistory) return
+        if (isLoadingHistory) {
+            Log.d("ChatView", "Already loading history, skipping")
+            return
+        }
+
         isLoadingHistory = true
+        Log.d("ChatView", "Loading older messages...")
 
-        // Определяем ID сообщения, от которого нужно загрузить предыдущую порцию
-        val firstVisiblePosition = layoutManager!!.findFirstVisibleItemPosition()
-        val firstVisibleItem = viewModel.getMessageItemByPosition(firstVisiblePosition)
-        val firstArchivedId = firstVisibleItem?.archivedId
+        // Находим самое старое (первое) сообщение в текущем списке
+        val oldestItem = viewModel.chatItems.value?.firstOrNull()
+        val oldestArchivedId = when (oldestItem) {
+            is ChatItem.MessageItem -> oldestItem.message.archivedId
+            is ChatItem.DateHeaderItem -> {
+                // Если первый элемент - заголовок даты, ищем первое сообщение
+                viewModel.chatItems.value?.find { it is ChatItem.MessageItem }
+                    ?.let { (it as ChatItem.MessageItem).message.archivedId }
+            }
+            is ChatItem.UnreadMarkerItem -> {
+                // Если первый элемент - маркер непрочитанных, ищем первое сообщение после него
+                viewModel.chatItems.value?.drop(1)?.find { it is ChatItem.MessageItem }
+                    ?.let { (it as ChatItem.MessageItem).message.archivedId }
+            }
+            else -> null
+        }
 
-        // Сохраняем параметры для корректного скролла после вставки новых сообщений
-        val firstVisibleView = layoutManager!!.findViewByPosition(firstVisiblePosition)
+        // Сохраняем текущую позицию скролла перед загрузкой
+        val firstVisiblePosition = layoutManager?.findFirstVisibleItemPosition() ?: 0
+        val firstVisibleView = layoutManager?.findViewByPosition(firstVisiblePosition)
         val offset = firstVisibleView?.top ?: 0
-        val currentItemCount = messageAdapter!!.itemCount
+        val currentItemCount = messageAdapter?.itemCount ?: 0
+
+        Log.d("ChatView", "Loading older messages with archivedId: $oldestArchivedId")
 
         // Делегируем всю работу ViewModel
-        viewModel.loadOlderMessages(firstArchivedId)
+        viewModel.loadOlderMessages(oldestArchivedId)
 
-        // Наблюдатель за изменениями списка сообщений автоматически выполнит скролл
-        viewModel.chatItems.observe(viewLifecycleOwner) { items ->
-            if (isLoadingHistory) {
-                val insertedCount = items.size - currentItemCount
-                if (insertedCount > 0 && firstVisiblePosition != RecyclerView.NO_POSITION) {
-                    layoutManager!!.scrollToPositionWithOffset(
-                        firstVisiblePosition + insertedCount,
-                        offset
-                    )
+        // Временный наблюдатель для обработки загрузки
+        val tempObserver = object : androidx.lifecycle.Observer<List<ChatItem>> {
+            override fun onChanged(items: List<ChatItem>) {
+                if (isLoadingHistory) {
+                    val insertedCount = items.size - currentItemCount
+                    Log.d("ChatView", "Inserted $insertedCount older messages")
+
+                    if (insertedCount > 0 && firstVisiblePosition != RecyclerView.NO_POSITION) {
+                        // Прокручиваем так, чтобы сохранить видимую позицию
+                        binding.messageList.post {
+                            layoutManager?.scrollToPositionWithOffset(
+                                firstVisiblePosition + insertedCount,
+                                offset
+                            )
+                        }
+                    }
+
+                    isLoadingHistory = false
+                    viewModel.chatItems.removeObserver(this)
+                    Log.d("ChatView", "Finished loading older messages")
                 }
-                isLoadingHistory = false
             }
         }
+
+        viewModel.chatItems.observe(viewLifecycleOwner, tempObserver)
+
+        // Таймаут на случай если загрузка не завершится
+        handler.postDelayed({
+            if (isLoadingHistory) {
+                isLoadingHistory = false
+                viewModel.chatItems.removeObserver(tempObserver)
+                Log.w("ChatView", "Timeout loading older messages")
+            }
+        }, 10000) // 10 секунд таймаут
     }
 
     private fun scrollToFirstUnread() {
