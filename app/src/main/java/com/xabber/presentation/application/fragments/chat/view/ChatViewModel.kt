@@ -128,9 +128,8 @@ class ChatViewModel(
                         conversationType = conversationType,
                         messageId = firstArchivedId ?: "",
                         callback = {
-                            // Выполняется на фоне, переключаемся на Main для обновления UI
                             viewModelScope.launch(Dispatchers.Main) {
-                                delay(2500L)
+                                delay(2250L)
                                 finishArchiveLoad() // выключаем индикатор
                             }
                         }
