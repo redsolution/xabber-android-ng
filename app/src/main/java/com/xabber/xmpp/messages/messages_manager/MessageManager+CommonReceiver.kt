@@ -307,17 +307,14 @@ class MessageCommonReceiver(private val owner: String) {
         for (item in sorted) {
             if (isVoIPMessage(item.message)) continue
 
-            // Извлекаем from/to из вложенного сообщения
             val from = item.message.from?.bare() ?: item.archivedFrom ?: item.originalFrom
             val to   = item.message.to?.bare()   ?: continue
 
             if (from.isBlank() || to.isBlank()) continue
 
-            // Ключевое исправление
             val isOutgoing = from == owner
             val opponent   = if (isOutgoing) to else from
 
-            // Защита от самосообщений (на всякий случай)
             if (opponent == owner) {
                 Log.w(TAG, "Skipping self-message: from=$from, to=$to")
                 continue
@@ -337,14 +334,69 @@ class MessageCommonReceiver(private val owner: String) {
             val afterburnInterval = item.message.element("ephemeral", "urn:xmpp:ephemeral:0")
                 ?.getAttribute("timer")?.toDoubleOrNull() ?: 0.0
 
-            // Создаём unmanaged объект — только для передачи данных
+            // Get chat to check lastReadMessageDate
+            val chat = realm.query<LastChatsStorageItem>(
+                "owner = $0 AND jid = $1 AND conversationType_ = $2",
+                owner, opponent, conversationType.rawValue
+            ).first().find()
+
+            val lastReadMessageDate = chat?.lastReadMessageDate ?: 0L
+
+            // Normalize message timestamp to milliseconds
+            val messageDateMs = normalizeTimestamp(item.date.time)
+            val lastReadMessageDateMs = normalizeTimestamp(lastReadMessageDate)
+
+            // Compare timestamps to determine read status based on threshold
+            val isReadByThreshold = if (lastReadMessageDateMs > 0) {
+                // Check if message was read based on lastReadMessageDate
+                messageDateMs <= lastReadMessageDateMs
+            } else {
+                // No threshold, use original logic
+                false
+            }
+
+            // Determine final read status - use threshold OR original logic
+            val finalIsRead = if (lastReadMessageDateMs > 0) {
+                // We have a threshold, use it
+                isReadByThreshold
+            } else {
+                // No threshold, use original logic
+                if (isOutgoing) true else isRead
+            }
+
+            // Determine final state based on threshold
+            val finalState = if (lastReadMessageDateMs > 0) {
+                // We have a threshold to guide us
+                if (isOutgoing) {
+                    if (finalIsRead) {
+                        MessageSendingState.Read
+                    } else {
+                        MessageSendingState.Deliver
+                    }
+                } else {
+                    if (finalIsRead) {
+                        MessageSendingState.Read
+                    } else {
+                        MessageSendingState.Sent
+                    }
+                }
+            } else {
+                // No threshold, use item's state
+                item.state
+            }
+
+            Log.d(TAG, "Processing message for $opponent: " +
+                    "lastReadMessageDate=$lastReadMessageDate (normalized=$lastReadMessageDateMs), " +
+                    "messageDate=${item.date.time} (normalized=$messageDateMs), " +
+                    "isReadByThreshold=$isReadByThreshold, finalIsRead=$finalIsRead, finalState=$finalState")
+
             val messageItem = MessageStorageItem().apply {
                 owner = this@MessageCommonReceiver.owner
                 this.opponent = opponent
                 outgoing = isOutgoing
-                this.isRead = isRead
-                date = item.date.time
-                sentDate = item.date.time
+                this.isRead = finalIsRead
+                date = messageDateMs
+                sentDate = messageDateMs
 
                 if (item.message.hasElement("system", "urn:xmpp:system") ||
                     item.message.hasElement("x", "https://xabber.com/protocol/groups#system-message")
@@ -356,13 +408,13 @@ class MessageCommonReceiver(private val owner: String) {
                         owner = owner,
                         opponent = opponent,
                         outgoing = isOutgoing,
-                        isRead = isRead,
-                        date = item.date,
+                        isRead = finalIsRead,
+                        date = Date(messageDateMs),
                         isEncrypted = item.message.hasElement("encrypted")
                     )
                 }
 
-                state = item.state
+                state = finalState
                 this.afterburnInterval = afterburnInterval.toLong()
 
                 if (afterburnInterval > 0 && readDate != null) {
@@ -389,11 +441,36 @@ class MessageCommonReceiver(private val owner: String) {
                             ?: ""
 
             }
-//            Log.w(TAG, "MEssage parameters: id:${messageItem.messageId}, from=${messageItem.owner}, to=${messageItem.opponent}, outgoing=${messageItem.outgoing}")
+
             messageItem.save(silentNotifications = true, realm = realm)
         }
 
         AccountManager.find(owner)?.chatMarkers?.deleteEphemeralMessages()
+    }
+
+    // Helper function to normalize timestamps to milliseconds
+    private fun normalizeTimestamp(timestamp: Long): Long {
+        return when {
+            // If timestamp has 16 digits (microseconds), convert to milliseconds
+            timestamp.toString().length == 16 -> timestamp / 1000L
+
+            // If timestamp has 13 digits (milliseconds), use as-is
+            timestamp.toString().length == 13 -> timestamp
+
+            // If timestamp has 10 digits (seconds), convert to milliseconds
+            timestamp.toString().length == 10 -> timestamp * 1000L
+
+            // Default - assume milliseconds
+            else -> timestamp
+        }
+    }
+
+    // Helper function to extract unread threshold from message
+    private fun extractUnreadAfter(message: XMPPMessage): Long {
+        return message.elements("unread")
+            .firstOrNull { it.namespace == "https://xabber.com/protocol/synchronization" }
+            ?.getAttribute("after")
+            ?.toLongOrNull() ?: 0L
     }
 
     private suspend fun enqueue(item: MessageQueueItem) {

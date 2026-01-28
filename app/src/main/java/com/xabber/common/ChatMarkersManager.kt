@@ -211,16 +211,15 @@ class ChatMarkersManager(private val owner: String, withoutAfterburnTimer: Boole
             return false
         }
     }
-    @SuppressLint("SuspiciousIndentation")
+
     private suspend fun onDisplayed(message: XMPPMessage, archivedDate: Date? = null, delayed: Boolean = false): Boolean {
         val displayed = message.element("displayed", namespace = getPrimaryNamespace()) ?: run {
             return false
         }
-        // ID исходного сообщения — из атрибута id элемента <displayed>
-        val targetMessageId = displayed.getAttribute("id") ?: return false
-            Log.d("ChatMarkers", "Processing displayed marker for messageId=$targetMessageId")
 
-        // Определяем оппонента (из внутреннего сообщения, которое уже правильно распаршено)
+        val targetMessageId = displayed.getAttribute("id") ?: return false
+        Log.d("ChatMarkers", "Processing displayed marker for messageId=$targetMessageId")
+
         val outgoing = message.from?.bare() == owner
         val jid = if (outgoing) message.to?.bare() else message.from?.bare() ?: return false
         Log.d("ChatMarkers", "Opponent JID = $jid, outgoing=${message.from?.bare() == owner}")
@@ -242,55 +241,150 @@ class ChatMarkersManager(private val owner: String, withoutAfterburnTimer: Boole
 
         try {
             realm.write {
+                // Get the chat to check/update lastReadMessageDate
+                val chatPrimary = LastChatsStorageItem.genPrimary(jid!!, owner, ConversationType.Regular)
+                val chat = query<LastChatsStorageItem>("primary = $0", chatPrimary).first().find()
+
+                // Get the target message
                 val targetMessage = query<MessageStorageItem>(
                     "owner = $0 AND opponent = $1 AND messageId = $2 AND outgoing = true",
                     owner, jid, targetMessageId
                 ).first().find()
 
-                if (targetMessage != null) {
-                    targetMessage.state = MessageSendingState.Read
-                    if ((targetMessage.readDate ?: 0L) < 1) {
-                        targetMessage.readDate = date.time / 1000
-                    }
-                    Log.d("ChatMarkersManager", "Updated target outgoing message to Read: messageId=$targetMessageId")
+                val targetMessageDateMs = if (targetMessage != null) {
+                    normalizeTimestamp(targetMessage.sentDate)
+                } else {
+                    // If we don't have the target message, use the current date
+                    date.time
                 }
 
-                val outgoingMessagesToMark = query<MessageStorageItem>(
-                    "owner = $0 AND opponent = $1 AND outgoing = true AND date <= $2 AND state_ < ${MessageSendingState.Read.rawValue}",
-                    owner, jid, (targetMessage?.date ?: date.time)
-                ).find()
+                // Update lastReadMessageDate if this displayed marker is newer
+                val currentLastReadMessageDateMs = normalizeTimestamp(chat?.lastReadMessageDate ?: 0L)
 
-                outgoingMessagesToMark.forEach { msg ->
-                    msg.state = MessageSendingState.Read
-                    if ((msg.readDate ?: 0L) < 1) {
-                        msg.readDate = date.time / 1000
+                if (targetMessageDateMs > currentLastReadMessageDateMs) {
+                    chat?.lastReadMessageDate = targetMessageDateMs
+                    Log.d("ChatMarkersManager",
+                        "Updated lastReadMessageDate for chat $jid from $currentLastReadMessageDateMs to $targetMessageDateMs")
+                }
+
+                // Get the updated lastReadMessageDate
+                val updatedLastReadMessageDateMs = normalizeTimestamp(chat?.lastReadMessageDate ?: 0L)
+
+                if (updatedLastReadMessageDateMs > 0) {
+                    // Update all messages based on the lastReadMessageDate threshold
+
+                    // Update outgoing messages
+                    val outgoingMessages = query<MessageStorageItem>(
+                        "owner = $0 AND opponent = $1 AND outgoing = true",
+                        owner, jid
+                    ).find()
+
+                    outgoingMessages.forEach { msg ->
+                        val msgDateMs = normalizeTimestamp(msg.sentDate)
+                        if (msgDateMs <= updatedLastReadMessageDateMs) {
+                            // Message older than or equal to threshold - should be Read
+                            if (msg.state != MessageSendingState.Read) {
+                                msg.state = MessageSendingState.Read
+                                if ((msg.readDate ?: 0L) < 1) {
+                                    msg.readDate = date.time / 1000
+                                }
+                                Log.d("ChatMarkersManager",
+                                    "Outgoing message marked as Read: messageId=${msg.messageId}, date=$msgDateMs, threshold=$updatedLastReadMessageDateMs")
+                            }
+                        } else {
+                            // Message newer than threshold - should be Deliver
+                                msg.state = MessageSendingState.Deliver
+                                Log.d("ChatMarkersManager",
+                                    "Outgoing message marked as Deliver: messageId=${msg.messageId}, date=$msgDateMs, threshold=$updatedLastReadMessageDateMs")
+                        }
+
+
+                        // Set burn date if applicable
+                        if (msg.afterburnInterval > 0 && (msg.burnDate ?: 0L) < 1) {
+                            msg.burnDate = (date.time / 1000) + msg.afterburnInterval
+                        }
                     }
-                    if (msg.afterburnInterval > 0 && (msg.burnDate ?: 0L) < 1) {
-                        msg.burnDate = (date.time / 1000) + msg.afterburnInterval
+
+                    // Update incoming messages
+                    val incomingMessages = query<MessageStorageItem>(
+                        "owner = $0 AND opponent = $1 AND outgoing = false",
+                        owner, jid
+                    ).find()
+
+                    incomingMessages.forEach { msg ->
+                        val msgDateMs = normalizeTimestamp(msg.sentDate)
+                        if (msgDateMs <= updatedLastReadMessageDateMs) {
+                            // Message older than or equal to threshold - should be Read
+                            if (!msg.isRead) {
+                                msg.isRead = true
+                                msg.state = MessageSendingState.Read
+                                if ((msg.readDate ?: 0L) < 1) {
+                                    msg.readDate = date.time / 1000
+                                }
+                                Log.d("ChatMarkersManager",
+                                    "Incoming message marked as Read: messageId=${msg.messageId}, date=$msgDateMs, threshold=$updatedLastReadMessageDateMs")
+                            }
+                        } else {
+                            // Message newer than threshold - should be unread
+                            if (msg.isRead) {
+                                msg.isRead = false
+                                msg.state = MessageSendingState.Sent
+                                Log.d("ChatMarkersManager",
+                                    "Incoming message marked as unread (Sent): messageId=${msg.messageId}, date=$msgDateMs, threshold=$updatedLastReadMessageDateMs")
+                            }
+                        }
+
+                        // Set burn date if applicable
+                        if (msg.afterburnInterval > 0 && (msg.burnDate ?: 0L) < 1) {
+                            msg.burnDate = (date.time / 1000) + msg.afterburnInterval
+                        }
+                    }
+                } else {
+                    // Original chat markers logic (no lastReadMessageDate)
+                    if (targetMessage != null) {
+                        targetMessage.state = MessageSendingState.Read
+                        if ((targetMessage.readDate ?: 0L) < 1) {
+                            targetMessage.readDate = date.time / 1000
+                        }
+                        Log.d("ChatMarkersManager", "Updated target outgoing message to Read: messageId=$targetMessageId")
+                    }
+
+                    val outgoingMessagesToMark = query<MessageStorageItem>(
+                        "owner = $0 AND opponent = $1 AND outgoing = true AND date <= $2 AND state_ < ${MessageSendingState.Read.rawValue}",
+                        owner, jid, (targetMessage?.date ?: date.time)
+                    ).find()
+
+                    outgoingMessagesToMark.forEach { msg ->
+                        msg.state = MessageSendingState.Read
+                        if ((msg.readDate ?: 0L) < 1) {
+                            msg.readDate = date.time / 1000
+                        }
+                        if (msg.afterburnInterval > 0 && (msg.burnDate ?: 0L) < 1) {
+                            msg.burnDate = (date.time / 1000) + msg.afterburnInterval
+                        }
+                    }
+
+                    val incomingMessagesToMark = query<MessageStorageItem>(
+                        "owner = $0 AND opponent = $1 AND outgoing = false AND date <= $2 AND isRead = false",
+                        owner, jid, (targetMessage?.date ?: date.time)
+                    ).find()
+
+                    incomingMessagesToMark.forEach { msg ->
+                        msg.isRead = true
+                        msg.state = MessageSendingState.Read
+                        if ((msg.readDate ?: 0L) < 1) {
+                            msg.readDate = date.time / 1000
+                        }
+                        if (msg.afterburnInterval > 0 && (msg.burnDate ?: 0L) < 1) {
+                            msg.burnDate = (date.time / 1000) + msg.afterburnInterval
+                        }
                     }
                 }
 
-                val incomingMessagesToMark = query<MessageStorageItem>(
-                    "owner = $0 AND opponent = $1 AND outgoing = false AND date <= $2 AND isRead = false",
-                    owner, jid, (targetMessage?.date ?: date.time)
-                ).find()
-
-                incomingMessagesToMark.forEach { msg ->
-                    msg.isRead = true
-                    msg.state = MessageSendingState.Read
-                    if ((msg.readDate ?: 0L) < 1) {
-                        msg.readDate = date.time / 1000
-                    }
-                    if (msg.afterburnInterval > 0 && (msg.burnDate ?: 0L) < 1) {
-                        msg.burnDate = (date.time / 1000) + msg.afterburnInterval
-                    }
-                }
-
-                val chatPrimary = jid?.let { LastChatsStorageItem.genPrimary(it, owner, ConversationType.Regular) }
-                val chat = query<LastChatsStorageItem>("primary = $0", chatPrimary).first().find()
+                // Update chat unread count
                 chat?.let {
                     val actualUnread = query<MessageStorageItem>(
-                        "owner = $0 AND opponent = $1 AND isRead = false AND isDeleted = false",
+                        "owner = $0 AND opponent = $1 AND outgoing = false AND isRead = false AND isDeleted = false",
                         owner, jid
                     ).count().find()
 
@@ -305,6 +399,33 @@ class ChatMarkersManager(private val owner: String, withoutAfterburnTimer: Boole
             Log.e("ChatMarkersManager", "Error in onDisplayed: ${e.message}", e)
             return false
         }
+    }
+
+    // Helper function to normalize timestamps (add this to ChatMarkersManager class)
+    private fun normalizeTimestamp(timestamp: Long): Long {
+        return when {
+            // If timestamp has 16 digits (microseconds), convert to milliseconds
+            timestamp.toString().length == 16 -> timestamp / 1000L
+
+            // If timestamp has 13 digits (milliseconds), use as-is
+            timestamp.toString().length == 13 -> timestamp
+
+            // If timestamp has 10 digits (seconds), convert to milliseconds
+            timestamp.toString().length == 10 -> timestamp * 1000L
+
+            // Default - assume milliseconds
+            else -> timestamp
+        }
+    }
+    // Helper function to extract unread threshold
+    private fun extractUnreadAfterFromMessage(message: XMPPMessage, owner: String, opponent: String): Long {
+        return message.elements("unread")
+            .firstOrNull {
+                it.namespace == "https://xabber.com/protocol/synchronization" &&
+                        it.parent?.getAttribute("jid") == opponent
+            }
+            ?.getAttribute("after")
+            ?.toLongOrNull() ?: 0L
     }
 
     private suspend fun onServerDeliveryReceived(message: XMPPMessage): Boolean {
@@ -494,6 +615,7 @@ suspend fun displayed(stream: Stream, messagePrimary: String) = withContext(Disp
     var opponent: String? = null
     var messageId: String? = null
     var conversationType: ConversationType? = null
+    var jid: String? = null
 
     realm.write {
         val msg = query<MessageStorageItem>("primary = $0", messagePrimary).first().find() ?: return@write
@@ -502,15 +624,20 @@ suspend fun displayed(stream: Stream, messagePrimary: String) = withContext(Disp
         opponent = msg.opponent
         messageId = msg.messageId
         conversationType = msg.conversationType
+        jid = opponent
 
         // Обновляем readDate / burnDate
         if ((msg.readDate ?: 0) < 1) msg.readDate = System.currentTimeMillis() / 1000
         if (msg.afterburnInterval > 0 && (msg.burnDate ?: 0) < 1) {
             msg.burnDate = System.currentTimeMillis() / 1000 + msg.afterburnInterval
         }
+
+        // Mark the message as read in the database
+        msg.isRead = true
+        msg.state = MessageSendingState.Read
     }
 
-    // Отправляем маркер — полностью асинхронно и неблокирующе
+    // Отправляем маркер
     opponent?.let { opp ->
         messageId?.let { mid ->
             conversationType?.let { type ->
@@ -547,7 +674,25 @@ suspend fun displayed(stream: Stream, messagePrimary: String) = withContext(Disp
                         </message>
                     """.trimIndent()
 
-                    stream.socket?.write(stanza) // ← НЕ блокирует UI!
+                    stream.socket?.write(stanza)
+
+                    // Update displayedId in LastChatsStorageItem
+                    realm.write {
+                        val chatPrimary = LastChatsStorageItem.genPrimary(opp, owner, type)
+                        val chat = query<LastChatsStorageItem>("primary = $0", chatPrimary).first().find()
+                        chat?.let {
+                            // Convert messageId to timestamp if it's a timestamp
+                            val messageIdLong = mid.toLongOrNull()
+                            if (messageIdLong != null) {
+                                // Check if this messageId is newer than current displayedId
+                                val currentDisplayedId = it.displayedId?.toLongOrNull() ?: 0L
+                                if (messageIdLong > currentDisplayedId) {
+                                    it.displayedId = mid
+                                    Log.d("ChatMarkersManager", "Updated displayedId in chat to $mid")
+                                }
+                            }
+                        }
+                    }
                 } catch (e: Exception) {
                     Log.e("ChatMarkersManager", "Failed to send displayed marker", e)
                 }

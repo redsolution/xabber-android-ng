@@ -165,7 +165,6 @@ class ClientSynchronizationManager(owner: String) {
 
     private suspend fun readConversationMetadata(query: Element, owner: String) = withContext(Dispatchers.IO) {
         val conversations = query.getElementsByTagName("conversation")
-        val stamp = query.getAttribute("stamp")?.toLongOrNull() ?: 0L
 
         val excludedJidsForRoster = setOf(
             "favorites.redsolution.com",
@@ -179,8 +178,6 @@ class ClientSynchronizationManager(owner: String) {
         )
 
         realm.write {
-            val existingChats = query<LastChatsStorageItem>("owner = $0", owner).find()
-
             val batchSize = 10
             (0 until conversations.length step batchSize).forEach { start ->
                 val batch = (start until minOf(start + batchSize, conversations.length)).map { idx ->
@@ -196,48 +193,69 @@ class ClientSynchronizationManager(owner: String) {
 
                     val status = conversation.getAttribute("status")?.takeIf { it.isNotBlank() } ?: "active"
                     val pinned = conversation.getAttribute("pinned")?.toLongOrNull() ?: 0L
-                    val conversationStamp = conversation.getAttribute("stamp")?.toLongOrNull() ?: 0L
+                    val conversationStampUs = conversation.getAttribute("stamp")?.toLongOrNull() ?: 0L
 
-                    val conversationType = ConversationType.values().firstOrNull { it.rawValue == type }
+                    val conversationType = ConversationType.values().firstOrNull { it.rawValue == type } ?: return@forEach
 
                     val metadataList = conversation.getElementsByTagName("metadata")
                     var unreadCount = 0L
-                    var unreadAfter: Long? = null
+                    var unreadAfterUs: Long? = null
                     var lastMessage: MessageStorageItem? = null
-                    var messageDate = conversationStamp
+                    var messageDateUs = conversationStampUs
                     var lastMessageId = ""
 
                     for (j in 0 until metadataList.length) {
                         val metadata = metadataList.item(j) as Element
                         val node = metadata.getAttribute("node")?.takeIf { it.isNotBlank() }
-                        if (node != "https://xabber.com/protocol/synchronization") {
-                            continue
-                        }
+                        if (node != "https://xabber.com/protocol/synchronization") continue
 
-                        // Обработка <unread after='...' count='...'/>
                         val unread = metadata.getElementsByTagName("unread").item(0) as? Element
                         if (unread != null) {
                             unreadCount = unread.getAttribute("count")?.toLongOrNull() ?: 0L
-                            unreadAfter = unread.getAttribute("after")?.toLongOrNull()
-//                            Log.w("UNREAD", "check unreadafter $unreadAfter unreadcount $unreadCount unread $unread")
+                            unreadAfterUs = unread.getAttribute("after")?.toLongOrNull()
+
+                            // Log the unread data found
+                            Log.d("ClientSyncManager",
+                                "Found unread data for jid=$jid: " +
+                                        "unreadAfterUs=${unreadAfterUs ?: "null"}, " +
+                                        "unreadCount=$unreadCount, " +
+                                        "raw after attribute='${unread.getAttribute("after")}'")
                         }
 
                         val lastMessageElement = metadata.getElementsByTagName("last-message").item(0) as? Element
                         lastMessageElement?.let { messageElement ->
                             val message = messageElement.getElementsByTagName("message").item(0) as? Element
                             message?.let {
-                                val messageId = it.getAttribute("id")?.takeIf { it.isNotBlank() } ?: ""
-                                if (messageId.isEmpty()) {
-                                    return@let
-                                }
+                                val messageId = it.getAttribute("id")?.takeIf { it.isNotBlank() } ?: return@let
                                 val fromJid = it.getAttribute("from")?.let { XMPPJID(it).bare() } ?: jid
-                                val toJid   = it.getAttribute("to")?.let { XMPPJID(it).bare() } ?: owner
+                                val toJid = it.getAttribute("to")?.let { XMPPJID(it).bare() } ?: owner
                                 val body = it.getElementsByTagName("body").item(0)?.textContent?.trim() ?: ""
                                 if (body.isEmpty()) return@let
+
                                 val isOutgoing = fromJid == owner
-                                val opponent   = if (isOutgoing) toJid else fromJid
-                                val rawStamp = conversation.getAttribute("stamp")?.takeIf { it.isNotBlank() }
-                                val timestamp = rawStamp?.toLongOrNull()
+                                val opponent = if (isOutgoing) toJid else fromJid
+
+                                // Precise timestamp from <time stamp="..."> (convert ms → µs)
+                                var timestampUs = 0L
+                                val timeElement = it.getElementsByTagName("time").item(0) as? Element
+                                if (timeElement != null) {
+                                    val stampStr = timeElement.getAttribute("stamp")
+                                    if (stampStr != null) {
+                                        try {
+                                            val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'", Locale.US)
+                                            sdf.timeZone = TimeZone.getTimeZone("UTC")
+                                            val ms = sdf.parse(stampStr)?.time ?: 0L
+                                            timestampUs = ms * 1000L  // ms → µs, no division
+                                        } catch (e: Exception) {
+                                            Log.w("ClientSyncManager", "Failed to parse message time stamp: $stampStr", e)
+                                        }
+                                    }
+                                }
+
+                                // Fallback to conversation stamp (already µs)
+                                if (timestampUs == 0L) {
+                                    timestampUs = conversationStampUs
+                                }
 
                                 val messagePrimary = MessageStorageItem.genPrimary(messageId, owner)
                                 val existingMessage = query<MessageStorageItem>("primary = $0", messagePrimary).first().find()
@@ -248,28 +266,28 @@ class ClientSynchronizationManager(owner: String) {
                                         this.owner = owner
                                         this.opponent = opponent
                                         this.body = body
-                                        this.date = timestamp!! / 1000
-                                        this.sentDate = timestamp / 1000
+                                        this.date = timestampUs / 1000L  // Convert µs to ms
+                                        this.sentDate = timestampUs / 1000L  // Convert µs to ms
                                         this.editDate = 0L
                                         this.outgoing = isOutgoing
                                         this.conversationType_ = type
-                                        this.isRead = false
+                                        this.isRead = false  // Will be corrected in threshold loop
                                         this.state = if (isOutgoing) MessageSendingState.Sent else MessageSendingState.Deliver
                                         updatePrimary()
                                     }, UpdatePolicy.ALL)
                                 } else {
                                     existingMessage
                                 }
-                                messageDate = timestamp!!
+
+                                messageDateUs = timestampUs
                                 lastMessageId = messageId
-                                Log.d("ClientSyncManager", "Set lastMessage for jid=$jid, messageId=$messageId, outgoing=${lastMessage!!.outgoing}, from=$fromJid, to=$toJid")
+
+                                Log.d("ClientSyncManager", "Last message processed: jid=$jid, id=$messageId, timestampUs=$timestampUs, outgoing=$isOutgoing")
                             }
                         }
                     }
 
-                    if (lastMessage == null || messageDate == 0L || lastMessageId.isEmpty()) {
-                        return@forEach
-                    }
+                    if (lastMessage == null || messageDateUs == 0L || lastMessageId.isEmpty()) return@forEach
 
                     val isExcludedForRoster = excludedJidsForRoster.contains(jid) || excludedTypesForRoster.contains(type) || jid == owner
                     var rosterItem: RosterStorageItem? = null
@@ -283,81 +301,48 @@ class ClientSynchronizationManager(owner: String) {
                             }, UpdatePolicy.ALL)
                     }
 
-                    val chatPrimary = LastChatsStorageItem.genPrimary(jid, owner, conversationType!!)
-                    if (chatPrimary.isEmpty()) {
-                        return@forEach
-                    }
+                    val chatPrimary = LastChatsStorageItem.genPrimary(jid, owner, conversationType)
+                    if (chatPrimary.isEmpty()) return@forEach
 
-                    // Получаем все сообщения в этом чате
                     val allMessagesInChat = query<MessageStorageItem>(
                         "owner = $0 AND opponent = $1 AND conversationType_ = $2",
                         owner, jid, type
                     ).find()
 
-                    // ПРАВИЛЬНАЯ логика обработки unreadAfter:
-                    // unreadAfter - временная метка ПОСЛЕ которой все сообщения считаются непрочитанными
-                    // То есть: date <= unreadAfter -> прочитаны, date > unreadAfter -> непрочитаны
+                    // Apply unread threshold (convert everything to milliseconds for comparison)
+                    val unreadAfterMs = if (unreadAfterUs != null) unreadAfterUs / 1000L else 0L
+                    val messageDateMs = messageDateUs / 1000L
 
                     if (unreadCount == 0L) {
-                        // Нет непрочитанных сообщений
-                        // Это может означать два варианта:
-                        // 1. Все сообщения прочитаны (в том числе последнее)
-                        // 2. Нет вообще сообщений в чате
-
                         allMessagesInChat.forEach { msg ->
+                            msg.isRead = true
+                            msg.state = MessageSendingState.Read
+                        }
+                        Log.d("ClientSyncManager", "All messages marked read (count=0) for jid=$jid")
+                    } else if (unreadAfterMs > 0) {
+                        allMessagesInChat.forEach { msg ->
+                            val msgDateMs = normalizeTimestampInRealm(msg.date)
+                            val isRead = msgDateMs <= unreadAfterMs
                             if (msg.outgoing) {
-                                // Исходящие: должны быть Read
-                                msg.state = MessageSendingState.Read
+                                msg.state = if (isRead) MessageSendingState.Read else MessageSendingState.Deliver
                             } else {
-                                // Входящие: должны быть прочитаны
-                                msg.isRead = true
-                                msg.state = MessageSendingState.Read
+                                msg.isRead = isRead
+                                msg.state = if (isRead) MessageSendingState.Read else MessageSendingState.Deliver
                             }
                         }
-                        Log.d("ClientSyncManager", "No unread messages for jid=$jid, marking all as read")
-                    } else if (unreadAfter != null && unreadAfter > 0) {
-                        // Есть непрочитанные сообщения и есть граница unreadAfter
-                        val unreadAfterMs = unreadAfter / 1_000 // Конвертируем в миллисекунды
-
-                        allMessagesInChat.forEach { msg ->
-                            if (msg.outgoing) {
-                                // Исходящие сообщения
-                                msg.state = if (msg.date <= unreadAfterMs) {
-                                    MessageSendingState.Read // Прочитаны собеседником
-                                } else {
-                                    MessageSendingState.Deliver // Доставлены, но не прочитаны
-                                }
-                            } else {
-                                // Входящие сообщения
-                                msg.isRead = msg.date <= unreadAfterMs
-                                msg.state = if (msg.date <= unreadAfterMs) {
-                                    MessageSendingState.Read // Мы прочитали
-                                } else {
-                                    MessageSendingState.Sent // Не прочитаны нами
-                                }
-                            }
-                        }
-                        Log.d("ClientSyncManager", "Messages updated based on unreadAfter=$unreadAfterMs for jid=$jid, unreadCount=$unreadCount")
+                        Log.d("ClientSyncManager", "Applied unread threshold: afterMs=$unreadAfterMs, count=$unreadCount, lastMsgMs=$messageDateMs for jid=$jid")
                     } else {
-                        // Есть непрочитанные, но нет unreadAfter - это аномальная ситуация
-                        // Помечаем все сообщения как непрочитанные для безопасности
+                        // Anomalous case: count > 0 but no after → treat all as unread
                         allMessagesInChat.forEach { msg ->
-                            if (msg.outgoing) {
-                                msg.state = MessageSendingState.Deliver
-                            } else {
-                                msg.isRead = false
-                                msg.state = MessageSendingState.Sent
-                            }
+                            msg.isRead = false
+                            msg.state = MessageSendingState.Deliver
                         }
-                        Log.w("ClientSyncManager", "Unread messages but no unreadAfter for jid=$jid, marking all as unread")
+                        Log.w("ClientSyncManager", "No unreadAfter but count=$unreadCount → marked all unread for jid=$jid")
                     }
 
-                    // Пересчитываем фактическое количество непрочитанных
                     val actualUnread = allMessagesInChat.count { !it.outgoing && !it.isRead }
-
-                    // Проверяем соответствие с unreadCount (для отладки)
                     if (actualUnread != unreadCount.toInt()) {
-                        Log.w("ClientSyncManager", "Mismatch in unread count for jid=$jid: calculated=$actualUnread, server=$unreadCount")
+                        Log.w("ClientSyncManager", "Unread mismatch: calculated=$actualUnread, server=$unreadCount for jid=$jid")
                     }
 
                     val existingChat = query<LastChatsStorageItem>("jid = $0 AND owner = $1 AND conversationType_ = $2", jid, owner, type).first().find()
@@ -369,51 +354,148 @@ class ClientSynchronizationManager(owner: String) {
                             this.conversationType_ = type
                             this.isArchived = status == "archived"
                             this.unread = actualUnread
-                            this.messageDate = messageDate
+                            this.messageDate = messageDateMs
                             this.lastMessageId = lastMessageId
                             this.pinnedPosition = pinned
                             this.muteExpired = -1
                             this.rosterItem = rosterItem
                             this.lastMessage = lastMessage
 
-                            // Устанавливаем lastReadMessageDate на основе unreadAfter
-                            if (unreadAfter != null && unreadAfter > 0) {
-                                this.lastReadMessageDate = unreadAfter / 1_000 // Конвертируем в миллисекунды
-                                Log.d("ClientSyncManager", "Set lastReadMessageDate to ${unreadAfter / 1_000} for jid=$jid")
-                            } else if (unreadCount == 0L) {
-                                // Все сообщения прочитаны - устанавливаем на дату последнего сообщения
-                                this.lastReadMessageDate = messageDate
-                                Log.d("ClientSyncManager", "Set lastReadMessageDate to messageDate=$messageDate for jid=$jid (all read)")
+                            // Save lastReadMessageDate with logging - convert to milliseconds
+                            val lastReadMs = when {
+                                unreadAfterMs > 0 -> unreadAfterMs
+                                unreadCount == 0L -> messageDateMs
+                                else -> 0L
                             }
+                            this.lastReadMessageDate = lastReadMs
+
+                            Log.d("ClientSyncManager",
+                                "Setting lastReadMessageDate for NEW chat $jid to $lastReadMs " +
+                                        "(unreadAfterUs=$unreadAfterUs, unreadAfterMs=$unreadAfterMs, " +
+                                        "messageDateMs=$messageDateMs, unreadCount=$unreadCount)")
                         }, UpdatePolicy.ALL)
-                        Log.d("ClientSyncManager", "Created LastChatsStorageItem: primary=$chatPrimary, lastMessageId=$lastMessageId, unreadCount=$actualUnread, unreadAfter=$unreadAfter")
                     } else {
                         findLatest(existingChat)?.apply {
-                            if (messageDate > this.messageDate) {
+                            if (messageDateMs > this.messageDate) {
                                 this.isArchived = status == "archived"
                                 this.unread = actualUnread
-                                this.messageDate = messageDate
+                                this.messageDate = messageDateMs
                                 this.lastMessageId = lastMessageId
                                 this.pinnedPosition = pinned
                                 this.rosterItem = rosterItem
                                 this.lastMessage = lastMessage
 
-                                // Обновляем lastReadMessageDate на основе unreadAfter
-                                if (unreadAfter != null && unreadAfter > 0) {
-                                    this.lastReadMessageDate = unreadAfter / 1_000 // Конвертируем в миллисекунды
-                                    Log.d("ClientSyncManager", "Updated lastReadMessageDate to ${unreadAfter / 1_000} for jid=$jid")
-                                } else if (unreadCount == 0L) {
-                                    // Все сообщения прочитаны - устанавливаем на дату последнего сообщения
-                                    this.lastReadMessageDate = messageDate
-                                    Log.d("ClientSyncManager", "Updated lastReadMessageDate to messageDate=$messageDate for jid=$jid (all read)")
+                                // Update lastReadMessageDate with logging
+                                val lastReadMs = when {
+                                    unreadAfterMs > 0 -> {
+                                        Log.d("ClientSyncManager",
+                                            "Updating lastReadMessageDate for EXISTING chat $jid to unreadAfterMs=$unreadAfterMs " +
+                                                    "(unreadAfterUs=$unreadAfterUs, messageDateMs=$messageDateMs, " +
+                                                    "previous=${this.lastReadMessageDate})")
+                                        unreadAfterMs
+                                    }
+                                    unreadCount == 0L -> {
+                                        Log.d("ClientSyncManager",
+                                            "Updating lastReadMessageDate for EXISTING chat $jid to messageDateMs=$messageDateMs " +
+                                                    "(no unread messages, previous=${this.lastReadMessageDate})")
+                                        messageDateMs
+                                    }
+                                    else -> {
+                                        Log.d("ClientSyncManager",
+                                            "Keeping lastReadMessageDate for EXISTING chat $jid as ${this.lastReadMessageDate} " +
+                                                    "(no unread data, count=$unreadCount)")
+                                        this.lastReadMessageDate
+                                    }
+                                }
+
+                                // Only update if different
+                                if (lastReadMs != this.lastReadMessageDate) {
+                                    this.lastReadMessageDate = lastReadMs
+                                    Log.d("ClientSyncManager", "Updated lastReadMessageDate for chat $jid to ${this.lastReadMessageDate}")
+                                } else {
+                                    Log.d("ClientSyncManager", "lastReadMessageDate unchanged for chat $jid: ${this.lastReadMessageDate}")
                                 }
                             }
-                            Log.d("ClientSyncManager", "Updated LastChatsStorageItem: primary=$chatPrimary, lastMessageId=$lastMessageId, unreadCount=$actualUnread, unreadAfter=$unreadAfter")
                         }
+                    }
+
+                    Log.d("ClientSyncManager",
+                        "Chat processing complete: jid=$jid, " +
+                                "lastReadMessageDate=${existingChat?.lastReadMessageDate ?: "new"}, " +
+                                "unread=$actualUnread, unreadAfterUs=$unreadAfterUs, unreadAfterMs=$unreadAfterMs")
+                }
+            }
+        }
+    }
+
+    // Helper function for normalizing timestamps in Realm write context
+    private fun normalizeTimestampInRealm(timestamp: Long): Long {
+        return when {
+            timestamp.toString().length == 16 -> timestamp / 1000L
+            timestamp.toString().length == 13 -> timestamp
+            timestamp.toString().length == 10 -> timestamp * 1000L
+            else -> timestamp
+        }
+    }
+
+    private suspend fun applyUnreadThresholdToMessages(owner: String, opponent: String, unreadAfter: Long, unreadCount: Long) {
+        realm.write {
+            // Update outgoing messages based on unread threshold
+            val outgoingMessages = query<MessageStorageItem>(
+                "owner = $0 AND opponent = $1 AND outgoing = true",
+                owner, opponent
+            ).find()
+
+            outgoingMessages.forEach { msg ->
+                if (msg.sentDate > unreadAfter) {
+                    // Messages newer than threshold should be Deliver
+                    if (msg.state_ < MessageSendingState.Deliver.rawValue) {
+                        msg.state = MessageSendingState.Deliver
+                    }
+                } else {
+                    // Messages older than or equal to threshold should be Read
+                    msg.state = MessageSendingState.Read
+                    if (msg.readDate == null || msg.readDate!! < 1) {
+                        msg.readDate = System.currentTimeMillis()
                     }
                 }
             }
-            val updatedChats = query<LastChatsStorageItem>("owner = $0", owner).find()
+
+            // Update incoming messages based on unread threshold
+            val incomingMessages = query<MessageStorageItem>(
+                "owner = $0 AND opponent = $1 AND outgoing = false",
+                owner, opponent
+            ).find()
+
+            incomingMessages.forEach { msg ->
+                if (msg.sentDate > unreadAfter) {
+                    // Messages newer than threshold are unread
+                    msg.isRead = false
+                    msg.state = MessageSendingState.Sent
+                } else {
+                    // Messages older than or equal to threshold are read
+                    msg.isRead = true
+                    msg.state = MessageSendingState.Read
+                    if (msg.readDate == null || msg.readDate!! < 1) {
+                        msg.readDate = System.currentTimeMillis()
+                    }
+                }
+            }
+
+            // Update chat unread count
+            val chat = query<LastChatsStorageItem>(
+                "owner = $0 AND jid = $1",
+                owner, opponent
+            ).first().find()
+
+            chat?.let {
+                val actualUnread = query<MessageStorageItem>(
+                    "owner = $0 AND opponent = $1 AND isRead = false AND isDeleted = false",
+                    owner, opponent
+                ).count().find()
+
+                it.unread = actualUnread.toInt()
+            }
         }
     }
 
@@ -600,8 +682,8 @@ class ClientSynchronizationManager(owner: String) {
                     this.owner = owner
                     this.opponent = chatJid // Use chatJid (destination for outgoing, sender for incoming)
                     this.body = body
-                    this.date = timestamp/1000
-                    this.sentDate = timestamp/1000
+                    this.date = timestamp
+                    this.sentDate = timestamp
                     this.editDate = 0L
                     this.outgoing = from == owner
                     this.conversationType_ = conversationType
