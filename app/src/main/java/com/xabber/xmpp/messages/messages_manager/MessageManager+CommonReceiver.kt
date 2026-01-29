@@ -220,7 +220,7 @@ class MessageCommonReceiver(private val owner: String) {
             messageId = messageId,
             archivedFrom = from,
             isRead = from == owner,
-            date = Date(parseTimestamp(message, owner, TAG)!!),
+            date = Date(parseTimestamp(message, owner, TAG)),
             state = MessageSendingState.Sent,
             originalFrom = from,
             originalOutgoing = from == owner
@@ -265,7 +265,6 @@ class MessageCommonReceiver(private val owner: String) {
         prereadedMessages.add(PrereadedMessagesItem(messageId, stanzaId, date, jid))
     }
 
-    // MARK: - Queue Processing
 
     @OptIn(FlowPreview::class)
     internal fun subscribeReceiver() {

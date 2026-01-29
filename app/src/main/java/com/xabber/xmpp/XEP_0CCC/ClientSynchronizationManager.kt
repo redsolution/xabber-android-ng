@@ -234,7 +234,7 @@ class ClientSynchronizationManager(owner: String) {
 
                             Log.d("ClientSyncManager",
                                 "Found unread data for jid=$jid: " +
-                                        "unreadAfterUs=${unreadAfterUs ?: "null"}, " +
+                                        "unreadAfterUs=${unreadAfterUs ?: "null"} (${(unreadAfterUs ?: 0) / 1000L} ms), " +
                                         "unreadCount=$unreadCount")
                         }
 
@@ -398,7 +398,7 @@ class ClientSynchronizationManager(owner: String) {
                     val chatPrimary = LastChatsStorageItem.genPrimary(jid, owner, conversationType)
                     if (chatPrimary.isEmpty()) return@forEach
 
-                    // Применяем displayedId/deliveredId ко всем существующим сообщениям
+                    // Применяем unread after ко всем существующим сообщениям
                     val allMessagesInChat = query<MessageStorageItem>(
                         "owner = $0 AND opponent = $1 AND conversationType_ = $2",
                         owner, jid, type
@@ -408,6 +408,9 @@ class ClientSynchronizationManager(owner: String) {
                     val displayedIdUs = displayedId?.toLongOrNull()
                     val deliveredIdUs = deliveredId?.toLongOrNull()
                     val unreadAfterMs = if (unreadAfterUs != null) unreadAfterUs / 1000L else 0L
+
+                    // Calculate actual unread based on unreadAfter
+                    var actualUnread = 0
 
                     allMessagesInChat.forEach { msg ->
                         val messageTimestampUs = msg.sentDate * 1000L  // миллисекунды → микросекунды
@@ -431,22 +434,33 @@ class ClientSynchronizationManager(owner: String) {
                             }
                             msg.isRead = true
                         } else {
-                            // Входящие сообщения
-                            val isRead = if (unreadCount == 0L) {
-                                true  // Все прочитаны
+                            // Входящие сообщения - используем unread after
+                            if (unreadCount == 0L) {
+                                // Все прочитаны
+                                msg.isRead = true
+                                msg.state = MessageSendingState.Read
                             } else if (unreadAfterMs > 0) {
-                                msg.sentDate <= unreadAfterMs
+                                // Используем порог unread after
+                                val isRead = msg.sentDate <= unreadAfterMs
+                                msg.isRead = isRead
+                                msg.state = if (isRead) MessageSendingState.Read else MessageSendingState.Deliver
+
+                                if (!isRead) {
+                                    actualUnread++
+                                }
                             } else {
-                                false
+                                // Нет порога, считаем все непрочитанными
+                                msg.isRead = false
+                                msg.state = MessageSendingState.Deliver
+                                actualUnread++
                             }
-                            msg.isRead = isRead
-                            msg.state = if (isRead) MessageSendingState.Read else MessageSendingState.Deliver
                         }
                     }
 
-                    val actualUnread = allMessagesInChat.count { !it.outgoing && !it.isRead }
-                    if (actualUnread != unreadCount.toInt()) {
-                        Log.w("ClientSyncManager", "Unread mismatch: calculated=$actualUnread, server=$unreadCount for jid=$jid")
+                    // Если unreadCount от сервера не совпадает с нашим расчетом, используем серверное значение
+                    if (unreadCount > 0 && actualUnread != unreadCount.toInt()) {
+                        Log.w("ClientSyncManager", "Unread mismatch: calculated=$actualUnread, server=$unreadCount for jid=$jid, using server value")
+                        actualUnread = unreadCount.toInt()
                     }
 
                     val existingChat = query<LastChatsStorageItem>("jid = $0 AND owner = $1 AND conversationType_ = $2", jid, owner, type).first().find()
@@ -469,7 +483,7 @@ class ClientSynchronizationManager(owner: String) {
                             this.displayedId = displayedId
                             this.deliveredId = deliveredId
 
-                            // Сохраняем lastReadMessageDate (для обратной совместимости)
+                            // Сохраняем lastReadMessageDate из unread after
                             this.lastReadMessageDate = when {
                                 unreadAfterMs > 0 -> unreadAfterMs
                                 unreadCount == 0L -> messageDateUs / 1000L
@@ -478,9 +492,10 @@ class ClientSynchronizationManager(owner: String) {
 
                             Log.d("ClientSyncManager",
                                 "Created new chat for $jid: " +
-                                        "displayedId=$displayedId (${displayedIdUs ?: "null"} µs), " +
-                                        "deliveredId=$deliveredId (${deliveredIdUs ?: "null"} µs), " +
-                                        "unread=$actualUnread")
+                                        "unread=$actualUnread (server=$unreadCount), " +
+                                        "lastReadMessageDate=$lastReadMessageDate, " +
+                                        "displayedId=$displayedId, " +
+                                        "deliveredId=$deliveredId")
                         }, UpdatePolicy.ALL)
                     } else {
                         findLatest(existingChat)?.apply {
@@ -510,7 +525,7 @@ class ClientSynchronizationManager(owner: String) {
                                     }
                                 }
 
-                                // Обновляем lastReadMessageDate (для обратной совместимости)
+                                // Обновляем lastReadMessageDate из unread after
                                 val newLastReadMessageDate = when {
                                     unreadAfterMs > 0 -> unreadAfterMs
                                     unreadCount == 0L -> messageDateUs / 1000L
@@ -523,17 +538,18 @@ class ClientSynchronizationManager(owner: String) {
 
                                 Log.d("ClientSyncManager",
                                     "Updated chat for $jid: " +
+                                            "unread=$actualUnread (server=$unreadCount), " +
+                                            "lastReadMessageDate=$lastReadMessageDate, " +
                                             "displayedId=${this.displayedId}, " +
-                                            "deliveredId=${this.deliveredId}, " +
-                                            "unread=$actualUnread")
+                                            "deliveredId=${this.deliveredId}")
                             }
                         }
                     }
 
                     Log.d("ClientSyncManager",
                         "Chat processing complete: jid=$jid, " +
-                                "displayedId=$displayedId ($displayedIdUs µs), deliveredId=$deliveredId ($deliveredIdUs µs), " +
-                                "unread=$actualUnread (server=$unreadCount)")
+                                "unread=$actualUnread (server=$unreadCount), " +
+                                "lastReadMessageDate=${existingChat?.lastReadMessageDate ?: "new"}")
                 }
             }
         }
