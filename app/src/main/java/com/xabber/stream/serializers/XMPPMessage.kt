@@ -46,7 +46,8 @@ data class XMLElement(
     val namespace: String? = null,
     val raw: String,
     val attributes: Map<String, String> = emptyMap(),
-    var children: List<XMLElement> = emptyList()
+    var children: List<XMLElement> = emptyList(),
+    var parent: XMLElement? = null // Add parent reference
 ) {
     val textContent: String?
         get() = if (children.isEmpty()) {
