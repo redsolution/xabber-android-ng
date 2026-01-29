@@ -324,7 +324,7 @@ class ClientSynchronizationManager(owner: String) {
                                             val isRead = unreadAfterUs != null && messageTimestampUs <= unreadAfterUs
                                             this.isRead = isRead
                                             this.state = if (isRead) {
-                                                Log.d("ClientSyncManager", "Incoming message marked as Read: timestampUs=$messageTimestampUs <= unreadAfterUs=$unreadAfterUs")
+//                                                Log.d("ClientSyncManager", "Incoming message marked as Read: timestampUs=$messageTimestampUs <= unreadAfterUs=$unreadAfterUs")
                                                 MessageSendingState.Read
                                             } else {
                                                 Log.d("ClientSyncManager", "Incoming message marked as Deliver: timestampUs=$messageTimestampUs > unreadAfterUs=$unreadAfterUs")

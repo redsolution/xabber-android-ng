@@ -863,7 +863,7 @@ class Account : XMPPStreamDelegate {
         when {
             isMamResult || isMamTmp -> {
                 // All history — classic MAM + your temporary archived variant
-                Log.w(TAG, "messageReceiver.receiveArchived")
+//                Log.w(TAG, "messageReceiver.receiveArchived")
                 messageReceiver.receiveArchived(payload)
             }
 

@@ -125,7 +125,7 @@ class MessageCommonReceiver(private val owner: String) {
         )
         enqueue(queueItem)
         storeMessagesNow()
-        Log.w("CHECK", "check it RECEIVER SYNC $queueItem, ${message.body}, id:${message.id}, from=${message.from}, to=${message.to}")
+//        Log.w("CHECK", "check it RECEIVER SYNC $queueItem, ${message.body}, id:${message.id}, from=${message.from}, to=${message.to}")
 
     }
 
@@ -168,7 +168,7 @@ class MessageCommonReceiver(private val owner: String) {
             state = MessageSendingState.Sent,
             queryId = getMAMQueryId(message)
         )
-        Log.w("CHECK", "check it RECEIVER MAM $queueItem, ${message.body}, id:${message.id}, from=${message.from}, to=${message.to}")
+//        Log.w("CHECK", "check it RECEIVER MAM $queueItem, ${message.body}, id:${message.id}, from=${message.from}, to=${message.to}")
 
         enqueue(queueItem)
         storeMessagesNow()
@@ -197,7 +197,7 @@ class MessageCommonReceiver(private val owner: String) {
             queryId = getMAMQueryId(message),
             originalOutgoing = isSentCarbon
         )
-        Log.w("CHECK", "check it RECEIVER Carbon $queueItem, ${message.body}, id:${message.id}, from=${message.from}, to=${message.to}")
+//        Log.w("CHECK", "check it RECEIVER Carbon $queueItem, ${message.body}, id:${message.id}, from=${message.from}, to=${message.to}")
 
         enqueue(queueItem)
         storeMessagesNow()
@@ -333,9 +333,9 @@ class MessageCommonReceiver(private val owner: String) {
             // Конвертируем дату сообщения в микросекунды для сравнения
             val messageTimestampUs = item.date.time * 1000L  // миллисекунды → микросекунды
 
-            Log.d(TAG, "Processing message for $opponent: " +
-                    "displayedId=$displayedId µs, deliveredId=$deliveredId µs, " +
-                    "messageTimestamp=${item.date.time} ms ($messageTimestampUs µs), outgoing=$isOutgoing")
+//            Log.d(TAG, "Processing message for $opponent: " +
+//                    "displayedId=$displayedId µs, deliveredId=$deliveredId µs, " +
+//                    "messageTimestamp=${item.date.time} ms ($messageTimestampUs µs), outgoing=$isOutgoing")
 
             // Определяем состояние на основе timestamp'а
             val finalState = if (isOutgoing) {
@@ -365,7 +365,7 @@ class MessageCommonReceiver(private val owner: String) {
                 }
 
                 if (isReadByThreshold) {
-                    Log.d(TAG, "Incoming message marked as Read: messageDate=$messageDateMs <= lastReadMessageDate=$lastReadMessageDateMs")
+//                    Log.d(TAG, "Incoming message marked as Read: messageDate=$messageDateMs <= lastReadMessageDate=$lastReadMessageDateMs")
                     MessageSendingState.Read
                 } else {
                     Log.d(TAG, "Incoming message marked as Deliver: messageDate=$messageDateMs > lastReadMessageDate=$lastReadMessageDateMs")
