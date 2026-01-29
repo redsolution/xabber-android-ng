@@ -307,42 +307,89 @@ class MessageCommonReceiver(private val owner: String) {
         for (item in sorted) {
             if (isVoIPMessage(item.message)) continue
 
-            // Извлекаем from/to из вложенного сообщения
             val from = item.message.from?.bare() ?: item.archivedFrom ?: item.originalFrom
             val to   = item.message.to?.bare()   ?: continue
 
             if (from.isBlank() || to.isBlank()) continue
 
-            // Ключевое исправление
             val isOutgoing = from == owner
             val opponent   = if (isOutgoing) to else from
 
-            // Защита от самосообщений (на всякий случай)
             if (opponent == owner) {
                 Log.w(TAG, "Skipping self-message: from=$from, to=$to")
                 continue
             }
             val conversationType = conversationTypeByMessage(item.message)
 
-            // Preread logic
-            var isRead = item.isRead
-            val readDate = item.readDate
-                ?: prereadedMessages.firstOrNull { it.messageId == item.messageId }?.date
-                ?: prereadedConversation.firstOrNull { it.jid == opponent && it.conversationType == conversationType }?.date
+            // Получаем информацию о чате
+            val chat = realm.query<LastChatsStorageItem>(
+                "owner = $0 AND jid = $1 AND conversationType_ = $2",
+                owner, opponent, conversationType.rawValue
+            ).first().find()
 
-            if (readDate != null && item.date.before(readDate)) {
-                isRead = true
+            val displayedId = chat?.displayedId?.toLongOrNull()
+            val deliveredId = chat?.deliveredId?.toLongOrNull()
+            val lastReadMessageDate = chat?.lastReadMessageDate ?: 0L
+
+            // Конвертируем дату сообщения в микросекунды для сравнения
+            val messageTimestampUs = item.date.time * 1000L  // миллисекунды → микросекунды
+
+            Log.d(TAG, "Processing message for $opponent: " +
+                    "displayedId=$displayedId µs, deliveredId=$deliveredId µs, " +
+                    "messageTimestamp=${item.date.time} ms ($messageTimestampUs µs), outgoing=$isOutgoing")
+
+            // Определяем состояние на основе timestamp'а
+            val finalState = if (isOutgoing) {
+                when {
+                    displayedId != null && messageTimestampUs <= displayedId -> {
+                        Log.d(TAG, "Outgoing message marked as Read: messageTimestampUs=$messageTimestampUs <= displayedId=$displayedId µs")
+                        MessageSendingState.Read
+                    }
+                    deliveredId != null && messageTimestampUs <= deliveredId -> {
+                        Log.d(TAG, "Outgoing message marked as Deliver: messageTimestampUs=$messageTimestampUs <= deliveredId=$deliveredId µs")
+                        MessageSendingState.Deliver
+                    }
+                    else -> {
+                        Log.d(TAG, "Outgoing message marked as Sent: messageTimestampUs=$messageTimestampUs")
+                        MessageSendingState.Sent
+                    }
+                }
+            } else {
+                // Для входящих сообщений используем unread after
+                val messageDateMs = item.date.time
+                val lastReadMessageDateMs = normalizeTimestamp(lastReadMessageDate)
+
+                val isReadByThreshold = if (lastReadMessageDateMs > 0) {
+                    messageDateMs <= lastReadMessageDateMs
+                } else {
+                    item.isRead
+                }
+
+                if (isReadByThreshold) {
+                    Log.d(TAG, "Incoming message marked as Read: messageDate=$messageDateMs <= lastReadMessageDate=$lastReadMessageDateMs")
+                    MessageSendingState.Read
+                } else {
+                    Log.d(TAG, "Incoming message marked as Deliver: messageDate=$messageDateMs > lastReadMessageDate=$lastReadMessageDateMs")
+                    MessageSendingState.Deliver
+                }
+            }
+
+            val finalIsRead = if (isOutgoing) {
+                // Исходящие сообщения считаются прочитанными если они Read или Deliver
+                finalState == MessageSendingState.Read || finalState == MessageSendingState.Deliver
+            } else {
+                // Входящие сообщения прочитаны если состояние Read
+                finalState == MessageSendingState.Read
             }
 
             val afterburnInterval = item.message.element("ephemeral", "urn:xmpp:ephemeral:0")
                 ?.getAttribute("timer")?.toDoubleOrNull() ?: 0.0
 
-            // Создаём unmanaged объект — только для передачи данных
             val messageItem = MessageStorageItem().apply {
                 owner = this@MessageCommonReceiver.owner
                 this.opponent = opponent
                 outgoing = isOutgoing
-                this.isRead = isRead
+                this.isRead = finalIsRead
                 date = item.date.time
                 sentDate = item.date.time
 
@@ -356,23 +403,14 @@ class MessageCommonReceiver(private val owner: String) {
                         owner = owner,
                         opponent = opponent,
                         outgoing = isOutgoing,
-                        isRead = isRead,
+                        isRead = finalIsRead,
                         date = item.date,
                         isEncrypted = item.message.hasElement("encrypted")
                     )
                 }
 
-                state = item.state
+                state = finalState
                 this.afterburnInterval = afterburnInterval.toLong()
-
-                if (afterburnInterval > 0 && readDate != null) {
-                    this.readDate = readDate.time / 1000
-                    this.burnDate = (readDate.time / 1000) + afterburnInterval.toLong()
-                    if (this.burnDate <= System.currentTimeMillis() / 1000) {
-                        this.isDeleted = true
-                        this.body = ""
-                    }
-                }
 
                 messageId = item.messageId ?: item.message.originId ?: NanoId.generate()
                 updatePrimary()
@@ -389,11 +427,28 @@ class MessageCommonReceiver(private val owner: String) {
                             ?: ""
 
             }
-//            Log.w(TAG, "MEssage parameters: id:${messageItem.messageId}, from=${messageItem.owner}, to=${messageItem.opponent}, outgoing=${messageItem.outgoing}")
+
             messageItem.save(silentNotifications = true, realm = realm)
         }
 
         AccountManager.find(owner)?.chatMarkers?.deleteEphemeralMessages()
+    }
+
+    // Helper function to normalize timestamps to milliseconds
+    private fun normalizeTimestamp(timestamp: Long): Long {
+        return when {
+            // If timestamp has 16 digits (microseconds), convert to milliseconds
+            timestamp.toString().length == 16 -> timestamp / 1000L
+
+            // If timestamp has 13 digits (milliseconds), use as-is
+            timestamp.toString().length == 13 -> timestamp
+
+            // If timestamp has 10 digits (seconds), convert to milliseconds
+            timestamp.toString().length == 10 -> timestamp * 1000L
+
+            // Default - assume milliseconds
+            else -> timestamp
+        }
     }
 
     private suspend fun enqueue(item: MessageQueueItem) {

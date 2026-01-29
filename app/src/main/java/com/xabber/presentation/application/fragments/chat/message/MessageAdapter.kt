@@ -60,7 +60,6 @@ class MessageAdapter(
                 }
             }
             is ChatItem.DateHeaderItem -> VIEW_TYPE_DATE_HEADER
-            is ChatItem.UnreadMarkerItem -> VIEW_TYPE_UNREAD_MARKER
         }
     }
 
@@ -209,7 +208,6 @@ class MessageAdapter(
         const val VIEW_TYPE_OUTGOING_MESSAGE = 2
         const val VIEW_TYPE_SYSTEM_MESSAGE = 3
         const val VIEW_TYPE_DATE_HEADER = 4
-        const val VIEW_TYPE_UNREAD_MARKER = 5
     }
 }
 
@@ -233,9 +231,7 @@ class ChatItemDiffCallback : DiffUtil.ItemCallback<ChatItem>() {
             oldItem is ChatItem.DateHeaderItem && newItem is ChatItem.DateHeaderItem -> {
                 oldItem.date == newItem.date && oldItem.formattedDate == newItem.formattedDate
             }
-            oldItem is ChatItem.UnreadMarkerItem && newItem is ChatItem.UnreadMarkerItem -> {
-                oldItem.count == newItem.count
-            }
+
             else -> false
         }
     }

@@ -18,7 +18,7 @@ object ChatItemTransformer {
         messages.forEachIndexed { index, message ->
             // Добавляем маркер непрочитанных сообщений перед первым непрочитанным
             if (!unreadMarkerAdded && unreadCount > 0 && !message.isRead && !message.outgoing) {
-                result.add(ChatItem.UnreadMarkerItem(unreadCount))
+//                result.add(ChatItem.UnreadMarkerItem(unreadCount))
                 unreadMarkerAdded = true
             }
 

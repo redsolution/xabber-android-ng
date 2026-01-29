@@ -21,13 +21,13 @@ enum class MessageKind {
 sealed class ChatItem {
     data class MessageItem(val message: MessageStorageItem) : ChatItem()
     data class DateHeaderItem(val date: Long, val formattedDate: String) : ChatItem()
-    data class UnreadMarkerItem(val count: Int) : ChatItem()
+//    data class UnreadMarkerItem(val count: Int) : ChatItem()
 
     val id: String
         get() = when (this) {
             is MessageItem -> "message_${message.primary}"
             is DateHeaderItem -> "date_${date}"
-            is UnreadMarkerItem -> "unread_${System.currentTimeMillis()}"
+//            is UnreadMarkerItem -> "unread_${System.currentTimeMillis()}"
         }
 }
 
@@ -40,7 +40,7 @@ fun List<MessageStorageItem>.toChatItems(unreadCount: Int = 0): List<ChatItem> {
     this.forEachIndexed { index, message ->
         // Добавляем маркер непрочитанных сообщений перед первым непрочитанным
         if (!unreadMarkerAdded && unreadCount > 0 && !message.isRead && !message.outgoing) {
-            result.add(ChatItem.UnreadMarkerItem(unreadCount))
+//            result.add(ChatItem.UnreadMarkerItem(unreadCount))
             unreadMarkerAdded = true
         }
 

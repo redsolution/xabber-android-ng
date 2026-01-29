@@ -647,11 +647,11 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
                 viewModel.chatItems.value?.find { it is ChatItem.MessageItem }
                     ?.let { (it as ChatItem.MessageItem).message.archivedId }
             }
-            is ChatItem.UnreadMarkerItem -> {
-                // Если первый элемент - маркер непрочитанных, ищем первое сообщение после него
-                viewModel.chatItems.value?.drop(1)?.find { it is ChatItem.MessageItem }
-                    ?.let { (it as ChatItem.MessageItem).message.archivedId }
-            }
+//            is ChatItem.UnreadMarkerItem -> {
+//                // Если первый элемент - маркер непрочитанных, ищем первое сообщение после него
+//                viewModel.chatItems.value?.drop(1)?.find { it is ChatItem.MessageItem }
+//                    ?.let { (it as ChatItem.MessageItem).message.archivedId }
+//            }
             else -> null
         }
 
