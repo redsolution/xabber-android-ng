@@ -587,21 +587,6 @@ fun XMLElement.getDateFrom(): Date? {
     return tryParseDate(dateString, null, "element <delay>")
 }
 
-fun XMPPMessage.isMySendedCarbons(): Boolean {
-    if (!this.isCarbonCopy()) return false
-    val to = this.to ?: return false
-    val container = this.getCarbonCopyMessageContainer() ?: return false
-    val containerFrom = container.from ?: return false
-    return to.full() == containerFrom.full()
-}
-
-fun XMPPMessage.isArchivedByMe(): Boolean {
-    if (!this.isArchivedMessage()) return false
-    val to = this.to ?: return false
-    val container = this.getArchivedMessageContainer() ?: return false
-    val containerFrom = container.from ?: return false
-    return to.full() == containerFrom.full()
-}
 
 fun XMPPMessage.conversationTypeByMessage(): ConversationType {
     if (this.element("x", namespace = "https://xabber.com/protocol/groups") != null ||
@@ -632,8 +617,27 @@ private fun tryParseDate(stamp: String, messageId: String?, source: String): Dat
 
 @RequiresApi(Build.VERSION_CODES.O)
 fun String.parseXMPPDateToMillis(): Long? = try {
-    // 2025-09-18T07:54:08.153013Z → обрезаем до .153Z
-    val normalized = this.replace(Regex("""\.(\d{3})\d{0,6}Z$"""), ".$1Z")
+    // Нормализуем разные форматы времени
+    val normalized = when {
+        // Формат с Z на конце: 2025-09-18T07:54:08.153013Z
+        endsWith("Z") -> this.replace(Regex("""\.(\d{3})\d{0,6}Z$"""), ".$1Z")
+
+        // Формат с offset: 2024-11-28T06:06:25.626+00:00
+        contains(Regex("""[+-]\d{2}:\d{2}$""")) -> {
+            // Убираем миллисекунды после 3 цифр
+            val withoutNanos = this.replace(Regex("""\.(\d{3})\d+([+-]\d{2}:\d{2})$"""), ".$1$2")
+            // Если offset +00:00, заменяем на Z
+            if (withoutNanos.endsWith("+00:00")) {
+                withoutNanos.replace("+00:00", "Z")
+            } else {
+                withoutNanos
+            }
+        }
+
+        // Формат без offset (предполагаем UTC)
+        else -> this.replace(Regex("""\.(\d{3})\d+$"""), ".$1") + "Z"
+    }
+
     Instant.parse(normalized).toEpochMilli()
 } catch (e: Exception) {
     Log.w("DateParser", "Failed to parse timestamp: $this", e)

@@ -306,15 +306,15 @@ class ClientSynchronizationManager(owner: String) {
                                             // Исходящие сообщения
                                             this.state = when {
                                                 displayedIdUs != null && messageTimestampUs <= displayedIdUs -> {
-                                                    Log.d("ClientSyncManager", "Outgoing message marked as Read: timestampUs=$messageTimestampUs <= displayedIdUs=$displayedIdUs")
+//                                                    Log.d("ClientSyncManager", "Outgoing message marked as Read: timestampUs=$messageTimestampUs <= displayedIdUs=$displayedIdUs")
                                                     MessageSendingState.Read
                                                 }
                                                 deliveredIdUs != null && messageTimestampUs <= deliveredIdUs -> {
-                                                    Log.d("ClientSyncManager", "Outgoing message marked as Deliver: timestampUs=$messageTimestampUs <= deliveredIdUs=$deliveredIdUs")
+//                                                    Log.d("ClientSyncManager", "Outgoing message marked as Deliver: timestampUs=$messageTimestampUs <= deliveredIdUs=$deliveredIdUs")
                                                     MessageSendingState.Deliver
                                                 }
                                                 else -> {
-                                                    Log.d("ClientSyncManager", "Outgoing message marked as Sent: timestampUs=$messageTimestampUs")
+//                                                    Log.d("ClientSyncManager", "Outgoing message marked as Sent: timestampUs=$messageTimestampUs")
                                                     MessageSendingState.Sent
                                                 }
                                             }
@@ -327,7 +327,7 @@ class ClientSynchronizationManager(owner: String) {
 //                                                Log.d("ClientSyncManager", "Incoming message marked as Read: timestampUs=$messageTimestampUs <= unreadAfterUs=$unreadAfterUs")
                                                 MessageSendingState.Read
                                             } else {
-                                                Log.d("ClientSyncManager", "Incoming message marked as Deliver: timestampUs=$messageTimestampUs > unreadAfterUs=$unreadAfterUs")
+//                                                Log.d("ClientSyncManager", "Incoming message marked as Deliver: timestampUs=$messageTimestampUs > unreadAfterUs=$unreadAfterUs")
                                                 MessageSendingState.Deliver
                                             }
                                         }
@@ -343,16 +343,16 @@ class ClientSynchronizationManager(owner: String) {
                                         // Исходящие
                                         existingMessage.state = when {
                                             displayedIdUs != null && messageTimestampUs <= displayedIdUs -> {
-                                                Log.d("ClientSyncManager", "Updated outgoing message to Read: timestampUs=$messageTimestampUs <= displayedIdUs=$displayedIdUs")
+//                                                Log.d("ClientSyncManager", "Updated outgoing message to Read: timestampUs=$messageTimestampUs <= displayedIdUs=$displayedIdUs")
                                                 MessageSendingState.Read
                                             }
                                             deliveredIdUs != null && messageTimestampUs <= deliveredIdUs -> {
-                                                Log.d("ClientSyncManager", "Updated outgoing message to Deliver: timestampUs=$messageTimestampUs <= deliveredIdUs=$deliveredIdUs")
+//                                                Log.d("ClientSyncManager", "Updated outgoing message to Deliver: timestampUs=$messageTimestampUs <= deliveredIdUs=$deliveredIdUs")
                                                 MessageSendingState.Deliver
                                             }
                                             else -> {
                                                 if (existingMessage.state != MessageSendingState.Sent) {
-                                                    Log.d("ClientSyncManager", "Updated outgoing message to Sent: timestampUs=$messageTimestampUs")
+//                                                    Log.d("ClientSyncManager", "Updated outgoing message to Sent: timestampUs=$messageTimestampUs")
                                                     MessageSendingState.Sent
                                                 } else {
                                                     existingMessage.state
@@ -365,10 +365,10 @@ class ClientSynchronizationManager(owner: String) {
                                         val isRead = unreadAfterUs != null && messageTimestampUs <= unreadAfterUs
                                         existingMessage.isRead = isRead
                                         existingMessage.state = if (isRead) {
-                                            Log.d("ClientSyncManager", "Updated incoming message to Read: timestampUs=$messageTimestampUs <= unreadAfterUs=$unreadAfterUs")
+//                                            Log.d("ClientSyncManager", "Updated incoming message to Read: timestampUs=$messageTimestampUs <= unreadAfterUs=$unreadAfterUs")
                                             MessageSendingState.Read
                                         } else {
-                                            Log.d("ClientSyncManager", "Updated incoming message to Deliver: timestampUs=$messageTimestampUs > unreadAfterUs=$unreadAfterUs")
+//                                            Log.d("ClientSyncManager", "Updated incoming message to Deliver: timestampUs=$messageTimestampUs > unreadAfterUs=$unreadAfterUs")
                                             MessageSendingState.Deliver
                                         }
                                     }
@@ -459,7 +459,7 @@ class ClientSynchronizationManager(owner: String) {
 
                     // Если unreadCount от сервера не совпадает с нашим расчетом, используем серверное значение
                     if (unreadCount > 0 && actualUnread != unreadCount.toInt()) {
-                        Log.w("ClientSyncManager", "Unread mismatch: calculated=$actualUnread, server=$unreadCount for jid=$jid, using server value")
+//                        Log.w("ClientSyncManager", "Unread mismatch: calculated=$actualUnread, server=$unreadCount for jid=$jid, using server value")
                         actualUnread = unreadCount.toInt()
                     }
 
@@ -490,12 +490,12 @@ class ClientSynchronizationManager(owner: String) {
                                 else -> 0L
                             }
 
-                            Log.d("ClientSyncManager",
-                                "Created new chat for $jid: " +
-                                        "unread=$actualUnread (server=$unreadCount), " +
-                                        "lastReadMessageDate=$lastReadMessageDate, " +
-                                        "displayedId=$displayedId, " +
-                                        "deliveredId=$deliveredId")
+//                            Log.d("ClientSyncManager",
+//                                "Created new chat for $jid: " +
+//                                        "unread=$actualUnread (server=$unreadCount), " +
+//                                        "lastReadMessageDate=$lastReadMessageDate, " +
+//                                        "displayedId=$displayedId, " +
+//                                        "deliveredId=$deliveredId")
                         }, UpdatePolicy.ALL)
                     } else {
                         findLatest(existingChat)?.apply {
@@ -536,20 +536,20 @@ class ClientSynchronizationManager(owner: String) {
                                     this.lastReadMessageDate = newLastReadMessageDate
                                 }
 
-                                Log.d("ClientSyncManager",
-                                    "Updated chat for $jid: " +
-                                            "unread=$actualUnread (server=$unreadCount), " +
-                                            "lastReadMessageDate=$lastReadMessageDate, " +
-                                            "displayedId=${this.displayedId}, " +
-                                            "deliveredId=${this.deliveredId}")
+//                                Log.d("ClientSyncManager",
+//                                    "Updated chat for $jid: " +
+//                                            "unread=$actualUnread (server=$unreadCount), " +
+//                                            "lastReadMessageDate=$lastReadMessageDate, " +
+//                                            "displayedId=${this.displayedId}, " +
+//                                            "deliveredId=${this.deliveredId}")
                             }
                         }
                     }
 
-                    Log.d("ClientSyncManager",
-                        "Chat processing complete: jid=$jid, " +
-                                "unread=$actualUnread (server=$unreadCount), " +
-                                "lastReadMessageDate=${existingChat?.lastReadMessageDate ?: "new"}")
+//                    Log.d("ClientSyncManager",
+//                        "Chat processing complete: jid=$jid, " +
+//                                "unread=$actualUnread (server=$unreadCount), " +
+//                                "lastReadMessageDate=${existingChat?.lastReadMessageDate ?: "new"}")
                 }
             }
         }

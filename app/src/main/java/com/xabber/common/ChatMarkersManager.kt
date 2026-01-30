@@ -186,7 +186,7 @@ class ChatMarkersManager(private val owner: String, withoutAfterburnTimer: Boole
     }
 
     private suspend fun onReceived(message: XMPPMessage): Boolean {
-        Log.w("CHECK ENGINE", "CHECK onReceived of xmppmessage: ${message.children}")
+//        Log.w("CHECK ENGINE", "CHECK onReceived of xmppmessage: ${message.children}")
 
         val received = message.element("received", namespace = getPrimaryNamespace()) ?: return false
         val messageId = received.getAttribute("id") ?: return false
@@ -202,7 +202,7 @@ class ChatMarkersManager(private val owner: String, withoutAfterburnTimer: Boole
 
                 if (instance != null) {
                     instance.state = MessageSendingState.Deliver
-                    Log.d("ChatMarkersManager", "Updated outgoing message state to Deliver: messageId=$messageId")
+//                    Log.d("ChatMarkersManager", "Updated outgoing message state to Deliver: messageId=$messageId")
                 }
             }
             return true
@@ -217,11 +217,11 @@ class ChatMarkersManager(private val owner: String, withoutAfterburnTimer: Boole
         }
 
         val targetMessageId = displayed.getAttribute("id") ?: return false
-        Log.d("ChatMarkers", "Processing displayed marker for messageId=$targetMessageId")
+//        Log.d("ChatMarkers", "Processing displayed marker for messageId=$targetMessageId")
 
         val outgoing = message.from?.bare() == owner
         val jid = if (outgoing) message.to?.bare() else message.from?.bare() ?: return false
-        Log.d("ChatMarkers", "Opponent JID = $jid, outgoing=$outgoing")
+//        Log.d("ChatMarkers", "Opponent JID = $jid, outgoing=$outgoing")
         val date = archivedDate ?: getDelayedDate(message) ?: getDeliveryDate(message) ?: Date()
 
         if (!delayed) {
@@ -255,8 +255,8 @@ class ChatMarkersManager(private val owner: String, withoutAfterburnTimer: Boole
                 val currentDisplayedId = chat?.displayedId?.toLongOrNull() ?: 0L
                 if (targetMessageTimestampUs > currentDisplayedId) {
                     chat?.displayedId = targetMessageTimestampUs.toString()
-                    Log.d("ChatMarkersManager",
-                        "Updated displayedId for chat $jid to $targetMessageTimestampUs µs (was $currentDisplayedId µs)")
+//                    Log.d("ChatMarkersManager",
+//                        "Updated displayedId for chat $jid to $targetMessageTimestampUs µs (was $currentDisplayedId µs)")
                 }
 
                 // Обновляем состояние исходящих сообщений на основе нового displayedId
