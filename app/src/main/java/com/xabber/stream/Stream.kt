@@ -493,50 +493,64 @@ class Stream(var jid: String, var port: Int = 5222) {
 
     private suspend fun processMessageQueue() {
         val processedIds = mutableSetOf<String>()
-        val realm = Realm.open(defaultRealmConfig())
-        realm.write {
-            val storedIds = query<ProcessedMessageId>("owner = $0", jid).find().map { it.messageId }
-            processedIds.addAll(storedIds)
-            Log.d(TAG, "Loaded ${storedIds.size} processed message IDs for owner=$jid")
+
+        // Загружаем уже обработанные ID один раз в начале
+        val initialRealm = Realm.open(defaultRealmConfig())
+        try {
+            initialRealm.write {
+                val storedIds = query<ProcessedMessageId>("owner = $0", jid).find().map { it.messageId }
+                processedIds.addAll(storedIds)
+                Log.d(TAG, "Loaded ${storedIds.size} processed message IDs for owner=$jid")
+            }
+        } finally {
+            initialRealm.close()
         }
-        realm.close()
 
         while (true) {
             val item = messageQueue.receiveCatching().getOrNull() ?: break
+
             queueMutex.withLock {
                 if (item.message.id == null || item.message.from == null || item.message.to == null) {
                     Log.w(TAG, "Skipping invalid queue item: id=${item.message.id}, from=${item.message.from?.bare()}, to=${item.message.to?.bare()}, stanza=${item.stanza}")
                     return@withLock
                 }
-                val messageId = item.message.id
+
+                val messageId = item.message.id!!
                 if (messageId in processedIds) {
                     Log.d(TAG, "Already processed messageId=$messageId, checking if in MessageStorageItem")
                     val msgPrimary = MessageStorageItem.genPrimary(messageId, jid)
-                    val existingMessage = realm.query<MessageStorageItem>("primary = $0", msgPrimary).first().find()
-                    if (existingMessage == null) {
-                        Log.w(TAG, "MessageId=$messageId marked as processed but not in MessageStorageItem, reprocessing")
-                    } else {
-                        Log.d(TAG, "Confirmed messageId=$messageId in MessageStorageItem, skipping")
-                        realm.close()
-                        return@withLock
+                    val tempRealm = Realm.open(defaultRealmConfig())
+                    try {
+                        val existingMessage = tempRealm.query<MessageStorageItem>("primary = $0", msgPrimary).first().find()
+                        if (existingMessage != null) {
+                            Log.d(TAG, "Confirmed messageId=$messageId in MessageStorageItem, skipping")
+                            return@withLock
+                        }
+                    } finally {
+                        tempRealm.close()
                     }
-                    realm.close()
+                    Log.w(TAG, "MessageId=$messageId marked as processed but not in MessageStorageItem, reprocessing")
                 }
-                val from = item.message.from.bare() ?: return@withLock
-                val to = item.message.to.bare() ?: return@withLock
+
+                val from = item.message.from!!.bare()!!
+                val to = item.message.to!!.bare()!!
                 var isOutgoing = item.isArchived ?: (from == jid)
                 val opponent = if (isOutgoing) to else from
+
                 if (item.message.body.isNullOrEmpty()) {
-                    Log.d(TAG, "Skipping message with no body: id=$messageId, stanza=${item.stanza}")
+                    Log.d(TAG, "Skipping message with no body: id=$messageId")
                     return@withLock
                 }
-                Log.d(TAG, "Processing queued message: id=$messageId, from=$from, to=$to, body=${item.message.body.take(50)}, isOutgoing=$isOutgoing, isArchived=${item.isArchived}, thread=${Thread.currentThread().id}")
+
+                Log.d(TAG, "Processing queued message: id=$messageId, from=$from, to=$to, body=${item.message.body.take(50)}, isOutgoing=$isOutgoing")
+
+                val realm = Realm.open(defaultRealmConfig())
                 try {
                     realm.write {
                         val msgPrimary = MessageStorageItem.genPrimary(messageId, jid)
                         val existingMessage = query<MessageStorageItem>("primary = $0", msgPrimary).first().find()
                         if (existingMessage != null) {
-                            Log.d(TAG, "Skipping duplicate message in MessageStorageItem: id=$messageId, primary=$msgPrimary, body=${existingMessage.body.take(50)}")
+                            Log.d(TAG, "Skipping duplicate message in MessageStorageItem: id=$messageId")
                             return@write
                         }
 
@@ -578,7 +592,6 @@ class Stream(var jid: String, var port: Int = 5222) {
                             this.archivedId = item.message.element("archived", namespace = "urn:xmpp:mam:tmp")?.getAttribute("id") ?: ""
                         }, UpdatePolicy.ALL)
 
-                        // Log archivedId for debugging (previously inside DTO block)
                         Log.w("CHECK", "check it STREAM ${message.archivedId}")
 
                         val conversationType = ConversationType.fromRaw(message.conversationType_)
@@ -597,7 +610,6 @@ class Stream(var jid: String, var port: Int = 5222) {
                                 this.rosterItem = rosterItem
                                 this.lastMessage = message
                             }, UpdatePolicy.ALL)
-                            Log.d(TAG, "Created new LastChatsStorageItem for jid=$opponent, type=${conversationType.rawValue}, messageId=$messageId, timestamp=${item.timestamp}, isOutgoing=$isOutgoing")
                         } else {
                             findLatest(chat)?.apply {
                                 if (item.timestamp / 10000 > this.messageDate) {
@@ -606,9 +618,6 @@ class Stream(var jid: String, var port: Int = 5222) {
                                     this.lastMessageId = messageId
                                     this.lastMessage = message
                                     this.isArchived = false
-                                    Log.d(TAG, "Updated LastChatsStorageItem to latest: jid=$opponent, type=${conversationType.rawValue}, messageId=$messageId, timestamp=${item.timestamp / 10000}, isOutgoing=$isOutgoing")
-                                } else {
-                                    Log.d(TAG, "Skipped LastChatsStorageItem update, older timestamp: jid=$opponent, messageId=$messageId, timestamp=${item.timestamp / 10000}, current=${this.messageDate}")
                                 }
                             }
                         }
@@ -620,14 +629,14 @@ class Stream(var jid: String, var port: Int = 5222) {
                             this.timestamp = item.timestamp / 10000
                         }, UpdatePolicy.ALL)
                     }
-                    realm.close()
                 } catch (e: Exception) {
-                    Log.e(TAG, "Error processing queued message: ${e.message}, id=$messageId, stanza=${item.stanza}", e)
+                    Log.e(TAG, "Error processing queued message id=$messageId: ${e.message}", e)
+                } finally {
+                    realm.close()
                 }
             }
         }
     }
-
     suspend fun debugDatabaseState() {
         val realm = Realm.open(defaultRealmConfig())
         realm.write {

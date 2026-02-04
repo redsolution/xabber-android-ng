@@ -47,6 +47,7 @@ import io.realm.kotlin.ext.query
 import io.viascom.nanoid.NanoId
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
@@ -113,6 +114,12 @@ class Account : XMPPStreamDelegate {
     private val syncStanzaBuffer = StringBuilder()
     private val syncCompletionChannel = Channel<Unit>(1)
 
+    private var reconnectJob: Job? = null
+    private var reconnectDelayMs = 3000L          // Initial delay
+    private val MAX_RECONNECT_DELAY = 60000L // Cap at 60 seconds
+    private val RECONNECT_BACKOFF_MULTIPLIER = 2L
+    private val MAX_RECONNECT_ATTEMPTS = 10 // Optional hard limit
+    private var reconnectAttempts = 0
     // New: Buffer for post-registration stanzas (roster, sync, presence)
     private val stanzaBuffer = MutableSharedFlow<StanzaItem>(replay = 0, extraBufferCapacity = 1000)
     private val stanzaProcessingScope =
@@ -253,9 +260,64 @@ class Account : XMPPStreamDelegate {
     fun setOnErrorCallback(callback: (String) -> Unit) {
         onErrorCallback = callback
         stream?.setOnErrorCallback { error ->
-            callback(error)
+            onErrorCallback?.invoke(error)
             statusMessage.onNext("Offline")
+            launchReconnect()
         }
+    }
+
+    private fun launchReconnect() {
+        reconnectJob?.cancel() // Cancel any previous attempt
+
+        reconnectJob = CoroutineScope(Dispatchers.IO).launch {
+            reconnectAttempts = 0
+            while (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+                reconnectAttempts++
+                Log.d(TAG, "Reconnect attempt $reconnectAttempts after ${reconnectDelayMs}ms delay")
+
+                delay(reconnectDelayMs)
+
+                // Attempt reconnection
+                val success = connectStream()
+                if (success) {
+                    Log.d(TAG, "Reconnection successful")
+                    resetReconnectState()
+                    return@launch
+                }
+
+                // Increase delay (exponential backoff, capped)
+                reconnectDelayMs = (reconnectDelayMs * RECONNECT_BACKOFF_MULTIPLIER)
+                    .coerceAtMost(MAX_RECONNECT_DELAY)
+                Log.w(TAG, "Reconnect failed – next attempt in ${reconnectDelayMs}ms")
+            }
+
+            // All attempts failed → show dialog on main thread
+            withContext(Dispatchers.Main) {
+                showPermanentErrorDialog()
+            }
+        }
+    }
+
+    private fun resetReconnectState() {
+        reconnectJob?.cancel()
+        reconnectJob = null
+        reconnectAttempts = 0
+        reconnectDelayMs = 3000L
+    }
+
+    private fun showPermanentErrorDialog() {
+        val activity = ApplicationActivity.currentActivity ?: return
+        if (activity.isFinishing || activity.isDestroyed) return
+
+        AlertDialog.Builder(activity)
+            .setTitle("Соединение потеряно")
+            .setMessage("Не удалось восстановить соединение после нескольких попыток. Проверьте интернет и попробуйте позже.")
+            .setPositiveButton("Повторить") { _, _ ->
+                launchReconnect()
+            }
+            .setNegativeButton("Отмена", null)
+            .setCancelable(false)
+            .show()
     }
 
     suspend fun loadAccount() = withContext(Dispatchers.IO) {
@@ -368,12 +430,10 @@ class Account : XMPPStreamDelegate {
                 initializeStream()  // создаёт новый Stream, старый закрывает
             }
 
-            // Добавляем обработчик ошибки чтения
             stream!!.socket?.setOnReadLoopError {
-                // Переходим на главный поток для показа диалога
-                CoroutineScope(Dispatchers.Main).launch {
-                    showReconnectDialog()
-                }
+                Log.w(TAG, "Read loop error detected – initiating auto-reconnect")
+                statusMessage.onNext("Offline")
+                launchReconnect()
             }
 
             // Всегда гарантируем свежий Stream перед подключением
@@ -385,6 +445,7 @@ class Account : XMPPStreamDelegate {
             if (connectError == null) {
                 presenceManager = PresenceManager(jid, stream!!.socket!!)
                 statusMessage.onNext("Online")
+                resetReconnectState()  // <-- Add this
                 Log.d(TAG, "Stream connected for $jid")
                 return@withContext true
             } else {
@@ -441,6 +502,7 @@ class Account : XMPPStreamDelegate {
         stream?.close()
         stream = null
         presenceManager = null
+        resetReconnectState()
         rosterManager.close()
         messageReceiver.unsubscribeReceiver()
         statusMessage.onNext("Offline")

@@ -33,6 +33,9 @@ import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.commit
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.slidingpanelayout.widget.SlidingPaneLayout
 import com.bumptech.glide.Glide
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
@@ -86,6 +89,9 @@ import com.xabber.utils.lockScreenRotation
 import com.xabber.utils.toAccountDto
 import com.xabber.utils.toAvatarDto
 import io.realm.kotlin.Realm
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 
 /**
@@ -136,6 +142,19 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         initViews()
         setupStatusBar()
         currentActivity = this
+        ProcessLifecycleOwner.get().lifecycle.addObserver(object : DefaultLifecycleObserver {
+            override fun onStart(owner: LifecycleOwner) {
+                super.onStart(owner)
+                Log.d("ApplicationActivity", "App moved to foreground – triggering reconnection for offline accounts")
+                AccountManager.users.forEach { account ->
+                    if (account.statusMessage.value != "Online") {
+                        CoroutineScope(Dispatchers.IO).launch {
+                            account.connectStream()  // Safe: will initialise/reconnect if needed
+                        }
+                    }
+                }
+            }
+        })
         setupNavigationDrawer()
 
 
