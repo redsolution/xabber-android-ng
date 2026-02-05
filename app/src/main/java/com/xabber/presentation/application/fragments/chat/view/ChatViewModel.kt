@@ -1,8 +1,10 @@
 package com.xabber.presentation.application.fragments.chat.viewmodel
 
+import android.content.Context
 import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
+import androidx.core.app.NotificationManagerCompat
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
@@ -15,6 +17,7 @@ import com.xabber.dto.AccountDto
 import com.xabber.dto.ChatListDto
 import com.xabber.presentation.application.fragments.chat.message.ChatItem
 import com.xabber.presentation.application.fragments.chat.message.toChatItems
+import com.xabber.presentation.XabberApplication.Companion.applicationContext as appContext
 import com.xabber.presentation.application.fragments.chat.view.ChatModel
 import com.xabber.xmpp.jid.XMPPJID
 import kotlinx.coroutines.Dispatchers
@@ -241,7 +244,10 @@ class ChatViewModel(
 
     @RequiresApi(Build.VERSION_CODES.O)
     fun markAllAsRead() {
-        viewModelScope.launch { model.markAllAsRead(chatId) }
+        viewModelScope.launch {
+            model.markAllAsRead(chatId)
+            NotificationManagerCompat.from(appContext()).cancel(chatId.hashCode())
+        }
     }
 
     fun saveDraft(id: String, draft: String?) {

@@ -431,9 +431,15 @@ class Account : XMPPStreamDelegate {
             }
 
             stream!!.socket?.setOnReadLoopError {
-                Log.w(TAG, "Read loop error detected – initiating auto-reconnect")
+                Log.e(TAG, "Read loop error - connection lost")
+                // Only show dialog if activity is available
+                ApplicationActivity.currentActivity?.let { activity ->
+                    if (!activity.isFinishing && !activity.isDestroyed) {
+                        CoroutineScope(Dispatchers.Main).launch { showReconnectDialog() }
+                    }
+                }
+                // Always mark as offline - the service will attempt reconnect
                 statusMessage.onNext("Offline")
-                launchReconnect()
             }
 
             // Всегда гарантируем свежий Stream перед подключением

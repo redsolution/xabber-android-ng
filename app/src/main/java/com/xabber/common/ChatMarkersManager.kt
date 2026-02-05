@@ -212,16 +212,11 @@ class ChatMarkersManager(private val owner: String, withoutAfterburnTimer: Boole
         }
     }
     private suspend fun onDisplayed(message: XMPPMessage, archivedDate: Date? = null, delayed: Boolean = false): Boolean {
-        val displayed = message.element("displayed", namespace = getPrimaryNamespace()) ?: run {
-            return false
-        }
-
+        val displayed = message.element("displayed", namespace = getPrimaryNamespace()) ?: return false
         val targetMessageId = displayed.getAttribute("id") ?: return false
-//        Log.d("ChatMarkers", "Processing displayed marker for messageId=$targetMessageId")
 
-        val outgoing = message.from?.bare() == owner
-        val jid = if (outgoing) message.to?.bare() else message.from?.bare() ?: return false
-//        Log.d("ChatMarkers", "Opponent JID = $jid, outgoing=$outgoing")
+        val outgoingMarker = message.from?.bare() == owner
+        val jid = if (outgoingMarker) message.to?.bare() else message.from?.bare() ?: return false
         val date = archivedDate ?: getDelayedDate(message) ?: getDeliveryDate(message) ?: Date()
 
         if (!delayed) {
@@ -234,83 +229,70 @@ class ChatMarkersManager(private val owner: String, withoutAfterburnTimer: Boole
 
         try {
             realm.write {
-                // Получаем чат
                 val chatPrimary = LastChatsStorageItem.genPrimary(jid!!, owner, ConversationType.Regular)
-                val chat = query<LastChatsStorageItem>("primary = $0", chatPrimary).first().find()
+                val chat = query<LastChatsStorageItem>("primary = $0", chatPrimary).first().find() ?: return@write
 
-                // Получаем целевое сообщение
+                // Find the message that was displayed (it can be incoming or outgoing)
                 val targetMessage = query<MessageStorageItem>(
-                    "owner = $0 AND opponent = $1 AND messageId = $2 AND outgoing = true",
+                    "owner = $0 AND opponent = $1 AND messageId = $2",
                     owner, jid, targetMessageId
                 ).first().find()
 
-                // Пытаемся получить timestamp из messageId (если это timestamp)
-                val targetMessageTimestampUs = when {
-                    targetMessage != null -> targetMessage.sentDate * 1000L  // миллисекунды → микросекунды
-                    targetMessageId.toLongOrNull() != null -> targetMessageId.toLongOrNull()!!
-                    else -> date.time * 1000L  // текущее время в микросекундах
+                val targetTimestampUs = when {
+                    targetMessage != null -> targetMessage.sentDate * 1000L
+                    targetMessageId.toLongOrNull() != null -> targetMessageId.toLongOrNull()!! * 1000L
+                    else -> date.time * 1000L
                 }
 
-                // Обновляем displayedId в чате
-                val currentDisplayedId = chat?.displayedId?.toLongOrNull() ?: 0L
-                if (targetMessageTimestampUs > currentDisplayedId) {
-                    chat?.displayedId = targetMessageTimestampUs.toString()
-//                    Log.d("ChatMarkersManager",
-//                        "Updated displayedId for chat $jid to $targetMessageTimestampUs µs (was $currentDisplayedId µs)")
+                // Update displayedId (for outgoing messages)
+                val currentDisplayedId = chat.displayedId?.toLongOrNull() ?: 0L
+                if (targetTimestampUs > currentDisplayedId) {
+                    chat.displayedId = targetTimestampUs.toString()
+                    Log.d("ChatMarkersManager", "Updated displayedId to $targetTimestampUs µs for chat $jid")
                 }
 
-                // Обновляем состояние исходящих сообщений на основе нового displayedId
-                val updatedDisplayedId = chat?.displayedId?.toLongOrNull() ?: 0L
-                val updatedDeliveredId = chat?.deliveredId?.toLongOrNull() ?: 0L
+                // Update lastReadMessageDate for incoming messages (remote device read)
+                val currentLastReadMs = chat.lastReadMessageDate
+                val targetTimestampMs = targetTimestampUs / 1000L
+                if (targetTimestampMs > currentLastReadMs) {
+                    chat.lastReadMessageDate = targetTimestampMs
+                    Log.d("ChatMarkersManager", "Updated lastReadMessageDate to $targetTimestampMs ms for chat $jid")
+                }
 
-                if (updatedDisplayedId > 0) {
-                    // Обновляем все исходящие сообщения
-                    val outgoingMessages = query<MessageStorageItem>(
-                        "owner = $0 AND opponent = $1 AND outgoing = true",
-                        owner, jid
-                    ).find()
+                // Update outgoing messages state
+                val updatedDisplayedId = chat.displayedId?.toLongOrNull() ?: 0L
+                val updatedDeliveredId = chat.deliveredId?.toLongOrNull() ?: 0L
 
-                    outgoingMessages.forEach { msg ->
-                        val messageTimestampUs = msg.sentDate * 1000L  // миллисекунды → микросекунды
+                val outgoingMessages = query<MessageStorageItem>(
+                    "owner = $0 AND opponent = $1 AND outgoing = true",
+                    owner, jid
+                ).find()
 
-                        msg.state = when {
-                            messageTimestampUs <= updatedDisplayedId -> {
-                                MessageSendingState.Read
-                            }
-                            messageTimestampUs <= updatedDeliveredId -> {
-                                MessageSendingState.Deliver
-                            }
-                            else -> {
-                                if (msg.state_ < MessageSendingState.Sent.rawValue) {
-                                    MessageSendingState.Sent
-                                } else {
-                                    msg.state
-                                }
-                            }
-                        }
+                outgoingMessages.forEach { msg ->
+                    val msgTimestampUs = msg.sentDate * 1000L
+                    msg.state = when {
+                        msgTimestampUs <= updatedDisplayedId -> MessageSendingState.Read
+                        msgTimestampUs <= updatedDeliveredId -> MessageSendingState.Deliver
+                        else -> if (msg.state_ < MessageSendingState.Sent.rawValue) MessageSendingState.Sent else msg.state
+                    }
 
-                        if (msg.state == MessageSendingState.Read && (msg.readDate ?: 0L) < 1) {
-                            msg.readDate = date.time / 1000
-                        }
-
-                        Log.d("ChatMarkersManager",
-                            "Updated outgoing message: messageId=${msg.messageId}, " +
-                                    "timestamp=${msg.sentDate} ms ($messageTimestampUs µs), " +
-                                    "state=${msg.state}, " +
-                                    "displayedId=$updatedDisplayedId µs, deliveredId=$updatedDeliveredId µs")
+                    if (msg.state == MessageSendingState.Read && (msg.readDate ?: 0L) < 1) {
+                        msg.readDate = date.time / 1000
                     }
                 }
 
-                // Обновляем количество непрочитанных
-                chat?.let {
-                    val actualUnread = query<MessageStorageItem>(
-                        "owner = $0 AND opponent = $1 AND outgoing = false AND isRead = false AND isDeleted = false",
-                        owner, jid
-                    ).count().find()
+                // Recalculate unread count based on lastReadMessageDate
+                val incomingMessages = query<MessageStorageItem>(
+                    "owner = $0 AND opponent = $1 AND outgoing = false AND isDeleted = false",
+                    owner, jid
+                ).find()
 
-                    it.unread = actualUnread.toInt()
-                    Log.d("ChatMarkersManager", "Updated chat unread count to $actualUnread for jid=$jid")
-                }
+                val newUnread = incomingMessages.count { msg ->
+                    msg.sentDate > chat.lastReadMessageDate
+                }.toInt()
+
+                chat.unread = newUnread
+                Log.d("ChatMarkersManager", "Recalculated unread count to $newUnread for chat $jid")
             }
 
             deleteEphemeralMessages()

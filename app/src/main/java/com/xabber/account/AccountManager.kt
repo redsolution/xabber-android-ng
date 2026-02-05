@@ -1,9 +1,11 @@
 package com.xabber.account
 
 import android.content.Context
+import android.content.Intent
 import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
+import androidx.core.app.NotificationManagerCompat
 import com.xabber.data_base.defaultRealmConfig
 import com.xabber.data_base.models.account.AccountStorageItem
 import com.xabber.data_base.models.avatar.AvatarStorageItem
@@ -16,6 +18,7 @@ import com.xabber.data_base.models.roster.BlockStorageItem
 import com.xabber.data_base.models.roster.RosterGroupStorageItem
 import com.xabber.data_base.models.roster.RosterStorageItem
 import com.xabber.data_base.models.sync.ConversationType
+import com.xabber.presentation.XabberApplication.Companion.applicationContext as appContext
 import com.xabber.presentation.application.fragments.chat.viewmodel.ChatViewModel
 import com.xabber.presentation.onboarding.util.PasswordStorageHelper
 import com.xabber.xmpp.device.DeviceStorageItem
@@ -48,12 +51,11 @@ object AccountManager {
     private val chatViewModels = mutableMapOf<String, ChatViewModel>()
 //    private val streams = mutableMapOf<String, Stream>()
     private val messageSenders: MutableMap<String, MessageCommonSender> = mutableMapOf()
-
     // Initialize PasswordStorageHelper with application context
     fun initialize(context: Context) {
         if (passwordStorageHelper == null) {
             passwordStorageHelper = PasswordStorageHelper(context)
-            Log.d("AccountManager", "PasswordStorageHelper initialized")
+            Log.d("AccountManager", "PasswordStorageHelper and appContext initialized")
         } else {
             Log.d("AccountManager", "PasswordStorageHelper already initialized")
         }
@@ -74,6 +76,10 @@ object AccountManager {
         messageSenders[owner] = sender
     }
 
+    fun isChatOpen(chatId: String): Boolean {
+        return chatViewModels.containsKey(chatId)
+    }
+
     fun unregisterMessageSender(owner: String) {
         messageSenders.remove(owner)
     }
@@ -87,7 +93,7 @@ object AccountManager {
     fun registerChatViewModel(chatId: String, chatViewModel: ChatViewModel) {
         chatViewModels[chatId] = chatViewModel
         Log.d("AccountManager", "Registered ChatViewModel for chatId=$chatId")
-    }
+        NotificationManagerCompat.from(appContext()).cancel(chatId.hashCode())    }
 
     fun getChatViewModel(chatId: String): ChatViewModel? {
         var viewModel = chatViewModels[chatId]
@@ -99,7 +105,7 @@ object AccountManager {
                 val conversationType = ConversationType.Companion.fromRaw(parts[2])
                 viewModel = ChatViewModel(chatId, owner, opponent, conversationType)
                 chatViewModels[chatId] = viewModel
-                Log.d("AccountManager", "Initialized and registered ChatViewModel for chatId=$chatId, opponent=$opponent, conversationType=${conversationType.rawValue}")
+                Log.d("AccountManager", "Initialized and registered ChatViewModel for chatId=$chatId")
             } else {
                 Log.e("AccountManager", "Invalid chatId format: $chatId")
             }
@@ -108,6 +114,8 @@ object AccountManager {
         }
         return viewModel
     }
+
+
     fun createChatViewModel(owner: String, opponent: String, conversationType: ConversationType) {
         val chatId = LastChatsStorageItem.Companion.genPrimary(opponent, owner, conversationType)
         if (!chatViewModels.containsKey(chatId)) {
@@ -135,6 +143,7 @@ object AccountManager {
     fun unregisterChatViewModel(chatId: String) {
         chatViewModels.remove(chatId)
         Log.d("AccountManager", "Unregistered ChatViewModel for chatId=$chatId")
+
     }
 
 
@@ -201,6 +210,14 @@ object AccountManager {
                         "Added account with jid $normalizedJid to users list, new users: ${users.map { it.jid }}"
                     )
                 }
+
+                // Start the foreground service for this account
+                val serviceIntent = Intent(appContext(), XmppConnectionService::class.java).apply {
+                    action = "START"
+                    putExtra("jid", normalizedJid)
+                }
+                appContext().startForegroundService(serviceIntent)
+
                 Log.d(
                     "AccountManager",
                     "Account creation (login) successful for jid $normalizedJid"
@@ -216,7 +233,6 @@ object AccountManager {
                 throw e
             }
         }
-
     fun createAccount(jid: String, username: String, order: Int = 0): Boolean {
         return try {
             realm.writeBlocking {
@@ -383,6 +399,13 @@ object AccountManager {
                     users.add(newUserAccount)
                 }
 
+                // Start the foreground service for this account
+                val serviceIntent = Intent(appContext(), XmppConnectionService::class.java).apply {
+                    action = "START"
+                    putExtra("jid", jid)
+                }
+                appContext().startForegroundService(serviceIntent)
+
                 account = newUserAccount
                 Log.d(
                     "AccountManager",
@@ -419,6 +442,14 @@ object AccountManager {
                         iterator.remove()
                     }
                 }
+
+                // Stop the foreground service for this account
+                val serviceIntent = Intent(appContext(), XmppConnectionService::class.java).apply {
+                    action = "STOP"
+                    putExtra("jid", jid)
+                }
+                appContext().startService(serviceIntent)
+
                 Log.d("AccountManager", "Successfully logged out account with jid $jid")
                 true
             } else {

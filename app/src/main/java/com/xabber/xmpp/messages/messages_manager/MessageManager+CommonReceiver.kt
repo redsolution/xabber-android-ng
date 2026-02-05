@@ -1,16 +1,26 @@
 package com.xabber.xmpp.messages.messages_manager
 
+import android.annotation.SuppressLint
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.Context
+import android.content.Intent
 import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import com.xabber.account.AccountManager
 import com.xabber.data_base.defaultRealmConfig
 import com.xabber.data_base.models.last_chats.LastChatsStorageItem
+import com.xabber.presentation.XabberApplication.Companion.applicationContext as appContext
 import com.xabber.data_base.models.messages.MessageDisplayType
 import com.xabber.data_base.models.messages.MessageReferenceStorageItem
 import com.xabber.data_base.models.messages.MessageSendingState
 import com.xabber.data_base.models.messages.MessageStorageItem
 import com.xabber.data_base.models.sync.ConversationType
+import com.xabber.presentation.application.activity.ApplicationActivity
 import com.xabber.utils.parseTimestamp
 import com.xabber.utils.toMessageReferenceDto
 import com.xabber.xmpp.groupchat.GroupChatStorageItem
@@ -52,6 +62,7 @@ class MessageCommonReceiver(private val owner: String) {
 
     companion object {
         private const val TAG = "MessageCommonReceiver"
+        private const val NOTIFICATION_CHANNEL_ID = "messages_channel"
     }
 
     data class MessageQueueItem(
@@ -104,7 +115,84 @@ class MessageCommonReceiver(private val owner: String) {
         subscribeReceiver()
     }
 
+    @SuppressLint("ObsoleteSdkInt")
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val name = "Messages"
+            val descriptionText = "Notifications for new incoming messages"
+            val importance = NotificationManager.IMPORTANCE_HIGH
+            val channel = NotificationChannel(NOTIFICATION_CHANNEL_ID, name, importance).apply {
+                description = descriptionText
+                setSound(null, null) // Explicitly allow sound (system default)
+                enableVibration(true)
+            }
+            val notificationManager = appContext().getSystemService(NotificationManager::class.java)
+            notificationManager.createNotificationChannel(channel)
+            Log.d(TAG, "Notification channel created/updated")
+        }
+    }
 
+
+    private fun updateChatNotification(lastChat: LastChatsStorageItem) {
+        createNotificationChannel()
+
+        val chatPrimary = lastChat.primary
+        val notificationId = chatPrimary.hashCode()
+
+        Log.d(TAG, "updateChatNotification called for chatPrimary=$chatPrimary, unread=${lastChat.unread}")
+
+        val isChatOpen = AccountManager.isChatOpen(chatPrimary)
+        if (isChatOpen || lastChat.unread <= 0) {
+            Log.d(TAG, "Cancelling notification: chatOpen=$isChatOpen, unread=${lastChat.unread}")
+            NotificationManagerCompat.from(appContext()).cancel(notificationId)
+            return
+        }
+
+        val isMuted = lastChat.muteExpired > System.currentTimeMillis()
+        val displayName = lastChat.rosterItem?.customNickname ?: lastChat.jid
+        val title = if (lastChat.unread > 1) "$displayName (${lastChat.unread})" else displayName
+        val text = lastChat.lastMessage?.body ?: "New message"
+
+        val intent = Intent(appContext(), ApplicationActivity::class.java).apply {
+            action = "android.intent.action.VIEW"
+            putExtra("open_chat_primary", chatPrimary)
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            appContext(),
+            notificationId,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val builder = NotificationCompat.Builder(appContext(), NOTIFICATION_CHANNEL_ID)
+            .setSmallIcon(com.xabber.R.drawable.ic_xabber_icon)
+            .setContentTitle(title)
+            .setContentText(text)
+            .setNumber(lastChat.unread)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(false)
+            .setGroup("xabber_messages")
+            .setGroupAlertBehavior(NotificationCompat.GROUP_ALERT_SUMMARY)
+
+        if (!isMuted) {
+            builder.setDefaults(NotificationCompat.DEFAULT_ALL)
+        } else {
+            builder.setSound(null)
+            builder.setVibrate(null)
+        }
+
+        try {
+            NotificationManagerCompat.from(appContext()).notify(notificationId, builder.build())
+            Log.d(TAG, "Notification posted successfully: id=$notificationId, title=$title")
+        } catch (e: SecurityException) {
+            Log.e(TAG, "Failed to post notification - POST_NOTIFICATIONS permission not granted", e)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to post notification", e)
+        }
+    }
     suspend fun receiveClientSyncRaw(
         message: XMPPMessage,
     ) {
@@ -302,6 +390,7 @@ class MessageCommonReceiver(private val owner: String) {
 
     private suspend fun processQueue(items: List<MessageQueueItem>) {
         val sorted = items.sortedBy { it.date }
+        val newUnreadChatPrimaries = mutableSetOf<String>()
 
         for (item in sorted) {
             if (isVoIPMessage(item.message)) continue
@@ -365,7 +454,6 @@ class MessageCommonReceiver(private val owner: String) {
                 }
 
                 if (isReadByThreshold) {
-//                    Log.d(TAG, "Incoming message marked as Read: messageDate=$messageDateMs <= lastReadMessageDate=$lastReadMessageDateMs")
                     MessageSendingState.Read
                 } else {
                     Log.d(TAG, "Incoming message marked as Deliver: messageDate=$messageDateMs > lastReadMessageDate=$lastReadMessageDateMs")
@@ -379,6 +467,12 @@ class MessageCommonReceiver(private val owner: String) {
             } else {
                 // Входящие сообщения прочитаны если состояние Read
                 finalState == MessageSendingState.Read
+            }
+            val chatPrimary = LastChatsStorageItem.genPrimary(opponent, owner, conversationType)
+
+            if (!isOutgoing && !finalIsRead) {
+                newUnreadChatPrimaries.add(chatPrimary)
+                Log.d(TAG, "Added to newUnreadChatPrimaries: $chatPrimary")
             }
 
             val afterburnInterval = item.message.element("ephemeral", "urn:xmpp:ephemeral:0")
@@ -428,6 +522,25 @@ class MessageCommonReceiver(private val owner: String) {
             }
 
             messageItem.save(silentNotifications = true, realm = realm)
+        }
+        if (newUnreadChatPrimaries.isNotEmpty()) {
+            Log.d(TAG, "Processing ${newUnreadChatPrimaries.size} chats with new unread messages")
+            scope.launch(Dispatchers.IO) {
+                val tempRealm = Realm.open(defaultRealmConfig())
+                try {
+                    for (primary in newUnreadChatPrimaries) {
+                        val lastChat = tempRealm.query<LastChatsStorageItem>("primary == $0", primary).first().find()
+                        if (lastChat != null) {
+                            Log.d(TAG, "Updating notification for chat: $primary, unread=${lastChat.unread}")
+                            updateChatNotification(lastChat)
+                        } else {
+                            Log.w(TAG, "LastChatsStorageItem not found for primary=$primary")
+                        }
+                    }
+                } finally {
+                    tempRealm.close()
+                }
+            }
         }
 
         AccountManager.find(owner)?.chatMarkers?.deleteEphemeralMessages()
