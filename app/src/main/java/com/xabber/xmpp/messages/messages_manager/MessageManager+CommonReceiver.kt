@@ -1,6 +1,5 @@
 package com.xabber.xmpp.messages.messages_manager
 
-import android.annotation.SuppressLint
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -115,7 +114,6 @@ class MessageCommonReceiver(private val owner: String) {
         subscribeReceiver()
     }
 
-    @SuppressLint("ObsoleteSdkInt")
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val name = "Messages"
@@ -123,12 +121,9 @@ class MessageCommonReceiver(private val owner: String) {
             val importance = NotificationManager.IMPORTANCE_HIGH
             val channel = NotificationChannel(NOTIFICATION_CHANNEL_ID, name, importance).apply {
                 description = descriptionText
-                setSound(null, null) // Explicitly allow sound (system default)
-                enableVibration(true)
             }
             val notificationManager = appContext().getSystemService(NotificationManager::class.java)
             notificationManager.createNotificationChannel(channel)
-            Log.d(TAG, "Notification channel created/updated")
         }
     }
 
@@ -141,6 +136,7 @@ class MessageCommonReceiver(private val owner: String) {
 
         Log.d(TAG, "updateChatNotification called for chatPrimary=$chatPrimary, unread=${lastChat.unread}")
 
+        // Use isChatOpen instead of getChatViewModel to avoid creating ViewModel
         val isChatOpen = AccountManager.isChatOpen(chatPrimary)
         if (isChatOpen || lastChat.unread <= 0) {
             Log.d(TAG, "Cancelling notification: chatOpen=$isChatOpen, unread=${lastChat.unread}")
@@ -166,7 +162,7 @@ class MessageCommonReceiver(private val owner: String) {
         )
 
         val builder = NotificationCompat.Builder(appContext(), NOTIFICATION_CHANNEL_ID)
-            .setSmallIcon(com.xabber.R.drawable.ic_xabber_icon)
+            .setSmallIcon(com.xabber.R.drawable.ic_lightbulb) // Ensure this icon exists
             .setContentTitle(title)
             .setContentText(text)
             .setNumber(lastChat.unread)
@@ -175,24 +171,15 @@ class MessageCommonReceiver(private val owner: String) {
             .setContentIntent(pendingIntent)
             .setAutoCancel(false)
             .setGroup("xabber_messages")
-            .setGroupAlertBehavior(NotificationCompat.GROUP_ALERT_SUMMARY)
 
         if (!isMuted) {
             builder.setDefaults(NotificationCompat.DEFAULT_ALL)
-        } else {
-            builder.setSound(null)
-            builder.setVibrate(null)
         }
 
-        try {
-            NotificationManagerCompat.from(appContext()).notify(notificationId, builder.build())
-            Log.d(TAG, "Notification posted successfully: id=$notificationId, title=$title")
-        } catch (e: SecurityException) {
-            Log.e(TAG, "Failed to post notification - POST_NOTIFICATIONS permission not granted", e)
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to post notification", e)
-        }
+        Log.d(TAG, "Showing notification: title=$title, text=$text, muted=$isMuted")
+        NotificationManagerCompat.from(appContext()).notify(notificationId, builder.build())
     }
+
     suspend fun receiveClientSyncRaw(
         message: XMPPMessage,
     ) {
@@ -530,12 +517,7 @@ class MessageCommonReceiver(private val owner: String) {
                 try {
                     for (primary in newUnreadChatPrimaries) {
                         val lastChat = tempRealm.query<LastChatsStorageItem>("primary == $0", primary).first().find()
-                        if (lastChat != null) {
-                            Log.d(TAG, "Updating notification for chat: $primary, unread=${lastChat.unread}")
-                            updateChatNotification(lastChat)
-                        } else {
-                            Log.w(TAG, "LastChatsStorageItem not found for primary=$primary")
-                        }
+                        lastChat?.let { updateChatNotification(it) }
                     }
                 } finally {
                     tempRealm.close()
