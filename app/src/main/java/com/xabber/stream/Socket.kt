@@ -620,6 +620,8 @@ class Socket(private val host: String, private val port: Int) {
                 val bytesRead = reader?.readAvailable(tempBuffer) ?: -1
                 if (bytesRead == -1) {
                     Log.w(TAG, "Socket closed by remote peer")
+                    // Don't break immediately - try to reconnect
+                    onReadLoopError?.invoke()
                     break
                 } else if (bytesRead > 0) {
                     val bytes = tempBuffer.copyOfRange(0, bytesRead)
@@ -634,43 +636,29 @@ class Socket(private val host: String, private val port: Int) {
                         messageCallback?.invoke(message)
                     }
                 } else {
-                    Log.d(TAG, "No data available, continuing")
+                    // No data, sleep briefly
+                    delay(10)
                 }
-                delay(if (tlsHandshaking) 5 else 10)
             } catch (e: CancellationException) {
                 Log.w(TAG, "Read loop cancelled: ${e.message}", e)
                 break
             } catch (e: ConcurrentIOException) {
-                Log.e(TAG, "Concurrent read attempt in read loop: ${e.message}", e)
+                Log.e(TAG, "Concurrent read attempt: ${e.message}", e)
                 delay(100)
                 continue
             } catch (e: ClosedByteChannelException) {
-                Log.w(TAG, "Reader channel closed in read loop: ${e.message}", e)
+                Log.w(TAG, "Reader channel closed: ${e.message}")
                 onReadLoopError?.invoke()
-                // Display user notification on the main thread
-                scope.launch(Dispatchers.Main) {
-                    Toast.makeText(
-                        XabberApplication.applicationContext(),
-                        "Произошла ошибка сети. Требуется перезагрузка приложения.",
-                        Toast.LENGTH_LONG
-                    ).show()
-                }
-
+                delay(100)
                 break
             } catch (e: Exception) {
                 Log.e(TAG, "Error in read loop: ${e.message}", e)
-                if (socket?.isClosed == true || reader?.isClosedForRead == true) {
-                    Log.w(TAG, "Socket or reader closed, terminating read loop")
-                    break
-                }
-                delay(500)
+                onReadLoopError?.invoke()
+                delay(100)
+                break
             }
         }
-        Log.w(TAG, "Read loop terminated: scope active=${scope.isActive}, socket closed=${socket?.isClosed}, reader closed=${reader?.isClosedForRead}")
-        if (!tlsHandshaking) {
-            proceedChannel.close()
-            tlsDataChannel.close()
-        }
+        Log.w(TAG, "Read loop terminated")
     }
 
     suspend fun write(message: String): Boolean = withContext(Dispatchers.IO) {

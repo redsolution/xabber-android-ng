@@ -53,7 +53,10 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.w3c.dom.Node
 import org.xmlpull.v1.XmlPullParser
@@ -62,6 +65,7 @@ import org.xmlpull.v1.XmlPullParserFactory
 import java.util.Date
 import java.util.Locale
 import javax.xml.parsers.DocumentBuilderFactory
+import kotlin.coroutines.cancellation.CancellationException
 
 @RequiresApi(Build.VERSION_CODES.O)
 class Account : XMPPStreamDelegate {
@@ -93,7 +97,7 @@ class Account : XMPPStreamDelegate {
     var deviceName: String = ""
     var statusMessage: BehaviorSubject<String> = BehaviorSubject.createDefault("Offline")
     var stream: Stream? = null
-    private var onErrorCallback: ((String) -> Unit)? = null
+    var onErrorCallback: ((String) -> Unit)? = null
     private val realm: Realm by lazy { Realm.Companion.open(defaultRealmConfig()) }
     private val rosterManager: RosterManager by lazy { RosterManager(jid, realm) }
     private val syncManager: ClientSynchronizationManager by lazy { ClientSynchronizationManager(jid) }
@@ -109,7 +113,7 @@ class Account : XMPPStreamDelegate {
     val chatMarkers: ChatMarkersManager by lazy { ChatMarkersManager(jid) }
     val messages: MessageManager by lazy { MessageManager(jid, activeStream = stream != null) }
     val messageReceiver: MessageCommonReceiver by lazy { MessageCommonReceiver(jid) }
-
+    val reconnectionManager = ReconnectionManager(this)
     private val rosterStanzaBuffer = StringBuilder()
     private val syncStanzaBuffer = StringBuilder()
     private val syncCompletionChannel = Channel<Unit>(1)
@@ -291,7 +295,6 @@ class Account : XMPPStreamDelegate {
                 Log.w(TAG, "Reconnect failed – next attempt in ${reconnectDelayMs}ms")
             }
 
-            // All attempts failed → show dialog on main thread
             withContext(Dispatchers.Main) {
                 showPermanentErrorDialog()
             }
@@ -426,48 +429,84 @@ class Account : XMPPStreamDelegate {
     @RequiresApi(Build.VERSION_CODES.O)
     suspend fun connectStream(): Boolean = withContext(Dispatchers.IO) {
         try {
-            if (stream == null || stream?.socket != null || stream?.messageCallbackChannel?.isClosedForSend == true) {
-                initializeStream()  // создаёт новый Stream, старый закрывает
+            // Cancel any ongoing reconnection first
+            reconnectionManager.cancelReconnection()
+
+            // Initialize fresh stream
+            stream?.close()
+            initializeStream()
+
+            if (stream == null) {
+                Log.e(TAG, "Failed to initialize stream for $jid")
+                return@withContext false
+            }
+
+            // Set error callback that triggers reconnection
+            stream!!.setOnErrorCallback { error ->
+                Log.w(TAG, "Stream error for $jid: $error")
+                onErrorCallback?.invoke(error)
+                statusMessage.onNext("Offline")
+
+                // Schedule reconnection in background
+                CoroutineScope(Dispatchers.IO).launch {
+                    reconnectionManager.scheduleReconnection("stream error: $error")
+                }
             }
 
             stream!!.socket?.setOnReadLoopError {
-                Log.e(TAG, "Read loop error - connection lost")
-                // Only show dialog if activity is available
-                ApplicationActivity.currentActivity?.let { activity ->
-                    if (!activity.isFinishing && !activity.isDestroyed) {
-                        CoroutineScope(Dispatchers.Main).launch { showReconnectDialog() }
+                Log.e(TAG, "Read loop error - connection lost for $jid")
+
+                // Show dialog only if app is in foreground
+                val activity = ApplicationActivity.currentActivity
+                if (activity != null && !activity.isFinishing && !activity.isDestroyed) {
+                    CoroutineScope(Dispatchers.Main).launch {
+                        showReconnectDialog()
                     }
                 }
-                // Always mark as offline - the service will attempt reconnect
-                statusMessage.onNext("Offline")
-            }
 
-            // Всегда гарантируем свежий Stream перед подключением
-            if (stream == null || stream?.socket != null || stream?.messageCallbackChannel?.isClosedForSend == true) {
-                initializeStream()  // создаёт новый Stream, старый закрывает
+                statusMessage.onNext("Offline")
+
+                // Schedule reconnection
+                CoroutineScope(Dispatchers.IO).launch {
+                    reconnectionManager.scheduleReconnection("read loop error")
+                }
             }
 
             val connectError = stream!!.connect()
             if (connectError == null) {
                 presenceManager = PresenceManager(jid, stream!!.socket!!)
                 statusMessage.onNext("Online")
-                resetReconnectState()  // <-- Add this
                 Log.d(TAG, "Stream connected for $jid")
+
+                // Reset reconnection state on successful connection
+                reconnectionManager.cancelReconnection()
+
                 return@withContext true
             } else {
                 statusMessage.onNext("Offline")
                 Log.e(TAG, "Stream connection failed for $jid: $connectError")
                 onErrorCallback?.invoke(connectError)
+
+                // Schedule reconnection
+                CoroutineScope(Dispatchers.IO).launch {
+                    reconnectionManager.scheduleReconnection("connection failed: $connectError")
+                }
+
                 return@withContext false
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error connecting Stream for $jid: ${e.message}", e)
             onErrorCallback?.invoke("Connection error: ${e.message}")
             statusMessage.onNext("Offline")
+
+            // Schedule reconnection
+            CoroutineScope(Dispatchers.IO).launch {
+                reconnectionManager.scheduleReconnection("exception: ${e.message}")
+            }
+
             return@withContext false
         }
     }
-
     private fun showReconnectDialog() {
         val activity = ApplicationActivity.currentActivity
             ?: return
@@ -1299,5 +1338,102 @@ class Account : XMPPStreamDelegate {
 
     private fun MessageArchiveManager.getQueryIds(): Map<String, MessageArchiveManager.CallbackQueueItem> {
         return queryIds
+    }
+}
+
+
+class ReconnectionManager(private val account: Account) {
+    private var reconnectJob: Job? = null
+    private val reconnectMutex = Mutex()
+    private var isReconnecting = false
+    private var connectionAttempts = 0
+    private val maxConnectionAttempts = 10
+    private val backoffDelays = listOf(1000L, 2000L, 5000L, 10000L, 30000L, 60000L)
+
+    suspend fun scheduleReconnection(reason: String) {
+        reconnectMutex.withLock {
+            if (isReconnecting) {
+                Log.d("AccountReconnect", "Reconnection already in progress for ${account.jid}")
+                return
+            }
+
+            reconnectJob?.cancel()
+            isReconnecting = true
+
+            reconnectJob = CoroutineScope(Dispatchers.IO).launch {
+                try {
+                    Log.w("AccountReconnect", "Scheduling reconnection for ${account.jid} due to: $reason")
+
+                    // Clear existing stream
+                    withContext(Dispatchers.IO) {
+                        account.stream?.close()
+                        account.stream = null
+                    }
+
+                    // Exponential backoff with jitter
+                    var delayIndex = 0
+                    var success = false
+
+                    while (isActive && !success && delayIndex < backoffDelays.size) {
+                        val delayMs = backoffDelays[delayIndex]
+                        Log.d("AccountReconnect", "Reconnection attempt ${delayIndex + 1} for ${account.jid} in ${delayMs}ms")
+
+                        delay(delayMs)
+
+                        try {
+                            Log.d("AccountReconnect", "Attempting to reconnect ${account.jid}...")
+                            success = account.connectStream()
+
+                            if (success) {
+                                Log.d("AccountReconnect", "Reconnection successful for ${account.jid}")
+                                resetState()
+                                break
+                            } else {
+                                Log.w("AccountReconnect", "Reconnection attempt ${delayIndex + 1} failed for ${account.jid}")
+                                delayIndex++
+                            }
+                        } catch (e: Exception) {
+                            Log.e("AccountReconnect", "Error during reconnection attempt for ${account.jid}: ${e.message}")
+                            delayIndex++
+                            delay(1000) // Small delay before next attempt
+                        }
+                    }
+
+                    if (!success) {
+                        Log.e("AccountReconnect", "All reconnection attempts failed for ${account.jid}")
+                        account.onErrorCallback?.invoke("Failed to reconnect after ${backoffDelays.size} attempts")
+                    }
+
+                } catch (e: CancellationException) {
+                    Log.d("AccountReconnect", "Reconnection cancelled for ${account.jid}")
+                } catch (e: Exception) {
+                    Log.e("AccountReconnect", "Unexpected error in reconnection for ${account.jid}: ${e.message}")
+                } finally {
+                    reconnectMutex.withLock {
+                        isReconnecting = false
+                        connectionAttempts = 0
+                    }
+                }
+            }
+        }
+    }
+
+    suspend fun cancelReconnection() {
+        reconnectMutex.withLock {
+            reconnectJob?.cancel()
+            isReconnecting = false
+            connectionAttempts = 0
+        }
+    }
+
+    private suspend fun resetState() {
+        reconnectMutex.withLock {
+            connectionAttempts = 0
+            isReconnecting = false
+        }
+    }
+
+    suspend fun isReconnecting(): Boolean {
+        return reconnectMutex.withLock { isReconnecting }
     }
 }

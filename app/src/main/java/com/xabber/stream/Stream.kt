@@ -33,6 +33,9 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import nl.adaptivity.xmlutil.core.impl.multiplatform.StringReader
 import org.xmlpull.v1.XmlPullParser
 import org.xmlpull.v1.XmlPullParserException
@@ -90,7 +93,12 @@ class Stream(var jid: String, var port: Int = 5222) {
             Log.d(TAG, "Transitioned to state: $value")
             runBlocking(Dispatchers.IO) {
                 when (value) {
-                    StreamState.NOT_CONNECTING -> onNotConnecting()
+                    StreamState.NOT_CONNECTING -> {
+                        healthCheckScope.cancel()
+                        CoroutineScope(Dispatchers.IO).launch {
+                            onErrorCallback?.invoke("Disconnected")
+                        }
+                    }
                     StreamState.STREAM_OPEN -> onStreamOpen()
                     StreamState.START_TLS -> delegate?.streamStartTLS(this@Stream)
                     StreamState.PROCEED -> onProceed()
@@ -100,12 +108,22 @@ class Stream(var jid: String, var port: Int = 5222) {
                     StreamState.AUTH_FAILED -> delegate?.streamAuthFailed(this@Stream)
                     StreamState.DEVICE_REGISTRATION -> delegate?.streamDeviceRegistration(this@Stream)
                     StreamState.BINDING -> delegate?.streamBinding(this@Stream)
-                    StreamState.CONNECTED -> delegate?.streamDidConnect(this@Stream)
+                    StreamState.CONNECTED -> {
+                        startHealthCheck()
+                        CoroutineScope(Dispatchers.IO).launch {
+                            delegate?.streamDidConnect(this@Stream)
+                        }
+                    }
                 }
             }
         }
     private val TAG = "Stream"
     private var onErrorCallback: ((String) -> Unit)? = null
+    private val healthCheckScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private var lastActivityTime = System.currentTimeMillis()
+    private val HEALTH_CHECK_INTERVAL = 60000L // 1 minute
+    private val MAX_INACTIVITY = 300000L // 5 minutes
+
 
     data class MessageQueueItem(
         val stanza: String,
@@ -138,6 +156,33 @@ class Stream(var jid: String, var port: Int = 5222) {
     }
     fun setOnErrorCallback(callback: (String) -> Unit) {
         onErrorCallback = callback
+    }
+
+    private fun startHealthCheck() {
+        healthCheckScope.launch {
+            while (isActive && state == StreamState.CONNECTED) {
+                delay(HEALTH_CHECK_INTERVAL)
+
+                val now = System.currentTimeMillis()
+                if (now - lastActivityTime > MAX_INACTIVITY) {
+                    Log.w(TAG, "No activity for ${MAX_INACTIVITY/1000}s, triggering health check")
+
+                    // Send ping
+                    val pingId = "ping_${System.currentTimeMillis()}"
+                    val ping = """
+                    <iq type='get' id='$pingId' to='$host'>
+                        <ping xmlns='urn:xmpp:ping'/>
+                    </iq>
+                """.trimIndent()
+
+                    if (socket?.write(ping) != true) {
+                        Log.e(TAG, "Health check ping failed, closing connection")
+                        close()
+                        onErrorCallback?.invoke("Connection timeout")
+                    }
+                }
+            }
+        }
     }
 
     fun extractHostFromJid(jid: String): String {
@@ -209,6 +254,7 @@ class Stream(var jid: String, var port: Int = 5222) {
     }
 
     private suspend fun handleIncomingStanza(chunk: String) {
+        lastActivityTime = System.currentTimeMillis()
         bufferMutex.withLock {
             streamBuffer.append(chunk)
             var content = streamBuffer.toString()
