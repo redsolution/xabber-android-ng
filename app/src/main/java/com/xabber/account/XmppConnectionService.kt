@@ -8,16 +8,22 @@ import android.app.Service
 import android.content.Intent
 import android.os.Build
 import android.os.IBinder
+import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
 import com.xabber.R
+import com.xabber.data_base.defaultRealmConfig
+import com.xabber.data_base.models.account.AccountStorageItem
 import com.xabber.presentation.application.activity.ApplicationActivity
 import com.xabber.stream.StreamState
+import io.realm.kotlin.Realm
+import io.realm.kotlin.ext.query
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class XmppConnectionService : Service() {
 
@@ -35,6 +41,31 @@ class XmppConnectionService : Service() {
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
+
+        serviceScope.launch(Dispatchers.IO) {
+            val realm = Realm.open(defaultRealmConfig())
+            try {
+                val enabledAccounts = realm.query<AccountStorageItem>("enabled = true").find()
+                enabledAccounts.forEach { accountItem ->
+                    val jid = accountItem.jid
+                    if (activeAccounts.add(jid)) {
+                        withContext(Dispatchers.Main) {
+                            updateNotification(activeAccounts.size)
+                        }
+                        startReconnectLoop(jid)
+                    }
+                }
+                if (activeAccounts.isNotEmpty()) {
+                    withContext(Dispatchers.Main) {
+                        updateNotification(activeAccounts.size)
+                    }
+                } else {
+                    stopSelf() // No accounts → no need to run
+                }
+            } finally {
+                realm.close()
+            }
+        }
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
@@ -99,14 +130,37 @@ class XmppConnectionService : Service() {
     private fun startReconnectLoop(jid: String) {
         serviceScope.launch {
             val account = AccountManager.find(jid) ?: return@launch
+
+            // Monitor connection state
             while (jid in activeAccounts) {
-                if (account.stream == null || account.stream?.state == StreamState.NOT_CONNECTING) {
-                    val success = account.connectStream()
-                    if (!success) {
-                        delay(10_000) // wait 10 seconds before retry
+                try {
+                    // Check if stream is in a bad state
+                    val streamState = account.stream?.state
+                    val isConnected = streamState == StreamState.CONNECTED
+                    val isConnecting = streamState in listOf(
+                        StreamState.STREAM_OPEN,
+                        StreamState.START_TLS,
+                        StreamState.START_AUTH,
+                        StreamState.PROCESS_AUTH,
+                        StreamState.BINDING
+                    )
+
+                    if (!isConnected && !isConnecting && !account.reconnectionManager.isReconnecting()) {
+                        Log.d("Xmppconnectservice", "Account $jid is disconnected, triggering reconnection")
+                        account.reconnectionManager.scheduleReconnection("background monitor")
                     }
+
+                    // Send ping to keep connection alive (if connected)
+                    if (isConnected) {
+                        account.stream?.socket?.sendPing(jid)
+                    }
+
+                    delay(30000) // Check every 30 seconds
+
+                } catch (e: Exception) {
+                    Log.e("Xmppconnectservice", "Error in reconnect loop for $jid: ${e.message}")
+                    delay(10000)
                 }
-                delay(5_000) // check every 5 seconds
             }
         }
     }
