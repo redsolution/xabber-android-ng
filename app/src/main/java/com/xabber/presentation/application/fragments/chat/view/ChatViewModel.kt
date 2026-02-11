@@ -125,7 +125,7 @@ class ChatViewModel(
 
                 val account = AccountManager.find(bareOwner)
                 account?.action { acc, stream ->
-                    acc.messageArchiveManager.getPrevHistory(
+                    acc.messageArchiveManager!!.getPrevHistory(
                         stream = stream,
                         jid = bareOpponent,
                         conversationType = conversationType,

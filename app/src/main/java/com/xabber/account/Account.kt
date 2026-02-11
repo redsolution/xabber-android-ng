@@ -1,9 +1,14 @@
 package com.xabber.account
 
+import android.content.Context
 import android.icu.text.SimpleDateFormat
 import android.icu.util.TimeZone
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
+import com.xabber.presentation.XabberApplication
 import android.os.Build
 import android.util.Log
+import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AlertDialog
 import com.xabber.stream.Stream
@@ -94,11 +99,17 @@ class Account : XMPPStreamDelegate {
     var statusMessage: BehaviorSubject<String> = BehaviorSubject.createDefault("Offline")
     var stream: Stream? = null
     private var onErrorCallback: ((String) -> Unit)? = null
-    private val realm: Realm by lazy { Realm.Companion.open(defaultRealmConfig()) }
-    private val rosterManager: RosterManager by lazy { RosterManager(jid, realm) }
-    private val syncManager: ClientSynchronizationManager by lazy { ClientSynchronizationManager(jid) }
-    val messageArchiveManager: MessageArchiveManager by lazy { MessageArchiveManager(jid) }
-    private var presenceManager: PresenceManager? = null
+
+    val realm: Realm by lazy { Realm.Companion.open(defaultRealmConfig()) }
+    private var rosterManager: RosterManager? = null
+    private var syncManager: ClientSynchronizationManager? = null
+    var messageArchiveManager: MessageArchiveManager? = null
+    var chatMarkers: ChatMarkersManager? = null
+    var messages: MessageManager? = null
+    var messageReceiver: MessageCommonReceiver? = null
+    var presenceManager: PresenceManager? = null
+
+
     private val deviceModel = Build.MODEL
     private var isDeviceRegistered = false
     private var ocraAuth: DevicesOCRA? = null
@@ -106,9 +117,6 @@ class Account : XMPPStreamDelegate {
     private var boundJid: String? = null
     private var supportedFeatures: String = ""
     private var rosterRequested = false
-    val chatMarkers: ChatMarkersManager by lazy { ChatMarkersManager(jid) }
-    val messages: MessageManager by lazy { MessageManager(jid, activeStream = stream != null) }
-    val messageReceiver: MessageCommonReceiver by lazy { MessageCommonReceiver(jid) }
 
     private val rosterStanzaBuffer = StringBuilder()
     private val syncStanzaBuffer = StringBuilder()
@@ -148,6 +156,48 @@ class Account : XMPPStreamDelegate {
         }
     }
 
+    private suspend fun performReconnect() {
+        // Отменяем старую попытку переподключения, если она ещё идёт
+        reconnectJob?.cancel()
+        reconnectJob = null
+
+        // Полностью закрываем текущий stream
+        closeStream()
+        rosterRequested = false
+        attemptedPreTlsAuth = false
+        bindingCompleted = false
+        boundJid = null
+
+        // Сбрасываем состояние аккаунта
+        statusMessage.onNext("Offline")
+        resetReconnectState()
+        delay(200)
+        // Запускаем переподключение с экспоненциальной задержкой
+        reconnectJob = CoroutineScope(Dispatchers.IO).launch {
+            reconnectAttempts = 0
+            while (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+                reconnectAttempts++
+                if (!isNetworkAvailable()) {
+                    delay(10000)
+                    reconnectAttempts-- // не считаем попыткой
+                    continue
+                }
+
+                delay(reconnectDelayMs)
+
+                if (connectStream()) {
+                    Log.d(TAG, "Reconnect successful for $jid")
+                    resetReconnectState()
+                    return@launch
+                }
+
+                reconnectDelayMs = (reconnectDelayMs * RECONNECT_BACKOFF_MULTIPLIER)
+                    .coerceAtMost(MAX_RECONNECT_DELAY)
+            }
+            showPermanentErrorDialog()
+        }
+    }
+
     private suspend fun processRosterStanza(stanza: String, stream: Stream) {
         val batchSize = 10 // Process up to 10 roster stanzas at once
         val rosterStanzas = mutableListOf<String>()
@@ -168,7 +218,7 @@ class Account : XMPPStreamDelegate {
                 batch.forEach { completeStanza ->
                     val iq = parseIQ(completeStanza) // Assume parseIQ is defined elsewhere
                     if (iq != null) {
-                        rosterManager.read(
+                        rosterManager?.read(
                             XMPPIQ(
                                 raw = completeStanza,
                                 type = iq.type,
@@ -220,7 +270,7 @@ class Account : XMPPStreamDelegate {
         syncStanzas.chunked(batchSize).forEach { batch ->
             try {
                 batch.forEach { completeStanza ->
-                    syncManager.read(completeStanza)
+                    syncManager?.read(completeStanza)
                     syncCompletionChannel.trySend(Unit)
                 }
             } catch (e: Exception) {
@@ -412,7 +462,15 @@ class Account : XMPPStreamDelegate {
                     delegate = this@Account
                 }
                 Log.d(TAG, "Stream initialized for $jid with port $port")
-                messageReceiver.subscribeReceiver()
+
+                // 👇 Инициализируем менеджеры заново
+                rosterManager = RosterManager(jid, realm)
+                syncManager = ClientSynchronizationManager(jid)
+                messageArchiveManager = MessageArchiveManager(jid)
+                chatMarkers = ChatMarkersManager(jid)
+                messages = MessageManager(jid, activeStream = true)
+                messageReceiver = MessageCommonReceiver(jid)
+                messageReceiver?.subscribeReceiver()
             } else {
                 Log.w(TAG, "Cannot initialize Stream: JID is empty")
                 onErrorCallback?.invoke("Cannot initialize connection: Invalid JID")
@@ -426,26 +484,26 @@ class Account : XMPPStreamDelegate {
     @RequiresApi(Build.VERSION_CODES.O)
     suspend fun connectStream(): Boolean = withContext(Dispatchers.IO) {
         try {
-            if (stream == null || stream?.socket != null || stream?.messageCallbackChannel?.isClosedForSend == true) {
-                initializeStream()  // создаёт новый Stream, старый закрывает
-            }
+            closeStream()
 
-            stream!!.socket?.setOnReadLoopError {
+            initializeStream()
+
+            stream!!.setOnSocketReadLoopError {
                 Log.e(TAG, "Read loop error - connection lost")
-                // Only show dialog if activity is available
-                ApplicationActivity.currentActivity?.let { activity ->
-                    if (!activity.isFinishing && !activity.isDestroyed) {
-                        CoroutineScope(Dispatchers.Main).launch { showReconnectDialog() }
-                    }
+                CoroutineScope(Dispatchers.Main).launch {
+                    Toast.makeText(
+                        XabberApplication.applicationContext(),
+                        "Соединение потеряно. Попытка переподключения...",
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
-                // Always mark as offline - the service will attempt reconnect
+                CoroutineScope(Dispatchers.IO).launch {
+                    performReconnect()
+                }
                 statusMessage.onNext("Offline")
             }
 
-            // Всегда гарантируем свежий Stream перед подключением
-            if (stream == null || stream?.socket != null || stream?.messageCallbackChannel?.isClosedForSend == true) {
-                initializeStream()  // создаёт новый Stream, старый закрывает
-            }
+
 
             val connectError = stream!!.connect()
             if (connectError == null) {
@@ -509,27 +567,39 @@ class Account : XMPPStreamDelegate {
         stream = null
         presenceManager = null
         resetReconnectState()
-        rosterManager.close()
-        messageReceiver.unsubscribeReceiver()
+
+        // 👇 Закрываем и обнуляем
+        rosterManager?.close()
+        rosterManager = null
+        syncManager = null
+        messageArchiveManager = null
+        chatMarkers = null
+        messages = null
+        messageReceiver?.unsubscribeReceiver()
+        messageReceiver = null
+
         statusMessage.onNext("Offline")
         rosterRequested = false
+        attemptedPreTlsAuth = false
+        bindingCompleted = false
+        boundJid = null
+
         stanzaProcessingScope.cancel()
         Log.d(TAG, "Stream fully closed and cleaned for $jid")
     }
-
 
     @RequiresApi(Build.VERSION_CODES.O)
     override suspend fun didReceiveIQ(iq: XMPPIQ, stream: Stream): Boolean {
 
         try {
             if (iq.queryNamespace == "urn:xmpp:mam:2") {
-                return messageArchiveManager.read(iq.raw, stream)
+                return messageArchiveManager!!.read(iq.raw, stream)
             }
             // Buffer roster and sync IQ stanzas post-registration
             if (stream.state == StreamState.CONNECTED || stream.state == StreamState.BINDING) {
                 if (iq.type == "result" && iq.queryNamespace == "jabber:iq:roster") {
                     Log.w(TAG, "ROSTER IQ: $iq")
-                    return rosterManager.read(iq)
+                    return rosterManager!!.read(iq)
                 }
                 if (iq.queryNamespace == "https://xabber.com/protocol/synchronization") {
                     stanzaBuffer.emit(StanzaItem(StanzaItem.StanzaType.SYNC, iq.raw, stream))
@@ -895,7 +965,7 @@ class Account : XMPPStreamDelegate {
 
     override suspend fun didReceiveMessage(message: XMPPMessage, stream: Stream) {
         // 1. Always process chat markers first — they can come in any message
-        chatMarkers.read(message)
+        chatMarkers!!.read(message)
 
         // ────────────────────────────────────────────────────────────────
         //  Important: we determine the *nature* of the message
@@ -932,26 +1002,26 @@ class Account : XMPPStreamDelegate {
             isMamResult || isMamTmp -> {
                 // All history — classic MAM + your temporary archived variant
 //                Log.w(TAG, "messageReceiver.receiveArchived")
-                messageReceiver.receiveArchived(payload)
+                messageReceiver!!.receiveArchived(payload)
             }
 
             isCarbon -> {
                 Log.w(TAG, "messageReceiver.receiveCarbon")
 
-                messageReceiver.receiveCarbon(payload)
+                messageReceiver!!.receiveCarbon(payload)
             }
 
             isClientSyncLast -> {
                 Log.w(TAG, "messageReceiver.receiveClientSyncRaw")
 
-                messageReceiver.receiveClientSyncRaw(payload)
+                messageReceiver!!.receiveClientSyncRaw(payload)
             }
 
             // Only real live messages should fall here
             else -> {
                 Log.w(TAG, "messageReceiver.receiveRuntime")
 
-                messageReceiver.receiveRuntime(payload)
+                messageReceiver!!.receiveRuntime(payload)
             }
         }
     }
@@ -959,7 +1029,7 @@ class Account : XMPPStreamDelegate {
     override suspend fun streamDidConnect(stream: Stream): Boolean {
         CoroutineScope(Dispatchers.IO).launch {
             if (!rosterRequested) {
-                rosterManager.request(stream)
+                rosterManager!!.request(stream)
                 rosterRequested = true
             }
             streamCarbonsSend(stream)
@@ -1183,7 +1253,7 @@ class Account : XMPPStreamDelegate {
                 return@withContext false
             }
             Log.d(TAG, "STARTTLS negotiation successful, preparing for TLS upgrade")
-            delay(1000)
+            delay(100)
             Log.d(TAG, "Upgrading to TLS")
             if (stream.socket?.upgradeToTls() == true) {
                 Log.d(TAG, "TLS upgrade successful, initiating new stream")
@@ -1218,7 +1288,7 @@ class Account : XMPPStreamDelegate {
                 stream.state = StreamState.NOT_CONNECTING
                 return false
             }
-            this.syncManager.sync(this.stream!!)
+            this.syncManager!!.sync(this.stream!!)
             return true
         } catch (e: Exception) {
             Log.e(TAG, "Error sending sync request for JID: $jid: ${e.message}", e)
@@ -1294,6 +1364,17 @@ class Account : XMPPStreamDelegate {
         withContext(Dispatchers.IO) {
             action(this@Account, stream!!)
         }
+    }
+
+    private fun isNetworkAvailable(): Boolean {
+        val cm = XabberApplication.applicationContext()
+            .getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+
+        val network = cm.activeNetwork ?: return false
+        val caps = cm.getNetworkCapabilities(network) ?: return false
+
+        return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+                caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
     }
 
 

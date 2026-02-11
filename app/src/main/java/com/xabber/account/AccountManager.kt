@@ -184,7 +184,7 @@ object AccountManager {
                         primary = normalizedJid
                         enabled = true
                     })
-                    Log.d("AccountManager", "Created AccountStorageItem for jid $normalizedJid")
+                    Log.d("AccountManager", "Created AccountStorageItem for jid $normalizedJid , account $newAccount")
                 }
                 val newUserAccount = Account().apply {
                     this.jid = normalizedJid

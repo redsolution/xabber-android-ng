@@ -117,6 +117,7 @@ class Socket(private val host: String, private val port: Int) {
     private var isReadingLoopActive = false
     private var domain: String = host
     private var onReadLoopError: (() -> Unit)? = null   // Новый callback
+    private var isReadLoopErrorFired = false
 
     fun setOnReadLoopError(callback: () -> Unit) {
         onReadLoopError = callback
@@ -135,7 +136,7 @@ class Socket(private val host: String, private val port: Int) {
         val endpoints = listOf(Pair(host, port)) + alternateEndpoints
         val maxAttemptsPerEndpoint = 3
         val connectTimeoutMs = 10000L
-        val retryDelayMs = 500L // 500ms delay between retries
+        val retryDelayMs = 500L
 
         coroutineScope {
             endpoints.map { (targetHost, targetPort) ->
@@ -187,25 +188,18 @@ class Socket(private val host: String, private val port: Int) {
     }
 
     private fun startReadingLoop() {
-        if (isReadingLoopActive) {
-            return
-        }
+        if (isReadingLoopActive) return
         isReadingLoopActive = true
         scope.launch {
             try {
                 startReadLoop()
             } catch (e: Exception) {
-                Log.e(TAG, "Reading loop failed: ${e.message}", e)
+                Log.e(TAG, "Reading loop crashed: ${e.message}", e)
+                closeInternal()
+                onReadLoopError?.invoke()
             } finally {
                 isReadingLoopActive = false
                 Log.d(TAG, "Reading loop coroutine terminated")
-                if (socket?.isClosed == false && reader?.isClosedForRead == false && !tlsHandshaking) {
-                    Log.d(TAG, "Restarting reading loop due to unexpected termination")
-                    delay(100)
-                    startReadingLoop()
-                } else {
-                    Log.w(TAG, "Cannot restart reading loop: socket closed=${socket?.isClosed}, reader closed=${reader?.isClosedForRead}, tlsHandshaking=$tlsHandshaking")
-                }
             }
         }
     }
@@ -509,7 +503,6 @@ class Socket(private val host: String, private val port: Int) {
                 return@withContext false
             }
 
-            delay(100)
             val restartedStream = """
                 <stream:stream xmlns='jabber:client' xmlns:stream='http://etherx.jabber.org/streams' version='1.0' to='$domain'>
             """.trimIndent()
@@ -571,7 +564,6 @@ class Socket(private val host: String, private val port: Int) {
             reader?.cancel()
             tlsHandshaking = false
 
-// 2. Пересоздаём reader
             reader = socket?.openReadChannel()
             if (reader == null) {
                 Log.e(TAG, "Failed to reopen reader after TLS")
@@ -579,7 +571,6 @@ class Socket(private val host: String, private val port: Int) {
                 return@withContext false
             }
 
-// 3. Только теперь запускаем основной цикл чтения
             if (isReadingLoopActive) {
                 Log.w(TAG, "Old reading loop still active — should not happen")
                 // Можно принудительно убить старый scope, если нужно
@@ -614,12 +605,22 @@ class Socket(private val host: String, private val port: Int) {
     }
 
     private suspend fun startReadLoop() {
-        while (scope.isActive && socket?.isClosed == false && reader?.isClosedForRead == false) {
+        while (scope.isActive) {
+            // Проверяем состояние сокета ДО начала чтения
+//            if (socket?.isClosed == true || reader?.isClosedForRead == true) {
+//                Log.w(TAG, "Socket or reader already closed — terminating read loop without restart")
+//                closeInternal()
+//                onReadLoopError?.invoke()
+//                break
+//            }
+
             try {
                 val tempBuffer = ByteArray(65536)
                 val bytesRead = reader?.readAvailable(tempBuffer) ?: -1
                 if (bytesRead == -1) {
-                    Log.w(TAG, "Socket closed by remote peer")
+                    Log.w(TAG, "Remote peer closed connection")
+                    closeInternal()
+                    onReadLoopError?.invoke()
                     break
                 } else if (bytesRead > 0) {
                     val bytes = tempBuffer.copyOfRange(0, bytesRead)
@@ -641,57 +642,53 @@ class Socket(private val host: String, private val port: Int) {
                 Log.w(TAG, "Read loop cancelled: ${e.message}", e)
                 break
             } catch (e: ConcurrentIOException) {
-                Log.e(TAG, "Concurrent read attempt in read loop: ${e.message}", e)
+                Log.e(TAG, "Concurrent read attempt: ${e.message}", e)
                 delay(100)
                 continue
             } catch (e: ClosedByteChannelException) {
-                Log.w(TAG, "Reader channel closed in read loop: ${e.message}", e)
-                onReadLoopError?.invoke()
-                // Display user notification on the main thread
-                scope.launch(Dispatchers.Main) {
-                    Toast.makeText(
-                        XabberApplication.applicationContext(),
-                        "Произошла ошибка сети. Требуется перезагрузка приложения.",
-                        Toast.LENGTH_LONG
-                    ).show()
+                Log.w(TAG, "Reader channel closed (connection lost): ${e.message}", e)
+                if (!isReadLoopErrorFired) {
+                    isReadLoopErrorFired = true
+                    onReadLoopError?.invoke()
                 }
-
                 break
             } catch (e: Exception) {
-                Log.e(TAG, "Error in read loop: ${e.message}", e)
-                if (socket?.isClosed == true || reader?.isClosedForRead == true) {
-                    Log.w(TAG, "Socket or reader closed, terminating read loop")
-                    break
-                }
-                delay(500)
+                Log.e(TAG, "Unexpected error in read loop: ${e.message}", e)
+                closeInternal()
+                onReadLoopError?.invoke()
+                break
             }
         }
-        Log.w(TAG, "Read loop terminated: scope active=${scope.isActive}, socket closed=${socket?.isClosed}, reader closed=${reader?.isClosedForRead}")
-        if (!tlsHandshaking) {
-            proceedChannel.close()
-            tlsDataChannel.close()
-        }
+
+        Log.w(TAG, "Read loop fully terminated")
+        isReadingLoopActive = false
     }
 
     suspend fun write(message: String): Boolean = withContext(Dispatchers.IO) {
-        Log.d("XMPP STANZA", "SEND: ${message}")
+        Log.d("XMPP STANZA", "SEND: $message")
         try {
-            writer?.let {
-                if (it.isClosedForWrite) {
-                    Log.e(TAG, "Writer channel is closed")
+            writer?.let { w ->
+                if (w.isClosedForWrite || socket?.isClosed == true) {
+                    Log.e(TAG, "Writer closed or socket dead — cannot send stanza")
+                    closeInternal()
+                    onReadLoopError?.invoke()  // используем тот же callback — он триггерит reconnect
                     return@withContext false
                 }
                 val bytes = message.toByteArray(StandardCharsets.UTF_8)
                 writeMutex.withLock {
-                    it.writeFully(bytes, 0, bytes.size)
+                    w.writeFully(bytes, 0, bytes.size)
                 }
                 true
             } ?: run {
-                Log.e(TAG, "Cannot send: Socket writer is null")
+                Log.e(TAG, "Writer is null — connection lost")
+                closeInternal()
+                onReadLoopError?.invoke()
                 false
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to send message: ${e.message}", e)
+            Log.e(TAG, "Write failed: ${e.message}", e)
+            closeInternal()
+            onReadLoopError?.invoke()
             false
         }
     }
@@ -899,35 +896,34 @@ class Socket(private val host: String, private val port: Int) {
         try {
             socket?.let {
                 if (!it.isClosed) {
-                    writer?.let { writer ->
-                        if (!writer.isClosedForWrite) {
-                            writer.writeFully("</stream:stream>".toByteArray(StandardCharsets.UTF_8), 0, 16)
-                            Log.d(TAG, "Sent message: </stream:stream>")
-                            writer.close()
+                    writer?.let { w ->
+                        if (!w.isClosedForWrite) {
+                            try {
+                                w.writeFully("</stream:stream>".toByteArray(StandardCharsets.UTF_8), 0, 16)
+                            } catch (e: Exception) {
+                                Log.w(TAG, "Failed to send closing stream tag: ${e.message}")
+                            }
+                            w.close()
                         }
                     }
-                    reader?.let { reader ->
-                        if (!reader.isClosedForRead) {
-                            reader.cancel()
-                        }
-                    }
+                    reader?.cancel()
                     it.close()
-                    Log.d(TAG, "Ktor TCP socket closed for $host:$port")
                 }
             }
             socket = null
             reader = null
             writer = null
             messageCallback = null
-            if (scope.isActive) {
-                scope.cancel("Socket closed")
-            }
-            scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
             proceedChannel.close()
             tlsDataChannel.close()
             isReadingLoopActive = false
+            isReadLoopErrorFired = false
+
+            // **Важно:** отменяем все корутины этого сокета
+            scope.cancel()
+            Log.d(TAG, "Socket fully closed and cleaned")
         } catch (e: Exception) {
-            Log.e(TAG, "Error closing socket: ${e.message}", e)
+            Log.e(TAG, "Error during closeInternal: ${e.message}", e)
         }
     }
 

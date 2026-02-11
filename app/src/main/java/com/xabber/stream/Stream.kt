@@ -33,11 +33,15 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import nl.adaptivity.xmlutil.core.impl.multiplatform.StringReader
 import org.xmlpull.v1.XmlPullParser
 import org.xmlpull.v1.XmlPullParserException
 import org.xmlpull.v1.XmlPullParserFactory
 import kotlin.collections.iterator
+import kotlin.coroutines.cancellation.CancellationException
 
 // Define ProcessedMessageId as a regular class
 class ProcessedMessageId : RealmObject {
@@ -84,6 +88,8 @@ class Stream(var jid: String, var port: Int = 5222) {
     val messageCallbackChannel = Channel<String>(Channel.UNLIMITED)
     val messageQueue = Channel<MessageQueueItem>(Channel.UNLIMITED)
     private val queueMutex = Mutex()
+    private val streamJob = SupervisorJob()
+    private val streamScope = CoroutineScope(Dispatchers.IO + streamJob)
     var state: StreamState = StreamState.NOT_CONNECTING
         set(value) {
             field = value
@@ -106,6 +112,7 @@ class Stream(var jid: String, var port: Int = 5222) {
         }
     private val TAG = "Stream"
     private var onErrorCallback: ((String) -> Unit)? = null
+    private var onSocketReadLoopError: (() -> Unit)? = null
 
     data class MessageQueueItem(
         val stanza: String,
@@ -118,7 +125,7 @@ class Stream(var jid: String, var port: Int = 5222) {
     )
 
     init {
-        CoroutineScope(Dispatchers.IO).launch {
+        streamScope.launch {
             clearStaleProcessedMessages() // Add this to clear stale entries on initialization
             processMessageQueue()
 
@@ -126,6 +133,11 @@ class Stream(var jid: String, var port: Int = 5222) {
         deleteSelfChats()
 
     }
+
+    fun setOnSocketReadLoopError(callback: () -> Unit) {
+        onSocketReadLoopError = callback
+    }
+
     suspend fun clearStaleProcessedMessages() {
         val realm = Realm.open(defaultRealmConfig())
         realm.write {
@@ -176,6 +188,7 @@ class Stream(var jid: String, var port: Int = 5222) {
             Log.d(TAG, "Resolved IP: $remoteAddress, Port: $port")
             socket?.close()
             socket = Socket(remoteAddress, port)
+            onSocketReadLoopError?.let { socket?.setOnReadLoopError(it) }
             socket?.setMessageCallback { message ->
                 CoroutineScope(Dispatchers.IO).launch {
                     messageCallbackChannel.send(message)
@@ -193,7 +206,7 @@ class Stream(var jid: String, var port: Int = 5222) {
             Log.d(TAG, "XMPP stream initiation started, waiting for server response")
             logUnprocessedMessages(jid)
 //                retryUnprocessedMessages()
-            debugDatabaseState()
+//            debugDatabaseState()
             return@withContext null
         } catch (e: Exception) {
             Log.e(TAG, "Error connecting to $host: ${e.message}", e)
@@ -507,7 +520,14 @@ class Stream(var jid: String, var port: Int = 5222) {
         }
 
         while (true) {
-            val item = messageQueue.receiveCatching().getOrNull() ?: break
+            val result = messageQueue.receiveCatching()
+            if (result.isClosed) {
+                Log.d(TAG, "processMessageQueue: channel closed, exiting")
+                break
+            }
+            val item = result.getOrNull() ?: break
+
+            currentCoroutineContext().ensureActive()
 
             queueMutex.withLock {
                 if (item.message.id == null || item.message.from == null || item.message.to == null) {
@@ -640,10 +660,7 @@ class Stream(var jid: String, var port: Int = 5222) {
     suspend fun debugDatabaseState() {
         val realm = Realm.open(defaultRealmConfig())
         realm.write {
-            val messages = query<MessageStorageItem>("owner = $0 AND opponent = $1", jid, "igor.boldin@redsolution.com").find()
-            messages.forEach { msg ->
-                Log.d(TAG, "MessageStorageItem: primary=${msg.primary}, messageId=${msg.messageId}, body=${msg.body.take(50)}, sentDate=${msg.sentDate}, isDeleted=${msg.isDeleted}, isRead=${msg.isRead}")
-            }
+
             val processedIds = query<ProcessedMessageId>("owner = $0", jid).find()
             processedIds.forEach { id ->
                 Log.d(TAG, "ProcessedMessageId: messageId=${id.messageId}, owner=${id.owner}, timestamp=${id.timestamp}")
@@ -966,7 +983,6 @@ class Stream(var jid: String, var port: Int = 5222) {
                     }
                 }
             }
-            // Если мы закрыли все вложенные теги и встретили закрытие untilTag — выходим
             if (event == XmlPullParser.END_TAG && parser.name == untilTag && stack.isEmpty()) {
                 break
             }
@@ -979,9 +995,12 @@ class Stream(var jid: String, var port: Int = 5222) {
         synchronized(connectionLock) {
             socket = null
             state = StreamState.NOT_CONNECTING
-            Log.d(TAG, "Stream closed for $jid")
         }
         socket?.close()
+        messageQueue.close()
+        stanzaProcessingScope.cancel()
+        streamJob.cancel() // отменяем все корутины этого экземпляра
+        Log.d(TAG, "Stream closed for $jid")
     }
 
     fun logout(jid: String) {

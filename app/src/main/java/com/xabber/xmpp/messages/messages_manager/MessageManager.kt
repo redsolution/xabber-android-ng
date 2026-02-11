@@ -181,7 +181,7 @@ class MessageManager(private val owner: String, activeStream: Boolean) {
                     val messageId = chat.lastMessageId
                     AccountManager.find(owner)?.unsafeAction { user, stream ->
                         runBlocking {
-                            user.chatMarkers.displayedById(stream, jid, messageId)
+                            user.chatMarkers!!.displayedById(stream, jid, messageId)
                         }
 
                     }
@@ -241,7 +241,7 @@ class MessageManager(private val owner: String, activeStream: Boolean) {
             }
 
             AccountManager.find(owner)?.action { user, stream ->
-                user.chatMarkers.displayed(stream, primary)
+                user.chatMarkers!!.displayed(stream, primary)
             }
         } catch (e: Exception) {
             Log.e("MessageManager", "Error reading message $primary: ${e.message}")

@@ -176,7 +176,7 @@ class MessageCommonSender(private val owner: String) {
         if (prevMessagePrimary != null && !prevMessageOutgoing) {
             AccountManager.find(owner)?.action { user, stream ->
                 scope.launch {
-                    user.chatMarkers.displayed(stream, prevMessagePrimary!!)
+                    user.chatMarkers!!.displayed(stream, prevMessagePrimary!!)
                 }
             }
         }

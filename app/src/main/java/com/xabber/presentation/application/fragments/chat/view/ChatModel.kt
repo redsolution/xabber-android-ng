@@ -236,7 +236,7 @@ class ChatModel(
         val stream = account.stream ?: return
         if (stream.state != StreamState.CONNECTED) return
 
-        account.chatMarkers.displayed(stream, messagePrimary)
+        account.chatMarkers!!.displayed(stream, messagePrimary)
     }
 
     // === Запись данных ===
