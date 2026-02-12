@@ -35,6 +35,8 @@ class MessageManager(private val owner: String, activeStream: Boolean) {
     private val queue: String = "com.xabber.messages.transmitter.$owner.${UUID.randomUUID()}"
     private var updateSendingMessagesTimer: Timer? = null
     private var receiverJob: Job? = null
+    private var TAG = "MessageManager"
+
 
     data class ScheduledMessage(val body: String, val to: String) {
         override fun equals(other: Any?): Boolean {
@@ -80,6 +82,8 @@ class MessageManager(private val owner: String, activeStream: Boolean) {
 
         }
         subscribe(activeStream)
+        Log.w(TAG, "MESSAGE MANAGER START")
+
     }
 
     fun subscribe(activeStream: Boolean) {

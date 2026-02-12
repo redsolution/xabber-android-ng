@@ -2,6 +2,10 @@ package com.xabber.account
 
 import android.content.Context
 import android.content.Intent
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
@@ -36,7 +40,9 @@ import com.xabber.xmpp.x509.X509StorageItem
 import io.realm.kotlin.Realm
 import io.realm.kotlin.ext.query
 import io.realm.kotlin.types.RealmObject
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import kotlin.reflect.KClass
@@ -55,10 +61,35 @@ object AccountManager {
     fun initialize(context: Context) {
         if (passwordStorageHelper == null) {
             passwordStorageHelper = PasswordStorageHelper(context)
-            Log.d("AccountManager", "PasswordStorageHelper and appContext initialized")
-        } else {
-            Log.d("AccountManager", "PasswordStorageHelper already initialized")
+            Log.d("AccountManager", "PasswordStorageHelper initialized")
+            startNetworkMonitoring(context.applicationContext)
         }
+    }
+
+    private fun startNetworkMonitoring(context: Context) {
+        val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val request = NetworkRequest.Builder()
+            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            .build()
+
+        connectivityManager.registerNetworkCallback(request, object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                Log.d("AccountManager", "Network available – checking offline accounts")
+                CoroutineScope(Dispatchers.IO).launch {
+                    users.forEach { account ->
+                        if (!account.isConnected()) {
+                            Log.d("AccountManager", "Reconnecting ${account.jid}")
+                            account.performReconnect()
+                        }
+                    }
+                }
+            }
+
+            override fun onLost(network: Network) {
+                Log.d("AccountManager", "Network lost – waiting for recovery")
+                // Можно ничего не делать, reconnect запустится при onAvailable
+            }
+        })
     }
 
 //    fun registerStream(owner: String, stream: Stream) {

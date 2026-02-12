@@ -112,6 +112,7 @@ class MessageCommonReceiver(private val owner: String) {
 
     init {
         subscribeReceiver()
+        Log.w(TAG, "COMMON RECEIVER START")
     }
 
     private fun createNotificationChannel() {

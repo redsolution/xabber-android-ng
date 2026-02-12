@@ -188,8 +188,12 @@ class Socket(private val host: String, private val port: Int) {
     }
 
     private fun startReadingLoop() {
-        if (isReadingLoopActive) return
+        if (isReadingLoopActive) {
+            Log.d(TAG, "Reading loop already active, skipping")
+            return
+        }
         isReadingLoopActive = true
+        Log.d(TAG, "Reading loop coroutine started")
         scope.launch {
             try {
                 startReadLoop()
@@ -606,14 +610,14 @@ class Socket(private val host: String, private val port: Int) {
 
     private suspend fun startReadLoop() {
         while (scope.isActive) {
-            // Проверяем состояние сокета ДО начала чтения
-//            if (socket?.isClosed == true || reader?.isClosedForRead == true) {
-//                Log.w(TAG, "Socket or reader already closed — terminating read loop without restart")
-//                closeInternal()
-//                onReadLoopError?.invoke()
-//                break
-//            }
-
+            if (socket?.isClosed == true || reader?.isClosedForRead == true) {
+                Log.w(TAG, "Socket or reader already closed — terminating read loop")
+                if (!isReadLoopErrorFired) {
+                    isReadLoopErrorFired = true
+                    onReadLoopError?.invoke()
+                }
+                break
+            }
             try {
                 val tempBuffer = ByteArray(65536)
                 val bytesRead = reader?.readAvailable(tempBuffer) ?: -1
@@ -647,6 +651,7 @@ class Socket(private val host: String, private val port: Int) {
                 continue
             } catch (e: ClosedByteChannelException) {
                 Log.w(TAG, "Reader channel closed (connection lost): ${e.message}", e)
+                closeInternal()
                 if (!isReadLoopErrorFired) {
                     isReadLoopErrorFired = true
                     onReadLoopError?.invoke()
@@ -677,6 +682,7 @@ class Socket(private val host: String, private val port: Int) {
                 val bytes = message.toByteArray(StandardCharsets.UTF_8)
                 writeMutex.withLock {
                     w.writeFully(bytes, 0, bytes.size)
+                    w.flush()
                 }
                 true
             } ?: run {

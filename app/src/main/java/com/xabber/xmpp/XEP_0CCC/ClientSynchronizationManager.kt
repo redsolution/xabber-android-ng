@@ -51,6 +51,7 @@ class ClientSynchronizationManager(owner: String) {
     private val syncBuffer = Channel<SyncItem>(capacity = 1) // Buffer for sync operations
     private val bufferMutex = Mutex()
     private var processingJob: Job? = null
+    private var TAG = "ClientSynctronizationManager"
 
     data class SyncItem(
         val stream: Stream,
@@ -63,13 +64,15 @@ class ClientSynchronizationManager(owner: String) {
             SettingManager.saveClientSynchronizationVersion(owner, "0")
             version = "0"
         }
-        Log.d("ClientSyncManager", "Initialized for owner: $owner, version: $version")
+        Log.d(TAG, "Initialized for owner: $owner, version: $version")
         if (owner.isBlank()) {
         }
         scope.launch {
             startSyncProcessing()
             checkLastChats()
         }
+        Log.w(TAG, "CLIENT SYNC MANAGER START")
+
     }
 
     suspend fun startSyncProcessing() {

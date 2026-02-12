@@ -9,11 +9,8 @@ import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.graphics.Color
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.os.PowerManager
-import android.provider.Settings
 import android.util.Log
 import android.util.TypedValue
 import android.view.MenuItem
@@ -152,11 +149,13 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         ProcessLifecycleOwner.get().lifecycle.addObserver(object : DefaultLifecycleObserver {
             override fun onStart(owner: LifecycleOwner) {
                 super.onStart(owner)
-                Log.d("ApplicationActivity", "App moved to foreground – triggering reconnection for offline accounts")
+                Log.d("ApplicationActivity", "App moved to foreground – checking accounts")
                 AccountManager.users.forEach { account ->
-                    if (account.statusMessage.value != "Online") {
+                    // Переподключаем ТОЛЬКО если нет активного соединения
+                    if (!account.isConnected()) {
+                        Log.d("ApplicationActivity", "Account ${account.jid} is disconnected, scheduling reconnect")
                         CoroutineScope(Dispatchers.IO).launch {
-                            account.connectStream()  // Safe: will initialise/reconnect if needed
+                            account.performReconnect() // или connectStream() — performReconnect безопаснее
                         }
                     }
                 }
@@ -187,22 +186,6 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         val sharedPreferences = getSharedPreferences(AppConstants.SHARED_PREF_MASK, Context.MODE_PRIVATE)
         sharedPreferences.registerOnSharedPreferenceChangeListener(this)
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
-            if (!powerManager.isIgnoringBatteryOptimizations(packageName)) {
-                AlertDialog.Builder(this)
-                    .setTitle("Battery Optimization")
-                    .setMessage("To keep XMPP connection stable, please disable battery optimization for Xabber.")
-                    .setPositiveButton("Open Settings") { _, _ ->
-                        val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
-                            data = Uri.parse("package:$packageName")
-                        }
-                        startActivity(intent)
-                    }
-                    .setNegativeButton("Later", null)
-                    .show()
-            }
-        }
 //        CoroutineScope(Dispatchers.IO).launch {
 //            Account().loadAccount()
 //            val connected = Account().connectStream()

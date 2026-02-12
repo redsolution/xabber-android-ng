@@ -35,6 +35,7 @@ import java.util.TimeZone
 class ChatMarkersManager(private val owner: String, withoutAfterburnTimer: Boolean = false) {
     private val realm: Realm by lazy { Realm.open(defaultRealmConfig()) }
     private var afterburnTimer: Timer? = null
+    private var TAG = "ChatMarkersManager"
 
     enum class BurnMessagesTimerValues(val value: Int) {
         OFF(0),
@@ -89,6 +90,8 @@ class ChatMarkersManager(private val owner: String, withoutAfterburnTimer: Boole
                 updateDeleteEphemeralMessagesTimer()
             }
         }
+        Log.w(TAG, "CHAT MARKERS MANAGER START")
+
     }
 
     suspend fun updateDeleteEphemeralMessagesTimer() {

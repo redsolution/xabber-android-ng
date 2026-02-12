@@ -58,6 +58,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.w3c.dom.Node
@@ -130,7 +131,7 @@ class Account : XMPPStreamDelegate {
     private var reconnectAttempts = 0
     // New: Buffer for post-registration stanzas (roster, sync, presence)
     private val stanzaBuffer = MutableSharedFlow<StanzaItem>(replay = 0, extraBufferCapacity = 1000)
-    private val stanzaProcessingScope =
+    private var stanzaProcessingScope =
         CoroutineScope(Dispatchers.IO.limitedParallelism(2) + SupervisorJob())
 
     // New: Data class to hold stanza type and content
@@ -156,7 +157,25 @@ class Account : XMPPStreamDelegate {
         }
     }
 
-    private suspend fun performReconnect() {
+    private fun restartStanzaProcessing() {
+        // Отменяем старый скоуп
+        stanzaProcessingScope.cancel()
+        // Создаём новый
+        stanzaProcessingScope = CoroutineScope(Dispatchers.IO.limitedParallelism(2) + SupervisorJob())
+        stanzaProcessingScope.launch {
+            stanzaBuffer.collect { item ->
+                when (item.type) {
+                    StanzaItem.StanzaType.ROSTER -> processRosterStanza(item.content, item.stream)
+                    StanzaItem.StanzaType.SYNC -> processSyncStanza(item.content, item.stream)
+                    StanzaItem.StanzaType.PRESENCE -> presenceManager?.processPresence(item.content)
+                    StanzaItem.StanzaType.OTHER -> Log.d(TAG, "Skipping OTHER")
+                }
+            }
+        }
+        Log.d(TAG, "Stanza processing restarted")
+    }
+
+    suspend fun performReconnect() {
         // Отменяем старую попытку переподключения, если она ещё идёт
         reconnectJob?.cancel()
         reconnectJob = null
@@ -463,7 +482,7 @@ class Account : XMPPStreamDelegate {
                 }
                 Log.d(TAG, "Stream initialized for $jid with port $port")
 
-                // 👇 Инициализируем менеджеры заново
+                // Создаём менеджеры заново
                 rosterManager = RosterManager(jid, realm)
                 syncManager = ClientSynchronizationManager(jid)
                 messageArchiveManager = MessageArchiveManager(jid)
@@ -471,6 +490,9 @@ class Account : XMPPStreamDelegate {
                 messages = MessageManager(jid, activeStream = true)
                 messageReceiver = MessageCommonReceiver(jid)
                 messageReceiver?.subscribeReceiver()
+
+                // Перезапускаем обработчик станз
+                restartStanzaProcessing()
             } else {
                 Log.w(TAG, "Cannot initialize Stream: JID is empty")
                 onErrorCallback?.invoke("Cannot initialize connection: Invalid JID")
@@ -479,6 +501,12 @@ class Account : XMPPStreamDelegate {
             Log.e(TAG, "Error initializing Stream for $jid: ${e.message}", e)
             onErrorCallback?.invoke("Error initializing connection: ${e.message}")
         }
+    }
+
+
+    fun isConnected(): Boolean {
+        val socket = stream?.socket?.getSocket()
+        return socket != null && !socket.isClosed
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
@@ -568,7 +596,6 @@ class Account : XMPPStreamDelegate {
         presenceManager = null
         resetReconnectState()
 
-        // 👇 Закрываем и обнуляем
         rosterManager?.close()
         rosterManager = null
         syncManager = null
@@ -584,6 +611,7 @@ class Account : XMPPStreamDelegate {
         bindingCompleted = false
         boundJid = null
 
+        // Отменяем скоуп – коллектор остановится
         stanzaProcessingScope.cancel()
         Log.d(TAG, "Stream fully closed and cleaned for $jid")
     }
@@ -1028,12 +1056,15 @@ class Account : XMPPStreamDelegate {
 
     override suspend fun streamDidConnect(stream: Stream): Boolean {
         CoroutineScope(Dispatchers.IO).launch {
+            presenceManager?.sendInitialPresence()
+
+            delay(200)
+
             if (!rosterRequested) {
-                rosterManager!!.request(stream)
+                rosterManager?.request(stream)
                 rosterRequested = true
             }
             streamCarbonsSend(stream)
-            presenceManager?.sendInitialPresence()
             streamSyncRequest(stream)
         }
         return true
