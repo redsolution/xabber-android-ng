@@ -119,6 +119,10 @@ class Socket(private val host: String, private val port: Int) {
     private var onReadLoopError: (() -> Unit)? = null   // Новый callback
     private var isReadLoopErrorFired = false
 
+    private var readingLoopJob: Job? = null
+    private var keepAliveJob: Job? = null
+
+
     fun setOnReadLoopError(callback: () -> Unit) {
         onReadLoopError = callback
     }
@@ -130,6 +134,25 @@ class Socket(private val host: String, private val port: Int) {
 
     fun setDomain(domain: String) {
         this.domain = domain
+    }
+
+    private fun startKeepAlive() {
+        keepAliveJob?.cancel()
+        keepAliveJob = scope.launch {
+            while (scope.isActive) {
+                delay(15_000) // каждые 30 секунд
+                if (socket?.isClosed == false && writer?.isClosedForWrite == false) {
+                    try {
+                        // Отправляем пробел (0x20)
+                        writer?.writeByte(' '.code.toByte())
+                        writer?.flush()
+                        Log.v(TAG, "Keep-alive whitespace sent")
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Keep-alive failed: ${e.message}")
+                    }
+                }
+            }
+        }
     }
 
     suspend fun connect(host: String, port: Int, alternateEndpoints: List<Pair<String, Int>> = emptyList()): Boolean = withContext(Dispatchers.IO) {
@@ -162,6 +185,7 @@ class Socket(private val host: String, private val port: Int) {
                                 return@async false
                             }
                             startReadingLoop()
+                            startKeepAlive()
                             Log.d(TAG, "TCP connection established for $targetHost:$targetPort")
                             return@async true
                         } catch (e: TimeoutCancellationException) {
@@ -193,19 +217,23 @@ class Socket(private val host: String, private val port: Int) {
             return
         }
         isReadingLoopActive = true
-        Log.d(TAG, "Reading loop coroutine started")
-        scope.launch {
+        readingLoopJob = scope.launch {
             try {
                 startReadLoop()
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 Log.e(TAG, "Reading loop crashed: ${e.message}", e)
+                if (!isReadLoopErrorFired) {
+                    isReadLoopErrorFired = true
+                    onReadLoopError?.invoke()
+                }
                 closeInternal()
-                onReadLoopError?.invoke()
             } finally {
                 isReadingLoopActive = false
+                readingLoopJob = null
                 Log.d(TAG, "Reading loop coroutine terminated")
             }
         }
+        Log.d(TAG, "Reading loop coroutine started")
     }
 
     suspend fun initiateStartTls(): Boolean = withContext(Dispatchers.IO) {
@@ -560,10 +588,9 @@ class Socket(private val host: String, private val port: Int) {
                 return@withContext false
             }
 
-            if (!isReadingLoopActive) {
-                Log.d(TAG, "Reading loop not active, restarting")
-                startReadingLoop()
-            }
+            readingLoopJob?.cancel()
+            readingLoopJob = null
+            isReadingLoopActive = false
             Log.d(TAG, "TLS upgrade completed successfully")
             reader?.cancel()
             tlsHandshaking = false
@@ -633,6 +660,7 @@ class Socket(private val host: String, private val port: Int) {
                         Log.d(TAG, "Sent ${bytesRead} bytes to TLS channel")
                     } else {
                         val message = String(bytes, StandardCharsets.UTF_8)
+                        Log.v(TAG, "Received ${bytesRead} bytes: ${message}")
                         if (message.contains("<proceed") && !proceedChannel.isClosedForSend) {
                             proceedChannel.send(message)
                         }
@@ -683,6 +711,7 @@ class Socket(private val host: String, private val port: Int) {
                 writeMutex.withLock {
                     w.writeFully(bytes, 0, bytes.size)
                     w.flush()
+                    Log.v(TAG, "Written ${bytes.size} bytes, flushed")
                 }
                 true
             } ?: run {
@@ -905,7 +934,19 @@ class Socket(private val host: String, private val port: Int) {
                     writer?.let { w ->
                         if (!w.isClosedForWrite) {
                             try {
+                                // 1. Отправляем unavailable presence
+                                val unavailable = "<presence type='unavailable'/>"
+                                w.writeFully(unavailable.toByteArray(StandardCharsets.UTF_8), 0, unavailable.length)
+                                w.flush()
+                                Log.d(TAG, "Sent unavailable presence")
+                            } catch (e: Exception) {
+                                Log.w(TAG, "Failed to send unavailable presence: ${e.message}")
+                            }
+                            try {
+                                // 2. Закрываем стрим
                                 w.writeFully("</stream:stream>".toByteArray(StandardCharsets.UTF_8), 0, 16)
+                                w.flush()
+                                Log.d(TAG, "Sent </stream:stream>")
                             } catch (e: Exception) {
                                 Log.w(TAG, "Failed to send closing stream tag: ${e.message}")
                             }
@@ -924,7 +965,12 @@ class Socket(private val host: String, private val port: Int) {
             tlsDataChannel.close()
             isReadingLoopActive = false
             isReadLoopErrorFired = false
-
+            readingLoopJob?.cancel()
+            readingLoopJob = null
+            keepAliveJob?.cancel()
+            keepAliveJob = null
+            isReadingLoopActive = false
+            isReadLoopErrorFired = false
             // **Важно:** отменяем все корутины этого сокета
             scope.cancel()
             Log.d(TAG, "Socket fully closed and cleaned")

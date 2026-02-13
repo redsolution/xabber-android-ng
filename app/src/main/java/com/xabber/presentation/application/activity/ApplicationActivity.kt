@@ -14,8 +14,11 @@ import android.os.Bundle
 import android.util.Log
 import android.util.TypedValue
 import android.view.MenuItem
+import android.view.View
+import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.viewModels
@@ -44,6 +47,7 @@ import androidx.slidingpanelayout.widget.SlidingPaneLayout
 import com.bumptech.glide.Glide
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.google.android.material.navigation.NavigationView
+import com.google.android.material.snackbar.Snackbar
 import com.xabber.R
 import com.xabber.account.AccountManager
 import com.xabber.data_base.defaultRealmConfig
@@ -127,6 +131,8 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
     private var shapeView: ShapeOfView? = null
     private var isLoggingOut: Boolean = false // Prevent multiple logout calls
     private var isUpdatingUI: Boolean = false // Prevent recursive UI updates
+
+    private var reconnectSnackbar: Snackbar? = null
 
     companion object {
         var currentActivity: ApplicationActivity? = null
@@ -1245,6 +1251,47 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         }
     }
 
+    fun showReconnectingSnackbar(attempt: Int = 1, maxAttempts: Int = 10) {
+        if (isFinishing || isDestroyed) return
+
+        // Используем корневой View – можно привязать к CoordinatorLayout, но в нашем layout его нет,
+        // поэтому привязываемся к android.R.id.content (декор-контейнер)
+        val rootView = findViewById<ViewGroup>(android.R.id.content) ?: binding.root
+
+        // Создаём кастомный Snackbar с текстом и ProgressBar
+        reconnectSnackbar?.dismiss()
+        reconnectSnackbar = Snackbar.make(rootView, "", Snackbar.LENGTH_INDEFINITE).apply {
+            // Инфлейтим кастомный layout
+            val customSnackbarLayout = layoutInflater.inflate(R.layout.snackbar_reconnect, null)
+            val textView = customSnackbarLayout.findViewById<TextView>(R.id.snackbar_text)
+            val progressBar = customSnackbarLayout.findViewById<ProgressBar>(R.id.snackbar_progress)
+
+            textView.text = if (attempt == 1) {
+                "Переподключение..."
+            } else {
+                "Переподключение... Попытка $attempt из $maxAttempts"
+            }
+            progressBar.isIndeterminate = true
+
+            // Заменяем стандартную View Snackbar на нашу
+            (view as Snackbar.SnackbarLayout).removeAllViews()
+            (view as Snackbar.SnackbarLayout).addView(customSnackbarLayout, 0)
+
+            // Цвет фона и отступы
+            view.setBackgroundColor(Color.TRANSPARENT)
+            (customSnackbarLayout.parent as View).setBackgroundColor(
+                ContextCompat.getColor(this@ApplicationActivity, R.color.grey_600)
+            )
+        }
+        reconnectSnackbar?.show()
+    }
+
+    fun hideReconnectingSnackbar() {
+        reconnectSnackbar?.dismiss()
+        reconnectSnackbar = null
+    }
+
+
     override fun launchDetail(fragment: Fragment) {
         supportFragmentManager.commit {
             setReorderingAllowed(true)
@@ -1344,6 +1391,8 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
             }
         }
     }
+
+
     override fun closeDetail() {
         if (supportFragmentManager.findFragmentById(R.id.detail_container) != null) {
             supportFragmentManager.beginTransaction()
@@ -1566,12 +1615,6 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         val sharedPreferences = getSharedPreferences(AppConstants.SHARED_PREF_MASK, Context.MODE_PRIVATE)
         sharedPreferences.unregisterOnSharedPreferenceChangeListener(this)
     }
-
-
-
-
-
-
 
 
     override fun onClick(id: String) {

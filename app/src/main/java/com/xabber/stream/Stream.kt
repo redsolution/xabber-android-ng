@@ -999,7 +999,8 @@ class Stream(var jid: String, var port: Int = 5222) {
         socket?.close()
         messageQueue.close()
         stanzaProcessingScope.cancel()
-        streamJob.cancel() // отменяем все корутины этого экземпляра
+        streamJob.cancel()
+        delegate = null
         Log.d(TAG, "Stream closed for $jid")
     }
 

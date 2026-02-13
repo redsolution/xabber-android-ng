@@ -83,6 +83,7 @@ class Account : XMPPStreamDelegate {
     }
     private var bindingCompleted = false
     private var bindingRequestId: String? = null
+    private var isConnecting = false
 
     private val presenceStanzas = mutableListOf<String>() // Class-level buffer for presence stanzas
     var jid: String = ""
@@ -177,6 +178,7 @@ class Account : XMPPStreamDelegate {
 
     suspend fun performReconnect() {
         // Отменяем старую попытку переподключения, если она ещё идёт
+        ApplicationActivity.currentActivity?.showReconnectingSnackbar()
         reconnectJob?.cancel()
         reconnectJob = null
 
@@ -197,7 +199,7 @@ class Account : XMPPStreamDelegate {
             while (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
                 reconnectAttempts++
                 if (!isNetworkAvailable()) {
-                    delay(10000)
+                    delay(5000)
                     reconnectAttempts-- // не считаем попыткой
                     continue
                 }
@@ -472,37 +474,38 @@ class Account : XMPPStreamDelegate {
         }
     }
 
-    private suspend fun initializeStream() = withContext(Dispatchers.IO) {
+    private suspend fun initializeStream(): Boolean = withContext(Dispatchers.IO) {
         try {
-            if (jid.isNotEmpty()) {
-                stream?.close()
-                stream = Stream(jid, port).apply {
-                    onErrorCallback?.let { setOnErrorCallback(it) }
-                    delegate = this@Account
-                }
-                Log.d(TAG, "Stream initialized for $jid with port $port")
-
-                // Создаём менеджеры заново
-                rosterManager = RosterManager(jid, realm)
-                syncManager = ClientSynchronizationManager(jid)
-                messageArchiveManager = MessageArchiveManager(jid)
-                chatMarkers = ChatMarkersManager(jid)
-                messages = MessageManager(jid, activeStream = true)
-                messageReceiver = MessageCommonReceiver(jid)
-                messageReceiver?.subscribeReceiver()
-
-                // Перезапускаем обработчик станз
-                restartStanzaProcessing()
-            } else {
+            if (jid.isEmpty()) {
                 Log.w(TAG, "Cannot initialize Stream: JID is empty")
                 onErrorCallback?.invoke("Cannot initialize connection: Invalid JID")
+                return@withContext false
             }
+
+            stream?.close()
+            stream = Stream(jid, port).apply {
+                onErrorCallback?.let { setOnErrorCallback(it) }
+                delegate = this@Account
+            }
+            Log.d(TAG, "Stream initialized for $jid with port $port")
+
+            // Создаём менеджеры ТОЛЬКО после успешного создания стрима
+            rosterManager = RosterManager(jid, realm)
+            syncManager = ClientSynchronizationManager(jid)
+            messageArchiveManager = MessageArchiveManager(jid)
+            chatMarkers = ChatMarkersManager(jid)
+            messages = MessageManager(jid, activeStream = true)
+            messageReceiver = MessageCommonReceiver(jid)
+            messageReceiver?.subscribeReceiver()
+
+            restartStanzaProcessing()
+            return@withContext true
         } catch (e: Exception) {
             Log.e(TAG, "Error initializing Stream for $jid: ${e.message}", e)
             onErrorCallback?.invoke("Error initializing connection: ${e.message}")
+            return@withContext false
         }
     }
-
 
     fun isConnected(): Boolean {
         val socket = stream?.socket?.getSocket()
@@ -511,11 +514,20 @@ class Account : XMPPStreamDelegate {
 
     @RequiresApi(Build.VERSION_CODES.O)
     suspend fun connectStream(): Boolean = withContext(Dispatchers.IO) {
+        if (isConnecting) {
+            Log.w(TAG, "Connection already in progress for $jid, ignoring")
+            return@withContext false
+        }
+        isConnecting = true
         try {
-            closeStream()
+            closeStream()  // закрываем предыдущий стрим и сбрасываем флаги
 
-            initializeStream()
+            if (!initializeStream()) {
+                Log.e(TAG, "Failed to initialize stream for $jid")
+                return@withContext false
+            }
 
+            // 👇 теперь stream гарантированно не null
             stream!!.setOnSocketReadLoopError {
                 Log.e(TAG, "Read loop error - connection lost")
                 CoroutineScope(Dispatchers.Main).launch {
@@ -531,14 +543,13 @@ class Account : XMPPStreamDelegate {
                 statusMessage.onNext("Offline")
             }
 
-
-
             val connectError = stream!!.connect()
             if (connectError == null) {
                 presenceManager = PresenceManager(jid, stream!!.socket!!)
                 statusMessage.onNext("Online")
-                resetReconnectState()  // <-- Add this
+                resetReconnectState()
                 Log.d(TAG, "Stream connected for $jid")
+                ApplicationActivity.currentActivity?.hideReconnectingSnackbar()
                 return@withContext true
             } else {
                 statusMessage.onNext("Offline")
@@ -546,33 +557,16 @@ class Account : XMPPStreamDelegate {
                 onErrorCallback?.invoke(connectError)
                 return@withContext false
             }
+
         } catch (e: Exception) {
             Log.e(TAG, "Error connecting Stream for $jid: ${e.message}", e)
             onErrorCallback?.invoke("Connection error: ${e.message}")
             statusMessage.onNext("Offline")
             return@withContext false
+        } finally {
+            isConnecting = false
         }
-    }
 
-    private fun showReconnectDialog() {
-        val activity = ApplicationActivity.currentActivity
-            ?: return
-
-        // Избегаем повторного показа диалога
-        if (activity.isFinishing || activity.isDestroyed) return
-
-        AlertDialog.Builder(activity)
-            .setTitle("Ошибка соединения")
-            .setMessage("Соединение с сервером было неожиданно разорвано. Попробовать переподключиться?")
-            .setPositiveButton("Повторить") { _, _ ->
-                // Запускаем переподключение
-                CoroutineScope(Dispatchers.IO).launch {
-                    connectStream()
-                }
-            }
-            .setNegativeButton("Отмена", null)
-            .setCancelable(false)
-            .show()
     }
 
     private suspend fun syncAllChats(stream: Stream) = withContext(Dispatchers.IO) {
@@ -1054,21 +1048,21 @@ class Account : XMPPStreamDelegate {
         }
     }
 
-    override suspend fun streamDidConnect(stream: Stream): Boolean {
-        CoroutineScope(Dispatchers.IO).launch {
-            presenceManager?.sendInitialPresence()
+        override suspend fun streamDidConnect(stream: Stream): Boolean {
+            CoroutineScope(Dispatchers.IO).launch {
+                presenceManager?.sendInitialPresence()
 
-            delay(200)
+                delay(200)
 
-            if (!rosterRequested) {
-                rosterManager?.request(stream)
-                rosterRequested = true
+                if (!rosterRequested) {
+                    rosterManager?.request(stream)
+                    rosterRequested = true
+                }
+                streamCarbonsSend(stream)
+                streamSyncRequest(stream)
             }
-            streamCarbonsSend(stream)
-            streamSyncRequest(stream)
+            return true
         }
-        return true
-    }
 
     override suspend fun streamBinding(stream: Stream): Boolean {
         val bindId = NanoId.generateOptimized(9, "-0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", 63, 16)
