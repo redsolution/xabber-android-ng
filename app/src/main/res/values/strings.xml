@@ -328,7 +328,15 @@
     <string name="status_settings">Status</string>
     <string name="reorder_accounts">Reorder accounts</string>
     <string name="attach_files_warning">Too many files at once!</string>
-    <string name="available">available</string>
+
+
+    <string name="chat">chat</string>
+    <string name="away">Away</string>
+    <string name="dnd">Do not disturb</string>
+    <string name="xa">Extended Away</string>
+    <string name="available">Available</string>
+
+
     <string name="storage_settings">Storage settings</string>
     <string name="status_avatar_password_etc">Status, avatar, password, etc</string>
     <string name="cloud_storage">Cloud storage</string>

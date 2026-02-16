@@ -9,9 +9,12 @@ import com.xabber.data_base.models.account.AccountStorageItem
 import com.xabber.data_base.models.last_chats.LastChatsStorageItem
 import com.xabber.data_base.models.messages.MessageSendingState
 import com.xabber.data_base.models.messages.MessageStorageItem
+import com.xabber.data_base.models.presences.ResourceStatus
+import com.xabber.data_base.models.presences.ResourceStorageItem
 import com.xabber.data_base.models.sync.ConversationType
 import com.xabber.dto.AccountDto
 import com.xabber.dto.ChatListDto
+import com.xabber.presentation.application.fragments.chat.viewmodel.ChatViewModel
 import com.xabber.stream.StreamState
 import com.xabber.utils.toAccountDto
 import com.xabber.utils.toChatListDto
@@ -27,6 +30,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 
@@ -433,5 +437,33 @@ class ChatModel(
 
     fun close() {
         realm.close()
+    }
+
+    fun observeOpponentPresence(): Flow<ChatViewModel.OpponentPresence> {
+        return realm.query<ResourceStorageItem>(
+            "owner = $0 AND jid = $1",
+            owner, opponent
+        ).asFlow().map { changes ->
+            val resources = changes.list
+            if (resources.isEmpty()) {
+                ChatViewModel.OpponentPresence(ResourceStatus.OFFLINE, null)
+            } else {
+                // Pick the best resource: highest status rank, then highest priority
+                val best = resources.maxWithOrNull(
+                    compareBy<ResourceStorageItem> { it.status.rank() }
+                        .thenByDescending { it.priority }
+                ) ?: resources.first()
+                ChatViewModel.OpponentPresence(best.status, best.statusMessage)
+            }
+        }.distinctUntilChanged()
+    }
+
+    private fun ResourceStatus.rank(): Int = when (this) {
+        ResourceStatus.CHAT    -> 5
+        ResourceStatus.ONLINE  -> 4
+        ResourceStatus.AWAY    -> 3
+        ResourceStatus.DND     -> 2
+        ResourceStatus.XA      -> 1
+        ResourceStatus.OFFLINE -> 0
     }
 }

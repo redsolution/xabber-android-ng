@@ -60,6 +60,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.w3c.dom.Node
 import org.xmlpull.v1.XmlPullParser
@@ -84,7 +86,7 @@ class Account : XMPPStreamDelegate {
     private var bindingCompleted = false
     private var bindingRequestId: String? = null
     private var isConnecting = false
-
+    private val streamMutex = Mutex()
     private val presenceStanzas = mutableListOf<String>() // Class-level buffer for presence stanzas
     var jid: String = ""
     var host: String = ""
@@ -520,15 +522,15 @@ class Account : XMPPStreamDelegate {
         }
         isConnecting = true
         try {
-            closeStream()  // закрываем предыдущий стрим и сбрасываем флаги
+            closeStream()
 
             if (!initializeStream()) {
                 Log.e(TAG, "Failed to initialize stream for $jid")
                 return@withContext false
             }
-
+            val currentStream = stream ?: error("Stream is null after initialization")
             // 👇 теперь stream гарантированно не null
-            stream!!.setOnSocketReadLoopError {
+            currentStream.setOnSocketReadLoopError {
                 Log.e(TAG, "Read loop error - connection lost")
                 CoroutineScope(Dispatchers.Main).launch {
                     Toast.makeText(
@@ -585,29 +587,31 @@ class Account : XMPPStreamDelegate {
 
     @RequiresApi(Build.VERSION_CODES.O)
     suspend fun closeStream() = withContext(Dispatchers.IO) {
-        stream?.close()
-        stream = null
-        presenceManager = null
-        resetReconnectState()
+        streamMutex.withLock {
+            stream?.close()
+            stream = null
+            presenceManager = null
+            resetReconnectState()
 
-        rosterManager?.close()
-        rosterManager = null
-        syncManager = null
-        messageArchiveManager = null
-        chatMarkers = null
-        messages = null
-        messageReceiver?.unsubscribeReceiver()
-        messageReceiver = null
+            rosterManager?.close()
+            rosterManager = null
+            syncManager = null
+            messageArchiveManager = null
+            chatMarkers = null
+            messages = null
+            messageReceiver?.unsubscribeReceiver()
+            messageReceiver = null
 
-        statusMessage.onNext("Offline")
-        rosterRequested = false
-        attemptedPreTlsAuth = false
-        bindingCompleted = false
-        boundJid = null
+            statusMessage.onNext("Offline")
+            rosterRequested = false
+            attemptedPreTlsAuth = false
+            bindingCompleted = false
+            boundJid = null
 
-        // Отменяем скоуп – коллектор остановится
-        stanzaProcessingScope.cancel()
-        Log.d(TAG, "Stream fully closed and cleaned for $jid")
+            // Отменяем скоуп – коллектор остановится
+            stanzaProcessingScope.cancel()
+            Log.d(TAG, "Stream fully closed and cleaned for $jid")
+        }
     }
 
     @RequiresApi(Build.VERSION_CODES.O)

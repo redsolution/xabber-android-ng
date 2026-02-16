@@ -302,7 +302,15 @@
     <string name="profile">Профиль</string>
     <string name="status_settings">Статус</string>
     <string name="reorder_accounts">Порядок аккаунтов</string>
+
+
     <string name="available">Доступен</string>
+    <string name="chat">Готов поболтать</string>
+    <string name="away">Отошел</string>
+    <string name="dnd">Не беспокоить</string>
+    <string name="xa">Давно отошел</string>
+
+
     <string name="storage_settings">Настройки хранения данных</string>
     <string name="status_avatar_password_etc">Cтатус, аватар, пароль и т.д.</string>
     <string name="cloud_storage">Облачное хранилище</string>

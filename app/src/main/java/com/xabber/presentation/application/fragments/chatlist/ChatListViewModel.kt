@@ -12,21 +12,25 @@ import com.xabber.utils.toChatListDto
 import io.realm.kotlin.notifications.UpdatedResults
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
 
 @RequiresApi(Build.VERSION_CODES.O)
 class ChatListViewModel : ViewModel() {
 
     private val model = ChatListModel()
-
     private val _chats = MutableLiveData<List<ChatListDto>>()
     val chats: LiveData<List<ChatListDto>> = _chats
 
     private val _selectedChatId = MutableLiveData<String?>()
     val selectedChatId: LiveData<String?> = _selectedChatId
-    private var lastEmittedList: List<ChatListDto>? = null
+
     private val _showUnreadOnly = MutableLiveData(false)
     val showUnreadOnly: LiveData<Boolean> = _showUnreadOnly
+
+    private var lastEmittedList: List<ChatListDto>? = null
+    private var collectionJob: Job? = null
 
     private var chatsJob: Job? = null
 
@@ -39,37 +43,47 @@ class ChatListViewModel : ViewModel() {
         updateChatList()
     }
 
+    fun toggleUnreadOnly() {
+        _showUnreadOnly.value = !(_showUnreadOnly.value ?: false)
+        updateChatList()
+    }
+
     private fun updateChatList() {
-        chatsJob?.cancel()
-        chatsJob = viewModelScope.launch {
-            model.getChatsFlow(_showUnreadOnly.value == true).collectLatest { changes ->
-                if (changes is UpdatedResults) {
-                    val list = changes.list
-                        .map { it.toChatListDto() }
+        collectionJob?.cancel()
+        collectionJob = viewModelScope.launch {
+            val showUnread = _showUnreadOnly.value ?: false
+
+            // Create flows
+            val chatsFlow = model.getChatsFlow(showUnread)
+            val resourcesFlow = model.observeAllResources()
+
+            // Combine: re-emit when either chats or resources change
+            combine(chatsFlow, resourcesFlow) { chats, _ -> chats }
+                .debounce(300L) // avoid too many updates
+                .collectLatest { list ->
+                    val processed = list
                         .applyAccountColors()
-                        .sortedWith(compareByDescending<ChatListDto> { it.pinnedDate }
-                            .thenByDescending { it.lastMessageDate })  // Fixed: Use pinnedDate directly (DESC), unpinned (-1/0) after pinned
-                    if (list != lastEmittedList) {
-                        lastEmittedList = list
-                        _chats.postValue(list)
+                        .sortedWith(
+                            compareByDescending<ChatListDto> { it.pinnedDate }
+                                .thenByDescending { it.lastMessageDate }
+                        )
+                    if (processed != lastEmittedList) {
+                        lastEmittedList = processed
+                        _chats.postValue(processed)
                     }
                 }
+            // Первичная загрузка
+            viewModelScope.launch {
+                val snapshotList = model.getChatsSnapshot(_showUnreadOnly.value == true)
+                    .applyAccountColors()
+                    .sortedWith(compareByDescending<ChatListDto> { it.pinnedDate }
+                        .thenByDescending { it.lastMessageDate })  // Fixed: Same for snapshot
+                _chats.value = snapshotList
             }
-        }
-        // Первичная загрузка
-        viewModelScope.launch {
-            val snapshotList = model.getChatsSnapshot(_showUnreadOnly.value == true)
-                .applyAccountColors()
-                .sortedWith(compareByDescending<ChatListDto> { it.pinnedDate }
-                    .thenByDescending { it.lastMessageDate })  // Fixed: Same for snapshot
-            _chats.value = snapshotList
         }
     }
 
-    fun toggleUnreadOnly() {
-        _showUnreadOnly.value = !(_showUnreadOnly.value ?: false)
-        updateChatList() // ← обязательно! чтобы перезапустить flow с новым фильтром
-    }
+
 
     fun selectChat(chatId: String) {
         _selectedChatId.value = chatId
@@ -84,6 +98,7 @@ class ChatListViewModel : ViewModel() {
 
     override fun onCleared() {
         model.close()
+        collectionJob?.cancel()
         super.onCleared()
     }
 }

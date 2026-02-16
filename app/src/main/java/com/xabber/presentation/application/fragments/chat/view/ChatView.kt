@@ -8,6 +8,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.Canvas
+import android.graphics.PorterDuff
 import android.graphics.drawable.Drawable
 import android.media.MediaPlayer
 import android.net.Uri
@@ -957,6 +958,10 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
             setupOpponentName(it ?: "Saved messages")
         }
 
+        viewModel.opponentPresence.observe(viewLifecycleOwner) { presence ->
+            updateStatusUI(presence)
+        }
+
         viewModel.muteExpired.observe(viewLifecycleOwner) {
             if (it != null) setupMuteIcon(it)
         }
@@ -1035,6 +1040,30 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
                 }
             }
         }
+    }
+
+    private fun updateStatusUI(presence: ChatViewModel.OpponentPresence) {
+        val status = presence.status
+        val customMessage = presence.statusMessage
+
+        // Set tint on the status icon
+        val tintColor = ContextCompat.getColor(requireContext(), StatusMaker.statusTint(status))
+        binding.avatarStatus.drawable?.setColorFilter(tintColor, PorterDuff.Mode.SRC_IN)
+
+        // Determine the text to display
+        val statusText = if (!customMessage.isNullOrBlank()) {
+            customMessage
+        } else {
+            getString(when (status) {
+                ResourceStatus.ONLINE -> R.string.available
+                ResourceStatus.CHAT   -> R.string.chat          // You may need to add this string
+                ResourceStatus.AWAY   -> R.string.away
+                ResourceStatus.DND    -> R.string.dnd
+                ResourceStatus.XA     -> R.string.xa            // You may need to add this string
+                ResourceStatus.OFFLINE-> R.string.offline
+            })
+        }
+        binding.tvStatusMessage.text = statusText
     }
 
     private fun isAtBottom(): Boolean {

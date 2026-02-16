@@ -12,6 +12,7 @@ import androidx.lifecycle.viewModelScope
 import com.xabber.account.AccountManager
 import com.xabber.data_base.models.last_chats.LastChatsStorageItem
 import com.xabber.data_base.models.messages.MessageStorageItem
+import com.xabber.data_base.models.presences.ResourceStatus
 import com.xabber.data_base.models.sync.ConversationType
 import com.xabber.dto.AccountDto
 import com.xabber.dto.ChatListDto
@@ -38,6 +39,10 @@ class ChatViewModel(
 ) : ViewModel() {
 
     private val model = ChatModel(chatId, owner, opponent, conversationType)
+
+    private val _opponentPresence = MutableLiveData<OpponentPresence>()
+    val opponentPresence: LiveData<OpponentPresence> = _opponentPresence
+
 
     private val _chat = MutableLiveData<LastChatsStorageItem?>()
     val chat: LiveData<LastChatsStorageItem?> = _chat
@@ -79,11 +84,20 @@ class ChatViewModel(
 
     private val TAG = "ChatViewModel"
 
+
+    data class OpponentPresence(val status: ResourceStatus, val statusMessage: String?)
+
     init {
         observeChat()
         observeMessages()
         loadInitialData()
         markAllAsRead()
+
+        viewModelScope.launch {
+            model.observeOpponentPresence().collect { presence ->
+                _opponentPresence.postValue(presence)
+            }
+        }
     }
 
     fun startArchiveLoad() {
