@@ -27,7 +27,7 @@ data class ChatListDto(
     val isMentioned: Boolean = false,      // @ упомянули в чате
     var muteExpired: Long = 0,
     var pinnedDate: Long = 0,
-    val status: ResourceStatus,
+    var status: ResourceStatus,
     val entity: RosterItemEntity,
     var unread: String = "",
     val lastPosition: String = "",

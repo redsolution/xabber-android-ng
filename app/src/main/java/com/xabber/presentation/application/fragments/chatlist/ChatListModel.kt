@@ -19,6 +19,7 @@ import io.realm.kotlin.query.Sort
 import io.realm.kotlin.types.RealmSet
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
@@ -138,18 +139,28 @@ class ChatListModel {
         )?.status ?: ResourceStatus.OFFLINE
     }
 
-    fun observeAllResources(): Flow<List<ResourceStorageItem>> {
-        val accounts = getEnabledAccountIds()
-        if (accounts.isEmpty()) return flowOf(emptyList())
-        val query = "owner IN {${accounts.joinToString { "'$it'" }}}"
-        return realm.query<ResourceStorageItem>(query)
+    fun observeAllPresences(): Flow<Map<String, ContactPresence>> {
+        return realm.query<ResourceStorageItem>()
             .asFlow()
-            .map { it.list }
+            .map { changes ->
+                val resources = changes.list
+                val presenceMap = mutableMapOf<String, ContactPresence>()
+                resources.groupBy { "${it.owner}|${it.jid}" }
+                    .forEach { (key, list) ->
+                        val best = list.maxWithOrNull(
+                            compareBy<ResourceStorageItem> { it.status.rank() }
+                                .thenByDescending { it.priority }
+                        ) ?: return@forEach
+                        presenceMap[key] = ContactPresence(best.status, best.statusMessage)
+                    }
+                presenceMap
+            }
+            .distinctUntilChanged()
     }
 
+    data class ContactPresence(val status: ResourceStatus, val statusMessage: String?)
 
-
-    fun ResourceStatus.rank(): Int = when (this) {
+    private fun ResourceStatus.rank(): Int = when (this) {
         ResourceStatus.CHAT    -> 5
         ResourceStatus.ONLINE  -> 4
         ResourceStatus.AWAY    -> 3
@@ -157,4 +168,6 @@ class ChatListModel {
         ResourceStatus.XA      -> 1
         ResourceStatus.OFFLINE -> 0
     }
+
+
 }

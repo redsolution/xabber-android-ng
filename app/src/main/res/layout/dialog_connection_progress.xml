@@ -1,0 +1,214 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="24dp">
+
+    <!-- Шаг 1: Resolving server -->
+    <LinearLayout
+        android:id="@+id/step_resolving_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:paddingVertical="12dp"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:id="@+id/step_resolving_text"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/step_resolving_server"
+            android:textSize="16sp"/>
+
+        <FrameLayout
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_marginStart="16dp">
+
+            <ProgressBar
+                android:id="@+id/step_resolving_progress"
+                style="?android:attr/progressBarStyleSmall"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_gravity="center"
+                android:indeterminate="true"
+                android:visibility="gone" />
+
+            <ImageView
+                android:id="@+id/step_resolving_check"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/checkbox_checked_circle_green"
+                android:visibility="gone" />
+
+        </FrameLayout>
+    </LinearLayout>
+
+    <!-- Шаг 2: Establishing connection -->
+    <LinearLayout
+        android:id="@+id/step_connecting_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:paddingVertical="12dp"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:id="@+id/step_connecting_text"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/step_establishing_connection"
+            android:textSize="16sp"/>
+
+        <FrameLayout
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_marginStart="16dp">
+
+            <ProgressBar
+                android:id="@+id/step_connecting_progress"
+                style="?android:attr/progressBarStyleSmall"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_gravity="center"
+                android:indeterminate="true"
+                android:visibility="gone" />
+
+            <ImageView
+                android:id="@+id/step_connecting_check"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/checkbox_checked_circle_green"
+                android:visibility="gone" />
+
+        </FrameLayout>
+    </LinearLayout>
+
+    <!-- Шаг 3: Authenticating -->
+    <LinearLayout
+        android:id="@+id/step_authenticating_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:paddingVertical="12dp"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:id="@+id/step_authenticating_text"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/step_authenticating"
+            android:textSize="16sp"/>
+
+        <FrameLayout
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_marginStart="16dp">
+
+            <ProgressBar
+                android:id="@+id/step_authenticating_progress"
+                style="?android:attr/progressBarStyleSmall"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_gravity="center"
+                android:indeterminate="true"
+                android:visibility="gone" />
+
+            <ImageView
+                android:id="@+id/step_authenticating_check"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/checkbox_checked_circle_green"
+                android:visibility="gone" />
+
+        </FrameLayout>
+    </LinearLayout>
+
+    <!-- Шаг 4: Loading contacts -->
+    <LinearLayout
+        android:id="@+id/step_loading_roster_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:paddingVertical="12dp"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:id="@+id/step_loading_roster_text"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/step_loading_contacts"
+            android:textSize="16sp"/>
+
+        <FrameLayout
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_marginStart="16dp">
+
+            <ProgressBar
+                android:id="@+id/step_loading_roster_progress"
+                style="?android:attr/progressBarStyleSmall"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_gravity="center"
+                android:indeterminate="true"
+                android:visibility="gone" />
+
+            <ImageView
+                android:id="@+id/step_loading_roster_check"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/checkbox_checked_circle_green"
+                android:visibility="gone" />
+
+        </FrameLayout>
+    </LinearLayout>
+
+    <!-- Шаг 5: Synchronizing messages -->
+    <LinearLayout
+        android:id="@+id/step_syncing_messages_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:paddingVertical="12dp"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:id="@+id/step_syncing_messages_text"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/step_synchronizing_messages"
+            android:textSize="16sp"/>
+
+        <FrameLayout
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_marginStart="16dp">
+
+            <ProgressBar
+                android:id="@+id/step_syncing_messages_progress"
+                style="?android:attr/progressBarStyleSmall"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_gravity="center"
+                android:indeterminate="true"
+                android:visibility="gone" />
+
+            <ImageView
+                android:id="@+id/step_syncing_messages_check"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/checkbox_checked_circle_green"
+                android:visibility="gone" />
+
+        </FrameLayout>
+    </LinearLayout>
+
+
+</LinearLayout>

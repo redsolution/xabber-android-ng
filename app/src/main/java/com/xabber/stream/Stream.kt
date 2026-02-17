@@ -177,7 +177,7 @@ class Stream(var jid: String, var port: Int = 5222) {
         try {
             Log.d(TAG, "Connection attempt for JID: $jid")
             state = StreamState.NOT_CONNECTING
-            val resolver = DNSResolver()
+            val resolver = DNSResolver
             val result = resolver.resolveSRV(host)
             if (result == null) {
                 Log.e(TAG, "DNS resolution failed for host $host")

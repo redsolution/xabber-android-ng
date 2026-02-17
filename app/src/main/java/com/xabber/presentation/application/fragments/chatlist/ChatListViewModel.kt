@@ -8,12 +8,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.xabber.dto.ChatListDto
 import com.xabber.utils.applyAccountColors
-import com.xabber.utils.toChatListDto
-import io.realm.kotlin.notifications.UpdatedResults
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
 
 @RequiresApi(Build.VERSION_CODES.O)
@@ -29,61 +25,51 @@ class ChatListViewModel : ViewModel() {
     private val _showUnreadOnly = MutableLiveData(false)
     val showUnreadOnly: LiveData<Boolean> = _showUnreadOnly
 
-    private var lastEmittedList: List<ChatListDto>? = null
-    private var collectionJob: Job? = null
-
-    private var chatsJob: Job? = null
+    private var combinedJob: Job? = null
 
     init {
-        updateChatList()
+        observeChatsAndPresences()
     }
 
     fun setShowUnreadOnly(show: Boolean) {
         _showUnreadOnly.value = show
-        updateChatList()
+        observeChatsAndPresences()          // restart with new filter
     }
 
     fun toggleUnreadOnly() {
         _showUnreadOnly.value = !(_showUnreadOnly.value ?: false)
-        updateChatList()
+        observeChatsAndPresences()
     }
 
-    private fun updateChatList() {
-        collectionJob?.cancel()
-        collectionJob = viewModelScope.launch {
-            val showUnread = _showUnreadOnly.value ?: false
+    private fun observeChatsAndPresences() {
+        combinedJob?.cancel()
+        combinedJob = viewModelScope.launch {
+            // Show snapshot immediately (avoids empty list)
+            val snapshot = model.getChatsSnapshot(_showUnreadOnly.value == true)
+                .applyAccountColors()
+                .sortedWith(compareByDescending<ChatListDto> { it.pinnedDate }
+                    .thenByDescending { it.lastMessageDate })
+            _chats.value = snapshot
 
-            // Create flows
-            val chatsFlow = model.getChatsFlow(showUnread)
-            val resourcesFlow = model.observeAllResources()
-
-            // Combine: re-emit when either chats or resources change
-            combine(chatsFlow, resourcesFlow) { chats, _ -> chats }
-                .debounce(300L) // avoid too many updates
-                .collectLatest { list ->
-                    val processed = list
-                        .applyAccountColors()
-                        .sortedWith(
-                            compareByDescending<ChatListDto> { it.pinnedDate }
-                                .thenByDescending { it.lastMessageDate }
-                        )
-                    if (processed != lastEmittedList) {
-                        lastEmittedList = processed
-                        _chats.postValue(processed)
+            // Combine live flows for updates
+            combine(
+                model.getChatsFlow(_showUnreadOnly.value == true),
+                model.observeAllPresences()
+            ) { chatList, presenceMap ->
+                chatList
+                    .map { dto ->
+                        val key = "${dto.owner}|${dto.opponentJid}"
+                        val newStatus = presenceMap[key]?.status ?: dto.status
+                        dto.copy(status = newStatus)
                     }
-                }
-            // Первичная загрузка
-            viewModelScope.launch {
-                val snapshotList = model.getChatsSnapshot(_showUnreadOnly.value == true)
                     .applyAccountColors()
                     .sortedWith(compareByDescending<ChatListDto> { it.pinnedDate }
-                        .thenByDescending { it.lastMessageDate })  // Fixed: Same for snapshot
-                _chats.value = snapshotList
+                        .thenByDescending { it.lastMessageDate })
+            }.collect { list ->
+                _chats.value = list
             }
         }
     }
-
-
 
     fun selectChat(chatId: String) {
         _selectedChatId.value = chatId
@@ -97,8 +83,8 @@ class ChatListViewModel : ViewModel() {
     fun markAllAsRead() = viewModelScope.launch { model.markAllAsRead() }
 
     override fun onCleared() {
+        combinedJob?.cancel()
         model.close()
-        collectionJob?.cancel()
         super.onCleared()
     }
 }

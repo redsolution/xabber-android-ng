@@ -336,6 +336,12 @@
     <string name="xa">Extended Away</string>
     <string name="available">Available</string>
 
+    <string name="step_resolving_server">Resolving server address</string>
+    <string name="step_establishing_connection">Establishing connection</string>
+    <string name="step_authenticating">Authenticating</string>
+    <string name="step_loading_contacts">Loading contacts</string>
+    <string name="step_synchronizing_messages">Synchronizing chats</string>
+
 
     <string name="storage_settings">Storage settings</string>
     <string name="status_avatar_password_etc">Status, avatar, password, etc</string>

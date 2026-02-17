@@ -22,13 +22,16 @@ import androidx.lifecycle.lifecycleScope
 import by.kirich1409.viewbindingdelegate.viewBinding
 import com.xabber.R
 import com.xabber.account.AccountManager
+import com.xabber.account.ConnectionStep
 import com.xabber.data_base.defaultRealmConfig
 import com.xabber.data_base.models.account.AccountStorageItem
 import com.xabber.databinding.FragmentSigninBinding
 import com.xabber.presentation.onboarding.contract.navigator
 import com.xabber.presentation.onboarding.contract.toolbarChanger
+import com.xabber.presentation.onboarding.util.ConnectionProgressDialog
 import io.realm.kotlin.Realm
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -38,12 +41,15 @@ class SigninFragment : Fragment(R.layout.fragment_signin) {
     private var host: String = "xabber.com"
     private val realm = Realm.open(defaultRealmConfig())
     private var accountCheckJob: Job? = null
-
+    private var fakeProgressJob: Job? = null
     private val onBackPressedCallback = object : OnBackPressedCallback(true) {
         override fun handleOnBackPressed() {
             navigator().goBack()
         }
     }
+    private var animationJob: Job? = null
+    private var loginJob: Job? = null
+
 
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -120,7 +126,7 @@ class SigninFragment : Fragment(R.layout.fragment_signin) {
     private fun initButton() {
         with(binding) {
             btnConnect.setOnClickListener {
-                btnConnect.isEnabled = false  // Disable immediately to prevent multiple clicks
+                btnConnect.isEnabled = false
 
                 val jid = editTextLogin.text?.trim().toString().let {
                     if (!it.contains('@')) "$it@$host" else it
@@ -128,60 +134,81 @@ class SigninFragment : Fragment(R.layout.fragment_signin) {
                 val username = jid.split("@")[0]
                 val password = editTextPassword.text?.trim().toString()
 
-                Log.d("SigninFragment", "Sign-in attempt with jid: $jid, username: $username")
-
                 if (!viewModel.isJidValid(jid)) {
-                    binding.signinSubtitle1.isInvisible = true
-                    binding.errorSubtitle.isVisible = true
-                    binding.errorSubtitle.text = "Invalid JID format"
-                    btnConnect.isEnabled = true  // Re-enable on quick validation failure
+                    showError("Invalid JID format")
+                    btnConnect.isEnabled = true
                     return@setOnClickListener
                 }
 
-                lifecycleScope.launch {
-                    try {
-                        val success = AccountManager.login(jid, username, password)
-                        if (success) {
-                            Log.d("SigninFragment", "Account creation (login) successful for jid $jid, navigating to ApplicationActivity")
-                            navigator().goToApplicationActivity()
-                            // No re-enable needed: navigation occurs, fragment lifecycle ends
-                        } else {
-                            Log.w("SigninFragment", "Account creation (login) failed for jid $jid")
-                            binding.signinSubtitle1.isInvisible = true
-                            binding.errorSubtitle.isVisible = true
-                            binding.errorSubtitle.text = "Failed to create account"
-                            Toast.makeText(requireContext(), "Failed to create account", Toast.LENGTH_LONG).show()
-                            btnConnect.isEnabled = true  // Re-enable on failure
+                val progressDialog = ConnectionProgressDialog()
+                progressDialog.show(parentFragmentManager, "ConnectionProgress")
+
+                // Запускаем анимацию галочек (2 секунды между шагами)
+                animationJob = lifecycleScope.launch {
+                    delay(500) // небольшая задержка для появления диалога
+
+                    val steps = ConnectionStep.values()
+                    // Задержки после показа каждой галочки (кроме последней – после неё ждать не надо)
+                    val delays = listOf(1500L, 2000L, 2000L, 1000L, 2500L)
+
+                    for (i in steps.indices) {
+                        progressDialog.showStepCompleted(steps[i])
+                        if (i < delays.size - 1) { // не ждём после последнего шага
+                            delay(delays[i])
                         }
-                    } catch (e: IllegalArgumentException) {
-                        Log.w("SigninFragment", "Account creation error for jid $jid: ${e.message}")
-                        binding.signinSubtitle1.isInvisible = true
-                        binding.errorSubtitle.isVisible = true
-                        when (e.message) {
-//                            "Account already exists" -> {
-//                                binding.errorSubtitle.text = "Account already exists"
-//                                Toast.makeText(requireContext(), "Account already exists, please choose another JID", Toast.LENGTH_LONG).show()
-//                            }
-                            "Invalid credentials" -> {
-                                binding.errorSubtitle.text = "Invalid JID, username, or password"
-                                Toast.makeText(requireContext(), "Invalid JID, username, or password", Toast.LENGTH_LONG).show()
-                            }
-                            else -> {
-                                binding.errorSubtitle.text = "Error: ${e.message}"
-                                Toast.makeText(requireContext(), "Error: ${e.message}", Toast.LENGTH_LONG).show()
-                            }
-                        }
-                        btnConnect.isEnabled = true  // Re-enable on exception
+                    }
+                }
+
+                // Реальная авторизация параллельно
+                loginJob = lifecycleScope.launch {
+                    val success = try {
+                        AccountManager.login(jid, username, password)
                     } catch (e: Exception) {
-                        Log.e("SigninFragment", "Unexpected error during account creation for jid $jid: ${e.message}", e)
-                        binding.signinSubtitle1.isInvisible = true
-                        binding.errorSubtitle.isVisible = true
-                        binding.errorSubtitle.text = "Unexpected error: ${e.message}"
-                        Toast.makeText(requireContext(), "Unexpected error: ${e.message}", Toast.LENGTH_LONG).show()
-                        btnConnect.isEnabled = true  // Re-enable on unexpected error
+                        false
+                    }
+
+                    if (success) {
+                        // Ждём окончания анимации (если она ещё идёт)
+                        animationJob?.join()
+                        progressDialog.complete()
+                        navigator().goToApplicationActivity()
+                    } else {
+                        animationJob?.cancel()
+                        progressDialog.dismiss()
+                        showError("Login failed. Check credentials or try again.")
                     }
                 }
             }
+        }
+    }
+
+    private fun showError(message: String) {
+        binding.errorSubtitle.text = message
+        binding.errorSubtitle.isVisible = true
+        binding.signinSubtitle1.isInvisible = true
+        binding.btnConnect.isEnabled = true
+    }
+
+    private suspend fun performRealLogin(
+        jid: String,
+        username: String,
+        password: String,
+        progressDialog: ConnectionProgressDialog
+    ) {
+        try {
+            val success = AccountManager.login(jid, username, password)
+            if (success) {
+                progressDialog.complete()
+                navigator().goToApplicationActivity()
+            } else {
+                progressDialog.dismiss()
+                showError("Failed to create account")
+            }
+        } catch (e: Exception) {
+            progressDialog.dismiss()
+            showError(e.message ?: "Login failed")
+        } finally {
+            binding.btnConnect.isEnabled = true
         }
     }
 

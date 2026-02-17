@@ -311,6 +311,12 @@
     <string name="xa">Давно отошел</string>
 
 
+    <string name="step_resolving_server">Устанавливаем адрес сервера</string>
+    <string name="step_establishing_connection">Устанавливаем соединение</string>
+    <string name="step_authenticating">Авторизация</string>
+    <string name="step_loading_contacts">Загрузка контактов</string>
+    <string name="step_synchronizing_messages">Синхронизация чатов</string>
+
     <string name="storage_settings">Настройки хранения данных</string>
     <string name="status_avatar_password_etc">Cтатус, аватар, пароль и т.д.</string>
     <string name="cloud_storage">Облачное хранилище</string>
