@@ -336,11 +336,22 @@
     <string name="xa">Extended Away</string>
     <string name="available">Available</string>
 
-    <string name="step_resolving_server">Resolving server address</string>
-    <string name="step_establishing_connection">Establishing connection</string>
-    <string name="step_authenticating">Authenticating</string>
-    <string name="step_loading_contacts">Loading contacts</string>
-    <string name="step_synchronizing_messages">Synchronizing chats</string>
+    <string name="server_features_title">Server features</string>
+    <string name="checking_features">Hang on there a second! Checking if %s supports all necessary features.</string>
+    <string name="step_message_archive">Message archive</string>
+    <string name="step_sync">Synchronization</string>
+    <string name="step_push_notifications">Push notifications</string>
+    <string name="step_message_editing">Message editing</string>
+    <string name="step_device_management">Device management</string>
+    <string name="step_pubsub">Publish-subscribe</string>
+    <string name="step_file_upload">File upload</string>
+    <string name="motivation_text">Shiny! Everything\'s fine! Press the button below and start messaging r-r-right away!!</string>
+    <string name="lets_rock">Let\'s rock!</string>
+
+
+    <string name="step_communicating_server">Communicating with server</string>
+    <string name="step_checking_credentials">Checking credentials</string>
+    <string name="step_requesting_capabilities">Requesting server capabilities</string>
 
 
     <string name="storage_settings">Storage settings</string>

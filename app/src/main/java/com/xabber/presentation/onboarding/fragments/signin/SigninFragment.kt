@@ -12,7 +12,6 @@ import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.widget.TextView
-import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.annotation.RequiresApi
 import androidx.core.view.isInvisible
@@ -22,16 +21,13 @@ import androidx.lifecycle.lifecycleScope
 import by.kirich1409.viewbindingdelegate.viewBinding
 import com.xabber.R
 import com.xabber.account.AccountManager
-import com.xabber.account.ConnectionStep
 import com.xabber.data_base.defaultRealmConfig
 import com.xabber.data_base.models.account.AccountStorageItem
 import com.xabber.databinding.FragmentSigninBinding
 import com.xabber.presentation.onboarding.contract.navigator
 import com.xabber.presentation.onboarding.contract.toolbarChanger
-import com.xabber.presentation.onboarding.util.ConnectionProgressDialog
 import io.realm.kotlin.Realm
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -140,48 +136,35 @@ class SigninFragment : Fragment(R.layout.fragment_signin) {
                     return@setOnClickListener
                 }
 
-                val progressDialog = ConnectionProgressDialog()
-                progressDialog.show(parentFragmentManager, "ConnectionProgress")
+                // Hide the button and show progress container
+                btnConnect.visibility = View.GONE
+                progressStepsContainer.visibility = View.VISIBLE
 
-                // Запускаем анимацию галочек (2 секунды между шагами)
-                animationJob = lifecycleScope.launch {
-                    delay(500) // небольшая задержка для появления диалога
+                // Start the step animation
+                lifecycleScope.launch {
+                    // Step 1: Communicating with server
+                    fadeIn(step1Container)
+                    delay(1000)
+                    fadeIn(step1Check)
+                    delay(200)
 
-                    val steps = ConnectionStep.values()
-                    // Задержки после показа каждой галочки (кроме последней – после неё ждать не надо)
-                    val delays = listOf(1500L, 2000L, 2000L, 1000L, 2500L)
+                    // Step 2: Checking credentials
+                    fadeIn(step2Container)
+                    delay(1000)
+                    fadeIn(step2Check)
+                    delay(200)
 
-                    for (i in steps.indices) {
-                        progressDialog.showStepCompleted(steps[i])
-                        if (i < delays.size - 1) { // не ждём после последнего шага
-                            delay(delays[i])
-                        }
-                    }
-                }
+                    // Step 3: Requesting server capabilities
+                    fadeIn(step3Container)
+                    delay(1000)
+                    fadeIn(step3Check)
 
-                // Реальная авторизация параллельно
-                loginJob = lifecycleScope.launch {
-                    val success = try {
-                        AccountManager.login(jid, username, password)
-                    } catch (e: Exception) {
-                        false
-                    }
-
-                    if (success) {
-                        // Ждём окончания анимации (если она ещё идёт)
-                        animationJob?.join()
-                        progressDialog.complete()
-                        navigator().goToApplicationActivity()
-                    } else {
-                        animationJob?.cancel()
-                        progressDialog.dismiss()
-                        showError("Login failed. Check credentials or try again.")
-                    }
-                }
-            }
+                    // Short pause then navigate
+                    delay(500)
+                    navigator().openConnectionProgressFragment(jid, username, password)
+                }            }
         }
     }
-
     private fun showError(message: String) {
         binding.errorSubtitle.text = message
         binding.errorSubtitle.isVisible = true
@@ -189,28 +172,6 @@ class SigninFragment : Fragment(R.layout.fragment_signin) {
         binding.btnConnect.isEnabled = true
     }
 
-    private suspend fun performRealLogin(
-        jid: String,
-        username: String,
-        password: String,
-        progressDialog: ConnectionProgressDialog
-    ) {
-        try {
-            val success = AccountManager.login(jid, username, password)
-            if (success) {
-                progressDialog.complete()
-                navigator().goToApplicationActivity()
-            } else {
-                progressDialog.dismiss()
-                showError("Failed to create account")
-            }
-        } catch (e: Exception) {
-            progressDialog.dismiss()
-            showError(e.message ?: "Login failed")
-        } finally {
-            binding.btnConnect.isEnabled = true
-        }
-    }
 
     private fun closeKeyboard() {
         (requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager)
@@ -250,9 +211,23 @@ class SigninFragment : Fragment(R.layout.fragment_signin) {
         onBackPressedCallback.remove()
     }
 
+    private fun fadeIn(view: View) {
+        view.alpha = 0f
+        view.visibility = View.VISIBLE
+        view.animate()
+            .alpha(1f)
+            .setDuration(400)
+            .setListener(null)
+            .start()
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        binding.signinSubtitle1.movementMethod = null
+    }
+
     override fun onDestroy() {
         super.onDestroy()
-        binding.signinSubtitle1.movementMethod = null
         realm.close()
     }
 }

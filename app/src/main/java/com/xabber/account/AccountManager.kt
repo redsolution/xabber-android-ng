@@ -25,6 +25,7 @@ import com.xabber.data_base.models.sync.ConversationType
 import com.xabber.presentation.XabberApplication.Companion.applicationContext as appContext
 import com.xabber.presentation.application.fragments.chat.viewmodel.ChatViewModel
 import com.xabber.presentation.onboarding.util.PasswordStorageHelper
+import com.xabber.stream.ProcessedMessageId
 import com.xabber.xmpp.device.DeviceStorageItem
 import com.xabber.xmpp.global_index.GroupChatIndexStorageItem
 import com.xabber.xmpp.groupchat.GroupChatStorageItem
@@ -320,12 +321,13 @@ object AccountManager {
                 ) {
                     try {
                         val items = this.query(clazz, "$queryField = $0", queryValue).find()
+                        Log.d("AccountManager", "Deleting ${items.size} items of ${clazz.simpleName} for $queryField = $queryValue")
                         delete(items)
-                        Log.d("AccountManager", "Deleted ${items.size} ${clazz.simpleName} for $queryField = $queryValue")
                     } catch (e: Exception) {
                         Log.e("AccountManager", "Failed to delete ${clazz.simpleName} for $queryField = $queryValue: ${e.message}")
                     }
                 }
+
                 deleteStorageItems(AvatarStorageItem::class, "primary", jid)
                 deleteStorageItems(ResourceStorageItem::class, "jid", jid)
                 deleteStorageItems(X509StorageItem::class, "owner", jid)
@@ -343,12 +345,13 @@ object AccountManager {
                 deleteStorageItems(MessageStorageItem::class, "owner", jid)
                 deleteStorageItems(RosterStorageItem::class, "owner", jid)
                 deleteStorageItems(LastChatsStorageItem::class, "owner", jid)
-                // Added missing items:
                 deleteStorageItems(MessageForwardsInlineStorageItem::class, "owner", jid)
                 deleteStorageItems(GroupChatIndexStorageItem::class, "owner", jid)
                 deleteStorageItems(RosterDisplayNameStorageItem::class, "owner", jid)
+                deleteStorageItems(ProcessedMessageId::class, "owner", jid)
                 passwordStorageHelper?.remove(jid)
                     ?: Log.w("AccountManager", "PasswordStorageHelper not initialized, skipping password removal for jid $jid")
+
                 true
             }
         } catch (e: Exception) {
@@ -461,18 +464,23 @@ object AccountManager {
 
     fun logout(jid: String): Boolean {
         return try {
+            val account = users.firstOrNull { it.jid == jid }
+            account?.let {
+                runBlocking(Dispatchers.IO) {
+                    it.cleanup()
+                }
+            }
+
+            // Delete all data from Realm and password storage
             val deleted = deleteAccount(jid)
             if (deleted) {
-                val iterator = users.iterator()
-                while (iterator.hasNext()) {
-                    val account = iterator.next()
-                    if (account.jid == jid) {
-                        runBlocking(Dispatchers.IO) {
-                            account.closeStream()
-                        }
-                        iterator.remove()
-                    }
+                // Remove from users list (already inside deleteAccount, but double-check)
+                synchronized(users) {
+                    users.removeAll { it.jid == jid }
                 }
+
+                // Clear any in-memory ViewModels for this account
+                chatViewModels.entries.removeAll { it.key.contains(jid) }
 
                 // Stop the foreground service for this account
                 val serviceIntent = Intent(appContext(), XmppConnectionService::class.java).apply {

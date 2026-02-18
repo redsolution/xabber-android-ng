@@ -33,8 +33,8 @@ object DNSResolver {
 
     // Full list for A record resolution (can be kept as is)
     private val dohProviders = listOf(
-        "https://adblock.mydns.network",
         "https://dns.cloudflare.com",
+        "https://adblock.mydns.network",
         "https://commons.host",
         "https://cloudflare-dns.com"
     )

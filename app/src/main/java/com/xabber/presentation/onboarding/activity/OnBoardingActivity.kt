@@ -12,6 +12,7 @@ import com.xabber.presentation.AppConstants
 import com.xabber.presentation.application.activity.ApplicationActivity
 import com.xabber.presentation.onboarding.contract.OnboardingNavigator
 import com.xabber.presentation.onboarding.contract.ToolbarChanger
+import com.xabber.presentation.onboarding.fragments.connectionprogress.ConnectionProgressFragment
 import com.xabber.presentation.onboarding.fragments.signin.SigninFragment
 import com.xabber.presentation.onboarding.fragments.signup.SignupAvatarFragment
 import com.xabber.presentation.onboarding.fragments.signup.SignupNicknameFragment
@@ -103,6 +104,23 @@ class OnBoardingActivity : AppCompatActivity(), OnboardingNavigator, ToolbarChan
 
     override fun finishActivity() {
         finish()
+    }
+
+
+    override fun openConnectionProgressFragment(jid: String, username: String, password: String) {
+        binding.root.postDelayed({
+            supportFragmentManager.beginTransaction()
+                .setCustomAnimations(
+                    R.anim.slide_in_right,  // enter animation for new fragment
+                    R.anim.slide_out_left,  // exit animation for current fragment
+                    R.anim.slide_in_left,   // popEnter for when returning
+                    R.anim.slide_out_right  // popExit for when returning
+                )
+                .setReorderingAllowed(true)
+                .replace(R.id.onboarding_container, ConnectionProgressFragment.newInstance(jid, username, password))
+                .addToBackStack(null)
+                .commit()
+        }, 200)
     }
 
 }

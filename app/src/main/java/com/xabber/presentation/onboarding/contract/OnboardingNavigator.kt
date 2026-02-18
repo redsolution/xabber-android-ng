@@ -25,4 +25,6 @@ interface OnboardingNavigator {
 
     fun finishActivity()
 
+    fun openConnectionProgressFragment(jid: String, username: String, password: String)
+
 }

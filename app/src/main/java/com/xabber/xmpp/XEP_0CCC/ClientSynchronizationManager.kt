@@ -820,4 +820,11 @@ class ClientSynchronizationManager(owner: String) {
         realm.close()
         Log.d("ClientSyncManager", "Reset and closed Realm for owner $owner")
     }
+
+    fun clear() {
+        version = "0"
+        SettingManager.saveClientSynchronizationVersion(owner, "0")
+        processingJob?.cancel()
+        Log.d(TAG, "Sync version reset to 0 for owner $owner")
+    }
 }

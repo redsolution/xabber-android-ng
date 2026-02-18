@@ -311,11 +311,23 @@
     <string name="xa">Давно отошел</string>
 
 
-    <string name="step_resolving_server">Устанавливаем адрес сервера</string>
-    <string name="step_establishing_connection">Устанавливаем соединение</string>
-    <string name="step_authenticating">Авторизация</string>
-    <string name="step_loading_contacts">Загрузка контактов</string>
-    <string name="step_synchronizing_messages">Синхронизация чатов</string>
+    <string name="server_features_title">Возможности сервера</string>
+    <string name="checking_features">Секундочку! Проверяем, поддерживает ли %s все необходимые функции.</string>
+    <string name="step_message_archive">Архив сообщений</string>
+    <string name="step_sync">Синхронизация</string>
+    <string name="step_push_notifications">Push-уведомления</string>
+    <string name="step_message_editing">Редактирование сообщений</string>
+    <string name="step_device_management">Управление устройствами</string>
+    <string name="step_pubsub">Издатель-подписчик</string>
+    <string name="step_file_upload">Загрузка файлов</string>
+    <string name="motivation_text">Отлично! Всё работает! Жми кнопку и начинай общаться прямо сейчас!!</string>
+    <string name="lets_rock">Погнали!</string>
+
+
+    <string name="step_communicating_server">Связь с сервером</string>
+    <string name="step_checking_credentials">Проверка учетных данных</string>
+    <string name="step_requesting_capabilities">Запрос возможностей сервера</string>
+
 
     <string name="storage_settings">Настройки хранения данных</string>
     <string name="status_avatar_password_etc">Cтатус, аватар, пароль и т.д.</string>

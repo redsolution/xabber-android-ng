@@ -88,6 +88,7 @@ class Account : XMPPStreamDelegate {
     private var isConnecting = false
     private val streamMutex = Mutex()
     private val presenceStanzas = mutableListOf<String>() // Class-level buffer for presence stanzas
+    private val progressListeners = mutableListOf<ConnectionProgressListener>()
     var jid: String = ""
     var host: String = ""
     var port: Int = 5222
@@ -133,7 +134,7 @@ class Account : XMPPStreamDelegate {
     private val MAX_RECONNECT_ATTEMPTS = 10 // Optional hard limit
     private var reconnectAttempts = 0
     // New: Buffer for post-registration stanzas (roster, sync, presence)
-    private val stanzaBuffer = MutableSharedFlow<StanzaItem>(replay = 0, extraBufferCapacity = 1000)
+    private var stanzaBuffer = MutableSharedFlow<StanzaItem>(replay = 0, extraBufferCapacity = 1000)
     private var stanzaProcessingScope =
         CoroutineScope(Dispatchers.IO.limitedParallelism(2) + SupervisorJob())
 
@@ -153,7 +154,7 @@ class Account : XMPPStreamDelegate {
                 when (item.type) {
                     StanzaItem.StanzaType.ROSTER -> processRosterStanza(item.content, item.stream)
                     StanzaItem.StanzaType.SYNC -> processSyncStanza(item.content, item.stream)
-                    StanzaItem.StanzaType.PRESENCE -> presenceManager!!.processPresence(item.content)
+                    StanzaItem.StanzaType.PRESENCE -> presenceManager?.processPresence(item.content)
                     StanzaItem.StanzaType.OTHER -> Log.d(TAG, "Skipping OTHER")
                 }
             }
@@ -608,12 +609,14 @@ class Account : XMPPStreamDelegate {
             bindingCompleted = false
             boundJid = null
 
-            // Отменяем скоуп – коллектор остановится
+            // Replace the buffer and restart processing
             stanzaProcessingScope.cancel()
+            stanzaBuffer = MutableSharedFlow(replay = 0, extraBufferCapacity = 1000)
+            restartStanzaProcessing()
+
             Log.d(TAG, "Stream fully closed and cleaned for $jid")
         }
     }
-
     @RequiresApi(Build.VERSION_CODES.O)
     override suspend fun didReceiveIQ(iq: XMPPIQ, stream: Stream): Boolean {
 
@@ -1409,5 +1412,14 @@ class Account : XMPPStreamDelegate {
 
     private fun MessageArchiveManager.getQueryIds(): Map<String, MessageArchiveManager.CallbackQueueItem> {
         return queryIds
+    }
+
+    suspend fun cleanup() {
+        reconnectJob?.cancel()
+        reconnectJob = null
+        stanzaProcessingScope.cancel()
+        closeStream()
+        progressListeners.clear()
+        syncManager?.clear()  // Reset sync version
     }
 }
