@@ -25,7 +25,24 @@
         android:layout_toStartOf="@id/tail"
         android:gravity="end"
         android:orientation="vertical"
-        android:paddingVertical="@dimen/message_vertical_padding" />
+        android:paddingVertical="@dimen/message_vertical_padding">
+
+        <TextView
+            android:id="@+id/tv_message_username"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="end"
+            android:maxLines="1"
+            android:paddingHorizontal="8dp"
+            android:textColor="@color/white"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:visibility="gone"
+            tools:text="You:"
+            tools:visibility="visible" />
+
+        <!-- Message content will be added here -->
+    </LinearLayout>
 
     <FrameLayout
         android:id="@+id/tail"

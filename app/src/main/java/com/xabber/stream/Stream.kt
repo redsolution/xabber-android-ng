@@ -359,7 +359,7 @@ class Stream(var jid: String, var port: Int = 5222) {
                     }
                 }
                 val stanza = content.substring(nextStart.first, fullEnd)
-                Log.d("XMPP STANZA", "RECV:$stanza")
+                Log.d("XMPP STANZA READ", "RECV:$stanza")
 
                 // Обработка каждой отдельной станзы в отдельном try-catch,
                 // чтобы ошибка в одной станзе не прерывала цикл обработки остальных

@@ -152,6 +152,25 @@ class MessageStorageItem : RealmObject {
             displayAs_ = newValue
         }
 
+    val groupchatAuthorNickname: String?
+        get() = references.firstOrNull { it.kind_ == "groupchat" }?.metadata?.get("nickname") as? String
+
+    val groupchatAuthorBadge: String?
+        get() = references.firstOrNull { it.kind_ == "groupchat" }?.metadata?.get("badge") as? String
+
+    val groupchatAuthorJid: String?
+        get() = references.firstOrNull { it.kind_ == "groupchat" }?.metadata?.get("jid") as? String
+
+    val groupchatAuthorId: String?
+        get() = references.firstOrNull { it.kind_ == "groupchat" }?.metadata?.get("id") as? String
+
+    val groupchatDisplayedNickname: String?
+        get() {
+            if (displayAs == "system") return null
+            val nick = groupchatAuthorNickname
+            return if (outgoing) "You:" else nick
+        }
+
     fun configureSystemMessage(message: XMPPMessage, owner: String, opponent: String, date: Date) {
         this.owner = owner
         this.opponent = opponent

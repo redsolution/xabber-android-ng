@@ -254,15 +254,21 @@ class MessageArchiveManager(private val owner: String) {
                             primary = chatPrimary
                             isSynced = false
                             isInitialArchiveLoaded = false
-                            val roster = query<RosterStorageItem>("jid = $0 AND owner = $1", jid, owner).first().find()
-                            if (roster == null) {
+                            val systemJids = setOf("favorites.redsolution.com", "redmine@redsolution.com", "xabber@xmppdev01.xabber.com")
+                            val shouldSkipRoster = jid == owner || systemJids.contains(jid)
+
+                            val roster = if (!shouldSkipRoster) {
+                                query<RosterStorageItem>("jid = $0 AND owner = $1", jid, owner).first().find()
+                            } else null
+
+                            if (roster == null && !shouldSkipRoster) {
                                 val newRoster = RosterStorageItem().apply {
                                     this.jid = jid
                                     this.owner = this@MessageArchiveManager.owner
                                     primary = RosterStorageItem.genPrimary(jid, owner)
                                     groups = realmListOf("ungrouped")
                                 }
-                                copyToRealm(newRoster)
+                                copyToRealm(newRoster, UpdatePolicy.ALL)   // safe update
                                 rosterItem = newRoster
                             } else {
                                 rosterItem = roster

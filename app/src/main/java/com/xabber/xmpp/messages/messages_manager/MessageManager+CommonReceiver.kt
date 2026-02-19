@@ -395,6 +395,7 @@ class MessageCommonReceiver(private val owner: String) {
                 Log.w(TAG, "Skipping self-message: from=$from, to=$to")
                 continue
             }
+
             val conversationType = conversationTypeByMessage(item.message)
 
             // Получаем информацию о чате
@@ -406,6 +407,12 @@ class MessageCommonReceiver(private val owner: String) {
             val displayedId = chat?.displayedId?.toLongOrNull()
             val deliveredId = chat?.deliveredId?.toLongOrNull()
             val lastReadMessageDate = chat?.lastReadMessageDate ?: 0L
+            val groupchatRef = createGroupchatReference(item.message, opponent, owner)
+            if (groupchatRef != null) {
+                // Add to a temporary list that will be assigned to messageItem later
+                // We'll add it directly to messageItem.references after creation
+            }
+
 
             // Конвертируем дату сообщения в микросекунды для сравнения
             val messageTimestampUs = item.date.time * 1000L  // миллисекунды → микросекунды
@@ -508,7 +515,7 @@ class MessageCommonReceiver(private val owner: String) {
                             ?: ""
 
             }
-
+            groupchatRef?.let { messageItem.references.add(it) }
             messageItem.save(silentNotifications = true, realm = realm)
         }
         if (newUnreadChatPrimaries.isNotEmpty()) {
@@ -562,6 +569,30 @@ class MessageCommonReceiver(private val owner: String) {
                 processQueue(items)
                 AccountManager.find(owner)?.chatMarkers?.deleteEphemeralMessages()
             }
+        }
+    }
+
+    private fun createGroupchatReference(message: XMPPMessage, opponent: String, owner: String): MessageReferenceStorageItem? {
+        val groupElement = message.element("x", namespace = "https://xabber.com/protocol/groups") ?: return null
+        val reference = groupElement.element("reference", namespace = "https://xabber.com/protocol/references") ?: return null
+        val user = reference.element("user", namespace = "https://xabber.com/protocol/groups") ?: return null
+        val metadata = mutableMapOf<String, Any>()
+        user.getAttribute("id")?.let { metadata["id"] = it }
+        user.getAttribute("nickname")?.let { metadata["nickname"] = it }
+        user.getAttribute("badge")?.let { metadata["badge"] = it }
+        user.getAttribute("jid")?.let { metadata["jid"] = it }
+
+        // Optional: role and avatar info
+        user.element("role")?.textContent?.let { metadata["role"] = it }
+        user.element("metadata", "urn:xmpp:avatar:metadata")?.element("info")?.let { info ->
+            info.getAttribute("url")?.let { metadata["avatar_uri"] = it }
+        }
+
+        return MessageReferenceStorageItem().apply {
+            this.owner = owner
+            this.jid = opponent
+            this.kind_ = "groupchat"
+            this.metadata = metadata
         }
     }
 

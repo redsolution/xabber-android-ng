@@ -123,7 +123,7 @@ class ChatViewModel(
                 _chat.value = chatItem
                 chatItem?.let {
                     _muteExpired.value = it.muteExpired
-                    _opponentName.value = it.jid // or rosterItem?.customNickname if available
+                    _opponentName.value = it.rosterItem?.displayName ?: it.jid
                 }
             }
         }

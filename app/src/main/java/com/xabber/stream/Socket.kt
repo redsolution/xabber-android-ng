@@ -104,6 +104,7 @@ class Socket(private val host: String, private val port: Int) {
     private val selectorManager = SelectorManager(Dispatchers.Default)
     var scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val TAG = "Socket_nging"
+    private val tagPing = "SOCKET PING"
     private val sslContext = SSLContext.getInstance("TLS")
     private lateinit var sslEngine: SSLEngine
     private val writeMutex = Mutex()
@@ -122,6 +123,11 @@ class Socket(private val host: String, private val port: Int) {
     private var readingLoopJob: Job? = null
     private var keepAliveJob: Job? = null
 
+    private var userJid: String = ""
+
+    fun setUserJid(jid: String) {
+        this.userJid = jid
+    }
 
     fun setOnReadLoopError(callback: () -> Unit) {
         onReadLoopError = callback
@@ -140,15 +146,17 @@ class Socket(private val host: String, private val port: Int) {
         keepAliveJob?.cancel()
         keepAliveJob = scope.launch {
             while (scope.isActive) {
-                delay(15_000) // каждые 30 секунд
+                delay(10_000) // 5 seconds
                 if (socket?.isClosed == false && writer?.isClosedForWrite == false) {
                     try {
-                        // Отправляем пробел (0x20)
-                        writer?.writeByte(' '.code.toByte())
-                        writer?.flush()
-                        Log.v(TAG, "Keep-alive whitespace sent")
+                        val success = sendPing()   // <-- no JID needed
+                        if (success) {
+                            Log.v(tagPing, "Keep-alive ping sent")
+                        } else {
+                            Log.w(tagPing, "Keep-alive ping failed")
+                        }
                     } catch (e: Exception) {
-                        Log.w(TAG, "Keep-alive failed: ${e.message}")
+                        Log.w(tagPing, "Keep-alive ping exception: ${e.message}")
                     }
                 }
             }
@@ -698,7 +706,7 @@ class Socket(private val host: String, private val port: Int) {
     }
 
     suspend fun write(message: String): Boolean = withContext(Dispatchers.IO) {
-        Log.d("XMPP STANZA", "SEND: $message")
+        Log.d("XMPP STANZA SEND", "SEND: $message")
         try {
             writer?.let { w ->
                 if (w.isClosedForWrite || socket?.isClosed == true) {
@@ -919,11 +927,11 @@ class Socket(private val host: String, private val port: Int) {
         }
     }
 
-    suspend fun sendPing(jid: String): Boolean = withContext(Dispatchers.IO) {
+    suspend fun sendPing(): Boolean = withContext(Dispatchers.IO) {
         val ping = """
-            <iq type='get' id='ping1' to='$jid'>
-                <ping xmlns='urn:xmpp:ping'/>
-            </iq>"""
+        <iq type='get' id='ping1'>
+            <ping xmlns='urn:xmpp:ping'/>
+        </iq>"""
         return@withContext write(ping)
     }
 

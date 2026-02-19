@@ -21,7 +21,10 @@ class IncomingMessageVH(
         val tvName = itemView.findViewById<TextView>(R.id.tv_message_username)
         if (tvName != null) {
             tvName.isVisible = vhExtraData.isNeedName && vhExtraData.isGroup
-            tvName.layoutParams?.height = LinearLayout.LayoutParams.WRAP_CONTENT
+            if (tvName.isVisible) {
+                tvName.text = message.groupchatDisplayedNickname ?: ""
+            }
         }
     }
+
 }
