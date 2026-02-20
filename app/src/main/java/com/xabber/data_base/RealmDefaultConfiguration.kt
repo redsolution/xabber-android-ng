@@ -14,7 +14,9 @@ import com.xabber.data_base.models.roster.RosterStorageItem
 import com.xabber.xmpp.device.DeviceStorageItem
 import com.xabber.xmpp.global_index.GroupChatIndexStorageItem
 import com.xabber.xmpp.groupchat.GroupChatStorageItem
+import com.xabber.xmpp.groupchat.GroupchatInvitedUsersStorageItem
 import com.xabber.xmpp.groupchat.GroupchatInvitesStorageItem
+import com.xabber.xmpp.groupchat.GroupchatUserStorageItem
 import com.xabber.xmpp.messages.message.MessageStanzaStorageItem
 import com.xabber.xmpp.messages.message.TemporaryMessageStanzaStorageItem
 import com.xabber.xmpp.notifications.NotificationStorageItem
@@ -41,7 +43,8 @@ fun defaultRealmConfig(): RealmConfiguration {
             DeviceStorageItem::class,
             GroupChatIndexStorageItem::class,
             GroupChatStorageItem::class,
-//            GroupchatUserStorageItem::class,
+            GroupchatUserStorageItem::class,
+            GroupchatInvitedUsersStorageItem::class,
             GroupchatInvitesStorageItem::class,
             MessageStanzaStorageItem::class,
             TemporaryMessageStanzaStorageItem::class,

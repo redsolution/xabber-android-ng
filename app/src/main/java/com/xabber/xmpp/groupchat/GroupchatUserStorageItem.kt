@@ -18,7 +18,7 @@ import java.util.Calendar
 import java.util.Locale
 
 
-open class GroupchatUserStorageItem {
+open class GroupchatUserStorageItem : RealmObject {
     enum class Role(val rawValue: String) {
         OWNER("owner"),
         ADMIN("admin"),
@@ -73,7 +73,7 @@ open class GroupchatUserStorageItem {
     var temporaryAvatarHash: String = ""
     var avatarHash: String = ""
     var isOnline: Boolean = false
-    var lastSeen: Date? = null
+    var lastSeen: Long = 0L
     var isBlocked: Boolean = false
     var isKicked: Boolean = false
     var isTemporary: Boolean = false
@@ -82,7 +82,7 @@ open class GroupchatUserStorageItem {
     var subscribtion_: String = Subscribtion.BOTH.rawValue
     var isMe: Boolean = false
     var sortedRole: Int = IntegerRole.MEMBER.rawValue
-    var updateTimestamp: Date = Date(978307200000) // Matches Date(timeIntervalSinceReferenceDate: 0)
+    var updateTimestamp: Long = 0L
 
     var subscribtion: Subscribtion
         get() = when (subscribtion_) {
@@ -214,7 +214,7 @@ open class GroupchatUserStorageItem {
 //            return null
 //        }
 
-
+@Ignore
     private lateinit var context: Context
 
     fun setContext(context: Context) {

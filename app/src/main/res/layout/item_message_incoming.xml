@@ -30,6 +30,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_alignParentBottom="true"
+        android:layout_marginVertical="@dimen/message_margin"
         android:layout_marginStart="-6.5dp"
         android:layout_toEndOf="@id/tail"
         android:orientation="vertical"

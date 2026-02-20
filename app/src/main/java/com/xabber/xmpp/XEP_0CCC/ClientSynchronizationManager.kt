@@ -52,6 +52,8 @@ class ClientSynchronizationManager(owner: String) {
     private val bufferMutex = Mutex()
     private var processingJob: Job? = null
     private var TAG = "ClientSynctronizationManager"
+    var mentionId: String? = null
+    var retractVersion: String? = null
 
     data class SyncItem(
         val stream: Stream,
