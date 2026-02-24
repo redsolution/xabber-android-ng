@@ -526,7 +526,10 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
     }
 
     private fun initializeRecyclerView() {
-        val isGroup = viewModel.loadChat(getParams().id)!!.isGroup
+        val isGroup = viewModel.loadChat(getParams().id)?.isGroup
+            ?: (viewModel.conversationType == ConversationType.Group ||
+                viewModel.conversationType == ConversationType.Incognito ||
+                viewModel.conversationType == ConversationType.Private)
         messageAdapter = MessageAdapter(
             layoutInflater,
             this,
@@ -773,7 +776,7 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
                 editMessageId = null
             } else {
                 val chat = viewModel.loadChat(getParams().id)!!
-                val conversationType = if (chat.isGroup) ConversationType.Group else ConversationType.Regular
+                val conversationType = viewModel.conversationType
                 val forwarded = if (replyingMessage != null) listOf(replyingMessage!!.primary) else emptyList()
                 lifecycleScope.launch {
                     messageSender?.sendSimpleMessage(
@@ -1248,7 +1251,7 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
             this.date = System.currentTimeMillis()
             this.sentDate = this.date
             this.state = MessageSendingState.Deliver
-            this.conversationType = if (viewModel.loadChat(getParams().id)!!.isGroup) ConversationType.Group else ConversationType.Regular
+            this.conversationType = viewModel.conversationType
             this.references = references
             updatePrimary() // важно!
         }

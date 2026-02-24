@@ -21,10 +21,14 @@ val dataModule = module {
             val conversationType = when (rawType) {
                 "urn:xabber:chat" -> ConversationType.Regular
                 "https://xabber.com/protocol/groups" -> ConversationType.Group
+                "https://xabber.com/protocol/groups#incognito" -> ConversationType.Incognito
+                "https://xabber.com/protocol/groups#private" -> ConversationType.Private
                 "https://xabber.com/protocol/channels" -> ConversationType.Channel
                 "urn:xmpp:omemo:2" -> ConversationType.Omemo
                 "urn:xmpp:omemo:1" -> ConversationType.Omemo1
                 "eu.siacs.conversations.axolotl" -> ConversationType.Axolotl
+                "urn:xabber:xen:0" -> ConversationType.Notifications
+                "urn:xabber:favorites:0" -> ConversationType.Favorites
                 else -> {
                     ConversationType.Regular
                 }

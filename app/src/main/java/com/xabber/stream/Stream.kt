@@ -754,19 +754,26 @@ class Stream(var jid: String, var port: Int = 5222) {
             var realId: String? = null
 
             var inForwarded = false
-            var inResult = false
             var currentMessageDepth = 0
             var targetMessageDepth = -1
 
-            // Список для хранения только <displayed> элемента (если есть)
+            // Collects ALL child elements of the target message
             val messageChildren = mutableListOf<XMLElement>()
+
+            // Elements that act as structural wrappers and must NOT be consumed by
+            // parseElementFull — their children are iterated by the main loop.
+            val structuralTags = setOf("message", "result", "forwarded")
 
             var event = parser.eventType
             while (event != XmlPullParser.END_DOCUMENT) {
                 when (event) {
                     XmlPullParser.START_TAG -> {
-                        when (parser.name) {
-                            "message" -> {
+                        val tagName = parser.name
+                        val tagNs = parser.namespace ?: ""
+
+                        when {
+                            // --- <message> ---------------------------------------------------
+                            tagName == "message" -> {
                                 currentMessageDepth++
                                 if (currentMessageDepth == 1) {
                                     type = parser.getAttributeValue(null, "type") ?: "chat"
@@ -782,114 +789,64 @@ class Stream(var jid: String, var port: Int = 5222) {
                                     realId = parser.getAttributeValue(null, "id") ?: id
                                     type = parser.getAttributeValue(null, "type") ?: type ?: "chat"
                                 }
+                                // Do NOT consume children — main loop iterates them
                             }
-                            "result" -> {
-                                if (parser.namespace == "urn:xmpp:mam:2") {
-                                    inResult = true
-                                    archivedId = parser.getAttributeValue(null, "id")
-                                    queryId = parser.getAttributeValue(null, "queryid")
-                                }
+
+                            // --- <result xmlns='urn:xmpp:mam:2'> ----------------------------
+                            tagName == "result" && tagNs == "urn:xmpp:mam:2" -> {
+                                archivedId = parser.getAttributeValue(null, "id")
+                                queryId = parser.getAttributeValue(null, "queryid")
+                                // Structural — main loop iterates its children
                             }
-                            "forwarded" -> {
-                                if (parser.namespace == "urn:xmpp:forward:0") {
-                                    inForwarded = true
-                                }
+
+                            // --- <forwarded xmlns='urn:xmpp:forward:0'> ---------------------
+                            tagName == "forwarded" && tagNs == "urn:xmpp:forward:0" -> {
+                                inForwarded = true
+                                // Structural — main loop iterates its children
                             }
-                            "delay" -> {
-                                if (parser.namespace == "urn:xmpp:delay") {
-                                    val stamp = parser.getAttributeValue(null, "stamp")
-                                    stamp?.let { timestamp = it.parseXMPPDateToMillis() ?: timestamp }
-                                }
+
+                            // --- <body> at message level ------------------------------------
+                            tagName == "body" &&
+                                (currentMessageDepth == targetMessageDepth || targetMessageDepth == -1) -> {
+                                val text = parser.nextText().trim()
+                                if (text.isNotBlank()) body = text
                             }
-                            "time" -> {
-                                if (parser.namespace == "https://xabber.com/protocol/delivery") {
-                                    val stamp = parser.getAttributeValue(null, "stamp")
-                                    stamp?.let {
-                                        val timeMillis = it.parseXMPPDateToMillis()
-                                        if (timeMillis != null && (timestamp == null || timeMillis > timestamp!!)) {
-                                            timestamp = timeMillis
+
+                            // --- All other elements: parse fully and add to children --------
+                            else -> {
+                                // Whether this is a direct child of the target message
+                                val isAtMessageLevel =
+                                    (currentMessageDepth == 1 && !inForwarded) ||
+                                    (inForwarded && currentMessageDepth == targetMessageDepth)
+
+                                // Extract specific top-level fields before consuming
+                                when (tagName) {
+                                    "delay" -> if (tagNs == "urn:xmpp:delay") {
+                                        val stamp = parser.getAttributeValue(null, "stamp")
+                                        stamp?.let { timestamp = it.parseXMPPDateToMillis() ?: timestamp }
+                                    }
+                                    "time" -> if (tagNs == "https://xabber.com/protocol/delivery") {
+                                        val stamp = parser.getAttributeValue(null, "stamp")
+                                        stamp?.let {
+                                            val timeMillis = it.parseXMPPDateToMillis()
+                                            if (timeMillis != null && (timestamp == null || timeMillis > timestamp!!)) {
+                                                timestamp = timeMillis
+                                            }
                                         }
                                     }
-                                }
-                            }
-                            "body" -> {
-                                if (currentMessageDepth == targetMessageDepth || targetMessageDepth == -1) {
-                                    val text = parser.nextText().trim()
-                                    if (text.isNotBlank()) body = text
-                                }
-                            }
-                            "origin-id" -> {
-                                if (parser.namespace == "urn:xmpp:sid:0") {
-                                    originId = parser.getAttributeValue(null, "id")
-                                }
-                            }
-                            "displayed" -> {
-                                if (parser.namespace == "urn:xmpp:chat-markers:0" &&
-                                    (currentMessageDepth == targetMessageDepth || targetMessageDepth == -1)
-                                ) {
-                                    val displayedId = parser.getAttributeValue(null, "id")
-                                    val attributes = mutableMapOf<String, String>()
-                                    displayedId?.let { attributes["id"] = it }
-
-                                    val displayedInnerChildren = parseChildren(parser, "displayed")
-
-                                    messageChildren.add(
-                                        XMLElement(
-                                            name = "displayed",
-                                            namespace = "urn:xmpp:chat-markers:0",
-                                            raw = "",
-                                            attributes = attributes,
-                                            children = displayedInnerChildren
-                                        )
-                                    )
-
-                                }
-                            }
-                            "received" -> {
-                                if (parser.namespace == "https://xabber.com/protocol/delivery" &&
-                                    (currentMessageDepth == targetMessageDepth || targetMessageDepth == -1)
-                                ) {
-                                    val attributes = mutableMapOf<String, String>()
-                                    for (i in 0 until parser.attributeCount) {
-                                        attributes[parser.getAttributeName(i)] = parser.getAttributeValue(i)
+                                    "origin-id" -> if (tagNs == "urn:xmpp:sid:0") {
+                                        originId = parser.getAttributeValue(null, "id")
                                     }
-
-                                    val innerChildren = parseChildren(parser, "received")
-
-                                    messageChildren.add(
-                                        XMLElement(
-                                            name = "received",
-                                            namespace = "https://xabber.com/protocol/delivery",
-                                            raw = "",
-                                            attributes = attributes,
-                                            children = innerChildren
-                                        )
-                                    )
                                 }
-                            }
 
-                            "received" -> {
-                                if (parser.namespace == "urn:xmpp:chat-markers:0" &&
-                                    (currentMessageDepth == targetMessageDepth || targetMessageDepth == -1)
-                                ) {
-                                    val receivedId = parser.getAttributeValue(null, "id")
-                                    val attributes = mutableMapOf<String, String>()
-                                    receivedId?.let { attributes["id"] = it }
+                                // Parse the full element tree
+                                val element = parseElementFull(parser, tagName, tagNs)
 
-                                    val receivedInnerChildren = parseChildren(parser, "received")
-
-                                    messageChildren.add(
-                                        XMLElement(
-                                            name = "received",
-                                            namespace = "urn:xmpp:chat-markers:0",
-                                            raw = "",
-                                            attributes = attributes,
-                                            children = receivedInnerChildren
-                                        )
-                                    )
+                                if (isAtMessageLevel) {
+                                    messageChildren.add(element)
                                 }
+                                // parseElementFull leaves parser at END_TAG of this element
                             }
-
                         }
                     }
                     XmlPullParser.END_TAG -> {
@@ -904,12 +861,13 @@ class Stream(var jid: String, var port: Int = 5222) {
             val finalTo = realTo ?: to
             val finalId = realId ?: originId ?: id
 
-            // Если нет body, но есть известные расширения (включая chat-markers) — не отбрасываем
+            // If no body, but known extensions exist — don't discard
             if (body == null) {
                 val hasKnownExtension = stanza.contains("urn:xmpp:chat-markers:0") ||
                         stanza.contains("http://jabber.org/protocol/chatstates") ||
                         stanza.contains("urn:xmpp:receipt") ||
                         stanza.contains("urn:xmpp:carbons") ||
+                        stanza.contains("https://xabber.com/protocol/groups") ||
                         type == "headline" || type == "error"
 
                 if (!hasKnownExtension) return null
@@ -940,57 +898,77 @@ class Stream(var jid: String, var port: Int = 5222) {
         }
     }
 
-    // Полностью переписанная функция parseChildren — без рекурсии, итеративная
-    private fun parseChildren(parser: XmlPullParser, untilTag: String): MutableList<XMLElement> {
-        val children = mutableListOf<XMLElement>()
-        val stack = mutableListOf<String>() // для отслеживания открытых тегов
+    /**
+     * Recursively parses an element and all its children from the current parser position.
+     * When called, the parser must be positioned at the START_TAG of the element.
+     * On return, the parser is positioned at the END_TAG of this element.
+     */
+    private fun parseElementFull(parser: XmlPullParser, elementName: String, elementNs: String): XMLElement {
+        val attributes = mutableMapOf<String, String>()
+        for (i in 0 until parser.attributeCount) {
+            attributes[parser.getAttributeName(i)] = parser.getAttributeValue(i)
+        }
 
-        var event = parser.next() // переходим к первому событию внутри родителя
+        // Handle self-closing tags
+        if (parser.isEmptyElementTag) {
+            return XMLElement(
+                name = elementName,
+                namespace = elementNs,
+                raw = "<$elementName/>",
+                attributes = attributes,
+                children = emptyList()
+            )
+        }
+
+        val children = mutableListOf<XMLElement>()
+        val textBuilder = StringBuilder()
+
+        var event = parser.next()
         while (event != XmlPullParser.END_DOCUMENT) {
             when (event) {
                 XmlPullParser.START_TAG -> {
-                    val name = parser.name
-                    val namespace = parser.namespace ?: ""
-                    val attributes = mutableMapOf<String, String>()
-                    for (i in 0 until parser.attributeCount) {
-                        attributes[parser.getAttributeName(i)] = parser.getAttributeValue(i)
-                    }
-
-                    // Создаём элемент (вложенные дети будут добавлены позже)
-                    val element = XMLElement(
-                        name = name,
-                        namespace = namespace,
-                        raw = "",
-                        attributes = attributes,
-                        children = mutableListOf() // временно пустой, заполним ниже
-                    )
-                    children.add(element)
-                    stack.add(name)
-
-                    // Если тег самозакрывающийся — сразу закрываем
-                    if (parser.isEmptyElementTag) {
-                        stack.removeLastOrNull()
+                    val childName = parser.name
+                    val childNs = parser.namespace ?: ""
+                    // Recursively parse nested child element
+                    val child = parseElementFull(parser, childName, childNs)
+                    children.add(child)
+                }
+                XmlPullParser.TEXT -> {
+                    val text = parser.text
+                    if (!text.isNullOrBlank()) {
+                        textBuilder.append(text.trim())
                     }
                 }
                 XmlPullParser.END_TAG -> {
-                    val closedTag = parser.name
-                    if (closedTag == untilTag && stack.isEmpty()) {
-                        // Мы закрыли родительский тег — выходим
-                        return children
-                    }
-                    if (stack.isNotEmpty() && stack.last() == closedTag) {
-                        stack.removeLast()
+                    if (parser.name == elementName) {
+                        // Build raw XML for textContent support
+                        val rawContent = if (textBuilder.isNotEmpty()) {
+                            "<$elementName>${textBuilder}</$elementName>"
+                        } else {
+                            "<$elementName/>"
+                        }
+                        return XMLElement(
+                            name = elementName,
+                            namespace = elementNs,
+                            raw = rawContent,
+                            attributes = attributes,
+                            children = children
+                        )
                     }
                 }
             }
-            if (event == XmlPullParser.END_TAG && parser.name == untilTag && stack.isEmpty()) {
-                break
-            }
             event = parser.next()
         }
-        return children
-    }
 
+        // Fallback: reached END_DOCUMENT without closing tag
+        return XMLElement(
+            name = elementName,
+            namespace = elementNs,
+            raw = "<$elementName/>",
+            attributes = attributes,
+            children = children
+        )
+    }
     suspend fun close() = withContext(Dispatchers.IO) {
         synchronized(connectionLock) {
             socket = null

@@ -34,6 +34,7 @@ open class GroupchatInvitesStorageItem : RealmObject {
     var isProcessed: Boolean = false
     var entity_: String = RosterItemEntity.GROUPCHAT.rawValue
     var isAnonymous: Boolean = false
+    var declined: Boolean = false
 
     var entity: RosterItemEntity
         get() = RosterItemEntity.fromRaw(entity_) ?: RosterItemEntity.GROUPCHAT

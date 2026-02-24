@@ -122,6 +122,12 @@ class Socket(private val host: String, private val port: Int) {
 
     private var readingLoopJob: Job? = null
     private var keepAliveJob: Job? = null
+    @Volatile
+    private var lastDataReceivedTime = System.currentTimeMillis()
+    private val PING_TIMEOUT_MS = 30_000L
+
+    val isClosed: Boolean
+        get() = socket?.isClosed != false || writer?.isClosedForWrite != false
 
     private var userJid: String = ""
 
@@ -144,16 +150,28 @@ class Socket(private val host: String, private val port: Int) {
 
     private fun startKeepAlive() {
         keepAliveJob?.cancel()
+        lastDataReceivedTime = System.currentTimeMillis()
         keepAliveJob = scope.launch {
             while (scope.isActive) {
-                delay(10_000) // 5 seconds
+                delay(10_000)
                 if (socket?.isClosed == false && writer?.isClosedForWrite == false) {
+                    // Check if we've received any data recently
+                    val silentMs = System.currentTimeMillis() - lastDataReceivedTime
+                    if (silentMs > PING_TIMEOUT_MS) {
+                        Log.w(tagPing, "No data received for ${silentMs}ms — treating connection as dead")
+                        closeInternal()
+                        if (!isReadLoopErrorFired) {
+                            isReadLoopErrorFired = true
+                            onReadLoopError?.invoke()
+                        }
+                        break
+                    }
                     try {
-                        val success = sendPing()   // <-- no JID needed
+                        val success = sendPing()
                         if (success) {
                             Log.v(tagPing, "Keep-alive ping sent")
                         } else {
-                            Log.w(tagPing, "Keep-alive ping failed")
+                            Log.w(tagPing, "Keep-alive ping failed — triggering reconnect")
                         }
                     } catch (e: Exception) {
                         Log.w(tagPing, "Keep-alive ping exception: ${e.message}")
@@ -662,6 +680,7 @@ class Socket(private val host: String, private val port: Int) {
                     onReadLoopError?.invoke()
                     break
                 } else if (bytesRead > 0) {
+                    lastDataReceivedTime = System.currentTimeMillis()
                     val bytes = tempBuffer.copyOfRange(0, bytesRead)
                     if (tlsHandshaking && !tlsDataChannel.isClosedForSend) {
                         tlsDataChannel.send(bytes)
@@ -928,10 +947,8 @@ class Socket(private val host: String, private val port: Int) {
     }
 
     suspend fun sendPing(): Boolean = withContext(Dispatchers.IO) {
-        val ping = """
-        <iq type='get' id='ping1'>
-            <ping xmlns='urn:xmpp:ping'/>
-        </iq>"""
+        val pingId = "ping_${System.currentTimeMillis()}"
+        val ping = "<iq type='get' id='$pingId'><ping xmlns='urn:xmpp:ping'/></iq>"
         return@withContext write(ping)
     }
 

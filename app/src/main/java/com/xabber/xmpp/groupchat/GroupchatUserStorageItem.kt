@@ -74,6 +74,7 @@ open class GroupchatUserStorageItem : RealmObject {
     var avatarHash: String = ""
     var isOnline: Boolean = false
     var lastSeen: Long = 0L
+    var lastSeenIso: String = ""
     var isBlocked: Boolean = false
     var isKicked: Boolean = false
     var isTemporary: Boolean = false

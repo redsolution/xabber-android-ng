@@ -251,7 +251,9 @@ fun LastChatsStorageItem.toChatListDto(): ChatListDto =
         drawableId = avatar,
         isHide = false,
         lastMessageIsOutgoing = lastMessage?.outgoing ?: false,
-        isGroup = conversationType_ == ConversationType.Group.rawValue
+        isGroup = conversationType_ == ConversationType.Group.rawValue ||
+                conversationType_ == ConversationType.Incognito.rawValue ||
+                conversationType_ == ConversationType.Private.rawValue
     )
 
 fun com.xabber.data_base.models.account.AccountStorageItem.toAccountDto() =

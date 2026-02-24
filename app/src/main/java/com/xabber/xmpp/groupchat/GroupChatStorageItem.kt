@@ -47,6 +47,10 @@ open class GroupChatStorageItem : RealmObject {
     var canDeleteMessages: Boolean = false
     var defaultRestrictions: RealmList<String> = realmListOf()
     var status: String = ""
+    var languages: RealmList<String> = realmListOf()
+    var parentChat: String = ""
+    var collectAvatars: Boolean = false
+    var anonymous: Boolean = false
     private var muteState_: Int = MuteState.ENABLED.rawValue
     var isDeleted: Boolean = false
 

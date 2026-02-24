@@ -27,6 +27,8 @@ import io.realm.kotlin.types.RealmList
 import io.viascom.nanoid.NanoId
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -51,6 +53,8 @@ class MessageArchiveManager(private val owner: String) {
     private val nanoIdMask = 63
     private val nanoIdStep = 16
     private val TAG = "MessageArchiveManager"
+    private val queryTimeoutScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val QUERY_TIMEOUT_MS = 60_000L
     private val queryToReceivedCount = mutableMapOf<String, Int>()
     val queryIds = mutableMapOf<String, CallbackQueueItem>()
     private val queryIdsMutex = Mutex()
@@ -161,6 +165,21 @@ class MessageArchiveManager(private val owner: String) {
             queryIds[elementId] = callbackItem
             callbacksQueue.add(callbackItem)
             interactiveQueue.add(elementId)
+        }
+
+        // Schedule timeout for this query
+        queryTimeoutScope.launch {
+            delay(QUERY_TIMEOUT_MS)
+            queryIdsMutex.withLock {
+                val item = queryIds.remove(elementId)
+                if (item != null) {
+                    Log.w(TAG, "MAM query timed out after ${QUERY_TIMEOUT_MS}ms: $elementId (jid=$jid)")
+                    callbacksQueue.remove(item)
+                    interactiveQueue.remove(elementId)
+                    item.callback?.invoke()
+                    temporaryMessageReceiver?.didReceiveEndPage(elementId, false, "", "", 0)
+                }
+            }
         }
 
         val queryXml = buildString {
@@ -621,18 +640,40 @@ class MessageArchiveManager(private val owner: String) {
             val to = message.to?.bare() ?: return@withContext null
 
             val isGroupChat = message.hasElement("x", "https://xabber.com/protocol/groups")
-            val conversationType = if (isGroupChat) ConversationType.Group else ConversationType.Regular
+            val conversationType = if (isGroupChat) {
+                // Check entity-type for group subtypes (incognito, private)
+                val entityType = message.element("x", "https://xabber.com/protocol/entity-type")?.textContent
+                when (entityType) {
+                    "incognito" -> ConversationType.Incognito
+                    "private" -> ConversationType.Private
+                    else -> ConversationType.Group
+                }
+            } else if (message.hasElement("channel", "https://xabber.com/protocol/channels")) {
+                ConversationType.Channel
+            } else if (message.hasElement("omemo", "urn:xmpp:omemo:2")) {
+                ConversationType.Omemo
+            } else if (message.hasElement("omemo", "urn:xmpp:omemo:1")) {
+                ConversationType.Omemo1
+            } else if (message.hasElement("axolotl", "eu.siacs.conversations.axolotl")) {
+                ConversationType.Axolotl
+            } else {
+                ConversationType.Regular
+            }
 
             val originalOutgoing = if (isGroupChat) {
-                message.element("x", "https://xabber.com/protocol/groups")
+                val userElement = message.element("x", "https://xabber.com/protocol/groups")
                     ?.element("reference", "https://xabber.com/protocol/references")
                     ?.element("user", "https://xabber.com/protocol/groups")
-                    ?.getAttribute("id") == owner
+                val userJid = userElement?.getAttribute("jid")
+                val userId = userElement?.getAttribute("id")
+                userJid == owner || userId == owner
             } else {
                 from == owner
             }
 
-            var opponent = if (originalOutgoing) to else from
+            // For group messages, opponent is always the group JID (from),
+            // regardless of whether the message is outgoing or incoming
+            var opponent = if (isGroupChat) from else if (originalOutgoing) to else from
             if (opponent == owner) return@withContext null // self-message
 
             val timestamp = Date(message.date ?: System.currentTimeMillis())
@@ -889,6 +930,20 @@ class MessageArchiveManager(private val owner: String) {
             return
         }
 
+        // Guard against dead stream
+        if (stream.socket == null || stream.socket!!.isClosed) {
+            Log.w(TAG, "Stream dead during continueLoadHistory, aborting: taskId=${task.taskId}")
+            callbacksQueue.find { it.task.taskId == task.taskId }?.let { item ->
+                item.callback?.invoke()
+                callbacksQueue.remove(item)
+                queryIdsMutex.withLock {
+                    queryIds.remove(item.elementId)
+                    interactiveQueue.remove(item.elementId)
+                }
+            }
+            return
+        }
+
         requestArchive(
             stream = stream,
             jid = task.jid,
@@ -989,8 +1044,12 @@ class MessageArchiveManager(private val owner: String) {
     }
 
     fun reset() {
+        Log.d(TAG, "Resetting MAM state: ${queryIds.size} pending queries, ${callbacksQueue.size} callbacks")
+        queryTimeoutScope.coroutineContext.cancelChildren()
         callbacksQueue.forEach { it.callback?.invoke() }
         callbacksQueue.clear()
+        queryIds.clear()
+        queryToReceivedCount.clear()
         searchResultsQueries.clear()
         interactiveQueue.clear()
         continuesTaskID = null

@@ -153,13 +153,18 @@ class MessageAdapter(
         if (!isGroup) return false
 
         val currentMessage = getMessageAtPosition(position) ?: return true
+        // System messages don't need name
+        if (currentMessage.displayAs_ == "system") return false
 
         // Ищем предыдущее сообщение
         var prevPos = position - 1
         while (prevPos >= 0) {
             val prevMessage = getMessageAtPosition(prevPos)
             if (prevMessage != null) {
-                return currentMessage.outgoing != prevMessage.outgoing || currentMessage.opponent != prevMessage.opponent
+                // In group chats, compare by author id/nickname to distinguish between members
+                val currentAuthor = currentMessage.groupchatAuthorId ?: if (currentMessage.outgoing) "__self__" else ""
+                val prevAuthor = prevMessage.groupchatAuthorId ?: if (prevMessage.outgoing) "__self__" else ""
+                return currentAuthor != prevAuthor
             }
             prevPos--
         }

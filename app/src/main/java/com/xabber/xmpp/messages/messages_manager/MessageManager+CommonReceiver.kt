@@ -309,16 +309,21 @@ class MessageCommonReceiver(private val owner: String) {
         val messageId = getOriginId(message) ?: message.id ?: return
         val from = message.from?.bare() ?: return
         val to = message.to?.bare() ?: return
-        val isOutgoing = if (message.hasElement("x", "https://xabber.com/protocol/groups")) {
-            // групповой чат — особый случай
-            message.element("x", "https://xabber.com/protocol/groups")
+        val isGroupMessage = message.hasElement("x", "https://xabber.com/protocol/groups")
+        val isOutgoing = if (isGroupMessage) {
+            // Group chat — check user element's jid attribute (or id as fallback)
+            val userElement = message.element("x", "https://xabber.com/protocol/groups")
                 ?.element("reference")
                 ?.element("user", "https://xabber.com/protocol/groups")
-                ?.getAttribute("id") == owner
+            val userJid = userElement?.getAttribute("jid")
+            val userId = userElement?.getAttribute("id")
+            userJid == owner || userId == owner
         } else {
             from == owner   // обычный чат — исходящее, если from == наш аккаунт
         }
-        val opponent = if (isOutgoing) to else from
+        // For group messages, opponent is always the group JID (from),
+        // regardless of whether the message is outgoing or incoming
+        val opponent = if (isGroupMessage) from else if (isOutgoing) to else from
         if (opponent == owner) return
 
         val queueItem = MessageQueueItem(
@@ -388,8 +393,20 @@ class MessageCommonReceiver(private val owner: String) {
 
             if (from.isBlank() || to.isBlank()) continue
 
-            val isOutgoing = from == owner
-            val opponent   = if (isOutgoing) to else from
+            val isGroupMessage = item.message.hasElement("x", "https://xabber.com/protocol/groups")
+            val isOutgoing = if (isGroupMessage) {
+                // For group messages, check user element's jid attribute (or id as fallback)
+                val userElement = item.message.element("x", "https://xabber.com/protocol/groups")
+                    ?.element("reference")
+                    ?.element("user", "https://xabber.com/protocol/groups")
+                val userJid = userElement?.getAttribute("jid")
+                val userId = userElement?.getAttribute("id")
+                userJid == owner || userId == owner || item.originalOutgoing
+            } else {
+                from == owner
+            }
+            // For group messages, opponent is always the group JID (from)
+            val opponent = if (isGroupMessage) from else if (isOutgoing) to else from
 
             if (opponent == owner) {
                 Log.w(TAG, "Skipping self-message: from=$from, to=$to")
@@ -632,7 +649,15 @@ class MessageCommonReceiver(private val owner: String) {
         val to = message.to?.bare()
         return when {
             to == "favorites.redsolution.com" -> ConversationType.Favorites
-            message.element("x", "https://xabber.com/protocol/groups") != null -> ConversationType.Group
+            message.element("x", "https://xabber.com/protocol/groups") != null -> {
+                // Check XEP-TYPE entity type for group subtypes
+                val entityType = message.element("x", "https://xabber.com/protocol/entity-type")?.textContent
+                when (entityType) {
+                    "incognito" -> ConversationType.Incognito
+                    "private" -> ConversationType.Private
+                    else -> ConversationType.Group
+                }
+            }
             message.element("channel", "https://xabber.com/protocol/channels") != null -> ConversationType.Channel
             message.element("omemo", "urn:xmpp:omemo:2") != null -> ConversationType.Omemo
             message.element("omemo", "urn:xmpp:omemo:1") != null -> ConversationType.Omemo1

@@ -185,6 +185,13 @@ class MessageStorageItem : RealmObject {
                     ?: archivedId
         this.displayAs = "system"
         this.state = MessageSendingState.None
+        // Parse #system-message type and version (XEP-0GGG spec)
+        val systemX = message.element("x", "https://xabber.com/protocol/groups#system-message")
+        if (systemX != null) {
+            val sysType = systemX.getAttribute("type") ?: ""
+            val sysVersion = systemX.getAttribute("version") ?: ""
+            this.systemMetadata_ = "{\"type\":\"$sysType\",\"version\":\"$sysVersion\"}"
+        }
         updatePrimary()
         Log.d(TAG, "Configured system message: primary=$primary, messageId=$messageId")
     }

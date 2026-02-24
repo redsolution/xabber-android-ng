@@ -42,6 +42,7 @@ import com.xabber.xmpp.messages.message_archive.MessageArchiveManager
 import com.xabber.xmpp.messages.messages_manager.ChatMarkersManager
 import com.xabber.xmpp.messages.messages_manager.MessageCommonReceiver
 import com.xabber.xmpp.messages.messages_manager.MessageManager
+import com.xabber.xmpp.groupchat.GroupchatManager
 import com.xabber.xmpp.presence.PresenceManager
 import com.xabber.xmpp.roster.RosterManager
 import io.ktor.network.sockets.isClosed
@@ -113,6 +114,7 @@ class Account : XMPPStreamDelegate {
     var messages: MessageManager? = null
     var messageReceiver: MessageCommonReceiver? = null
     var presenceManager: PresenceManager? = null
+    var groupchatManager: GroupchatManager? = null
 
 
     private val deviceModel = Build.MODEL
@@ -154,7 +156,13 @@ class Account : XMPPStreamDelegate {
                 when (item.type) {
                     StanzaItem.StanzaType.ROSTER -> processRosterStanza(item.content, item.stream)
                     StanzaItem.StanzaType.SYNC -> processSyncStanza(item.content, item.stream)
-                    StanzaItem.StanzaType.PRESENCE -> presenceManager?.processPresence(item.content)
+                    StanzaItem.StanzaType.PRESENCE -> {
+                        if (item.content.contains("https://xabber.com/protocol/groups")) {
+                            groupchatManager?.handlePresence(item.content)
+                        } else {
+                            presenceManager?.processPresence(item.content)
+                        }
+                    }
                     StanzaItem.StanzaType.OTHER -> Log.d(TAG, "Skipping OTHER")
                 }
             }
@@ -171,7 +179,13 @@ class Account : XMPPStreamDelegate {
                 when (item.type) {
                     StanzaItem.StanzaType.ROSTER -> processRosterStanza(item.content, item.stream)
                     StanzaItem.StanzaType.SYNC -> processSyncStanza(item.content, item.stream)
-                    StanzaItem.StanzaType.PRESENCE -> presenceManager?.processPresence(item.content)
+                    StanzaItem.StanzaType.PRESENCE -> {
+                        if (item.content.contains("https://xabber.com/protocol/groups")) {
+                            groupchatManager?.handlePresence(item.content)
+                        } else {
+                            presenceManager?.processPresence(item.content)
+                        }
+                    }
                     StanzaItem.StanzaType.OTHER -> Log.d(TAG, "Skipping OTHER")
                 }
             }
@@ -500,6 +514,7 @@ class Account : XMPPStreamDelegate {
             messages = MessageManager(jid, activeStream = true)
             messageReceiver = MessageCommonReceiver(jid)
             messageReceiver?.subscribeReceiver()
+            groupchatManager = GroupchatManager(jid)
 
             restartStanzaProcessing()
             return@withContext true
@@ -597,11 +612,14 @@ class Account : XMPPStreamDelegate {
             rosterManager?.close()
             rosterManager = null
             syncManager = null
+            messageArchiveManager?.reset()
             messageArchiveManager = null
             chatMarkers = null
             messages = null
             messageReceiver?.unsubscribeReceiver()
             messageReceiver = null
+            groupchatManager?.close()
+            groupchatManager = null
 
             statusMessage.onNext("Offline")
             rosterRequested = false
@@ -633,6 +651,11 @@ class Account : XMPPStreamDelegate {
                 if (iq.queryNamespace == "https://xabber.com/protocol/synchronization") {
                     stanzaBuffer.emit(StanzaItem(StanzaItem.StanzaType.SYNC, iq.raw, stream))
                     return true
+                }
+                // Route group chat IQs to GroupchatManager
+                if (iq.raw.contains("https://xabber.com/protocol/groups")) {
+                    val handled = groupchatManager?.read(iq.raw) ?: false
+                    if (handled) return true
                 }
             }
 
@@ -832,6 +855,12 @@ class Account : XMPPStreamDelegate {
         if (stream.state == StreamState.CONNECTED || stream.state == StreamState.BINDING) {
             stanzaBuffer.emit(StanzaItem(StanzaItem.StanzaType.PRESENCE, presence, stream))
             return true
+        }
+        if (presence.contains("https://xabber.com/protocol/groups")) {
+            return groupchatManager?.handlePresence(presence) ?: run {
+                Log.w(TAG, "GroupchatManager not initialized, skipping group presence")
+                false
+            }
         }
         return presenceManager?.processPresence(presence) ?: run {
             Log.w(TAG, "PresenceManager not initialized, skipping presence processing")
@@ -1052,6 +1081,11 @@ class Account : XMPPStreamDelegate {
 
                 messageReceiver!!.receiveRuntime(payload)
             }
+        }
+
+        // Also let GroupchatManager process group messages for user cards / pinned messages
+        if (payload.hasElement("x", "https://xabber.com/protocol/groups")) {
+            groupchatManager?.handleMessage(payload)
         }
     }
 

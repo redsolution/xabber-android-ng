@@ -3,6 +3,8 @@ package com.xabber.data_base.models.sync
 enum class ConversationType(val rawValue: String) {
         Regular("urn:xabber:chat"),
         Group("https://xabber.com/protocol/groups"),
+        Incognito("https://xabber.com/protocol/groups#incognito"),
+        Private("https://xabber.com/protocol/groups#private"),
         Channel("https://xabber.com/protocol/channels"),
         Omemo("urn:xmpp:omemo:2"),
         Omemo1("urn:xmpp:omemo:1"),
