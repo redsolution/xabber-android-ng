@@ -1033,8 +1033,13 @@ class Account : XMPPStreamDelegate {
         val isMamResult = message.hasElement("result", "urn:xmpp:mam:2") ||
                 message.raw.contains("""<result\b[^>]*xmlns\s*=\s*["']urn:xmpp:mam:2["']""".toRegex(RegexOption.IGNORE_CASE))
 
-        val isMamTmp = message.hasElement("archived", "urn:xmpp:mam:tmp") ||
-                message.raw.contains("""<archived\b[^>]*xmlns\s*=\s*["']urn:xmpp:mam:tmp["']""".toRegex(RegexOption.IGNORE_CASE))
+        // Group chat headline messages contain <archived> as metadata, not as a MAM indicator.
+        // Detect them by checking if the outer stanza is type='headline' with group chat namespace.
+        val isGroupChatLive = message.raw.contains("type='headline'") &&
+                message.raw.contains("https://xabber.com/protocol/groups")
+
+        val isMamTmp = !isGroupChatLive && (message.hasElement("archived", "urn:xmpp:mam:tmp") ||
+                message.raw.contains("""<archived\b[^>]*xmlns\s*=\s*["']urn:xmpp:mam:tmp["']""".toRegex(RegexOption.IGNORE_CASE)))
         val isCarbon         = message.isCarbonCopy() || message.isCarbonForwarded()
         val isClientSyncLast = message.hasElement("last-message", "https://xabber.com/protocol/synchronization")
 

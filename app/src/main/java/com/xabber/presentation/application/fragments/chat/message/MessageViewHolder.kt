@@ -75,6 +75,8 @@ abstract class MessageViewHolder(
 
         if (message.references.isNotEmpty()) {
             for (reference in message.references) {
+                // Skip metadata-only references (groupchat user info, system messages)
+                if (reference.kind_ == "groupchat" || reference.kind_ == "system-message") continue
                 val category = FileCategory.determineFileCategory(reference.mimeType ?: "")
                 if (category == FileCategory.IMAGE || category == FileCategory.VIDEO) {
                     images.add(reference)

@@ -228,7 +228,7 @@ class MessageCommonReceiver(private val owner: String) {
 //        }
         val date = getDelayedDate(message) ?: Date()
         val messageBare = getArchivedMessageContainer(message) ?: return
-        val messageId = getOriginId(messageBare) ?: messageBare.id!!
+        val messageId = getOriginId(messageBare) ?: messageBare.id ?: return
         if (processedMessageIds.contains(messageId)) return
         processedMessageIds.add(messageId)
         val primary = MessageStorageItem.genPrimary(messageId, owner)
@@ -255,6 +255,28 @@ class MessageCommonReceiver(private val owner: String) {
         val forwarded = message.element("forwarded", "urn:xmpp:forward:0") ?: return
         val innerMessage = forwarded.element("message", "jabber:client") ?: return
         val bareMessage = XMPPMessage(innerMessage.raw)
+
+        // Skip carbons for group chat conversations — the group headline message
+        // will arrive separately with proper <x xmlns='...groups'> metadata.
+        // Carbons lack group metadata, creating a broken Regular-type message.
+        val carbonOpponent = if (isSentCarbon) bareMessage.to?.bare() else bareMessage.from?.bare()
+        if (carbonOpponent != null) {
+            val isGroupChat = realm.query<LastChatsStorageItem>(
+                "owner = $0 AND jid = $1 AND (conversationType_ = $2 OR conversationType_ = $3 OR conversationType_ = $4)",
+                owner, carbonOpponent,
+                ConversationType.Group.rawValue,
+                ConversationType.Incognito.rawValue,
+                ConversationType.Private.rawValue
+            ).first().find() != null
+                || realm.query<GroupChatStorageItem>(
+                "owner = $0 AND jid = $1",
+                owner, carbonOpponent
+            ).first().find() != null
+            if (isGroupChat) {
+                Log.d(TAG, "Skipping carbon for group chat: opponent=$carbonOpponent, messageId=${bareMessage.id}")
+                return
+            }
+        }
 
         val messageId = getOriginId(bareMessage) ?: bareMessage.id ?: return
         if (processedMessageIds.contains(messageId)) return
@@ -291,6 +313,23 @@ class MessageCommonReceiver(private val owner: String) {
         val opponent = if (to != owner) to else from
         if (opponent == owner) return
 
+        // Skip carbons for group chat conversations — group headlines handle these properly
+        val isGroupChat = realm.query<LastChatsStorageItem>(
+            "owner = $0 AND jid = $1 AND (conversationType_ = $2 OR conversationType_ = $3 OR conversationType_ = $4)",
+            owner, opponent,
+            ConversationType.Group.rawValue,
+            ConversationType.Incognito.rawValue,
+            ConversationType.Private.rawValue
+        ).first().find() != null
+            || realm.query<GroupChatStorageItem>(
+            "owner = $0 AND jid = $1",
+            owner, opponent
+        ).first().find() != null
+        if (isGroupChat) {
+            Log.d(TAG, "Skipping carbon forwarded for group chat: opponent=$opponent, messageId=$messageId")
+            return
+        }
+
         val queueItem = MessageQueueItem(
             message = message,
             messageId = messageId,
@@ -311,18 +350,20 @@ class MessageCommonReceiver(private val owner: String) {
         val to = message.to?.bare() ?: return
         val isGroupMessage = message.hasElement("x", "https://xabber.com/protocol/groups")
         val isOutgoing = if (isGroupMessage) {
-            // Group chat — check user element's jid attribute (or id as fallback)
-            val userElement = message.element("x", "https://xabber.com/protocol/groups")
-                ?.element("reference")
-                ?.element("user", "https://xabber.com/protocol/groups")
+            // Group chat — <user> is direct child of <x>, not nested under <reference>
+            val xElement = message.element("x", "https://xabber.com/protocol/groups")
+            val userElement = xElement?.element("user", "https://xabber.com/protocol/groups")
+                ?: xElement?.element("user")
+            // <jid> can be either an attribute or a child element
             val userJid = userElement?.getAttribute("jid")
+                ?: userElement?.element("jid")?.textContent
             val userId = userElement?.getAttribute("id")
             userJid == owner || userId == owner
         } else {
-            from == owner   // обычный чат — исходящее, если from == наш аккаунт
+            from == owner
         }
-        // For group messages, opponent is always the group JID (from),
-        // regardless of whether the message is outgoing or incoming
+        // For group messages, opponent is the group JID.
+        // Outer headline: from=group, to=user. Use 'from' as opponent.
         val opponent = if (isGroupMessage) from else if (isOutgoing) to else from
         if (opponent == owner) return
 
@@ -395,17 +436,17 @@ class MessageCommonReceiver(private val owner: String) {
 
             val isGroupMessage = item.message.hasElement("x", "https://xabber.com/protocol/groups")
             val isOutgoing = if (isGroupMessage) {
-                // For group messages, check user element's jid attribute (or id as fallback)
-                val userElement = item.message.element("x", "https://xabber.com/protocol/groups")
-                    ?.element("reference")
-                    ?.element("user", "https://xabber.com/protocol/groups")
+                // Group chat — <user> is direct child of <x>, not nested under <reference>
+                val xElement = item.message.element("x", "https://xabber.com/protocol/groups")
+                val userElement = xElement?.element("user", "https://xabber.com/protocol/groups")
+                    ?: xElement?.element("user")
                 val userJid = userElement?.getAttribute("jid")
+                    ?: userElement?.element("jid")?.textContent
                 val userId = userElement?.getAttribute("id")
                 userJid == owner || userId == owner || item.originalOutgoing
             } else {
                 from == owner
             }
-            // For group messages, opponent is always the group JID (from)
             val opponent = if (isGroupMessage) from else if (isOutgoing) to else from
 
             if (opponent == owner) {
@@ -591,17 +632,20 @@ class MessageCommonReceiver(private val owner: String) {
 
     private fun createGroupchatReference(message: XMPPMessage, opponent: String, owner: String): MessageReferenceStorageItem? {
         val groupElement = message.element("x", namespace = "https://xabber.com/protocol/groups") ?: return null
-        val reference = groupElement.element("reference", namespace = "https://xabber.com/protocol/references") ?: return null
-        val user = reference.element("user", namespace = "https://xabber.com/protocol/groups") ?: return null
+        // <user> is a direct child of <x>, not nested under <reference>
+        val user = groupElement.element("user", "https://xabber.com/protocol/groups")
+            ?: groupElement.element("user")
+            ?: return null
         val metadata = mutableMapOf<String, Any>()
+        // "id" is an attribute on <user>
         user.getAttribute("id")?.let { metadata["id"] = it }
-        user.getAttribute("nickname")?.let { metadata["nickname"] = it }
-        user.getAttribute("badge")?.let { metadata["badge"] = it }
-        user.getAttribute("jid")?.let { metadata["jid"] = it }
-
-        // Optional: role and avatar info
+        // nickname, badge, jid, role are child ELEMENTS of <user>, not attributes
+        user.element("nickname")?.textContent?.let { metadata["nickname"] = it }
+        user.element("badge")?.textContent?.let { metadata["badge"] = it }
+        user.element("jid")?.textContent?.let { metadata["jid"] = it }
         user.element("role")?.textContent?.let { metadata["role"] = it }
-        user.element("metadata", "urn:xmpp:avatar:metadata")?.element("info")?.let { info ->
+        // Avatar info
+        user.element("avatar")?.element("info")?.let { info ->
             info.getAttribute("url")?.let { metadata["avatar_uri"] = it }
         }
 
