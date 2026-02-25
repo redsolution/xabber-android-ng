@@ -196,6 +196,14 @@ class NotifyManager private constructor() {
     }
 
     private val realm = Realm.open(defaultRealmConfig())
+    private val writeScope = CoroutineScope(Dispatchers.IO)
+
+    /** Fire-and-forget Realm write on IO thread — prevents blocking the main thread */
+    private fun realmWriteAsync(block: io.realm.kotlin.MutableRealm.() -> Unit) {
+        writeScope.launch {
+            realm.write(block)
+        }
+    }
     private var currentDialog: String? = null
     private var lastOpen: Long = Date(1L).time
     private val message = NotifyItem("", "", "", Date(lastOpen), "")
@@ -220,7 +228,7 @@ class NotifyManager private constructor() {
     private var openViewControllerPayload: Map<String, String>? = null
 
     init {
-        CoroutineScope(Dispatchers.Main).launch {
+        CoroutineScope(Dispatchers.IO).launch {
             subscribe()
         }
     }
@@ -296,7 +304,7 @@ class NotifyManager private constructor() {
             }
         }
 
-        realm.writeBlocking {
+        realmWriteAsync {
             unreadItems.values.forEach { item ->
                 val chatItem = query<LastChatsStorageItem>("primary = '${item.primary()}'").first().find()
                 chatItem?.unread = item.count
@@ -355,7 +363,7 @@ class NotifyManager private constructor() {
         NotificationManagerCompat.from(context).notify(notifyId.hashCode(), notificationBuilder.build())
 
         // Store ShowedNotificationRequests
-        realm.writeBlocking {
+        realmWriteAsync {
             copyToRealm(ShowedNotificationRequests().apply {
                 primary = ShowedNotificationRequests.genPrimary(notifyId, owner)
                 this.owner = owner
@@ -367,7 +375,7 @@ class NotifyManager private constructor() {
         }
 
         // Store NotificationStorageItem
-        realm.writeBlocking {
+        realmWriteAsync {
             copyToRealm(NotificationStorageItem().apply {
                 primary = NotificationStorageItem.genPrimary(owner, jid, notifyId)
                 this.owner = owner
@@ -426,7 +434,7 @@ class NotifyManager private constructor() {
             canShowNotify = true
 
             // Store ShowedNotificationRequests
-            realm.writeBlocking {
+            realmWriteAsync {
                 copyToRealm(ShowedNotificationRequests().apply {
                     this.primary = primary
                     this.owner = owner
@@ -438,7 +446,7 @@ class NotifyManager private constructor() {
             }
 
             // Store NotificationStorageItem
-            realm.writeBlocking {
+            realmWriteAsync {
                 copyToRealm(NotificationStorageItem().apply {
                     primary = NotificationStorageItem.genPrimary(owner, opponent, messageId)
                     this.owner = owner
@@ -532,7 +540,7 @@ class NotifyManager private constructor() {
 
             // Store ShowedNotificationRequests
             val notifyId = listOf(opponent, owner, NOTIFICATION_SUBSCRIPTION_CATEGORY).prp()
-            realm.writeBlocking {
+            realmWriteAsync {
                 copyToRealm(ShowedNotificationRequests().apply {
                     primary = ShowedNotificationRequests.genPrimary(notifyId, owner)
                     this.owner = owner
@@ -544,7 +552,7 @@ class NotifyManager private constructor() {
             }
 
             // Store NotificationStorageItem
-            realm.writeBlocking {
+            realmWriteAsync {
                 copyToRealm(NotificationStorageItem().apply {
                     primary = NotificationStorageItem.genPrimary(owner, opponent, notifyId)
                     this.owner = owner
@@ -584,7 +592,7 @@ class NotifyManager private constructor() {
         showNotify(context, NotifyType.VERIFICATION)
 
         // Store ShowedNotificationRequests
-        realm.writeBlocking {
+        realmWriteAsync {
             copyToRealm(ShowedNotificationRequests().apply {
                 primary = ShowedNotificationRequests.genPrimary(sid, owner)
                 this.owner = owner
@@ -596,7 +604,7 @@ class NotifyManager private constructor() {
         }
 
         // Store NotificationStorageItem
-        realm.writeBlocking {
+        realmWriteAsync {
             copyToRealm(NotificationStorageItem().apply {
                 primary = NotificationStorageItem.genPrimary(owner, "", sid)
                 this.owner = owner
@@ -752,7 +760,7 @@ class NotifyManager private constructor() {
                 newResource.showed = true
 
                 // Store NotificationStorageItem
-                realm.writeBlocking {
+                realmWriteAsync {
                     copyToRealm(NotificationStorageItem().apply {
                         primary = NotificationStorageItem.genPrimary(newResource.from, newResource.to, notificationId)
                         this.owner = newResource.from
@@ -805,7 +813,7 @@ class NotifyManager private constructor() {
                 contactOnline.showed = true
 
                 // Store NotificationStorageItem
-                realm.writeBlocking {
+                realmWriteAsync {
                     copyToRealm(NotificationStorageItem().apply {
                         primary = NotificationStorageItem.genPrimary(contactOnline.from, contactOnline.to, notificationId)
                         this.owner = contactOnline.from
@@ -858,7 +866,7 @@ class NotifyManager private constructor() {
                 contactOffline.showed = true
 
                 // Store NotificationStorageItem
-                realm.writeBlocking {
+                realmWriteAsync {
                     copyToRealm(NotificationStorageItem().apply {
                         primary = NotificationStorageItem.genPrimary(contactOffline.from, contactOffline.to, notificationId)
                         this.owner = contactOffline.from
@@ -919,7 +927,7 @@ class NotifyManager private constructor() {
 
         // Update XMPPNotificationsManagerStorageItem
         if (type == NotifyType.NEW_MESSAGE || type == NotifyType.SUBSCRIPTION || type == NotifyType.VERIFICATION) {
-            realm.writeBlocking {
+            realmWriteAsync {
                 val notificationManagerItem = query<XMPPNotificationsManagerStorageItem>("primary = $0", XMPPNotificationsManagerStorageItem.genPrimary(message.from)).first().find()
                 if (notificationManagerItem != null) {
                     notificationManagerItem.lastItemId = notificationId
@@ -957,7 +965,7 @@ class NotifyManager private constructor() {
         NotificationManagerCompat.from(context).notify(notificationId.hashCode(), notificationBuilder.build())
 
         // Store ShowedNotificationRequests
-        realm.writeBlocking {
+        realmWriteAsync {
             copyToRealm(ShowedNotificationRequests().apply {
                 primary = ShowedNotificationRequests.genPrimary(notificationId, "")
                 this.owner = ""
@@ -969,7 +977,7 @@ class NotifyManager private constructor() {
         }
 
         // Store NotificationStorageItem
-        realm.writeBlocking {
+        realmWriteAsync {
             copyToRealm(NotificationStorageItem().apply {
                 primary = NotificationStorageItem.genPrimary("", "", notificationId)
                 this.owner = ""
@@ -1006,7 +1014,7 @@ class NotifyManager private constructor() {
     }
 
     fun muteAll(owner: String) {
-        realm.writeBlocking {
+        realmWriteAsync {
             val settings = query<NotifyPersonalStorageItem>("owner = $0", owner).first().find()
             if (settings != null) {
                 settings.muteAll = true
@@ -1020,7 +1028,7 @@ class NotifyManager private constructor() {
     }
 
     fun unmuteAll(owner: String) {
-        realm.writeBlocking {
+        realmWriteAsync {
             val settings = query<NotifyPersonalStorageItem>("owner = $0", owner).first().find()
             settings?.muteAll = false
         }
@@ -1042,7 +1050,7 @@ class NotifyManager private constructor() {
             }
 
             // Update NotificationStorageItem
-            realm.writeBlocking {
+            realmWriteAsync {
                 query<NotificationStorageItem>("owner = $0 AND jid = $1", owner, jid).find().forEach {
                     it.isRead = true
                     it.shouldShow = false
@@ -1055,7 +1063,7 @@ class NotifyManager private constructor() {
         NotificationManagerCompat.from(context).cancelAll()
 
         // Update NotificationStorageItem
-        realm.writeBlocking {
+        realmWriteAsync {
             query<NotificationStorageItem>().find().forEach {
                 it.isRead = true
                 it.shouldShow = false
@@ -1076,7 +1084,7 @@ class NotifyManager private constructor() {
             clearUncategorizedNotifications(context)
 
             // Update NotificationStorageItem
-            realm.writeBlocking {
+            realmWriteAsync {
                 query<NotificationStorageItem>("owner = $0", jid).find().forEach {
                     it.isRead = true
                     it.shouldShow = false
@@ -1097,7 +1105,7 @@ class NotifyManager private constructor() {
             }
 
             // Update NotificationStorageItem
-            realm.writeBlocking {
+            realmWriteAsync {
                 query<NotificationStorageItem>().find().forEach {
                     if (!NOTIFICATION_CATEGORIES.contains(it.metadata?.get("category") as? String)) {
                         it.isRead = true
@@ -1121,7 +1129,7 @@ class NotifyManager private constructor() {
             }
 
             // Update NotificationStorageItem
-            realm.writeBlocking {
+            realmWriteAsync {
                 query<NotificationStorageItem>("owner = $0 AND jid = $1 AND date < $2", owner, jid, timestamp).find().forEach {
                     it.isRead = true
                     it.shouldShow = false
@@ -1158,7 +1166,7 @@ class NotifyManager private constructor() {
             }
 
             // Update NotificationStorageItem
-            realm.writeBlocking {
+            realmWriteAsync {
                 stanzaIds.forEach { stanzaId ->
                     query<NotificationStorageItem>("stanzaId = $0", stanzaId).find().forEach {
                         it.isRead = true
@@ -1276,7 +1284,7 @@ class NotifyManager private constructor() {
             stream.socket?.write(block)
 
             // Update LastChatsStorageItem
-            realm.writeBlocking {
+            realmWriteAsync {
                 val chat = query<LastChatsStorageItem>(
                     "primary = '${LastChatsStorageItem.genPrimary(jid, owner, ConversationType.Regular)}'"
                 ).first().find()
@@ -1333,7 +1341,7 @@ class NotifyManager private constructor() {
             stream.socket?.write(unsubscribed)
 
             // Update LastChatsStorageItem
-            realm.writeBlocking {
+            realmWriteAsync {
                 val chat = query<LastChatsStorageItem>(
                     "primary = '${LastChatsStorageItem.genPrimary(jid, owner, ConversationType.Group)}'"
                 ).first().find()
@@ -1397,7 +1405,7 @@ class NotifyManager private constructor() {
             openViewControllerPayload = mapOf("owner" to owner, "jid" to jid, "action" to "foregroundChat")
         }
 
-        realm.writeBlocking {
+        realmWriteAsync {
             val instance = query<LastChatsStorageItem>(
                 "primary = '${LastChatsStorageItem.genPrimary(jid, owner, conversationType)}'"
             ).first().find()
@@ -1425,7 +1433,7 @@ class NotifyManager private constructor() {
         val owner = userInfo["owner"] as? String ?: return
         val sid = userInfo["sid"] as? String ?: return
 
-        realm.writeBlocking {
+        realmWriteAsync {
             val instance = query<VerificationSessionStorageItem>(
                 "primary = '${VerificationSessionStorageItem.genPrimary(jid = owner, owner = sid)}'"
             ).first().find()

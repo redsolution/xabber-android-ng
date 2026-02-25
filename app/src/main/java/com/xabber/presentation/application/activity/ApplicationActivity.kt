@@ -332,14 +332,8 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
     }
 
     private fun getAvatar(id: String): AvatarDto? {
-        var avatarDto: AvatarDto? = null
-        realm.writeBlocking {
-            val realmAvatar =
-                this.query(com.xabber.data_base.models.avatar.AvatarStorageItem::class, "primary = '$id'").first().find()
-            if (realmAvatar != null)
-                avatarDto = realmAvatar.toAvatarDto()
-        }
-        return avatarDto
+        val realmAvatar = realm.query(com.xabber.data_base.models.avatar.AvatarStorageItem::class, "primary = '$id'").first().find()
+        return realmAvatar?.toAvatarDto()
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {

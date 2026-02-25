@@ -9,6 +9,9 @@ import android.widget.FrameLayout
 import android.widget.TextView
 import com.xabber.R
 import com.xabber.utils.dp
+import kotlin.math.ceil
+import kotlin.math.max
+import kotlin.math.min
 
 class CustomFlexboxLayout @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null
@@ -49,9 +52,6 @@ class CustomFlexboxLayout @JvmOverloads constructor(
         val availableWidth = widthSize - paddingLeft - paddingRight
         val viewPartMainLayoutParams = viewPartMain?.layoutParams as? LayoutParams ?: return
 
-        val viewPartMainWidth =
-            viewPartMain!!.measuredWidth + viewPartMainLayoutParams.leftMargin + viewPartMainLayoutParams.rightMargin
-
         val viewPartMainHeight =
             viewPartMain!!.measuredHeight + viewPartMainLayoutParams.topMargin + viewPartMainLayoutParams.bottomMargin
 
@@ -64,31 +64,41 @@ class CustomFlexboxLayout @JvmOverloads constructor(
             viewPartSlave!!.measuredHeight + viewPartSlaveLayoutParams.topMargin + viewPartSlaveLayoutParams.bottomMargin
 
         val viewPartMainLineCount = viewPartMain!!.lineCount
+        val layout = viewPartMain!!.layout
 
-        val viewPartMainLastLineWidth: Float =
-            if (viewPartMainLineCount > 0) {
-                val lineWidth =
-                    viewPartMain!!.layout.getLineWidth(viewPartMainLineCount - 1).toInt()
-                val rightMargin = viewPartMainLayoutParams.rightMargin.toFloat()
-                lineWidth + rightMargin
-            } else {
-                0f
-            }
+        if (layout == null || viewPartMainLineCount == 0) {
+            return
+        }
+
+        // Compute the actual maximum line width across all lines
+        var maxLineWidth = 0f
+        for (i in 0 until viewPartMainLineCount) {
+            maxLineWidth = max(maxLineWidth, layout.getLineWidth(i))
+        }
+
+        val viewPartMainWidth = ceil(maxLineWidth).toInt() +
+            viewPartMainLayoutParams.leftMargin + viewPartMainLayoutParams.rightMargin
+
+        val lastLineWidth = ceil(layout.getLineWidth(viewPartMainLineCount - 1)).toInt() +
+            viewPartMainLayoutParams.rightMargin
 
         widthSize = paddingLeft + paddingRight
         heightSize = paddingTop + paddingBottom
 
         when {
-            viewPartMainLastLineWidth + viewPartSlaveWidth > availableWidth -> {
-                widthSize += viewPartMainWidth
+            lastLineWidth + viewPartSlaveWidth > availableWidth -> {
+                // Last line + timestamp doesn't fit: put timestamp on a new line
+                widthSize += min(viewPartMainWidth, availableWidth)
                 heightSize += viewPartMainHeight + viewPartSlaveHeight
             }
-            viewPartMainWidth >= viewPartMainLastLineWidth + viewPartSlaveWidth -> {
+            viewPartMainWidth >= lastLineWidth + viewPartSlaveWidth -> {
+                // Text is wider than last line + timestamp: bubble fits at text width
                 widthSize += viewPartMainWidth
                 heightSize += viewPartMainHeight
             }
             else -> {
-                widthSize += (viewPartMainLastLineWidth + viewPartSlaveWidth).toInt()
+                // Last line + timestamp fit together: widen to accommodate both
+                widthSize += lastLineWidth + viewPartSlaveWidth
                 heightSize += viewPartMainHeight
             }
         }

@@ -123,11 +123,7 @@ class ClientSynchronizationManager(owner: String) {
         if (owner.isBlank()) {
             return null
         }
-        var chat: LastChatsStorageItem? = null
-        realm.writeBlocking {
-            chat = this.query<LastChatsStorageItem>("jid = $0 AND owner = $1 AND conversationType_ = $2", jid, owner, type.rawValue).first().find()
-        }
-        return chat
+        return realm.query<LastChatsStorageItem>("jid = $0 AND owner = $1 AND conversationType_ = $2", jid, owner, type.rawValue).first().find()
     }
 
     suspend fun pinChat(stream: Stream, chatId: String, type: ConversationType) {
@@ -264,8 +260,13 @@ class ClientSynchronizationManager(owner: String) {
                                 val body = it.getElementsByTagName("body").item(0)?.textContent?.trim() ?: ""
                                 if (body.isEmpty()) return@let
 
-                                val isOutgoing = fromJid == owner
-                                val opponent = if (isOutgoing) toJid else fromJid
+                                val isGroupConversation = type.contains("xabber.com/protocol/groups")
+                                val isOutgoing = if (isGroupConversation) {
+                                    body.startsWith("$owner:")
+                                } else {
+                                    fromJid == owner
+                                }
+                                val opponent = if (isGroupConversation) jid else if (isOutgoing) toJid else fromJid
 
                                 var timestampUs = 0L
                                 val timeElement = it.getElementsByTagName("time").item(0) as? Element
@@ -287,6 +288,12 @@ class ClientSynchronizationManager(owner: String) {
                                     timestampUs = conversationStampUs
                                 }
 
+                                val effectiveBody = if (isGroupConversation && isOutgoing) {
+                                    MessageStorageItem.stripGroupNicknamePrefix(body)
+                                } else {
+                                    body
+                                }
+
                                 val messagePrimary = MessageStorageItem.genPrimary(messageId, owner)
                                 val existingMessage = query<MessageStorageItem>("primary = $0", messagePrimary).first().find()
                                 lastMessage = if (existingMessage == null) {
@@ -295,7 +302,7 @@ class ClientSynchronizationManager(owner: String) {
                                         this.messageId = messageId
                                         this.owner = owner
                                         this.opponent = opponent
-                                        this.body = body
+                                        this.body = effectiveBody
                                         this.date = timestampUs / 1000L  // микросекунды → миллисекунды
                                         this.sentDate = timestampUs / 1000L
                                         this.editDate = 0L
@@ -725,7 +732,18 @@ class ClientSynchronizationManager(owner: String) {
             }
 
             val conversationTypeEnum = ConversationType.values().firstOrNull { it.rawValue == conversationType } ?: ConversationType.Regular
-            val chatJid = if (from == owner) to else from // Use destination for outgoing, sender for incoming
+            val isGroupConversation = conversationType.contains("xabber.com/protocol/groups")
+            val isOutgoing = if (isGroupConversation) {
+                body.startsWith("$owner:")
+            } else {
+                from == owner
+            }
+            val chatJid = if (isGroupConversation) from else if (isOutgoing) to else from
+            val effectiveBody = if (isGroupConversation && isOutgoing) {
+                MessageStorageItem.stripGroupNicknamePrefix(body)
+            } else {
+                body
+            }
             val messagePrimary = MessageStorageItem.genPrimary(messageId, owner)
 //            if (messagePrimary.isEmpty()) {
 //                Log.w("ClientSyncManager", "Skipping message with invalid primary key for messageId=$messageId, owner=$owner")
@@ -751,17 +769,17 @@ class ClientSynchronizationManager(owner: String) {
                     primary = messagePrimary
                     this.messageId = messageId
                     this.owner = owner
-                    this.opponent = chatJid // Use chatJid (destination for outgoing, sender for incoming)
-                    this.body = body
+                    this.opponent = chatJid
+                    this.body = effectiveBody
                     this.date = timestamp/1000
                     this.sentDate = timestamp/1000
                     this.editDate = 0L
-                    this.outgoing = from == owner
+                    this.outgoing = isOutgoing
                     this.conversationType_ = conversationType
-                    this.isRead = from == owner // Outgoing messages are read
-                    this.state = if (from == owner) MessageSendingState.Deliver else MessageSendingState.Sent
+                    this.isRead = isOutgoing
+                    this.state = if (isOutgoing) MessageSendingState.Deliver else MessageSendingState.Sent
                 }, UpdatePolicy.ALL)
-                Log.d("ClientSyncManager", "Saved message $messageId for jid=$chatJid in receiveClientSyncRaw, body=${body.take(50)}")
+                Log.d("ClientSyncManager", "Saved message $messageId for jid=$chatJid in receiveClientSyncRaw, body=${effectiveBody.take(50)}")
 
                 val chat = query<LastChatsStorageItem>("jid = $0 AND owner = $1 AND conversationType_ = $2", chatJid, owner, conversationType).first().find()
                 if (chat == null) {
@@ -771,7 +789,7 @@ class ClientSynchronizationManager(owner: String) {
                         this.owner = owner
                         this.conversationType_ = conversationType
                         this.isArchived = false
-                        this.unread = if (from == owner) 0 else 1
+                        this.unread = if (isOutgoing) 0 else 1
                         this.messageDate = timestamp/1000
                         this.lastMessageId = messageId
                         this.pinnedPosition = 0
@@ -782,7 +800,7 @@ class ClientSynchronizationManager(owner: String) {
                     Log.d("ClientSyncManager", "Created new LastChatsStorageItem for jid=$chatJid, type=$conversationType, primary=$chatPrimary in receiveClientSyncRaw")
                 } else {
                     findLatest(chat)?.apply {
-                        this.unread = if (from == owner) this.unread else this.unread + 1
+                        this.unread = if (isOutgoing) this.unread else this.unread + 1
                         this.messageDate = timestamp/1000
                         this.lastMessageId = messageId
                         this.lastMessage = message

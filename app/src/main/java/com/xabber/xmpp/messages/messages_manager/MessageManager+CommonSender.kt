@@ -126,7 +126,7 @@ class MessageCommonSender(private val owner: String) {
         var prevMessageOutgoing = true
 
         try {
-            realm.writeBlocking {
+            realm.write {
                 // ---- Duplicate ID handling ----
                 val existing = query<MessageStorageItem>("owner = $0 AND messageId = $1", owner, messageId).first().find()
                 if (existing != null) {
@@ -230,7 +230,7 @@ class MessageCommonSender(private val owner: String) {
                 body = stanzaBody
             )
 
-            realm.writeBlocking {
+            realm.write {
                 val instance = query<MessageStorageItem>("primary = $0", primary).first().find()
                 instance?.apply {
                     state = MessageSendingState.Sending
@@ -239,7 +239,7 @@ class MessageCommonSender(private val owner: String) {
                         LastChatsStorageItem.genPrimary(opponent, owner, conversationType)
                     ).first().find()?.isSynced ?: false
                     val stanzaToSave = stanza.copy()
-                    storeStanza(this@writeBlocking)
+                    storeStanza(this@write)
                 }
             }
 
@@ -249,7 +249,7 @@ class MessageCommonSender(private val owner: String) {
                         Log.e(TAG, "Cannot send message: primary=$primary, messageId=$messageId, stream not connected or socket closed or self-directed")
                         val localRealm = Realm.open(defaultRealmConfig())
                         try {
-                            localRealm.writeBlocking {
+                            localRealm.write {
                                 val msg = query<MessageStorageItem>("primary = $0", primary).first().find()
                                 msg?.apply {
                                     state = MessageSendingState.Error
@@ -276,7 +276,7 @@ class MessageCommonSender(private val owner: String) {
                         Log.d(TAG, "Sent message: primary=$primary, messageId=$messageId, stanza=${stanza.raw}")
                         val localRealm = Realm.open(defaultRealmConfig())
                         try {
-                            localRealm.writeBlocking {
+                            localRealm.write {
                                 val msg = query<MessageStorageItem>("primary = $0", primary).first().find()
                                 msg?.apply {
                                     state = MessageSendingState.Sent
@@ -303,7 +303,7 @@ class MessageCommonSender(private val owner: String) {
                         Log.e(TAG, "Failed to send message: primary=$primary, messageId=$messageId")
                         val localRealm = Realm.open(defaultRealmConfig())
                         try {
-                            localRealm.writeBlocking {
+                            localRealm.write {
                                 val msg = query<MessageStorageItem>("primary = $0", primary).first().find()
                                 msg?.apply {
                                     state = MessageSendingState.Error
@@ -375,7 +375,7 @@ class MessageCommonSender(private val owner: String) {
         val out = realmListOf<MessageForwardsInlineStorageItem>()
         val realm = Realm.open(defaultRealmConfig())
         try {
-            realm.writeBlocking {
+            realm.write {
                 forwarded.forEach { forwardedPrimary ->
                     val instance = query<MessageStorageItem>("primary = $0", forwardedPrimary).first().find()
                     if (instance != null) {
@@ -432,7 +432,7 @@ class MessageCommonSender(private val owner: String) {
                         Log.e(TAG, "Cannot send queue item: messageId=${item.messageId}, stream not connected")
                         val realm = Realm.open(defaultRealmConfig())
                         try {
-                            realm.writeBlocking {
+                            realm.write {
                                 val instance = query<MessageStorageItem>("primary = $0", MessageStorageItem.genPrimary(item.messageId, owner)).first().find()
                                 if (instance != null) {
                                     findLatest(instance)?.apply {
@@ -454,7 +454,7 @@ class MessageCommonSender(private val owner: String) {
                         Log.d(TAG, "Sent queue item: messageId=${item.messageId}, stanza=${item.message.raw}")
                         val realm = Realm.open(defaultRealmConfig())
                         try {
-                            realm.writeBlocking {
+                            realm.write {
                                 val instance = query<MessageStorageItem>("primary = $0", MessageStorageItem.genPrimary(item.messageId, owner)).first().find()
                                 if (instance != null) {
                                     findLatest(instance)?.state = MessageSendingState.Deliver
@@ -481,7 +481,7 @@ class MessageCommonSender(private val owner: String) {
                         Log.e(TAG, "Failed to send queue item: messageId=${item.messageId}")
                         val realm = Realm.open(defaultRealmConfig())
                         try {
-                            realm.writeBlocking {
+                            realm.write {
                                 val instance = query<MessageStorageItem>("primary = $0", MessageStorageItem.genPrimary(item.messageId, owner)).first().find()
                                 if (instance != null) {
                                     findLatest(instance)?.apply {

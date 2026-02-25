@@ -222,7 +222,7 @@ fun LastChatsStorageItem.toChatListDto(): ChatListDto =
         id = primary,
         owner = owner,
         opponentJid = jid,
-        opponentNickname = "",
+        opponentNickname = rosterItem?.nickname ?: "",
         customNickname = rosterItem?.customNickname ?: "",
         lastMessageBody = when {
             lastMessage == null -> ""

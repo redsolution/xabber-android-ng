@@ -26,7 +26,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -46,6 +45,10 @@ class ChatViewModel(
 
     private val _chat = MutableLiveData<LastChatsStorageItem?>()
     val chat: LiveData<LastChatsStorageItem?> = _chat
+
+    // Cached ChatListDto for synchronous access (populated from observeChat + initial load)
+    @Volatile
+    private var cachedChatDto: ChatListDto? = null
 
     private val activeArchiveLoads = AtomicInteger(0)
     private val _isArchiveLoading = MutableLiveData<Boolean>()
@@ -81,13 +84,20 @@ class ChatViewModel(
     private var messagesJob: Job? = null
     private var chatJob: Job? = null
     private var loadingJob: Job? = null
+    private var markReadJob: Job? = null
+    private val pendingMarkRead = mutableSetOf<String>()
 
     private val TAG = "ChatViewModel"
 
 
     data class OpponentPresence(val status: ResourceStatus, val statusMessage: String?)
 
+    // LiveData that emits the ChatListDto once loaded (replaces runBlocking loadChat)
+    private val _chatDto = MutableLiveData<ChatListDto?>()
+    val chatDto: LiveData<ChatListDto?> = _chatDto
+
     init {
+        loadChatDto()
         observeChat()
         observeMessages()
         loadInitialData()
@@ -97,6 +107,15 @@ class ChatViewModel(
             model.observeOpponentPresence().collect { presence ->
                 _opponentPresence.postValue(presence)
             }
+        }
+    }
+
+    /** Preload ChatListDto into cache + LiveData (non-blocking) */
+    private fun loadChatDto() {
+        viewModelScope.launch {
+            val dto = withContext(Dispatchers.IO) { model.getChat() }
+            cachedChatDto = dto
+            _chatDto.value = dto
         }
     }
 
@@ -163,18 +182,17 @@ class ChatViewModel(
         messagesJob?.cancel()
         messagesJob = viewModelScope.launch {
             model.observeMessages().collectLatest { messageList ->
-                // Сохраняем для обратной совместимости
+                // Move heavy computation off the main thread
+                val (chatItems, unread) = withContext(Dispatchers.Default) {
+                    val unread = messageList.count { !it.isRead && !it.outgoing }
+                    val items = messageList.toChatItems(unread)
+                    items to unread
+                }
+
+                // Post results on main thread (fast)
                 _messages.value = messageList
-
-                // Вычисляем количество непрочитанных
-                val unread = messageList.count { !it.isRead && !it.outgoing }
                 _unreadCount.value = unread
-
-                // Преобразуем в ChatItems
-                val chatItems = messageList.toChatItems(unread)
                 _chatItems.value = chatItems
-
-                Log.d(TAG, "Observed ${messageList.size} messages -> ${chatItems.size} chat items")
             }
         }
     }
@@ -184,39 +202,58 @@ class ChatViewModel(
             _isLoading.value = true
             val initialMessages = model.getMessages()
 
-            // Для обратной совместимости
+            val (chatItems, unread) = withContext(Dispatchers.Default) {
+                val unread = initialMessages.count { !it.isRead && !it.outgoing }
+                val items = initialMessages.toChatItems(unread)
+                items to unread
+            }
+
             _messages.value = initialMessages
-
-            val unread = initialMessages.count { !it.isRead && !it.outgoing }
             _unreadCount.value = unread
-
-            // Преобразуем в ChatItems
-            val chatItems = initialMessages.toChatItems(unread)
             _chatItems.value = chatItems
-
             _isLoading.value = false
         }
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
     fun markAsRead(id: String) {
-        viewModelScope.launch { model.markAsRead(id) }
+        synchronized(pendingMarkRead) {
+            pendingMarkRead.add(id)
+        }
+        markReadJob?.cancel()
+        markReadJob = viewModelScope.launch {
+            delay(500L) // batch reads within 500ms to reduce Realm writes during fast scroll
+            val ids: List<String>
+            synchronized(pendingMarkRead) {
+                ids = pendingMarkRead.toList()
+                pendingMarkRead.clear()
+            }
+            if (ids.isNotEmpty()) {
+                model.markAsReadBatch(ids)
+            }
+        }
     }
 
-    fun loadChat(id: String): ChatListDto? = runBlocking { model.getChat() }
+    /** Returns cached ChatListDto synchronously (non-blocking, from memory cache) */
+    fun getCachedChat(): ChatListDto? = cachedChatDto
+
+    /** Async version for when you need a guaranteed fresh load */
+    suspend fun loadChatAsync(): ChatListDto? = withContext(Dispatchers.IO) {
+        model.getChat().also { cachedChatDto = it }
+    }
 
     fun getMessageList(id: String) {
         viewModelScope.launch {
             val messages = model.getMessages()
 
-            // Для обратной совместимости
+            val (chatItems, unread) = withContext(Dispatchers.Default) {
+                val unread = messages.count { !it.isRead && !it.outgoing }
+                val items = messages.toChatItems(unread)
+                items to unread
+            }
+
             _messages.value = messages
-
-            val unread = messages.count { !it.isRead && !it.outgoing }
             _unreadCount.value = unread
-
-            // Преобразуем в ChatItems
-            val chatItems = messages.toChatItems(unread)
             _chatItems.value = chatItems
         }
     }
@@ -304,15 +341,15 @@ class ChatViewModel(
         selectedItems.size == 1 && model.isOutgoing(selectedItems)
     }
 
-    fun getSelectedText(): String = runBlocking { model.getSelectedText(selectedItems) }
+    suspend fun getSelectedText(): String = withContext(Dispatchers.IO) { model.getSelectedText(selectedItems) }
 
-    fun getForwardMessagesText(): String = runBlocking { model.getForwardMessagesText(selectedItems) }
+    suspend fun getForwardMessagesText(): String = withContext(Dispatchers.IO) { model.getForwardMessagesText(selectedItems) }
 
-    fun getMessage(): MessageStorageItem? = runBlocking { model.getSelectedMessage(selectedItems) }
+    suspend fun getMessage(): MessageStorageItem? = withContext(Dispatchers.IO) { model.getSelectedMessage(selectedItems) }
 
-    fun getSelectedMessageText(): String = runBlocking { model.getSelectedMessageText(selectedItems) }
+    suspend fun getSelectedMessageText(): String = withContext(Dispatchers.IO) { model.getSelectedMessageText(selectedItems) }
 
-    fun getMessageId(): String = runBlocking { model.getMessageId(selectedItems) }
+    suspend fun getMessageId(): String = withContext(Dispatchers.IO) { model.getMessageId(selectedItems) }
 
     // Обновляем метод для работы с ChatItems
     fun getMessagePosition(primary: String): Int {
@@ -329,26 +366,28 @@ class ChatViewModel(
         }
     }
 
-    fun lastPositionPrimary(id: String): String = runBlocking { model.lastPositionPrimary(id) }
+    suspend fun lastPositionPrimary(id: String): String = withContext(Dispatchers.IO) { model.lastPositionPrimary(id) }
 
-    fun getContactId(id: String): String? = runBlocking { model.getContactId(id) }
+    suspend fun getContactId(id: String): String? = withContext(Dispatchers.IO) { model.getContactId(id) }
 
-    fun getAccount(id: String): AccountDto? = runBlocking { model.getAccount(id) }
+    suspend fun getAccount(id: String): AccountDto? = withContext(Dispatchers.IO) { model.getAccount(id) }
 
     fun setLocked(locked: Boolean) {
         _isLocked.value = locked
     }
 
     fun updateMessagesAndUnread(messages: List<MessageStorageItem>) {
-        // Для обратной совместимости
-        _messages.value = messages
+        viewModelScope.launch {
+            val (chatItems, unread) = withContext(Dispatchers.Default) {
+                val unread = messages.count { !it.isRead && !it.outgoing }
+                val items = messages.toChatItems(unread)
+                items to unread
+            }
 
-        val unread = messages.count { !it.isRead && !it.outgoing }
-        _unreadCount.value = unread
-
-        // Преобразуем в ChatItems
-        val chatItems = messages.toChatItems(unread)
-        _chatItems.value = chatItems
+            _messages.value = messages
+            _unreadCount.value = unread
+            _chatItems.value = chatItems
+        }
     }
 
     // Новый метод для получения MessageStorageItem по position из ChatItems
@@ -367,6 +406,7 @@ class ChatViewModel(
         messagesJob?.cancel()
         chatJob?.cancel()
         loadingJob?.cancel()
+        markReadJob?.cancel()
         model.close()
     }
 }

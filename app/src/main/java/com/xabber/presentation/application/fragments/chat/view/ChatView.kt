@@ -225,14 +225,24 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
 
     private fun getParams(): ChatParams = requireArguments().parcelable(AppConstants.CHAT_PARAMS)!!
 
+    private var chatInitialized = false
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        val chat = viewModel.loadChat(getParams().id)
-        if (chat == null) {
-            navigator().closeDetail()
-            return
-        }
 
+        // Observe chatDto LiveData — initializes UI once chat data is available (non-blocking)
+        viewModel.chatDto.observe(viewLifecycleOwner) { chat ->
+            if (chatInitialized) return@observe
+            if (chat == null) {
+                navigator().closeDetail()
+                return@observe
+            }
+            chatInitialized = true
+            initializeChatUi(chat, savedInstanceState)
+        }
+    }
+
+    private fun initializeChatUi(chat: ChatListDto, savedInstanceState: Bundle?) {
         // Convert to bare JIDs
         val bareOwner = try {
             XMPPJID(fullJID = chat.owner).bare()
@@ -248,8 +258,6 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
             navigator().closeDetail()
             return
         }
-
-
 
         messageSender = MessageCommonSender(bareOwner)
         prepareUi(chat)
@@ -289,7 +297,7 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
 
     private fun prepareUi(chat: ChatListDto) {
         onOrientationChange()
-        loadContactAvatar()
+        loadContactAvatar(chat.opponentJid)
         setTitle(chat.getChatName())
         setStatus(chat.status, chat.entity)
         setupMuteIcon(chat.muteExpired)
@@ -317,8 +325,26 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
         updateToolbarNavigation()
     }
 
-    private fun loadContactAvatar() {
-        binding.avatar.setImageResource(getParams().avatar!!)
+    private fun loadContactAvatar(contactJid: String) {
+        val initials = contactJid.take(1).uppercase()
+        val size = 48
+        val backgroundPaint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+            color = android.graphics.Color.parseColor("#45B7D1")
+        }
+        val textPaint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+            color = android.graphics.Color.WHITE
+            textSize = size * 0.5f
+            isFakeBoldText = true
+            textAlign = android.graphics.Paint.Align.CENTER
+        }
+        val bitmap = android.graphics.Bitmap.createBitmap(size, size, android.graphics.Bitmap.Config.ARGB_8888)
+        val canvas = android.graphics.Canvas(bitmap)
+        canvas.drawRect(0f, 0f, size.toFloat(), size.toFloat(), backgroundPaint)
+        val fontMetrics = textPaint.fontMetrics
+        val x = size / 2f
+        val baselineY = (size / 2f) + (fontMetrics.descent - fontMetrics.ascent) / 2f - 4
+        canvas.drawText(initials, x, baselineY, textPaint)
+        binding.avatar.setImageBitmap(bitmap)
     }
 
     private fun setTitle(opponentName: String) {
@@ -345,17 +371,19 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
     }
 
     private fun initializeToolbarActions(chat: ChatListDto) {
-        binding.avatar.setOnClickListener { anchor ->
-            val contactId = viewModel.getContactId(getParams().id)
-            if (contactId != null) {
-                val params = ContactAccountParams(contactId, getParams().avatar)
-                if (DisplayManager.getWidthDp() > 600 && resources.configuration.orientation == Configuration.ORIENTATION_PORTRAIT) {
-                    val accDialog = ContactAccountFragment.newInstance(params)
-                    accDialog.show(childFragmentManager, AppConstants.CHAT_LIST_TO_FORWARD_DIALOG_TAG)
-                } else if (DisplayManager.getWidthDp() > 800 && resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) {
-                    navigator().launchDetail(ContactAccountFragment.newInstance(params))
-                } else {
-                    navigator().showContactAccount(ContactAccountParams(contactId, getParams().avatar))
+        binding.avatar.setOnClickListener {
+            lifecycleScope.launch {
+                val contactId = viewModel.getContactId(getParams().id)
+                if (contactId != null) {
+                    val params = ContactAccountParams(contactId, getParams().avatar)
+                    if (DisplayManager.getWidthDp() > 600 && resources.configuration.orientation == Configuration.ORIENTATION_PORTRAIT) {
+                        val accDialog = ContactAccountFragment.newInstance(params)
+                        accDialog.show(childFragmentManager, AppConstants.CHAT_LIST_TO_FORWARD_DIALOG_TAG)
+                    } else if (DisplayManager.getWidthDp() > 800 && resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) {
+                        navigator().launchDetail(ContactAccountFragment.newInstance(params))
+                    } else {
+                        navigator().showContactAccount(ContactAccountParams(contactId, getParams().avatar))
+                    }
                 }
             }
         }
@@ -478,19 +506,21 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
     }
 
     private fun restoreDraft() {
-        val draft = viewModel.loadChat(getParams().id)?.draftMessage
+        val draft = viewModel.getCachedChat()?.draftMessage
         if (draft != null) binding.chatInput.setText(draft)
         setupInputButtons()
     }
 
     private fun scrollToLastPosition() {
-        val lastPosition = viewModel.lastPositionPrimary(getParams().id)
-        val position = viewModel.getPositionMessage(lastPosition)
-        binding.messageList.post {
-            if (position > 0 && position < (messageAdapter?.itemCount ?: 0)) {
-                layoutManager?.scrollToPosition(position)
-            } else {
-                scrollDown()
+        lifecycleScope.launch {
+            val lastPosition = viewModel.lastPositionPrimary(getParams().id)
+            val position = viewModel.getPositionMessage(lastPosition)
+            binding.messageList.post {
+                if (position > 0 && position < (messageAdapter?.itemCount ?: 0)) {
+                    layoutManager?.scrollToPosition(position)
+                } else {
+                    scrollDown()
+                }
             }
         }
     }
@@ -526,7 +556,7 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
     }
 
     private fun initializeRecyclerView() {
-        val isGroup = viewModel.loadChat(getParams().id)?.isGroup
+        val isGroup = viewModel.getCachedChat()?.isGroup
             ?: (viewModel.conversationType == ConversationType.Group ||
                 viewModel.conversationType == ConversationType.Incognito ||
                 viewModel.conversationType == ConversationType.Private)
@@ -600,11 +630,9 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
 
             override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
                 super.onScrollStateChanged(recyclerView, newState)
-                if (newState == RecyclerView.SCROLL_STATE_IDLE) {
-                    recyclerView.post {
-                        recyclerView.invalidateItemDecorations()
-                    }
-                }
+                // Removed invalidateItemDecorations() here — it was forcing full decoration
+                // redraw on every scroll stop, causing unnecessary main thread work.
+                // Decorations are drawn automatically during scroll via onDrawOver().
             }
         })
 
@@ -626,7 +654,7 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
             return
         }
 
-        val chatDto = viewModel.loadChat(getParams().id)
+        val chatDto = viewModel.getCachedChat()
         // Проверяем, полностью ли синхронизирован архив
         if (chatDto?.isSynced == true) {
             // История полностью синхронизирована — больше загружать нечего
@@ -775,7 +803,7 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
                 binding.chatInput.text?.clear()
                 editMessageId = null
             } else {
-                val chat = viewModel.loadChat(getParams().id)!!
+                val chat = viewModel.getCachedChat()!!
                 val conversationType = viewModel.conversationType
                 val forwarded = if (replyingMessage != null) listOf(replyingMessage!!.primary) else emptyList()
                 lifecycleScope.launch {
@@ -950,9 +978,6 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
                 Log.w("ChatView", "Chat is null, closing fragment")
                 navigator().closeDetail()
             } else {
-                // Используем rosterItem?.displayName или jid
-                val name = lastChat.rosterItem?.displayName ?: lastChat.jid
-                setupOpponentName(name)
                 setupMuteIcon(lastChat.muteExpired)
             }
         }
@@ -977,12 +1002,6 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
             if (loading) {
                 binding.messageList.stopScroll()
             }
-            if (!loading) {
-                // После полной синхронизации архива тоже отложенно перерисовываем
-                binding.messageList.post {
-                    binding.messageList.invalidateItemDecorations()
-                }
-            }
 
             // Блокировка/разблокировка UI
             binding.messageList.isNestedScrollingEnabled = !loading
@@ -993,16 +1012,7 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
             binding.buttonEmoticon.isEnabled = !loading
             binding.btnDownward.isEnabled = !loading
 
-            // Опционально: блокировать свайп для ответа
             replySwipeCallback?.setSwipeEnabled(!loading)
-
-            // Скрытие/показ заголовков дат (из предыдущих правок)
-            binding.messageList.invalidateItemDecorations()
-            // Опционально: блокировать свайп для ответа
-            replySwipeCallback?.setSwipeEnabled(!loading)
-            lifecycleScope.launch {
-                delay(1000)
-            }
         }
 
         viewModel.chatItems.observe(viewLifecycleOwner) { items ->
@@ -1104,18 +1114,23 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
     }
 
     private fun initializeSelectedMessagePanel() {
-        val chat = viewModel.loadChat(getParams().id)
         binding.interaction.linReply.setOnClickListener {
-            val message = viewModel.getMessage()
-            enableSelectionMode(false)
-            if (message != null) replyMessage(message)
+            lifecycleScope.launch {
+                val message = viewModel.getMessage()
+                enableSelectionMode(false)
+                if (message != null) replyMessage(message)
+            }
         }
         binding.interaction.linForward.setOnClickListener {
-            val text = viewModel.getForwardMessagesText()
-            enableSelectionMode(false)
-            GlobalScope.launch {
+            lifecycleScope.launch {
+                val text = viewModel.getForwardMessagesText()
+                val chat = viewModel.getCachedChat()
+                enableSelectionMode(false)
                 delay(300)
-                navigator().showForwardFragment(text, viewModel.getAccount(chat!!.owner)?.jid ?: "")
+                if (chat != null) {
+                    val jid = viewModel.getAccount(chat.owner)?.jid ?: ""
+                    navigator().showForwardFragment(text, jid)
+                }
             }
         }
     }
@@ -1143,17 +1158,30 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
     }
 
     private fun edit() {
-        binding.chatInput.setText(viewModel.getSelectedMessageText())
-        binding.chatInput.setSelection(binding.chatInput.length())
-        editMessageId = viewModel.getMessageId()
+        lifecycleScope.launch {
+            val messageText = viewModel.getSelectedMessageText()
+            val messageId = viewModel.getMessageId()
+            binding.chatInput.setText(messageText)
+            binding.chatInput.setSelection(binding.chatInput.length())
+            editMessageId = messageId
+        }
     }
 
     private fun copyTextMessage(text: String? = null) {
-        val clipBoard = context?.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        val textMessage = text ?: viewModel.getSelectedText()
-        val clipData = ClipData.newPlainText("", textMessage)
-        clipBoard.setPrimaryClip(clipData)
-        showToast(R.string.snack_bar_title_copy_text)
+        if (text != null) {
+            val clipBoard = context?.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            val clipData = ClipData.newPlainText("", text)
+            clipBoard.setPrimaryClip(clipData)
+            showToast(R.string.snack_bar_title_copy_text)
+        } else {
+            lifecycleScope.launch {
+                val textMessage = viewModel.getSelectedText()
+                val clipBoard = context?.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                val clipData = ClipData.newPlainText("", textMessage)
+                clipBoard.setPrimaryClip(clipData)
+                showToast(R.string.snack_bar_title_copy_text)
+            }
+        }
     }
 
     private fun delete(id: String? = null) {
@@ -1243,8 +1271,8 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
 
         val message = MessageStorageItem().apply {
             this.messageId = "${System.currentTimeMillis()}"
-            this.owner = viewModel.loadChat(getParams().id)!!.owner
-            this.opponent = viewModel.loadChat(getParams().id)!!.opponentJid
+            this.owner = viewModel.getCachedChat()!!.owner
+            this.opponent = viewModel.getCachedChat()!!.opponentJid
             this.body = ""
             this.outgoing = true
             this.isRead = true
@@ -1352,12 +1380,13 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
         binding.tvPinOwner.text = if (message.outgoing) message.owner else binding.tvChatTitle.text.toString()
         binding.tvPinContent.text = message.body
         binding.pinPanel.setOnClickListener {
-            val position = viewModel.getPositionMessage(viewModel.lastPositionPrimary(message.primary))
-            binding.messageList.scrollToPosition(position)
             lifecycleScope.launch {
+                val lastPrimary = viewModel.lastPositionPrimary(message.primary)
+                val position = viewModel.getPositionMessage(lastPrimary)
+                binding.messageList.scrollToPosition(position)
                 viewModel.selectMessage(message.primary, true)
+                handler.postDelayed(cancelSelected, 1000)
             }
-            handler.postDelayed(cancelSelected, 1000)
         }
         binding.imPinClose.setOnClickListener {
             binding.pinPanel.isVisible = false
@@ -1367,8 +1396,13 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
 
     override fun forwardMessage(message: MessageStorageItem) {
         val text = "$$ {message.owner}\n $${message.body}"
-        val chat = viewModel.loadChat(getParams().id)
-        navigator().showForwardFragment(text, viewModel.getAccount(chat!!.owner)?.jid ?: "")
+        lifecycleScope.launch {
+            val chat = viewModel.getCachedChat()
+            if (chat != null) {
+                val jid = viewModel.getAccount(chat.owner)?.jid ?: ""
+                navigator().showForwardFragment(text, jid)
+            }
+        }
     }
 
     override fun replyMessage(message: MessageStorageItem) {

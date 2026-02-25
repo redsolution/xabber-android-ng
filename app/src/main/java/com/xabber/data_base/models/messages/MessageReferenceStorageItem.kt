@@ -69,6 +69,12 @@ open class MessageReferenceStorageItem : RealmObject {
     @Ignore
     private var realm = Realm.open(defaultRealmConfig())
 
+    // Cache parsed metadata to avoid repeated JSON parsing during scroll
+    @Ignore
+    private var _cachedMetadata: Map<String, Any>? = null
+    @Ignore
+    private var _cachedMetadataRaw: String? = null
+
     var kind: Kind
         get() = Kind.entries.firstOrNull { it.rawValue == kind_ } ?: Kind.NONE
         set(value) { kind_ = value.rawValue }
@@ -78,15 +84,24 @@ open class MessageReferenceStorageItem : RealmObject {
         set(value) { conversationType_ = value.rawValue }
 
     var metadata: Map<String, Any>?
-        get() = metadata_.takeIf { it.isNotEmpty() }?.let { raw ->
-            try {
-                JSONObject(raw).toMap()
+        get() {
+            val raw = metadata_
+            if (raw.isEmpty()) return null
+            // Return cached if metadata_ hasn't changed
+            if (raw == _cachedMetadataRaw && _cachedMetadata != null) return _cachedMetadata
+            return try {
+                val parsed = JSONObject(raw).toMap()
+                _cachedMetadata = parsed
+                _cachedMetadataRaw = raw
+                parsed
             } catch (e: Exception) {
                 Log.e("MessageReferenceStorageItem", "Cannot parse metadata for message $messagePrimary: ${e.message}")
                 null
             }
         }
         set(value) {
+            _cachedMetadata = null
+            _cachedMetadataRaw = null
             metadata_ = value?.let { map ->
                 try {
                     JSONObject(map).toString()

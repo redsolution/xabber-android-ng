@@ -850,7 +850,7 @@ class MessageArchiveManager(private val owner: String) {
                 queryIdsMutex.withLock {
                     val callbackItem = queryIds[queryId]
                     callbackItem?.task?.let { task ->
-                        realm.writeBlocking {
+                        realm.write {
                             val chatPrimary = LastChatsStorageItem.genPrimary(
                                 task.jid ?: owner,
                                 owner,

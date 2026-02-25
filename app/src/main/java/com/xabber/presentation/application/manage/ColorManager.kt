@@ -99,6 +99,20 @@ object ColorManager {
         return colors[colorName] ?: R.color.grey_300
     }
 
+    private val PALETTE_500 = intArrayOf(
+        R.color.red_500, R.color.deep_orange_500, R.color.orange_500,
+        R.color.amber_500, R.color.lime_500, R.color.light_green_500,
+        R.color.green_500, R.color.teal_500, R.color.cyan_500,
+        R.color.light_blue_500, R.color.blue_500, R.color.indigo_500,
+        R.color.dark_purple_500, R.color.purple_500, R.color.pink_500,
+        R.color.blue_grey_500, R.color.brown_500
+    )
+
+    fun colorForGroupchatUser(identifier: String): Int {
+        val index = (identifier.hashCode() and Int.MAX_VALUE) % PALETTE_500.size
+        return PALETTE_500[index]
+    }
+
     fun convertColorSuperLightNameToId(colorName: String): Int {
         val colors = HashMap<String, Int>()
         colors[resources.getString(R.string.red)] = R.color.red_50

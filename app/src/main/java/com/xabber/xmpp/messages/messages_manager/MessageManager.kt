@@ -23,7 +23,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import java.util.Timer
 import java.util.TimerTask
@@ -157,12 +156,12 @@ class MessageManager(private val owner: String, activeStream: Boolean) {
 
     suspend fun readAllMessages() {
         try {
-            realm.write {
-                runBlocking {
-                query<LastChatsStorageItem>("isArchived = false AND owner = $0", owner).find()
-                    .forEach { readLastMessage(it.jid, it.conversationType) }
+            // Collect chat list outside of write transaction
+            val chats = realm.query<LastChatsStorageItem>("isArchived = false AND owner = $0", owner).find()
+                .map { it.jid to it.conversationType }
+            for ((jid, type) in chats) {
+                readLastMessage(jid, type)
             }
-                }
         } catch (e: Exception) {
             Log.e("MessageManager", "Error reading all messages: ${e.message}")
         }
@@ -170,25 +169,25 @@ class MessageManager(private val owner: String, activeStream: Boolean) {
 
     suspend fun readLastMessage(jid: String, conversationType: ConversationType) {
         try {
+            var messagePrimary: String? = null
+            var messageId: String? = null
+
             realm.write {
                 val primary = LastChatsStorageItem.genPrimary(jid, owner, conversationType)
                 val chat = query<LastChatsStorageItem>("primary = $0", primary).first().find()
-                if (chat?.lastMessage?.primary != null) {
-                    runBlocking {
-                        readMessage(chat.lastMessage!!.primary, true)
-                    }
-
-                }
                 if (chat != null) {
+                    messagePrimary = chat.lastMessage?.primary
+                    messageId = chat.lastMessageId
                     chat.unread = 0
                     chat.lastReadId = null
-                    val messageId = chat.lastMessageId
-                    AccountManager.find(owner)?.unsafeAction { user, stream ->
-                        runBlocking {
-                            user.chatMarkers!!.displayedById(stream, jid, messageId)
-                        }
+                }
+            }
 
-                    }
+            // Send read message and chat marker outside realm.write (no runBlocking needed)
+            messagePrimary?.let { readMessage(it, true) }
+            messageId?.let { mid ->
+                AccountManager.find(owner)?.action { user, stream ->
+                    user.chatMarkers!!.displayedById(stream, jid, mid)
                 }
             }
         } catch (e: Exception) {

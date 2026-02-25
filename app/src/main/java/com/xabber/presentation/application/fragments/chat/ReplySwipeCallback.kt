@@ -12,6 +12,7 @@ import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.RecyclerView
 import com.xabber.R
+import com.xabber.presentation.application.fragments.chat.message.DateHeaderVH
 import com.xabber.presentation.application.fragments.chat.message.SystemMessageVH
 import com.xabber.presentation.application.manage.LogManager
 import com.xabber.utils.dp
@@ -107,7 +108,7 @@ class ReplySwipeCallback(
         recyclerView: RecyclerView,
         viewHolder: RecyclerView.ViewHolder
     ): Int {
-        return if (viewHolder is SystemMessageVH) 0 else makeMovementFlags(
+        return if (viewHolder is SystemMessageVH || viewHolder is DateHeaderVH) 0 else makeMovementFlags(
             0,
             if (swipeEnabled) ItemTouchHelper.LEFT else 0
         )

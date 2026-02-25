@@ -20,7 +20,7 @@ class MessageAdapter(
 ) : ListAdapter<ChatItem, RecyclerView.ViewHolder>(ChatItemDiffCallback()) {
 
     private var firstUnreadMessageID: String? = null
-    private val checkedItemIds: MutableList<String> = ArrayList()
+    private val checkedItemIds: MutableSet<String> = HashSet()
     private val TAG = "MessageAdapter"
 
     interface MenuItemListener {
@@ -87,6 +87,13 @@ class MessageAdapter(
         }
     }
 
+    override fun onViewRecycled(holder: RecyclerView.ViewHolder) {
+        super.onViewRecycled(holder)
+        if (holder is MessageViewHolder) {
+            holder.onRecycled()
+        }
+    }
+
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
         when (holder) {
             is MessageViewHolder -> {
@@ -119,54 +126,35 @@ class MessageAdapter(
     }
 
     private fun isMessageNeedTail(position: Int): Boolean {
-        // Нужно найти соседние сообщения, пропуская заголовки дат
         val currentMessage = getMessageAtPosition(position) ?: return true
+        if (currentMessage.references.size > 0 && currentMessage.body.isEmpty()) return false
 
+        // Find adjacent message (skip date headers, max 3 positions to avoid runaway loops)
         if (ChatSettingsManager.bottom) {
-            // Ищем следующее сообщение
-            var nextPos = position + 1
-            while (nextPos < itemCount) {
-                val nextMessage = getMessageAtPosition(nextPos)
-                if (nextMessage != null) {
-                    return if (currentMessage.references.size > 0 && currentMessage.body.isEmpty()) false
-                    else currentMessage.outgoing != nextMessage.outgoing
-                }
-                nextPos++
+            for (nextPos in (position + 1)..minOf(position + 3, itemCount - 1)) {
+                val nextMessage = getMessageAtPosition(nextPos) ?: continue
+                return currentMessage.outgoing != nextMessage.outgoing
             }
-            return true
         } else {
-            // Ищем предыдущее сообщение
-            var prevPos = position - 1
-            while (prevPos >= 0) {
-                val prevMessage = getMessageAtPosition(prevPos)
-                if (prevMessage != null) {
-                    return if (currentMessage.references.size > 0 && currentMessage.body.isEmpty()) false
-                    else currentMessage.outgoing != prevMessage.outgoing
-                }
-                prevPos--
+            for (prevPos in (position - 1) downTo maxOf(position - 3, 0)) {
+                val prevMessage = getMessageAtPosition(prevPos) ?: continue
+                return currentMessage.outgoing != prevMessage.outgoing
             }
-            return true
         }
+        return true
     }
 
     private fun isMessageNeedName(position: Int): Boolean {
         if (!isGroup) return false
-
         val currentMessage = getMessageAtPosition(position) ?: return true
-        // System messages don't need name
         if (currentMessage.displayAs_ == "system") return false
 
-        // Ищем предыдущее сообщение
-        var prevPos = position - 1
-        while (prevPos >= 0) {
-            val prevMessage = getMessageAtPosition(prevPos)
-            if (prevMessage != null) {
-                // In group chats, compare by author id/nickname to distinguish between members
-                val currentAuthor = currentMessage.groupchatAuthorId ?: if (currentMessage.outgoing) "__self__" else ""
-                val prevAuthor = prevMessage.groupchatAuthorId ?: if (prevMessage.outgoing) "__self__" else ""
-                return currentAuthor != prevAuthor
-            }
-            prevPos--
+        val currentAuthor = currentMessage.groupchatAuthorId ?: if (currentMessage.outgoing) "__self__" else ""
+        // Find previous message (skip date headers, max 3 positions)
+        for (prevPos in (position - 1) downTo maxOf(position - 3, 0)) {
+            val prevMessage = getMessageAtPosition(prevPos) ?: continue
+            val prevAuthor = prevMessage.groupchatAuthorId ?: if (prevMessage.outgoing) "__self__" else ""
+            return currentAuthor != prevAuthor
         }
         return true
     }
@@ -193,12 +181,12 @@ class MessageAdapter(
     }
 
     private fun notifyUnreadState() {
+        if (firstUnreadMessageID == null) return
         for (i in 0 until itemCount) {
             val item = getItem(i)
-            if (item is ChatItem.MessageItem) {
-                if (!item.message.isRead && (firstUnreadMessageID == null || item.message.primary == firstUnreadMessageID)) {
-                    notifyItemChanged(i)
-                }
+            if (item is ChatItem.MessageItem && item.message.primary == firstUnreadMessageID) {
+                notifyItemChanged(i)
+                break
             }
         }
     }
@@ -226,11 +214,13 @@ class ChatItemDiffCallback : DiffUtil.ItemCallback<ChatItem>() {
             oldItem is ChatItem.MessageItem && newItem is ChatItem.MessageItem -> {
                 val oldMessage = oldItem.message
                 val newMessage = newItem.message
+                // Note: isRead is intentionally excluded to break the feedback loop:
+                // scroll → onBind → markAsRead → Realm write → Flow re-emit → submitList → rebind
+                // Read status doesn't change the visual appearance of the message bubble.
                 oldMessage.body == newMessage.body &&
                         oldMessage.sentDate == newMessage.sentDate &&
                         oldMessage.editDate == newMessage.editDate &&
                         oldMessage.outgoing == newMessage.outgoing &&
-                        oldMessage.isRead == newMessage.isRead &&
                         oldMessage.state_ == newMessage.state_
             }
             oldItem is ChatItem.DateHeaderItem && newItem is ChatItem.DateHeaderItem -> {

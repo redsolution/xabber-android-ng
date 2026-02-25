@@ -424,7 +424,6 @@ class Account : XMPPStreamDelegate {
             }
             realm.close()
             checkExistingDevice()
-            initializeStream()
         } catch (e: Exception) {
             Log.e(TAG, "Can't load user $jid from db", e)
             onErrorCallback?.invoke("Error loading account: ${e.message}")
@@ -437,7 +436,7 @@ class Account : XMPPStreamDelegate {
                 host = extractHostFromJid(jid)
             }
             val realm = Realm.Companion.open(defaultRealmConfig())
-            realm.writeBlocking {
+            realm.write {
                 val item = AccountStorageItem().apply {
                     order = query<AccountStorageItem>().find().size
                     jid = this@Account.jid
@@ -590,9 +589,7 @@ class Account : XMPPStreamDelegate {
     private suspend fun syncAllChats(stream: Stream) = withContext(Dispatchers.IO) {
         val realm = Realm.Companion.open(defaultRealmConfig())
         try {
-            val chats = realm.writeBlocking {
-                query<LastChatsStorageItem>("owner = $0", jid).find()
-            }
+            val chats = realm.query<LastChatsStorageItem>("owner = $0", jid).find()
             Log.d(TAG, "Found ${chats.size} chats to sync for $jid")
         } catch (e: Exception) {
             Log.e(TAG, "Error syncing chats for $jid: ${e.message}", e)
@@ -877,11 +874,13 @@ class Account : XMPPStreamDelegate {
         try {
             Log.d(TAG, "Received stream features: $features")
             supportedFeatures = features
-            realm.writeBlocking {
-                val account = query<AccountStorageItem>("jid = $0", jid).first().find()
-                if (account != null && account.clientSyncSupport != true) {
-                    findLatest(account)?.clientSyncSupport = true
-                    Log.d(TAG, "Updated AccountStorageItem clientSyncSupport to true for JID: $jid")
+            stanzaProcessingScope.launch {
+                realm.write {
+                    val account = query<AccountStorageItem>("jid = $0", jid).first().find()
+                    if (account != null && account.clientSyncSupport != true) {
+                        findLatest(account)?.clientSyncSupport = true
+                        Log.d(TAG, "Updated AccountStorageItem clientSyncSupport to true for JID: $jid")
+                    }
                 }
             }
             val response = stream.socket?.parseStreamResponse(features)
@@ -1106,11 +1105,20 @@ class Account : XMPPStreamDelegate {
                 }
                 streamCarbonsSend(stream)
                 streamSyncRequest(stream)
+
+                // Request own member IDs for groups where we don't know them yet
+                delay(500)
+                groupchatManager?.requestSelfIdsForAllGroups(stream)
             }
             return true
         }
 
     override suspend fun streamBinding(stream: Stream): Boolean {
+        if (bindingCompleted) {
+            Log.w(TAG, "Binding already completed for $jid, ignoring duplicate request")
+            return true
+        }
+        bindingCompleted = true
         val bindId = NanoId.generateOptimized(9, "-0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", 63, 16)
         val resourceId = NanoId.generateOptimized(8, "0123456789ABC Chaz6", 63, 16)
         val bindRequest = """
@@ -1126,6 +1134,7 @@ class Account : XMPPStreamDelegate {
                 true
             } else {
                 Log.e(TAG, "Failed to send bind request for JID: $jid")
+                bindingCompleted = false
                 onErrorCallback?.invoke("Failed to send resource binding request")
                 stream.state = StreamState.NOT_CONNECTING
                 false

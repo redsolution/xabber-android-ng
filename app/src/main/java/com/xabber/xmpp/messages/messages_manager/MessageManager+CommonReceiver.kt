@@ -57,6 +57,9 @@ class MessageCommonReceiver(private val owner: String) {
     private val prereadedMessages = mutableSetOf<PrereadedMessagesItem>()
     private val prereadedConversation = mutableSetOf<PrereadedConversationItem>()
 
+    // In-memory cache: groupJid -> myMemberId (avoids repeated Realm queries per message)
+    private val myMemberIdCache = mutableMapOf<String, String>()
+
     private val messagesQueue = MutableStateFlow(mutableSetOf<MessageQueueItem>())
 
     companion object {
@@ -344,40 +347,72 @@ class MessageCommonReceiver(private val owner: String) {
     }
 
     suspend fun receiveRuntime(message: XMPPMessage) {
-        if (message.body.isNullOrBlank()) return
-        val messageId = getOriginId(message) ?: message.id ?: return
+        val xEl = message.element("x", "https://xabber.com/protocol/groups")
+        val fwd = xEl?.element("forwarded", "urn:xmpp:forward:0")
+        val innerMsg = fwd?.element("message")
+        val innerBody = innerMsg?.element("body")?.textContent
+        Log.w(TAG, "receiveRuntime: message.body=${message.body}, xEl=${xEl != null}, fwd=${fwd != null}, innerMsg=${innerMsg != null}, innerBody=$innerBody, children=${message.children.map { "${it.name}(${it.namespace})" }}")
+        if (xEl != null) {
+            Log.w(TAG, "receiveRuntime: xEl.children=${xEl.children.map { "${it.name}(${it.namespace})" }}")
+        }
+        val body = message.body ?: innerBody
+        if (body.isNullOrBlank()) {
+            Log.w(TAG, "receiveRuntime: body is null or blank, returning")
+            return
+        }
+        // For group headline messages, origin-id and id are inside the inner forwarded message
+        val messageId = getOriginId(message) ?: message.id
+            ?: innerMsg?.element("origin-id", "urn:xmpp:sid:0")?.getAttribute("id")
+            ?: innerMsg?.getAttribute("id")
+            ?: return
         val from = message.from?.bare() ?: return
         val to = message.to?.bare() ?: return
-        val isGroupMessage = message.hasElement("x", "https://xabber.com/protocol/groups")
+        val isGroupMessage = xEl != null
+        // For group headlines, inner <x> with <user> is inside <forwarded>/<message>
+        val innerXEl = innerMsg?.element("x", "https://xabber.com/protocol/groups")
         val isOutgoing = if (isGroupMessage) {
-            // Group chat — <user> is direct child of <x>, not nested under <reference>
-            val xElement = message.element("x", "https://xabber.com/protocol/groups")
-            val userElement = xElement?.element("user", "https://xabber.com/protocol/groups")
-                ?: xElement?.element("user")
-            // <jid> can be either an attribute or a child element
+            // User element can be in outer <x>, inner <x>, or nested inside <reference>
+            val userElement = xEl!!.element("user", "https://xabber.com/protocol/groups")
+                ?: xEl.element("user")
+                ?: innerXEl?.element("user", "https://xabber.com/protocol/groups")
+                ?: innerXEl?.element("user")
+                ?: xEl.elements("reference")
+                    ?.firstNotNullOfOrNull { ref -> ref.element("user", "https://xabber.com/protocol/groups") ?: ref.element("user") }
             val userJid = userElement?.getAttribute("jid")
                 ?: userElement?.element("jid")?.textContent
             val userId = userElement?.getAttribute("id")
-            userJid == owner || userId == owner
+            Log.w(TAG, "receiveRuntime: group msg userJid=$userJid, userId=$userId, owner=$owner")
+            // Check by JID match (works for public groups)
+            val jidMatch = userJid != null && userJid == owner
+            // Check by member ID match (works for all groups including incognito)
+            val idMatch = if (!jidMatch && userId != null) {
+                val myMemberId = getCachedMyMemberId(from)
+                !myMemberId.isNullOrEmpty() && userId == myMemberId
+            } else false
+            jidMatch || idMatch
         } else {
             from == owner
         }
         // For group messages, opponent is the group JID.
         // Outer headline: from=group, to=user. Use 'from' as opponent.
         val opponent = if (isGroupMessage) from else if (isOutgoing) to else from
-        if (opponent == owner) return
+        Log.w(TAG, "receiveRuntime: from=$from, to=$to, opponent=$opponent, isOutgoing=$isOutgoing, isGroupMessage=$isGroupMessage, messageId=$messageId")
+        if (opponent == owner) {
+            Log.w(TAG, "receiveRuntime: opponent == owner, skipping")
+            return
+        }
 
         val queueItem = MessageQueueItem(
             message = message,
             messageId = messageId,
             archivedFrom = from,
-            isRead = from == owner,
+            isRead = isOutgoing,
             date = Date(message.date ?: System.currentTimeMillis()),
             state = MessageSendingState.Deliver,
             originalFrom = from,
-            originalOutgoing = from == owner
+            originalOutgoing = isOutgoing
         )
-//        Log.w("CHECK", "check it RECEIVER runtime $queueItem, ${message.body}, id:${message.id}, from=${message.from}, to=${message.to}")
+        Log.w(TAG, "receiveRuntime: enqueuing message body='$body', date=${queueItem.date}")
 
         enqueue(queueItem)
         storeMessagesNow()
@@ -425,6 +460,9 @@ class MessageCommonReceiver(private val owner: String) {
     private suspend fun processQueue(items: List<MessageQueueItem>) {
         val sorted = items.sortedBy { it.date }
         val newUnreadChatPrimaries = mutableSetOf<String>()
+        // Collect member IDs learned from JID matches — write to Realm once after the loop
+        val learnedMemberIds = mutableMapOf<String, String>() // groupJid -> memberId
+        val messagesToSave = mutableListOf<MessageStorageItem>()
 
         for (item in sorted) {
             if (isVoIPMessage(item.message)) continue
@@ -436,14 +474,34 @@ class MessageCommonReceiver(private val owner: String) {
 
             val isGroupMessage = item.message.hasElement("x", "https://xabber.com/protocol/groups")
             val isOutgoing = if (isGroupMessage) {
-                // Group chat — <user> is direct child of <x>, not nested under <reference>
                 val xElement = item.message.element("x", "https://xabber.com/protocol/groups")
+                // For group headlines, inner <x> with <user> is inside <forwarded>/<message>
+                val innerFwd = xElement?.element("forwarded", "urn:xmpp:forward:0")
+                val innerMsgEl = innerFwd?.element("message")
+                val innerXElement = innerMsgEl?.element("x", "https://xabber.com/protocol/groups")
+                // User element can be in outer <x>, inner <x>, or nested inside <reference>
                 val userElement = xElement?.element("user", "https://xabber.com/protocol/groups")
                     ?: xElement?.element("user")
+                    ?: innerXElement?.element("user", "https://xabber.com/protocol/groups")
+                    ?: innerXElement?.element("user")
+                    ?: xElement?.elements("reference")
+                        ?.firstNotNullOfOrNull { ref -> ref.element("user", "https://xabber.com/protocol/groups") ?: ref.element("user") }
                 val userJid = userElement?.getAttribute("jid")
                     ?: userElement?.element("jid")?.textContent
                 val userId = userElement?.getAttribute("id")
-                userJid == owner || userId == owner || item.originalOutgoing
+                // Check by JID match (works for public groups)
+                val jidMatch = userJid != null && userJid == owner
+                // Check by member ID match (works for all groups including incognito)
+                val idMatch = if (!jidMatch && userId != null) {
+                    val myMemberId = getCachedMyMemberId(from)
+                    !myMemberId.isNullOrEmpty() && userId == myMemberId
+                } else false
+                // Remember member ID learned from JID match (will write to Realm after the loop)
+                if (jidMatch && userId != null && !learnedMemberIds.containsKey(from)) {
+                    learnedMemberIds[from] = userId
+                    myMemberIdCache[from] = userId
+                }
+                jidMatch || idMatch || item.originalOutgoing
             } else {
                 from == owner
             }
@@ -574,8 +632,24 @@ class MessageCommonReceiver(private val owner: String) {
 
             }
             groupchatRef?.let { messageItem.references.add(it) }
-            messageItem.save(silentNotifications = true, realm = realm)
+            Log.w(TAG, "processQueue: adding message to save: primary=${messageItem.primary}, body='${messageItem.body}', opponent=${messageItem.opponent}, convType=${messageItem.conversationType}, outgoing=${messageItem.outgoing}, isRead=${messageItem.isRead}")
+            messagesToSave.add(messageItem)
         }
+
+        // Batch-save all messages in a single realm.write transaction
+        if (messagesToSave.isNotEmpty()) {
+            Log.w(TAG, "processQueue: saving ${messagesToSave.size} messages to Realm")
+            try {
+                realm.write {
+                    for (msg in messagesToSave) {
+                        msg.saveInTransaction(this)
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error batch-saving ${messagesToSave.size} messages: ${e.message}")
+            }
+        }
+
         if (newUnreadChatPrimaries.isNotEmpty()) {
             Log.d(TAG, "Processing ${newUnreadChatPrimaries.size} chats with new unread messages")
             scope.launch(Dispatchers.IO) {
@@ -589,6 +663,21 @@ class MessageCommonReceiver(private val owner: String) {
                     tempRealm.close()
                 }
             }
+        }
+
+        // Batch-write learned member IDs to Realm (once per processQueue call, not per message)
+        if (learnedMemberIds.isNotEmpty()) {
+            try {
+                realm.write {
+                    for ((groupJid, memberId) in learnedMemberIds) {
+                        val groupPrimary = GroupChatStorageItem.genPrimary(groupJid, owner)
+                        val group = query<GroupChatStorageItem>("primary = $0", groupPrimary).first().find()
+                        if (group != null && group.myMemberId.isEmpty()) {
+                            findLatest(group)?.myMemberId = memberId
+                        }
+                    }
+                }
+            } catch (_: Exception) { }
         }
 
         AccountManager.find(owner)?.chatMarkers?.deleteEphemeralMessages()
@@ -632,9 +721,17 @@ class MessageCommonReceiver(private val owner: String) {
 
     private fun createGroupchatReference(message: XMPPMessage, opponent: String, owner: String): MessageReferenceStorageItem? {
         val groupElement = message.element("x", namespace = "https://xabber.com/protocol/groups") ?: return null
-        // <user> is a direct child of <x>, not nested under <reference>
+        // For group headlines, inner <x> with <user> is inside <forwarded>/<message>
+        val innerGroupElement = groupElement.element("forwarded", "urn:xmpp:forward:0")
+            ?.element("message")
+            ?.element("x", "https://xabber.com/protocol/groups")
+        // <user> can be in outer <x>, inner <x>, or nested inside <reference> within <x>
         val user = groupElement.element("user", "https://xabber.com/protocol/groups")
             ?: groupElement.element("user")
+            ?: innerGroupElement?.element("user", "https://xabber.com/protocol/groups")
+            ?: innerGroupElement?.element("user")
+            ?: groupElement.elements("reference")
+                .firstNotNullOfOrNull { ref -> ref.element("user", "https://xabber.com/protocol/groups") ?: ref.element("user") }
             ?: return null
         val metadata = mutableMapOf<String, Any>()
         // "id" is an attribute on <user>
@@ -659,6 +756,15 @@ class MessageCommonReceiver(private val owner: String) {
 
 
     // MARK: - Helpers
+
+    private fun getCachedMyMemberId(groupJid: String): String? {
+        myMemberIdCache[groupJid]?.let { if (it.isNotEmpty()) return it }
+        val groupPrimary = GroupChatStorageItem.genPrimary(groupJid, owner)
+        val memberId = realm.query<GroupChatStorageItem>("primary = $0", groupPrimary)
+            .first().find()?.myMemberId ?: ""
+        myMemberIdCache[groupJid] = memberId
+        return memberId.ifEmpty { null }
+    }
 
     private fun getOriginId(message: XMPPMessage): String? =
         message.element("origin-id", "urn:xmpp:sid:0")?.getAttribute("id")
@@ -712,9 +818,11 @@ class MessageCommonReceiver(private val owner: String) {
     }
 
     fun deleteSelfChats() {
-        realm.writeBlocking {
-            val selfChats = query<LastChatsStorageItem>("owner = $0 AND jid = $0", owner).find()
-            delete(selfChats)
+        CoroutineScope(Dispatchers.IO).launch {
+            realm.write {
+                val selfChats = query<LastChatsStorageItem>("owner = $0 AND jid = $0", owner).find()
+                delete(selfChats)
+            }
         }
     }
 }

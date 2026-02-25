@@ -33,25 +33,30 @@ sealed class ChatItem {
 
 // Вспомогательная функция для трансформации
 fun List<MessageStorageItem>.toChatItems(unreadCount: Int = 0): List<ChatItem> {
-    val result = mutableListOf<ChatItem>()
-    var previousDate: Long? = null
+    val result = ArrayList<ChatItem>(this.size + this.size / 20 + 1) // pre-size: messages + ~1 date header per 20 msgs
+    var previousDayKey = Long.MIN_VALUE
     var unreadMarkerAdded = false
 
-    this.forEachIndexed { index, message ->
+    // Reuse a single Calendar instance for all date calculations
+    val cal = Calendar.getInstance()
+
+    for (message in this) {
         // Добавляем маркер непрочитанных сообщений перед первым непрочитанным
         if (!unreadMarkerAdded && unreadCount > 0 && !message.isRead && !message.outgoing) {
 //            result.add(ChatItem.UnreadMarkerItem(unreadCount))
             unreadMarkerAdded = true
         }
 
-        // Проверяем, нужен ли заголовок с датой
+        // Проверяем, нужен ли заголовок с датой (reuse single Calendar)
         val currentDate = message.sentDate
-        if (previousDate == null || !currentDate.isSameDayWith(previousDate!!)) {
+        cal.timeInMillis = currentDate
+        val currentDayKey = cal.get(Calendar.YEAR).toLong() * 1000 + cal.get(Calendar.DAY_OF_YEAR)
+        if (currentDayKey != previousDayKey) {
             result.add(ChatItem.DateHeaderItem(
                 date = currentDate,
                 formattedDate = getDateStringForMessage(currentDate)
             ))
-            previousDate = currentDate
+            previousDayKey = currentDayKey
         }
 
         // Добавляем само сообщение
@@ -59,12 +64,4 @@ fun List<MessageStorageItem>.toChatItems(unreadCount: Int = 0): List<ChatItem> {
     }
 
     return result
-}
-
-// Добавим расширение для проверки дня
-private fun Long.isSameDayWith(other: Long): Boolean {
-    val cal1 = Calendar.getInstance().apply { timeInMillis = this@isSameDayWith }
-    val cal2 = Calendar.getInstance().apply { timeInMillis = other }
-    return cal1.get(Calendar.YEAR) == cal2.get(Calendar.YEAR) &&
-            cal1.get(Calendar.DAY_OF_YEAR) == cal2.get(Calendar.DAY_OF_YEAR)
 }

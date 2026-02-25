@@ -65,7 +65,7 @@ class ChatModel(
             .sort("sentDate", Sort.ASCENDING)
             .asFlow()
             .map { changes -> changes.list }
-            .debounce(300L)
+            .debounce(500L)
     }
 
     // === Чтение данных ===
@@ -204,33 +204,40 @@ class ChatModel(
 
     @RequiresApi(Build.VERSION_CODES.O)
     suspend fun markAsRead(id: String) = withContext(Dispatchers.IO) {
-        var messagePrimaryToMark: String? = null
-        var chatPrimaryToUpdate: String? = null
+        markAsReadBatch(listOf(id))
+    }
+
+    @RequiresApi(Build.VERSION_CODES.O)
+    suspend fun markAsReadBatch(ids: List<String>) = withContext(Dispatchers.IO) {
+        val markedPrimaries = mutableListOf<String>()
+        val chatUnreadDecrements = mutableMapOf<String, Int>()
 
         realm.write {
-            query<MessageStorageItem>("primary = $0", id).first().find()?.let { msg ->
-                if (!msg.isRead && !msg.outgoing) {
-                    msg.isRead = true
-                    msg.readDate = System.currentTimeMillis() / 1000
-                    msg.state = MessageSendingState.Read
+            for (id in ids) {
+                query<MessageStorageItem>("primary = $0", id).first().find()?.let { msg ->
+                    if (!msg.isRead && !msg.outgoing) {
+                        msg.isRead = true
+                        msg.readDate = System.currentTimeMillis() / 1000
+                        msg.state = MessageSendingState.Read
+                        markedPrimaries.add(msg.primary)
 
-                    messagePrimaryToMark = msg.primary
-                    chatPrimaryToUpdate = LastChatsStorageItem.genPrimary(msg.opponent, msg.owner, msg.conversationType)
+                        val chatPrimary = LastChatsStorageItem.genPrimary(msg.opponent, msg.owner, msg.conversationType)
+                        chatUnreadDecrements[chatPrimary] = (chatUnreadDecrements[chatPrimary] ?: 0) + 1
+                    }
+                }
+            }
+
+            // Update chat unread counts in the same write transaction
+            for ((chatPrimary, decrement) in chatUnreadDecrements) {
+                query<LastChatsStorageItem>("primary = $0", chatPrimary).first().find()?.let { chat ->
+                    chat.unread = maxOf(0, chat.unread - decrement)
                 }
             }
         }
 
-        chatPrimaryToUpdate?.let { primary ->
-            realm.write {
-                query<LastChatsStorageItem>("primary = $0", primary).first().find()?.let { chat ->
-                    chat.unread = chat.unread - 1
-                    if (chat.unread < 0) chat.unread = 0
-                }
-            }
-        }
-
-        messagePrimaryToMark?.let { primary ->
-            sendDisplayedIfNeeded(primary)
+        // Send displayed markers for the last message only (covers all previous)
+        if (markedPrimaries.isNotEmpty()) {
+            sendDisplayedIfNeeded(markedPrimaries.last())
         }
     }
 
@@ -246,12 +253,12 @@ class ChatModel(
     // === Запись данных ===
 
     suspend fun insertMessage(chatId: String, message: MessageStorageItem) = with(realm) {
-        writeBlocking {
+        write {
             val bareOpponentJid = XMPPJID(fullJID = message.opponent).bare().toString()
             val primary = MessageStorageItem.genPrimary(message.archivedId, message.owner)
             if (primary.isEmpty()) {
                 Log.w(TAG, "Skipping message with invalid primary: archivedId=${message.archivedId}, owner=${message.owner}")
-                return@writeBlocking
+                return@write
             }
 
             val existing = query<MessageStorageItem>(
@@ -269,7 +276,7 @@ class ChatModel(
                     }
                 }
                 Log.d(TAG, "Updated existing message: $primary")
-                return@writeBlocking
+                return@write
             }
 
             val validOwner = message.owner.ifEmpty { this@ChatModel.owner }
@@ -338,7 +345,7 @@ class ChatModel(
     }
 
     suspend fun deleteMessage(primary: String, forAll: Boolean = false) = with(realm) {
-        writeBlocking {
+        write {
             query<MessageStorageItem>("primary = $0", primary).first().find()?.let { delete(it) }
         }
         if (forAll) {
@@ -351,7 +358,7 @@ class ChatModel(
     }
 
     suspend fun editMessage(primary: String, newBody: String) = with(realm) {
-        writeBlocking {
+        write {
             query<MessageStorageItem>("primary = $0", primary).first().find()?.apply {
                 body = newBody
                 editDate = System.currentTimeMillis()
@@ -360,13 +367,13 @@ class ChatModel(
     }
 
     suspend fun setMute(id: String, mute: Long) = with(realm) {
-        writeBlocking {
+        write {
             query<LastChatsStorageItem>("primary = $0", id).first().find()?.muteExpired = mute
         }
     }
 
     suspend fun setUnread(id: String) = with(realm) {
-        writeBlocking {
+        write {
             query<MessageStorageItem>("primary = $0", id).first().find()?.isRead = true
         }
     }
@@ -385,7 +392,7 @@ class ChatModel(
     }
 
     suspend fun saveDraft(id: String, draft: String?) = with(realm) {
-        writeBlocking {
+        write {
             query<LastChatsStorageItem>("primary = $0", id).first().find()?.apply {
                 val oldDraft = draftMessage
                 if (oldDraft != draft) {
@@ -399,7 +406,7 @@ class ChatModel(
     }
 
     suspend fun saveLastPosition(id: String, savedPosition: String) = with(realm) {
-        writeBlocking {
+        write {
             query<LastChatsStorageItem>("primary = $0", id).first().find()?.lastPosition = savedPosition
         }
     }
@@ -411,13 +418,13 @@ class ChatModel(
     }
 
     suspend fun deleteChat(id: String) = with(realm) {
-        writeBlocking {
+        write {
             query<LastChatsStorageItem>("primary = $0", id).first().find()?.let { delete(it) }
         }
     }
 
     suspend fun insertChat(id: String) = with(realm) {
-        writeBlocking {
+        write {
             copyToRealm(LastChatsStorageItem().apply {
                 primary = id
                 this.owner = this@ChatModel.owner

@@ -196,8 +196,8 @@ class PresenceManager(private val owner: String, private val socket: Socket) {
             val resourceItems = realm.query<ResourceStorageItem>("owner = $0", owner).find().associateBy { it.primary }
 
             // Process in smaller chunks to avoid blocking
-            presences.chunked(20).forEach { chunk -> // Reduced batch size from 50 to 20
-                realm.writeBlocking {
+            presences.chunked(20).forEach { chunk ->
+                realm.write {
                     chunk.forEach { presence ->
                         // Skip group-related presence aggressively
                         if (presence.from?.contains("/Group") == true || presence.from?.contains("https://xabber.com/protocol/groups") == true) {

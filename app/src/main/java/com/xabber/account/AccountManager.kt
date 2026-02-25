@@ -154,17 +154,19 @@ object AccountManager {
             val viewModel = ChatViewModel(chatId, owner, opponent, conversationType)
             chatViewModels[chatId] = viewModel
             Log.d("AccountManager", "Created ChatViewModel for chatId=$chatId, opponent=$opponent, conversationType=${conversationType.rawValue}")
-            // Ensure LastChatsStorageItem exists
-            realm.writeBlocking {
-                val existingChat = query<LastChatsStorageItem>("primary = $0", chatId).first().find()
-                if (existingChat == null) {
-                    copyToRealm(LastChatsStorageItem().apply {
-                        primary = chatId
-                        this.owner = owner
-                        jid = opponent
-                        this.conversationType_ = conversationType.rawValue
-                    })
-                    Log.d("AccountManager", "Created LastChatsStorageItem for chatId=$chatId")
+            // Ensure LastChatsStorageItem exists (async to avoid blocking main thread)
+            CoroutineScope(Dispatchers.IO).launch {
+                realm.write {
+                    val existingChat = query<LastChatsStorageItem>("primary = $0", chatId).first().find()
+                    if (existingChat == null) {
+                        copyToRealm(LastChatsStorageItem().apply {
+                            primary = chatId
+                            this.owner = owner
+                            jid = opponent
+                            this.conversationType_ = conversationType.rawValue
+                        })
+                        Log.d("AccountManager", "Created LastChatsStorageItem for chatId=$chatId")
+                    }
                 }
             }
         } else {

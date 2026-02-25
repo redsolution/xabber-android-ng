@@ -53,6 +53,7 @@ open class GroupChatStorageItem : RealmObject {
     var anonymous: Boolean = false
     private var muteState_: Int = MuteState.ENABLED.rawValue
     var isDeleted: Boolean = false
+    var myMemberId: String = ""
 
 
     var membership: Membership

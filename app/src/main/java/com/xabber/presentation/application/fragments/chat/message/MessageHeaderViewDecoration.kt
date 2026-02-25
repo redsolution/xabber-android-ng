@@ -3,8 +3,6 @@ package com.xabber.presentation.application.fragments.chat.message
 import android.content.Context
 import android.graphics.*
 import android.graphics.drawable.Drawable
-import android.os.Handler
-import android.os.Looper
 import android.view.View
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
@@ -34,6 +32,11 @@ class MessageHeaderViewDecoration(context: Context) : ItemDecoration() {
     private val dateLayoutHeight = 2 * backgroundDrawableYMargin + backgroundDrawableHeight
     private val dateTextBaseline = backgroundDrawableHeight * 3 / 11
 
+    // Cache: sentDate → (dateString, measuredWidth) to avoid recomputing every frame
+    private val dateStringCache = HashMap<Long, Pair<String, Int>>(16)
+    // Reusable Rect to avoid allocation per draw call
+    private val tmpRect = Rect()
+
     override fun onDrawOver(c: Canvas, parent: RecyclerView, state: RecyclerView.State) {
         super.onDrawOver(c, parent, state)
 
@@ -47,14 +50,21 @@ class MessageHeaderViewDecoration(context: Context) : ItemDecoration() {
             if (layoutPosition == RecyclerView.NO_POSITION) continue
 
             val message = adapter.getMessageItem(layoutPosition) ?: continue
-            val currentDate = getDateStringForMessage(message.sentDate)
+            val (currentDate, textWidth) = getDateAndWidth(message.sentDate)
 
-            // Нужно ли рисовать заголовок над этим сообщением?
-            // Да, если это первое видимое сообщение ИЛИ дата отличается от предыдущего видимого сообщения
             if (currentDate != previousDate) {
-                drawDateMessageHeader(c, parent, child, currentDate)
+                drawDateMessageHeader(c, parent, child, currentDate, textWidth)
                 previousDate = currentDate
             }
+        }
+    }
+
+    /** Returns cached (dateString, measuredWidth) for a given sentDate timestamp */
+    private fun getDateAndWidth(sentDate: Long): Pair<String, Int> {
+        return dateStringCache.getOrPut(sentDate) {
+            val dateStr = getDateStringForMessage(sentDate)
+            val width = paintFont.measureText(dateStr).toInt()
+            dateStr to width
         }
     }
 
@@ -62,19 +72,19 @@ class MessageHeaderViewDecoration(context: Context) : ItemDecoration() {
         c: Canvas,
         parent: RecyclerView,
         child: View,
-        dateText: String
+        dateText: String,
+        textWidth: Int
     ) {
-        val width = measureText(paintFont, dateText)
-        val headerViewXMargin = (parent.measuredWidth - width) / 2
+        val headerViewXMargin = (parent.measuredWidth - textWidth) / 2
 
-        val drawableBounds = Rect().apply {
-            left = headerViewXMargin - backgroundDrawableXPadding
-            right = headerViewXMargin + width + backgroundDrawableXPadding
-            top = child.top - backgroundDrawableHeight - backgroundDrawableYMargin
-            bottom = child.top - backgroundDrawableYMargin
-        }
+        tmpRect.set(
+            headerViewXMargin - backgroundDrawableXPadding,
+            child.top - backgroundDrawableHeight - backgroundDrawableYMargin,
+            headerViewXMargin + textWidth + backgroundDrawableXPadding,
+            child.top - backgroundDrawableYMargin
+        )
 
-        drawString(c, dateText, drawableBounds, 255)
+        drawString(c, dateText, tmpRect, 255)
     }
 
     private fun drawString(canvas: Canvas, text: String, bounds: Rect, alpha: Int) {
@@ -89,13 +99,6 @@ class MessageHeaderViewDecoration(context: Context) : ItemDecoration() {
             paintFont
         )
     }
-
-    private fun measureText(
-        paint: Paint,
-        text: CharSequence?,
-        start: Int = 0,
-        end: Int = text?.length ?: 0
-    ): Int = paint.measureText(text.toString(), start, end).toInt()
 
     override fun getItemOffsets(
         outRect: Rect,

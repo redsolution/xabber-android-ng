@@ -947,7 +947,7 @@ class Socket(private val host: String, private val port: Int) {
     }
 
     suspend fun sendPing(): Boolean = withContext(Dispatchers.IO) {
-        val pingId = "ping_${System.currentTimeMillis()}"
+        val pingId = "ping}"
         val ping = "<iq type='get' id='$pingId'><ping xmlns='urn:xmpp:ping'/></iq>"
         return@withContext write(ping)
     }

@@ -7,6 +7,7 @@ import com.xabber.account.AccountManager
 import com.xabber.data_base.defaultRealmConfig
 import com.xabber.data_base.models.last_chats.LastChatsStorageItem
 import com.xabber.data_base.models.messages.MessageStorageItem
+import com.xabber.data_base.models.roster.RosterGroupStorageItem
 import com.xabber.data_base.models.roster.RosterStorageItem
 import com.xabber.data_base.models.sync.ConversationType
 import com.xabber.stream.Stream
@@ -248,6 +249,19 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
         stream.socket?.write(iq)
         addQueryId(elementId)
         queueItems.add(QueueItem(if (userId != null) QueueItem.Action.USER_CARD else QueueItem.Action.REQUEST_USERS, elementId))
+    }
+
+    suspend fun requestSelfIdsForAllGroups(stream: Stream) {
+        val groups = realm.query<GroupChatStorageItem>(
+            "owner = $0 AND myMemberId = ''", owner
+        ).find()
+        for (group in groups) {
+            try {
+                requestUsers(stream, group.jid, userId = "0")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to request self member ID for ${group.jid}: ${e.message}")
+            }
+        }
     }
 
     suspend fun requestSettingsForm(stream: Stream, groupchat: String, callback: ((List<Map<String, Any>>?, String?) -> Unit)? = null) {
@@ -775,8 +789,9 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
                     }
                 }
 
-                val x = presence.getElementsByTagNameNS(NAMESPACE, "x")?.item(0) as? Element
-                if (x != null) {
+                val groupEl = presence.getElementsByTagNameNS(NAMESPACE, "group")?.item(0) as? Element
+                    ?: presence.getElementsByTagNameNS(NAMESPACE, "x")?.item(0) as? Element
+                if (groupEl != null) {
                     handleGroupInfoPresence(presence)
                     return@withContext true
                 }
@@ -790,24 +805,49 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
 
     suspend fun handleMessage(message: XMPPMessage) {
         val groupchat = message.from?.bare() ?: return
+        // Collect all user elements from the message, then batch-write once
+        val userElements = mutableListOf<Pair<XMLElement, String>>()
+
         message.elements("reference").forEach { ref ->
             if (ref.getAttribute("type") == "mutable") {
-                ref.element("user")?.let { userElement ->
-                    updateUserCard(userElement, groupchat = groupchat, trustedSource = true)
-                }
+                ref.element("user")?.let { userElements.add(it to groupchat) }
             }
         }
+        var pinnedId: String? = null
         message.element("x", NAMESPACE)?.let { x ->
-            x.element("user")?.let { userElement ->
-                updateUserCard(userElement, groupchat = groupchat, trustedSource = true)
+            x.element("user")?.let { userElements.add(it to groupchat) }
+            x.elements("reference").forEach { ref ->
+                if (ref.getAttribute("type") == "mutable") {
+                    ref.element("user")?.let { userElements.add(it to groupchat) }
+                }
             }
-            x.element("pinned-message")?.textContent?.let { pinnedId ->
-                realm.write {
+            pinnedId = x.element("pinned-message")?.textContent
+        }
+
+        // Single batched realm.write for all user card updates + pinned message
+        if (userElements.isNotEmpty() || pinnedId != null) {
+            realm.write {
+                for ((userEl, gc) in userElements) {
+                    val id = userEl.getAttribute("id")
+                    if (id.isNullOrEmpty()) continue
+                    updateUserCardInTransaction(
+                        userId = id,
+                        groupchat = gc,
+                        trustedSource = true,
+                        jidValue = userEl.element("jid")?.textContent,
+                        nicknameValue = userEl.element("nickname")?.textContent,
+                        roleValue = userEl.element("role")?.textContent,
+                        subscriptionValue = userEl.element("subscription")?.textContent,
+                        badgeValue = userEl.element("badge")?.textContent,
+                        presentText = userEl.element("present")?.textContent
+                    )
+                }
+                pinnedId?.let { pid ->
                     val groupItem = query<GroupChatStorageItem>(
                         "primary = $0",
                         GroupChatStorageItem.genPrimary(groupchat, owner)
                     ).first().find()
-                    groupItem?.pinnedMessage = pinnedId
+                    groupItem?.pinnedMessage = pid
                 }
             }
         }
@@ -889,10 +929,9 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
         val version = query.getAttribute("version")
         val users = query.getElementsByTagName("user")
 
-        for (i in 0 until users.length) {
-            val userEl = users.item(i) as Element
-            updateUserCardFromElement(userEl, groupchat = from, trustedSource = true)
-        }
+        // Batch all user card updates into a single realm.write
+        val userElements = (0 until users.length).map { users.item(it) as Element }
+        updateUserCardsFromElements(userElements, groupchat = from, trustedSource = true)
 
         realm.write {
             val groupPrimary = GroupChatStorageItem.genPrimary(from, owner)
@@ -908,12 +947,10 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
     }
 
     private suspend fun handleMembersPush(query: Element?, from: String) {
-        // Unsolicited member list update
+        // Unsolicited member list update — batch all into single realm.write
         query?.getElementsByTagName("user")?.let { users ->
-            for (i in 0 until users.length) {
-                val userEl = users.item(i) as Element
-                updateUserCardFromElement(userEl, groupchat = from, trustedSource = true)
-            }
+            val userElements = (0 until users.length).map { users.item(it) as Element }
+            updateUserCardsFromElements(userElements, groupchat = from, trustedSource = true)
         }
     }
 
@@ -1029,7 +1066,14 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
     private suspend fun handleGroupInfoPresence(presence: Element) {
         val from = presence.getAttribute("from")
         val jid = try { XMPPJID(from).bare() } catch (e: Exception) { return }
-        val x = presence.getElementsByTagNameNS(NAMESPACE, "x")?.item(0) as? Element ?: return
+        val x = presence.getElementsByTagNameNS(NAMESPACE, "group")?.item(0) as? Element
+            ?: presence.getElementsByTagNameNS(NAMESPACE, "x")?.item(0) as? Element
+            ?: return
+
+        // Extract name from <info><name> or directly from <name>
+        val infoElement = x.getElementsByTagName("info")?.item(0) as? Element
+        val parsedName = infoElement?.getElementsByTagName("name")?.item(0)?.textContent
+            ?: x.getElementsByTagName("name")?.item(0)?.textContent
 
         realm.write {
             val groupPrimary = GroupChatStorageItem.genPrimary(jid, owner)
@@ -1046,14 +1090,18 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
             }
 
             group?.let {
-                it.name = x.getElementsByTagName("name")?.item(0)?.textContent ?: it.name
-                it.privacy_ = x.getElementsByTagName("privacy")?.item(0)?.textContent ?: it.privacy_
+                it.name = parsedName ?: it.name
+                it.privacy_ = x.getAttribute("privacy")?.takeIf { v -> v.isNotEmpty() }
+                    ?: x.getElementsByTagName("privacy")?.item(0)?.textContent ?: it.privacy_
                 it.index_ = x.getElementsByTagName("index")?.item(0)?.textContent ?: it.index_
-                it.membership_ = x.getElementsByTagName("membership")?.item(0)?.textContent ?: it.membership_
+                val settingsEl = x.getElementsByTagName("settings")?.item(0) as? Element
+                it.membership_ = settingsEl?.getElementsByTagName("membership")?.item(0)?.textContent
+                    ?: x.getElementsByTagName("membership")?.item(0)?.textContent ?: it.membership_
                 it.descr = x.getElementsByTagName("description")?.item(0)?.textContent ?: it.descr
                 it.members = x.getElementsByTagName("members")?.item(0)?.textContent?.toIntOrNull() ?: it.members
                 it.present = x.getElementsByTagName("present")?.item(0)?.textContent?.toIntOrNull() ?: it.present
-                it.status = x.getElementsByTagName("status")?.item(0)?.textContent ?: it.status
+                it.status = infoElement?.getElementsByTagName("status")?.item(0)?.textContent
+                    ?: x.getElementsByTagName("status")?.item(0)?.textContent ?: it.status
                 x.getElementsByTagName("pinned-message")?.item(0)?.textContent?.let { pinned ->
                     it.pinnedMessage = pinned
                 }
@@ -1069,6 +1117,46 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
                     it.languages.clear()
                     for (i in 0 until langElements.length) {
                         langElements.item(i)?.textContent?.let { lang -> it.languages.add(lang) }
+                    }
+                }
+            }
+
+            // Update RosterStorageItem.nickname so displayName flows to the UI
+            if (!parsedName.isNullOrEmpty()) {
+                val rosterItem = query<RosterStorageItem>("jid = $0 AND owner = $1", jid, owner).first().find()
+                val resolvedRosterItem = if (rosterItem != null) {
+                    findLatest(rosterItem)?.apply { nickname = parsedName }
+                } else {
+                    val primary = RosterStorageItem.genPrimary(jid, owner)
+                    copyToRealm(RosterStorageItem().apply {
+                        this.primary = primary
+                        this.jid = jid
+                        this.owner = this@GroupchatManager.owner
+                        this.nickname = parsedName
+                    }, UpdatePolicy.ALL)
+                }
+
+                // Also save group properties into RosterGroupStorageItem
+                val groupPrimaryRG = RosterGroupStorageItem.genPrimary(jid, owner)
+                val existingRG = query<RosterGroupStorageItem>("primary = $0", groupPrimaryRG).first().find()
+                if (existingRG != null) {
+                    findLatest(existingRG)?.apply {
+                        name = jid
+                    }
+                } else {
+                    copyToRealm(RosterGroupStorageItem().apply {
+                        this.primary = groupPrimaryRG
+                        this.owner = this@GroupchatManager.owner
+                        this.name = jid
+                    }, UpdatePolicy.ALL)
+                }
+                // Link the roster item to this group
+                if (resolvedRosterItem != null) {
+                    val rg = query<RosterGroupStorageItem>("primary = $0", groupPrimaryRG).first().find()
+                    findLatest(rg!!)?.let { latestRG ->
+                        if (!latestRG.contacts.any { it.primary == resolvedRosterItem.primary }) {
+                            latestRG.contacts.add(resolvedRosterItem)
+                        }
                     }
                 }
             }
@@ -1230,51 +1318,108 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
         }
     }
 
+    // Inner helper: update a user card inside an existing MutableRealm transaction (no new realm.write)
+    private fun io.realm.kotlin.MutableRealm.updateUserCardInTransaction(
+        userId: String,
+        groupchat: String,
+        trustedSource: Boolean,
+        jidValue: String?,
+        nicknameValue: String?,
+        roleValue: String?,
+        subscriptionValue: String?,
+        badgeValue: String?,
+        presentText: String?
+    ) {
+        val groupchatId = GroupChatStorageItem.genPrimary(groupchat, owner)
+        val primary = GroupchatUserStorageItem.genPrimary(userId, groupchat, owner)
+
+        var user = query<GroupchatUserStorageItem>("primary = $0", primary).first().find()
+        if (user == null) {
+            user = GroupchatUserStorageItem().apply {
+                this.primary = primary
+                this.userId = userId
+                this.groupchatId = groupchatId
+                this.owner = this@GroupchatManager.owner
+            }
+            copyToRealm(user, UpdatePolicy.ALL)
+        } else {
+            user = findLatest(user)
+        }
+
+        user?.apply {
+            jidValue?.let { jid = it }
+            nicknameValue?.let { nickname = it }
+            roleValue?.let { role_ = it }
+            subscriptionValue?.let { subscribtion_ = it }
+            badge = badgeValue ?: ""
+            isOnline = presentText == "now"
+            if (presentText != null && presentText != "now") {
+                lastSeenIso = presentText
+                try {
+                    val sdf = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.US)
+                    sdf.timeZone = java.util.TimeZone.getTimeZone("UTC")
+                    lastSeen = sdf.parse(presentText)?.time ?: 0L
+                } catch (_: Exception) { }
+            }
+            updateTimestamp = System.currentTimeMillis()
+            isTemporary = !trustedSource
+
+            if (jid == this@GroupchatManager.owner) {
+                isMe = true
+                val group = query<GroupChatStorageItem>("primary = $0", groupchatId).first().find()
+                if (group != null) {
+                    findLatest(group)?.myMemberId = userId
+                }
+            }
+        }
+    }
+
     private suspend fun updateUserCardFromElement(
         userEl: Element,
         groupchat: String,
         trustedSource: Boolean,
         commitTransaction: Boolean = true
     ) {
-        // Convert DOM Element to our XMLElement structure (simplified)
         val id = userEl.getAttribute("id")
         if (id.isNullOrEmpty()) return
 
-        val groupchatId = GroupChatStorageItem.genPrimary(groupchat, owner)
-        val primary = GroupchatUserStorageItem.genPrimary(id, groupchat, owner)
-
         realm.write {
-            var user = query<GroupchatUserStorageItem>("primary = $0", primary).first().find()
-            if (user == null) {
-                user = GroupchatUserStorageItem().apply {
-                    this.primary = primary
-                    this.userId = id
-                    this.groupchatId = groupchatId
-                    this.owner = this@GroupchatManager.owner
-                }
-                copyToRealm(user, UpdatePolicy.ALL)
-            } else {
-                user = findLatest(user)
-            }
+            updateUserCardInTransaction(
+                userId = id,
+                groupchat = groupchat,
+                trustedSource = trustedSource,
+                jidValue = userEl.getElementsByTagName("jid")?.item(0)?.textContent,
+                nicknameValue = userEl.getElementsByTagName("nickname")?.item(0)?.textContent,
+                roleValue = userEl.getElementsByTagName("role")?.item(0)?.textContent,
+                subscriptionValue = userEl.getElementsByTagName("subscription")?.item(0)?.textContent,
+                badgeValue = userEl.getElementsByTagName("badge")?.item(0)?.textContent,
+                presentText = userEl.getElementsByTagName("present")?.item(0)?.textContent
+            )
+        }
+    }
 
-            user?.apply {
-                jid = userEl.getElementsByTagName("jid")?.item(0)?.textContent ?: jid
-                nickname = userEl.getElementsByTagName("nickname")?.item(0)?.textContent ?: nickname
-                role_ = userEl.getElementsByTagName("role")?.item(0)?.textContent ?: role_
-                subscribtion_ = userEl.getElementsByTagName("subscription")?.item(0)?.textContent ?: subscribtion_
-                badge = userEl.getElementsByTagName("badge")?.item(0)?.textContent ?: ""
-                val presentText = userEl.getElementsByTagName("present")?.item(0)?.textContent
-                isOnline = presentText == "now"
-                if (presentText != null && presentText != "now") {
-                    lastSeenIso = presentText  // ISO date like "2018-10-04T22:00:00"
-                    try {
-                        val sdf = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.US)
-                        sdf.timeZone = java.util.TimeZone.getTimeZone("UTC")
-                        lastSeen = sdf.parse(presentText)?.time ?: 0L
-                    } catch (_: Exception) { }
-                }
-                updateTimestamp = System.currentTimeMillis()
-                isTemporary = !trustedSource
+    // Batch version: updates multiple DOM Element user cards in a single realm.write
+    private suspend fun updateUserCardsFromElements(
+        users: List<Element>,
+        groupchat: String,
+        trustedSource: Boolean
+    ) {
+        if (users.isEmpty()) return
+        realm.write {
+            for (userEl in users) {
+                val id = userEl.getAttribute("id")
+                if (id.isNullOrEmpty()) continue
+                updateUserCardInTransaction(
+                    userId = id,
+                    groupchat = groupchat,
+                    trustedSource = trustedSource,
+                    jidValue = userEl.getElementsByTagName("jid")?.item(0)?.textContent,
+                    nicknameValue = userEl.getElementsByTagName("nickname")?.item(0)?.textContent,
+                    roleValue = userEl.getElementsByTagName("role")?.item(0)?.textContent,
+                    subscriptionValue = userEl.getElementsByTagName("subscription")?.item(0)?.textContent,
+                    badgeValue = userEl.getElementsByTagName("badge")?.item(0)?.textContent,
+                    presentText = userEl.getElementsByTagName("present")?.item(0)?.textContent
+                )
             }
         }
     }
@@ -1288,41 +1433,42 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
         val id = userEl.getAttribute("id")
         if (id.isNullOrEmpty()) return
 
-        val groupchatId = GroupChatStorageItem.genPrimary(groupchat, owner)
-        val primary = GroupchatUserStorageItem.genPrimary(id, groupchat, owner)
-
         realm.write {
-            var user = query<GroupchatUserStorageItem>("primary = $0", primary).first().find()
-            if (user == null) {
-                user = GroupchatUserStorageItem().apply {
-                    this.primary = primary
-                    this.userId = id
-                    this.groupchatId = groupchatId
-                    this.owner = this@GroupchatManager.owner
-                }
-                copyToRealm(user, UpdatePolicy.ALL)
-            } else {
-                user = findLatest(user)
-            }
+            updateUserCardInTransaction(
+                userId = id,
+                groupchat = groupchat,
+                trustedSource = trustedSource,
+                jidValue = userEl.element("jid")?.textContent,
+                nicknameValue = userEl.element("nickname")?.textContent,
+                roleValue = userEl.element("role")?.textContent,
+                subscriptionValue = userEl.element("subscription")?.textContent,
+                badgeValue = userEl.element("badge")?.textContent,
+                presentText = userEl.element("present")?.textContent
+            )
+        }
+    }
 
-            user?.apply {
-                jid = userEl.element("jid")?.textContent ?: jid
-                nickname = userEl.element("nickname")?.textContent ?: nickname
-                role_ = userEl.element("role")?.textContent ?: role_
-                subscribtion_ = userEl.element("subscription")?.textContent ?: subscribtion_
-                badge = userEl.element("badge")?.textContent ?: ""
-                val presentText = userEl.element("present")?.textContent
-                isOnline = presentText == "now"
-                if (presentText != null && presentText != "now") {
-                    lastSeenIso = presentText
-                    try {
-                        val sdf = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.US)
-                        sdf.timeZone = java.util.TimeZone.getTimeZone("UTC")
-                        lastSeen = sdf.parse(presentText)?.time ?: 0L
-                    } catch (_: Exception) { }
-                }
-                updateTimestamp = System.currentTimeMillis()
-                isTemporary = !trustedSource
+    // Batch version: updates multiple XMLElement user cards in a single realm.write
+    private suspend fun updateUserCards(
+        users: List<Pair<XMLElement, String>>, // pair of (userElement, groupchat)
+        trustedSource: Boolean
+    ) {
+        if (users.isEmpty()) return
+        realm.write {
+            for ((userEl, groupchat) in users) {
+                val id = userEl.getAttribute("id")
+                if (id.isNullOrEmpty()) continue
+                updateUserCardInTransaction(
+                    userId = id,
+                    groupchat = groupchat,
+                    trustedSource = trustedSource,
+                    jidValue = userEl.element("jid")?.textContent,
+                    nicknameValue = userEl.element("nickname")?.textContent,
+                    roleValue = userEl.element("role")?.textContent,
+                    subscriptionValue = userEl.element("subscription")?.textContent,
+                    badgeValue = userEl.element("badge")?.textContent,
+                    presentText = userEl.element("present")?.textContent
+                )
             }
         }
     }

@@ -22,7 +22,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -86,7 +85,7 @@ class ChatMarkersManager(private val owner: String, withoutAfterburnTimer: Boole
 
     init {
         if (!withoutAfterburnTimer) {
-            runBlocking {
+            CoroutineScope(Dispatchers.IO).launch {
                 updateDeleteEphemeralMessagesTimer()
             }
         }
@@ -155,34 +154,14 @@ class ChatMarkersManager(private val owner: String, withoutAfterburnTimer: Boole
         val toJid = message.from!!
         val messageId = message.id ?: getOriginId(message)!!
         val elementId = "ChatMarkers_${NanoId.generateOptimized(8, "-0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", 63, 16)}"
-        val received = XMLElement(
-            name = "received",
-            namespace = getPrimaryNamespace(),
-            raw = "<received xmlns='${getPrimaryNamespace()}' id='$messageId'/>",
-            attributes = mapOf("id" to messageId),
-            children = emptyList()
-        )
-        val response = XMPPMessage(
-            raw = "",
-            type = "chat",
-            id = elementId,
-            to = toJid,
-            children = listOf(received)
-        )
         val conversationType = conversationTypeByMessage(message)
-        val conversation = XMLElement(
-            name = "conversation",
-            namespace = "https://xabber.com/protocol/synchronization",
-            raw = "<conversation xmlns='https://xabber.com/protocol/synchronization' type='${conversationType.rawValue}' jid='${toJid.bare()}'/>",
-            attributes = mapOf("type" to conversationType.rawValue, "jid" to toJid.bare()),
-            children = emptyList()
-        )
-        response.addElement(conversation)
+        val stanza = "<message type='chat' to='${toJid.bare()}' id='$elementId'>" +
+                "<received xmlns='${getPrimaryNamespace()}' id='$messageId'/>" +
+                "<conversation xmlns='https://xabber.com/protocol/synchronization' type='${conversationType.rawValue}' jid='${toJid.bare()}'/>" +
+                "</message>"
 
-        AccountManager.find(owner)?.unsafeAction { _, stream ->
-           runBlocking {
-               stream.socket?.write(response.raw)
-           }
+        AccountManager.find(owner)?.action { _, stream ->
+            stream.socket?.write(stanza)
         }
 
         return true
@@ -463,22 +442,11 @@ class ChatMarkersManager(private val owner: String, withoutAfterburnTimer: Boole
         }
     }
     suspend fun displayedById(stream: Stream, jid: String, messageId: String) {
-        val displayed = XMLElement(
-            name = "displayed",
-            namespace = getPrimaryNamespace(),
-            raw = "<displayed xmlns='${getPrimaryNamespace()}' id='$messageId'/>",
-            attributes = mapOf("id" to messageId),
-            children = emptyList()
-        )
         val elementId = "ChatMarkers_${NanoId.generateOptimized(8, "_-0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", 63, 16)}"
-        val message = XMPPMessage(
-            raw = "",
-            type = "chat",
-            id = elementId,
-            to = XMPPJID(fullJID = jid),
-            children = listOf(displayed)
-        )
-        stream.socket?.write(message.raw)
+        val stanza = "<message type='chat' to='$jid' id='$elementId'>" +
+                "<displayed xmlns='${getPrimaryNamespace()}' id='$messageId'/>" +
+                "</message>"
+        stream.socket?.write(stanza)
     }
 
 //    suspend fun displayed(stream: Stream, messagePrimary: String) {

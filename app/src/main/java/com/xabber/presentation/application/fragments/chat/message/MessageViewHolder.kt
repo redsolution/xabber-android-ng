@@ -56,6 +56,22 @@ abstract class MessageViewHolder(
     private var tvTime: TextView? = null
     private val TAG = "MessageViewHolder"
 
+    // Track what content type was last inflated to avoid re-inflation
+    private var lastContentType: Int = CONTENT_NONE
+    // MediaPlayer reference for proper cleanup on recycle
+    private var currentMediaPlayer: MediaPlayer? = null
+
+    private companion object {
+        const val CONTENT_NONE = 0
+        const val CONTENT_TEXT = 1
+        const val CONTENT_IMAGE = 2
+        const val CONTENT_GEO = 3
+        const val CONTENT_VOICE = 4
+        const val CONTENT_FILES = 5
+        const val CONTENT_FILES_TEXT = 6
+        const val CONTENT_IMAGE_TEXT = 7
+    }
+
     init {
         balloon = itemView.findViewById(R.id.balloon)
         tail = itemView.findViewById(R.id.tail)
@@ -63,19 +79,26 @@ abstract class MessageViewHolder(
         tvMessageText = itemView.findViewById(R.id.message_text)
         statusIcon = itemView.findViewById(R.id.message_status_icon)
         tvTime = itemView.findViewById(R.id.message_time)
-        setIsRecyclable(true)
+    }
+
+    /** Called when ViewHolder is recycled — release heavy resources */
+    fun onRecycled() {
+        releaseMediaPlayer()
+    }
+
+    private fun releaseMediaPlayer() {
+        try {
+            currentMediaPlayer?.release()
+        } catch (_: Exception) { }
+        currentMediaPlayer = null
     }
 
     open fun bind(message: MessageStorageItem, vhExtraData: MessageVhExtraData) {
-        messageContainer?.removeAllViews()
-        balloon?.removeAllViews()
-
         val images = ArrayList<MessageReferenceStorageItem>()
         val otherFiles = ArrayList<MessageReferenceStorageItem>()
 
         if (message.references.isNotEmpty()) {
             for (reference in message.references) {
-                // Skip metadata-only references (groupchat user info, system messages)
                 if (reference.kind_ == "groupchat" || reference.kind_ == "system-message") continue
                 val category = FileCategory.determineFileCategory(reference.mimeType ?: "")
                 if (category == FileCategory.IMAGE || category == FileCategory.VIDEO) {
@@ -98,29 +121,100 @@ abstract class MessageViewHolder(
             else -> MessageDisplayType.Text
         }
 
+        // Determine what content type this message needs
+        val contentType = when {
+            displayType == MessageDisplayType.System -> CONTENT_NONE
+            message.references.isNotEmpty() && message.references[0].isGeo -> CONTENT_GEO
+            message.references.isNotEmpty() && message.references[0].isAudioMessage -> CONTENT_VOICE
+            images.isNotEmpty() && message.body.isNotEmpty() -> CONTENT_IMAGE_TEXT
+            images.isNotEmpty() -> CONTENT_IMAGE
+            otherFiles.isNotEmpty() && message.body.isNotEmpty() -> CONTENT_FILES_TEXT
+            otherFiles.isNotEmpty() -> CONTENT_FILES
+            message.body.isNotEmpty() -> CONTENT_TEXT
+            else -> CONTENT_NONE
+        }
+
+        val sameContentType = contentType == lastContentType && messageContainer?.childCount != 0
+
         if (displayType != MessageDisplayType.System) {
-            if (message.references.isNotEmpty()) {
-                if (message.references[0].isGeo) {
-                    addGeoLocationBox(message, message.references[0].latitude ?: 0.0, message.references[0].longitude ?: 0.0)
-                } else if (message.references[0].isAudioMessage) {
-                    addVoiceMessageBox(message.references[0].uri!!, message)
-                } else {
-                    if (images.isNotEmpty()) addImageAndVideoBox(message, images)
-                    if (otherFiles.isNotEmpty()) addFilesBox(message, otherFiles)
+            if (sameContentType) {
+                // Same content type — try to update in place without re-inflation
+                when (contentType) {
+                    CONTENT_TEXT -> updateTextInPlace(message)
+                    CONTENT_IMAGE, CONTENT_IMAGE_TEXT, CONTENT_FILES, CONTENT_FILES_TEXT -> {
+                        // For images/files: just update time and status without re-inflating
+                        setMessageInfo(message)
+                        if (contentType == CONTENT_IMAGE_TEXT || contentType == CONTENT_FILES_TEXT) {
+                            updateTextInPlace(message)
+                        }
+                    }
+                    CONTENT_VOICE -> {
+                        // Voice: just update time/status, keep the existing MediaPlayer
+                        setMessageInfo(message)
+                    }
+                    CONTENT_GEO -> {
+                        // Geo: just update time/status, keep the map view
+                        setMessageInfo(message)
+                    }
+                    else -> {
+                        // Unknown — full rebuild
+                        rebuildContent(message, images, otherFiles)
+                    }
                 }
+            } else {
+                // Content type changed — full rebuild
+                rebuildContent(message, images, otherFiles)
             }
-            if (message.body.isNotEmpty()) addTextBox(message)
 
             setupOnClick(message, vhExtraData.isChecked)
             setupOnLongClick(message.primary, vhExtraData.isChecked)
             setBalloonBackground(message.outgoing, needTail)
             setItemCheckedBackground(vhExtraData.isChecked)
+        } else {
+            // System message — clear content
+            if (lastContentType != CONTENT_NONE) {
+                releaseMediaPlayer()
+                messageContainer?.removeAllViews()
+                balloon?.removeAllViews()
+            }
         }
 
+        lastContentType = contentType
         needDate = vhExtraData.isNeedDate
         isUnread = vhExtraData.isUnread
         messageId = message.primary
         date = getDateStringForMessage(message.sentDate)
+    }
+
+    /** Full rebuild: remove all views and re-inflate content */
+    private fun rebuildContent(
+        message: MessageStorageItem,
+        images: ArrayList<MessageReferenceStorageItem>,
+        otherFiles: ArrayList<MessageReferenceStorageItem>
+    ) {
+        releaseMediaPlayer()
+        messageContainer?.removeAllViews()
+        if (message.references.isNotEmpty()) {
+            if (message.references[0].isGeo) {
+                addGeoLocationBox(message, message.references[0].latitude ?: 0.0, message.references[0].longitude ?: 0.0)
+            } else if (message.references[0].isAudioMessage) {
+                addVoiceMessageBox(message.references[0].uri!!, message)
+            } else {
+                if (images.isNotEmpty()) addImageAndVideoBox(message, images)
+                if (otherFiles.isNotEmpty()) addFilesBox(message, otherFiles)
+            }
+        }
+        if (message.body.isNotEmpty()) addTextBox(message)
+    }
+
+    /** Fast path: update text message content without removing/inflating views */
+    private fun updateTextInPlace(message: MessageStorageItem) {
+        tvMessageText = itemView.findViewById(R.id.message_text)
+        tvMessageText?.text = if (message.body.isEmpty()) context.getString(R.string.empty_message) else message.body
+        tvTime = itemView.findViewById(R.id.message_time)
+        statusIcon = itemView.findViewById(R.id.message_status_icon)
+        setTime(message.sentDate, message.editDate)
+        if (statusIcon != null) setStatusIcon(statusIcon!!, message)
     }
 
     private fun setTime(sentTime: Long, editTime: Long) {
@@ -190,19 +284,23 @@ abstract class MessageViewHolder(
             TimeUnit.SECONDS.toSeconds(time)
         )
         VoiceMessagePresenterManager.getInstance().sendWaveDataIfSaved(path, presenter)
+        releaseMediaPlayer()
         val mediaPlayer = MediaPlayer()
+        currentMediaPlayer = mediaPlayer
         var isPlaying = false
+        var isPrepared = false
 
         try {
             mediaPlayer.setDataSource(path)
-            mediaPlayer.prepare()
+            mediaPlayer.setOnPreparedListener { isPrepared = true }
+            mediaPlayer.prepareAsync()
         } catch (e: Exception) {
             Log.e(TAG, "Failed to prepare media player for voice message: ${e.message}")
-            Toast.makeText(context, R.string.unable_to_play_audio, Toast.LENGTH_SHORT).show()
         }
 
         button?.setOnClickListener {
             try {
+                if (!isPrepared) return@setOnClickListener
                 if (isPlaying) {
                     mediaPlayer.pause()
                     button.setImageResource(R.drawable.ic_play)
@@ -310,7 +408,6 @@ abstract class MessageViewHolder(
         tvMessageText = itemView.findViewById(R.id.message_text)
         tvMessageText?.text = if (text.isEmpty()) context.getString(R.string.empty_message) else text
         tvMessageText?.movementMethod = CorrectlyTouchEventTextView.LocalLinkMovementMethod
-        tvMessageText?.post {}
     }
 
     private fun setMessageInfo(message: MessageStorageItem) {

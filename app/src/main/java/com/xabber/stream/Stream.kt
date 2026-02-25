@@ -26,7 +26,6 @@ import io.realm.kotlin.types.RealmObject
 import io.realm.kotlin.types.annotations.PrimaryKey
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.sync.Mutex
@@ -94,7 +93,7 @@ class Stream(var jid: String, var port: Int = 5222) {
         set(value) {
             field = value
             Log.d(TAG, "Transitioned to state: $value")
-            runBlocking(Dispatchers.IO) {
+            streamScope.launch {
                 when (value) {
                     StreamState.NOT_CONNECTING -> onNotConnecting()
                     StreamState.STREAM_OPEN -> onStreamOpen()
@@ -681,11 +680,14 @@ class Stream(var jid: String, var port: Int = 5222) {
     }
 
     fun deleteSelfChats() {
-        val realm = Realm.open(defaultRealmConfig())
-        realm.writeBlocking {
-            val selfChats = query<LastChatsStorageItem>("owner = $0 AND jid = $0", jid).find()
-            delete(selfChats)
-            Log.d(TAG, "Deleted ${selfChats.size} self-chats for owner=$jid")
+        streamScope.launch {
+            val realm = Realm.open(defaultRealmConfig())
+            realm.write {
+                val selfChats = query<LastChatsStorageItem>("owner = $0 AND jid = $0", jid).find()
+                delete(selfChats)
+                Log.d(TAG, "Deleted ${selfChats.size} self-chats for owner=$jid")
+            }
+            realm.close()
         }
     }
 
@@ -984,7 +986,7 @@ class Stream(var jid: String, var port: Int = 5222) {
 
     fun logout(jid: String) {
         if (this.jid == jid) {
-            runBlocking(Dispatchers.IO) {
+            CoroutineScope(Dispatchers.IO).launch {
                 close()
             }
         }

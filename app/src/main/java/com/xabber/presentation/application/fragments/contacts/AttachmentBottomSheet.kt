@@ -457,7 +457,7 @@ class AttachmentBottomSheet : BottomSheetDialogFragment(R.layout.layout_bottom_s
             )
         }
 
-        val chat = chatVM.loadChat(getChatId()) ?: return
+        val chat = chatVM.getCachedChat() ?: return
 
         val currentTime = System.currentTimeMillis()
         val messageId = currentTime.toString()
