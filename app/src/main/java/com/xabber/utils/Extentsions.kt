@@ -245,7 +245,12 @@ fun LastChatsStorageItem.toChatListDto(): ChatListDto =
         muteExpired = muteExpired,
         pinnedDate = pinnedPosition,
         status = ResourceStatus.ONLINE,
-        entity = RosterItemEntity.CONTACT,
+        entity = when (conversationType_) {
+            ConversationType.Group.rawValue -> RosterItemEntity.GROUP_CHAT
+            ConversationType.Private.rawValue -> RosterItemEntity.PRIVATE_CHAT
+            ConversationType.Incognito.rawValue -> RosterItemEntity.INCOGNITO
+            else -> RosterItemEntity.CONTACT
+        },
         unread = if (unread <= 0) "" else unread.toString(),
         lastPosition = lastPosition,
         drawableId = avatar,

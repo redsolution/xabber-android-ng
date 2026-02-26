@@ -18,6 +18,7 @@ import com.xabber.presentation.application.fragments.chat.viewmodel.ChatViewMode
 import com.xabber.stream.StreamState
 import com.xabber.utils.toAccountDto
 import com.xabber.utils.toChatListDto
+import com.xabber.xmpp.groupchat.GroupChatStorageItem
 import com.xabber.xmpp.jid.XMPPJID
 import io.realm.kotlin.Realm
 import io.realm.kotlin.UpdatePolicy
@@ -444,6 +445,20 @@ class ChatModel(
 
     fun close() {
         realm.close()
+    }
+
+    data class GroupInfo(val members: Int, val present: Int)
+
+    fun observeGroupInfo(): Flow<GroupInfo?> {
+        val groupPrimary = GroupChatStorageItem.genPrimary(opponent, owner)
+        return realm.query<GroupChatStorageItem>("primary = $0", groupPrimary)
+            .asFlow()
+            .map { changes ->
+                changes.list.firstOrNull()?.let {
+                    GroupInfo(it.members, it.present)
+                }
+            }
+            .distinctUntilChanged()
     }
 
     fun observeOpponentPresence(): Flow<ChatViewModel.OpponentPresence> {

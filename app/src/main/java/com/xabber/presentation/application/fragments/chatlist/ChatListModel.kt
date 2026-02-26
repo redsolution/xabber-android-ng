@@ -37,8 +37,12 @@ class ChatListModel {
             .map { changes ->
                 changes.list.map { item ->
                     val baseDto = item.toChatListDto()
-                    val presenceStatus = getBestPresence(item.owner, item.jid)
-                    baseDto.copy(status = presenceStatus)
+                    if (baseDto.isGroup) {
+                        baseDto
+                    } else {
+                        val presenceStatus = getBestPresence(item.owner, item.jid)
+                        baseDto.copy(status = presenceStatus)
+                    }
                 }
             }
     }
@@ -51,8 +55,12 @@ class ChatListModel {
             .find()
         result.map { item ->
             val baseDto = item.toChatListDto()
-            val presenceStatus = getBestPresence(item.owner, item.jid)
-            baseDto.copy(status = presenceStatus)
+            if (baseDto.isGroup) {
+                baseDto
+            } else {
+                val presenceStatus = getBestPresence(item.owner, item.jid)
+                baseDto.copy(status = presenceStatus)
+            }
         }
     }
 

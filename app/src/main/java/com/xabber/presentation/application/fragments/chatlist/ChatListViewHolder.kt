@@ -16,6 +16,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.xabber.R
 import com.xabber.data_base.models.messages.MessageSendingState
+import com.xabber.data_base.models.presences.RosterItemEntity
 import com.xabber.databinding.ItemChatListBinding
 import com.xabber.dto.ChatListDto
 import com.xabber.presentation.AppConstants
@@ -158,15 +159,19 @@ class ChatListViewHolder(
 
     private fun setupChatStatus(chatListDto: ChatListDto) {
         val icon = StatusMaker.statusIcon(chatListDto.entity)
-        val tint = StatusMaker.statusTint(chatListDto.status)
 
         if (icon != null) {
             binding.imChatStatus.isVisible = true
             binding.imChatStatus.setImageResource(icon)
-            binding.imChatStatus.setColorFilter(
-                ContextCompat.getColor(itemView.context, tint),
-                PorterDuff.Mode.SRC_IN
-            )
+            if (chatListDto.entity == RosterItemEntity.CONTACT) {
+                val tint = StatusMaker.statusTint(chatListDto.status)
+                binding.imChatStatus.setColorFilter(
+                    ContextCompat.getColor(itemView.context, tint),
+                    PorterDuff.Mode.SRC_IN
+                )
+            } else {
+                binding.imChatStatus.clearColorFilter()
+            }
         }
     }
 

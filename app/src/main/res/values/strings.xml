@@ -450,6 +450,15 @@
         <item quantity="other">in %1$d days</item>
     </plurals>
 
+    <plurals name="member_count">
+        <item quantity="one">%1$d member</item>
+        <item quantity="other">%1$d members</item>
+    </plurals>
+    <plurals name="online_count">
+        <item quantity="one">%1$d online</item>
+        <item quantity="other">%1$d online</item>
+    </plurals>
+
     <!-- Notifications -->
     <string name="notifications">Notifications</string>
     <string name="adtn">\tNotifications are coming to Xabber for Android! Not this release, but they are on our roadmap.\n

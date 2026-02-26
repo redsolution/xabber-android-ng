@@ -302,6 +302,18 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
         setTitle(chat.getChatName())
         setStatus(chat.status, chat.entity)
         setupMuteIcon(chat.muteExpired)
+        if (!chat.isGroup) {
+            binding.tvStatusMessage.text = getString(when (chat.status) {
+                ResourceStatus.ONLINE -> R.string.available
+                ResourceStatus.CHAT   -> R.string.chat
+                ResourceStatus.AWAY   -> R.string.away
+                ResourceStatus.DND    -> R.string.dnd
+                ResourceStatus.XA     -> R.string.xa
+                ResourceStatus.OFFLINE -> R.string.offline
+            })
+        } else {
+            binding.tvStatusMessage.text = ""
+        }
     }
 
     private fun onOrientationChange() {
@@ -353,10 +365,16 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
     }
 
     private fun setStatus(resourceStatus: ResourceStatus, rosterItemEntity: RosterItemEntity) {
-        val statusIcon = StatusMaker.statusIcon(RosterItemEntity.CONTACT)
-        val statusTint = StatusMaker.statusTint(ResourceStatus.DND)
+        val statusIcon = StatusMaker.statusIcon(rosterItemEntity)
         if (statusIcon != null) {
             binding.avatarStatus.isVisible = true
+            binding.avatarStatus.setImageResource(statusIcon)
+            if (rosterItemEntity == RosterItemEntity.CONTACT) {
+                val tintColor = ContextCompat.getColor(requireContext(), StatusMaker.statusTint(resourceStatus))
+                binding.avatarStatus.setColorFilter(tintColor, PorterDuff.Mode.SRC_IN)
+            } else {
+                binding.avatarStatus.clearColorFilter()
+            }
         } else {
             binding.avatarStatus.isVisible = false
         }
@@ -990,8 +1008,14 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
             setupOpponentName(it ?: "Saved messages")
         }
 
-        viewModel.opponentPresence.observe(viewLifecycleOwner) { presence ->
-            updateStatusUI(presence)
+        if (viewModel.isGroup) {
+            viewModel.groupInfo.observe(viewLifecycleOwner) { info ->
+                updateGroupInfoUI(info)
+            }
+        } else {
+            viewModel.opponentPresence.observe(viewLifecycleOwner) { presence ->
+                updateStatusUI(presence)
+            }
         }
 
         viewModel.muteExpired.observe(viewLifecycleOwner) {
@@ -1073,14 +1097,21 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
         } else {
             getString(when (status) {
                 ResourceStatus.ONLINE -> R.string.available
-                ResourceStatus.CHAT   -> R.string.chat          // You may need to add this string
+                ResourceStatus.CHAT   -> R.string.chat
                 ResourceStatus.AWAY   -> R.string.away
                 ResourceStatus.DND    -> R.string.dnd
-                ResourceStatus.XA     -> R.string.xa            // You may need to add this string
+                ResourceStatus.XA     -> R.string.xa
                 ResourceStatus.OFFLINE-> R.string.offline
             })
         }
         binding.tvStatusMessage.text = statusText
+    }
+
+    private fun updateGroupInfoUI(info: ChatModel.GroupInfo?) {
+        if (info == null) return
+        val members = resources.getQuantityString(R.plurals.member_count, info.members, info.members)
+        val online = resources.getQuantityString(R.plurals.online_count, info.present, info.present)
+        binding.tvStatusMessage.text = "$members, $online"
     }
 
     private fun isAtBottom(): Boolean {

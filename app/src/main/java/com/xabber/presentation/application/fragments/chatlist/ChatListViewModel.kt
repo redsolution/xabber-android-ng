@@ -58,9 +58,13 @@ class ChatListViewModel : ViewModel() {
             ) { chatList, presenceMap ->
                 chatList
                     .map { dto ->
-                        val key = "${dto.owner}|${dto.opponentJid}"
-                        val newStatus = presenceMap[key]?.status ?: dto.status
-                        dto.copy(status = newStatus)
+                        if (dto.isGroup) {
+                            dto
+                        } else {
+                            val key = "${dto.owner}|${dto.opponentJid}"
+                            val newStatus = presenceMap[key]?.status ?: dto.status
+                            dto.copy(status = newStatus)
+                        }
                     }
                     .applyAccountColors()
                     .sortedWith(compareByDescending<ChatListDto> { it.pinnedDate }

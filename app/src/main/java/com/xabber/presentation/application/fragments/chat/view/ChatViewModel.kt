@@ -21,6 +21,7 @@ import com.xabber.presentation.application.fragments.chat.message.appendToChatIt
 import com.xabber.presentation.application.fragments.chat.message.toChatItems
 import com.xabber.presentation.XabberApplication.Companion.applicationContext as appContext
 import com.xabber.presentation.application.fragments.chat.view.ChatModel
+import com.xabber.utils.toChatListDto
 import com.xabber.xmpp.jid.XMPPJID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -47,6 +48,8 @@ class ChatViewModel(
     private val _opponentPresence = MutableLiveData<OpponentPresence>()
     val opponentPresence: LiveData<OpponentPresence> = _opponentPresence
 
+    private val _groupInfo = MutableLiveData<ChatModel.GroupInfo?>()
+    val groupInfo: LiveData<ChatModel.GroupInfo?> = _groupInfo
 
     private val _chat = MutableLiveData<LastChatsStorageItem?>()
     val chat: LiveData<LastChatsStorageItem?> = _chat
@@ -183,9 +186,17 @@ class ChatViewModel(
         loadInitialData()
         markAllAsRead()
 
-        viewModelScope.launch {
-            model.observeOpponentPresence().collect { presence ->
-                _opponentPresence.postValue(presence)
+        if (isGroup) {
+            viewModelScope.launch {
+                model.observeGroupInfo().collect { info ->
+                    _groupInfo.postValue(info)
+                }
+            }
+        } else {
+            viewModelScope.launch {
+                model.observeOpponentPresence().collect { presence ->
+                    _opponentPresence.postValue(presence)
+                }
             }
         }
     }
@@ -223,6 +234,7 @@ class ChatViewModel(
                 chatItem?.let {
                     _muteExpired.value = it.muteExpired
                     _opponentName.value = it.rosterItem?.displayName ?: it.jid
+                    cachedChatDto = it.toChatListDto()
                 }
             }
         }
