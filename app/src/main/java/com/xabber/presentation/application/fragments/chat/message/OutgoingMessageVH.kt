@@ -15,13 +15,13 @@ class OutgoingMessageVH(
     onViewClickListener: MessageAdapter.OnViewClickListener?
 ) : MessageViewHolder(itemView, inflater, menuItemListener, onViewClickListener) {
 
+    private val tvName: TextView? = itemView.findViewById(R.id.tv_message_username)
+
     override fun bind(message: MessageStorageItem, vhExtraData: MessageVhExtraData) {
         super.bind(message, vhExtraData)
-        val tvName = itemView.findViewById<TextView>(R.id.tv_message_username)
         if (tvName != null) {
             tvName.isVisible = vhExtraData.isNeedName && vhExtraData.isGroup
             if (tvName.isVisible) {
-                // In Swift, outgoing messages in groups show "You:"
                 tvName.text = "You:"
             }
         }

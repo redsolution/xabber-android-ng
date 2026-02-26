@@ -5,6 +5,7 @@ import android.content.Intent
 import android.graphics.PorterDuff
 import android.graphics.PorterDuffColorFilter
 import android.media.MediaPlayer
+import android.text.util.Linkify
 import android.util.Log
 import android.view.Gravity
 import android.view.LayoutInflater
@@ -61,6 +62,10 @@ abstract class MessageViewHolder(
     // MediaPlayer reference for proper cleanup on recycle
     private var currentMediaPlayer: MediaPlayer? = null
 
+    // Cached color filters — only 2 variants (incoming/outgoing), allocated once
+    private val outgoingColorFilter: PorterDuffColorFilter
+    private val incomingColorFilter: PorterDuffColorFilter
+
     private companion object {
         const val CONTENT_NONE = 0
         const val CONTENT_TEXT = 1
@@ -79,6 +84,11 @@ abstract class MessageViewHolder(
         tvMessageText = itemView.findViewById(R.id.message_text)
         statusIcon = itemView.findViewById(R.id.message_status_icon)
         tvTime = itemView.findViewById(R.id.message_time)
+
+        val outgoingColor = ContextCompat.getColor(context, R.color.white)
+        val incomingColor = ContextCompat.getColor(context, R.color.blue_100)
+        outgoingColorFilter = PorterDuffColorFilter(outgoingColor, PorterDuff.Mode.SRC_IN)
+        incomingColorFilter = PorterDuffColorFilter(incomingColor, PorterDuff.Mode.SRC_IN)
     }
 
     /** Called when ViewHolder is recycled — release heavy resources */
@@ -137,32 +147,13 @@ abstract class MessageViewHolder(
         val sameContentType = contentType == lastContentType && messageContainer?.childCount != 0
 
         if (displayType != MessageDisplayType.System) {
-            if (sameContentType) {
-                // Same content type — try to update in place without re-inflation
-                when (contentType) {
-                    CONTENT_TEXT -> updateTextInPlace(message)
-                    CONTENT_IMAGE, CONTENT_IMAGE_TEXT, CONTENT_FILES, CONTENT_FILES_TEXT -> {
-                        // For images/files: just update time and status without re-inflating
-                        setMessageInfo(message)
-                        if (contentType == CONTENT_IMAGE_TEXT || contentType == CONTENT_FILES_TEXT) {
-                            updateTextInPlace(message)
-                        }
-                    }
-                    CONTENT_VOICE -> {
-                        // Voice: just update time/status, keep the existing MediaPlayer
-                        setMessageInfo(message)
-                    }
-                    CONTENT_GEO -> {
-                        // Geo: just update time/status, keep the map view
-                        setMessageInfo(message)
-                    }
-                    else -> {
-                        // Unknown — full rebuild
-                        rebuildContent(message, images, otherFiles)
-                    }
-                }
+            if (sameContentType && contentType == CONTENT_TEXT) {
+                // Text → Text: fast path — update text without re-inflating views
+                updateTextInPlace(message)
             } else {
-                // Content type changed — full rebuild
+                // All other cases: full rebuild to ensure correct content display.
+                // With view type segregation, RecyclerView only recycles matching
+                // content types, so this branch is hit less often.
                 rebuildContent(message, images, otherFiles)
             }
 
@@ -209,10 +200,10 @@ abstract class MessageViewHolder(
 
     /** Fast path: update text message content without removing/inflating views */
     private fun updateTextInPlace(message: MessageStorageItem) {
-        tvMessageText = itemView.findViewById(R.id.message_text)
-        tvMessageText?.text = if (message.body.isEmpty()) context.getString(R.string.empty_message) else message.body
-        tvTime = itemView.findViewById(R.id.message_time)
-        statusIcon = itemView.findViewById(R.id.message_status_icon)
+        // Views are cached — no need for findViewById on every bind
+        val text = if (message.body.isEmpty()) context.getString(R.string.empty_message) else message.body
+        tvMessageText?.text = text
+        applyLinksIfNeeded(text)
         setTime(message.sentDate, message.editDate)
         if (statusIcon != null) setStatusIcon(statusIcon!!, message)
     }
@@ -230,8 +221,7 @@ abstract class MessageViewHolder(
             if (needTail) ChatSettingsManager.tail else ChatSettingsManager.simple
         )
         val tailBackground = ContextCompat.getDrawable(context, ChatSettingsManager.tailDrawable)
-        val colorBackground = ContextCompat.getColor(context, if (isOutgoing) R.color.white else R.color.blue_100)
-        val colorFilter = PorterDuffColorFilter(colorBackground, PorterDuff.Mode.SRC_IN)
+        val colorFilter = if (isOutgoing) outgoingColorFilter else incomingColorFilter
         balloonBackground?.colorFilter = colorFilter
         tailBackground?.colorFilter = colorFilter
 
@@ -405,14 +395,25 @@ abstract class MessageViewHolder(
     }
 
     private fun setMessageText(text: String) {
-        tvMessageText = itemView.findViewById(R.id.message_text)
-        tvMessageText?.text = if (text.isEmpty()) context.getString(R.string.empty_message) else text
+        tvMessageText = messageContainer?.findViewById(R.id.message_text)
+        val displayText = if (text.isEmpty()) context.getString(R.string.empty_message) else text
+        tvMessageText?.text = displayText
+        applyLinksIfNeeded(displayText)
         tvMessageText?.movementMethod = CorrectlyTouchEventTextView.LocalLinkMovementMethod
     }
 
+    /** Only run Linkify regex when the text likely contains a URL */
+    private fun applyLinksIfNeeded(text: String) {
+        val tv = tvMessageText ?: return
+        if (text.contains("://") || text.contains("www.") || text.contains("@")) {
+            Linkify.addLinks(tv, Linkify.WEB_URLS or Linkify.EMAIL_ADDRESSES)
+        }
+    }
+
     private fun setMessageInfo(message: MessageStorageItem) {
-        tvTime = itemView.findViewById(R.id.message_time)
-        statusIcon = itemView.findViewById(R.id.message_status_icon)
+        // Re-find views from messageContainer since they're inside dynamically inflated content
+        tvTime = messageContainer?.findViewById(R.id.message_time)
+        statusIcon = messageContainer?.findViewById(R.id.message_status_icon)
         setTime(message.sentDate, message.editDate)
         if (statusIcon != null) setStatusIcon(statusIcon!!, message)
     }

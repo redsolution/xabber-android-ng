@@ -17,6 +17,7 @@ import com.xabber.data_base.models.sync.ConversationType
 import com.xabber.dto.AccountDto
 import com.xabber.dto.ChatListDto
 import com.xabber.presentation.application.fragments.chat.message.ChatItem
+import com.xabber.presentation.application.fragments.chat.message.appendToChatItems
 import com.xabber.presentation.application.fragments.chat.message.toChatItems
 import com.xabber.presentation.XabberApplication.Companion.applicationContext as appContext
 import com.xabber.presentation.application.fragments.chat.view.ChatModel
@@ -36,6 +37,10 @@ class ChatViewModel(
     val opponent: String,
     val conversationType: ConversationType
 ) : ViewModel() {
+
+    val isGroup = conversationType == ConversationType.Group ||
+            conversationType == ConversationType.Incognito ||
+            conversationType == ConversationType.Private
 
     private val model = ChatModel(chatId, owner, opponent, conversationType)
 
@@ -89,6 +94,81 @@ class ChatViewModel(
 
     private val TAG = "ChatViewModel"
 
+    // --- Incremental update infrastructure ---
+
+    private data class MessageSignature(
+        val primary: String,
+        val bodyHash: Int,
+        val sentDate: Long,
+        val editDate: Long,
+        val outgoing: Boolean,
+        val state: Int
+    )
+
+    private enum class ChangeType { READ_ONLY, APPENDED, FULL }
+
+    @Volatile
+    private var cachedSignatures: List<MessageSignature> = emptyList()
+    @Volatile
+    private var cachedChatItemsList: List<ChatItem> = emptyList()
+
+    private fun MessageStorageItem.toSignature() = MessageSignature(
+        primary = primary,
+        bodyHash = body.hashCode(),
+        sentDate = sentDate,
+        editDate = editDate,
+        outgoing = outgoing,
+        state = state_
+    )
+
+    /**
+     * Compares the previous message signatures with the new message list to
+     * determine what kind of change occurred:
+     * - READ_ONLY: same messages, only isRead/readDate changed → skip ChatItem rebuild
+     * - APPENDED: new messages added at the end → incremental append
+     * - FULL: anything else (edit, delete, prepend, reorder) → full rebuild
+     */
+    private fun detectChangeType(
+        prevSignatures: List<MessageSignature>,
+        newMessages: List<MessageStorageItem>
+    ): ChangeType {
+        if (prevSignatures.isEmpty()) return ChangeType.FULL
+
+        val oldSize = prevSignatures.size
+        val newSize = newMessages.size
+
+        // Same count: check if only read-status fields changed
+        if (newSize == oldSize) {
+            for (i in prevSignatures.indices) {
+                val prev = prevSignatures[i]
+                val msg = newMessages[i]
+                if (prev.primary != msg.primary ||
+                    prev.bodyHash != msg.body.hashCode() ||
+                    prev.sentDate != msg.sentDate ||
+                    prev.editDate != msg.editDate ||
+                    prev.outgoing != msg.outgoing ||
+                    prev.state != msg.state_) {
+                    return ChangeType.FULL
+                }
+            }
+            return ChangeType.READ_ONLY
+        }
+
+        // More messages: check if the new ones were appended at the end
+        if (newSize > oldSize) {
+            for (i in prevSignatures.indices) {
+                if (prevSignatures[i].primary != newMessages[i].primary) {
+                    return ChangeType.FULL
+                }
+            }
+            return ChangeType.APPENDED
+        }
+
+        // Fewer messages (deletion) or other structural change
+        return ChangeType.FULL
+    }
+
+    // --- End incremental update infrastructure ---
 
     data class OpponentPresence(val status: ResourceStatus, val statusMessage: String?)
 
@@ -182,17 +262,46 @@ class ChatViewModel(
         messagesJob?.cancel()
         messagesJob = viewModelScope.launch {
             model.observeMessages().collectLatest { messageList ->
-                // Move heavy computation off the main thread
-                val (chatItems, unread) = withContext(Dispatchers.Default) {
+                val prevSigs = cachedSignatures
+                val prevItems = cachedChatItemsList
+
+                val (chatItems, unread, newSigs) = withContext(Dispatchers.Default) {
                     val unread = messageList.count { !it.isRead && !it.outgoing }
-                    val items = messageList.toChatItems(unread)
-                    items to unread
+                    val changeType = detectChangeType(prevSigs, messageList)
+                    Log.d(TAG, "observeMessages changeType=$changeType, old=${prevSigs.size}, new=${messageList.size}")
+
+                    when (changeType) {
+                        ChangeType.READ_ONLY -> {
+                            // Only isRead/readDate changed — skip ChatItem rebuild entirely.
+                            // Reuse previous signatures since visual fields are identical.
+                            Triple(null, unread, prevSigs)
+                        }
+                        ChangeType.APPENDED -> {
+                            // New messages at the end — incrementally append ChatItems
+                            val newSigs = messageList.map { it.toSignature() }
+                            val items = appendToChatItems(prevItems, messageList, prevSigs.size, isGroup)
+                            Triple(items, unread, newSigs)
+                        }
+                        ChangeType.FULL -> {
+                            val newSigs = messageList.map { it.toSignature() }
+                            val items = messageList.toChatItems(unread, isGroup)
+                            Triple(items, unread, newSigs)
+                        }
+                    }
                 }
 
-                // Post results on main thread (fast)
+                // Update caches
+                cachedSignatures = newSigs
+
+                // Always update backward-compat list and unread badge
                 _messages.value = messageList
                 _unreadCount.value = unread
-                _chatItems.value = chatItems
+
+                // Only push to adapter when visual content actually changed
+                if (chatItems != null) {
+                    cachedChatItemsList = chatItems
+                    _chatItems.value = chatItems
+                }
             }
         }
     }
@@ -202,16 +311,41 @@ class ChatViewModel(
             _isLoading.value = true
             val initialMessages = model.getMessages()
 
-            val (chatItems, unread) = withContext(Dispatchers.Default) {
+            val (chatItems, unread, sigs) = withContext(Dispatchers.Default) {
                 val unread = initialMessages.count { !it.isRead && !it.outgoing }
-                val items = initialMessages.toChatItems(unread)
-                items to unread
+                val items = initialMessages.toChatItems(unread, isGroup)
+                val sigs = initialMessages.map { it.toSignature() }
+                Triple(items, unread, sigs)
             }
 
+            cachedSignatures = sigs
+            cachedChatItemsList = chatItems
             _messages.value = initialMessages
             _unreadCount.value = unread
             _chatItems.value = chatItems
             _isLoading.value = false
+        }
+    }
+
+    /** Lightweight enqueue — no coroutine work, just adds to set. Use during scroll. */
+    fun enqueueMarkRead(id: String) {
+        synchronized(pendingMarkRead) {
+            pendingMarkRead.add(id)
+        }
+    }
+
+    /** Flush all enqueued mark-read IDs. Call when scroll stops. */
+    @RequiresApi(Build.VERSION_CODES.O)
+    fun flushPendingMarkRead() {
+        val ids: List<String>
+        synchronized(pendingMarkRead) {
+            if (pendingMarkRead.isEmpty()) return
+            ids = pendingMarkRead.toList()
+            pendingMarkRead.clear()
+        }
+        markReadJob?.cancel()
+        markReadJob = viewModelScope.launch {
+            model.markAsReadBatch(ids)
         }
     }
 
@@ -246,12 +380,15 @@ class ChatViewModel(
         viewModelScope.launch {
             val messages = model.getMessages()
 
-            val (chatItems, unread) = withContext(Dispatchers.Default) {
+            val (chatItems, unread, sigs) = withContext(Dispatchers.Default) {
                 val unread = messages.count { !it.isRead && !it.outgoing }
-                val items = messages.toChatItems(unread)
-                items to unread
+                val items = messages.toChatItems(unread, isGroup)
+                val sigs = messages.map { it.toSignature() }
+                Triple(items, unread, sigs)
             }
 
+            cachedSignatures = sigs
+            cachedChatItemsList = chatItems
             _messages.value = messages
             _unreadCount.value = unread
             _chatItems.value = chatItems
@@ -295,6 +432,7 @@ class ChatViewModel(
 
     @RequiresApi(Build.VERSION_CODES.O)
     fun markAllAsRead() {
+        if ((_unreadCount.value ?: 0) == 0) return
         viewModelScope.launch {
             model.markAllAsRead(chatId)
             NotificationManagerCompat.from(appContext()).cancel(chatId.hashCode())
@@ -378,12 +516,15 @@ class ChatViewModel(
 
     fun updateMessagesAndUnread(messages: List<MessageStorageItem>) {
         viewModelScope.launch {
-            val (chatItems, unread) = withContext(Dispatchers.Default) {
+            val (chatItems, unread, sigs) = withContext(Dispatchers.Default) {
                 val unread = messages.count { !it.isRead && !it.outgoing }
-                val items = messages.toChatItems(unread)
-                items to unread
+                val items = messages.toChatItems(unread, isGroup)
+                val sigs = messages.map { it.toSignature() }
+                Triple(items, unread, sigs)
             }
 
+            cachedSignatures = sigs
+            cachedChatItemsList = chatItems
             _messages.value = messages
             _unreadCount.value = unread
             _chatItems.value = chatItems

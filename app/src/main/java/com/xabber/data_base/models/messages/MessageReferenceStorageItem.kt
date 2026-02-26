@@ -67,7 +67,7 @@ open class MessageReferenceStorageItem : RealmObject {
     var conversationType_: String = ConversationType.Regular.rawValue
 
     @Ignore
-    private var realm = Realm.open(defaultRealmConfig())
+    private val realm by lazy { Realm.open(defaultRealmConfig()) }
 
     // Cache parsed metadata to avoid repeated JSON parsing during scroll
     @Ignore

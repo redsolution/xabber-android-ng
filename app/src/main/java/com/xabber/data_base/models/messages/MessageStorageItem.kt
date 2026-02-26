@@ -174,13 +174,17 @@ class MessageStorageItem : RealmObject {
 
     private fun ensureGroupchatRefCached() {
         if (_groupchatRefCached) return
-        val ref = references.firstOrNull { it.kind_ == "groupchat" }
-        val meta = ref?.metadata
-        _groupchatAuthorId = meta?.get("id") as? String
-        _groupchatAuthorNickname = meta?.get("nickname") as? String
-        _groupchatAuthorBadge = meta?.get("badge") as? String
-        _groupchatAuthorJid = meta?.get("jid") as? String
         _groupchatRefCached = true
+        // Skip RealmList scan entirely for non-group conversations
+        if (conversationType_ != ConversationType.Group.rawValue &&
+            conversationType_ != ConversationType.Incognito.rawValue &&
+            conversationType_ != ConversationType.Private.rawValue) return
+        val ref = references.firstOrNull { it.kind_ == "groupchat" } ?: return
+        val meta = ref.metadata ?: return
+        _groupchatAuthorId = meta["id"] as? String
+        _groupchatAuthorNickname = meta["nickname"] as? String
+        _groupchatAuthorBadge = meta["badge"] as? String
+        _groupchatAuthorJid = meta["jid"] as? String
     }
 
     val groupchatAuthorNickname: String?

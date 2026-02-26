@@ -114,6 +114,7 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
     private val handler = Handler(Looper.getMainLooper())
     private var messageAdapter: MessageAdapter? = null
     private var layoutManager: LinearLayoutManager? = null
+    private var isUserScrolling = false
     private val viewModel: ChatViewModel by viewModel { parametersOf(getParams().id) }
     private val audioRecorder = AudioRecorder()
     private var replySwipeCallback: ReplySwipeCallback? = null
@@ -573,6 +574,7 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
             reverseLayout = false
         }
         binding.messageList.layoutManager = layoutManager
+        binding.messageList.setItemViewCacheSize(4)
         addSwipeCallback()
         addScrollListener()
         binding.messageList.itemAnimator = null
@@ -630,9 +632,11 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
 
             override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
                 super.onScrollStateChanged(recyclerView, newState)
-                // Removed invalidateItemDecorations() here — it was forcing full decoration
-                // redraw on every scroll stop, causing unnecessary main thread work.
-                // Decorations are drawn automatically during scroll via onDrawOver().
+                isUserScrolling = newState != RecyclerView.SCROLL_STATE_IDLE
+                if (!isUserScrolling) {
+                    // Scroll stopped — flush any pending markAsRead
+                    viewModel.flushPendingMarkRead()
+                }
             }
         })
 
@@ -1019,7 +1023,7 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
             val wasAtBottom = isAtBottom()
             messageAdapter?.submitList(items) {
                 if (wasAtBottom) {
-                    scrollDown()
+                    scrollToBottom()
                 }
             }
         }
@@ -1207,15 +1211,29 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
         }
     }
 
-    private fun scrollDown() {
-        if (messageAdapter != null && messageAdapter!!.itemCount > 0) {
-            binding.messageList.post {
-                layoutManager?.scrollToPosition(messageAdapter!!.itemCount - 1)
+    /**
+     * Lightweight scroll to the last message. No Realm writes.
+     * Use this from the chatItems observer where onBind already handles
+     * per-message mark-as-read through the debounced markAsRead(id) path.
+     */
+    private fun scrollToBottom() {
+        if (messageAdapter == null || messageAdapter!!.itemCount == 0) return
+        binding.messageList.post {
+            layoutManager?.scrollToPosition(messageAdapter!!.itemCount - 1)
+        }
+        binding.tvNewReceivedCount.isVisible = false
+        binding.tvNewReceivedCount.text = ""
+        messageAdapter?.setFirstUnreadMessageId(null)
+    }
 
-            }
-            binding.tvNewReceivedCount.isVisible = false
-            binding.tvNewReceivedCount.text = ""
-            messageAdapter?.setFirstUnreadMessageId(null)
+    /**
+     * Full scroll-down: scrolls to bottom AND marks all messages as read.
+     * Use for explicit user actions (send message, tap down-button, open chat).
+     */
+    private fun scrollDown() {
+        scrollToBottom()
+        val unread = viewModel.unreadCount.value ?: 0
+        if (unread > 0) {
             viewModel.markAllAsRead()
         }
     }
@@ -1540,7 +1558,12 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
 
     fun onBind(message: MessageStorageItem?) {
         if (message != null && !message.isRead && !message.outgoing) {
-            viewModel.markAsRead(message.primary)
+            if (isUserScrolling) {
+                // During scroll: just collect the ID, don't cancel/relaunch coroutines
+                viewModel.enqueueMarkRead(message.primary)
+            } else {
+                viewModel.markAsRead(message.primary)
+            }
         }
     }
 
