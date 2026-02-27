@@ -366,17 +366,23 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
 
     private fun setStatus(resourceStatus: ResourceStatus, rosterItemEntity: RosterItemEntity) {
         val statusIcon = StatusMaker.statusIcon(rosterItemEntity)
-        if (statusIcon != null) {
+        if (statusIcon == null) {
+            binding.avatarStatus.isVisible = false
+            return
+        }
+        if (rosterItemEntity == RosterItemEntity.CONTACT) {
+            if (resourceStatus == ResourceStatus.OFFLINE) {
+                binding.avatarStatus.isVisible = false
+                return
+            }
             binding.avatarStatus.isVisible = true
             binding.avatarStatus.setImageResource(statusIcon)
-            if (rosterItemEntity == RosterItemEntity.CONTACT) {
-                val tintColor = ContextCompat.getColor(requireContext(), StatusMaker.statusTint(resourceStatus))
-                binding.avatarStatus.setColorFilter(tintColor, PorterDuff.Mode.SRC_IN)
-            } else {
-                binding.avatarStatus.clearColorFilter()
-            }
+            val tintColor = ContextCompat.getColor(requireContext(), StatusMaker.statusTint(resourceStatus))
+            binding.avatarStatus.setColorFilter(tintColor, PorterDuff.Mode.SRC_IN)
         } else {
-            binding.avatarStatus.isVisible = false
+            binding.avatarStatus.isVisible = true
+            binding.avatarStatus.setImageResource(statusIcon)
+            binding.avatarStatus.clearColorFilter()
         }
     }
 
@@ -1087,9 +1093,13 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
         val status = presence.status
         val customMessage = presence.statusMessage
 
-        // Set tint on the status icon
-        val tintColor = ContextCompat.getColor(requireContext(), StatusMaker.statusTint(status))
-        binding.avatarStatus.drawable?.setColorFilter(tintColor, PorterDuff.Mode.SRC_IN)
+        if (status == ResourceStatus.OFFLINE) {
+            binding.avatarStatus.isVisible = false
+        } else {
+            binding.avatarStatus.isVisible = true
+            val tintColor = ContextCompat.getColor(requireContext(), StatusMaker.statusTint(status))
+            binding.avatarStatus.setColorFilter(tintColor, PorterDuff.Mode.SRC_IN)
+        }
 
         // Determine the text to display
         val statusText = if (!customMessage.isNullOrBlank()) {

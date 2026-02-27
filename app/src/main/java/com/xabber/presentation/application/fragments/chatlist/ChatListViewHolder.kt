@@ -16,6 +16,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.xabber.R
 import com.xabber.data_base.models.messages.MessageSendingState
+import com.xabber.data_base.models.presences.ResourceStatus
 import com.xabber.data_base.models.presences.RosterItemEntity
 import com.xabber.databinding.ItemChatListBinding
 import com.xabber.dto.ChatListDto
@@ -160,18 +161,27 @@ class ChatListViewHolder(
     private fun setupChatStatus(chatListDto: ChatListDto) {
         val icon = StatusMaker.statusIcon(chatListDto.entity)
 
-        if (icon != null) {
+        if (icon == null) {
+            binding.imChatStatus.isVisible = false
+            return
+        }
+
+        if (chatListDto.entity == RosterItemEntity.CONTACT) {
+            if (chatListDto.status == ResourceStatus.OFFLINE) {
+                binding.imChatStatus.isVisible = false
+                return
+            }
             binding.imChatStatus.isVisible = true
             binding.imChatStatus.setImageResource(icon)
-            if (chatListDto.entity == RosterItemEntity.CONTACT) {
-                val tint = StatusMaker.statusTint(chatListDto.status)
-                binding.imChatStatus.setColorFilter(
-                    ContextCompat.getColor(itemView.context, tint),
-                    PorterDuff.Mode.SRC_IN
-                )
-            } else {
-                binding.imChatStatus.clearColorFilter()
-            }
+            val tint = StatusMaker.statusTint(chatListDto.status)
+            binding.imChatStatus.setColorFilter(
+                ContextCompat.getColor(itemView.context, tint),
+                PorterDuff.Mode.SRC_IN
+            )
+        } else {
+            binding.imChatStatus.isVisible = true
+            binding.imChatStatus.setImageResource(icon)
+            binding.imChatStatus.clearColorFilter()
         }
     }
 
