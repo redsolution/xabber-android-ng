@@ -135,9 +135,35 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
 
     private var reconnectSnackbar: Snackbar? = null
 
+    // --- Chat view stack (max 6 cached chat fragments) ---
+    private val chatFragmentStack = ArrayDeque<String>() // chatIds, oldest first
+    private var currentDetailTag: String? = null
+
+    private fun chatTag(chatId: String) = "${CHAT_TAG_PREFIX}${chatId}"
+
+    /** Scan cached chat fragments and update currentDetailTag to whichever is currently visible. */
+    private fun syncCurrentDetailTag() {
+        val fm = supportFragmentManager
+        for (chatId in chatFragmentStack.reversed()) {
+            val tag = chatTag(chatId)
+            val frag = fm.findFragmentByTag(tag) ?: continue
+            if (!frag.isHidden) {
+                currentDetailTag = tag
+                return
+            }
+        }
+        currentDetailTag = null
+    }
+    // ------------------------------------------------------
+
     companion object {
         var currentActivity: ApplicationActivity? = null
             private set
+
+        private const val CHAT_TAG_PREFIX = "chat_"
+        private const val MAX_CHAT_STACK = 10
+        private const val KEY_CHAT_STACK = "chat_fragment_stack"
+        private const val KEY_CURRENT_DETAIL_TAG = "current_detail_tag"
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
@@ -153,6 +179,17 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         initViews()
         setupStatusBar()
         currentActivity = this
+
+        // Restore chat stack state after process recreation
+        if (savedInstanceState != null) {
+            val savedStack = savedInstanceState.getStringArrayList(KEY_CHAT_STACK)
+            if (savedStack != null) chatFragmentStack.addAll(savedStack)
+            currentDetailTag = savedInstanceState.getString(KEY_CURRENT_DETAIL_TAG)
+        }
+
+        // Keep currentDetailTag in sync whenever the backstack changes (e.g. popBackStack via close())
+        supportFragmentManager.addOnBackStackChangedListener { syncCurrentDetailTag() }
+
         ProcessLifecycleOwner.get().lifecycle.addObserver(object : DefaultLifecycleObserver {
             override fun onStart(owner: LifecycleOwner) {
                 super.onStart(owner)
@@ -1288,10 +1325,18 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
 
 
     override fun launchDetail(fragment: Fragment) {
-        supportFragmentManager.commit {
+        val fm = supportFragmentManager
+        val tag = "detail_${System.nanoTime()}"
+        val currentVisible = currentDetailTag?.let { fm.findFragmentByTag(it) }
+        fm.commit {
             setReorderingAllowed(true)
-            replace(R.id.detail_container, fragment)
+            currentVisible?.let {
+                // Chat fragments are kept alive (hidden); non-chat fragments are replaced (removed)
+                if (currentDetailTag!!.startsWith(CHAT_TAG_PREFIX)) hide(it) else remove(it)
+            }
+            add(R.id.detail_container, fragment, tag)
         }
+        currentDetailTag = tag
         binding.slidingPaneLayout.openPane()
     }
 
@@ -1335,15 +1380,23 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
             binding.toolbarNav.isVisible = true
             setupNavigationDrawer()
 
-            // In portrait mode, ensure detail_container is cleared and SlidingPaneLayout is closed
+            // In portrait mode, hide/remove the visible detail fragment and close the pane
             if (isPortrait) {
-                val detailFragment = supportFragmentManager.findFragmentById(R.id.detail_container)
-                if (detailFragment != null) {
-                    supportFragmentManager.beginTransaction()
-                        .remove(detailFragment)
-                        .commit()
-                    Log.d("ApplicationActivity", "goBack: Cleared detail_container in portrait mode")
+                val tag = currentDetailTag
+                // Use the tracked tag if available; fall back to findFragmentById for fragments
+                // opened via launchDetailInStack (replace+backstack, so currentDetailTag is null)
+                val detailFrag = if (tag != null) {
+                    supportFragmentManager.findFragmentByTag(tag)
+                } else {
+                    supportFragmentManager.findFragmentById(R.id.detail_container)?.takeIf { !it.isHidden }
                 }
+                if (detailFrag != null) {
+                    supportFragmentManager.beginTransaction().apply {
+                        if (tag != null && tag.startsWith(CHAT_TAG_PREFIX)) hide(detailFrag) else remove(detailFrag)
+                    }.commit()
+                    Log.d("ApplicationActivity", "goBack: Hid/removed detail fragment in portrait mode")
+                }
+                currentDetailTag = null
                 if (binding.slidingPaneLayout.isOpen) {
                     binding.slidingPaneLayout.closePane()
                     Log.d("ApplicationActivity", "goBack: Closed SlidingPaneLayout in portrait mode")
@@ -1355,7 +1408,9 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
                 override fun onBackStackChanged() {
                     val restoredFragment = supportFragmentManager.findFragmentById(R.id.application_container)
                     Log.d("ApplicationActivity", "Back stack changed, restored fragment = ${restoredFragment?.javaClass?.simpleName}")
-                    val restoredDetailFragment = supportFragmentManager.findFragmentById(R.id.detail_container)
+                    // Re-sync currentDetailTag from the visible chat fragments
+                    syncCurrentDetailTag()
+                    val restoredDetailFragment = currentDetailTag?.let { supportFragmentManager.findFragmentByTag(it) }
                     if (!isPortrait && restoredDetailFragment is ChatView) {
                         binding.slidingPaneLayout.openPane()
                     }
@@ -1389,13 +1444,35 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
 
 
     override fun closeDetail() {
-        if (supportFragmentManager.findFragmentById(R.id.detail_container) != null) {
-            supportFragmentManager.beginTransaction()
-                .remove(supportFragmentManager.findFragmentById(R.id.detail_container)!!)
-                .commit()
-            if (binding.slidingPaneLayout.isOpen) binding.slidingPaneLayout.close()
-        } else {
-            if (supportFragmentManager.backStackEntryCount > 0) supportFragmentManager.popBackStack()
+        val tag = currentDetailTag
+        val fm = supportFragmentManager
+        when {
+            tag != null && tag.startsWith(CHAT_TAG_PREFIX) -> {
+                // Chat fragment — hide it (keep alive in the stack)
+                fm.findFragmentByTag(tag)?.let { frag ->
+                    if (!frag.isHidden) fm.commit { hide(frag) }
+                }
+                currentDetailTag = null
+                if (binding.slidingPaneLayout.isOpen) binding.slidingPaneLayout.close()
+            }
+            tag != null -> {
+                // Non-chat detail fragment — remove it completely
+                fm.findFragmentByTag(tag)?.let { frag ->
+                    fm.beginTransaction().remove(frag).commit()
+                }
+                currentDetailTag = null
+                if (binding.slidingPaneLayout.isOpen) binding.slidingPaneLayout.close()
+            }
+            else -> {
+                // Fallback for fragments opened outside our tag tracking
+                val detailFrag = fm.findFragmentById(R.id.detail_container)
+                if (detailFrag != null) {
+                    fm.beginTransaction().remove(detailFrag).commit()
+                    if (binding.slidingPaneLayout.isOpen) binding.slidingPaneLayout.close()
+                } else if (fm.backStackEntryCount > 0) {
+                    fm.popBackStack()
+                }
+            }
         }
     }
     override fun close() {
@@ -1422,7 +1499,36 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
     }
 
     override fun showChat(chatParams: ChatParams) {
-        launchDetail(ChatView.newInstance(chatParams))
+        val chatId = chatParams.id
+        val newTag = chatTag(chatId)
+        val fm = supportFragmentManager
+        val existingFrag = fm.findFragmentByTag(newTag)
+        val currentVisible = currentDetailTag?.let { fm.findFragmentByTag(it) }
+
+        fm.commit {
+            setReorderingAllowed(true)
+            // Hide whatever is currently visible in the detail pane
+            if (currentVisible != null && currentVisible !== existingFrag) {
+                hide(currentVisible)
+            }
+            if (existingFrag != null) {
+                // Chat is cached — bring it back to the front
+                show(existingFrag)
+                chatFragmentStack.remove(chatId)
+                chatFragmentStack.addLast(chatId)
+            } else {
+                // New chat — add it to the container
+                add(R.id.detail_container, ChatView.newInstance(chatParams), newTag)
+                chatFragmentStack.addLast(chatId)
+                // Evict the oldest entry when the stack exceeds the limit
+                if (chatFragmentStack.size > MAX_CHAT_STACK) {
+                    val evictedId = chatFragmentStack.removeFirst()
+                    fm.findFragmentByTag(chatTag(evictedId))?.let { remove(it) }
+                }
+            }
+        }
+        currentDetailTag = newTag
+        binding.slidingPaneLayout.openPane()
     }
 
 
@@ -1599,6 +1705,8 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
             CHAT_LIST_UNREAD_KEY,
             viewModel.showUnreadOnly
         )
+        outState.putStringArrayList(KEY_CHAT_STACK, ArrayList(chatFragmentStack))
+        currentDetailTag?.let { outState.putString(KEY_CURRENT_DETAIL_TAG, it) }
     }
 
     override fun onDestroy() {

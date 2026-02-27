@@ -19,6 +19,7 @@ import com.xabber.stream.StreamState
 import com.xabber.utils.toAccountDto
 import com.xabber.utils.toChatListDto
 import com.xabber.xmpp.groupchat.GroupChatStorageItem
+import com.xabber.xmpp.groupchat.GroupchatUserStorageItem
 import com.xabber.xmpp.jid.XMPPJID
 import io.realm.kotlin.Realm
 import io.realm.kotlin.UpdatePolicy
@@ -30,6 +31,7 @@ import io.realm.kotlin.types.RealmList
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -451,14 +453,26 @@ class ChatModel(
 
     fun observeGroupInfo(): Flow<GroupInfo?> {
         val groupPrimary = GroupChatStorageItem.genPrimary(opponent, owner)
-        return realm.query<GroupChatStorageItem>("primary = $0", groupPrimary)
+
+        val groupChatFlow = realm.query<GroupChatStorageItem>("primary = $0", groupPrimary)
             .asFlow()
-            .map { changes ->
-                changes.list.firstOrNull()?.let {
-                    GroupInfo(it.members, it.present)
-                }
+            .map { changes -> changes.list.firstOrNull() }
+
+        val userStatsFlow = realm.query<GroupchatUserStorageItem>("groupchatId = $0", groupPrimary)
+            .asFlow()
+            .map { changes -> changes.list }
+
+        return combine(groupChatFlow, userStatsFlow) { group, users ->
+            when {
+                // Server-reported counts are authoritative when present
+                group != null && group.members > 0 ->
+                    GroupInfo(group.members, group.present)
+                // Fall back to counting known user cards (covers empty GroupChatStorageItem)
+                users.isNotEmpty() ->
+                    GroupInfo(users.size, users.count { it.isOnline })
+                else -> null
             }
-            .distinctUntilChanged()
+        }.distinctUntilChanged()
     }
 
     fun observeOpponentPresence(): Flow<ChatViewModel.OpponentPresence> {

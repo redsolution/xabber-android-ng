@@ -192,6 +192,7 @@ class ChatViewModel(
                     _groupInfo.postValue(info)
                 }
             }
+            refreshGroupInfo()
         } else {
             viewModelScope.launch {
                 model.observeOpponentPresence().collect { presence ->
@@ -236,6 +237,21 @@ class ChatViewModel(
                     _opponentName.value = it.rosterItem?.displayName ?: it.jid
                     cachedChatDto = it.toChatListDto()
                 }
+            }
+        }
+    }
+
+    fun refreshGroupInfo() {
+        if (!isGroup) return
+        viewModelScope.launch {
+            try {
+                val bareOwner = XMPPJID(fullJID = owner).bare()
+                val bareOpponent = XMPPJID(fullJID = opponent).bare()
+                AccountManager.find(bareOwner)?.action { acc, stream ->
+                    acc.groupchatManager?.requestGroupInfo(stream, bareOpponent)
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to request group info: ${e.message}")
             }
         }
     }

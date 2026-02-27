@@ -484,10 +484,11 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
         val elementId = "GC:${NanoId.generate(6)}"
         val groupJid = fullJid(groupchat)?.toString() ?: "$groupchat/Group"
         val iq = """
-            <iq type='get' to='$groupJid' id='$elementId'>
+            <iq to='$groupJid' type='get' id='$elementId'>
                 <query xmlns='${xmlns("info")}'/>
             </iq>
         """.trimIndent()
+        Log.w(TAG, "GROUP INFO REQUEST _________ SENT")
         stream.socket?.write(iq)
         addQueryId(elementId)
         queueItems.add(QueueItem(QueueItem.Action.REQUEST_INFO, elementId, callback))
@@ -730,6 +731,9 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
                         info != null -> handleInfoResponse(iqElement, id, from, type)
                         defaultRights != null -> handleDefaultRightsResponse(iqElement, id, from, type)
                         rights != null -> handleRightsResponse(iqElement, id, from, type)
+                        // Info response wraps data in <x xmlns='NAMESPACE'> with no <query> wrapper
+                        queueItems.find { it.elementId == id }?.action == QueueItem.Action.REQUEST_INFO ->
+                            handleInfoResponse(iqElement, id, from, type)
                         else -> handleGenericSuccess(iqElement, id, type)
                     }
                     return@withContext true
@@ -805,6 +809,19 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
 
     suspend fun handleMessage(message: XMPPMessage) {
         val groupchat = message.from?.bare() ?: return
+
+        // Ensure GroupChatStorageItem exists so presence updates have somewhere to write
+        val groupPrimary = GroupChatStorageItem.genPrimary(groupchat, owner)
+        if (realm.query<GroupChatStorageItem>("primary = $0", groupPrimary).first().find() == null) {
+            realm.write {
+                copyToRealm(GroupChatStorageItem().apply {
+                    primary = groupPrimary
+                    jid = groupchat
+                    this.owner = this@GroupchatManager.owner
+                }, UpdatePolicy.ALL)
+            }
+        }
+
         // Collect all user elements from the message, then batch-write once
         val userElements = mutableListOf<Pair<XMLElement, String>>()
 
@@ -1216,8 +1233,10 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
     private suspend fun handleInfoResponse(iq: Element, id: String, from: String, type: String) {
         val item = queueItems.find { it.elementId == id } ?: return
         if (type == "result") {
-            val query = iq.getElementsByTagName("query")?.item(0) as? Element
-            if (query != null) {
+            // Per spec the response uses <x xmlns='NAMESPACE'>; fall back to <query> for safety
+            val dataEl = iq.getElementsByTagNameNS(NAMESPACE, "x")?.item(0) as? Element
+                ?: iq.getElementsByTagName("query")?.item(0) as? Element
+            if (dataEl != null) {
                 val jid = try { XMPPJID(from).bare() } catch (e: Exception) { from }
                 realm.write {
                     val groupPrimary = GroupChatStorageItem.genPrimary(jid, owner)
@@ -1233,18 +1252,17 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
                         group = findLatest(group)
                     }
                     group?.let {
-                        query.getElementsByTagName("name")?.item(0)?.textContent?.let { v -> it.name = v }
-                        query.getElementsByTagName("description")?.item(0)?.textContent?.let { v -> it.descr = v }
-                        query.getElementsByTagName("privacy")?.item(0)?.textContent?.let { v -> it.privacy_ = v }
-                        query.getElementsByTagName("membership")?.item(0)?.textContent?.let { v -> it.membership_ = v }
-                        query.getElementsByTagName("index")?.item(0)?.textContent?.let { v -> it.index_ = v }
-                        query.getElementsByTagName("status")?.item(0)?.textContent?.let { v -> it.status = v }
-                        query.getElementsByTagName("members")?.item(0)?.textContent?.toIntOrNull()?.let { v -> it.members = v }
-                        query.getElementsByTagName("pinned-message")?.item(0)?.textContent?.let { v -> it.pinnedMessage = v }
-                        query.getElementsByTagName("parent-chat")?.item(0)?.textContent?.let { v -> it.parentChat = v }
-                        query.getElementsByTagName("anonymous")?.item(0)?.textContent?.let { v -> it.anonymous = v == "true" }
-                        // Parse languages
-                        val langElements = query.getElementsByTagName("language")
+                        dataEl.getElementsByTagName("name")?.item(0)?.textContent?.let { v -> it.name = v }
+                        dataEl.getElementsByTagName("description")?.item(0)?.textContent?.let { v -> it.descr = v }
+                        dataEl.getElementsByTagName("privacy")?.item(0)?.textContent?.let { v -> it.privacy_ = v }
+                        dataEl.getElementsByTagName("membership")?.item(0)?.textContent?.let { v -> it.membership_ = v }
+                        dataEl.getElementsByTagName("index")?.item(0)?.textContent?.let { v -> it.index_ = v }
+                        dataEl.getElementsByTagName("status")?.item(0)?.textContent?.let { v -> it.status = v }
+                        dataEl.getElementsByTagName("members")?.item(0)?.textContent?.toIntOrNull()?.let { v -> it.members = v }
+                        dataEl.getElementsByTagName("pinned-message")?.item(0)?.textContent?.let { v -> it.pinnedMessage = v }
+                        dataEl.getElementsByTagName("parent-chat")?.item(0)?.textContent?.let { v -> it.parentChat = v }
+                        dataEl.getElementsByTagName("anonymous")?.item(0)?.textContent?.let { v -> it.anonymous = v == "true" }
+                        val langElements = dataEl.getElementsByTagName("language")
                         if (langElements.length > 0) {
                             it.languages.clear()
                             for (i in 0 until langElements.length) {

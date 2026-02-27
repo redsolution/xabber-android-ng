@@ -640,17 +640,13 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
                     }
 
                     val lastVisible = layoutManager!!.findLastVisibleItemPosition()
-                    if (lastVisible >= messageAdapter!!.itemCount - 3) {
-                        binding.downScroller.isVisible = false
-                    } else {
-                        if (currentVoiceRecordingState !in listOf(
-                                VoiceRecordState.TouchRecording,
-                                VoiceRecordState.InitiatedRecording,
-                                VoiceRecordState.NoTouchRecording
-                            )) {
-                            binding.downScroller.isVisible = viewModel.unreadCount.value ?: 0 > 0
-                        }
-                    }
+                    val atBottom = lastVisible >= messageAdapter!!.itemCount - 3
+                    val recording = currentVoiceRecordingState in listOf(
+                        VoiceRecordState.TouchRecording,
+                        VoiceRecordState.InitiatedRecording,
+                        VoiceRecordState.NoTouchRecording
+                    )
+                    binding.downScroller.isVisible = !atBottom && !recording
                 }
             }
 
@@ -665,6 +661,7 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
         })
 
         binding.btnDownward.setOnClickListener {
+            binding.messageList.stopScroll()
             val lastVisiblePosition = layoutManager!!.findLastVisibleItemPosition()
             if (viewModel.unreadCount.value == 0 ||
                 lastVisiblePosition + 3 >= messageAdapter!!.itemCount) {
@@ -1064,10 +1061,12 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
             }
             lifecycleScope.launch(Dispatchers.Main) {
                 showUnreadBadge(unread)
-                binding.downScroller.isVisible = unread > 0 &&
-                        layoutManager != null &&
-                        messageAdapter != null &&
-                        !isAtBottom()  // Add this check
+                // When new messages arrive while scrolled up, make the button visible.
+                // When already at bottom the scroll listener already hides it; don't
+                // override that here based on unread count.
+                if (!isAtBottom()) {
+                    binding.downScroller.isVisible = true
+                }
             }
         }
 

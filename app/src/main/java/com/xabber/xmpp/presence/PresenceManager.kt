@@ -9,6 +9,7 @@ import com.xabber.data_base.models.roster.Ask
 import com.xabber.data_base.models.roster.Subscription
 import com.xabber.data_base.models.presences.ResourceStorageItem
 import com.xabber.xmpp.device.DeviceStorageItem
+import com.xabber.xmpp.groupchat.GroupChatStorageItem
 import io.realm.kotlin.Realm
 import io.realm.kotlin.MutableRealm
 import io.realm.kotlin.UpdatePolicy
@@ -51,6 +52,12 @@ data class ParsedPresence(
     val priority: Int?
 )
 
+data class ParsedGroupPresence(
+    val from: String?,   // bare JID of the group
+    val members: Int?,
+    val present: Int?
+)
+
 class PresenceManager(private val owner: String, private val socket: Socket) {
     private val scope = CoroutineScope(Dispatchers.IO.limitedParallelism(2) + SupervisorJob())
     private val stanzaProcessingScope = CoroutineScope(Dispatchers.IO.limitedParallelism(2) + SupervisorJob())
@@ -63,14 +70,19 @@ class PresenceManager(private val owner: String, private val socket: Socket) {
         }
     }
     private val presenceBuffer = Channel<ParsedPresence>(capacity = 100)
+    private val groupPresenceBuffer = Channel<ParsedGroupPresence>(capacity = 50)
     private val bufferMutex = Mutex()
     private var processingJob: Job? = null
+    private var groupProcessingJob: Job? = null
     private val TAG = "PresenceManager"
     private val realm = Realm.open(defaultRealmConfig())
 
     init {
         scope.launch {
             startPresenceProcessing()
+        }
+        scope.launch {
+            startGroupPresenceProcessing()
         }
     }
 
@@ -113,10 +125,9 @@ class PresenceManager(private val owner: String, private val socket: Socket) {
 
     suspend fun processPresence(presenceXml: String): Boolean {
         try {
-            // Early check for group-related presence to skip "presence cloak"
+            // Group presence: parse members/present counts instead of skipping
             if (presenceXml.contains("https://xabber.com/protocol/groups")) {
-                Log.d(TAG, "Skipping group-related presence stanza: ${presenceXml.take(200)}")
-                return true
+                return parseAndEnqueueGroupPresence(presenceXml)
             }
 
             // Incremental parse with XmlPullParser
@@ -288,9 +299,87 @@ class PresenceManager(private val owner: String, private val socket: Socket) {
         }
     }
 
+    private suspend fun parseAndEnqueueGroupPresence(presenceXml: String): Boolean {
+        try {
+            val factory = XmlPullParserFactory.newInstance()
+            factory.isNamespaceAware = true
+            val parser = factory.newPullParser()
+            parser.setInput(StringReader(presenceXml))
+            var eventType = parser.eventType
+            var from: String? = null
+            var members: Int? = null
+            var present: Int? = null
+            var inGroupsX = false
+
+            while (eventType != XmlPullParser.END_DOCUMENT) {
+                when (eventType) {
+                    XmlPullParser.START_TAG -> when (parser.name) {
+                        "presence" -> from = parser.getAttributeValue(null, "from")?.split("/")?.get(0)
+                        "x" -> if (parser.namespace == "https://xabber.com/protocol/groups") inGroupsX = true
+                        "members" -> if (inGroupsX) {
+                            parser.next()
+                            if (parser.eventType == XmlPullParser.TEXT) members = parser.text?.toIntOrNull()
+                        }
+                        "present" -> if (inGroupsX) {
+                            parser.next()
+                            if (parser.eventType == XmlPullParser.TEXT) present = parser.text?.toIntOrNull()
+                        }
+                    }
+                    XmlPullParser.END_TAG -> if (parser.name == "x") inGroupsX = false
+                }
+                eventType = parser.next()
+            }
+
+            // Only enqueue if we got at least one useful field
+            if (from != null && (members != null || present != null)) {
+                groupPresenceBuffer.send(ParsedGroupPresence(from, members, present))
+            }
+            return true
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to parse group presence: ${e.message}", e)
+            return false
+        }
+    }
+
+    private suspend fun startGroupPresenceProcessing() {
+        groupProcessingJob?.cancelAndJoin()
+        groupProcessingJob = scope.launch {
+            val batch = mutableListOf<ParsedGroupPresence>()
+            groupPresenceBuffer.consumeAsFlow().collect { presence ->
+                batch.add(presence)
+                if (batch.size >= 10 || groupPresenceBuffer.isEmpty) {
+                    processGroupPresenceBatch(batch.toList())
+                    batch.clear()
+                }
+            }
+        }
+    }
+
+    private suspend fun processGroupPresenceBatch(presences: List<ParsedGroupPresence>) {
+        if (presences.isEmpty()) return
+        try {
+            val groupItems = realm.query<GroupChatStorageItem>("owner = $0", owner).find()
+                .associateBy { it.jid }
+            realm.write {
+                presences.forEach { presence ->
+                    val from = presence.from ?: return@forEach
+                    val groupItem = groupItems[from] ?: return@forEach
+                    findLatest(groupItem)?.apply {
+                        presence.members?.let { members = it }
+                        presence.present?.let { present = it }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error processing group presence batch: ${e.message}")
+        }
+    }
+
     suspend fun close() {
         presenceBuffer.close()
+        groupPresenceBuffer.close()
         processingJob?.cancelAndJoin()
+        groupProcessingJob?.cancelAndJoin()
         stanzaProcessingScope.cancel()
         realm.close()
         Log.d(TAG, "PresenceManager closed for owner=$owner")

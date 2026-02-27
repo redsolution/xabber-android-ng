@@ -1094,6 +1094,10 @@ class Account : XMPPStreamDelegate {
     }
 
         override suspend fun streamDidConnect(stream: Stream): Boolean {
+            // Start keepalive now that the stream is fully authenticated and bound.
+            // Starting it earlier (at TCP connect) causes pings during handshake → not-authorized.
+            stream.socket?.startKeepAlive()
+
             CoroutineScope(Dispatchers.IO).launch {
                 presenceManager?.sendInitialPresence()
 

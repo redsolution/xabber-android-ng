@@ -124,7 +124,8 @@ class Socket(private val host: String, private val port: Int) {
     private var keepAliveJob: Job? = null
     @Volatile
     private var lastDataReceivedTime = System.currentTimeMillis()
-    private val PING_TIMEOUT_MS = 30_000L
+    private val KEEPALIVE_INTERVAL_MS = 10_000L    // how often to send a keepalive ping
+    private val DEAD_CONNECTION_MS    = 120_000L  // silence this long → declare connection dead
 
     val isClosed: Boolean
         get() = socket?.isClosed != false || writer?.isClosedForWrite != false
@@ -148,37 +149,57 @@ class Socket(private val host: String, private val port: Int) {
         this.domain = domain
     }
 
-    private fun startKeepAlive() {
+    fun startKeepAlive() {
         keepAliveJob?.cancel()
         lastDataReceivedTime = System.currentTimeMillis()
         keepAliveJob = scope.launch {
             while (scope.isActive) {
-                delay(10_000)
-                if (socket?.isClosed == false && writer?.isClosedForWrite == false) {
-                    // Check if we've received any data recently
-                    val silentMs = System.currentTimeMillis() - lastDataReceivedTime
-                    if (silentMs > PING_TIMEOUT_MS) {
-                        Log.w(tagPing, "No data received for ${silentMs}ms — treating connection as dead")
-                        closeInternal()
+                delay(KEEPALIVE_INTERVAL_MS)
+
+                if (socket?.isClosed != false || writer?.isClosedForWrite != false) break
+
+                // If the TCP layer has been completely silent for too long the remote
+                // side is likely gone (network drop without a FIN/RST).
+                val silentMs = System.currentTimeMillis() - lastDataReceivedTime
+                if (silentMs > DEAD_CONNECTION_MS) {
+                    Log.w(tagPing, "No data received for ${silentMs}ms — declaring connection dead")
+                    closeInternal()
+                    if (!isReadLoopErrorFired) {
+                        isReadLoopErrorFired = true
+                        onReadLoopError?.invoke()
+                    }
+                    break
+                }
+
+                // Send a single whitespace character.  XMPP servers silently ignore
+                // whitespace between stanzas (RFC 6120 §4.6), so this carries zero
+                // protocol overhead.  A write failure means the socket is dead.
+                try {
+                    if (sendKeepalivePing()) {
+                        Log.v(tagPing, "Keepalive ping sent to $domain (silent for ${silentMs}ms)")
+                    } else {
+                        Log.w(tagPing, "Keepalive ping write failed — triggering reconnect")
                         if (!isReadLoopErrorFired) {
                             isReadLoopErrorFired = true
                             onReadLoopError?.invoke()
                         }
                         break
                     }
-                    try {
-                        val success = sendPing()
-                        if (success) {
-                            Log.v(tagPing, "Keep-alive ping sent")
-                        } else {
-                            Log.w(tagPing, "Keep-alive ping failed — triggering reconnect")
-                        }
-                    } catch (e: Exception) {
-                        Log.w(tagPing, "Keep-alive ping exception: ${e.message}")
+                } catch (e: Exception) {
+                    Log.w(tagPing, "Keepalive ping exception: ${e.message}")
+                    if (!isReadLoopErrorFired) {
+                        isReadLoopErrorFired = true
+                        onReadLoopError?.invoke()
                     }
+                    break
                 }
             }
         }
+    }
+
+    private suspend fun sendKeepalivePing(): Boolean {
+        val stanza = "<iq type='get' to='$domain' id='ka-${System.currentTimeMillis()}'><ping xmlns='urn:xmpp:ping'/></iq>"
+        return write(stanza)
     }
 
     suspend fun connect(host: String, port: Int, alternateEndpoints: List<Pair<String, Int>> = emptyList()): Boolean = withContext(Dispatchers.IO) {
@@ -211,7 +232,6 @@ class Socket(private val host: String, private val port: Int) {
                                 return@async false
                             }
                             startReadingLoop()
-                            startKeepAlive()
                             Log.d(TAG, "TCP connection established for $targetHost:$targetPort")
                             return@async true
                         } catch (e: TimeoutCancellationException) {
@@ -944,12 +964,6 @@ class Socket(private val host: String, private val port: Int) {
             Log.e(TAG, "Failed to parse stream response: ${e.message}\nRaw response: $response", e)
             return null
         }
-    }
-
-    suspend fun sendPing(): Boolean = withContext(Dispatchers.IO) {
-        val pingId = "ping}"
-        val ping = "<iq type='get' id='$pingId'><ping xmlns='urn:xmpp:ping'/></iq>"
-        return@withContext write(ping)
     }
 
     private suspend fun closeInternal() = withContext(Dispatchers.IO) {
