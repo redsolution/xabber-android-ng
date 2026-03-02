@@ -665,7 +665,7 @@ suspend fun displayed(stream: Stream, messagePrimary: String) = withContext(Disp
             message.element("omemo", namespace = "urn:xmpp:omemo:2") != null -> ConversationType.Omemo
             message.element("omemo", namespace = "urn:xmpp:omemo:1") != null -> ConversationType.Omemo1
             message.element("axolotl", namespace = "eu.siacs.conversations.axolotl") != null -> ConversationType.Axolotl
-            message.element("xen", namespace = "urn:xabber:xen:0") != null -> ConversationType.Notifications
+            message.element("notification", namespace = "urn:xabber:xen:0") != null -> ConversationType.Notifications
             else -> ConversationType.Regular
         }.also {
             Log.d("MessageCommonReceiver", "Determined conversationType=${it.rawValue} for messageId=${message.id}, to=$to")

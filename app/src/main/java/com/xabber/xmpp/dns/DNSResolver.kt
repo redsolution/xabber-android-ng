@@ -1,18 +1,15 @@
 package com.xabber.xmpp.dns
 
 import android.util.Log
-import org.minidns.dnsmessage.DnsMessage
 import org.minidns.hla.ResolverApi
-import org.minidns.hla.ResolverResult
-import org.minidns.hla.SrvResolverResult
 import org.minidns.hla.srv.SrvProto
 import org.minidns.hla.srv.SrvService
-import org.minidns.record.A
 import org.minidns.record.SRV
 import java.net.InetAddress
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -20,80 +17,75 @@ import kotlinx.coroutines.withTimeoutOrNull
 
 object DNSResolver {
     private val TAG = "DNSResolver"
-    private val resolutionMutex = Mutex()
-    private val cache = mutableMapOf<String, Pair<String, Int>>()
-    private var preferredDoHProvider: String? = null
-    // Smaller, more reliable DoH list for SRV fallback
-    private val reliableDohProviders = listOf(
-        "https://dns.google/dns-query",
+    private val cacheMutex = Mutex()
+    private val cache = mutableMapOf<String, CacheEntry>()
+    private val CACHE_TTL_MS = 5 * 60 * 1000L // 5 minutes
+
+    private data class CacheEntry(
+        val value: Pair<String, Int>,
+        val timestamp: Long = System.currentTimeMillis()
+    ) {
+        fun isExpired(): Boolean = System.currentTimeMillis() - timestamp > CACHE_TTL_MS
+    }
+
+    private val dohProviders = listOf(
         "https://cloudflare-dns.com/dns-query",
+        "https://dns.google/dns-query",
         "https://dns.quad9.net/dns-query"
     )
 
-
-    // Full list for A record resolution (can be kept as is)
-    private val dohProviders = listOf(
-        "https://dns.cloudflare.com",
-        "https://adblock.mydns.network",
-        "https://commons.host",
-        "https://cloudflare-dns.com"
-    )
-
-    // Helper to try each DoH provider until one succeeds
-    private suspend fun <T> tryDohProviders(
-        providers: List<String> = dohProviders,
-        block: suspend (DohResolver) -> T?
-    ): T? {
-        val orderedProviders = if (preferredDoHProvider != null) {
-            listOf(preferredDoHProvider!!) + providers.filter { it != preferredDoHProvider }
-        } else providers
-
-        for (url in orderedProviders) {
-            Log.d(TAG, "Trying DoH provider: $url")
-            val resolver = DohResolver(url)
-                val result = block(resolver)
-            if (result != null) {
-                preferredDoHProvider = url
-                return result
-            }
-        }
-        return null
-    }
-
+    /**
+     * Race all DoH providers in parallel and return the first non-null result.
+     * Cancels remaining providers once a result is found.
+     */
     private suspend fun <T> tryDohProvidersParallel(
         providers: List<String> = dohProviders,
-        timeoutMs: Long = 5000, // overall timeout for all parallel attempts
+        timeoutMs: Long = 5000,
         block: suspend (DohResolver) -> T?
     ): T? = withTimeoutOrNull(timeoutMs) {
-        // Launch a coroutine for each provider
-        val deferreds = providers.map { url ->
-            async {
-                try {
-                    val resolver = DohResolver(url)
-                    block(resolver)
-                } catch (e: Exception) {
-                    Log.e(TAG, "DoH provider $url threw exception", e)
-                    null
+        coroutineScope {
+            val deferreds = providers.map { url ->
+                async {
+                    try {
+                        val resolver = DohResolver(url)
+                        block(resolver)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "DoH provider $url threw exception", e)
+                        null
+                    }
                 }
             }
-        }
-        // Wait for the first non‑null result
-        for (deferred in deferreds) {
-            val result = deferred.await()
-            if (result != null) {
-                Log.d(TAG, "DoH succeeded with provider: ${deferred.getCompleted()}")
-                return@withTimeoutOrNull result
+
+            // Race: keep selecting completed deferreds until we get a non-null result or all are done
+            val remaining = deferreds.toMutableList()
+            while (remaining.isNotEmpty()) {
+                val result = select<T?> {
+                    for (deferred in remaining) {
+                        deferred.onAwait { it }
+                    }
+                }
+                if (result != null) {
+                    // Cancel all remaining deferreds
+                    deferreds.forEach { it.cancel() }
+                    return@coroutineScope result
+                }
+                // Remove completed (null-returning) deferreds
+                remaining.removeAll { it.isCompleted }
             }
+            null
         }
-        null
     }
 
     suspend fun resolveSRV(host: String): Pair<String, Int>? = withContext(Dispatchers.IO) {
-        resolutionMutex.withLock {
-            // 1. Check cache
-            cache[host]?.let {
-                Log.d(TAG, "Returning cached result for $host: ${it.first}:${it.second}")
-                return@withLock it
+        // 1. Check cache
+        cacheMutex.withLock {
+            cache[host]?.let { entry ->
+                if (!entry.isExpired()) {
+                    Log.d(TAG, "Returning cached result for $host: ${entry.value.first}:${entry.value.second}")
+                    return@withContext entry.value
+                } else {
+                    cache.remove(host)
+                }
             }
         }
 
@@ -106,14 +98,13 @@ object DNSResolver {
         }
         if (minidnsResult != null) {
             Log.d(TAG, "Minidns SRV succeeded for $host: ${minidnsResult.first}:${minidnsResult.second}")
-            resolutionMutex.withLock { cache[host] = minidnsResult }
+            cacheMutex.withLock { cache[host] = CacheEntry(minidnsResult) }
             return@withContext minidnsResult
         }
 
-        // 3. Try DoH SRV with ALL providers (parallel) – replace reliableDohProviders with full list
+        // 3. Try DoH SRV with all providers (parallel)
         val dohSrvResult = try {
-            // Use the full provider list for SRV as well
-            tryDohProvidersParallel(providers = dohProviders, timeoutMs = 5000) { resolver ->
+            tryDohProvidersParallel(timeoutMs = 5000) { resolver ->
                 val srvRecords = resolver.resolveSrvRecords("xmpp-client", "tcp", host)
                 if (srvRecords.isEmpty()) return@tryDohProvidersParallel null
                 // Try each SRV target in priority order
@@ -131,16 +122,16 @@ object DNSResolver {
         }
         if (dohSrvResult != null) {
             Log.d(TAG, "DoH SRV succeeded for $host: ${dohSrvResult.first}:${dohSrvResult.second}")
-            resolutionMutex.withLock { cache[host] = dohSrvResult }
+            cacheMutex.withLock { cache[host] = CacheEntry(dohSrvResult) }
             return@withContext dohSrvResult
         }
 
         // 4. FALLBACK: No SRV records found – try A record for the original host and use default port 5222
         Log.w(TAG, "All SRV attempts failed, falling back to A record for $host with port 5222")
-        val ip = resolveA(host)   // resolveA already uses its own caching and DoH/system fallback
+        val ip = resolveA(host)
         if (ip != null) {
             val fallbackResult = Pair(ip, 5222)
-            resolutionMutex.withLock { cache[host] = fallbackResult }
+            cacheMutex.withLock { cache[host] = CacheEntry(fallbackResult) }
             return@withContext fallbackResult
         }
 
@@ -148,6 +139,7 @@ object DNSResolver {
         Log.e(TAG, "All DNS resolution attempts failed for $host")
         null
     }
+
     /**
      * Resolve SRV using minidns, then use DoH for A records.
      */
@@ -171,7 +163,7 @@ object DNSResolver {
             }
         }
 
-        // Fallback: try DoH for A records in parallel
+        // Fallback: try DoH for A records in parallel (racing)
         val rawAnswers = result.answers
         val srvRecords = rawAnswers.filterIsInstance<SRV>()
             .sortedWith(compareBy({ it.priority }, { -it.weight }))
@@ -181,27 +173,8 @@ object DNSResolver {
             val port = srv.port
             Log.d(TAG, "Attempting DoH A resolution for target: $target")
 
-            val ip = withTimeoutOrNull(5000) {
-                // Launch parallel requests, each paired with its URL
-                val deferreds = dohProviders.map { url ->
-                    url to async {
-                        try {
-                            val resolver = DohResolver(url)
-                            resolver.resolveARecords(target).firstOrNull()
-                        } catch (e: Exception) {
-                            null
-                        }
-                    }
-                }
-                // Wait for the first successful result
-                for ((url, deferred) in deferreds) {
-                    val result = deferred.await()
-                    if (result != null) {
-                        preferredDoHProvider = url  // cache the working provider
-                        return@withTimeoutOrNull result
-                    }
-                }
-                null
+            val ip = tryDohProvidersParallel(timeoutMs = 5000) { resolver ->
+                resolver.resolveARecords(target).firstOrNull()
             }
 
             if (ip != null) {
@@ -213,52 +186,30 @@ object DNSResolver {
         Log.w(TAG, "No IP addresses found for any SRV target")
         return null
     }
-    /**
-     * Resolve SRV using DoH (fallback when minidns fails).
-     */
-    private suspend fun resolveSRVviaDoH(domain: String, providers: List<String>): Pair<String, Int>? {
-        return tryDohProviders(providers = providers) { resolver ->
-            val service = "xmpp-client"
-            val protocol = "tcp"
-            val srvRecords = resolver.resolveSrvRecords(service, protocol, domain)
-            if (srvRecords.isEmpty()) return@tryDohProviders null
-
-            val sorted = srvRecords.sortedWith(compareBy({ it.priority }, { -it.weight }))
-            for (srv in sorted) {
-                val ips = resolver.resolveARecords(srv.target)
-                if (ips.isNotEmpty()) {
-                    return@tryDohProviders Pair(ips.first(), srv.port)
-                }
-            }
-            null
-        }
-    }
 
     suspend fun resolveA(host: String): String? = withContext(Dispatchers.IO) {
-        resolutionMutex.withLock {
-            // Try DoH with full provider list
-            val dohIp = try {
-                tryDohProviders(providers = dohProviders) { resolver ->
-                    resolver.resolveARecords(host).firstOrNull()
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "DoH A record resolution error: ${e.message}", e)
-                null
+        // Try DoH with parallel racing (no mutex during network I/O)
+        val dohIp = try {
+            tryDohProvidersParallel(timeoutMs = 5000) { resolver ->
+                resolver.resolveARecords(host).firstOrNull()
             }
-            if (dohIp != null) {
-                Log.d(TAG, "DoH resolved $host to $dohIp")
-                return@withLock dohIp
-            }
+        } catch (e: Exception) {
+            Log.e(TAG, "DoH A record resolution error: ${e.message}", e)
+            null
+        }
+        if (dohIp != null) {
+            Log.d(TAG, "DoH resolved $host to $dohIp")
+            return@withContext dohIp
+        }
 
-            // Fallback to InetAddress (system DNS)
-            try {
-                val inetAddress = InetAddress.getByName(host).hostAddress
-                Log.d(TAG, "InetAddress resolved: $inetAddress for $host")
-                return@withLock inetAddress
-            } catch (e: Exception) {
-                Log.e(TAG, "InetAddress A record resolution failed: ${e.message}")
-                return@withLock null
-            }
+        // Fallback to InetAddress (system DNS)
+        try {
+            val inetAddress = InetAddress.getByName(host).hostAddress
+            Log.d(TAG, "InetAddress resolved: $inetAddress for $host")
+            return@withContext inetAddress
+        } catch (e: Exception) {
+            Log.e(TAG, "InetAddress A record resolution failed: ${e.message}")
+            return@withContext null
         }
     }
 }

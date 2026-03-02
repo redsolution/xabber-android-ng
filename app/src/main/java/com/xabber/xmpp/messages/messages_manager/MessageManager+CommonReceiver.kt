@@ -812,7 +812,7 @@ class MessageCommonReceiver(private val owner: String) {
             message.element("omemo", "urn:xmpp:omemo:2") != null -> ConversationType.Omemo
             message.element("omemo", "urn:xmpp:omemo:1") != null -> ConversationType.Omemo1
             message.element("axolotl", "eu.siacs.conversations.axolotl") != null -> ConversationType.Axolotl
-            message.element("xen", "urn:xabber:xen:0") != null -> ConversationType.Notifications
+            message.element("notification", "urn:xabber:xen:0") != null -> ConversationType.Notifications
             else -> ConversationType.Regular
         }
     }

@@ -339,6 +339,9 @@ class MessageStorageItem : RealmObject {
 
             val managedMessage = copyToRealm(this@MessageStorageItem, UpdatePolicy.ALL)
 
+            // System messages should not create or update chat list entries
+            if (managedMessage.displayAs_ == "system") return
+
             val lastChatPrimary = LastChatsStorageItem.genPrimary(opponent, owner, conversationType)
             val lastChat = query<LastChatsStorageItem>("primary == $0", lastChatPrimary).first().find()
                 ?: LastChatsStorageItem().apply {
@@ -428,6 +431,9 @@ class MessageStorageItem : RealmObject {
 
                 // 2. Сообщения нет — создаём новое
                 val managedMessage = copyToRealm(this@MessageStorageItem, UpdatePolicy.ALL)
+
+                // System messages should not create or update chat list entries
+                if (managedMessage.displayAs_ == "system") return@write
 
                 val lastChatPrimary = LastChatsStorageItem.genPrimary(opponent, owner, conversationType)
                 var lastChat = query<LastChatsStorageItem>("primary == $0", lastChatPrimary).first().find()
@@ -543,7 +549,7 @@ class MessageStorageItem : RealmObject {
             message.element("omemo", namespace = "urn:xmpp:omemo:2") != null -> ConversationType.Omemo
             message.element("omemo", namespace = "urn:xmpp:omemo:1") != null -> ConversationType.Omemo1
             message.element("axolotl", namespace = "eu.siacs.conversations.axolotl") != null -> ConversationType.Axolotl
-            message.element("xen", namespace = "urn:xabber:xen:0") != null -> ConversationType.Notifications
+            message.element("notification", namespace = "urn:xabber:xen:0") != null -> ConversationType.Notifications
             else -> ConversationType.Regular
         }.also {
             Log.d(TAG, "Determined conversationType=${it.rawValue} for messageId=${message.id}, to=$to")

@@ -10,7 +10,7 @@ import org.minidns.record.SRV
 import org.minidns.record.CNAME
 import java.io.IOException
 import kotlin.coroutines.resume
-import kotlin.coroutines.suspendCoroutine
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.concurrent.TimeUnit
@@ -18,11 +18,14 @@ import java.util.concurrent.TimeUnit
 class DohResolver(private val dohUrl: String = "https://cloudflare-dns.com/dns-query") {
 
     private val TAG = "DohResolver"
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(3, TimeUnit.SECONDS)
-        .writeTimeout(3, TimeUnit.SECONDS)
-        .readTimeout(5, TimeUnit.SECONDS)
-        .build()
+
+    companion object {
+        private val sharedClient = OkHttpClient.Builder()
+            .connectTimeout(3, TimeUnit.SECONDS)
+            .writeTimeout(3, TimeUnit.SECONDS)
+            .readTimeout(5, TimeUnit.SECONDS)
+            .build()
+    }
 
     suspend fun resolveSrvRecords(service: String, protocol: String, domain: String): List<SrvRecord> =
         withContext(Dispatchers.IO) {
@@ -85,7 +88,7 @@ class DohResolver(private val dohUrl: String = "https://cloudflare-dns.com/dns-q
 
     // Internal: perform the DoH POST request
     private suspend fun doDohQuery(domain: String, type: Record.TYPE): ByteArray? =
-        suspendCoroutine { continuation ->
+        suspendCancellableCoroutine { continuation ->
             try {
                 val query = DnsMessage.builder()
                     .setQrFlag(false)
@@ -106,17 +109,27 @@ class DohResolver(private val dohUrl: String = "https://cloudflare-dns.com/dns-q
 
                 Log.d(TAG, "Sending DoH query for $domain (type=$type) to $dohUrl")
 
-                client.newCall(request).enqueue(object : Callback {
+                val call = sharedClient.newCall(request)
+
+                continuation.invokeOnCancellation {
+                    call.cancel()
+                }
+
+                call.enqueue(object : Callback {
                     override fun onFailure(call: Call, e: IOException) {
-                        Log.e(TAG, "DoH HTTP call failed", e)
-                        continuation.resumeWith(Result.failure(e))
+                        Log.e(TAG, "DoH HTTP call failed for $dohUrl", e)
+                        if (continuation.isActive) {
+                            continuation.resume(null)
+                        }
                     }
 
                     override fun onResponse(call: Call, response: Response) {
                         response.use {
                             if (!response.isSuccessful) {
                                 Log.e(TAG, "DoH HTTP error: ${response.code} ${response.message}")
-                                continuation.resume(null)
+                                if (continuation.isActive) {
+                                    continuation.resume(null)
+                                }
                                 return
                             }
                             val body = response.body?.bytes()
@@ -125,13 +138,17 @@ class DohResolver(private val dohUrl: String = "https://cloudflare-dns.com/dns-q
                             } else {
                                 Log.d(TAG, "DoH received ${body.size} bytes")
                             }
-                            continuation.resume(body)
+                            if (continuation.isActive) {
+                                continuation.resume(body)
+                            }
                         }
                     }
                 })
             } catch (e: Exception) {
                 Log.e(TAG, "Exception in doDohQuery", e)
-                continuation.resumeWith(Result.failure(e))
+                if (continuation.isActive) {
+                    continuation.resume(null)
+                }
             }
         }
 
