@@ -8,7 +8,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.xabber.R
 import com.xabber.data_base.defaultRealmConfig
-import com.xabber.data_base.models.avatar.AvatarStorageItem
+import com.xabber.xmpp.avatar.AvatarStorageItem
 import com.xabber.data_base.models.account.AccountStorageItem
 import com.xabber.data_base.models.presences.ResourceStorageItem
 import com.xabber.dto.HostListDto
@@ -16,7 +16,6 @@ import com.xabber.presentation.XabberApplication
 import com.xabber.presentation.onboarding.util.PasswordStorageHelper
 import com.xabber.remote.AccountRepository
 import io.realm.kotlin.Realm
-import io.realm.kotlin.ext.query
 import io.reactivex.rxjava3.core.Single
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch

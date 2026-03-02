@@ -10,7 +10,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
 import com.xabber.R
 import com.xabber.data_base.defaultRealmConfig
-import com.xabber.data_base.models.avatar.AvatarStorageItem
+import com.xabber.xmpp.avatar.AvatarStorageItem
 import com.xabber.presentation.AppConstants.TEMP_FILE_NAME
 import io.realm.kotlin.Realm
 import java.io.File

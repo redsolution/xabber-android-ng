@@ -9,6 +9,7 @@ import com.xabber.dto.AccountDto
 import com.xabber.dto.AvatarDto
 import com.xabber.utils.toAccountDto
 import com.xabber.utils.toAvatarDto
+import com.xabber.xmpp.avatar.AvatarStorageItem
 import io.realm.kotlin.Realm
 import io.realm.kotlin.notifications.ResultsChange
 import io.realm.kotlin.notifications.UpdatedResults
@@ -60,7 +61,7 @@ class BaseViewModel : ViewModel() {
         var avatarDto: AvatarDto? = null
         realm.writeBlocking {
             val realmAvatar =
-                this.query(com.xabber.data_base.models.avatar.AvatarStorageItem::class, "primary = '$id'").first().find()
+                this.query(AvatarStorageItem::class, "primary = '$id'").first().find()
             if (realmAvatar != null)
                 avatarDto = realmAvatar.toAvatarDto()
         }

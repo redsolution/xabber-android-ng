@@ -35,6 +35,7 @@ import com.xabber.utils.isForwardedMessage
 import com.xabber.utils.parseTimestamp
 import com.xabber.xmpp.XEP_0CCC.ClientSynchronizationManager
 import com.xabber.xmpp.auth.DevicesOCRA
+import com.xabber.xmpp.avatar.XmppAvatarManager
 import com.xabber.xmpp.device.DeviceStorageItem
 import com.xabber.xmpp.jid.XMPPJID
 import com.xabber.xmpp.messages.XMPPMessage
@@ -115,7 +116,7 @@ class Account : XMPPStreamDelegate {
     var messageReceiver: MessageCommonReceiver? = null
     var presenceManager: PresenceManager? = null
     var groupchatManager: GroupchatManager? = null
-
+    var avatarManager: XmppAvatarManager? = null
 
     private val deviceModel = Build.MODEL
     private var isDeviceRegistered = false
@@ -514,6 +515,7 @@ class Account : XMPPStreamDelegate {
             messageReceiver = MessageCommonReceiver(jid)
             messageReceiver?.subscribeReceiver()
             groupchatManager = GroupchatManager(jid)
+            avatarManager = XmppAvatarManager(jid)
 
             restartStanzaProcessing()
             return@withContext true
@@ -652,6 +654,12 @@ class Account : XMPPStreamDelegate {
                 // Route group chat IQs to GroupchatManager
                 if (iq.raw.contains("https://xabber.com/protocol/groups")) {
                     val handled = groupchatManager?.read(iq.raw) ?: false
+                    if (handled) return true
+                }
+
+                // Route PubSub avatar data IQ responses to AvatarManager
+                if (iq.type == "result" && iq.raw.contains("urn:xmpp:avatar:data")) {
+                    val handled = avatarManager?.read(iq.raw) ?: false
                     if (handled) return true
                 }
             }
@@ -1023,6 +1031,9 @@ class Account : XMPPStreamDelegate {
     override suspend fun didReceiveMessage(message: XMPPMessage, stream: Stream) {
         // 1. Always process chat markers first — they can come in any message
         chatMarkers!!.read(message)
+
+        // 2. PubSub avatar metadata events (headline messages) — handle early
+        if (avatarManager?.readMessage(message) == true) return
 
         // ────────────────────────────────────────────────────────────────
         //  Important: we determine the *nature* of the message

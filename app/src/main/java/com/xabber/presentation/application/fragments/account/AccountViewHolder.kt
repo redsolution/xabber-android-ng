@@ -10,6 +10,7 @@ import com.xabber.dto.AccountDto
 import com.xabber.presentation.AppConstants
 import com.xabber.presentation.application.manage.ColorManager
 import com.xabber.presentation.application.manage.MaskManager
+import com.xabber.xmpp.avatar.AvatarStorageItem
 import io.realm.kotlin.Realm
 
 class AccountViewHolder(
@@ -54,7 +55,7 @@ class AccountViewHolder(
         var uri: String? = null
         realm.writeBlocking {
             val avatar = this.query(
-                com.xabber.data_base.models.avatar.AvatarStorageItem::class,
+                AvatarStorageItem::class,
                 "primary = '$id'"
             ).first().find()
             if (avatar != null) uri = avatar.fileUri

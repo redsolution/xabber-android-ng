@@ -2,6 +2,7 @@ package com.xabber.presentation.application.fragments.chatlist
 
 import android.graphics.PorterDuff
 import android.graphics.PorterDuffColorFilter
+import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.text.Spannable
@@ -21,6 +22,7 @@ import com.xabber.data_base.models.presences.RosterItemEntity
 import com.xabber.databinding.ItemChatListBinding
 import com.xabber.dto.ChatListDto
 import com.xabber.presentation.AppConstants
+import com.xabber.presentation.AppConstants.PAYLOAD_CHAT_AVATAR
 import com.xabber.presentation.AppConstants.PAYLOAD_CHAT_COLOR
 import com.xabber.presentation.AppConstants.PAYLOAD_CHAT_CUSTOM_NAME
 import com.xabber.presentation.AppConstants.PAYLOAD_CHAT_DATE
@@ -41,6 +43,7 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Rect
+import com.xabber.xmpp.avatar.DefaultAvatarManager
 
 class ChatListViewHolder(
     val binding: ItemChatListBinding // Make binding public for adapter access
@@ -49,7 +52,7 @@ class ChatListViewHolder(
     fun bind(chatListDto: ChatListDto, listener: ChatListAdapter.ChatListener) {
         binding.cardview.radius = 0f
         setColorDivider(chatListDto.colorKey)
-        setAvatar(chatListDto.opponentJid)
+        setAvatar(chatListDto.opponentJid, chatListDto.avatarUrl)
         setName(chatListDto.getChatName())
         setTextMessage(chatListDto.draftMessage, chatListDto.lastMessageBody)
         setTime(chatListDto.lastMessageDate)  // Fixed: Remove /1000, use ms directly
@@ -114,15 +117,27 @@ class ChatListViewHolder(
         return bitmap
     }
 
-    private fun setAvatar(contactJid: String) {
+    private fun setAvatar(contactJid: String, avatarUrl: String?) {
         binding.shapeView.setDrawable(MaskManager.mask)
 
         val initials = contactJid.take(1).uppercase()
-        val bitmap = createInitialsBitmap(initials, contactJid)
+        val initialsBitmap = createInitialsBitmap(initials, contactJid)
 
-        Glide.with(itemView)
-            .load(bitmap)
-            .into(binding.imChatListItemAvatar)
+        if (avatarUrl != null) {
+            // Check for locally cached PubSub avatar (avatarUrl may be a cache key)
+            val localFile = DefaultAvatarManager.getStoredImageFile(avatarUrl)
+            val loadSource: Any = localFile ?: avatarUrl
+
+            Glide.with(itemView)
+                .load(loadSource)
+                .placeholder(BitmapDrawable(itemView.resources, initialsBitmap))
+                .error(BitmapDrawable(itemView.resources, initialsBitmap))
+                .into(binding.imChatListItemAvatar)
+        } else {
+            Glide.with(itemView)
+                .load(initialsBitmap)
+                .into(binding.imChatListItemAvatar)
+        }
     }
 
     private fun setName(name: String) {
@@ -367,6 +382,10 @@ class ChatListViewHolder(
                 PAYLOAD_CHAT_CUSTOM_NAME -> {
                     val name = bundle.getString(PAYLOAD_CHAT_CUSTOM_NAME)
                     if (name != null) setName(name)
+                }
+                PAYLOAD_CHAT_AVATAR -> {
+                    val avatarUrl = bundle.getString(PAYLOAD_CHAT_AVATAR)
+                    setAvatar(chatListDto.opponentJid, avatarUrl)
                 }
                 PAYLOAD_CHAT_COLOR -> {
                     val color = bundle.getString(PAYLOAD_CHAT_COLOR)

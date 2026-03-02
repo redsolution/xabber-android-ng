@@ -112,6 +112,7 @@ class ChatListAdapter(
             if (old.draftMessage != new.draftMessage) bundle.putString(AppConstants.PAYLOAD_CHAT_DRAFT_MESSAGE, new.draftMessage)
             if (old.customNickname != new.customNickname) bundle.putString(AppConstants.PAYLOAD_CHAT_CUSTOM_NAME, new.customNickname)
             if (old.colorKey != new.colorKey) bundle.putString(AppConstants.PAYLOAD_CHAT_COLOR, new.colorKey)
+            if (old.avatarUrl != new.avatarUrl) bundle.putString(AppConstants.PAYLOAD_CHAT_AVATAR, new.avatarUrl)
             return if (bundle.isEmpty) null else bundle
         }
     }

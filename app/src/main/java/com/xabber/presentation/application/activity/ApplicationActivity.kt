@@ -92,11 +92,11 @@ import com.xabber.presentation.application.manage.DisplayManager.getMainContaine
 import com.xabber.presentation.application.manage.DisplayManager.isDualScreenMode
 import com.xabber.presentation.application.manage.MaskManager
 import com.xabber.presentation.onboarding.activity.OnBoardingActivity
-import com.xabber.presentation.onboarding.fragments.connectionprogress.ConnectionProgressFragment
 import com.xabber.utils.custom.ShapeOfView
 import com.xabber.utils.lockScreenRotation
 import com.xabber.utils.toAccountDto
 import com.xabber.utils.toAvatarDto
+import com.xabber.xmpp.avatar.AvatarStorageItem
 import io.realm.kotlin.Realm
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -369,7 +369,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
     }
 
     private fun getAvatar(id: String): AvatarDto? {
-        val realmAvatar = realm.query(com.xabber.data_base.models.avatar.AvatarStorageItem::class, "primary = '$id'").first().find()
+        val realmAvatar = realm.query(AvatarStorageItem::class, "primary = '$id'").first().find()
         return realmAvatar?.toAvatarDto()
     }
 

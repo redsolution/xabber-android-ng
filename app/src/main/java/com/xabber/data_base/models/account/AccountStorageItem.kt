@@ -1,35 +1,51 @@
 package com.xabber.data_base.models.account
 
-
 import com.xabber.data_base.models.presences.ResourceStorageItem
 import io.realm.kotlin.types.RealmObject
-import io.realm.kotlin.types.annotations.Ignore
 import io.realm.kotlin.types.annotations.PrimaryKey
-import java.util.Date
 
+/**
+ * Account properties representation in database.
+ * Primary key is the account JID.
+ */
 class AccountStorageItem : RealmObject {
     @PrimaryKey
+    var jid: String = ""                     // Primary key (same as Swift)
     var primary: String = ""
     var order: Int = 0
-    var jid: String = ""
     var host: String = ""
+    var savePassword: Boolean = true
+    var manuallySetHost: Boolean = false
     var port: Int = 5222
     var username: String = ""
     var enabled: Boolean = true
-    var away: Long = 0
+    var node: String = ""
+    var service: String = ""
+    var away: Long = 0                        // Timestamp in milliseconds (Date in Swift)
+    var statusMessage: String = ""
     var colorKey: String = ""
-    var resource: ResourceStorageItem? = null
     var deviceUuid: String = ""
+    var xTokenUID: String = ""
+    var xTokenSupport: Boolean = false
+    var clientSyncSupport: Boolean = false
+    var hasAvatar: Boolean = false
+
+    var resource: ResourceStorageItem? = null
+    var isCollapsed: Boolean = false
     var isEncryptionEnabled: Boolean = true
-    var createdAt: Long = 0
+    var isOmemoDevicesListReceived: Boolean = false
+    var isDevicesListReceived: Boolean = false
+    var createdAt: Long = 0                   // Timestamp in milliseconds
+    var deviceName: String = ""
     var oldschoolAvatarKey: String? = null
     var avatarMaxUrl: String? = null
     var avatarMinUrl: String? = null
-    var avatarUpdatedTs: Double = -1.0
+    var avatarUpdatedTS: Double = -1.0
     var updatedTS: Double = -1.0
-    var encryptionUpdatedTs: Double = -1.0
-    var clientSyncSupport: Boolean = false // Added to match Swift's field
-    var hasAvatar: Boolean = false
+    var encryptionUpdatedTS: Double = -1.0
+    var counter: String = "1"
 
+    // Computed property matching Swift's avatarUrl
+    val avatarUrl: String?
+        get() = avatarMaxUrl ?: avatarMinUrl ?: oldschoolAvatarKey
 }
-// primary = jid, аватар искать по owner + jid

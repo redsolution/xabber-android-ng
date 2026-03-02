@@ -60,6 +60,7 @@ object AppConstants {
     const val PAYLOAD_ACCOUNT_COLOR = "color"
     const val PAYLOAD_ACCOUNT_ENABLED = "enabled"
     const val PAYLOAD_ACCOUNT_HAS_AVATAR = "payload account has avatar"
+    const val PAYLOAD_CHAT_AVATAR = "Chat avatar"
     const val PAYLOAD_CHAT_COLOR = "payload chat color"
     const val PAYLOAD_CHAT_CUSTOM_NAME = "Chat custom name"
     const val PAYLOAD_CHAT_DATE = "Chat date"

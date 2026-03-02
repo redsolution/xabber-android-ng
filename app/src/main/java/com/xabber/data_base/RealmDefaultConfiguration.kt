@@ -2,7 +2,7 @@ package com.xabber.data_base
 
 import com.xabber.stream.ProcessedMessageId
 import com.xabber.data_base.models.account.AccountStorageItem
-import com.xabber.data_base.models.avatar.AvatarStorageItem
+import com.xabber.xmpp.avatar.AvatarStorageItem
 import com.xabber.data_base.models.last_chats.LastChatsStorageItem
 import com.xabber.data_base.models.messages.MessageForwardsInlineStorageItem
 import com.xabber.data_base.models.messages.MessageReferenceStorageItem

@@ -46,9 +46,9 @@ import com.xabber.utils.custom.ShapeOfView
 import com.xabber.utils.setFragmentResultListener
 import com.xabber.utils.toAccountDto
 import com.xabber.utils.toAvatarDto
+import com.xabber.xmpp.avatar.AvatarStorageItem
 import io.realm.kotlin.Realm
 import kotlinx.coroutines.launch
-import java.util.zip.Inflater
 
 @RequiresApi(Build.VERSION_CODES.O)
 class AccountDialog : DialogFragment(R.layout.fragment_account), SharedPreferences.OnSharedPreferenceChangeListener {
@@ -233,7 +233,7 @@ class AccountDialog : DialogFragment(R.layout.fragment_account), SharedPreferenc
         var avatarDto: AvatarDto? = null
         realm.writeBlocking {
             val realmAvatar =
-                this.query(com.xabber.data_base.models.avatar.AvatarStorageItem::class, "primary = '$id'").first().find()
+                this.query(AvatarStorageItem::class, "primary = '$id'").first().find()
             if (realmAvatar != null) {
                 avatarDto = realmAvatar.toAvatarDto()
                 Log.d("AccountDialog", "Avatar found for id=$id: $avatarDto")

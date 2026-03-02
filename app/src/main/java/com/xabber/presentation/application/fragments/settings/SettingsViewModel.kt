@@ -9,6 +9,7 @@ import com.xabber.dto.AccountDto
 import com.xabber.dto.AvatarDto
 import com.xabber.utils.toAccountDto
 import com.xabber.utils.toAvatarDto
+import com.xabber.xmpp.avatar.AvatarStorageItem
 import io.realm.kotlin.Realm
 import io.realm.kotlin.notifications.ResultsChange
 import io.realm.kotlin.notifications.UpdatedResults
@@ -74,8 +75,8 @@ class SettingsViewModel : ViewModel() {
     private fun initAvatarsListener() {
         viewModelScope.launch(Dispatchers.IO) {
             val request =
-                realm.query(com.xabber.data_base.models.avatar.AvatarStorageItem::class)
-            request.asFlow().collect { changes: ResultsChange<com.xabber.data_base.models.avatar.AvatarStorageItem> ->
+                realm.query(AvatarStorageItem::class)
+            request.asFlow().collect { changes: ResultsChange<AvatarStorageItem> ->
                 when (changes) {
                     is UpdatedResults -> {
                         changes.list

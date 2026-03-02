@@ -12,7 +12,7 @@ import androidx.lifecycle.viewModelScope
 import com.xabber.account.AccountManager
 import com.xabber.data_base.defaultRealmConfig
 import com.xabber.data_base.models.account.AccountStorageItem
-import com.xabber.data_base.models.avatar.AvatarStorageItem
+import com.xabber.xmpp.avatar.AvatarStorageItem
 import com.xabber.dto.AccountDto
 import com.xabber.presentation.XabberApplication
 import com.xabber.presentation.onboarding.util.PasswordStorageHelper

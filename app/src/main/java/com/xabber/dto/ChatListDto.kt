@@ -35,7 +35,8 @@ data class ChatListDto(
     val isHide: Boolean = false,
     val lastMessageIsOutgoing: Boolean = false,
     var colorKey: String = XabberApplication.applicationContext().resources.getString(R.string.blue),
-    val isGroup: Boolean = false
+    val isGroup: Boolean = false,
+    val avatarUrl: String? = null
 ) : Comparable<ChatListDto>, Parcelable {
     override fun compareTo(other: ChatListDto): Int {           // сортировка: сначала запиненные, затем от новых к старым
         return if (other.pinnedDate > 0 || this.pinnedDate > 0) {

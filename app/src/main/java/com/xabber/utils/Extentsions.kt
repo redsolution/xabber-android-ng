@@ -34,10 +34,8 @@ import androidx.recyclerview.widget.RecyclerView
 import com.xabber.R
 import com.xabber.data_base.defaultRealmConfig
 import com.xabber.data_base.models.last_chats.LastChatsStorageItem
-import com.xabber.data_base.models.messages.MessageDisplayType
 import com.xabber.data_base.models.messages.MessageReferenceStorageItem
 import com.xabber.data_base.models.messages.MessageSendingState
-import com.xabber.data_base.models.messages.MessageStorageItem
 import com.xabber.data_base.models.presences.ResourceStatus
 import com.xabber.data_base.models.presences.RosterItemEntity
 import com.xabber.data_base.models.sync.ConversationType
@@ -46,29 +44,14 @@ import com.xabber.dto.AvatarDto
 import com.xabber.dto.ChatListDto
 import com.xabber.dto.MessageReferenceDto
 import com.xabber.presentation.onboarding.fragments.signup.emoji.EmojiTypeDto
-import com.xabber.xmpp.groupchat.GroupChatStorageItem
+import com.xabber.xmpp.avatar.AvatarStorageItem
 import com.xabber.xmpp.messages.XMPPMessage
 import com.xabber.xmpp.messages.XMLElement
 import io.realm.kotlin.Realm
 import io.realm.kotlin.ext.query
-import io.realm.kotlin.ext.realmListOf
-import io.realm.kotlin.notifications.ResultsChange
-import kotlinx.coroutines.channels.awaitClose
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.callbackFlow
-import nl.adaptivity.xmlutil.core.impl.multiplatform.StringReader
-import nl.adaptivity.xmlutil.serialization.structure.PolymorphicMode
 import org.json.JSONObject
-import org.xmlpull.v1.XmlPullParser
-import org.xmlpull.v1.XmlPullParserFactory
-import java.text.ParseException
 import java.text.SimpleDateFormat
-import java.time.DateTimeException
 import java.time.Instant
-import java.time.Year
-import java.time.ZoneId
-import java.time.ZonedDateTime
-import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
 import java.util.Date
 import java.util.Locale
@@ -258,7 +241,8 @@ fun LastChatsStorageItem.toChatListDto(): ChatListDto =
         lastMessageIsOutgoing = lastMessage?.outgoing ?: false,
         isGroup = conversationType_ == ConversationType.Group.rawValue ||
                 conversationType_ == ConversationType.Incognito.rawValue ||
-                conversationType_ == ConversationType.Private.rawValue
+                conversationType_ == ConversationType.Private.rawValue,
+        avatarUrl = rosterItem?.avatarUrl
     )
 
 fun com.xabber.data_base.models.account.AccountStorageItem.toAccountDto() =
@@ -272,7 +256,7 @@ fun com.xabber.data_base.models.account.AccountStorageItem.toAccountDto() =
         hasAvatar = hasAvatar
     )
 
-fun com.xabber.data_base.models.avatar.AvatarStorageItem.toAvatarDto() =
+fun AvatarStorageItem.toAvatarDto() =
     AvatarDto(
         id = primary,
         owner = owner,

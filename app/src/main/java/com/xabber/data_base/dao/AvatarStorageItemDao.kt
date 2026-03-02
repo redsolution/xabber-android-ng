@@ -1,18 +1,19 @@
 package com.xabber.data_base.dao
 
+import com.xabber.xmpp.avatar.AvatarStorageItem
 import io.realm.kotlin.Realm
 
 class AvatarStorageItemDao(private val realm: Realm) {
 
-    fun getAvatar(primary: String): com.xabber.data_base.models.avatar.AvatarStorageItem? =
+    fun getAvatar(primary: String): AvatarStorageItem? =
         realm.query(
-            com.xabber.data_base.models.avatar.AvatarStorageItem::class,
+            AvatarStorageItem::class,
             "primary = '$primary'"
         ).first().find()
 
     fun createAvatar(primary: String, jid: String, owner: String, uri: String) {
         realm.writeBlocking {
-            this.copyToRealm(com.xabber.data_base.models.avatar.AvatarStorageItem().apply {
+            this.copyToRealm(AvatarStorageItem().apply {
                 this.primary = primary
                 this.jid = jid
                 this.owner = owner

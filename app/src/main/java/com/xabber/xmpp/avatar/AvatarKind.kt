@@ -1,4 +1,4 @@
-package com.xabber.data_base.models.avatar
+package com.xabber.xmpp.avatar
 
 enum class AvatarKind(val rawValue: String) {
     None("none"),
