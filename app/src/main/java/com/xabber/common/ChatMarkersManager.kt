@@ -201,6 +201,14 @@ class ChatMarkersManager(private val owner: String, withoutAfterburnTimer: Boole
         val jid = if (outgoingMarker) message.to?.bare() else message.from?.bare() ?: return false
         val date = archivedDate ?: getDelayedDate(message) ?: getDeliveryDate(message) ?: Date()
 
+        // Extract stanza-ids from <displayed> children per XEP-MARKERS
+        val ownerStanzaId = displayed.element("stanza-id", namespace = "urn:xmpp:sid:0")
+            ?.let { sid ->
+                if (sid.getAttribute("by") == owner) sid.getAttribute("id")
+                else displayed.elements("stanza-id", namespace = "urn:xmpp:sid:0")
+                    .firstOrNull { it.getAttribute("by") == owner }?.getAttribute("id")
+            }
+
         if (!delayed) {
             CoroutineScope(Dispatchers.IO).launch {
                 delay(200)
@@ -211,18 +219,28 @@ class ChatMarkersManager(private val owner: String, withoutAfterburnTimer: Boole
 
         try {
             realm.write {
-                val chatPrimary = LastChatsStorageItem.genPrimary(jid!!, owner, ConversationType.Regular)
-                val chat = query<LastChatsStorageItem>("primary = $0", chatPrimary).first().find() ?: return@write
+                // Find the chat — try all conversation types, not just Regular
+                val chat = query<LastChatsStorageItem>(
+                    "owner = $0 AND jid = $1", owner, jid
+                ).find().firstOrNull() ?: return@write
 
-                // Find the message that was displayed (it can be incoming or outgoing)
+                // Find the message that was displayed — try by client messageId first,
+                // then by stanza-id (server-assigned ID stored as messageId in Realm)
                 val targetMessage = query<MessageStorageItem>(
                     "owner = $0 AND opponent = $1 AND messageId = $2",
                     owner, jid, targetMessageId
                 ).first().find()
+                    ?: ownerStanzaId?.let {
+                        query<MessageStorageItem>(
+                            "owner = $0 AND opponent = $1 AND messageId = $2",
+                            owner, jid, it
+                        ).first().find()
+                    }
 
                 val targetTimestampUs = when {
                     targetMessage != null -> targetMessage.sentDate * 1000L
-                    targetMessageId.toLongOrNull() != null -> targetMessageId.toLongOrNull()!! * 1000L
+                    ownerStanzaId?.toLongOrNull() != null -> ownerStanzaId.toLong() * 1000L
+                    targetMessageId.toLongOrNull() != null -> targetMessageId.toLong() * 1000L
                     else -> date.time * 1000L
                 }
 
@@ -263,15 +281,20 @@ class ChatMarkersManager(private val owner: String, withoutAfterburnTimer: Boole
                     }
                 }
 
-                // Recalculate unread count based on lastReadMessageDate
+                // Update incoming messages isRead based on lastReadMessageDate
                 val incomingMessages = query<MessageStorageItem>(
                     "owner = $0 AND opponent = $1 AND outgoing = false AND isDeleted = false",
                     owner, jid
                 ).find()
 
-                val newUnread = incomingMessages.count { msg ->
-                    msg.sentDate > chat.lastReadMessageDate
-                }.toInt()
+                var newUnread = 0
+                incomingMessages.forEach { msg ->
+                    if (msg.sentDate <= chat.lastReadMessageDate) {
+                        msg.isRead = true
+                    } else {
+                        newUnread++
+                    }
+                }
 
                 chat.unread = newUnread
                 Log.d("ChatMarkersManager", "Recalculated unread count to $newUnread for chat $jid")
@@ -381,8 +404,9 @@ class ChatMarkersManager(private val owner: String, withoutAfterburnTimer: Boole
         try {
             realm.write {
                 // Получаем чат
-                val chatPrimary = LastChatsStorageItem.genPrimary(jid!!, owner, ConversationType.Regular)
-                val chat = query<LastChatsStorageItem>("primary = $0", chatPrimary).first().find()
+                val chat = query<LastChatsStorageItem>(
+                    "owner = $0 AND jid = $1", owner, jid
+                ).find().firstOrNull()
 
                 // Обновляем deliveredId в чате
                 val targetMessageIdLong = targetMessageId.toLongOrNull()
@@ -443,8 +467,31 @@ class ChatMarkersManager(private val owner: String, withoutAfterburnTimer: Boole
     }
     suspend fun displayedById(stream: Stream, jid: String, messageId: String) {
         val elementId = "ChatMarkers_${NanoId.generateOptimized(8, "_-0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", 63, 16)}"
+
+        // Look up stanza-ids from the stored stanza per XEP-MARKERS spec
+        val stanzaIdChildren = StringBuilder()
+        try {
+            val primary = realm.query<MessageStorageItem>(
+                "owner = $0 AND opponent = $1 AND messageId = $2",
+                owner, jid, messageId
+            ).first().find()?.primary
+            if (primary != null) {
+                val stanzaInstance = realm.query<MessageStanzaStorageItem>(
+                    "primary = $0", "${primary}_stanza"
+                ).first().find()
+                stanzaInstance?.stanza?.let { raw ->
+                    val regex = Regex("<stanza-id[^>]*xmlns=['\"]urn:xmpp:sid:0['\"][^>]*/>")
+                    regex.findAll(raw).forEach { match ->
+                        stanzaIdChildren.append(match.value)
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error looking up stanza-ids for displayedById: ${e.message}")
+        }
+
         val stanza = "<message type='chat' to='$jid' id='$elementId'>" +
-                "<displayed xmlns='${getPrimaryNamespace()}' id='$messageId'/>" +
+                "<displayed xmlns='${getPrimaryNamespace()}' id='$messageId'>$stanzaIdChildren</displayed>" +
                 "</message>"
         stream.socket?.write(stanza)
     }
@@ -565,10 +612,9 @@ suspend fun displayed(stream: Stream, messagePrimary: String) = withContext(Disp
                     ).first().find()
 
                     stanzaInstance?.stanza?.let { raw ->
-                        val regex = Regex("<stanza-id[^>]*by=['\"]$owner['\"][^>]*id=['\"]([^'\"]+)['\"][^>]*>")
+                        val regex = Regex("<stanza-id[^>]*xmlns=['\"]urn:xmpp:sid:0['\"][^>]*/>")
                         regex.findAll(raw).forEach { match ->
-                            val id = match.groupValues[1]
-                            displayedChildren.add("<stanza-id xmlns='urn:xmpp:sid:0' by='$owner' id='$id'/>")
+                            displayedChildren.add(match.value)
                         }
                     }
 
@@ -642,18 +688,32 @@ suspend fun displayed(stream: Stream, messagePrimary: String) = withContext(Disp
         return message.element("archived", namespace = "urn:xmpp:mam:tmp") != null
     }
 
+    private fun messageFromElement(element: XMLElement): XMPPMessage {
+        return XMPPMessage(
+            raw = element.raw,
+            type = element.getAttribute("type"),
+            id = element.getAttribute("id"),
+            from = element.getAttribute("from")?.let { XMPPJID(it) },
+            to = element.getAttribute("to")?.let { XMPPJID(it) },
+            lang = element.getAttribute("xml:lang"),
+            children = element.children
+        )
+    }
+
     private fun getCarbonCopyMessageContainer(message: XMPPMessage): XMPPMessage? {
         val sent = message.element("sent", namespace = "urn:xmpp:carbons:2")
-        return sent?.element("forwarded", namespace = "urn:xmpp:forward:0")?.element("message", namespace = "jabber:client")?.let { XMPPMessage(it.raw) }
+        return sent?.element("forwarded", namespace = "urn:xmpp:forward:0")?.element("message", namespace = "jabber:client")?.let { messageFromElement(it) }
     }
 
     private fun getCarbonForwardedMessageContainer(message: XMPPMessage): XMPPMessage? {
-        return getCarbonCopyMessageContainer(message)
+        val received = message.element("received", namespace = "urn:xmpp:carbons:2")
+        return received?.element("forwarded", namespace = "urn:xmpp:forward:0")?.element("message", namespace = "jabber:client")?.let { messageFromElement(it) }
+            ?: getCarbonCopyMessageContainer(message)
     }
 
     private fun getArchivedMessageContainer(message: XMPPMessage): XMPPMessage? {
         val forwarded = message.element("forwarded", namespace = "urn:xmpp:forward:0")
-        return forwarded?.element("message", namespace = "jabber:client")?.let { XMPPMessage(it.raw) }
+        return forwarded?.element("message", namespace = "jabber:client")?.let { messageFromElement(it) }
     }
 
     private fun conversationTypeByMessage(message: XMPPMessage): ConversationType {

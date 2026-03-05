@@ -19,79 +19,119 @@
             style="@style/ApplicationToolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            android:textColorSecondary="@color/white">
+            android:textColorSecondary="@color/white"
+            app:navigationIcon="@null"
+            app:contentInsetStartWithNavigation="0dp"
+            app:contentInsetStart="12dp">
 
-            <FrameLayout
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content">
 
-                <com.xabber.utils.custom.ShapeOfView
-                    android:id="@+id/shape_view"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    app:shape_clip_drawable="@drawable/ic_mask_circle">
-
-                    <ImageView
-                        android:id="@+id/avatar"
-                        android:layout_width="@dimen/avatar48"
-                        android:layout_height="@dimen/avatar48"
-                        android:scaleType="centerCrop"
-                        android:contentDescription="@string/avatar_content_description"
-                        tools:src="@tools:sample/avatars" />
-                </com.xabber.utils.custom.ShapeOfView>
-
-                <TextView
-                    android:id="@+id/tv_initials"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="center"
-                    android:textAllCaps="true"
-                    android:textColor="@color/grey_900"
-                    android:textSize="14dp"
-                    android:visibility="gone" />
-
-                <ImageView
-                    android:id="@+id/avatar_status"
-                    android:layout_width="12dp"
-                    android:layout_height="12dp"
-                    android:layout_gravity="end|bottom"
-                    android:contentDescription="@string/status"
-                    android:src="@drawable/status_chat" />
-            </FrameLayout>
 
             <androidx.constraintlayout.widget.ConstraintLayout
-                android:id="@+id/name_holder"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content">
+                android:layout_height="match_parent">
 
-                <TextView
-                    android:id="@+id/tv_chat_title"
-                    style="@style/ChatToolbarTitle"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="start"
-                    android:drawablePadding="6dp"
-                    android:ellipsize="end"
-                    android:gravity="start"
-                    android:maxLines="1"
-                    android:singleLine="true"
-                    app:layout_constraintTop_toTopOf="parent"
+                <ImageView
+                    android:id="@+id/btn_back"
+                    android:layout_width="48dp"
+                    android:layout_height="0dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:contentDescription="@string/abc_action_bar_up_description"
+                    android:padding="12dp"
+                    android:src="@drawable/ic_arrow_left_white"
                     app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintBottom_toTopOf="@+id/tv_status_message" />
-
-                <TextView
-                    android:id="@+id/tv_status_message"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:ellipsize="end"
-                    android:gravity="start"
-                    android:maxLines="1"
-                    android:singleLine="true"
-                    android:textColor="@color/white"
-                    android:textSize="13sp"
-                    app:layout_constraintTop_toBottomOf="@id/tv_chat_title"
-                    app:layout_constraintStart_toStartOf="@id/tv_chat_title"
+                    app:layout_constraintTop_toTopOf="parent"
                     app:layout_constraintBottom_toBottomOf="parent" />
+
+                <androidx.constraintlayout.widget.ConstraintLayout
+                    android:id="@+id/contact_info_area"
+                    android:layout_width="0dp"
+                    android:layout_height="0dp"
+                    android:background="?attr/selectableItemBackground"
+                    android:clickable="true"
+                    android:focusable="true"
+                    app:layout_constraintStart_toEndOf="@id/btn_back"
+                    app:layout_constraintEnd_toStartOf="@id/search"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintBottom_toBottomOf="parent">
+
+                    <FrameLayout
+                        android:id="@+id/frame_shape"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toTopOf="parent"
+                        app:layout_constraintBottom_toBottomOf="parent">
+
+                        <com.xabber.utils.custom.ShapeOfView
+                            android:id="@+id/shape_view"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            app:shape_clip_drawable="@drawable/ic_mask_circle">
+
+                            <ImageView
+                                android:id="@+id/avatar"
+                                android:layout_width="@dimen/avatar48"
+                                android:layout_height="@dimen/avatar48"
+                                android:scaleType="centerCrop"
+                                android:contentDescription="@string/avatar_content_description"
+                                tools:src="@tools:sample/avatars" />
+                        </com.xabber.utils.custom.ShapeOfView>
+
+                        <TextView
+                            android:id="@+id/tv_initials"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="center"
+                            android:textAllCaps="true"
+                            android:textColor="@color/grey_900"
+                            android:textSize="14dp"
+                            android:visibility="gone" />
+
+                        <ImageView
+                            android:id="@+id/avatar_status"
+                            android:layout_width="12dp"
+                            android:layout_height="12dp"
+                            android:layout_gravity="end|bottom"
+                            android:contentDescription="@string/status"
+                            android:src="@drawable/status_chat" />
+                    </FrameLayout>
+
+                    <TextView
+                        android:id="@+id/tv_chat_title"
+                        style="@style/ChatToolbarTitle"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:drawablePadding="6dp"
+                        android:ellipsize="end"
+                        android:gravity="start"
+                        android:maxLines="1"
+                        android:singleLine="true"
+                        app:layout_constraintStart_toEndOf="@id/frame_shape"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintTop_toTopOf="parent"
+                        app:layout_constraintBottom_toTopOf="@+id/tv_status_message" />
+
+                    <TextView
+                        android:id="@+id/tv_status_message"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:ellipsize="end"
+                        android:gravity="start"
+                        android:maxLines="1"
+                        android:singleLine="true"
+                        android:textColor="@color/white"
+                        android:textSize="13sp"
+                        app:layout_constraintStart_toEndOf="@id/frame_shape"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintTop_toBottomOf="@id/tv_chat_title"
+                        app:layout_constraintBottom_toBottomOf="parent" />
+
+                </androidx.constraintlayout.widget.ConstraintLayout>
 
                 <ImageView
                     android:id="@+id/search"
@@ -306,7 +346,6 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center_vertical"
-                android:layout_marginHorizontal="16dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="@string/content_description_send"
                 android:padding="12dp"

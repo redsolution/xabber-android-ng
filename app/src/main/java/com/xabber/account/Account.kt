@@ -128,6 +128,7 @@ class Account : XMPPStreamDelegate {
 
     private val rosterStanzaBuffer = StringBuilder()
     private val syncStanzaBuffer = StringBuilder()
+    private val syncStanzaMutex = Mutex()
     private val syncCompletionChannel = Channel<Unit>(1)
 
     private var reconnectJob: Job? = null
@@ -280,9 +281,9 @@ class Account : XMPPStreamDelegate {
     }
 
     private suspend fun processSyncStanza(stanza: String, stream: Stream) {
-        val batchSize = 10 // Process up to 10 sync stanzas at once
+        val batchSize = 10
         val syncStanzas = mutableListOf<String>()
-        synchronized(syncStanzaBuffer) {
+        syncStanzaMutex.withLock {
             syncStanzaBuffer.append(stanza)
             val bufferedContent = syncStanzaBuffer.toString()
             if (bufferedContent.contains("<query") && bufferedContent.contains("https://xabber.com/protocol/synchronization") && bufferedContent.contains(
@@ -292,7 +293,7 @@ class Account : XMPPStreamDelegate {
                 val cleaned = bufferedContent.replace(
                     Regex("""<iq[^>]*type='result'[^>]*id='ping1'[^>]*/>"""),
                     ""
-                ).replace(Regex("r\\.boldin='modify'"), "")
+                )
                 val iqStart = cleaned.indexOf("<iq")
                 val iqEnd = cleaned.lastIndexOf("</iq>") + 5
                 if (iqStart != -1 && iqEnd != -1 && iqEnd > iqStart) {
@@ -300,12 +301,10 @@ class Account : XMPPStreamDelegate {
                     syncStanzaBuffer.clear()
                 } else {
                     Log.e(TAG, "Failed to extract complete sync <iq> stanza: ${cleaned.take(200)}")
-                    return
                 }
-            } else {
-                return
             }
         }
+        if (syncStanzas.isEmpty()) return
         syncStanzas.chunked(batchSize).forEach { batch ->
             try {
                 batch.forEach { completeStanza ->
@@ -316,7 +315,6 @@ class Account : XMPPStreamDelegate {
                 Log.e(TAG, "Error processing sync stanza batch: ${e.message}", e)
             }
         }
-
     }
 
 //    private suspend fun processPresenceStanza(stanza: String, stream: Stream) {
@@ -588,18 +586,6 @@ class Account : XMPPStreamDelegate {
 
     }
 
-    private suspend fun syncAllChats(stream: Stream) = withContext(Dispatchers.IO) {
-        val realm = Realm.Companion.open(defaultRealmConfig())
-        try {
-            val chats = realm.query<LastChatsStorageItem>("owner = $0", jid).find()
-            Log.d(TAG, "Found ${chats.size} chats to sync for $jid")
-        } catch (e: Exception) {
-            Log.e(TAG, "Error syncing chats for $jid: ${e.message}", e)
-        } finally {
-            realm.close()
-        }
-    }
-
     @RequiresApi(Build.VERSION_CODES.O)
     suspend fun closeStream() = withContext(Dispatchers.IO) {
         streamMutex.withLock {
@@ -648,11 +634,27 @@ class Account : XMPPStreamDelegate {
                     return rosterManager!!.read(iq)
                 }
                 if (iq.queryNamespace == "https://xabber.com/protocol/synchronization") {
+                    // Acknowledge push stanzas (type='set') per XMPP spec
+                    if (iq.type == "set") {
+                        val ackId = iq.id ?: ""
+                        val ackFrom = iq.to ?: jid
+                        val ackTo = iq.from ?: jid
+                        val ack = "<iq type='result' id='$ackId' from='$ackFrom' to='$ackTo'/>"
+                        withContext(Dispatchers.IO) { stream.socket?.write(ack) }
+                    }
                     stanzaBuffer.emit(StanzaItem(StanzaItem.StanzaType.SYNC, iq.raw, stream))
                     return true
                 }
                 // Route group chat IQs to GroupchatManager
                 if (iq.raw.contains("https://xabber.com/protocol/groups")) {
+                    // Acknowledge push stanzas (type='set') per XMPP spec
+                    if (iq.type == "set") {
+                        val ackId = iq.id ?: ""
+                        val ackFrom = iq.to ?: jid
+                        val ackTo = iq.from ?: jid
+                        val ack = "<iq type='result' id='$ackId' from='$ackFrom' to='$ackTo'/>"
+                        withContext(Dispatchers.IO) { stream.socket?.write(ack) }
+                    }
                     val handled = groupchatManager?.read(iq.raw) ?: false
                     if (handled) return true
                 }
@@ -882,12 +884,13 @@ class Account : XMPPStreamDelegate {
         try {
             Log.d(TAG, "Received stream features: $features")
             supportedFeatures = features
+            val syncSupported = features.contains("xabber.com/protocol/synchronization")
             stanzaProcessingScope.launch {
                 realm.write {
                     val account = query<AccountStorageItem>("jid = $0", jid).first().find()
-                    if (account != null && account.clientSyncSupport != true) {
-                        findLatest(account)?.clientSyncSupport = true
-                        Log.d(TAG, "Updated AccountStorageItem clientSyncSupport to true for JID: $jid")
+                    if (account != null && account.clientSyncSupport != syncSupported) {
+                        findLatest(account)?.clientSyncSupport = syncSupported
+                        Log.d(TAG, "Updated AccountStorageItem clientSyncSupport to $syncSupported for JID: $jid")
                     }
                 }
             }
@@ -1383,7 +1386,15 @@ class Account : XMPPStreamDelegate {
                 stream.state = StreamState.NOT_CONNECTING
                 return false
             }
-            this.syncManager!!.sync(this.stream!!)
+            val sm = this.syncManager ?: run {
+                Log.e(TAG, "Cannot send sync request: syncManager is null")
+                return false
+            }
+            val st = this.stream ?: run {
+                Log.e(TAG, "Cannot send sync request: stream is null")
+                return false
+            }
+            sm.sync(st, boundJid = this.boundJid)
             return true
         } catch (e: Exception) {
             Log.e(TAG, "Error sending sync request for JID: $jid: ${e.message}", e)
@@ -1391,6 +1402,30 @@ class Account : XMPPStreamDelegate {
             stream.state = StreamState.NOT_CONNECTING
             return false
         }
+    }
+
+    suspend fun muteConversation(chatJid: String, type: ConversationType, muteSeconds: Long) {
+        val sm = syncManager ?: run {
+            Log.e(TAG, "Cannot mute: syncManager is null")
+            return
+        }
+        val st = stream ?: run {
+            Log.e(TAG, "Cannot mute: stream is null")
+            return
+        }
+        sm.muteConversation(st, chatJid, type, muteSeconds)
+    }
+
+    suspend fun unmuteConversation(chatJid: String, type: ConversationType) {
+        val sm = syncManager ?: run {
+            Log.e(TAG, "Cannot unmute: syncManager is null")
+            return
+        }
+        val st = stream ?: run {
+            Log.e(TAG, "Cannot unmute: stream is null")
+            return
+        }
+        sm.unmuteConversation(st, chatJid, type)
     }
 
     override suspend fun streamCarbonsSend(stream: Stream): Boolean = withContext(Dispatchers.IO) {

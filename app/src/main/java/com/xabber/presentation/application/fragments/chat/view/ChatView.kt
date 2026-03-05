@@ -230,6 +230,15 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        binding.toolbar.navigationIcon = null
+
+        // Listen for mute duration selected in NotificationBottomSheet
+        childFragmentManager.setFragmentResultListener(
+            NotificationBottomSheet.MUTE_RESULT_KEY, viewLifecycleOwner
+        ) { _, bundle ->
+            val muteExpired = bundle.getLong(NotificationBottomSheet.MUTE_DURATION_KEY, 0L)
+            viewModel.setMute(getParams().id, muteExpired)
+        }
 
         // Observe chatDto LiveData — initializes UI once chat data is available (non-blocking)
         viewModel.chatDto.observe(viewLifecycleOwner) { chat ->
@@ -323,12 +332,12 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
     private fun updateToolbarNavigation() {
         when (resources.configuration.orientation) {
             Configuration.ORIENTATION_PORTRAIT -> {
-                binding.toolbar.setNavigationIcon(R.drawable.ic_arrow_left_white)
-                binding.toolbar.setNavigationOnClickListener { navigator().closeDetail() }
+                binding.btnBack.visibility = View.VISIBLE
+                binding.btnBack.setOnClickListener { navigator().closeDetail() }
             }
             Configuration.ORIENTATION_LANDSCAPE -> {
-                binding.toolbar.setNavigationIcon(null)
-                binding.toolbar.setNavigationOnClickListener(null)
+                binding.btnBack.visibility = View.GONE
+                binding.btnBack.setOnClickListener(null)
             }
         }
     }
@@ -396,7 +405,7 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
     }
 
     private fun initializeToolbarActions(chat: ChatListDto) {
-        binding.avatar.setOnClickListener {
+        binding.contactInfoArea.setOnClickListener {
             lifecycleScope.launch {
                 val contactId = viewModel.getContactId(getParams().id)
                 if (contactId != null) {
@@ -414,6 +423,7 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
         }
         initToolbarMenu(chat)
     }
+
 
     private fun initToolbarMenu(chat: ChatListDto) {
         binding.menu.setOnClickListener {

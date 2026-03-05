@@ -13,6 +13,7 @@ import com.xabber.data_base.models.messages.MessageSendingState
 import com.xabber.data_base.models.messages.MessageStorageItem
 import com.xabber.data_base.models.roster.RosterStorageItem
 import com.xabber.data_base.models.sync.ConversationType
+import com.xabber.presentation.application.dialogs.TimeMute
 import com.xabber.utils.parseTimestamp
 import com.xabber.xmpp.jid.XMPPJID
 import com.xabber.xmpp.messages.XMPPMessage
@@ -48,12 +49,13 @@ class ClientSynchronizationManager(owner: String) {
         account?.jid?.takeIf { it.isNotBlank() } ?: throw IllegalArgumentException("No valid account found for ClientSynchronizationManager")
     }
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-    private val syncBuffer = Channel<SyncItem>(capacity = 1) // Buffer for sync operations
+    private val syncBuffer = Channel<SyncItem>(capacity = Channel.BUFFERED) // Buffered to prevent deadlock during pagination
     private val bufferMutex = Mutex()
     private var processingJob: Job? = null
-    private var TAG = "ClientSynctronizationManager"
+    private var TAG = "ClientSynchronizationManager"
     var mentionId: String? = null
     var retractVersion: String? = null
+    var boundJid: String? = null
 
     data class SyncItem(
         val stream: Stream,
@@ -88,7 +90,8 @@ class ClientSynchronizationManager(owner: String) {
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
-    suspend fun sync(stream: Stream, customVer: String? = null, after: String? = null): Boolean {
+    suspend fun sync(stream: Stream, customVer: String? = null, after: String? = null, boundJid: String? = null): Boolean {
+        if (boundJid != null) this.boundJid = boundJid
         syncBuffer.send(SyncItem(stream, customVer, after))
 
         return true
@@ -112,9 +115,9 @@ class ClientSynchronizationManager(owner: String) {
             append("</set>")
             append("</query>")
         }
-        val iq = """
-            <iq type='get' id='SYNC: $syncId'>$query</iq>
-        """.trimIndent()
+        val fromAttr = boundJid?.let { " from='$it'" } ?: ""
+        val toAttr = " to='$owner'"
+        val iq = "<iq type='get' id='SYNC: $syncId'$fromAttr$toAttr>$query</iq>"
         val success = stream.socket?.write(iq) == true
         Log.d("ClientSyncManager", "Sent sync request for $owner with id $syncId, version: ${customVer ?: version}, after: $after, success: $success")
     }
@@ -131,7 +134,8 @@ class ClientSynchronizationManager(owner: String) {
             Log.e("ClientSyncManager", "Cannot pin chat: invalid owner")
             return
         }
-        val stanza = "<iq type='set' id='pin_${chatId}' from='$owner'><query xmlns='https://xabber.com/protocol/synchronization'><conversation jid='$chatId' type='${type.rawValue}' pinned='1'/></query></iq>"
+        val fromAttr = boundJid?.let { " from='$it'" } ?: " from='$owner'"
+        val stanza = "<iq type='set' id='pin_${chatId}'$fromAttr to='$owner'><query xmlns='https://xabber.com/protocol/synchronization'><conversation jid='$chatId' type='${type.rawValue}' pinned='1'/></query></iq>"
         Log.d("ClientSyncManager", "Sending pin request for chat $chatId: $stanza")
         try {
             if (stream.socket?.write(stanza) == true) {
@@ -151,7 +155,8 @@ class ClientSynchronizationManager(owner: String) {
         }
         val statusAttr = if (status != null) "status='$status'" else ""
         val muteAttr = if (mute != null) "mute='$mute'" else ""
-        val stanza = "<iq type='set' id='update_${chatId}' from='$owner'><query xmlns='https://xabber.com/protocol/synchronization'><conversation jid='$chatId' type='${type.rawValue}' $statusAttr $muteAttr/></query></iq>"
+        val fromAttr = boundJid?.let { " from='$it'" } ?: " from='$owner'"
+        val stanza = "<iq type='set' id='update_${chatId}'$fromAttr to='$owner'><query xmlns='https://xabber.com/protocol/synchronization'><conversation jid='$chatId' type='${type.rawValue}' $statusAttr $muteAttr/></query></iq>"
         Log.d("ClientSyncManager", "Sending update request for chat $chatId: $stanza")
         try {
             if (stream.socket?.write(stanza) == true) {
@@ -161,6 +166,96 @@ class ClientSynchronizationManager(owner: String) {
             }
         } catch (e: Exception) {
             Log.e("ClientSyncManager", "Error sending update request for chat $chatId: ${e.message}")
+        }
+    }
+
+    /**
+     * Mute a conversation via sync protocol.
+     * @param muteSeconds 0 = mute forever, >0 = mute for N seconds.
+     * The server stores the absolute timestamp until which the conversation is muted.
+     */
+    suspend fun muteConversation(stream: Stream, chatJid: String, type: ConversationType, muteSeconds: Long) {
+        if (owner.isBlank()) {
+            Log.e(TAG, "Cannot mute chat: invalid owner")
+            return
+        }
+        val fromAttr = boundJid?.let { " from='$it'" } ?: " from='$owner'"
+        val stanza = "<iq type='set' id='mute_${chatJid}'$fromAttr to='$owner'>" +
+                "<query xmlns='https://xabber.com/protocol/synchronization'>" +
+                "<conversation jid='$chatJid' type='${type.rawValue}' mute='$muteSeconds'/>" +
+                "</query></iq>"
+        Log.d(TAG, "Sending mute request for chat $chatJid (seconds=$muteSeconds): $stanza")
+        try {
+            if (stream.socket?.write(stanza) == true) {
+                Log.d(TAG, "Mute request sent successfully for chat $chatJid")
+            } else {
+                Log.e(TAG, "Failed to send mute request for chat $chatJid")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error sending mute request for chat $chatJid: ${e.message}")
+        }
+    }
+
+    /**
+     * Unmute a conversation by setting mute to -1 (disable mute).
+     */
+    suspend fun unmuteConversation(stream: Stream, chatJid: String, type: ConversationType) {
+        if (owner.isBlank()) {
+            Log.e(TAG, "Cannot unmute chat: invalid owner")
+            return
+        }
+        val fromAttr = boundJid?.let { " from='$it'" } ?: " from='$owner'"
+        val stanza = "<iq type='set' id='unmute_${chatJid}'$fromAttr to='$owner'>" +
+                "<query xmlns='https://xabber.com/protocol/synchronization'>" +
+                "<conversation jid='$chatJid' type='${type.rawValue}' mute='-1'/>" +
+                "</query></iq>"
+        Log.d(TAG, "Sending unmute request for chat $chatJid: $stanza")
+        try {
+            if (stream.socket?.write(stanza) == true) {
+                Log.d(TAG, "Unmute request sent successfully for chat $chatJid")
+            } else {
+                Log.e(TAG, "Failed to send unmute request for chat $chatJid")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error sending unmute request for chat $chatJid: ${e.message}")
+        }
+    }
+
+    /**
+     * Determines message sending state and read flag based on sync metadata.
+     * All timestamp parameters are in microseconds for consistency.
+     * @return Pair(state, isRead)
+     */
+    private fun determineMessageState(
+        isOutgoing: Boolean,
+        messageTimestampUs: Long,
+        displayedIdUs: Long?,
+        deliveredIdUs: Long?,
+        unreadCount: Long,
+        unreadAfterUs: Long?,
+        currentState: MessageSendingState? = null
+    ): Pair<MessageSendingState, Boolean> {
+        if (isOutgoing) {
+            val state = when {
+                displayedIdUs != null && messageTimestampUs <= displayedIdUs -> MessageSendingState.Read
+                deliveredIdUs != null && messageTimestampUs <= deliveredIdUs -> MessageSendingState.Deliver
+                else -> {
+                    if (currentState != null && currentState.rawValue >= MessageSendingState.Sent.rawValue) {
+                        currentState
+                    } else {
+                        MessageSendingState.Sent
+                    }
+                }
+            }
+            return Pair(state, true) // Outgoing always considered read by sender
+        } else {
+            val isRead = when {
+                unreadCount == 0L -> true
+                unreadAfterUs != null && unreadAfterUs > 0 -> messageTimestampUs <= unreadAfterUs
+                else -> false
+            }
+            val state = if (isRead) MessageSendingState.Read else MessageSendingState.Deliver
+            return Pair(state, isRead)
         }
     }
 
@@ -210,9 +305,28 @@ class ClientSynchronizationManager(owner: String) {
 
                     val status = conversation.getAttribute("status")?.takeIf { it.isNotBlank() } ?: "active"
                     val pinned = conversation.getAttribute("pinned")?.toLongOrNull() ?: 0L
+                    val rawMute = conversation.getAttribute("mute")?.toLongOrNull()
+                    // Server sends mute as absolute timestamp in seconds per XEP-0CCC §8.3
+                    // 0 = muted forever, >0 = absolute seconds timestamp, absent = not muted
+                    val mute: Long = when {
+                        rawMute == null -> -1L // absent = not muted
+                        rawMute == 0L -> TimeMute.FOREVER.time + System.currentTimeMillis() // forever
+                        rawMute > 0L -> rawMute * 1000L // seconds → milliseconds
+                        else -> -1L // negative = not muted
+                    }
                     val conversationStampUs = conversation.getAttribute("stamp")?.toLongOrNull() ?: 0L
 
                     val conversationType = ConversationType.values().firstOrNull { it.rawValue == type } ?: return@forEach
+
+                    // Handle deleted conversations: remove from local DB
+                    if (status == "deleted") {
+                        val chatToDelete = query<LastChatsStorageItem>(
+                            "jid = $0 AND owner = $1 AND conversationType_ = $2", jid, owner, type
+                        ).first().find()
+                        chatToDelete?.let { findLatest(it)?.let { latest -> delete(latest) } }
+                        Log.d(TAG, "Deleted conversation for jid=$jid, type=$type")
+                        return@forEach
+                    }
 
                     val metadataList = conversation.getElementsByTagName("metadata")
                     var unreadCount = 0L
@@ -309,81 +423,31 @@ class ClientSynchronizationManager(owner: String) {
                                         this.outgoing = isOutgoing
                                         this.conversationType_ = type
 
-                                        // Определяем состояние на основе timestamp'а сообщения
-                                        val messageTimestampUs = timestampUs
-                                        val displayedIdUs = displayedId?.toLongOrNull()
-                                        val deliveredIdUs = deliveredId?.toLongOrNull()
-
-                                        if (isOutgoing) {
-                                            // Исходящие сообщения
-                                            this.state = when {
-                                                displayedIdUs != null && messageTimestampUs <= displayedIdUs -> {
-//                                                    Log.d("ClientSyncManager", "Outgoing message marked as Read: timestampUs=$messageTimestampUs <= displayedIdUs=$displayedIdUs")
-                                                    MessageSendingState.Read
-                                                }
-                                                deliveredIdUs != null && messageTimestampUs <= deliveredIdUs -> {
-//                                                    Log.d("ClientSyncManager", "Outgoing message marked as Deliver: timestampUs=$messageTimestampUs <= deliveredIdUs=$deliveredIdUs")
-                                                    MessageSendingState.Deliver
-                                                }
-                                                else -> {
-//                                                    Log.d("ClientSyncManager", "Outgoing message marked as Sent: timestampUs=$messageTimestampUs")
-                                                    MessageSendingState.Sent
-                                                }
-                                            }
-                                            this.isRead = true  // Исходящие всегда считаются прочитанными
-                                        } else {
-                                            // Входящие сообщения
-                                            val isRead = unreadAfterUs != null && messageTimestampUs <= unreadAfterUs
-                                            this.isRead = isRead
-                                            this.state = if (isRead) {
-//                                                Log.d("ClientSyncManager", "Incoming message marked as Read: timestampUs=$messageTimestampUs <= unreadAfterUs=$unreadAfterUs")
-                                                MessageSendingState.Read
-                                            } else {
-//                                                Log.d("ClientSyncManager", "Incoming message marked as Deliver: timestampUs=$messageTimestampUs > unreadAfterUs=$unreadAfterUs")
-                                                MessageSendingState.Deliver
-                                            }
-                                        }
+                                        val (msgState, msgIsRead) = determineMessageState(
+                                            isOutgoing = isOutgoing,
+                                            messageTimestampUs = timestampUs,
+                                            displayedIdUs = displayedId?.toLongOrNull(),
+                                            deliveredIdUs = deliveredId?.toLongOrNull(),
+                                            unreadCount = unreadCount,
+                                            unreadAfterUs = unreadAfterUs
+                                        )
+                                        this.state = msgState
+                                        this.isRead = msgIsRead
                                         updatePrimary()
                                     }, UpdatePolicy.ALL)
                                 } else {
-                                    // Обновляем состояние существующего сообщения
-                                    val messageTimestampUs = existingMessage.sentDate * 1000L  // миллисекунды → микросекунды
-                                    val displayedIdUs = displayedId?.toLongOrNull()
-                                    val deliveredIdUs = deliveredId?.toLongOrNull()
-
-                                    if (existingMessage.outgoing) {
-                                        // Исходящие
-                                        existingMessage.state = when {
-                                            displayedIdUs != null && messageTimestampUs <= displayedIdUs -> {
-//                                                Log.d("ClientSyncManager", "Updated outgoing message to Read: timestampUs=$messageTimestampUs <= displayedIdUs=$displayedIdUs")
-                                                MessageSendingState.Read
-                                            }
-                                            deliveredIdUs != null && messageTimestampUs <= deliveredIdUs -> {
-//                                                Log.d("ClientSyncManager", "Updated outgoing message to Deliver: timestampUs=$messageTimestampUs <= deliveredIdUs=$deliveredIdUs")
-                                                MessageSendingState.Deliver
-                                            }
-                                            else -> {
-                                                if (existingMessage.state != MessageSendingState.Sent) {
-//                                                    Log.d("ClientSyncManager", "Updated outgoing message to Sent: timestampUs=$messageTimestampUs")
-                                                    MessageSendingState.Sent
-                                                } else {
-                                                    existingMessage.state
-                                                }
-                                            }
-                                        }
-                                        existingMessage.isRead = true
-                                    } else {
-                                        // Входящие
-                                        val isRead = unreadAfterUs != null && messageTimestampUs <= unreadAfterUs
-                                        existingMessage.isRead = isRead
-                                        existingMessage.state = if (isRead) {
-//                                            Log.d("ClientSyncManager", "Updated incoming message to Read: timestampUs=$messageTimestampUs <= unreadAfterUs=$unreadAfterUs")
-                                            MessageSendingState.Read
-                                        } else {
-//                                            Log.d("ClientSyncManager", "Updated incoming message to Deliver: timestampUs=$messageTimestampUs > unreadAfterUs=$unreadAfterUs")
-                                            MessageSendingState.Deliver
-                                        }
-                                    }
+                                    // Update existing message state
+                                    val (msgState, msgIsRead) = determineMessageState(
+                                        isOutgoing = existingMessage.outgoing,
+                                        messageTimestampUs = existingMessage.sentDate * 1000L,
+                                        displayedIdUs = displayedId?.toLongOrNull(),
+                                        deliveredIdUs = deliveredId?.toLongOrNull(),
+                                        unreadCount = unreadCount,
+                                        unreadAfterUs = unreadAfterUs,
+                                        currentState = existingMessage.state
+                                    )
+                                    existingMessage.state = msgState
+                                    existingMessage.isRead = msgIsRead
                                     existingMessage
                                 }
 
@@ -416,56 +480,27 @@ class ClientSynchronizationManager(owner: String) {
                         owner, jid, type
                     ).find()
 
-                    // Конвертируем в микросекунды для сравнения
                     val displayedIdUs = displayedId?.toLongOrNull()
                     val deliveredIdUs = deliveredId?.toLongOrNull()
-                    val unreadAfterMs = if (unreadAfterUs != null) unreadAfterUs / 1000L else 0L
 
-                    // Calculate actual unread based on unreadAfter
+                    // Update all existing messages and calculate actual unread count
                     var actualUnread = 0
 
                     allMessagesInChat.forEach { msg ->
-                        val messageTimestampUs = msg.sentDate * 1000L  // миллисекунды → микросекунды
+                        val (msgState, msgIsRead) = determineMessageState(
+                            isOutgoing = msg.outgoing,
+                            messageTimestampUs = msg.sentDate * 1000L,
+                            displayedIdUs = displayedIdUs,
+                            deliveredIdUs = deliveredIdUs,
+                            unreadCount = unreadCount,
+                            unreadAfterUs = unreadAfterUs,
+                            currentState = msg.state
+                        )
+                        msg.state = msgState
+                        msg.isRead = msgIsRead
 
-                        if (msg.outgoing) {
-                            // Исходящие сообщения
-                            msg.state = when {
-                                displayedIdUs != null && messageTimestampUs <= displayedIdUs -> {
-                                    MessageSendingState.Read
-                                }
-                                deliveredIdUs != null && messageTimestampUs <= deliveredIdUs -> {
-                                    MessageSendingState.Deliver
-                                }
-                                else -> {
-                                    if (msg.state_ < MessageSendingState.Sent.rawValue) {
-                                        MessageSendingState.Sent
-                                    } else {
-                                        msg.state
-                                    }
-                                }
-                            }
-                            msg.isRead = true
-                        } else {
-                            // Входящие сообщения - используем unread after
-                            if (unreadCount == 0L) {
-                                // Все прочитаны
-                                msg.isRead = true
-                                msg.state = MessageSendingState.Read
-                            } else if (unreadAfterMs > 0) {
-                                // Используем порог unread after
-                                val isRead = msg.sentDate <= unreadAfterMs
-                                msg.isRead = isRead
-                                msg.state = if (isRead) MessageSendingState.Read else MessageSendingState.Deliver
-
-                                if (!isRead) {
-                                    actualUnread++
-                                }
-                            } else {
-                                // Нет порога, считаем все непрочитанными
-                                msg.isRead = false
-                                msg.state = MessageSendingState.Deliver
-                                actualUnread++
-                            }
+                        if (!msg.outgoing && !msgIsRead) {
+                            actualUnread++
                         }
                     }
 
@@ -487,7 +522,7 @@ class ClientSynchronizationManager(owner: String) {
                             this.messageDate = messageDateUs / 1000L
                             this.lastMessageId = lastMessageId
                             this.pinnedPosition = pinned
-                            this.muteExpired = -1
+                            this.muteExpired = mute
                             this.rosterItem = rosterItem
                             this.lastMessage = lastMessage
 
@@ -496,6 +531,7 @@ class ClientSynchronizationManager(owner: String) {
                             this.deliveredId = deliveredId
 
                             // Сохраняем lastReadMessageDate из unread after
+                            val unreadAfterMs = if (unreadAfterUs != null) unreadAfterUs / 1000L else 0L
                             this.lastReadMessageDate = when {
                                 unreadAfterMs > 0 -> unreadAfterMs
                                 unreadCount == 0L -> messageDateUs / 1000L
@@ -511,12 +547,18 @@ class ClientSynchronizationManager(owner: String) {
                         }, UpdatePolicy.ALL)
                     } else {
                         findLatest(existingChat)?.apply {
+                            // Mute, pin, and archive status are always applied
+                            // (can change via push without a new message)
+                            if (mute != this.muteExpired) {
+                                this.muteExpired = mute
+                            }
+                            this.pinnedPosition = pinned
+                            this.isArchived = status == "archived"
+
                             if (messageDateUs / 1000L > this.messageDate) {
-                                this.isArchived = status == "archived"
                                 this.unread = actualUnread
                                 this.messageDate = messageDateUs / 1000L
                                 this.lastMessageId = lastMessageId
-                                this.pinnedPosition = pinned
                                 this.rosterItem = rosterItem
                                 this.lastMessage = lastMessage
 
@@ -538,6 +580,7 @@ class ClientSynchronizationManager(owner: String) {
                                 }
 
                                 // Обновляем lastReadMessageDate из unread after
+                                val unreadAfterMs = if (unreadAfterUs != null) unreadAfterUs / 1000L else 0L
                                 val newLastReadMessageDate = when {
                                     unreadAfterMs > 0 -> unreadAfterMs
                                     unreadCount == 0L -> messageDateUs / 1000L
@@ -582,7 +625,7 @@ class ClientSynchronizationManager(owner: String) {
         readConversationMetadata(query, owner)
         val countElement = query.getElementsByTagNameNS("http://jabber.org/protocol/rsm", "count").item(0) as? Element
         val count = countElement?.textContent?.toIntOrNull() ?: 0
-        if (count < 20) { // Updated to match new page size
+        if (count < 40) { // Must match <max>40</max> page size in performSync()
             version = stamp
             SettingManager.saveClientSynchronizationVersion(owner, version)
             Log.d("ClientSyncManager", "Sync completed, updated version to $version, count: $count")

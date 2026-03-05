@@ -105,7 +105,7 @@ open class GroupChatStorageItem : RealmObject {
 enum class Membership(val rawValue: String) {
     NONE("none"),
     OPEN("open"),
-    MEMBER_ONLY("member-only");
+    PRIVATE("private");
 
     companion object {
         fun fromRaw(raw: String): Membership =

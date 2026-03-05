@@ -9,7 +9,7 @@ open class GroupChatIndexStorageItem : RealmObject {
     enum class Membership(val rawValue: Int) {
         NONE(0),
         OPEN(1),
-        MEMBER_ONLY(2);
+        PRIVATE(2);
 
         companion object {
             fun fromRaw(raw: Int): Membership =
@@ -46,7 +46,7 @@ open class GroupChatIndexStorageItem : RealmObject {
         get() = when (membership_) {
             Membership.NONE.rawValue -> Membership.NONE
             Membership.OPEN.rawValue -> Membership.OPEN
-            Membership.MEMBER_ONLY.rawValue -> Membership.MEMBER_ONLY
+            Membership.PRIVATE.rawValue -> Membership.PRIVATE
             else -> Membership.NONE
         }
         set(newValue) {

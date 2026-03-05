@@ -23,6 +23,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.w3c.dom.Element
 import java.util.*
@@ -69,9 +70,19 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
         }
     }
 
-    private val queueItems = Collections.synchronizedList(mutableListOf<QueueItem>())
+    private val queueItems = mutableListOf<QueueItem>()
     private val mutex = Mutex()
     private val realm = Realm.open(defaultRealmConfig())
+
+    private suspend fun findQueueItem(id: String): QueueItem? = mutex.withLock {
+        queueItems.find { it.elementId == id }
+    }
+    private suspend fun removeQueueItem(item: QueueItem) = mutex.withLock {
+        queueItems.remove(item)
+    }
+    private suspend fun addQueueItem(item: QueueItem) = mutex.withLock {
+        queueItems.add(item)
+    }
 
     override fun namespaces(): List<String> = listOf(NAMESPACE)
     override fun getPrimaryNamespace(): String = NAMESPACE
@@ -101,49 +112,65 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
         callback: ((String?) -> Unit)? = null
     ) {
         val elementId = "GC:${NanoId.generate(6)}"
-        val query = buildString {
-            append("<query xmlns='${xmlns("create")}'>")
-            append("<name>$name</name>")
-            localPart?.let { append("<localpart>$it</localpart>") }
-            privacy?.let { append("<privacy>$it</privacy>") }
-            membership?.let { append("<membership>$it</membership>") }
-            index?.let { append("<index>$it</index>") }
-            description?.let { append("<description>$it</description>") }
-            status?.let { append("<status>$it</status>") }
-            languages?.takeIf { it.isNotEmpty() }?.let { langs ->
-                append("<languages>")
-                langs.forEach { append("<language>$it</language>") }
-                append("</languages>")
-            }
-            contacts?.takeIf { it.isNotEmpty() }?.let { c ->
-                append("<contacts>")
-                c.forEach { append("<contact>$it</contact>") }
-                append("</contacts>")
-            }
-            domains?.takeIf { it.isNotEmpty() }?.let { d ->
-                append("<domains>")
-                d.forEach { append("<domain>$it</domain>") }
-                append("</domains>")
-            }
+        // Per XEP-GROUPS V3 spec: <create xmlns='...'><group privacy='...'><info>...</info><settings>...</settings></group></create>
+        val createXml = buildString {
+            append("<create xmlns='$NAMESPACE'>")
             if (peerToPeerJid != null) {
-                val idAttr = peerToPeerUserId?.let { " id='$it'" } ?: ""
-                append("<peer-to-peer jid='$peerToPeerJid'$idAttr/>")
+                // Peer-to-peer creation uses a different element
+                val withAttr = peerToPeerUserId?.let { " with='$it'" } ?: ""
+                append("<peer-to-peer parent='$peerToPeerJid'$withAttr/>")
+            } else {
+                val privacyAttr = privacy?.let { " privacy='$it'" } ?: ""
+                append("<group$privacyAttr>")
+                localPart?.let { append("<localpart>$it</localpart>") }
+                // Info block
+                append("<info>")
+                append("<name>$name</name>")
+                description?.let { append("<description>$it</description>") }
+                append("</info>")
+                // Settings block
+                val hasSettings = membership != null || index != null || status != null ||
+                    !contacts.isNullOrEmpty() || !domains.isNullOrEmpty() || !languages.isNullOrEmpty()
+                if (hasSettings) {
+                    append("<settings>")
+                    membership?.let { append("<membership>$it</membership>") }
+                    index?.let { append("<index>$it</index>") }
+                    status?.let { append("<status>$it</status>") }
+                    languages?.takeIf { it.isNotEmpty() }?.let { langs ->
+                        append("<languages>")
+                        langs.forEach { append("<language>$it</language>") }
+                        append("</languages>")
+                    }
+                    contacts?.takeIf { it.isNotEmpty() }?.let { c ->
+                        append("<contacts>")
+                        c.forEach { append("<contact>$it</contact>") }
+                        append("</contacts>")
+                    }
+                    domains?.takeIf { it.isNotEmpty() }?.let { d ->
+                        append("<domains>")
+                        d.forEach { append("<domain>$it</domain>") }
+                        append("</domains>")
+                    }
+                    append("</settings>")
+                }
+                append("</group>")
             }
-            append("</query>")
+            append("</create>")
         }
         val iq = """
             <iq type='set' to='$server' id='$elementId'>
-                $query
+                $createXml
             </iq>
         """.trimIndent()
         stream.socket?.write(iq)
         addQueryId(elementId)
         val actionValue = if (peerToPeerJid != null) "peer-to-peer" else ""
-        queueItems.add(QueueItem(QueueItem.Action.CREATE, elementId, callback, value = actionValue))
+        addQueueItem(QueueItem(QueueItem.Action.CREATE, elementId, callback, value = actionValue))
+        scheduleTimeout(elementId)
 
         if (localPart != null) {
             val groupJid = "$localPart@$server"
-            queueItems.add(QueueItem(QueueItem.Action.JOIN, "$groupJid:join", null))
+            addQueueItem(QueueItem(QueueItem.Action.JOIN, "$groupJid:join", null))
         }
     }
 
@@ -152,15 +179,17 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
         val jidObj = try { XMPPJID(groupchat) } catch (e: Exception) { null }
         val bareJid = jidObj?.bare() ?: groupchat
         val domain = jidObj?.domainPart ?: groupchat
-        val query = "<query xmlns='${xmlns("delete")}'>$bareJid</query>"
+        // Per spec: <delete xmlns='https://xabber.com/protocol/groups'>jid</delete>
+        val deleteXml = "<delete xmlns='$NAMESPACE'>$bareJid</delete>"
         val iq = """
             <iq type='set' to='$domain' id='$elementId'>
-                $query
+                $deleteXml
             </iq>
         """.trimIndent()
         stream.socket?.write(iq)
         addQueryId(elementId)
-        queueItems.add(QueueItem(QueueItem.Action.DELETE, elementId, callback))
+        addQueueItem(QueueItem(QueueItem.Action.DELETE, elementId, callback))
+        scheduleTimeout(elementId)
     }
 
     suspend fun join(stream: Stream, groupchat: String, callback: ((String?) -> Unit)? = null) {
@@ -170,7 +199,7 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
         stream.socket?.write(presence)
 
         val elementId = "$groupchat:join"
-        queueItems.add(QueueItem(QueueItem.Action.JOIN, elementId, callback))
+        addQueueItem(QueueItem(QueueItem.Action.JOIN, elementId, callback))
         scheduleTimeout(elementId)
     }
 
@@ -181,7 +210,8 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
         stream.socket?.write(presence)
 
         val elementId = "$groupchat:leave"
-        queueItems.add(QueueItem(QueueItem.Action.LEAVE, elementId, callback))
+        addQueueItem(QueueItem(QueueItem.Action.LEAVE, elementId, callback))
+        scheduleTimeout(elementId)
     }
 
     suspend fun invite(
@@ -193,7 +223,7 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
     ) {
         val elementId = "GC:${NanoId.generate(6)}"
         val inviteXml = buildString {
-            append("<invite xmlns='${xmlns("invite")}' jid='$groupchat'>")
+            append("<invite xmlns='$NAMESPACE' jid='$groupchat'>")
             reason?.let { append("<reason>$it</reason>") }
             append("</invite>")
         }
@@ -204,10 +234,8 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
             </message>
         """.trimIndent()
         stream.socket?.write(message)
-
-        addQueryId(elementId)
-        queueItems.add(QueueItem(QueueItem.Action.INVITE, elementId, inviteCallback = callback, value = jid))
-        scheduleTimeout(elementId)
+        // Direct invitations are <message> stanzas — no server response expected
+        callback?.invoke(jid, null)
     }
 
     suspend fun revokeInvite(
@@ -218,7 +246,7 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
     ) {
         val elementId = "GC:${NanoId.generate(6)}"
         val revokeXml = """
-            <revoke xmlns='${xmlns("invite")}'>
+            <revoke xmlns='$NAMESPACE'>
                 <jid>$jid</jid>
             </revoke>
         """.trimIndent()
@@ -230,25 +258,29 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
         """.trimIndent()
         stream.socket?.write(iq)
         addQueryId(elementId)
-        queueItems.add(QueueItem(QueueItem.Action.REVOKE_INVITE, elementId, inviteCallback = callback, value = jid))
+        addQueueItem(QueueItem(QueueItem.Action.REVOKE_INVITE, elementId, inviteCallback = callback, value = jid))
         scheduleTimeout(elementId)
     }
 
-    suspend fun requestUsers(stream: Stream, groupchat: String, userId: String? = null) {
+    suspend fun requestUsers(stream: Stream, groupchat: String, userId: String? = null, version: String? = null) {
         val elementId = "GC:${NanoId.generate(6)}"
-        val queryAttrs = buildString {
-            append("xmlns='${xmlns("members")}'")
+        val membersAttrs = buildString {
+            append("xmlns='$NAMESPACE'")
             userId?.let { append(" id='$it'") }
+            version?.let { append(" version='$it'") }
         }
-        val query = "<query $queryAttrs/>"
+        val query = "<members $membersAttrs/>"
+        // Per spec, member requests go to groupchat/Group resource
+        val toJid = fullJid(groupchat) ?: return
         val iq = """
-            <iq type='get' to='${fullJid(groupchat)?.bare()}' id='$elementId'>
+            <iq type='get' to='$toJid' id='$elementId'>
                 $query
             </iq>
         """.trimIndent()
         stream.socket?.write(iq)
         addQueryId(elementId)
-        queueItems.add(QueueItem(if (userId != null) QueueItem.Action.USER_CARD else QueueItem.Action.REQUEST_USERS, elementId))
+        addQueueItem(QueueItem(if (userId != null) QueueItem.Action.USER_CARD else QueueItem.Action.REQUEST_USERS, elementId))
+        scheduleTimeout(elementId)
     }
 
     suspend fun requestSelfIdsForAllGroups(stream: Stream) {
@@ -274,7 +306,7 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
         """.trimIndent()
         stream.socket?.write(iq)
         addQueryId(elementId)
-        queueItems.add(QueueItem(QueueItem.Action.REQUEST_FORM, elementId, settingsCallback = callback))
+        addQueueItem(QueueItem(QueueItem.Action.REQUEST_FORM, elementId, settingsCallback = callback))
         scheduleTimeout(elementId)
     }
 
@@ -295,7 +327,7 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
         """.trimIndent()
         stream.socket?.write(iq)
         addQueryId(elementId)
-        queueItems.add(QueueItem(QueueItem.Action.UPDATE_FORM, elementId, callback))
+        addQueueItem(QueueItem(QueueItem.Action.UPDATE_FORM, elementId, callback))
         scheduleTimeout(elementId)
     }
 
@@ -321,7 +353,7 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
         """.trimIndent()
         stream.socket?.write(iq)
         addQueryId(elementId)
-        queueItems.add(QueueItem(QueueItem.Action.KICK, elementId, callback))
+        addQueueItem(QueueItem(QueueItem.Action.KICK, elementId, callback))
         scheduleTimeout(elementId)
     }
 
@@ -335,8 +367,9 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
     ) {
         val elementId = "GC:${NanoId.generate(6)}"
         val bareJid = try { XMPPJID(groupchat).bare() } catch (e: Exception) { groupchat }
+        // Per spec: <block xmlns='https://xabber.com/protocol/groups'>
         val blockXml = buildString {
-            append("<block xmlns='${xmlns("block")}'>")
+            append("<block xmlns='$NAMESPACE'>")
             userIds.forEach { append("<id>$it</id>") }
             jids.forEach { append("<jid>$it</jid>") }
             domains.forEach { append("<domain>$it</domain>") }
@@ -353,7 +386,7 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
         userIds.forEach { payload.add(mapOf("type" to "id", "value" to it)) }
         jids.forEach { payload.add(mapOf("type" to "jid", "value" to it)) }
         domains.forEach { payload.add(mapOf("type" to "domain", "value" to it)) }
-        queueItems.add(QueueItem(QueueItem.Action.BLOCK, elementId, callback, payload = payload))
+        addQueueItem(QueueItem(QueueItem.Action.BLOCK, elementId, callback, payload = payload))
         scheduleTimeout(elementId)
     }
 
@@ -367,8 +400,9 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
     ) {
         val elementId = "GC:${NanoId.generate(6)}"
         val bareJid = try { XMPPJID(groupchat).bare() } catch (e: Exception) { groupchat }
+        // Per spec: <unblock xmlns='https://xabber.com/protocol/groups'/>
         val unblockXml = buildString {
-            append("<unblock xmlns='${xmlns("block")}'>")
+            append("<unblock xmlns='$NAMESPACE'>")
             userIds.forEach { append("<id>$it</id>") }
             jids.forEach { append("<jid>$it</jid>") }
             domains.forEach { append("<domain>$it</domain>") }
@@ -385,26 +419,35 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
         userIds.forEach { payload.add(mapOf("type" to "id", "value" to it)) }
         jids.forEach { payload.add(mapOf("type" to "jid", "value" to it)) }
         domains.forEach { payload.add(mapOf("type" to "domain", "value" to it)) }
-        queueItems.add(QueueItem(QueueItem.Action.UNBLOCK, elementId, callback, payload = payload))
+        addQueueItem(QueueItem(QueueItem.Action.UNBLOCK, elementId, callback, payload = payload))
         scheduleTimeout(elementId)
     }
 
     suspend fun pinMessage(stream: Stream, groupchat: String, stanzaId: String, callback: ((String?) -> Unit)? = null) {
         val elementId = "GC:${NanoId.generate(6)}"
         val bareJid = try { XMPPJID(groupchat).bare() } catch (e: Exception) { groupchat }
-        val query = """
-            <update xmlns='$NAMESPACE'>
-                <pinned-message>$stanzaId</pinned-message>
-            </update>
-        """.trimIndent()
         val iq = """
             <iq type='set' to='$bareJid' id='$elementId'>
-                $query
+                <pinned-message id='$stanzaId' status='pinned'/>
             </iq>
         """.trimIndent()
         stream.socket?.write(iq)
         addQueryId(elementId)
-        queueItems.add(QueueItem(QueueItem.Action.PIN, elementId, callback))
+        addQueueItem(QueueItem(QueueItem.Action.PIN, elementId, callback))
+        scheduleTimeout(elementId)
+    }
+
+    suspend fun unpinMessage(stream: Stream, groupchat: String, stanzaId: String, callback: ((String?) -> Unit)? = null) {
+        val elementId = "GC:${NanoId.generate(6)}"
+        val bareJid = try { XMPPJID(groupchat).bare() } catch (e: Exception) { groupchat }
+        val iq = """
+            <iq type='set' to='$bareJid' id='$elementId'>
+                <pinned-message id='$stanzaId' status='remove'/>
+            </iq>
+        """.trimIndent()
+        stream.socket?.write(iq)
+        addQueryId(elementId)
+        addQueueItem(QueueItem(QueueItem.Action.PIN, elementId, callback))
         scheduleTimeout(elementId)
     }
 
@@ -420,7 +463,7 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
         val elementId = "GC:${NanoId.generate(6)}"
         val bareJid = try { XMPPJID(groupchat).bare() } catch (e: Exception) { groupchat }
         val inviteXml = buildString {
-            append("<invite xmlns='${xmlns("invite")}'>")
+            append("<invite xmlns='$NAMESPACE'>")
             append("<jid>$jid</jid>")
             append("<send>$send</send>")
             reason?.let { append("<reason>$it</reason>") }
@@ -433,7 +476,7 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
         """.trimIndent()
         stream.socket?.write(iq)
         addQueryId(elementId)
-        queueItems.add(QueueItem(QueueItem.Action.MEDIATED_INVITE, elementId, inviteCallback = callback, value = jid))
+        addQueueItem(QueueItem(QueueItem.Action.MEDIATED_INVITE, elementId, inviteCallback = callback, value = jid))
         scheduleTimeout(elementId)
     }
 
@@ -447,12 +490,12 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
         val bareJid = try { XMPPJID(groupchat).bare() } catch (e: Exception) { groupchat }
         val iq = """
             <iq type='set' to='$bareJid' id='$elementId'>
-                <decline xmlns='${xmlns("invite")}'/>
+                <decline xmlns='$NAMESPACE'/>
             </iq>
         """.trimIndent()
         stream.socket?.write(iq)
         addQueryId(elementId)
-        queueItems.add(QueueItem(QueueItem.Action.DECLINE_INVITE, elementId, callback))
+        addQueueItem(QueueItem(QueueItem.Action.DECLINE_INVITE, elementId, callback))
         scheduleTimeout(elementId)
     }
 
@@ -466,32 +509,32 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
         val bareJid = try { XMPPJID(groupchat).bare() } catch (e: Exception) { groupchat }
         val iq = """
             <iq type='get' to='$bareJid' id='$elementId'>
-                <query xmlns='${xmlns("invite")}'/>
+                <invites xmlns='$NAMESPACE'/>
             </iq>
         """.trimIndent()
         stream.socket?.write(iq)
         addQueryId(elementId)
-        queueItems.add(QueueItem(QueueItem.Action.LIST_INVITATIONS, elementId, settingsCallback = callback))
+        addQueueItem(QueueItem(QueueItem.Action.LIST_INVITATIONS, elementId, settingsCallback = callback))
         scheduleTimeout(elementId)
     }
 
-    // --- 2.5 Group Info Query (#info) ---
+    // --- 2.5 Group Info Query ---
     suspend fun requestGroupInfo(
         stream: Stream,
         groupchat: String,
         callback: ((String?) -> Unit)? = null
     ) {
         val elementId = "GC:${NanoId.generate(6)}"
-        val groupJid = fullJid(groupchat)?.toString() ?: "$groupchat/Group"
+        val bareJid = try { XMPPJID(groupchat).bare() } catch (e: Exception) { groupchat }
+        // Per spec: <query xmlns="https://xabber.com/protocol/groups" />
         val iq = """
-            <iq to='$groupJid' type='get' id='$elementId'>
-                <query xmlns='${xmlns("info")}'/>
+            <iq to='$bareJid' type='get' id='$elementId'>
+                <query xmlns='$NAMESPACE'/>
             </iq>
         """.trimIndent()
-        Log.w(TAG, "GROUP INFO REQUEST _________ SENT")
         stream.socket?.write(iq)
         addQueryId(elementId)
-        queueItems.add(QueueItem(QueueItem.Action.REQUEST_INFO, elementId, callback))
+        addQueueItem(QueueItem(QueueItem.Action.REQUEST_INFO, elementId, callback))
         scheduleTimeout(elementId)
     }
 
@@ -503,14 +546,15 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
     ) {
         val elementId = "GC:${NanoId.generate(6)}"
         val bareJid = try { XMPPJID(groupchat).bare() } catch (e: Exception) { groupchat }
+        // Per spec: <block xmlns='https://xabber.com/protocol/groups'/>
         val iq = """
             <iq type='get' to='$bareJid' id='$elementId'>
-                <query xmlns='${xmlns("block")}'/>
+                <block xmlns='$NAMESPACE'/>
             </iq>
         """.trimIndent()
         stream.socket?.write(iq)
         addQueryId(elementId)
-        queueItems.add(QueueItem(QueueItem.Action.REQUEST_BLOCK_LIST, elementId, settingsCallback = callback))
+        addQueueItem(QueueItem(QueueItem.Action.REQUEST_BLOCK_LIST, elementId, settingsCallback = callback))
         scheduleTimeout(elementId)
     }
 
@@ -529,7 +573,7 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
         """.trimIndent()
         stream.socket?.write(iq)
         addQueryId(elementId)
-        queueItems.add(QueueItem(QueueItem.Action.DEFAULT_RIGHTS, elementId, settingsCallback = callback))
+        addQueueItem(QueueItem(QueueItem.Action.DEFAULT_RIGHTS, elementId, settingsCallback = callback))
         scheduleTimeout(elementId)
     }
 
@@ -550,7 +594,7 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
         """.trimIndent()
         stream.socket?.write(iq)
         addQueryId(elementId)
-        queueItems.add(QueueItem(QueueItem.Action.DEFAULT_RIGHTS, elementId, callback))
+        addQueueItem(QueueItem(QueueItem.Action.DEFAULT_RIGHTS, elementId, callback))
         scheduleTimeout(elementId)
     }
 
@@ -572,7 +616,7 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
         """.trimIndent()
         stream.socket?.write(iq)
         addQueryId(elementId)
-        queueItems.add(QueueItem(QueueItem.Action.USER_RIGHTS, elementId, settingsCallback = callback, value = userId))
+        addQueueItem(QueueItem(QueueItem.Action.USER_RIGHTS, elementId, settingsCallback = callback, value = userId))
         scheduleTimeout(elementId)
     }
 
@@ -599,7 +643,7 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
         """.trimIndent()
         stream.socket?.write(iq)
         addQueryId(elementId)
-        queueItems.add(QueueItem(QueueItem.Action.USER_RIGHTS, elementId, callback))
+        addQueueItem(QueueItem(QueueItem.Action.USER_RIGHTS, elementId, callback))
         scheduleTimeout(elementId)
     }
 
@@ -619,9 +663,9 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
             badge?.let { append("<badge>$it</badge>") }
         }
         val query = """
-            <query xmlns='${xmlns("members")}'>
+            <members xmlns='$NAMESPACE' id='$userId'>
                 <user xmlns='$NAMESPACE' id='$userId'>$userContent</user>
-            </query>
+            </members>
         """.trimIndent()
         val iq = """
             <iq type='set' to='$bareJid' id='$elementId'>
@@ -630,7 +674,7 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
         """.trimIndent()
         stream.socket?.write(iq)
         addQueryId(elementId)
-        queueItems.add(QueueItem(QueueItem.Action.CHANGE_NICKNAME, elementId, callback))
+        addQueueItem(QueueItem(QueueItem.Action.CHANGE_NICKNAME, elementId, callback))
         scheduleTimeout(elementId)
     }
 
@@ -650,27 +694,29 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
         """.trimIndent()
         stream.socket?.write(iq)
         addQueryId(elementId)
-        queueItems.add(QueueItem(QueueItem.Action.ADD_OWNER, elementId, callback))
+        addQueueItem(QueueItem(QueueItem.Action.ADD_OWNER, elementId, callback))
         scheduleTimeout(elementId)
     }
 
-    // --- 2.10 Presence markers (#present / #not-present) ---
+    // --- 2.10 Presence via Chat State Notifications (XEP-0085) ---
+    // Per spec: client MUST notify the server of viewing the group chat
+    // by sending chat state notifications
     suspend fun sendPresent(stream: Stream, groupchat: String) {
-        val presence = """
-            <presence to='$groupchat'>
-                <x xmlns='${xmlns("present")}'/>
-            </presence>
+        val message = """
+            <message to='$groupchat' type='chat'>
+                <active xmlns='http://jabber.org/protocol/chatstates'/>
+            </message>
         """.trimIndent()
-        stream.socket?.write(presence)
+        stream.socket?.write(message)
     }
 
     suspend fun sendNotPresent(stream: Stream, groupchat: String) {
-        val presence = """
-            <presence to='$groupchat'>
-                <x xmlns='${xmlns("not-present")}'/>
-            </presence>
+        val message = """
+            <message to='$groupchat' type='chat'>
+                <inactive xmlns='http://jabber.org/protocol/chatstates'/>
+            </message>
         """.trimIndent()
-        stream.socket?.write(presence)
+        stream.socket?.write(message)
     }
 
     // --- 2.11 Peer-to-peer toggle in subscribe presence ---
@@ -708,42 +754,52 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
                 val type = iqElement.getAttribute("type")
 
                 if (queryIds.contains(id)) {
-                    val query = iqElement.getElementsByTagNameNS(NAMESPACE, "query")?.item(0) as? Element
-                    val ns = query?.getAttribute("xmlns") ?: ""
-                    // Check for standalone elements (revoke, decline) that don't use <query> wrapper
-                    val revoke = iqElement.getElementsByTagNameNS(xmlns("invite"), "revoke")?.item(0) as? Element
-                    val decline = iqElement.getElementsByTagNameNS(xmlns("invite"), "decline")?.item(0) as? Element
-                    val info = iqElement.getElementsByTagNameNS(xmlns("info"), "query")?.item(0) as? Element
-                    val defaultRights = iqElement.getElementsByTagNameNS(xmlns("default-rights"), "query")?.item(0) as? Element
-                    val rights = iqElement.getElementsByTagNameNS(xmlns("rights"), "query")?.item(0) as? Element
+                    // First, try to route by queued action (most reliable)
+                    val queuedAction = findQueueItem(id)?.action
+                    val members = iqElement.getElementsByTagNameNS(NAMESPACE, "members")?.item(0) as? Element
+                    val invite = iqElement.getElementsByTagNameNS(NAMESPACE, "invite")?.item(0) as? Element
+                    val revoke = iqElement.getElementsByTagNameNS(NAMESPACE, "revoke")?.item(0) as? Element
+                    val decline = iqElement.getElementsByTagNameNS(NAMESPACE, "decline")?.item(0) as? Element
+
                     when {
-                        ns == xmlns("create") -> handleCreateResponse(iqElement, id, from, type)
-                        ns == xmlns("delete") -> handleDeleteResponse(iqElement, id, from, type)
-                        ns == xmlns("members") -> handleMembersResponse(iqElement, id, from)
-                        ns == xmlns("invite") -> handleInviteResponse(iqElement, id, from, type)
-                        ns == xmlns("block") -> handleBlockResponse(iqElement, id, from, type)
-                        ns == xmlns("info") -> handleInfoResponse(iqElement, id, from, type)
-                        ns == xmlns("default-rights") -> handleDefaultRightsResponse(iqElement, id, from, type)
-                        ns == xmlns("rights") -> handleRightsResponse(iqElement, id, from, type)
-                        ns == NAMESPACE -> handleSettingsFormResponse(iqElement, id, from, type)
-                        ns == xmlns("status") -> handleStatusFormResponse(iqElement, id, from, type)
-                        revoke != null || decline != null -> handleInviteResponse(iqElement, id, from, type)
-                        info != null -> handleInfoResponse(iqElement, id, from, type)
-                        defaultRights != null -> handleDefaultRightsResponse(iqElement, id, from, type)
-                        rights != null -> handleRightsResponse(iqElement, id, from, type)
-                        // Info response wraps data in <x xmlns='NAMESPACE'> with no <query> wrapper
-                        queueItems.find { it.elementId == id }?.action == QueueItem.Action.REQUEST_INFO ->
-                            handleInfoResponse(iqElement, id, from, type)
-                        else -> handleGenericSuccess(iqElement, id, type)
+                        // Route by queued action
+                        queuedAction == QueueItem.Action.CREATE -> handleCreateResponse(iqElement, id, from, type)
+                        queuedAction == QueueItem.Action.DELETE -> handleDeleteResponse(iqElement, id, from, type)
+                        queuedAction == QueueItem.Action.REQUEST_USERS || queuedAction == QueueItem.Action.USER_CARD ||
+                            members != null -> handleMembersResponse(iqElement, id, from)
+                        queuedAction == QueueItem.Action.MEDIATED_INVITE || queuedAction == QueueItem.Action.REVOKE_INVITE ||
+                            queuedAction == QueueItem.Action.DECLINE_INVITE ||
+                            invite != null || revoke != null || decline != null -> handleInviteResponse(iqElement, id, from, type)
+                        queuedAction == QueueItem.Action.BLOCK || queuedAction == QueueItem.Action.UNBLOCK ->
+                            handleBlockResponse(iqElement, id, from, type)
+                        queuedAction == QueueItem.Action.REQUEST_BLOCK_LIST -> handleBlockResponse(iqElement, id, from, type)
+                        queuedAction == QueueItem.Action.REQUEST_INFO -> handleInfoResponse(iqElement, id, from, type)
+                        queuedAction == QueueItem.Action.DEFAULT_RIGHTS -> handleDefaultRightsResponse(iqElement, id, from, type)
+                        queuedAction == QueueItem.Action.USER_RIGHTS -> handleRightsResponse(iqElement, id, from, type)
+                        queuedAction == QueueItem.Action.REQUEST_FORM -> handleSettingsFormResponse(iqElement, id, from, type)
+                        queuedAction == QueueItem.Action.LIST_INVITATIONS -> handleInviteResponse(iqElement, id, from, type)
+                        // Fallback: route by namespace in response
+                        else -> {
+                            val query = iqElement.getElementsByTagNameNS(NAMESPACE, "query")?.item(0) as? Element
+                            val ns = query?.getAttribute("xmlns") ?: ""
+                            when {
+                                ns == xmlns("default-rights") -> handleDefaultRightsResponse(iqElement, id, from, type)
+                                ns == xmlns("rights") -> handleRightsResponse(iqElement, id, from, type)
+                                ns == xmlns("status") -> handleStatusFormResponse(iqElement, id, from, type)
+                                ns == NAMESPACE -> handleSettingsFormResponse(iqElement, id, from, type)
+                                else -> handleGenericSuccess(iqElement, id, type)
+                            }
+                        }
                     }
                     return@withContext true
                 }
                 if (type == "set") {
-                    val query = iqElement.getElementsByTagNameNS(NAMESPACE, "query")?.item(0) as? Element
-                    val ns = query?.getAttribute("xmlns") ?: ""
-                    when (ns) {
-                        xmlns("members") -> handleMembersPush(query, from)
-                        xmlns("invite") -> handleInvitePush(query, from)
+                    // Detect push elements by tag name under base namespace
+                    val membersPush = iqElement.getElementsByTagNameNS(NAMESPACE, "members")?.item(0) as? Element
+                    val invitePush = iqElement.getElementsByTagNameNS(NAMESPACE, "invite")?.item(0) as? Element
+                    when {
+                        membersPush != null -> handleMembersPush(membersPush, from)
+                        invitePush != null -> handleInvitePush(invitePush, from)
                         else -> { /* ignore */ }
                     }
                     return@withContext true
@@ -769,8 +825,10 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
                 when (type) {
                     "subscribe" -> {
                         val elementId = "$jid:join"
-                        queueItems.find { it.elementId == elementId }?.callback?.invoke(null)
-                        queueItems.removeAll { it.elementId == elementId }
+                        findQueueItem(elementId)?.let { item ->
+                            item.callback?.invoke(null)
+                            removeQueueItem(item)
+                        }
                         handleGroupInfoPresence(presence)
                         return@withContext true
                     }
@@ -780,14 +838,18 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
                     }
                     "unsubscribe" -> {
                         val elementId = "$jid:leave"
-                        queueItems.find { it.elementId == elementId }?.callback?.invoke("error")
-                        queueItems.removeAll { it.elementId == elementId }
+                        findQueueItem(elementId)?.let { item ->
+                            item.callback?.invoke("error")
+                            removeQueueItem(item)
+                        }
                         return@withContext true
                     }
                     "unsubscribed" -> {
                         val elementId = "$jid:leave"
-                        queueItems.find { it.elementId == elementId }?.callback?.invoke(null)
-                        queueItems.removeAll { it.elementId == elementId }
+                        findQueueItem(elementId)?.let { item ->
+                            item.callback?.invoke(null)
+                            removeQueueItem(item)
+                        }
                         afterLeave(jid)
                         return@withContext true
                     }
@@ -847,6 +909,7 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
                 for ((userEl, gc) in userElements) {
                     val id = userEl.getAttribute("id")
                     if (id.isNullOrEmpty()) continue
+                    val (avatarUrl, avatarHash) = extractAvatarFromXmlElement(userEl)
                     updateUserCardInTransaction(
                         userId = id,
                         groupchat = gc,
@@ -856,7 +919,9 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
                         roleValue = userEl.element("role")?.textContent,
                         subscriptionValue = userEl.element("subscription")?.textContent,
                         badgeValue = userEl.element("badge")?.textContent,
-                        presentText = userEl.element("present")?.textContent
+                        presentText = userEl.element("present")?.textContent,
+                        avatarUrl = avatarUrl,
+                        avatarHash = avatarHash
                     )
                 }
                 pinnedId?.let { pid ->
@@ -875,10 +940,12 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
     // ----------------------------------------------------------------------
 
     private suspend fun handleCreateResponse(iq: Element, id: String, from: String, type: String) {
-        val item = queueItems.find { it.elementId == id } ?: return
+        val item = findQueueItem(id) ?: return
         if (type == "result") {
-            // Try <jid> first (legacy), then construct from <localpart>@from
-            var jid = iq.getElementsByTagName("jid")?.item(0)?.textContent
+            // Per spec, jid is an attribute on <group jid='...'>, fallback to <jid> child or <localpart>@from
+            val groupEl = iq.getElementsByTagName("group")?.item(0) as? Element
+            var jid = groupEl?.getAttribute("jid")?.takeIf { it.isNotEmpty() }
+                ?: iq.getElementsByTagName("jid")?.item(0)?.textContent
             if (jid == null) {
                 val localpart = iq.getElementsByTagName("localpart")?.item(0)?.textContent
                 if (localpart != null && from.isNotEmpty()) {
@@ -886,9 +953,9 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
                 }
             }
             if (jid != null) {
-                // Parse returned settings to update storage
-                val query = iq.getElementsByTagName("query")?.item(0) as? Element
-                if (query != null) {
+                // Parse returned settings from <group> element or fallback to <query>
+                val dataEl = groupEl ?: iq.getElementsByTagName("query")?.item(0) as? Element
+                if (dataEl != null) {
                     realm.write {
                         val groupPrimary = GroupChatStorageItem.genPrimary(jid, owner)
                         var group = query<GroupChatStorageItem>("primary = $0", groupPrimary).first().find()
@@ -903,12 +970,21 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
                             group = findLatest(group)
                         }
                         group?.let {
-                            query.getElementsByTagName("name")?.item(0)?.textContent?.let { v -> it.name = v }
-                            query.getElementsByTagName("privacy")?.item(0)?.textContent?.let { v -> it.privacy_ = v }
-                            query.getElementsByTagName("membership")?.item(0)?.textContent?.let { v -> it.membership_ = v }
-                            query.getElementsByTagName("index")?.item(0)?.textContent?.let { v -> it.index_ = v }
-                            query.getElementsByTagName("description")?.item(0)?.textContent?.let { v -> it.descr = v }
-                            query.getElementsByTagName("status")?.item(0)?.textContent?.let { v -> it.status = v }
+                            // Per spec, privacy is an attribute on <group privacy='...'>
+                            groupEl?.getAttribute("privacy")?.takeIf { v -> v.isNotEmpty() }?.let { v -> it.privacy_ = v }
+                            val infoEl = dataEl.getElementsByTagName("info")?.item(0) as? Element
+                            val settingsEl = dataEl.getElementsByTagName("settings")?.item(0) as? Element
+                            // Name and description are under <info>
+                            (infoEl?.getElementsByTagName("name")?.item(0)?.textContent
+                                ?: dataEl.getElementsByTagName("name")?.item(0)?.textContent)?.let { v -> it.name = v }
+                            (infoEl?.getElementsByTagName("description")?.item(0)?.textContent
+                                ?: dataEl.getElementsByTagName("description")?.item(0)?.textContent)?.let { v -> it.descr = v }
+                            // Membership and index are under <settings>
+                            (settingsEl?.getElementsByTagName("membership")?.item(0)?.textContent
+                                ?: dataEl.getElementsByTagName("membership")?.item(0)?.textContent)?.let { v -> it.membership_ = v }
+                            (settingsEl?.getElementsByTagName("index")?.item(0)?.textContent
+                                ?: dataEl.getElementsByTagName("index")?.item(0)?.textContent)?.let { v -> it.index_ = v }
+                            dataEl.getElementsByTagName("status")?.item(0)?.textContent?.let { v -> it.status = v }
                         }
                     }
                 }
@@ -924,27 +1000,29 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
         } else {
             item.callback?.invoke("error")
         }
-        queueItems.remove(item)
+        removeQueueItem(item)
         checkAndRemoveQueryId(id)
     }
 
     private suspend fun handleDeleteResponse(iq: Element, id: String, from: String, type: String) {
-        val item = queueItems.find { it.elementId == id } ?: return
+        val item = findQueueItem(id) ?: return
         if (type == "result") {
             item.callback?.invoke(null)
             afterDelete(from)
         } else {
             item.callback?.invoke("error")
         }
-        queueItems.remove(item)
+        removeQueueItem(item)
         checkAndRemoveQueryId(id)
     }
 
     private suspend fun handleMembersResponse(iq: Element, id: String, from: String) {
-        val item = queueItems.find { it.elementId == id }
-        val query = iq.getElementsByTagNameNS(NAMESPACE, "query")?.item(0) as? Element ?: return
-        val version = query.getAttribute("version")
-        val users = query.getElementsByTagName("user")
+        val item = findQueueItem(id)
+        val membersEl = iq.getElementsByTagNameNS(NAMESPACE, "members")?.item(0) as? Element
+            ?: iq.getElementsByTagNameNS(NAMESPACE, "query")?.item(0) as? Element
+            ?: return
+        val version = membersEl.getAttribute("version")
+        val users = membersEl.getElementsByTagName("user")
 
         // Batch all user card updates into a single realm.write
         val userElements = (0 until users.length).map { users.item(it) as Element }
@@ -959,7 +1037,9 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
         if (item?.action == QueueItem.Action.USER_CARD) {
             // specific user card request, nothing else
         }
-        queueItems.remove(item)
+        if (item != null) {
+            removeQueueItem(item)
+        }
         checkAndRemoveQueryId(id)
     }
 
@@ -972,14 +1052,14 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
     }
 
     private suspend fun handleInviteResponse(iq: Element, id: String, from: String, type: String) {
-        val item = queueItems.find { it.elementId == id } ?: return
+        val item = findQueueItem(id) ?: return
         if (type == "result") {
             item.inviteCallback?.invoke(item.value, null)
         } else {
             val error = iq.getElementsByTagName("error")?.item(0)?.textContent ?: "error"
             item.inviteCallback?.invoke(item.value, error)
         }
-        queueItems.remove(item)
+        removeQueueItem(item)
         checkAndRemoveQueryId(id)
     }
 
@@ -1010,7 +1090,7 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
     }
 
     private suspend fun handleBlockResponse(iq: Element, id: String, from: String, type: String) {
-        val item = queueItems.find { it.elementId == id } ?: return
+        val item = findQueueItem(id) ?: return
         if (type == "result") {
             realm.write {
                 val groupchatId = GroupChatStorageItem.genPrimary(from, owner)
@@ -1030,53 +1110,24 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
         } else {
             item.callback?.invoke("error")
         }
-        queueItems.remove(item)
+        removeQueueItem(item)
         checkAndRemoveQueryId(id)
     }
 
-    private suspend fun handleSettingsFormResponse(iq: Element, id: String, from: String, type: String) {
-        val item = queueItems.find { it.elementId == id } ?: return
-        if (type == "result") {
-            val x = iq.getElementsByTagNameNS("jabber:x:data", "x")?.item(0) as? Element
-            if (x != null && x.getAttribute("type") == "form") {
-                val fields = parseDataForm(x)
-                item.settingsCallback?.invoke(fields, null)
-            } else {
-                item.settingsCallback?.invoke(null, "not a form")
-            }
-        } else {
-            item.settingsCallback?.invoke(null, "error")
-        }
-        queueItems.remove(item)
-        checkAndRemoveQueryId(id)
-    }
+    private suspend fun handleSettingsFormResponse(iq: Element, id: String, from: String, type: String) =
+        handleFormResponse(iq, id, type)
 
-    private suspend fun handleStatusFormResponse(iq: Element, id: String, from: String, type: String) {
-        // Simplified – similar to settings
-        val item = queueItems.find { it.elementId == id } ?: return
-        if (type == "result") {
-            val x = iq.getElementsByTagNameNS("jabber:x:data", "x")?.item(0) as? Element
-            if (x != null && x.getAttribute("type") == "form") {
-                val fields = parseDataForm(x)
-                item.settingsCallback?.invoke(fields, null)
-            } else {
-                item.settingsCallback?.invoke(null, "not a form")
-            }
-        } else {
-            item.settingsCallback?.invoke(null, "error")
-        }
-        queueItems.remove(item)
-        checkAndRemoveQueryId(id)
-    }
+    private suspend fun handleStatusFormResponse(iq: Element, id: String, from: String, type: String) =
+        handleFormResponse(iq, id, type)
 
     private suspend fun handleGenericSuccess(iq: Element, id: String, type: String) {
-        val item = queueItems.find { it.elementId == id } ?: return
+        val item = findQueueItem(id) ?: return
         if (type == "result") {
             item.callback?.invoke(null)
         } else {
             item.callback?.invoke("error")
         }
-        queueItems.remove(item)
+        removeQueueItem(item)
         checkAndRemoveQueryId(id)
     }
 
@@ -1115,7 +1166,10 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
                 it.membership_ = settingsEl?.getElementsByTagName("membership")?.item(0)?.textContent
                     ?: x.getElementsByTagName("membership")?.item(0)?.textContent ?: it.membership_
                 it.descr = x.getElementsByTagName("description")?.item(0)?.textContent ?: it.descr
-                it.members = x.getElementsByTagName("members")?.item(0)?.textContent?.toIntOrNull() ?: it.members
+                // Per spec, members is an attribute on <group members='N'>, fallback to child element
+                it.members = x.getAttribute("members")?.takeIf { v -> v.isNotEmpty() }?.toIntOrNull()
+                    ?: x.getElementsByTagName("members")?.item(0)?.textContent?.toIntOrNull()
+                    ?: it.members
                 it.present = x.getElementsByTagName("present")?.item(0)?.textContent?.toIntOrNull() ?: it.present
                 it.status = infoElement?.getElementsByTagName("status")?.item(0)?.textContent
                     ?: x.getElementsByTagName("status")?.item(0)?.textContent ?: it.status
@@ -1170,7 +1224,7 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
                 // Link the roster item to this group
                 if (resolvedRosterItem != null) {
                     val rg = query<RosterGroupStorageItem>("primary = $0", groupPrimaryRG).first().find()
-                    findLatest(rg!!)?.let { latestRG ->
+                    rg?.let { findLatest(it) }?.let { latestRG ->
                         if (!latestRG.contacts.any { it.primary == resolvedRosterItem.primary }) {
                             latestRG.contacts.add(resolvedRosterItem)
                         }
@@ -1183,6 +1237,18 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
     private suspend fun createOrUpdateGroupChatFromPresence(presence: Element) {
         val from = presence.getAttribute("from")
         val jid = try { XMPPJID(from).bare() } catch (e: Exception) { return }
+
+        // Determine conversation type from privacy in presence
+        val groupEl = presence.getElementsByTagNameNS(NAMESPACE, "group")?.item(0) as? Element
+            ?: presence.getElementsByTagNameNS(NAMESPACE, "x")?.item(0) as? Element
+        val privacy = groupEl?.getAttribute("privacy")?.takeIf { it.isNotEmpty() }
+            ?: groupEl?.getElementsByTagName("privacy")?.item(0)?.textContent
+        val parentChat = groupEl?.getAttribute("parent")?.takeIf { it.isNotEmpty() }
+            ?: groupEl?.getElementsByTagName("parent-chat")?.item(0)?.textContent
+        val conversationType = when (privacy) {
+            "incognito" -> if (parentChat != null) ConversationType.Private else ConversationType.Incognito
+            else -> ConversationType.Group
+        }
 
         realm.write {
             val groupPrimary = GroupChatStorageItem.genPrimary(jid, owner)
@@ -1197,7 +1263,7 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
             }
         }
 
-        val chatPrimary = LastChatsStorageItem.genPrimary(jid, owner, ConversationType.Group)
+        val chatPrimary = LastChatsStorageItem.genPrimary(jid, owner, conversationType)
         realm.write {
             if (query<LastChatsStorageItem>("primary = $0", chatPrimary).first().find() == null) {
                 val rosterItem = query<RosterStorageItem>("jid = $0 AND owner = $1", jid, owner).first().find()
@@ -1205,7 +1271,7 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
                     primary = chatPrimary
                     this.jid = jid
                     this.owner = this@GroupchatManager.owner
-                    conversationType_ = ConversationType.Group.rawValue
+                    conversationType_ = conversationType.rawValue
                     this.rosterItem = rosterItem
                     messageDate = System.currentTimeMillis()
                 }
@@ -1228,10 +1294,23 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
         }
     }
 
-    private suspend fun afterLeave(groupchat: String) = afterDelete(groupchat)
+    private suspend fun afterLeave(groupchat: String) {
+        // Per spec, leaving only removes the user from participants — preserve message history
+        realm.write {
+            val groupPrimary = GroupChatStorageItem.genPrimary(groupchat, owner)
+            // Mark group as left but don't delete it or its messages
+            val group = query<GroupChatStorageItem>("primary = $0", groupPrimary).first().find()
+            if (group != null) {
+                findLatest(group)?.isDeleted = true
+            }
+            // Clean up member data
+            query<GroupchatUserStorageItem>("groupchatId = $0", groupPrimary).find().forEach { delete(it) }
+            query<GroupchatInvitedUsersStorageItem>("owner = $0 AND groupchatId = $1", owner, groupPrimary).find().forEach { delete(it) }
+        }
+    }
 
     private suspend fun handleInfoResponse(iq: Element, id: String, from: String, type: String) {
-        val item = queueItems.find { it.elementId == id } ?: return
+        val item = findQueueItem(id) ?: return
         if (type == "result") {
             // Per spec the response uses <x xmlns='NAMESPACE'>; fall back to <query> for safety
             val dataEl = iq.getElementsByTagNameNS(NAMESPACE, "x")?.item(0) as? Element
@@ -1276,41 +1355,29 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
         } else {
             item.callback?.invoke("error")
         }
-        queueItems.remove(item)
+        removeQueueItem(item)
         checkAndRemoveQueryId(id)
     }
 
-    private suspend fun handleDefaultRightsResponse(iq: Element, id: String, from: String, type: String) {
-        val item = queueItems.find { it.elementId == id } ?: return
+    private suspend fun handleDefaultRightsResponse(iq: Element, id: String, from: String, type: String) =
+        handleFormResponse(iq, id, type)
+
+    private suspend fun handleRightsResponse(iq: Element, id: String, from: String, type: String) =
+        handleFormResponse(iq, id, type)
+
+    private suspend fun handleFormResponse(iq: Element, id: String, type: String) {
+        val item = findQueueItem(id) ?: return
         if (type == "result") {
             val x = iq.getElementsByTagNameNS("jabber:x:data", "x")?.item(0) as? Element
             if (x != null) {
-                val fields = parseDataForm(x)
-                item.settingsCallback?.invoke(fields, null)
+                item.settingsCallback?.invoke(parseDataForm(x), null)
             } else {
                 item.settingsCallback?.invoke(null, "not a form")
             }
         } else {
             item.settingsCallback?.invoke(null, "error")
         }
-        queueItems.remove(item)
-        checkAndRemoveQueryId(id)
-    }
-
-    private suspend fun handleRightsResponse(iq: Element, id: String, from: String, type: String) {
-        val item = queueItems.find { it.elementId == id } ?: return
-        if (type == "result") {
-            val x = iq.getElementsByTagNameNS("jabber:x:data", "x")?.item(0) as? Element
-            if (x != null) {
-                val fields = parseDataForm(x)
-                item.settingsCallback?.invoke(fields, null)
-            } else {
-                item.settingsCallback?.invoke(null, "not a form")
-            }
-        } else {
-            item.settingsCallback?.invoke(null, "error")
-        }
-        queueItems.remove(item)
+        removeQueueItem(item)
         checkAndRemoveQueryId(id)
     }
 
@@ -1323,14 +1390,14 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
     private fun scheduleTimeout(elementId: String) {
         CoroutineScope(Dispatchers.IO).launch {
             kotlinx.coroutines.delay(REQUEST_TIMEOUT_MS)
-            queueItems.find { it.elementId == elementId }?.let { item ->
+            findQueueItem(elementId)?.let { item ->
                 when {
                     item.settingsCallback != null -> item.settingsCallback.invoke(null, "timeout")
                     item.formCallback != null -> item.formCallback.invoke(null, null, null, "timeout")
                     item.inviteCallback != null -> item.inviteCallback.invoke(item.value, "timeout")
                     else -> item.callback?.invoke("timeout")
                 }
-                queueItems.remove(item)
+                removeQueueItem(item)
                 checkAndRemoveQueryId(elementId)
             }
         }
@@ -1346,7 +1413,9 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
         roleValue: String?,
         subscriptionValue: String?,
         badgeValue: String?,
-        presentText: String?
+        presentText: String?,
+        avatarUrl: String? = null,
+        avatarHash: String? = null
     ) {
         val groupchatId = GroupChatStorageItem.genPrimary(groupchat, owner)
         val primary = GroupchatUserStorageItem.genPrimary(userId, groupchat, owner)
@@ -1370,6 +1439,8 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
             roleValue?.let { role_ = it }
             subscriptionValue?.let { subscribtion_ = it }
             badge = badgeValue ?: ""
+            avatarUrl?.let { avatarURI = it }
+            avatarHash?.let { this.avatarHash = it }
             isOnline = presentText == "now"
             if (presentText != null && presentText != "now") {
                 lastSeenIso = presentText
@@ -1401,6 +1472,7 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
         val id = userEl.getAttribute("id")
         if (id.isNullOrEmpty()) return
 
+        val (avatarUrl, avatarHash) = extractAvatarFromDomElement(userEl)
         realm.write {
             updateUserCardInTransaction(
                 userId = id,
@@ -1411,7 +1483,9 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
                 roleValue = userEl.getElementsByTagName("role")?.item(0)?.textContent,
                 subscriptionValue = userEl.getElementsByTagName("subscription")?.item(0)?.textContent,
                 badgeValue = userEl.getElementsByTagName("badge")?.item(0)?.textContent,
-                presentText = userEl.getElementsByTagName("present")?.item(0)?.textContent
+                presentText = userEl.getElementsByTagName("present")?.item(0)?.textContent,
+                avatarUrl = avatarUrl,
+                avatarHash = avatarHash
             )
         }
     }
@@ -1427,6 +1501,7 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
             for (userEl in users) {
                 val id = userEl.getAttribute("id")
                 if (id.isNullOrEmpty()) continue
+                val (avatarUrl, avatarHash) = extractAvatarFromDomElement(userEl)
                 updateUserCardInTransaction(
                     userId = id,
                     groupchat = groupchat,
@@ -1436,7 +1511,9 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
                     roleValue = userEl.getElementsByTagName("role")?.item(0)?.textContent,
                     subscriptionValue = userEl.getElementsByTagName("subscription")?.item(0)?.textContent,
                     badgeValue = userEl.getElementsByTagName("badge")?.item(0)?.textContent,
-                    presentText = userEl.getElementsByTagName("present")?.item(0)?.textContent
+                    presentText = userEl.getElementsByTagName("present")?.item(0)?.textContent,
+                    avatarUrl = avatarUrl,
+                    avatarHash = avatarHash
                 )
             }
         }
@@ -1451,6 +1528,7 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
         val id = userEl.getAttribute("id")
         if (id.isNullOrEmpty()) return
 
+        val (avatarUrl, avatarHash) = extractAvatarFromXmlElement(userEl)
         realm.write {
             updateUserCardInTransaction(
                 userId = id,
@@ -1461,7 +1539,9 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
                 roleValue = userEl.element("role")?.textContent,
                 subscriptionValue = userEl.element("subscription")?.textContent,
                 badgeValue = userEl.element("badge")?.textContent,
-                presentText = userEl.element("present")?.textContent
+                presentText = userEl.element("present")?.textContent,
+                avatarUrl = avatarUrl,
+                avatarHash = avatarHash
             )
         }
     }
@@ -1476,6 +1556,7 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
             for ((userEl, groupchat) in users) {
                 val id = userEl.getAttribute("id")
                 if (id.isNullOrEmpty()) continue
+                val (avatarUrl, avatarHash) = extractAvatarFromXmlElement(userEl)
                 updateUserCardInTransaction(
                     userId = id,
                     groupchat = groupchat,
@@ -1485,10 +1566,35 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
                     roleValue = userEl.element("role")?.textContent,
                     subscriptionValue = userEl.element("subscription")?.textContent,
                     badgeValue = userEl.element("badge")?.textContent,
-                    presentText = userEl.element("present")?.textContent
+                    presentText = userEl.element("present")?.textContent,
+                    avatarUrl = avatarUrl,
+                    avatarHash = avatarHash
                 )
             }
         }
+    }
+
+    // Extract avatar URL and hash from a DOM user element's <avatar>/<info> or <avatar>/<metadata>/<info>
+    private fun extractAvatarFromDomElement(userEl: Element): Pair<String?, String?> {
+        val avatarEl = userEl.getElementsByTagName("avatar")?.item(0) as? Element ?: return null to null
+        // New format: <avatar><info xmlns='urn:xmpp:avatar:metadata' url='...' id='...'/>
+        val infoEl = avatarEl.getElementsByTagName("info")?.item(0) as? Element
+        // Legacy format: <avatar><metadata xmlns='urn:xmpp:avatar:metadata'><info .../>
+            ?: (avatarEl.getElementsByTagName("metadata")?.item(0) as? Element)
+                ?.let { it.getElementsByTagName("info")?.item(0) as? Element }
+        val url = infoEl?.getAttribute("url")?.takeIf { it.isNotEmpty() }
+        val hash = infoEl?.getAttribute("id")?.takeIf { it.isNotEmpty() }
+        return url to hash
+    }
+
+    // Extract avatar URL and hash from an XMLElement user element
+    private fun extractAvatarFromXmlElement(userEl: XMLElement): Pair<String?, String?> {
+        val avatarEl = userEl.element("avatar") ?: return null to null
+        val infoEl = avatarEl.element("info")
+            ?: avatarEl.element("metadata")?.element("info")
+        val url = infoEl?.getAttribute("url")?.takeIf { it.isNotEmpty() }
+        val hash = infoEl?.getAttribute("id")?.takeIf { it.isNotEmpty() }
+        return url to hash
     }
 
     private fun parseDataForm(x: Element): List<Map<String, Any>> {
@@ -1543,7 +1649,7 @@ class GroupchatManager(owner: String) : AbstractXMPPManager(owner) {
 
     override suspend fun clearSession() {
         super.clearSession()
-        queueItems.clear()
+        mutex.withLock { queueItems.clear() }
     }
 
     fun close() {

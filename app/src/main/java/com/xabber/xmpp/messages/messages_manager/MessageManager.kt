@@ -33,6 +33,7 @@ class MessageManager(private val owner: String, activeStream: Boolean) {
     private val realm: Realm by lazy { Realm.open(defaultRealmConfig()) }
     private val queue: String = "com.xabber.messages.transmitter.$owner.${UUID.randomUUID()}"
     private var updateSendingMessagesTimer: Timer? = null
+    private var muteExpirationTimer: Timer? = null
     private var receiverJob: Job? = null
     private var TAG = "MessageManager"
 
@@ -145,11 +146,40 @@ class MessageManager(private val owner: String, activeStream: Boolean) {
                 }
             }, 0, 5000)
         }
+
+        muteExpirationTimer?.cancel()
+        muteExpirationTimer = Timer().apply {
+            schedule(object : TimerTask() {
+                override fun run() {
+                    CoroutineScope(Dispatchers.IO).launch {
+                        try {
+                            realm.write {
+                                val now = System.currentTimeMillis()
+                                val expired = query<LastChatsStorageItem>(
+                                    "owner = $0 AND muteExpired > 0 AND muteExpired <= $1",
+                                    owner, now
+                                ).find()
+                                expired.forEach { item ->
+                                    item.muteExpired = -1L
+                                }
+                                if (expired.isNotEmpty()) {
+                                    Log.d(TAG, "Cleared mute for ${expired.size} expired chat(s)")
+                                }
+                            }
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error in muteExpirationTimer: ${e.message}")
+                        }
+                    }
+                }
+            }, 0, 30000)
+        }
     }
 
     fun unsubscribe() {
         updateSendingMessagesTimer?.cancel()
         updateSendingMessagesTimer = null
+        muteExpirationTimer?.cancel()
+        muteExpirationTimer = null
         receiverJob?.cancel()
         receiverJob = null
     }

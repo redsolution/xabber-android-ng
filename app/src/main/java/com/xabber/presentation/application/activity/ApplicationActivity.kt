@@ -50,6 +50,7 @@ import com.google.android.material.navigation.NavigationView
 import com.google.android.material.snackbar.Snackbar
 import com.xabber.R
 import com.xabber.account.AccountManager
+import com.xabber.account.XmppConnectionService
 import com.xabber.data_base.defaultRealmConfig
 import com.xabber.databinding.ActivityApplicationBinding
 import com.xabber.dto.AccountDto
@@ -193,16 +194,30 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         ProcessLifecycleOwner.get().lifecycle.addObserver(object : DefaultLifecycleObserver {
             override fun onStart(owner: LifecycleOwner) {
                 super.onStart(owner)
-                Log.d("ApplicationActivity", "App moved to foreground – checking accounts")
+                Log.d("ApplicationActivity", "App moved to foreground – starting service & checking accounts")
                 AccountManager.users.forEach { account ->
-                    // Переподключаем ТОЛЬКО если нет активного соединения
+                    // Start the foreground service for each account
+                    val serviceIntent = Intent(this@ApplicationActivity, XmppConnectionService::class.java).apply {
+                        action = "START"
+                        putExtra("jid", account.jid)
+                    }
+                    startForegroundService(serviceIntent)
+
+                    // Reconnect only if no active connection
                     if (!account.isConnected()) {
                         Log.d("ApplicationActivity", "Account ${account.jid} is disconnected, scheduling reconnect")
                         CoroutineScope(Dispatchers.IO).launch {
-                            account.performReconnect() // или connectStream() — performReconnect безопаснее
+                            account.performReconnect()
                         }
                     }
                 }
+            }
+
+            override fun onStop(owner: LifecycleOwner) {
+                super.onStop(owner)
+                Log.d("ApplicationActivity", "App moved to background – stopping connection service")
+                val stopIntent = Intent(this@ApplicationActivity, XmppConnectionService::class.java)
+                stopService(stopIntent)
             }
         })
         setupNavigationDrawer()
@@ -1448,12 +1463,23 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         val fm = supportFragmentManager
         when {
             tag != null && tag.startsWith(CHAT_TAG_PREFIX) -> {
-                // Chat fragment — hide it (keep alive in the stack)
-                fm.findFragmentByTag(tag)?.let { frag ->
-                    if (!frag.isHidden) fm.commit { hide(frag) }
-                }
+                // Chat fragment — slide pane closed first, then hide fragment
                 currentDetailTag = null
-                if (binding.slidingPaneLayout.isOpen) binding.slidingPaneLayout.close()
+                if (binding.slidingPaneLayout.isOpen) {
+                    binding.slidingPaneLayout.close()
+                    val frag = fm.findFragmentByTag(tag)
+                    if (frag != null && !frag.isHidden) {
+                        binding.slidingPaneLayout.postDelayed({
+                            if (!isDestroyed && !isFinishing) {
+                                fm.commit { hide(frag) }
+                            }
+                        }, 500)
+                    }
+                } else {
+                    fm.findFragmentByTag(tag)?.let { frag ->
+                        if (!frag.isHidden) fm.commit { hide(frag) }
+                    }
+                }
             }
             tag != null -> {
                 // Non-chat detail fragment — remove it completely

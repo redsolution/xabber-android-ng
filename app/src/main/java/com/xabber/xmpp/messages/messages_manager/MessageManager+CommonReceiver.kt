@@ -149,6 +149,11 @@ class MessageCommonReceiver(private val owner: String) {
         }
 
         val isMuted = lastChat.muteExpired > System.currentTimeMillis()
+        if (isMuted) {
+            Log.d(TAG, "Chat is muted until ${lastChat.muteExpired}, skipping notification")
+            return
+        }
+
         val displayName = lastChat.rosterItem?.customNickname ?: lastChat.jid
         val title = if (lastChat.unread > 1) "$displayName (${lastChat.unread})" else displayName
         val text = lastChat.lastMessage?.body ?: "New message"
@@ -176,11 +181,9 @@ class MessageCommonReceiver(private val owner: String) {
             .setAutoCancel(false)
             .setGroup("xabber_messages")
 
-        if (!isMuted) {
-            builder.setDefaults(NotificationCompat.DEFAULT_ALL)
-        }
+        builder.setDefaults(NotificationCompat.DEFAULT_ALL)
 
-        Log.d(TAG, "Showing notification: title=$title, text=$text, muted=$isMuted")
+        Log.d(TAG, "Showing notification: title=$title, text=$text")
         NotificationManagerCompat.from(appContext()).notify(notificationId, builder.build())
     }
 

@@ -31,7 +31,7 @@ class LastChatsStorageItem : RealmObject {
         get() = afterburnInterval > 0
 
     val isMuted: Boolean
-        get() = System.currentTimeMillis() / 1000.0 < muteExpired
+        get() = System.currentTimeMillis() < muteExpired
 
     var chatState: ComposingType
         get() = when (chatState_) {

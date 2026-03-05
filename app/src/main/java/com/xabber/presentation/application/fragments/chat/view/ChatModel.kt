@@ -369,9 +369,22 @@ class ChatModel(
         }
     }
 
-    suspend fun setMute(id: String, mute: Long) = with(realm) {
-        write {
+    suspend fun setMute(id: String, mute: Long) {
+        // Update locally in Realm
+        realm.write {
             query<LastChatsStorageItem>("primary = $0", id).first().find()?.muteExpired = mute
+        }
+        // Send mute/unmute to server via sync protocol
+        val account = AccountManager.find(owner) ?: return
+        if (mute <= 0L) {
+            account.unmuteConversation(opponent, conversationType)
+        } else {
+            val muteSeconds = (mute - System.currentTimeMillis()) / 1000L
+            if (muteSeconds > 0) {
+                account.muteConversation(opponent, conversationType, muteSeconds)
+            } else {
+                account.unmuteConversation(opponent, conversationType)
+            }
         }
     }
 
