@@ -414,7 +414,7 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
                         val accDialog = ContactAccountFragment.newInstance(params)
                         accDialog.show(childFragmentManager, AppConstants.CHAT_LIST_TO_FORWARD_DIALOG_TAG)
                     } else if (DisplayManager.getWidthDp() > 800 && resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) {
-                        navigator().launchDetail(ContactAccountFragment.newInstance(params))
+                        navigator().launchDetailInStack(ContactAccountFragment.newInstance(params))
                     } else {
                         navigator().showContactAccount(ContactAccountParams(contactId, getParams().avatar))
                     }

@@ -9,14 +9,11 @@ import androidx.core.view.isVisible
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.xabber.R
-import com.xabber.data_base.defaultRealmConfig
-import com.xabber.data_base.models.last_chats.LastChatsStorageItem
 import com.xabber.databinding.ItemContactBinding
 import com.xabber.dto.ContactDto
 import com.xabber.data_base.models.presences.ResourceStatus
 import com.xabber.data_base.models.presences.RosterItemEntity
 import com.xabber.presentation.application.manage.MaskManager
-import io.realm.kotlin.Realm
 
 
 class ContactViewHolder(
@@ -28,14 +25,8 @@ class ContactViewHolder(
             if (contact.customNickName != null && contact.customNickName.isNotEmpty()) contact.customNickName else contact.nickName
         binding.contactSubtitle.text = contact.jid
 
-        // Check if the contact is a group chat
-        val realm = Realm.open(defaultRealmConfig())
-        val isGroupChat = realm.query(
-            LastChatsStorageItem::class,
-            "jid = $0 AND owner = $1 AND conversationType_ = $2",
-            contact.jid, contact.owner, "https://xabber.com/protocol/groups"
-        ).first().find() != null
-        realm.close()
+        // Use pre-computed isGroupChat from DTO — no Realm query needed
+        val isGroupChat = contact.isGroupChat
 
         val icon = if (isGroupChat) {
             RosterItemEntity.GROUP_CHAT
@@ -84,7 +75,6 @@ class ContactViewHolder(
         if (isGroupChat) {
             binding.contactImage.isEnabled = false
             binding.root.isEnabled = false
-            Log.d("ContactViewHolder", "Disabled click for group chat: jid=${contact.jid}")
         } else {
             binding.contactImage.isEnabled = true
             binding.root.isEnabled = true
@@ -102,7 +92,6 @@ class ContactViewHolder(
 
         itemView.setOnLongClickListener {
             if (isGroupChat) {
-                Log.d("ContactViewHolder", "Long click ignored for group chat: jid=${contact.jid}")
                 return@setOnLongClickListener true
             }
             val popup = PopupMenu(itemView.context, itemView, Gravity.CENTER)

@@ -34,6 +34,7 @@ import com.xabber.databinding.FragmentContactAccountBinding
 import com.xabber.presentation.AppConstants
 import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.application.dialogs.BlockContactDialog
+import androidx.activity.OnBackPressedCallback
 import com.xabber.presentation.application.dialogs.DeletingContactDialog
 import com.xabber.presentation.application.dialogs.NotificationBottomSheet
 import com.xabber.presentation.application.dialogs.TimeMute
@@ -58,6 +59,29 @@ class ContactAccountFragment : BaseFragment(R.layout.fragment_contact_account), 
     private var mediaAdapter: MediaAdapter? = null
     private val viewModel: ContactAccountViewModel by viewModels()
     private var chatId = ""
+
+    private val onBackPressedCallback = object : OnBackPressedCallback(true) {
+        override fun handleOnBackPressed() {
+            navigateBack()
+        }
+    }
+
+    private fun navigateBack() {
+        if (DisplayManager.getWidthDp() > 600 && resources.configuration.orientation
+            == Configuration.ORIENTATION_PORTRAIT
+        ) {
+            dialog?.dismiss()
+        } else if (parentFragmentManager.backStackEntryCount > 0) {
+            parentFragmentManager.popBackStack()
+        } else {
+            navigator().closeDetail()
+        }
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        requireActivity().onBackPressedDispatcher.addCallback(onBackPressedCallback)
+    }
 
     override fun onStart() {
         super.onStart()
@@ -106,20 +130,7 @@ class ContactAccountFragment : BaseFragment(R.layout.fragment_contact_account), 
 
         binding.accountAppbar.accountToolbar.setNavigationIcon(R.drawable.ic_arrow_left_black)
         binding.accountAppbar.accountToolbar.setNavigationOnClickListener {
-            if (DisplayManager.getWidthDp() > 600 && resources.configuration.orientation
-                == Configuration.ORIENTATION_PORTRAIT
-            ) {
-                dialog!!.dismiss()
-            } else if (DisplayManager.getWidthDp() > 800 && resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) {
-
-                navigator().closeDetail()
-
-            } else {
-                navigator().goBack()
-
-            }
-
-
+            navigateBack()
         }
 
         setFragmentResultListener(AppConstants.DELETING_CONTACT_DIALOG_KEY) { _, bundle ->
@@ -571,6 +582,7 @@ class ContactAccountFragment : BaseFragment(R.layout.fragment_contact_account), 
 
     override fun onDestroy() {
         super.onDestroy()
+        onBackPressedCallback.remove()
         if (::sh.isInitialized) {
             sh.unregisterOnSharedPreferenceChangeListener(this)
         }

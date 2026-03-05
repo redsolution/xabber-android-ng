@@ -137,6 +137,8 @@ class Account : XMPPStreamDelegate {
     private val RECONNECT_BACKOFF_MULTIPLIER = 2L
     private val MAX_RECONNECT_ATTEMPTS = 10 // Optional hard limit
     private var reconnectAttempts = 0
+    @Volatile
+    private var isReconnecting = false
     // New: Buffer for post-registration stanzas (roster, sync, presence)
     private var stanzaBuffer = MutableSharedFlow<StanzaItem>(replay = 0, extraBufferCapacity = 1000)
     private var stanzaProcessingScope =
@@ -196,45 +198,59 @@ class Account : XMPPStreamDelegate {
     }
 
     suspend fun performReconnect() {
-        // Отменяем старую попытку переподключения, если она ещё идёт
-        ApplicationActivity.currentActivity?.showReconnectingSnackbar()
-        reconnectJob?.cancel()
-        reconnectJob = null
+        // Guard against concurrent reconnect calls (e.g. from multiple error paths)
+        if (isReconnecting) {
+            Log.w(TAG, "performReconnect already in progress for $jid, ignoring duplicate call")
+            return
+        }
+        isReconnecting = true
 
-        // Полностью закрываем текущий stream
-        closeStream()
-        rosterRequested = false
-        attemptedPreTlsAuth = false
-        bindingCompleted = false
-        boundJid = null
+        try {
+            ApplicationActivity.currentActivity?.showReconnectingSnackbar()
+            reconnectJob?.cancel()
+            reconnectJob = null
 
-        // Сбрасываем состояние аккаунта
-        statusMessage.onNext("Offline")
-        resetReconnectState()
-        delay(200)
-        // Запускаем переподключение с экспоненциальной задержкой
-        reconnectJob = CoroutineScope(Dispatchers.IO).launch {
-            reconnectAttempts = 0
-            while (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
-                reconnectAttempts++
-                if (!isNetworkAvailable()) {
-                    delay(5000)
-                    reconnectAttempts-- // не считаем попыткой
-                    continue
+            // Полностью закрываем текущий stream
+            closeStream()
+            rosterRequested = false
+            attemptedPreTlsAuth = false
+            bindingCompleted = false
+            boundJid = null
+
+            // Сбрасываем состояние аккаунта
+            statusMessage.onNext("Offline")
+            resetReconnectState()
+            delay(200)
+
+            // Запускаем переподключение с экспоненциальной задержкой
+            reconnectJob = CoroutineScope(Dispatchers.IO + SupervisorJob()).launch {
+                reconnectAttempts = 0
+                while (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+                    reconnectAttempts++
+                    if (!isNetworkAvailable()) {
+                        delay(5000)
+                        reconnectAttempts-- // не считаем попыткой
+                        continue
+                    }
+
+                    delay(reconnectDelayMs)
+
+                    if (connectStream()) {
+                        Log.d(TAG, "Reconnect successful for $jid")
+                        resetReconnectState()
+                        isReconnecting = false
+                        return@launch
+                    }
+
+                    reconnectDelayMs = (reconnectDelayMs * RECONNECT_BACKOFF_MULTIPLIER)
+                        .coerceAtMost(MAX_RECONNECT_DELAY)
                 }
-
-                delay(reconnectDelayMs)
-
-                if (connectStream()) {
-                    Log.d(TAG, "Reconnect successful for $jid")
-                    resetReconnectState()
-                    return@launch
-                }
-
-                reconnectDelayMs = (reconnectDelayMs * RECONNECT_BACKOFF_MULTIPLIER)
-                    .coerceAtMost(MAX_RECONNECT_DELAY)
+                isReconnecting = false
+                showPermanentErrorDialog()
             }
-            showPermanentErrorDialog()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in performReconnect: ${e.message}", e)
+            isReconnecting = false
         }
     }
 
@@ -390,6 +406,7 @@ class Account : XMPPStreamDelegate {
         reconnectJob = null
         reconnectAttempts = 0
         reconnectDelayMs = 3000L
+        isReconnecting = false
     }
 
     private fun showPermanentErrorDialog() {
@@ -554,10 +571,10 @@ class Account : XMPPStreamDelegate {
                         Toast.LENGTH_SHORT
                     ).show()
                 }
-                CoroutineScope(Dispatchers.IO).launch {
+                statusMessage.onNext("Offline")
+                CoroutineScope(Dispatchers.IO + SupervisorJob()).launch {
                     performReconnect()
                 }
-                statusMessage.onNext("Offline")
             }
 
             val connectError = stream!!.connect()

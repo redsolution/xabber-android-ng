@@ -15,8 +15,13 @@ abstract class DetailBaseFragment(@LayoutRes contentLayoutId: Int) : BaseFragmen
 
     private val onBackPressedCallback = object : OnBackPressedCallback(true) {
         override fun handleOnBackPressed() {
-            navigator().goBack()
+            onNavigateBack()
         }
+    }
+
+    /** Override in subclasses to customize back navigation (e.g. pop one back stack entry). */
+    protected open fun onNavigateBack() {
+        navigator().goBack()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -30,7 +35,7 @@ abstract class DetailBaseFragment(@LayoutRes contentLayoutId: Int) : BaseFragmen
         if (!DisplayManager.isDualScreenMode()) {
             toolbar?.setNavigationIcon(R.drawable.ic_arrow_left_white)
             toolbar?.setNavigationOnClickListener {
-                navigator().goBack()
+                onNavigateBack()
             }
         }
     }

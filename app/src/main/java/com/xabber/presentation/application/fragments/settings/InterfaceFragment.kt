@@ -13,6 +13,14 @@ import com.xabber.presentation.application.manage.MaskManager
 class InterfaceFragment : DetailBaseFragment(R.layout.fragment_interface) {
     private val binding by viewBinding(FragmentInterfaceBinding::bind)
 
+    override fun onNavigateBack() {
+        if (parentFragmentManager.backStackEntryCount > 0) {
+            parentFragmentManager.popBackStack()
+        } else {
+            navigator().goBack()
+        }
+    }
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         binding.tvSubtitleAvatar.text = when (MaskManager.mask) {
@@ -30,8 +38,6 @@ class InterfaceFragment : DetailBaseFragment(R.layout.fragment_interface) {
             Toast.makeText(context, "Mode switched!", Toast.LENGTH_SHORT).show()
         }
         binding.chatSettings.setOnClickListener { navigator().showChatSettings() }
-        binding.toolbar.setNavigationIcon(R.drawable.ic_arrow_left_white)
-        binding.toolbar.setNavigationOnClickListener{navigator().goBack()}
     }
 
 }

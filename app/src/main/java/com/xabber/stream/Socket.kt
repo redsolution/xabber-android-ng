@@ -140,6 +140,13 @@ class Socket(private val host: String, private val port: Int) {
         onReadLoopError = callback
     }
 
+    /** Fire the read-loop-error callback exactly once per connection lifecycle. */
+    private fun fireReadLoopError() {
+        if (!isReadLoopErrorFired) {
+            isReadLoopErrorFired = true
+            onReadLoopError?.invoke()
+        }
+    }
 
     fun setMessageCallback(callback: (String) -> Unit) {
         messageCallback = callback
@@ -158,39 +165,25 @@ class Socket(private val host: String, private val port: Int) {
 
                 if (socket?.isClosed != false || writer?.isClosedForWrite != false) break
 
-                // If the TCP layer has been completely silent for too long the remote
-                // side is likely gone (network drop without a FIN/RST).
                 val silentMs = System.currentTimeMillis() - lastDataReceivedTime
                 if (silentMs > DEAD_CONNECTION_MS) {
                     Log.w(tagPing, "No data received for ${silentMs}ms — declaring connection dead")
                     closeInternal()
-                    if (!isReadLoopErrorFired) {
-                        isReadLoopErrorFired = true
-                        onReadLoopError?.invoke()
-                    }
+                    fireReadLoopError()
                     break
                 }
 
-                // Send a single whitespace character.  XMPP servers silently ignore
-                // whitespace between stanzas (RFC 6120 §4.6), so this carries zero
-                // protocol overhead.  A write failure means the socket is dead.
                 try {
                     if (sendKeepalivePing()) {
                         Log.v(tagPing, "Keepalive ping sent to $domain (silent for ${silentMs}ms)")
                     } else {
                         Log.w(tagPing, "Keepalive ping write failed — triggering reconnect")
-                        if (!isReadLoopErrorFired) {
-                            isReadLoopErrorFired = true
-                            onReadLoopError?.invoke()
-                        }
+                        fireReadLoopError()
                         break
                     }
                 } catch (e: Exception) {
                     Log.w(tagPing, "Keepalive ping exception: ${e.message}")
-                    if (!isReadLoopErrorFired) {
-                        isReadLoopErrorFired = true
-                        onReadLoopError?.invoke()
-                    }
+                    fireReadLoopError()
                     break
                 }
             }
@@ -268,10 +261,7 @@ class Socket(private val host: String, private val port: Int) {
                 startReadLoop()
             } catch (e: Throwable) {
                 Log.e(TAG, "Reading loop crashed: ${e.message}", e)
-                if (!isReadLoopErrorFired) {
-                    isReadLoopErrorFired = true
-                    onReadLoopError?.invoke()
-                }
+                fireReadLoopError()
                 closeInternal()
             } finally {
                 isReadingLoopActive = false
@@ -685,10 +675,7 @@ class Socket(private val host: String, private val port: Int) {
         while (scope.isActive) {
             if (socket?.isClosed == true || reader?.isClosedForRead == true) {
                 Log.w(TAG, "Socket or reader already closed — terminating read loop")
-                if (!isReadLoopErrorFired) {
-                    isReadLoopErrorFired = true
-                    onReadLoopError?.invoke()
-                }
+                fireReadLoopError()
                 break
             }
             try {
@@ -697,7 +684,7 @@ class Socket(private val host: String, private val port: Int) {
                 if (bytesRead == -1) {
                     Log.w(TAG, "Remote peer closed connection")
                     closeInternal()
-                    onReadLoopError?.invoke()
+                    fireReadLoopError()
                     break
                 } else if (bytesRead > 0) {
                     lastDataReceivedTime = System.currentTimeMillis()
@@ -727,15 +714,12 @@ class Socket(private val host: String, private val port: Int) {
             } catch (e: ClosedByteChannelException) {
                 Log.w(TAG, "Reader channel closed (connection lost): ${e.message}", e)
                 closeInternal()
-                if (!isReadLoopErrorFired) {
-                    isReadLoopErrorFired = true
-                    onReadLoopError?.invoke()
-                }
+                fireReadLoopError()
                 break
             } catch (e: Exception) {
                 Log.e(TAG, "Unexpected error in read loop: ${e.message}", e)
                 closeInternal()
-                onReadLoopError?.invoke()
+                fireReadLoopError()
                 break
             }
         }
@@ -751,7 +735,7 @@ class Socket(private val host: String, private val port: Int) {
                 if (w.isClosedForWrite || socket?.isClosed == true) {
                     Log.e(TAG, "Writer closed or socket dead — cannot send stanza")
                     closeInternal()
-                    onReadLoopError?.invoke()  // используем тот же callback — он триггерит reconnect
+                    fireReadLoopError()
                     return@withContext false
                 }
                 val bytes = message.toByteArray(StandardCharsets.UTF_8)
@@ -764,13 +748,13 @@ class Socket(private val host: String, private val port: Int) {
             } ?: run {
                 Log.e(TAG, "Writer is null — connection lost")
                 closeInternal()
-                onReadLoopError?.invoke()
+                fireReadLoopError()
                 false
             }
         } catch (e: Exception) {
             Log.e(TAG, "Write failed: ${e.message}", e)
             closeInternal()
-            onReadLoopError?.invoke()
+            fireReadLoopError()
             false
         }
     }
@@ -1002,15 +986,14 @@ class Socket(private val host: String, private val port: Int) {
             messageCallback = null
             proceedChannel.close()
             tlsDataChannel.close()
-            isReadingLoopActive = false
-            isReadLoopErrorFired = false
             readingLoopJob?.cancel()
             readingLoopJob = null
             keepAliveJob?.cancel()
             keepAliveJob = null
             isReadingLoopActive = false
-            isReadLoopErrorFired = false
-            // **Важно:** отменяем все корутины этого сокета
+            // NOTE: Do NOT reset isReadLoopErrorFired here — it prevents
+            // duplicate reconnect triggers from delayed coroutines after close.
+            // It resets when a new Socket is created for reconnection.
             scope.cancel()
             Log.d(TAG, "Socket fully closed and cleaned")
         } catch (e: Exception) {

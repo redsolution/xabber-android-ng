@@ -11,10 +11,12 @@ import com.xabber.presentation.application.fragments.DetailBaseFragment
 class EncryptionSettingsFragment : DetailBaseFragment(R.layout.fragment_encryption_settings) {
     private val binding by viewBinding(FragmentEncryptionSettingsBinding::bind)
 
+    override fun onNavigateBack() {
+        parentFragmentManager.popBackStack()
+    }
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        binding.toolbar.setNavigationIcon(R.drawable.ic_arrow_left_white)
-        binding.toolbar.setNavigationOnClickListener{navigator().goBack()}
     }
 
 }

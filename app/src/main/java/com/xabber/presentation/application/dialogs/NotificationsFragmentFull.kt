@@ -22,6 +22,7 @@ import com.xabber.presentation.XabberApplication
 import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.application.fragments.BaseFragment
 import com.xabber.presentation.application.manage.ColorManager
+import androidx.activity.OnBackPressedCallback
 import com.xabber.utils.toAccountDto
 import io.realm.kotlin.Realm
 
@@ -30,6 +31,25 @@ class NotificationsFragmentFull : BaseFragment(R.layout.fragment_notification) {
     private lateinit var binding: FragmentNotificationBinding
     private lateinit var sharedPreferences: SharedPreferences
     private val realm = Realm.open(defaultRealmConfig())
+
+    private val onBackPressedCallback = object : OnBackPressedCallback(true) {
+        override fun handleOnBackPressed() {
+            navigateBack()
+        }
+    }
+
+    private fun navigateBack() {
+        if (parentFragmentManager.backStackEntryCount > 0) {
+            parentFragmentManager.popBackStack()
+        } else {
+            navigator().goBack()
+        }
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        requireActivity().onBackPressedDispatcher.addCallback(onBackPressedCallback)
+    }
 
     companion object {
         private const val KEY_INCOMING_MESSAGES = "incoming_messages_option"
@@ -52,14 +72,14 @@ class NotificationsFragmentFull : BaseFragment(R.layout.fragment_notification) {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         binding.toolbar.setNavigationIcon(R.drawable.ic_arrow_left_white)
-        binding.toolbar.setNavigationOnClickListener{navigator().goBack()}
+        binding.toolbar.setNavigationOnClickListener { navigateBack() }
 
         // Set the toolbar color based on the current account's theme
         setupToolbarColor()
     }
 
     private fun setupToolbar() {
-        binding.toolbar.setNavigationOnClickListener { navigator().goBack() }
+        binding.toolbar.setNavigationOnClickListener { navigateBack() }
         setupToolbarColor()
     }
 
@@ -182,6 +202,7 @@ class NotificationsFragmentFull : BaseFragment(R.layout.fragment_notification) {
 
     override fun onDestroy() {
         super.onDestroy()
-        realm.close() // Clean up Realm instance
+        onBackPressedCallback.remove()
+        realm.close()
     }
 }

@@ -71,7 +71,7 @@ class AccountFragment : DetailBaseFragment(R.layout.fragment_account) {
         }
 
         binding.accountAppbar.accountToolbar.setNavigationIcon(R.drawable.ic_arrow_left_white)
-        binding.accountAppbar.accountToolbar.setNavigationOnClickListener{navigator().goBack()}
+        binding.accountAppbar.accountToolbar.setNavigationOnClickListener{navigator().closeDetail()}
     }
 
     private fun setAvatar(bitmap: Bitmap) {

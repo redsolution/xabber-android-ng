@@ -1356,9 +1356,15 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
     }
 
     override fun launchDetailInStack(fragment: Fragment) {
-        supportFragmentManager.commit {
+        val fm = supportFragmentManager
+        // Hide (not remove) the current detail fragment so it survives back stack pop
+        val current = currentDetailTag?.let { fm.findFragmentByTag(it) }
+            ?: fm.findFragmentById(R.id.detail_container)?.takeIf { !it.isHidden }
+        fm.commit {
             setReorderingAllowed(true)
-            replace(R.id.detail_container, fragment).addToBackStack(null)
+            current?.let { hide(it) }
+            add(R.id.detail_container, fragment)
+            addToBackStack(null)
         }
     }
 
@@ -1462,8 +1468,9 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         val tag = currentDetailTag
         val fm = supportFragmentManager
         when {
-            tag != null && tag.startsWith(CHAT_TAG_PREFIX) -> {
-                // Chat fragment — slide pane closed first, then hide fragment
+            tag != null -> {
+                // Slide pane closed first, then hide/remove fragment after animation
+                val isChat = tag.startsWith(CHAT_TAG_PREFIX)
                 currentDetailTag = null
                 if (binding.slidingPaneLayout.isOpen) {
                     binding.slidingPaneLayout.close()
@@ -1471,23 +1478,16 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
                     if (frag != null && !frag.isHidden) {
                         binding.slidingPaneLayout.postDelayed({
                             if (!isDestroyed && !isFinishing) {
-                                fm.commit { hide(frag) }
+                                // Chat fragments are hidden (kept for reuse); others are removed
+                                fm.commit { if (isChat) hide(frag) else remove(frag) }
                             }
                         }, 500)
                     }
                 } else {
                     fm.findFragmentByTag(tag)?.let { frag ->
-                        if (!frag.isHidden) fm.commit { hide(frag) }
+                        if (!frag.isHidden) fm.commit { if (isChat) hide(frag) else remove(frag) }
                     }
                 }
-            }
-            tag != null -> {
-                // Non-chat detail fragment — remove it completely
-                fm.findFragmentByTag(tag)?.let { frag ->
-                    fm.beginTransaction().remove(frag).commit()
-                }
-                currentDetailTag = null
-                if (binding.slidingPaneLayout.isOpen) binding.slidingPaneLayout.close()
             }
             else -> {
                 // Fallback for fragments opened outside our tag tracking
@@ -1603,7 +1603,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
     }
 
     override fun showContactAccount(params: ContactAccountParams) {
-        launchDetail(ContactAccountFragment.newInstance(params))
+        launchDetailInStack(ContactAccountFragment.newInstance(params))
     }
 
     override fun showQRCode(qrCodeParams: QRCodeParams) {

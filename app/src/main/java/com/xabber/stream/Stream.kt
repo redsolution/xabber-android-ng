@@ -189,7 +189,7 @@ class Stream(var jid: String, var port: Int = 5222) {
             socket = Socket(remoteAddress, port)
             onSocketReadLoopError?.let { socket?.setOnReadLoopError(it) }
             socket?.setMessageCallback { message ->
-                CoroutineScope(Dispatchers.IO).launch {
+                streamScope.launch {
                     messageCallbackChannel.send(message)
                     handleIncomingStanza(message)
                 }

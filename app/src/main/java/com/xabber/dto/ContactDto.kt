@@ -19,7 +19,8 @@ data class ContactDto(
     val status: ResourceStatus,
     val entity: RosterItemEntity,
     var isDeleted: Boolean = false,
-    var isHide: Boolean = false
+    var isHide: Boolean = false,
+    val isGroupChat: Boolean = false
 ) : Parcelable, Comparable<ContactDto> {
     override fun compareTo(other: ContactDto): Int {
         val name = when {

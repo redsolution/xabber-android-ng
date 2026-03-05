@@ -20,11 +20,12 @@ import com.xabber.presentation.application.fragments.contacts.ContactAccountPara
 class ProfileSettingsFragment : DetailBaseFragment(R.layout.fragment_profile_settings)  {
     private val binding by viewBinding(FragmentProfileSettingsBinding::bind)
 
+    override fun onNavigateBack() {
+        parentFragmentManager.popBackStack()
+    }
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        binding.toolbar.setNavigationIcon(R.drawable.ic_arrow_left_white)
-        binding.toolbar.setNavigationOnClickListener{navigator().goBack()}
-
     }
 
 }
