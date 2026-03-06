@@ -494,7 +494,7 @@ class ChatModel(
             owner, opponent
         ).asFlow().map { changes ->
             val resources = changes.list
-            if (resources.isEmpty()) {
+            val result = if (resources.isEmpty()) {
                 ChatViewModel.OpponentPresence(ResourceStatus.OFFLINE, null)
             } else {
                 // Pick the best resource: highest status rank, then highest priority
@@ -504,6 +504,8 @@ class ChatModel(
                 ) ?: resources.first()
                 ChatViewModel.OpponentPresence(best.status, best.statusMessage)
             }
+            android.util.Log.d("ChatModel", "observeOpponentPresence($opponent): ${resources.size} resources → ${result.status.rawValue} [${resources.joinToString { "${it.resource}=${it.status.rawValue}" }}]")
+            result
         }.distinctUntilChanged()
     }
 

@@ -35,15 +35,7 @@ class ChatListModel {
             .sort("pinnedPosition" to Sort.DESCENDING, "messageDate" to Sort.DESCENDING)
             .asFlow()
             .map { changes ->
-                changes.list.map { item ->
-                    val baseDto = item.toChatListDto()
-                    if (baseDto.isGroup) {
-                        baseDto
-                    } else {
-                        val presenceStatus = getBestPresence(item.owner, item.jid)
-                        baseDto.copy(status = presenceStatus)
-                    }
-                }
+                changes.list.map { item -> item.toChatListDto() }
             }
     }
 
@@ -161,6 +153,7 @@ class ChatListModel {
                         ) ?: return@forEach
                         presenceMap[key] = ContactPresence(best.status, best.statusMessage)
                     }
+                android.util.Log.d("ChatListModel", "observeAllPresences: ${resources.size} total resources, ${presenceMap.size} contacts")
                 presenceMap
             }
             .distinctUntilChanged()

@@ -579,6 +579,22 @@ class Account : XMPPStreamDelegate {
 
             val connectError = stream!!.connect()
             if (connectError == null) {
+                // Clear stale resource entries from previous sessions
+                try {
+                    val realm = io.realm.kotlin.Realm.open(defaultRealmConfig())
+                    realm.write {
+                        val staleResources = query<com.xabber.data_base.models.presences.ResourceStorageItem>(
+                            "owner = $0", jid
+                        ).find()
+                        if (staleResources.isNotEmpty()) {
+                            Log.d(TAG, "Clearing ${staleResources.size} stale resources for $jid")
+                            delete(staleResources)
+                        }
+                    }
+                    realm.close()
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error clearing stale resources: ${e.message}")
+                }
                 presenceManager = PresenceManager(jid, stream!!.socket!!)
                 statusMessage.onNext("Online")
                 resetReconnectState()

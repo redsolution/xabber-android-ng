@@ -240,7 +240,8 @@
         android:id="@+id/overlay"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:background="#30000000"
+        android:alpha="0"
+        android:background="#40000000"
         android:clickable="true"
         android:focusable="true"
         android:visibility="gone"
@@ -251,8 +252,13 @@
 
     <ProgressBar
         android:id="@+id/progress_bar"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        style="?android:attr/progressBarStyleLarge"
+        android:layout_width="64dp"
+        android:layout_height="64dp"
+        android:alpha="0"
+        android:elevation="2dp"
+        android:indeterminate="true"
+        android:indeterminateTint="@color/blue_500"
         android:visibility="gone"
         app:layout_constraintTop_toBottomOf="@id/pin_panel"
         app:layout_constraintBottom_toTopOf="@id/answer"
@@ -335,11 +341,13 @@
         <androidx.constraintlayout.widget.ConstraintLayout
             android:id="@+id/standard_panel"
             android:layout_width="0dp"
-            android:layout_height="?attr/actionBarSize"
+            android:layout_height="0dp"
             android:background="@color/white"
+            android:minHeight="?attr/actionBarSize"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent">
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
 
             <ImageButton
                 android:id="@+id/button_send_message"
@@ -351,9 +359,8 @@
                 android:padding="12dp"
                 android:src="@drawable/ic_material_send_24"
                 android:visibility="gone"
-                app:layout_constraintBottom_toBottomOf="@id/standard_panel"
+                app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toTopOf="@id/standard_panel"
                 app:tint="@color/blue_300" />
         </androidx.constraintlayout.widget.ConstraintLayout>
 
@@ -369,13 +376,15 @@
             android:hint="@string/chat_input_hint"
             android:imeOptions="actionSend|flagNoExtractUi"
             android:inputType="textAutoCorrect|textCapSentences|textMultiLine"
-            android:maxLines="6"
+            android:maxLines="8"
+            android:minHeight="?attr/actionBarSize"
             android:paddingVertical="12dp"
             android:scrollbars="vertical"
-            app:layout_constraintBottom_toBottomOf="@id/standard_panel"
+            app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toStartOf="@id/button_attach"
             app:layout_constraintStart_toEndOf="@id/button_emoticon"
-            app:layout_constraintTop_toTopOf="@id/standard_panel"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintVertical_bias="1.0"
             app:layout_goneMarginEnd="52dp" />
 
         <ImageButton
@@ -387,9 +396,8 @@
             android:background="@color/transparent"
             android:contentDescription="@string/content_description_emoji"
             android:padding="12dp"
-            app:layout_constraintBottom_toBottomOf="@id/standard_panel"
+            app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="@id/standard_panel"
             app:srcCompat="@drawable/ic_emoticon_outline"
             app:tint="@color/grey_500" />
 
@@ -403,7 +411,6 @@
             android:src="@drawable/ic_attach"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toStartOf="@id/btn_record"
-            app:layout_constraintTop_toTopOf="parent"
             app:tint="@color/grey_500" />
 
         <ImageButton
@@ -418,7 +425,6 @@
             android:src="@drawable/ic_microphone"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
             app:tint="@color/grey_500" />
 
         <com.google.android.material.floatingactionbutton.FloatingActionButton

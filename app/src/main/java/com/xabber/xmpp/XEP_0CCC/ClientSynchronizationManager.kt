@@ -63,6 +63,13 @@ class ClientSynchronizationManager(owner: String) {
         val after: String? = null
     )
 
+    data class GapFillRequest(
+        val jid: String,
+        val conversationType: ConversationType,
+        val localLastMessageDateMs: Long,
+        val serverLastMessageDateMs: Long
+    )
+
     init {
         if (version.isEmpty()) {
             SettingManager.saveClientSynchronizationVersion(owner, "0")
@@ -98,6 +105,14 @@ class ClientSynchronizationManager(owner: String) {
     }
 
     suspend fun performSync(stream: Stream, customVer: String?, after: String?) {
+        // Reset gap-fixed flags at the start of a fresh sync (not pagination)
+        if (after == null) {
+            realm.write {
+                query<LastChatsStorageItem>("owner = $0 AND isHistoryGapFixedForSession = true", owner)
+                    .find().forEach { findLatest(it)?.isHistoryGapFixedForSession = false }
+            }
+        }
+
         val syncId = NanoId.generateOptimized(9, "_-0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", 63, 16)
         val query = buildString {
             append("<query xmlns='https://xabber.com/protocol/synchronization'")
@@ -275,7 +290,8 @@ class ClientSynchronizationManager(owner: String) {
         }
     }
 
-    private suspend fun readConversationMetadata(query: Element, owner: String) = withContext(Dispatchers.IO) {
+    private suspend fun readConversationMetadata(query: Element, owner: String): List<GapFillRequest> = withContext(Dispatchers.IO) {
+        val gapFillRequests = mutableListOf<GapFillRequest>()
         val conversations = query.getElementsByTagName("conversation")
 
         val excludedJidsForRoster = setOf(
@@ -605,9 +621,35 @@ class ClientSynchronizationManager(owner: String) {
 //                        "Chat processing complete: jid=$jid, " +
 //                                "unread=$actualUnread (server=$unreadCount), " +
 //                                "lastReadMessageDate=${existingChat?.lastReadMessageDate ?: "new"}")
+
+                    // Gap detection: check if server's last message is not in local DB
+                    val serverLastMessageDateMs = messageDateUs / 1000L
+                    val chatForGap = query<LastChatsStorageItem>(
+                        "jid = $0 AND owner = $1 AND conversationType_ = $2", jid, owner, type
+                    ).first().find()
+
+                    if (chatForGap != null && !chatForGap.isHistoryGapFixedForSession) {
+                        val localLastMessageDateMs = chatForGap.messageDate
+                        val hasGap = serverLastMessageDateMs > localLastMessageDateMs + 1000L // 1s tolerance
+
+                        if (hasGap) {
+                            gapFillRequests.add(GapFillRequest(
+                                jid = jid,
+                                conversationType = conversationType,
+                                localLastMessageDateMs = localLastMessageDateMs,
+                                serverLastMessageDateMs = serverLastMessageDateMs
+                            ))
+                            Log.d("ClientSyncManager",
+                                "Gap detected for jid=$jid: local=$localLastMessageDateMs, server=$serverLastMessageDateMs")
+                        } else {
+                            // No gap — mark as fixed for session
+                            findLatest(chatForGap)?.isHistoryGapFixedForSession = true
+                        }
+                    }
                 }
             }
         }
+        gapFillRequests
     }
 
     // Helper function for normalizing timestamps in Realm write context
@@ -620,16 +662,76 @@ class ClientSynchronizationManager(owner: String) {
         }
     }
 
+    private suspend fun fillGaps(requests: List<GapFillRequest>) = withContext(Dispatchers.IO) {
+        val account = AccountManager.find(owner) ?: run {
+            Log.w(TAG, "fillGaps: account not found for $owner")
+            return@withContext
+        }
+        val stream = account.stream ?: run {
+            Log.w(TAG, "fillGaps: stream not available for $owner")
+            return@withContext
+        }
+        val mam = account.messageArchiveManager ?: run {
+            Log.w(TAG, "fillGaps: messageArchiveManager not available for $owner")
+            return@withContext
+        }
+
+        for (req in requests) {
+            try {
+                Log.d(TAG, "fillGaps: filling gap for ${req.jid}, " +
+                        "from=${Date(req.localLastMessageDateMs)} to=${Date(req.serverLastMessageDateMs)}")
+
+                mam.requestArchive(
+                    stream = stream,
+                    jid = req.jid,
+                    conversationType = req.conversationType,
+                    start = Date(req.localLastMessageDateMs),
+                    end = Date(req.serverLastMessageDateMs),
+                    rsmBefore = "",
+                    backward = true,
+                    callback = {
+                        CoroutineScope(Dispatchers.IO).launch {
+                            realm.write {
+                                val chat = query<LastChatsStorageItem>(
+                                    "jid = $0 AND owner = $1 AND conversationType_ = $2",
+                                    req.jid, owner, req.conversationType.rawValue
+                                ).first().find()
+                                chat?.let { findLatest(it)?.isHistoryGapFixedForSession = true }
+                            }
+                            Log.d(TAG, "fillGaps: completed for ${req.jid}")
+                        }
+                    }
+                )
+            } catch (e: Exception) {
+                Log.e(TAG, "fillGaps: error filling gap for ${req.jid}: ${e.message}", e)
+            }
+        }
+    }
+
     private suspend fun readSnapshot(query: Element) = withContext(Dispatchers.IO) {
         val stamp = query.getAttribute("stamp")?.toLongOrNull()?.toString() ?: "0"
-        readConversationMetadata(query, owner)
+        val gapRequests = readConversationMetadata(query, owner)
         val countElement = query.getElementsByTagNameNS("http://jabber.org/protocol/rsm", "count").item(0) as? Element
         val count = countElement?.textContent?.toIntOrNull() ?: 0
         if (count < 40) { // Must match <max>40</max> page size in performSync()
             version = stamp
             SettingManager.saveClientSynchronizationVersion(owner, version)
             Log.d("ClientSyncManager", "Sync completed, updated version to $version, count: $count")
+
+            // Fill detected gaps via MAM
+            if (gapRequests.isNotEmpty()) {
+                scope.launch {
+                    fillGaps(gapRequests)
+                }
+            }
         } else {
+            // Fill gaps from this page while pagination continues
+            if (gapRequests.isNotEmpty()) {
+                scope.launch {
+                    fillGaps(gapRequests)
+                }
+            }
+
             // Pagination: Trigger another sync with the last conversation's stamp
             val conversations = query.getElementsByTagName("conversation")
             val lastStamp = if (conversations.length > 0) {
@@ -650,9 +752,15 @@ class ClientSynchronizationManager(owner: String) {
 
     private suspend fun readPush(query: Element) = withContext(Dispatchers.IO) {
         val stamp = query.getAttribute("stamp")?.toLongOrNull()?.toString() ?: "0"
-        readConversationMetadata(query, owner)
+        val gapRequests = readConversationMetadata(query, owner)
         version = stamp
         SettingManager.saveClientSynchronizationVersion(owner, version)
+
+        if (gapRequests.isNotEmpty()) {
+            scope.launch {
+                fillGaps(gapRequests)
+            }
+        }
     }
 
     @RequiresApi(Build.VERSION_CODES.O)

@@ -1036,12 +1036,23 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
         }
 
         viewModel.isArchiveLoading.observe(viewLifecycleOwner) { loading ->
-            binding.overlay.isVisible = loading
             viewModel.setLocked(loading)
 
-            // Немедленная остановка любого текущего скролла (включая инерцию/fling)
             if (loading) {
+                // Fade in overlay + progress bar
+                binding.overlay.visibility = View.VISIBLE
+                binding.progressBar.visibility = View.VISIBLE
+                binding.overlay.animate().alpha(1f).setDuration(250).start()
+                binding.progressBar.animate().alpha(1f).setDuration(250).start()
                 binding.messageList.stopScroll()
+            } else {
+                // Fade out overlay + progress bar
+                binding.overlay.animate().alpha(0f).setDuration(300).withEndAction {
+                    binding.overlay.visibility = View.GONE
+                }.start()
+                binding.progressBar.animate().alpha(0f).setDuration(300).withEndAction {
+                    binding.progressBar.visibility = View.GONE
+                }.start()
             }
 
             // Блокировка/разблокировка UI
@@ -1081,7 +1092,7 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
         }
 
         viewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
-            binding.progressBar.isVisible = isLoading
+            // Progress bar is now controlled by isArchiveLoading with fade animation
         }
 
         viewModel.selectedCount.observe(viewLifecycleOwner) {

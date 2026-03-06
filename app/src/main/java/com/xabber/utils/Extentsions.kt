@@ -227,7 +227,7 @@ fun LastChatsStorageItem.toChatListDto(): ChatListDto =
         isMentioned = false,
         muteExpired = muteExpired,
         pinnedDate = pinnedPosition,
-        status = ResourceStatus.ONLINE,
+        status = ResourceStatus.OFFLINE,
         entity = when (conversationType_) {
             ConversationType.Group.rawValue -> RosterItemEntity.GROUP_CHAT
             ConversationType.Private.rawValue -> RosterItemEntity.PRIVATE_CHAT

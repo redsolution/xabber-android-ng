@@ -10,6 +10,8 @@ import com.xabber.data_base.models.roster.Subscription
 import com.xabber.data_base.models.presences.ResourceStorageItem
 import com.xabber.xmpp.device.DeviceStorageItem
 import com.xabber.xmpp.groupchat.GroupChatStorageItem
+import com.xabber.xmpp.groupchat.Membership
+import com.xabber.xmpp.groupchat.Privacy
 import io.realm.kotlin.Realm
 import io.realm.kotlin.MutableRealm
 import io.realm.kotlin.UpdatePolicy
@@ -54,8 +56,14 @@ data class ParsedPresence(
 
 data class ParsedGroupPresence(
     val from: String?,   // bare JID of the group
+    val type: String?,   // null = available, "unavailable" etc.
     val members: Int?,
-    val present: Int?
+    val present: Int?,
+    val name: String?,
+    val status: String?,
+    val privacy: String?,
+    val membership: String?,
+    val state: String?
 )
 
 class PresenceManager(private val owner: String, private val socket: Socket) {
@@ -189,9 +197,9 @@ class PresenceManager(private val owner: String, private val socket: Socket) {
                 bufferMutex.withLock {
                     batch.add(presence)
                     if (batch.size >= 10 || presenceBuffer.isEmpty) { // Reduced batch size from 50 to 10
-                        processPresenceBatch(batch.toList())
+                        val batchCopy = batch.toList()
                         batch.clear()
-                        Log.d(TAG, "Processed batch of ${batch.size} presence stanzas")
+                        processPresenceBatch(batchCopy)
                     }
                 }
             }
@@ -218,6 +226,10 @@ class PresenceManager(private val owner: String, private val socket: Socket) {
                             "subscribe" -> didReceiveSubscribeRequest(presence, this, rosterItems)
                             "unsubscribed" -> didReceiveUnsubscribedRequest(presence, this, rosterItems)
                             "error" -> {} // Skip errors to reduce logging
+                            "unavailable" -> {
+                                contactPresenceCount++
+                                didReceiveContactPresence(presence, this, resourceItems)
+                            }
                             null -> {
                                 contactPresenceCount++
                                 didReceiveContactPresence(presence, this, resourceItems)
@@ -263,19 +275,31 @@ class PresenceManager(private val owner: String, private val socket: Socket) {
     }
 
     private fun didReceiveContactPresence(presence: ParsedPresence, realm: MutableRealm, resourceItems: Map<String, ResourceStorageItem>) {
-        val fromJid = presence.from?.split("/")?.get(0) ?: return
-        val resource = presence.from?.split("/")?.get(1) ?: ""
+        val fromJid = presence.from?.split("/")?.firstOrNull() ?: return
+        val resource = presence.from?.substringAfter("/", "") ?: ""
+        val primaryKey = ResourceStorageItem.genPrimary(fromJid, owner, resource)
+
+        // Unavailable → remove the resource entirely so it doesn't pollute rank()
+        if (presence.type == "unavailable") {
+            Log.d(TAG, "Contact presence: $fromJid/$resource → DELETED (unavailable)")
+            val resourceItem = resourceItems[primaryKey]
+            if (resourceItem != null) {
+                realm.findLatest(resourceItem)?.let { realm.delete(it) }
+            }
+            return
+        }
+
         val status = when (presence.show) {
             "xa" -> ResourceStatus.XA
             "away" -> ResourceStatus.AWAY
             "dnd" -> ResourceStatus.DND
             "chat" -> ResourceStatus.CHAT
-            null -> if (presence.type == "unavailable") ResourceStatus.OFFLINE else ResourceStatus.ONLINE
-            else -> ResourceStatus.OFFLINE
+            null -> ResourceStatus.ONLINE
+            else -> ResourceStatus.ONLINE
         }
+        Log.d(TAG, "Contact presence: $fromJid/$resource → ${status.rawValue} (show=${presence.show})")
         val statusMessage = presence.status ?: ""
         val priority = presence.priority ?: 0
-        val primaryKey = ResourceStorageItem.genPrimary(fromJid, owner, resource)
 
         val resourceItem = resourceItems[primaryKey]
         if (resourceItem != null) {
@@ -307,32 +331,64 @@ class PresenceManager(private val owner: String, private val socket: Socket) {
             parser.setInput(StringReader(presenceXml))
             var eventType = parser.eventType
             var from: String? = null
+            var type: String? = null
             var members: Int? = null
             var present: Int? = null
-            var inGroupsX = false
+            var name: String? = null
+            var status: String? = null
+            var privacy: String? = null
+            var membership: String? = null
+            var state: String? = null
+            var inGroup = false
+            var inInfo = false
+            var inSettings = false
 
             while (eventType != XmlPullParser.END_DOCUMENT) {
                 when (eventType) {
                     XmlPullParser.START_TAG -> when (parser.name) {
-                        "presence" -> from = parser.getAttributeValue(null, "from")?.split("/")?.get(0)
-                        "x" -> if (parser.namespace == "https://xabber.com/protocol/groups") inGroupsX = true
-                        "members" -> if (inGroupsX) {
-                            parser.next()
-                            if (parser.eventType == XmlPullParser.TEXT) members = parser.text?.toIntOrNull()
+                        "presence" -> {
+                            from = parser.getAttributeValue(null, "from")?.substringBefore("/")
+                            type = parser.getAttributeValue(null, "type")
                         }
-                        "present" -> if (inGroupsX) {
+                        "group" -> if (parser.namespace == "https://xabber.com/protocol/groups") {
+                            inGroup = true
+                            privacy = parser.getAttributeValue(null, "privacy")
+                            members = parser.getAttributeValue(null, "members")?.toIntOrNull()
+                        }
+                        "info" -> if (inGroup) inInfo = true
+                        "settings" -> if (inGroup) inSettings = true
+                        "name" -> if (inInfo) {
+                            parser.next()
+                            if (parser.eventType == XmlPullParser.TEXT) name = parser.text?.trim()
+                        }
+                        "status" -> if (inInfo) {
+                            parser.next()
+                            if (parser.eventType == XmlPullParser.TEXT) status = parser.text?.trim()
+                        }
+                        "membership" -> if (inSettings) {
+                            parser.next()
+                            if (parser.eventType == XmlPullParser.TEXT) membership = parser.text?.trim()
+                        }
+                        "state" -> if (inSettings) {
+                            parser.next()
+                            if (parser.eventType == XmlPullParser.TEXT) state = parser.text?.trim()
+                        }
+                        "present" -> if (inGroup) {
                             parser.next()
                             if (parser.eventType == XmlPullParser.TEXT) present = parser.text?.toIntOrNull()
                         }
                     }
-                    XmlPullParser.END_TAG -> if (parser.name == "x") inGroupsX = false
+                    XmlPullParser.END_TAG -> when (parser.name) {
+                        "group" -> inGroup = false
+                        "info" -> inInfo = false
+                        "settings" -> inSettings = false
+                    }
                 }
                 eventType = parser.next()
             }
 
-            // Only enqueue if we got at least one useful field
-            if (from != null && (members != null || present != null)) {
-                groupPresenceBuffer.send(ParsedGroupPresence(from, members, present))
+            if (from != null) {
+                groupPresenceBuffer.send(ParsedGroupPresence(from, type, members, present, name, status, privacy, membership, state))
             }
             return true
         } catch (e: Exception) {
@@ -367,9 +423,20 @@ class PresenceManager(private val owner: String, private val socket: Socket) {
                     findLatest(groupItem)?.apply {
                         presence.members?.let { members = it }
                         presence.present?.let { present = it }
+                        presence.name?.let { if (it.isNotBlank()) name = it }
+                        presence.status?.let { status = it }
+                        presence.privacy?.let {
+                            val p = Privacy.fromRaw(it)
+                            if (p != Privacy.NONE) privacy = p
+                        }
+                        presence.membership?.let {
+                            val m = Membership.fromRaw(it)
+                            if (m != Membership.NONE) membership = m
+                        }
                     }
                 }
             }
+            Log.d(TAG, "Processed group presence batch: ${presences.size} items")
         } catch (e: Exception) {
             Log.e(TAG, "Error processing group presence batch: ${e.message}")
         }

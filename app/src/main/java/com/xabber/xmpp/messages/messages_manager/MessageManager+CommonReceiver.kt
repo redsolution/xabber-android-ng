@@ -154,8 +154,13 @@ class MessageCommonReceiver(private val owner: String) {
             return
         }
 
-        val displayName = lastChat.rosterItem?.customNickname ?: lastChat.jid
-        val title = if (lastChat.unread > 1) "$displayName (${lastChat.unread})" else displayName
+        
+        val displayName = if (lastChat.rosterItem?.customNickname != "") {
+            lastChat.rosterItem?.customNickname
+        } else {
+            lastChat.jid
+        }
+        val title = displayName
         val text = lastChat.lastMessage?.body ?: "New message"
 
         val intent = Intent(appContext(), ApplicationActivity::class.java).apply {

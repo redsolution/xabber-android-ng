@@ -660,10 +660,14 @@ class NotifyManager private constructor() {
                     SettingManager.get("notification_chat_showPreviews") as? Boolean ?: true
                 }
 
+                val unreadCount = chat?.unread ?: 1
+                val titleName = message.displayName.ifEmpty { message.to }
+
                 notificationBuilder
-                    .setContentTitle("📱 ${message.displayName}")
+                    .setContentTitle(titleName)
                     .setContentText(if (showPreviews) message.message else "New message")
                     .setSubText(message.username)
+                    .setNumber(unreadCount)
                     .setSmallIcon(android.R.drawable.ic_dialog_info)
                     .apply {
                         if (soundEnabled) setSound(getNotificationSound(context))
