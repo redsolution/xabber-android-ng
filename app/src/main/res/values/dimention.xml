@@ -78,7 +78,7 @@
     <dimen name="text_size_item_chat_title">14sp</dimen>
     <dimen name="text_size_item_chat_message">14sp</dimen>
     <dimen name="text_size_large">20sp</dimen>
-    <dimen name="text_size_timestamp">10sp</dimen>
+    <dimen name="text_size_timestamp">11sp</dimen>
     <dimen name="text_size_video_duration">11dp</dimen>
     <dimen name="text_size_16">16sp</dimen>
 

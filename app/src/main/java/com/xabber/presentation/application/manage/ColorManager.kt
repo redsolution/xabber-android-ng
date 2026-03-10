@@ -27,7 +27,7 @@ object ColorManager {
             resources.getString(R.string.brown) to R.color.brown_500,
             resources.getString(R.string.offline) to R.color.grey_500
         )
-        return colorMap[colorName] ?: R.color.grey_500
+        return colorMap[colorName] ?: R.color.blue_500
     }
 
     fun convertColorNameToIndex(colorName: String): Int {

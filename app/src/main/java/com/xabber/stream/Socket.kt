@@ -115,6 +115,10 @@ class Socket(private val host: String, private val port: Int) {
     private var proceedChannel = Channel<String?>(1)
     private var tlsDataChannel = Channel<ByteArray>(Channel.UNLIMITED)
     private var tlsHandshaking = false
+    @Volatile
+    private var tlsEstablished = false
+    /** Accumulates incomplete TLS records across readAvailable() calls */
+    private var tlsReadBuffer = ByteBuffer.allocate(65536)
     private var isReadingLoopActive = false
     private var domain: String = host
     private var onReadLoopError: (() -> Unit)? = null   // Новый callback
@@ -168,8 +172,8 @@ class Socket(private val host: String, private val port: Int) {
                 val silentMs = System.currentTimeMillis() - lastDataReceivedTime
                 if (silentMs > DEAD_CONNECTION_MS) {
                     Log.w(tagPing, "No data received for ${silentMs}ms — declaring connection dead")
-                    closeInternal()
                     fireReadLoopError()
+                    closeInternal()
                     break
                 }
 
@@ -329,15 +333,24 @@ class Socket(private val host: String, private val port: Int) {
             sslEngine.useClientMode = true
             sslEngine.enabledProtocols = arrayOf("TLSv1.2", "TLSv1.3")
             val preferredCipherSuites = listOf(
+                // TLS 1.3 ciphers
                 "TLS_AES_128_GCM_SHA256",
-                "TLS_AES_256_GCM_SHA384"
+                "TLS_AES_256_GCM_SHA384",
+                "TLS_CHACHA20_POLY1305_SHA256",
+                // TLS 1.2 ECDHE ciphers (needed for servers that don't support 1.3)
+                "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256",
+                "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
+                "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384",
+                "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384",
+                "TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256",
+                "TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256"
             )
             val supportedCipherSuites = sslEngine.supportedCipherSuites.toList()
-            val enabledCipherSuites = preferredCipherSuites.filter { it in supportedCipherSuites }.toTypedArray()
+            var enabledCipherSuites = preferredCipherSuites.filter { it in supportedCipherSuites }.toTypedArray()
             if (enabledCipherSuites.isEmpty()) {
-                Log.e(TAG, "No supported cipher suites available")
-                closeInternal()
-                return@withContext false
+                // Fallback: use whatever the device supports
+                Log.w(TAG, "No preferred cipher suites available, falling back to device defaults")
+                enabledCipherSuites = sslEngine.supportedCipherSuites
             }
             sslEngine.enabledCipherSuites = enabledCipherSuites
             Log.d(TAG, "SSLEngine initialized with protocols: ${sslEngine.enabledProtocols.joinToString()}")
@@ -604,19 +617,42 @@ class Socket(private val host: String, private val port: Int) {
                 packetBuffer.put(bytes)
                 packetBuffer.flip()
                 appBuffer.clear()
-                val unwrapResult = sslEngine.unwrap(packetBuffer, appBuffer)
-                Log.d(TAG, "Unwrap response result: status=${unwrapResult.status}, bytesProduced=${unwrapResult.bytesProduced()}")
-                if (unwrapResult.bytesProduced() > 0) {
-                    appBuffer.flip()
-                    val response = ByteArray(appBuffer.remaining())
-                    appBuffer.get(response)
-                    val tlsResponse = String(response)
+
+                // Unwrap all available TLS records (response may contain stream header + features)
+                val fullResponse = StringBuilder()
+                while (packetBuffer.hasRemaining()) {
+                    appBuffer.clear()
+                    val unwrapResult = sslEngine.unwrap(packetBuffer, appBuffer)
+                    Log.d(TAG, "Unwrap response result: status=${unwrapResult.status}, bytesProduced=${unwrapResult.bytesProduced()}")
+                    if (unwrapResult.bytesProduced() > 0) {
+                        appBuffer.flip()
+                        val chunk = ByteArray(appBuffer.remaining())
+                        appBuffer.get(chunk)
+                        fullResponse.append(String(chunk))
+                    }
+                    if (unwrapResult.status == SSLEngineResult.Status.BUFFER_UNDERFLOW) break
+                    if (unwrapResult.status != SSLEngineResult.Status.OK) break
+                }
+
+                if (fullResponse.isNotEmpty()) {
+                    val tlsResponse = fullResponse.toString()
                     Log.d(TAG, "TLS response: $tlsResponse")
                     messageCallback?.invoke(tlsResponse)
                 } else {
-                    Log.e(TAG, "No application data in TLS response: ${unwrapResult.status}")
+                    Log.e(TAG, "No application data in TLS response")
                     closeInternal()
                     return@withContext false
+                }
+
+                // Seed tlsReadBuffer with any remaining bytes for the new read loop
+                if (packetBuffer.hasRemaining()) {
+                    val remaining = ByteArray(packetBuffer.remaining())
+                    packetBuffer.get(remaining)
+                    tlsReadBuffer.clear()
+                    tlsReadBuffer.put(remaining)
+                    Log.d(TAG, "Seeded tlsReadBuffer with ${remaining.size} leftover bytes")
+                } else {
+                    tlsReadBuffer.clear()
                 }
             } else {
                 Log.e(TAG, "No TLS response received within 10 seconds")
@@ -627,22 +663,28 @@ class Socket(private val host: String, private val port: Int) {
             readingLoopJob?.cancel()
             readingLoopJob = null
             isReadingLoopActive = false
-            Log.d(TAG, "TLS upgrade completed successfully")
-            reader?.cancel()
             tlsHandshaking = false
+            tlsEstablished = true
 
-            reader = socket?.openReadChannel()
-            if (reader == null) {
-                Log.e(TAG, "Failed to reopen reader after TLS")
-                closeInternal()
-                return@withContext false
+            // Drain any buffered TLS data from the old read loop into tlsReadBuffer
+            while (true) {
+                val pending = tlsDataChannel.tryReceive().getOrNull() ?: break
+                if (tlsReadBuffer.remaining() < pending.size) {
+                    val newBuf = ByteBuffer.allocate((tlsReadBuffer.position() + pending.size) * 2)
+                    tlsReadBuffer.flip()
+                    newBuf.put(tlsReadBuffer)
+                    tlsReadBuffer = newBuf
+                }
+                tlsReadBuffer.put(pending)
+                Log.d(TAG, "Drained ${pending.size} bytes from tlsDataChannel into tlsReadBuffer")
             }
 
-            if (isReadingLoopActive) {
-                Log.w(TAG, "Old reading loop still active — should not happen")
-                // Можно принудительно убить старый scope, если нужно
-            }
-            startReadingLoop()  // ← только один раз, после пересоздания reader
+            Log.d(TAG, "TLS upgrade completed successfully, tlsEstablished=true")
+
+            // Don't reopen reader — Ktor only allows openReadChannel() once.
+            // The existing reader still works; the read loop will now unwrap
+            // TLS records through sslEngine since tlsEstablished=true.
+            startReadingLoop()
             return@withContext true
         } catch (e: Exception) {
             Log.e(TAG, "Failed to upgrade to TLS: ${e.message}", e)
@@ -672,6 +714,9 @@ class Socket(private val host: String, private val port: Int) {
     }
 
     private suspend fun startReadLoop() {
+        var consecutiveZeroReads = 0
+        val MAX_ZERO_READS = 500 // ~5 seconds of 0-byte reads at 10ms delay → half-open
+
         while (scope.isActive) {
             if (socket?.isClosed == true || reader?.isClosedForRead == true) {
                 Log.w(TAG, "Socket or reader already closed — terminating read loop")
@@ -687,11 +732,19 @@ class Socket(private val host: String, private val port: Int) {
                     closeInternal()
                     break
                 } else if (bytesRead > 0) {
+                    consecutiveZeroReads = 0
                     lastDataReceivedTime = System.currentTimeMillis()
                     val bytes = tempBuffer.copyOfRange(0, bytesRead)
                     if (tlsHandshaking && !tlsDataChannel.isClosedForSend) {
                         tlsDataChannel.send(bytes)
                         Log.d(TAG, "Sent ${bytesRead} bytes to TLS channel")
+                    } else if (tlsEstablished) {
+                        // Unwrap TLS records through sslEngine
+                        val plaintext = unwrapTlsData(bytes)
+                        if (plaintext != null && plaintext.isNotEmpty()) {
+                            Log.v(TAG, "Received ${bytesRead} TLS bytes → ${plaintext.length} plaintext chars")
+                            messageCallback?.invoke(plaintext)
+                        }
                     } else {
                         val message = String(bytes, StandardCharsets.UTF_8)
                         Log.v(TAG, "Received ${bytesRead} bytes: ${message}")
@@ -701,16 +754,23 @@ class Socket(private val host: String, private val port: Int) {
                         messageCallback?.invoke(message)
                     }
                 } else {
-                    Log.d(TAG, "No data available, continuing")
+                    consecutiveZeroReads++
+                    if (consecutiveZeroReads >= MAX_ZERO_READS) {
+                        Log.w(TAG, "Half-open socket detected ($consecutiveZeroReads consecutive 0-byte reads)")
+                        fireReadLoopError()
+                        closeInternal()
+                        break
+                    }
                 }
                 delay(if (tlsHandshaking) 5 else 10)
             } catch (e: CancellationException) {
                 Log.w(TAG, "Read loop cancelled: ${e.message}", e)
                 break
             } catch (e: ConcurrentIOException) {
-                Log.e(TAG, "Concurrent read attempt: ${e.message}", e)
-                delay(100)
-                continue
+                Log.e(TAG, "Concurrent IO error in read loop: ${e.message}", e)
+                fireReadLoopError()
+                closeInternal()
+                break
             } catch (e: ClosedByteChannelException) {
                 Log.w(TAG, "Reader channel closed (connection lost): ${e.message}", e)
                 fireReadLoopError()
@@ -728,35 +788,129 @@ class Socket(private val host: String, private val port: Int) {
         isReadingLoopActive = false
     }
 
+    /**
+     * Unwrap TLS-encrypted bytes into plaintext using the established sslEngine.
+     * Uses [tlsReadBuffer] to accumulate incomplete TLS records across calls.
+     */
+    private fun unwrapTlsData(encrypted: ByteArray): String? {
+        try {
+            // Append new data to the persistent buffer
+            if (tlsReadBuffer.remaining() < encrypted.size) {
+                // Grow buffer if needed
+                val newBuf = ByteBuffer.allocate((tlsReadBuffer.position() + encrypted.size) * 2)
+                tlsReadBuffer.flip()
+                newBuf.put(tlsReadBuffer)
+                tlsReadBuffer = newBuf
+            }
+            tlsReadBuffer.put(encrypted)
+            tlsReadBuffer.flip()
+
+            val outBuf = ByteBuffer.allocate(sslEngine.session.applicationBufferSize)
+            val result = StringBuilder()
+
+            while (tlsReadBuffer.hasRemaining()) {
+                outBuf.clear()
+                val unwrapResult = sslEngine.unwrap(tlsReadBuffer, outBuf)
+                when (unwrapResult.status) {
+                    SSLEngineResult.Status.OK -> {
+                        if (unwrapResult.bytesProduced() > 0) {
+                            outBuf.flip()
+                            val plainBytes = ByteArray(outBuf.remaining())
+                            outBuf.get(plainBytes)
+                            result.append(String(plainBytes, StandardCharsets.UTF_8))
+                        }
+                    }
+                    SSLEngineResult.Status.BUFFER_UNDERFLOW -> {
+                        // Incomplete TLS record — keep remaining bytes for next read
+                        Log.d(TAG, "TLS unwrap buffer underflow, ${tlsReadBuffer.remaining()} bytes pending")
+                        break
+                    }
+                    SSLEngineResult.Status.CLOSED -> {
+                        Log.w(TAG, "TLS session closed by peer")
+                        fireReadLoopError()
+                        return null
+                    }
+                    SSLEngineResult.Status.BUFFER_OVERFLOW -> {
+                        Log.e(TAG, "TLS unwrap buffer overflow — appBuffer too small")
+                        break
+                    }
+                    else -> break
+                }
+            }
+
+            // Compact: move unprocessed bytes to the start for next call
+            tlsReadBuffer.compact()
+            return result.toString()
+        } catch (e: Exception) {
+            Log.e(TAG, "TLS unwrap error: ${e.message}", e)
+            return null
+        }
+    }
+
     suspend fun write(message: String): Boolean = withContext(Dispatchers.IO) {
         Log.d("XMPP STANZA SEND", "SEND: $message")
         try {
             writer?.let { w ->
                 if (w.isClosedForWrite || socket?.isClosed == true) {
                     Log.e(TAG, "Writer closed or socket dead — cannot send stanza")
-                    closeInternal()
                     fireReadLoopError()
+                    closeInternal()
                     return@withContext false
                 }
-                val bytes = message.toByteArray(StandardCharsets.UTF_8)
-                writeMutex.withLock {
-                    w.writeFully(bytes, 0, bytes.size)
-                    w.flush()
-                    Log.v(TAG, "Written ${bytes.size} bytes, flushed")
+                val written = withTimeoutOrNull(15_000L) {
+                    writeMutex.withLock {
+                        if (tlsEstablished) {
+                            wrapAndSendTls(w, message)
+                        } else {
+                            val bytes = message.toByteArray(StandardCharsets.UTF_8)
+                            w.writeFully(bytes, 0, bytes.size)
+                            w.flush()
+                        }
+                        Log.v(TAG, "Written message (tls=$tlsEstablished), flushed")
+                    }
+                    true
+                }
+                if (written == null) {
+                    Log.e(TAG, "Write timed out after 15s — connection stalled")
+                    fireReadLoopError()
+                    closeInternal()
+                    return@withContext false
                 }
                 true
             } ?: run {
                 Log.e(TAG, "Writer is null — connection lost")
-                closeInternal()
                 fireReadLoopError()
+                closeInternal()
                 false
             }
         } catch (e: Exception) {
             Log.e(TAG, "Write failed: ${e.message}", e)
-            closeInternal()
             fireReadLoopError()
+            closeInternal()
             false
         }
+    }
+
+    /** Wrap plaintext through sslEngine and write the TLS record to the socket writer. */
+    private suspend fun wrapAndSendTls(w: io.ktor.utils.io.ByteWriteChannel, message: String) {
+        val plainBytes = message.toByteArray(StandardCharsets.UTF_8)
+        val inBuf = ByteBuffer.wrap(plainBytes)
+        val outBuf = ByteBuffer.allocate(sslEngine.session.packetBufferSize)
+
+        while (inBuf.hasRemaining()) {
+            outBuf.clear()
+            val wrapResult = sslEngine.wrap(inBuf, outBuf)
+            if (wrapResult.status != SSLEngineResult.Status.OK) {
+                throw java.io.IOException("TLS wrap failed: ${wrapResult.status}")
+            }
+            outBuf.flip()
+            if (outBuf.hasRemaining()) {
+                val tlsBytes = ByteArray(outBuf.remaining())
+                outBuf.get(tlsBytes)
+                w.writeFully(tlsBytes, 0, tlsBytes.size)
+            }
+        }
+        w.flush()
     }
 
     suspend fun read(timeoutMs: Long = 10000): Boolean = withContext(Dispatchers.IO) {
@@ -957,18 +1111,25 @@ class Socket(private val host: String, private val port: Int) {
                     writer?.let { w ->
                         if (!w.isClosedForWrite) {
                             try {
-                                // 1. Отправляем unavailable presence
                                 val unavailable = "<presence type='unavailable'/>"
-                                w.writeFully(unavailable.toByteArray(StandardCharsets.UTF_8), 0, unavailable.length)
-                                w.flush()
+                                if (tlsEstablished) {
+                                    wrapAndSendTls(w, unavailable)
+                                } else {
+                                    w.writeFully(unavailable.toByteArray(StandardCharsets.UTF_8), 0, unavailable.length)
+                                    w.flush()
+                                }
                                 Log.d(TAG, "Sent unavailable presence")
                             } catch (e: Exception) {
                                 Log.w(TAG, "Failed to send unavailable presence: ${e.message}")
                             }
                             try {
-                                // 2. Закрываем стрим
-                                w.writeFully("</stream:stream>".toByteArray(StandardCharsets.UTF_8), 0, 16)
-                                w.flush()
+                                val closeStream = "</stream:stream>"
+                                if (tlsEstablished) {
+                                    wrapAndSendTls(w, closeStream)
+                                } else {
+                                    w.writeFully(closeStream.toByteArray(StandardCharsets.UTF_8), 0, closeStream.length)
+                                    w.flush()
+                                }
                                 Log.d(TAG, "Sent </stream:stream>")
                             } catch (e: Exception) {
                                 Log.w(TAG, "Failed to send closing stream tag: ${e.message}")
@@ -991,6 +1152,8 @@ class Socket(private val host: String, private val port: Int) {
             keepAliveJob?.cancel()
             keepAliveJob = null
             isReadingLoopActive = false
+            tlsEstablished = false
+            tlsReadBuffer = ByteBuffer.allocate(65536)
             // NOTE: Do NOT reset isReadLoopErrorFired here — it prevents
             // duplicate reconnect triggers from delayed coroutines after close.
             // It resets when a new Socket is created for reconnection.

@@ -86,7 +86,7 @@ abstract class MessageViewHolder(
         tvTime = itemView.findViewById(R.id.message_time)
 
         val outgoingColor = ContextCompat.getColor(context, R.color.white)
-        val incomingColor = ContextCompat.getColor(context, R.color.blue_100)
+        val incomingColor = ContextCompat.getColor(context, R.color.blue_50)
         outgoingColorFilter = PorterDuffColorFilter(outgoingColor, PorterDuff.Mode.SRC_IN)
         incomingColorFilter = PorterDuffColorFilter(incomingColor, PorterDuff.Mode.SRC_IN)
     }
@@ -212,7 +212,7 @@ abstract class MessageViewHolder(
         val date = Date(if (editTime > 0) editTime else sentTime)
         val time = getTimeText(context, date)
         tvTime?.text = if (editTime > 0) context.getString(R.string.edit) + " $time" else time
-        tvTime?.setTextColor(ContextCompat.getColor(context, R.color.black))
+        tvTime?.setTextColor(ContextCompat.getColor(context, R.color.grey_500))
     }
 
     private fun setBalloonBackground(isOutgoing: Boolean, needTail: Boolean) {

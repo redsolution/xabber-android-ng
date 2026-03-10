@@ -34,18 +34,20 @@
         android:layout_marginStart="-6.5dp"
         android:layout_toEndOf="@id/tail"
         android:orientation="vertical"
+        android:paddingTop="2dp"
         android:paddingBottom="4dp">
 
         <TextView
             android:id="@+id/tv_message_username"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:gravity="start"
+            android:minHeight="22dp"
+            android:gravity="start|center_vertical"
             android:maxLines="1"
-            android:paddingHorizontal="8dp"
+            android:paddingHorizontal="12dp"
             android:textColor="#673AB7"
+            android:fontFamily="sans-serif-medium"
             android:textSize="14sp"
-            android:textStyle="bold"
             android:visibility="gone"
             tools:text="Анна Белова"
             tools:visibility="visible" />
