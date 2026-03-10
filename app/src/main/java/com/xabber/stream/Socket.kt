@@ -683,8 +683,8 @@ class Socket(private val host: String, private val port: Int) {
                 val bytesRead = reader?.readAvailable(tempBuffer) ?: -1
                 if (bytesRead == -1) {
                     Log.w(TAG, "Remote peer closed connection")
-                    closeInternal()
                     fireReadLoopError()
+                    closeInternal()
                     break
                 } else if (bytesRead > 0) {
                     lastDataReceivedTime = System.currentTimeMillis()
@@ -713,13 +713,13 @@ class Socket(private val host: String, private val port: Int) {
                 continue
             } catch (e: ClosedByteChannelException) {
                 Log.w(TAG, "Reader channel closed (connection lost): ${e.message}", e)
-                closeInternal()
                 fireReadLoopError()
+                closeInternal()
                 break
             } catch (e: Exception) {
                 Log.e(TAG, "Unexpected error in read loop: ${e.message}", e)
-                closeInternal()
                 fireReadLoopError()
+                closeInternal()
                 break
             }
         }

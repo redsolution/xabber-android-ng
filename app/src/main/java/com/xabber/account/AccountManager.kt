@@ -67,28 +67,55 @@ object AccountManager {
         }
     }
 
+    /** Tracks the currently active network so we can detect wifi↔mobile switches. */
+    @Volatile
+    private var currentNetworkId: Long = -1L
+
     private fun startNetworkMonitoring(context: Context) {
         val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         val request = NetworkRequest.Builder()
             .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
             .build()
 
+        // Seed with current active network (if any)
+        connectivityManager.activeNetwork?.let { currentNetworkId = it.networkHandle }
+
         connectivityManager.registerNetworkCallback(request, object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) {
-                Log.d("AccountManager", "Network available – checking offline accounts")
-                CoroutineScope(Dispatchers.IO).launch {
-                    users.forEach { account ->
-                        if (!account.isConnected()) {
-                            Log.d("AccountManager", "Reconnecting ${account.jid}")
-                            account.performReconnect()
+                val newId = network.networkHandle
+                val oldId = currentNetworkId
+                currentNetworkId = newId
+
+                if (oldId == newId) {
+                    // Same network came back (e.g. brief dropout) — reconnect only offline accounts
+                    Log.d("AccountManager", "Network restored (same=$newId) – checking offline accounts")
+                    CoroutineScope(Dispatchers.IO).launch {
+                        users.forEach { account ->
+                            if (!account.isConnected()) {
+                                Log.d("AccountManager", "Reconnecting offline ${account.jid}")
+                                account.performReconnect()
+                            }
+                        }
+                    }
+                } else {
+                    // Different network (wifi→mobile or vice versa) — force reconnect ALL accounts
+                    Log.d("AccountManager", "Network changed ($oldId → $newId) – force reconnecting all accounts")
+                    CoroutineScope(Dispatchers.IO).launch {
+                        users.forEach { account ->
+                            Log.d("AccountManager", "Force reconnecting ${account.jid} due to network change")
+                            account.performReconnect(force = true)
                         }
                     }
                 }
             }
 
             override fun onLost(network: Network) {
-                Log.d("AccountManager", "Network lost – waiting for recovery")
-                // Можно ничего не делать, reconnect запустится при onAvailable
+                val lostId = network.networkHandle
+                Log.d("AccountManager", "Network lost ($lostId)")
+                // If the lost network was our active one, mark it so next onAvailable forces reconnect
+                if (currentNetworkId == lostId) {
+                    currentNetworkId = -1L
+                }
             }
         })
     }

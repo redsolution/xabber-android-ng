@@ -197,11 +197,21 @@ class Account : XMPPStreamDelegate {
         Log.d(TAG, "Stanza processing restarted")
     }
 
-    suspend fun performReconnect() {
-        // Guard against concurrent reconnect calls (e.g. from multiple error paths)
+    /**
+     * @param force When true, cancels any in-progress reconnect and starts fresh.
+     *              Used for network-change events where the old connection is stale.
+     */
+    suspend fun performReconnect(force: Boolean = false) {
         if (isReconnecting) {
-            Log.w(TAG, "performReconnect already in progress for $jid, ignoring duplicate call")
-            return
+            if (force) {
+                Log.w(TAG, "Force-cancelling in-progress reconnect for $jid (network changed)")
+                reconnectJob?.cancel()
+                reconnectJob = null
+                isReconnecting = false
+            } else {
+                Log.w(TAG, "performReconnect already in progress for $jid, ignoring duplicate call")
+                return
+            }
         }
         isReconnecting = true
 
