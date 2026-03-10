@@ -606,7 +606,8 @@ class MessageCommonReceiver(private val owner: String) {
                 sentDate = item.date.time
 
                 if (item.message.hasElement("system", "urn:xmpp:system") ||
-                    item.message.hasElement("x", "https://xabber.com/protocol/groups#system-message")
+                    item.message.hasElement("x", "https://xabber.com/protocol/groups#system-message") ||
+                    item.message.element("x", "https://xabber.com/protocol/groups")?.element("system-message") != null
                 ) {
                     configureSystemMessage(item.message, owner, opponent, item.date)
                 } else {

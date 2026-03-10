@@ -84,6 +84,9 @@ class ChatViewModel(
     private val _isLocked = MutableLiveData<Boolean>()
     val isLocked: LiveData<Boolean> = _isLocked
 
+    private val _accountColorKey = MutableLiveData<String>()
+    val accountColorKey: LiveData<String> = _accountColorKey
+
     // Для обратной совместимости (можно временно оставить)
     private val _messages = MutableLiveData<List<MessageStorageItem>>()
     val messages: LiveData<List<MessageStorageItem>> = _messages
@@ -185,6 +188,7 @@ class ChatViewModel(
         observeMessages()
         loadInitialData()
         markAllAsRead()
+        observeAccountColor()
 
         if (isGroup) {
             viewModelScope.launch {
@@ -237,6 +241,14 @@ class ChatViewModel(
                     _opponentName.value = it.rosterItem?.displayName ?: it.jid
                     cachedChatDto = it.toChatListDto()
                 }
+            }
+        }
+    }
+
+    private fun observeAccountColor() {
+        viewModelScope.launch {
+            model.observeAccountColorKey(owner).collectLatest { colorKey ->
+                if (colorKey != null) _accountColorKey.postValue(colorKey)
             }
         }
     }

@@ -24,6 +24,15 @@ class MessageAdapter(
     private val checkedItemIds: MutableSet<String> = HashSet()
     private val TAG = "MessageAdapter"
 
+    /** Account color for group chat nicknames (resource ID, e.g. R.color.blue_500) */
+    var nicknameColorResId: Int = 0
+        set(value) {
+            if (field != value) {
+                field = value
+                notifyDataSetChanged()
+            }
+        }
+
     interface MenuItemListener {
         fun copyText(text: String)
         fun pinMessage(message: MessageStorageItem)
@@ -105,7 +114,8 @@ class MessageAdapter(
                     isNeedTail = isMessageNeedTail(position),
                     isNeedDate = false, // Dates are separate items now
                     isNeedName = item.isNeedName,
-                    isGroup = isGroup
+                    isGroup = isGroup,
+                    nicknameColorResId = nicknameColorResId
                 )
                 when (holder) {
                     is IncomingMessageVH -> holder.bind(item.message, extraData)

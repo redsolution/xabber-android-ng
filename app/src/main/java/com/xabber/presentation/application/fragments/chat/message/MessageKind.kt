@@ -62,6 +62,7 @@ fun List<MessageStorageItem>.toChatItems(unreadCount: Int = 0, isGroup: Boolean 
                 formattedDate = getDateStringForMessage(currentDate)
             ))
             previousDayKey = currentDayKey
+            previousAuthorTag = "" // Reset so first message after date header always shows nickname
         }
 
         // Precompute isNeedName for group chats (avoids Realm access during scroll)

@@ -108,9 +108,30 @@ object ColorManager {
         R.color.blue_grey_500, R.color.brown_500
     )
 
+    // Dark colors for light theme — readable on light backgrounds
+    private val PALETTE_700 = intArrayOf(
+        R.color.red_700, R.color.deep_orange_700, R.color.orange_700,
+        R.color.amber_700,
+        R.color.teal_700,
+        R.color.blue_700, R.color.indigo_700,
+        R.color.dark_purple_700, R.color.purple_700, R.color.pink_700,
+        R.color.blue_grey_700, R.color.brown_700
+    )
+
+    // Light colors for dark theme — readable on dark backgrounds
+    private val PALETTE_300 = intArrayOf(
+        R.color.red_300, R.color.deep_orange_300, R.color.orange_300,
+        R.color.amber_300,
+         R.color.blue_300,
+        R.color.dark_purple_300, R.color.purple_300, R.color.pink_300,
+        R.color.brown_300
+    )
+
     fun colorForGroupchatUser(identifier: String): Int {
-        val index = (identifier.hashCode() and Int.MAX_VALUE) % PALETTE_500.size
-        return PALETTE_500[index]
+        val nightMode = resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK
+        val palette = if (nightMode == android.content.res.Configuration.UI_MODE_NIGHT_YES) PALETTE_300 else PALETTE_700
+        val index = (identifier.hashCode() and Int.MAX_VALUE) % palette.size
+        return palette[index]
     }
 
     fun convertColorSuperLightNameToId(colorName: String): Int {

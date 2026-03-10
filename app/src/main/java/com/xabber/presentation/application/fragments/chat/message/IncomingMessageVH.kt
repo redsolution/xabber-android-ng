@@ -19,16 +19,26 @@ class IncomingMessageVH(
 ) : MessageViewHolder(itemView, inflater, menuItemListener, onViewClickListener) {
 
     private val tvName: TextView? = itemView.findViewById(R.id.tv_message_username)
+    private val messageContainer: LinearLayout? = itemView.findViewById(R.id.message_container)
 
     override fun bind(message: MessageStorageItem, vhExtraData: MessageVhExtraData) {
         super.bind(message, vhExtraData)
         if (tvName != null) {
+            // Re-attach tvName as first child since removeAllViews() detaches it
+            if (tvName.parent == null) {
+                messageContainer?.addView(tvName, 0)
+            }
             tvName.isVisible = vhExtraData.isNeedName && vhExtraData.isGroup
             if (tvName.isVisible) {
-                tvName.text = message.groupchatDisplayedNickname ?: ""
-                val authorId = message.groupchatAuthorJid ?: message.groupchatAuthorId ?: ""
-                if (authorId.isNotEmpty()) {
-                    tvName.setTextColor(ContextCompat.getColor(itemView.context, ColorManager.colorForGroupchatUser(authorId)))
+                val nickname = message.groupchatDisplayedNickname ?: ""
+                tvName.text = nickname
+                if (nickname.isNotEmpty()) {
+                    val colorRes = if (vhExtraData.nicknameColorResId != 0) {
+                        vhExtraData.nicknameColorResId
+                    } else {
+                        ColorManager.colorForGroupchatUser(nickname)
+                    }
+                    tvName.setTextColor(ContextCompat.getColor(itemView.context, colorRes))
                 }
             }
         }

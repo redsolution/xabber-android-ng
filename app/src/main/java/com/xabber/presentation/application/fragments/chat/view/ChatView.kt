@@ -1076,6 +1076,13 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
             }
         }
 
+        viewModel.accountColorKey.observe(viewLifecycleOwner) { colorKey ->
+            val colorRes = ColorManager.convertColorNameToId(
+                colorKey ?: resources.getString(R.string.blue)
+            )
+            messageAdapter?.nicknameColorResId = colorRes
+        }
+
         viewModel.unreadCount.observe(viewLifecycleOwner) { unread ->
             if (!isAdded || !lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
                 return@observe

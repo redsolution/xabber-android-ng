@@ -6,5 +6,6 @@ data class MessageVhExtraData(
     val isNeedTail: Boolean,
     val isNeedDate: Boolean,
     val isNeedName: Boolean,
-    val isGroup: Boolean
+    val isGroup: Boolean,
+    val nicknameColorResId: Int = 0
 )

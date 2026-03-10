@@ -1004,7 +1004,8 @@ class MessageArchiveManager(private val owner: String) {
 
     private fun isSystemMessage(message: XMPPMessage): Boolean {
         return message.hasElement("system", namespace = "urn:xmpp:system") ||
-                message.hasElement("x", namespace = "https://xabber.com/protocol/groups#system-message")
+                message.hasElement("x", namespace = "https://xabber.com/protocol/groups#system-message") ||
+                message.element("x", namespace = "https://xabber.com/protocol/groups")?.element("system-message") != null
     }
 
     private fun isChatStateOrMarker(message: XMPPMessage): Boolean {

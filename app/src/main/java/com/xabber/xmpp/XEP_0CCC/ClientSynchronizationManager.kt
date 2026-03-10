@@ -10,6 +10,7 @@ import com.xabber.data_base.defaultRealmConfig
 import com.xabber.data_base.models.account.AccountStorageItem
 import com.xabber.data_base.models.last_chats.LastChatsStorageItem
 import com.xabber.data_base.models.messages.MessageSendingState
+import com.xabber.data_base.models.messages.MessageReferenceStorageItem
 import com.xabber.data_base.models.messages.MessageStorageItem
 import com.xabber.data_base.models.roster.RosterStorageItem
 import com.xabber.data_base.models.sync.ConversationType
@@ -418,7 +419,10 @@ class ClientSynchronizationManager(owner: String) {
                                     timestampUs = conversationStampUs
                                 }
 
-                                val effectiveBody = if (isGroupConversation && isOutgoing) {
+                                var groupNickname: String? = null
+                                val effectiveBody = if (isGroupConversation) {
+                                    val colonIdx = body.indexOf(":\n")
+                                    if (colonIdx > 0) groupNickname = body.substring(0, colonIdx)
                                     MessageStorageItem.stripGroupNicknamePrefix(body)
                                 } else {
                                     body
@@ -433,6 +437,15 @@ class ClientSynchronizationManager(owner: String) {
                                         this.owner = owner
                                         this.opponent = opponent
                                         this.body = effectiveBody
+                                        if (isGroupConversation && !isOutgoing && groupNickname != null) {
+                                            val ref = MessageReferenceStorageItem().apply {
+                                                this.kind_ = MessageReferenceStorageItem.Kind.GROUPCHAT.rawValue
+                                                this.metadata_ = "{\"nickname\":\"${groupNickname!!.replace("\"", "\\\"")}\",\"id\":\"${groupNickname!!.replace("\"", "\\\"")}\"}"
+                                                this.messagePrimary = messagePrimary
+                                                this.owner = owner
+                                            }
+                                            this.references.add(ref)
+                                        }
                                         this.date = timestampUs / 1000L  // микросекунды → миллисекунды
                                         this.sentDate = timestampUs / 1000L
                                         this.editDate = 0L
@@ -890,7 +903,10 @@ class ClientSynchronizationManager(owner: String) {
                 from == owner
             }
             val chatJid = if (isGroupConversation) from else if (isOutgoing) to else from
-            val effectiveBody = if (isGroupConversation && isOutgoing) {
+            var groupNickname: String? = null
+            val effectiveBody = if (isGroupConversation) {
+                val colonIdx = body.indexOf(":\n")
+                if (colonIdx > 0) groupNickname = body.substring(0, colonIdx)
                 MessageStorageItem.stripGroupNicknamePrefix(body)
             } else {
                 body
@@ -929,6 +945,15 @@ class ClientSynchronizationManager(owner: String) {
                     this.conversationType_ = conversationType
                     this.isRead = isOutgoing
                     this.state = if (isOutgoing) MessageSendingState.Deliver else MessageSendingState.Sent
+                    if (isGroupConversation && !isOutgoing && groupNickname != null) {
+                        val ref = MessageReferenceStorageItem().apply {
+                            this.kind_ = MessageReferenceStorageItem.Kind.GROUPCHAT.rawValue
+                            this.metadata_ = "{\"nickname\":\"${groupNickname!!.replace("\"", "\\\"")}\",\"id\":\"${groupNickname!!.replace("\"", "\\\"")}\"}"
+                            this.messagePrimary = messagePrimary
+                            this.owner = owner
+                        }
+                        this.references.add(ref)
+                    }
                 }, UpdatePolicy.ALL)
                 Log.d("ClientSyncManager", "Saved message $messageId for jid=$chatJid in receiveClientSyncRaw, body=${effectiveBody.take(50)}")
 

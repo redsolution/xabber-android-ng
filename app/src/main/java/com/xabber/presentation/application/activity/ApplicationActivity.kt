@@ -1349,6 +1349,14 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
                 // Chat fragments are kept alive (hidden); non-chat fragments are replaced (removed)
                 if (currentDetailTag!!.startsWith(CHAT_TAG_PREFIX)) hide(it) else remove(it)
             }
+            // Clean up any lingering non-hidden, non-chat fragments in detail_container
+            // (handles race with delayed removal in closeDetail)
+            fm.fragments.forEach { f ->
+                if (f !== currentVisible && !f.isHidden && f.id == R.id.detail_container
+                    && f.tag?.startsWith(CHAT_TAG_PREFIX) != true) {
+                    remove(f)
+                }
+            }
             add(R.id.detail_container, fragment, tag)
         }
         currentDetailTag = tag
@@ -1401,27 +1409,25 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
             binding.toolbarNav.isVisible = true
             setupNavigationDrawer()
 
-            // In portrait mode, hide/remove the visible detail fragment and close the pane
-            if (isPortrait) {
-                val tag = currentDetailTag
-                // Use the tracked tag if available; fall back to findFragmentById for fragments
-                // opened via launchDetailInStack (replace+backstack, so currentDetailTag is null)
-                val detailFrag = if (tag != null) {
-                    supportFragmentManager.findFragmentByTag(tag)
-                } else {
-                    supportFragmentManager.findFragmentById(R.id.detail_container)?.takeIf { !it.isHidden }
-                }
-                if (detailFrag != null) {
-                    supportFragmentManager.beginTransaction().apply {
-                        if (tag != null && tag.startsWith(CHAT_TAG_PREFIX)) hide(detailFrag) else remove(detailFrag)
-                    }.commit()
-                    Log.d("ApplicationActivity", "goBack: Hid/removed detail fragment in portrait mode")
-                }
-                currentDetailTag = null
-                if (binding.slidingPaneLayout.isOpen) {
-                    binding.slidingPaneLayout.closePane()
-                    Log.d("ApplicationActivity", "goBack: Closed SlidingPaneLayout in portrait mode")
-                }
+            // Hide/remove the visible detail fragment and close the pane
+            val tag = currentDetailTag
+            // Use the tracked tag if available; fall back to findFragmentById for fragments
+            // opened via launchDetailInStack (replace+backstack, so currentDetailTag is null)
+            val detailFrag = if (tag != null) {
+                supportFragmentManager.findFragmentByTag(tag)
+            } else {
+                supportFragmentManager.findFragmentById(R.id.detail_container)?.takeIf { !it.isHidden }
+            }
+            if (detailFrag != null) {
+                supportFragmentManager.beginTransaction().apply {
+                    if (tag != null && tag.startsWith(CHAT_TAG_PREFIX)) hide(detailFrag) else remove(detailFrag)
+                }.commit()
+                Log.d("ApplicationActivity", "goBack: Hid/removed detail fragment")
+            }
+            currentDetailTag = null
+            if (binding.slidingPaneLayout.isOpen) {
+                binding.slidingPaneLayout.closePane()
+                Log.d("ApplicationActivity", "goBack: Closed SlidingPaneLayout")
             }
 
             // Add listener to handle post-back-stack state
@@ -1445,21 +1451,13 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
                 replace(R.id.application_container, ChatListView())
                 addToBackStack("chat_list_root")
             }
-            // Clear detail_container and close SlidingPaneLayout in portrait mode
-            if (isPortrait) {
-                closeDetail()
-            }
+            closeDetail()
             drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_UNLOCKED)
             binding.toolbarNav.isVisible = true
             setupNavigationDrawer()
         } else {
             Log.d("ApplicationActivity", "Already on ChatListFragment, closing detail")
-            // Ensure detail_container is cleared in portrait mode
-            if (isPortrait) {
-                closeDetail()
-            } else if (binding.slidingPaneLayout.isOpen) {
-                binding.slidingPaneLayout.closePane()
-            }
+            closeDetail()
         }
     }
 

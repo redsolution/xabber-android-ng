@@ -59,6 +59,12 @@ class ChatModel(
             }
     }
 
+    fun observeAccountColorKey(ownerJid: String): Flow<String?> {
+        return realm.query<AccountStorageItem>("jid = $0", ownerJid)
+            .asFlow()
+            .map { changes -> changes.list.firstOrNull()?.colorKey }
+    }
+
     @OptIn(FlowPreview::class)
     fun observeMessages(): Flow<List<MessageStorageItem>> {
         return realm.query<MessageStorageItem>(

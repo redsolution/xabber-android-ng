@@ -250,7 +250,7 @@ class MessageStorageItem : RealmObject {
             innerMsg?.element("body")?.textContent
         } ?: ""
         val isGroupMessage = message.hasElement("x", "https://xabber.com/protocol/groups")
-        val cleanBody = if (outgoing && isGroupMessage) {
+        val cleanBody = if (isGroupMessage) {
             stripGroupNicknamePrefix(effectiveBody)
         } else {
             effectiveBody
