@@ -52,16 +52,19 @@ class AccountViewHolder(
     private fun loadAvatar(id: String) {
         binding.tvInitials.isVisible = false
         val realm = Realm.open(defaultRealmConfig())
-        var uri: String? = null
-        realm.writeBlocking {
-            val avatar = this.query(
-                AvatarStorageItem::class,
-                "primary = '$id'"
-            ).first().find()
-            if (avatar != null) uri = avatar.fileUri
+        try {
+            var uri: String? = null
+            realm.writeBlocking {
+                val avatar = this.query(
+                    AvatarStorageItem::class,
+                    "primary = '$id'"
+                ).first().find()
+                if (avatar != null) uri = avatar.fileUri
+            }
+            Glide.with(binding.root.context).load(uri).into(binding.imAvatarItemAccount)
+        } finally {
+            realm.close()
         }
-        Glide.with(binding.root.context).load(uri).into(binding.imAvatarItemAccount)
-        realm.close()
     }
 
 

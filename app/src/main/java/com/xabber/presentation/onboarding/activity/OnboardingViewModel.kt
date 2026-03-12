@@ -111,4 +111,9 @@ class OnboardingViewModel : ViewModel() {
     private fun savePassword(accountJid: String, password: String) {
         passwordStorage.setData(accountJid, password.toByteArray())
     }
+
+    override fun onCleared() {
+        super.onCleared()
+        realm.close()
+    }
 }

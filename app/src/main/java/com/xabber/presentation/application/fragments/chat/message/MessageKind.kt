@@ -1,6 +1,7 @@
 package com.xabber.presentation.application.fragments.chat.message
 
 import com.xabber.data_base.models.messages.MessageStorageItem
+import com.xabber.presentation.application.fragments.chat.ChatSettingsManager
 import com.xabber.utils.StringUtils.getDateStringForMessage
 import java.util.Calendar
 
@@ -23,7 +24,8 @@ sealed class ChatItem {
 
     data class MessageItem(
         val message: MessageStorageItem,
-        val isNeedName: Boolean = false
+        val isNeedName: Boolean = false,
+        val isNeedTail: Boolean = true
     ) : ChatItem() {
         override val id: String = "message_${message.primary}"
     }
@@ -77,7 +79,60 @@ fun List<MessageStorageItem>.toChatItems(unreadCount: Int = 0, isGroup: Boolean 
         result.add(ChatItem.MessageItem(message, needName))
     }
 
+    // Precompute tails after all items are built
+    computeTails(result)
+
     return result
+}
+
+/**
+ * Computes isNeedTail for all MessageItems in the list.
+ * Bottom mode: tail on the last message in a same-direction group.
+ * Top mode: tail on the first message in a same-direction group.
+ */
+private fun computeTails(items: MutableList<ChatItem>) {
+    val messageIndices = mutableListOf<Int>()
+    for (i in items.indices) {
+        if (items[i] is ChatItem.MessageItem) messageIndices.add(i)
+    }
+    if (messageIndices.isEmpty()) return
+
+    val bottom = ChatSettingsManager.bottom
+    for (mi in messageIndices.indices) {
+        val idx = messageIndices[mi]
+        val current = items[idx] as ChatItem.MessageItem
+        val msg = current.message
+
+        // Media-only messages (refs but no body) never get tails
+        if (msg.references.size > 0 && msg.body.isEmpty()) {
+            if (current.isNeedTail) {
+                items[idx] = current.copy(isNeedTail = false)
+            }
+            continue
+        }
+
+        val needTail = if (bottom) {
+            // Tail if next message in list is different direction or doesn't exist
+            val nextMi = mi + 1
+            if (nextMi >= messageIndices.size) true
+            else {
+                val nextMsg = (items[messageIndices[nextMi]] as ChatItem.MessageItem).message
+                msg.outgoing != nextMsg.outgoing
+            }
+        } else {
+            // Tail if previous message in list is different direction or doesn't exist
+            val prevMi = mi - 1
+            if (prevMi < 0) true
+            else {
+                val prevMsg = (items[messageIndices[prevMi]] as ChatItem.MessageItem).message
+                msg.outgoing != prevMsg.outgoing
+            }
+        }
+
+        if (current.isNeedTail != needTail) {
+            items[idx] = current.copy(isNeedTail = needTail)
+        }
+    }
 }
 
 /**
@@ -140,6 +195,9 @@ fun appendToChatItems(
 
         result.add(ChatItem.MessageItem(message, needName))
     }
+
+    // Recompute tails for the entire list (including existing items that may lose their tail)
+    computeTails(result)
 
     return result
 }

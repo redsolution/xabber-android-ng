@@ -32,7 +32,8 @@ import java.util.TimeZone
 
 @RequiresApi(Build.VERSION_CODES.O)
 class ChatMarkersManager(private val owner: String, withoutAfterburnTimer: Boolean = false) {
-    private val realm: Realm by lazy { Realm.open(defaultRealmConfig()) }
+    private val realmLazy = lazy { Realm.open(defaultRealmConfig()) }
+    private val realm: Realm by realmLazy
     private var afterburnTimer: Timer? = null
     private var TAG = "ChatMarkersManager"
 
@@ -729,6 +730,14 @@ suspend fun displayed(stream: Stream, messagePrimary: String) = withContext(Disp
             else -> ConversationType.Regular
         }.also {
             Log.d("MessageCommonReceiver", "Determined conversationType=${it.rawValue} for messageId=${message.id}, to=$to")
+        }
+    }
+
+    fun close() {
+        afterburnTimer?.cancel()
+        afterburnTimer = null
+        if (realmLazy.isInitialized()) {
+            realm.close()
         }
     }
 }

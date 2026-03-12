@@ -75,19 +75,20 @@ class RosterStorageItem : RealmObject {
     }
 
     fun getPrimaryResource(): String? {
+        val realm = Realm.open(defaultRealmConfig())
         return try {
-            val realm = Realm.open(defaultRealmConfig())
             val resource = realm.query<ResourceStorageItem>("owner = $0 AND jid = $1", owner, jid)
                 .sort(
                     "timestamp" to Sort.DESCENDING,
                     "priority" to Sort.DESCENDING
                 )
                 .first().find()?.resource
-            realm.close()
             resource
         } catch (e: Exception) {
             Log.e("RosterStorageItem", "Can't get primary resource for jid: $jid, owner: $owner", e)
             null
+        } finally {
+            realm.close()
         }
     }
 

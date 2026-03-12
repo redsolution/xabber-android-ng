@@ -642,12 +642,16 @@ class Account : XMPPStreamDelegate {
             syncManager = null
             messageArchiveManager?.reset()
             messageArchiveManager = null
+            chatMarkers?.close()
             chatMarkers = null
+            messages?.unsubscribe()
             messages = null
             messageReceiver?.unsubscribeReceiver()
             messageReceiver = null
             groupchatManager?.close()
             groupchatManager = null
+            avatarManager?.close()
+            avatarManager = null
 
             statusMessage.onNext("Offline")
             rosterRequested = false
@@ -1100,12 +1104,14 @@ class Account : XMPPStreamDelegate {
         val isClientSyncLast = message.hasElement("last-message", "https://xabber.com/protocol/synchronization")
 
         // Extract "real payload" depending on container type
+        // Carbon check must come first: carbon stanzas contain inner <archived> elements
+        // that would incorrectly match the isMamTmp raw-string check.
         val payload = when {
-            isMamResult      -> message.getArchivedMessageContainer() ?: message
-            isMamTmp         -> message  // tmp variant usually doesn't wrap again
             isCarbon         -> message.getCarbonCopyMessageContainer()
                 ?: message.getCarbonForwardedMessageContainer()
                 ?: message
+            isMamResult      -> message.getArchivedMessageContainer() ?: message
+            isMamTmp         -> message  // tmp variant usually doesn't wrap again
             else             -> message
         }
 
@@ -1118,16 +1124,16 @@ class Account : XMPPStreamDelegate {
         //                    Routing based on ORIGIN
         // ────────────────────────────────────────────────────────────────
         when {
+            isCarbon -> {
+                Log.w(TAG, "messageReceiver.receiveCarbon")
+
+                messageReceiver!!.receiveCarbon(message)
+            }
+
             isMamResult || isMamTmp -> {
                 // All history — classic MAM + your temporary archived variant
 //                Log.w(TAG, "messageReceiver.receiveArchived")
                 messageReceiver!!.receiveArchived(payload)
-            }
-
-            isCarbon -> {
-                Log.w(TAG, "messageReceiver.receiveCarbon")
-
-                messageReceiver!!.receiveCarbon(payload)
             }
 
             isClientSyncLast -> {

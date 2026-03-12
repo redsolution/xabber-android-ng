@@ -23,6 +23,7 @@ import com.xabber.presentation.application.activity.ApplicationActivity
 import com.xabber.utils.parseTimestamp
 import com.xabber.utils.toMessageReferenceDto
 import com.xabber.xmpp.groupchat.GroupChatStorageItem
+import com.xabber.xmpp.jid.XMPPJID
 import com.xabber.xmpp.messages.XMPPMessage
 import com.xabber.xmpp.messages.XMLElement
 import com.xabber.xmpp.messages.message.TemporaryMessageStanzaStorageItem
@@ -48,7 +49,8 @@ import kotlin.collections.HashSet
 @RequiresApi(Build.VERSION_CODES.O)
 class MessageCommonReceiver(private val owner: String) {
 
-    private val realm: Realm by lazy { Realm.open(defaultRealmConfig()) }
+    private val realmLazy = lazy { Realm.open(defaultRealmConfig()) }
+    private val realm: Realm by realmLazy
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val processMutex = Mutex()
     private val processedMessageIds = mutableSetOf<String>()
@@ -262,10 +264,25 @@ class MessageCommonReceiver(private val owner: String) {
     }
 
     suspend fun receiveCarbon(message: XMPPMessage) {
-        val isSentCarbon = message.element("sent", "urn:xmpp:carbons:2") != null
-        val forwarded = message.element("forwarded", "urn:xmpp:forward:0") ?: return
-        val innerMessage = forwarded.element("message", "jabber:client") ?: return
-        val bareMessage = XMPPMessage(innerMessage.raw)
+        // Navigate <sent>/<received> → <forwarded> → <message> (forwarded is nested inside the carbon wrapper)
+        val sentElement = message.element("sent", "urn:xmpp:carbons:2")
+        val receivedElement = message.element("received", "urn:xmpp:carbons:2")
+        val isSentCarbon = sentElement != null
+        val carbonWrapper = sentElement ?: receivedElement ?: return
+        val forwarded = carbonWrapper.element("forwarded", "urn:xmpp:forward:0") ?: return
+        val innerMsg = forwarded.element("message", "jabber:client")
+            ?: forwarded.element("message") ?: return
+
+        // Build a proper XMPPMessage from the inner element's attributes and children
+        val bareMessage = XMPPMessage(
+            raw = message.raw,
+            id = innerMsg.getAttribute("id"),
+            from = innerMsg.getAttribute("from")?.let { try { XMPPJID(it) } catch (_: Exception) { null } },
+            to = innerMsg.getAttribute("to")?.let { try { XMPPJID(it) } catch (_: Exception) { null } },
+            body = innerMsg.element("body")?.textContent,
+            originId = innerMsg.element("origin-id", "urn:xmpp:sid:0")?.getAttribute("id"),
+            children = innerMsg.children
+        )
 
         // Skip carbons for group chat conversations — the group headline message
         // will arrive separately with proper <x xmlns='...groups'> metadata.
@@ -450,6 +467,9 @@ class MessageCommonReceiver(private val owner: String) {
     internal fun unsubscribeReceiver() {
         // queueJob?.cancel() — если был
         clearQueue()
+        if (realmLazy.isInitialized()) {
+            realm.close()
+        }
     }
 
     private fun clearQueue(item: MessageQueueItem) {

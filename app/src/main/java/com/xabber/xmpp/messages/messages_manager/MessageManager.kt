@@ -30,7 +30,8 @@ import java.util.UUID
 
 @RequiresApi(Build.VERSION_CODES.O)
 class MessageManager(private val owner: String, activeStream: Boolean) {
-    private val realm: Realm by lazy { Realm.open(defaultRealmConfig()) }
+    private val realmLazy = lazy { Realm.open(defaultRealmConfig()) }
+    private val realm: Realm by realmLazy
     private val queue: String = "com.xabber.messages.transmitter.$owner.${UUID.randomUUID()}"
     private var updateSendingMessagesTimer: Timer? = null
     private var muteExpirationTimer: Timer? = null
@@ -182,6 +183,9 @@ class MessageManager(private val owner: String, activeStream: Boolean) {
         muteExpirationTimer = null
         receiverJob?.cancel()
         receiverJob = null
+        if (realmLazy.isInitialized()) {
+            realm.close()
+        }
     }
 
     suspend fun readAllMessages() {
@@ -365,8 +369,8 @@ class MessageManager(private val owner: String, activeStream: Boolean) {
 
     companion object {
         suspend fun remove(owner: String, commitTransaction: Boolean = true) {
+            val realm = Realm.open(defaultRealmConfig())
             try {
-                val realm = Realm.open(defaultRealmConfig())
                 realm.write {
                     val messages = query<MessageStorageItem>("owner = $0", owner).find()
                     val stanzas = query<MessageStanzaStorageItem>("owner = $0", owner).find()
@@ -381,6 +385,8 @@ class MessageManager(private val owner: String, activeStream: Boolean) {
                 // Remove from SharedPreferences equivalent if needed
             } catch (e: Exception) {
                 Log.e("MessageManager", "Cannot remove messages for account $owner: ${e.message}")
+            } finally {
+                realm.close()
             }
         }
 
@@ -392,10 +398,14 @@ class MessageManager(private val owner: String, activeStream: Boolean) {
             return user?.element("jid")?.getAttribute("stringValue") ?: run {
                 user?.getAttribute("id")?.let { id ->
                     val realm = Realm.open(defaultRealmConfig())
-                    realm.query<GroupChatStorageItem>(
-                        "primary = $0",
-                        GroupChatStorageItem.genPrimary(jid, owner)
-                    ).first().find()?.jid
+                    try {
+                        realm.query<GroupChatStorageItem>(
+                            "primary = $0",
+                            GroupChatStorageItem.genPrimary(jid, owner)
+                        ).first().find()?.jid
+                    } finally {
+                        realm.close()
+                    }
                 }
             }
         }

@@ -222,6 +222,12 @@ class Stream(var jid: String, var port: Int = 5222) {
 
     private suspend fun handleIncomingStanza(chunk: String) {
         bufferMutex.withLock {
+            val MAX_BUFFER_SIZE = 2 * 1024 * 1024 // 2 MB
+            if (streamBuffer.length + chunk.length > MAX_BUFFER_SIZE) {
+                Log.e(TAG, "Stream buffer overflow (${streamBuffer.length + chunk.length} bytes), discarding buffer")
+                streamBuffer.clear()
+                return
+            }
             streamBuffer.append(chunk)
             var content = streamBuffer.toString()
             var processedStanzas = 0
@@ -318,7 +324,7 @@ class Stream(var jid: String, var port: Int = 5222) {
 
                 val tagEnd = content.indexOf(">", nextStart.first)
                 if (tagEnd == -1) {
-                    Log.w(TAG, "Incomplete stanza tag, buffering: ${content}")
+                    Log.w(TAG, "Incomplete stanza tag, buffering: ${content.take(200)}")
                     break
                 }
                 val fullTag = content.substring(nextStart.first + 1, tagEnd)
@@ -358,7 +364,7 @@ class Stream(var jid: String, var port: Int = 5222) {
                     }
                 }
                 val stanza = content.substring(nextStart.first, fullEnd)
-                Log.d("XMPP STANZA READ", "RECV:$stanza")
+                Log.d("XMPP STANZA READ", "RECV:${stanza.take(4096)}")
 
                 // Обработка каждой отдельной станзы в отдельном try-catch,
                 // чтобы ошибка в одной станзе не прерывала цикл обработки остальных
@@ -726,7 +732,7 @@ class Stream(var jid: String, var port: Int = 5222) {
                 content
             )
         } catch (e: Exception) {
-            Log.e(TAG, "Error parsing IQ: error ${e.message}, stanza=$stanza", e)
+            Log.e(TAG, "Error parsing IQ: error ${e.message}, stanza=${stanza.take(500)}", e)
             return null
         }
     }

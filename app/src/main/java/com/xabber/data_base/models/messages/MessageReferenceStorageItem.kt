@@ -66,9 +66,6 @@ open class MessageReferenceStorageItem : RealmObject {
     var messageId: String = ""
     var conversationType_: String = ConversationType.Regular.rawValue
 
-    @Ignore
-    private val realm by lazy { Realm.open(defaultRealmConfig()) }
-
     // Cache parsed metadata to avoid repeated JSON parsing during scroll
     @Ignore
     private var _cachedMetadata: Map<String, Any>? = null
@@ -356,8 +353,9 @@ open class MessageReferenceStorageItem : RealmObject {
                             listOf(jid, owner, url).prp()
                         }
                         val result = extractFrameFromVideo(key)
+                        val localRealm = Realm.open(defaultRealmConfig())
                         try {
-                            realm.write {
+                            localRealm.write {
                                 val instances = query<MessageReferenceStorageItem>(
                                     "messageId = $0 AND jid = $1 AND metadata_ = $2",
                                     messageId, jid, metadata_
@@ -370,6 +368,8 @@ open class MessageReferenceStorageItem : RealmObject {
                             }
                         } catch (e: Exception) {
                             Log.e("MessageReferenceStorageItem", "Error updating video metadata: ${e.message}")
+                        } finally {
+                            localRealm.close()
                         }
                     }
 

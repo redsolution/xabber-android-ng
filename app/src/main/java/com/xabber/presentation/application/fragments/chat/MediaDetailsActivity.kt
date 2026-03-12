@@ -194,6 +194,7 @@ class MediaDetailsActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         adapter = null
+        realm.close()
         super.onDestroy()
     }
 

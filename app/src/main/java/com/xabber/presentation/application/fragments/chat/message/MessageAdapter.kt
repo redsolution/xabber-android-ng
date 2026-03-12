@@ -111,7 +111,7 @@ class MessageAdapter(
                 val extraData = MessageVhExtraData(
                     isUnread = !item.message.isRead && (firstUnreadMessageID == null || item.message.primary == firstUnreadMessageID),
                     isChecked = checkedItemIds.contains(item.message.primary),
-                    isNeedTail = isMessageNeedTail(position),
+                    isNeedTail = item.isNeedTail,
                     isNeedDate = false, // Dates are separate items now
                     isNeedName = item.isNeedName,
                     isGroup = isGroup,
@@ -128,36 +128,18 @@ class MessageAdapter(
                 val item = getItem(position) as ChatItem.DateHeaderItem
                 holder.bind(item.formattedDate)
             }
-//            is UnreadMarkerVH -> {
-//                val item = getItem(position) as ChatItem.UnreadMarkerItem
-//                holder.bind(item.count)
-//            }
         }
     }
 
-    private fun isMessageNeedTail(position: Int): Boolean {
-        val currentMessage = getMessageAtPosition(position) ?: return true
-        if (currentMessage.references.size > 0 && currentMessage.body.isEmpty()) return false
-
-        // Find adjacent message (skip date headers, max 3 positions to avoid runaway loops)
-        if (ChatSettingsManager.bottom) {
-            for (nextPos in (position + 1)..minOf(position + 3, itemCount - 1)) {
-                val nextMessage = getMessageAtPosition(nextPos) ?: continue
-                return currentMessage.outgoing != nextMessage.outgoing
-            }
-        } else {
-            for (prevPos in (position - 1) downTo maxOf(position - 3, 0)) {
-                val prevMessage = getMessageAtPosition(prevPos) ?: continue
-                return currentMessage.outgoing != prevMessage.outgoing
+    override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int, payloads: MutableList<Any>) {
+        if (payloads.isNotEmpty() && holder is MessageViewHolder) {
+            if (payloads.any { it == ChatItemDiffCallback.PAYLOAD_TAIL_CHANGED }) {
+                val item = getItem(position) as ChatItem.MessageItem
+                holder.animateTailChange(item.isNeedTail, item.message.outgoing)
+                return
             }
         }
-        return true
-    }
-
-    private fun getMessageAtPosition(position: Int): MessageStorageItem? {
-        if (position !in 0 until itemCount) return null
-        val item = getItem(position)
-        return if (item is ChatItem.MessageItem) item.message else null
+        super.onBindViewHolder(holder, position, payloads)
     }
 
     // Публичный метод для получения ChatItem по позиции
@@ -255,7 +237,8 @@ class ChatItemDiffCallback : DiffUtil.ItemCallback<ChatItem>() {
                         oldMessage.sentDate == newMessage.sentDate &&
                         oldMessage.editDate == newMessage.editDate &&
                         oldMessage.outgoing == newMessage.outgoing &&
-                        oldMessage.state_ == newMessage.state_
+                        oldMessage.state_ == newMessage.state_ &&
+                        oldItem.isNeedTail == newItem.isNeedTail
             }
             oldItem is ChatItem.DateHeaderItem && newItem is ChatItem.DateHeaderItem -> {
                 oldItem.date == newItem.date && oldItem.formattedDate == newItem.formattedDate
@@ -263,5 +246,28 @@ class ChatItemDiffCallback : DiffUtil.ItemCallback<ChatItem>() {
 
             else -> false
         }
+    }
+
+    override fun getChangePayload(oldItem: ChatItem, newItem: ChatItem): Any? {
+        if (oldItem is ChatItem.MessageItem && newItem is ChatItem.MessageItem) {
+            if (oldItem.isNeedTail != newItem.isNeedTail) {
+                val oldMsg = oldItem.message
+                val newMsg = newItem.message
+                // If only the tail changed, return a lightweight payload
+                if (oldMsg.body == newMsg.body &&
+                    oldMsg.sentDate == newMsg.sentDate &&
+                    oldMsg.editDate == newMsg.editDate &&
+                    oldMsg.outgoing == newMsg.outgoing &&
+                    oldMsg.state_ == newMsg.state_
+                ) {
+                    return PAYLOAD_TAIL_CHANGED
+                }
+            }
+        }
+        return null
+    }
+
+    companion object {
+        const val PAYLOAD_TAIL_CHANGED = "tail_changed"
     }
 }

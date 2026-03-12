@@ -24,7 +24,8 @@ import javax.xml.parsers.DocumentBuilderFactory
 
 class XmppAvatarManager(owner: String) : AbstractXMPPManager(owner) {
 
-    private val realm: Realm by lazy { Realm.open(defaultRealmConfig()) }
+    private val realmLazy = lazy { Realm.open(defaultRealmConfig()) }
+    private val realm: Realm by realmLazy
 
     companion object {
         private const val TAG = "XmppAvatarManager"
@@ -316,5 +317,11 @@ class XmppAvatarManager(owner: String) : AbstractXMPPManager(owner) {
     private fun ByteArray.sha1(): String {
         val digest = java.security.MessageDigest.getInstance("SHA-1").digest(this)
         return digest.joinToString("") { "%02x".format(it) }
+    }
+
+    fun close() {
+        if (realmLazy.isInitialized()) {
+            realm.close()
+        }
     }
 }

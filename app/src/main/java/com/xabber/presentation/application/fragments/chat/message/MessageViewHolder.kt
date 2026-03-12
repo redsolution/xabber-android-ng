@@ -245,6 +245,23 @@ abstract class MessageViewHolder(
         tail?.layoutParams = layoutParams
     }
 
+    fun animateTailChange(needTail: Boolean, isOutgoing: Boolean) {
+        // Animate the balloon background swap
+        setBalloonBackground(isOutgoing, needTail)
+        // Animate the tail visibility with a fade
+        tail?.let { tailView ->
+            val targetAlpha = if (needTail && ChatSettingsManager.messageTypeValue?.rawValue != 2) 1f else 0f
+            tailView.animate()
+                .alpha(targetAlpha)
+                .setDuration(150)
+                .withEndAction {
+                    tailView.isInvisible = targetAlpha == 0f
+                    tailView.alpha = 1f // Reset alpha for future reuse
+                }
+                .start()
+        }
+    }
+
     private fun setItemCheckedBackground(isChecked: Boolean) {
         itemView.setBackgroundColor(ContextCompat.getColor(context, if (isChecked) R.color.selected else R.color.transparent))
     }
