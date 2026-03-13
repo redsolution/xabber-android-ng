@@ -3,6 +3,9 @@ package com.xabber.presentation.onboarding.activity
 import android.content.Intent
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.commit
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
@@ -32,9 +35,19 @@ class OnBoardingActivity : AppCompatActivity(), OnboardingNavigator, ToolbarChan
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(binding.root)
+        setupEdgeToEdge()
         binding.onboardingToolbar.title = ""
         setSupportActionBar(binding.onboardingToolbar)
         if (savedInstanceState == null) launchStartFragment()
+    }
+
+    private fun setupEdgeToEdge() {
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { view, windowInsets ->
+            val systemBars = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars())
+            view.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
+            windowInsets
+        }
     }
 
     private fun launchStartFragment() {

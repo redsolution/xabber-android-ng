@@ -637,6 +637,11 @@ class Socket(private val host: String, private val port: Int) {
                 if (fullResponse.isNotEmpty()) {
                     val tlsResponse = fullResponse.toString()
                     Log.d(TAG, "TLS response: $tlsResponse")
+                    if (tlsResponse.contains("<stream:error") || tlsResponse.contains("</stream:stream>")) {
+                        Log.e(TAG, "Server returned stream error after TLS upgrade: $tlsResponse")
+                        closeInternal()
+                        return@withContext false
+                    }
                     messageCallback?.invoke(tlsResponse)
                 } else {
                     Log.e(TAG, "No application data in TLS response")

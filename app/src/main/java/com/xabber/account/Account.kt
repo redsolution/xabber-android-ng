@@ -1315,9 +1315,9 @@ class Account : XMPPStreamDelegate {
             return@withContext false
         }
         try {
-            val response = stream.socket?.parseStreamResponse(
-                stream.messageCallbackChannel.tryReceive().getOrNull() ?: ""
-            )
+            // Use already-parsed features from didReceiveStreamFeatures(), not the channel
+            // (the channel may already be consumed by the stream handler)
+            val response = stream.socket?.parseStreamResponse(supportedFeatures)
             val features = response?.features
             if (DevicesOCRA.Companion.isSupported(features)) {
                 Log.d(TAG, "Initiating DEVICES-OCRA authentication for JID: $jid")
@@ -1403,10 +1403,10 @@ class Account : XMPPStreamDelegate {
             delay(100)
             Log.d(TAG, "Upgrading to TLS")
             if (stream.socket?.upgradeToTls() == true) {
-                Log.d(TAG, "TLS upgrade successful, initiating new stream")
+                Log.d(TAG, "TLS upgrade successful, stream already restarted by upgradeToTls()")
                 stream.state = StreamState.PROCEED
-                stream.socket?.initiateXmppStream(stream.socket!!, host, jid)
-                Log.d(TAG, "New stream initiated over TLS, awaiting response")
+                // Note: upgradeToTls() already sends <stream:stream> and receives the response,
+                // so we do NOT call initiateXmppStream() here (that would send a duplicate header)
                 return@withContext true
             } else {
                 Log.e(TAG, "Failed to upgrade to TLS")

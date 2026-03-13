@@ -15,6 +15,7 @@ object DisplayManager : Fragment() {
     private const val MAX_HEIGHT = 900
     private val displayMetrics = Resources.getSystem().displayMetrics
     private var heightStatusBar = 0
+    private var heightNavBar = 0
 
     fun getWidthDp(): Int =
         (displayMetrics.widthPixels / displayMetrics.density).toInt()
@@ -34,6 +35,12 @@ object DisplayManager : Fragment() {
 
     fun setHeightStatusBar(height: Int) {
         heightStatusBar = height
+    }
+
+    fun getHeightNavBar(): Int = heightNavBar
+
+    fun setHeightNavBar(height: Int) {
+        heightNavBar = height
     }
 
     fun screenWidth() = displayMetrics.widthPixels

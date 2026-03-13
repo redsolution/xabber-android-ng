@@ -33,6 +33,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.GravityCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
 import androidx.core.view.updateLayoutParams
 import androidx.drawerlayout.widget.DrawerLayout
@@ -125,7 +126,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
     private val realm = Realm.open(defaultRealmConfig())
     private lateinit var drawerLayout: DrawerLayout
     private lateinit var actionBarToggle: ActionBarDrawerToggle
-    private var assist: SoftInputAssist? = null
+    private var processLifecycleObserver: DefaultLifecycleObserver? = null
     private val activeFragment: Fragment?
         get() = supportFragmentManager.findFragmentById(R.id.application_container)
     private val viewModel = ApplicationViewModel()
@@ -191,7 +192,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         // Keep currentDetailTag in sync whenever the backstack changes (e.g. popBackStack via close())
         supportFragmentManager.addOnBackStackChangedListener { syncCurrentDetailTag() }
 
-        ProcessLifecycleOwner.get().lifecycle.addObserver(object : DefaultLifecycleObserver {
+        processLifecycleObserver = object : DefaultLifecycleObserver {
             override fun onStart(owner: LifecycleOwner) {
                 super.onStart(owner)
                 Log.d("ApplicationActivity", "App moved to foreground – starting service & checking accounts")
@@ -219,8 +220,10 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
                 val stopIntent = Intent(this@ApplicationActivity, XmppConnectionService::class.java)
                 stopService(stopIntent)
             }
-        })
+        }
+        ProcessLifecycleOwner.get().lifecycle.addObserver(processLifecycleObserver!!)
         setupNavigationDrawer()
+        setupBackPressedHandler()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
                 ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), 100)
@@ -244,6 +247,8 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         shapeView?.setDrawable(MaskManager.mask)
         val sharedPreferences = getSharedPreferences(AppConstants.SHARED_PREF_MASK, Context.MODE_PRIVATE)
         sharedPreferences.registerOnSharedPreferenceChangeListener(this)
+
+        handleNotificationIntent(intent)
 
 //        CoroutineScope(Dispatchers.IO).launch {
 //            Account().loadAccount()
@@ -273,6 +278,24 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
 
     }
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleNotificationIntent(intent)
+    }
+
+    private fun handleNotificationIntent(intent: Intent?) {
+        val owner = intent?.getStringExtra("owner") ?: return
+        val jid = intent.getStringExtra("jid") ?: return
+        val category = intent.getStringExtra("category") ?: return
+        // Clear extras so re-creation doesn't re-open the same chat
+        intent.removeExtra("owner")
+        intent.removeExtra("jid")
+        intent.removeExtra("category")
+        val chatId = jid + owner + category
+        showChatInStack(ChatParams(chatId))
+    }
+
     private fun showErrorDialog(errorMessage: String) {
         AlertDialog.Builder(this)
             .setTitle("Error")
@@ -300,13 +323,13 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
             drawerLayout = findViewById(R.id.drawer_layout)
             val navigationView = findViewById<NavigationView>(R.id.nav_view)
             val toolbarNav = findViewById<Toolbar>(R.id.toolbar_nav)
-            val dpAsPixels = getStatusBarHeight()
+            val statusBarHeight = DisplayManager.getHeightStatusBar()
 
-            // Set padding for the toolbar
-            val currentPaddingLeft = toolbarNav.paddingLeft
-            val currentPaddingRight = toolbarNav.paddingRight
-            val currentPaddingBottom = toolbarNav.paddingBottom
-            toolbarNav.setPadding(currentPaddingLeft, dpAsPixels, currentPaddingRight, currentPaddingBottom)
+            // Set padding for the toolbar (top padding for status bar)
+            toolbarNav.setPadding(
+                toolbarNav.paddingLeft, statusBarHeight,
+                toolbarNav.paddingRight, toolbarNav.paddingBottom
+            )
 
             val avatarImageView = findViewById<ImageView>(R.id.avatar_image_view)
             val titleTextView = findViewById<TextView>(R.id.title_text_view)
@@ -349,13 +372,11 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
 
     private fun initializeAppForLoggedInUser(savedInstanceState: Bundle?) {
         updateUiDependingOnMode(isDualScreenMode())
-        setFullScreenMode()
-        setHeightStatusBar()
+        setupEdgeToEdge()
         setMask()
         setChatSettings()
         handleUnread()
 //        handleContactAddition()
-        assist = SoftInputAssist(window)
         subscribeToViewModelData()
 
         if (savedInstanceState == null) { // Only set up if not restoring state
@@ -685,49 +706,51 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         drawerLayout.closeDrawer(GravityCompat.START)
     }
 
-    override fun onBackPressed() {
-        // Check if the drawer is open first
-        if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
-            drawerLayout.closeDrawer(GravityCompat.START)
-            return
-        }else {
-            super.onBackPressed()
-        }
+    private fun setupBackPressedHandler() {
+        onBackPressedDispatcher.addCallback(this, object : androidx.activity.OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                // Check if the drawer is open first
+                if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
+                    drawerLayout.closeDrawer(GravityCompat.START)
+                    return
+                }
 
-        val dialogFragment = supportFragmentManager.fragments.find { it is DialogFragment && it.dialog?.isShowing == true }
-        if (dialogFragment != null) {
-            (dialogFragment as DialogFragment).dismiss()
-            return
-        }
+                val dialogFragment = supportFragmentManager.fragments.find { it is DialogFragment && it.dialog?.isShowing == true }
+                if (dialogFragment != null) {
+                    (dialogFragment as DialogFragment).dismiss()
+                    return
+                }
 
-        // Existing navigation logic
-        val currentFragment = supportFragmentManager.findFragmentById(R.id.application_container)
-        Log.d("ApplicationActivity", "onBackPressed: Current fragment = ${currentFragment?.javaClass?.simpleName}, Back stack count = ${supportFragmentManager.backStackEntryCount}")
+                // Existing navigation logic
+                val currentFragment = supportFragmentManager.findFragmentById(R.id.application_container)
+                Log.d("ApplicationActivity", "onBackPressed: Current fragment = ${currentFragment?.javaClass?.simpleName}, Back stack count = ${supportFragmentManager.backStackEntryCount}")
 
-        if (supportFragmentManager.backStackEntryCount > 0) {
-            Log.d("ApplicationActivity", "Popping to chat_list_root")
-            supportFragmentManager.popBackStack("chat_list_root", 0)
-            drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_UNLOCKED)
-            binding.toolbarNav.isVisible = true
-            setupNavigationDrawer()
-        } else if (currentFragment == null || currentFragment !is ChatListView) {
-            Log.d("ApplicationActivity", "Replacing with ChatListFragment")
-            supportFragmentManager.commit {
-                setReorderingAllowed(true)
-                replace(R.id.application_container, ChatListView())
-                addToBackStack("chat_list_root")
+                if (supportFragmentManager.backStackEntryCount > 0) {
+                    Log.d("ApplicationActivity", "Popping to chat_list_root")
+                    supportFragmentManager.popBackStack("chat_list_root", 0)
+                    drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_UNLOCKED)
+                    binding.toolbarNav.isVisible = true
+                    setupNavigationDrawer()
+                } else if (currentFragment == null || currentFragment !is ChatListView) {
+                    Log.d("ApplicationActivity", "Replacing with ChatListFragment")
+                    supportFragmentManager.commit {
+                        setReorderingAllowed(true)
+                        replace(R.id.application_container, ChatListView())
+                        addToBackStack("chat_list_root")
+                    }
+                    drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_UNLOCKED)
+                    binding.toolbarNav.isVisible = true
+                    actionBarToggle.syncState()
+                } else {
+                    Log.d("ApplicationActivity", "Already on ChatListFragment, finishing")
+                    finish()
+                }
             }
-            drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_UNLOCKED)
-            binding.toolbarNav.isVisible = true
-            actionBarToggle.syncState()
-        } else {
-            Log.d("ApplicationActivity", "Already on ChatListFragment, finishing")
-            finish()
-        }
+        })
     }
     override fun onResume() {
         super.onResume()
-        assist?.onResume()
+        // keyboard insets handled by setupEdgeToEdge()
     }
 
     private fun updateUiDependingOnMode(isDualScreenMode: Boolean) {
@@ -742,25 +765,37 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         }
     }
 
-    private fun setFullScreenMode() {
+    private fun setupEdgeToEdge() {
         WindowCompat.setDecorFitsSystemWindows(window, false)
-    }
 
-    @SuppressLint("DiscouragedApi", "InternalInsetResource")
-    private fun setHeightStatusBar() {
-        val height = resources.getIdentifier("status_bar_height", "dimen", "android")
-        val statusBarHeight = resources.getDimensionPixelSize(height)
-        setDelimiters(statusBarHeight)
-        DisplayManager.setHeightStatusBar(statusBarHeight)
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(android.R.id.content)) { _, insets ->
-            insets.consumeSystemWindowInsets()
+        ViewCompat.setOnApplyWindowInsetsListener(binding.slidingPaneLayout) { _, windowInsets ->
+            val systemBars = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars())
+            val ime = windowInsets.getInsets(WindowInsetsCompat.Type.ime())
+
+            // Store for fragments that read from DisplayManager
+            DisplayManager.setHeightStatusBar(systemBars.top)
+            DisplayManager.setHeightNavBar(systemBars.bottom)
+
+            // Toolbar top padding — toolbar background extends behind status bar,
+            // but toolbar content (icons, title) sits below it
+            binding.toolbarNav.setPadding(
+                binding.toolbarNav.paddingLeft, systemBars.top,
+                binding.toolbarNav.paddingRight, binding.toolbarNav.paddingBottom
+            )
+
+            // Bottom: use keyboard height when visible, otherwise nav bar height
+            val bottomInset = maxOf(systemBars.bottom, ime.bottom)
+            binding.mainContainer.setPadding(0, 0, 0, bottomInset)
+            binding.detailContainer.setPadding(0, 0, 0, bottomInset)
+
+            // Update delimiter height for dual-screen mode
+            setDelimiters(systemBars.top)
+
+            windowInsets
         }
     }
-    @SuppressLint("DiscouragedApi", "InternalInsetResource")
-    fun getStatusBarHeight(): Int {
-        val resourceId = resources.getIdentifier("status_bar_height", "dimen", "android")
-        return if (resourceId > 0) resources.getDimensionPixelSize(resourceId) else 0
-    }
+
+    fun getStatusBarHeight(): Int = DisplayManager.getHeightStatusBar()
     private fun setDelimiters(prolongation: Int) {
         var actionBarHeight = 0
         val typedValue = TypedValue()
@@ -1720,7 +1755,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
 
     override fun onPause() {
         super.onPause()
-        assist?.onPause()
+        // keyboard insets handled by setupEdgeToEdge()
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -1738,7 +1773,10 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         if (currentActivity == this) {
             currentActivity = null
         }
-        assist?.onDestroy()
+        processLifecycleObserver?.let {
+            ProcessLifecycleOwner.get().lifecycle.removeObserver(it)
+        }
+        processLifecycleObserver = null
         val sharedPreferences = getSharedPreferences(AppConstants.SHARED_PREF_MASK, Context.MODE_PRIVATE)
         sharedPreferences.unregisterOnSharedPreferenceChangeListener(this)
     }

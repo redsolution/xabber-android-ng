@@ -33,6 +33,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import nl.adaptivity.xmlutil.core.impl.multiplatform.StringReader
@@ -978,14 +979,16 @@ class Stream(var jid: String, var port: Int = 5222) {
         )
     }
     suspend fun close() = withContext(Dispatchers.IO) {
+        val socketToClose: Socket?
         synchronized(connectionLock) {
+            socketToClose = socket
             socket = null
             state = StreamState.NOT_CONNECTING
         }
-        socket?.close()
+        socketToClose?.close()
         messageQueue.close()
         stanzaProcessingScope.cancel()
-        streamJob.cancel()
+        streamJob.cancelAndJoin()
         delegate = null
         Log.d(TAG, "Stream closed for $jid")
     }

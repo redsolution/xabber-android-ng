@@ -306,6 +306,11 @@ class MessageCommonReceiver(private val owner: String) {
             }
         }
 
+        if (bareMessage.body.isNullOrBlank()) {
+            Log.d(TAG, "Skipping carbon with no body: id=${bareMessage.id}")
+            return
+        }
+
         val messageId = getOriginId(bareMessage) ?: bareMessage.id ?: return
         if (processedMessageIds.contains(messageId)) return
         processedMessageIds.add(messageId)
@@ -661,6 +666,12 @@ class MessageCommonReceiver(private val owner: String) {
 
             }
             groupchatRef?.let { messageItem.references.add(it) }
+            // Skip empty-body messages (e.g. chat states, delivery receipts wrapped in carbons)
+            if (messageItem.body.isBlank() && messageItem.references.isEmpty()) {
+                Log.d(TAG, "processQueue: skipping empty message: primary=${messageItem.primary}, outgoing=${messageItem.outgoing}")
+                clearQueue(item)
+                continue
+            }
             Log.w(TAG, "processQueue: adding message to save: primary=${messageItem.primary}, body='${messageItem.body}', opponent=${messageItem.opponent}, convType=${messageItem.conversationType}, outgoing=${messageItem.outgoing}, isRead=${messageItem.isRead}")
             messagesToSave.add(messageItem)
         }

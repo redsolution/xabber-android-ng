@@ -1497,12 +1497,14 @@ class NotifyManager private constructor() {
     }
 
     private fun createPendingIntent(context: Context, owner: String, jid: String, category: String): PendingIntent {
-        val intent = Intent(context, Class.forName("com.xabber.presentation.ChatActivity")).apply {
+        val intent = Intent(context, com.xabber.presentation.application.activity.ApplicationActivity::class.java).apply {
             putExtra("owner", owner)
             putExtra("jid", jid)
             putExtra("category", category)
+            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
         }
-        return PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        val requestCode = "$owner/$jid".hashCode()
+        return PendingIntent.getActivity(context, requestCode, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
     }
 
     private fun notificationManager(context: Context): NotificationManagerCompat {

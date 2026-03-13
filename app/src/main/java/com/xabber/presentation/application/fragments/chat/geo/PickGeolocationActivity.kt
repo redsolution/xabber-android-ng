@@ -16,6 +16,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.DividerItemDecoration
@@ -98,8 +99,7 @@ class PickGeolocationActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(binding.root)
-        setFullScreenMode()
-        setHeightStatusBar()
+        setupEdgeToEdge()
         if (savedInstanceState != null) {
             isBubbleShow = savedInstanceState.getBoolean(IS_BUBBLE_SHOW_KEY)
         }
@@ -115,16 +115,12 @@ class PickGeolocationActivity : AppCompatActivity() {
         initSendButton()
     }
 
-    private fun setFullScreenMode() {
+    private fun setupEdgeToEdge() {
         WindowCompat.setDecorFitsSystemWindows(window, false)
-    }
-
-    private fun setHeightStatusBar() {
-        val height = resources.getIdentifier("status_bar_height", "dimen", "android")
-        val statusBarHeight = resources.getDimensionPixelSize(height)
-        binding.searchToolbar.setPadding(0, statusBarHeight, 0, 0)
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(android.R.id.content)) { _, insets ->
-            insets.consumeSystemWindowInsets()
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { _, windowInsets ->
+            val systemBars = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars())
+            binding.searchToolbar.setPadding(0, systemBars.top, 0, 0)
+            windowInsets
         }
     }
 

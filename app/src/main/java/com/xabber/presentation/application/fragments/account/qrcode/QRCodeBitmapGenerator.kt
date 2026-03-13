@@ -61,7 +61,7 @@ class QRCodeBitmapGenerator(private val context: Context) {
     private fun generateQrBitmap(text: String, size: Int): Bitmap {
         val qrBitmap = getQrBitmap(text, size)
         val roundedQrBitmap = makeRoundedCornerBitmap(qrBitmap)
-        val bitmap = Bitmap.createBitmap(size, size, qrBitmap.config)
+        val bitmap = Bitmap.createBitmap(size, size, qrBitmap.config ?: Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
         canvas.drawBitmap(roundedQrBitmap, 0f, 0f, null)
         return bitmap

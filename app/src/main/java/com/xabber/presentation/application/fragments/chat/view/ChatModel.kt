@@ -68,7 +68,7 @@ class ChatModel(
     @OptIn(FlowPreview::class)
     fun observeMessages(): Flow<List<MessageStorageItem>> {
         return realm.query<MessageStorageItem>(
-            "owner = $0 AND opponent = $1 AND conversationType_ = $2",
+            "owner = $0 AND opponent = $1 AND conversationType_ = $2 AND isDeleted = false",
             owner, opponent, conversationType.rawValue
         )
             .sort("sentDate", Sort.ASCENDING)
@@ -83,8 +83,19 @@ class ChatModel(
         query<LastChatsStorageItem>("primary = $0", chatId).first().find()?.toChatListDto()
     }
 
-    suspend fun getMessages(): List<MessageStorageItem> = with(realm) {
-        query<MessageStorageItem>(
+    suspend fun getMessages(): List<MessageStorageItem> = withContext(Dispatchers.IO) {
+        // Clean up empty-body ghost messages (created by bodiless carbons)
+        realm.write {
+            val ghosts = query<MessageStorageItem>(
+                "owner = $0 AND opponent = $1 AND conversationType_ = $2 AND body == '' AND isDeleted = false",
+                owner, opponent, conversationType.rawValue
+            ).find().filter { it.references.isEmpty() }
+            if (ghosts.isNotEmpty()) {
+                Log.d(TAG, "Deleting ${ghosts.size} empty-body ghost messages")
+                ghosts.forEach { delete(it) }
+            }
+        }
+        realm.query<MessageStorageItem>(
             "owner = $0 AND opponent = $1 AND conversationType_ = $2 AND isDeleted = false",
             owner, opponent, conversationType.rawValue
         )

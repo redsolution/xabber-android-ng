@@ -13,6 +13,7 @@ class ClickSpan(val url: String, val type: String, private val context: Context)
     override fun onClick(view: View) {
         if (TYPE_HYPERLINK == type) {
             val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+            browserIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             context.startActivity(browserIntent)
         }
     }

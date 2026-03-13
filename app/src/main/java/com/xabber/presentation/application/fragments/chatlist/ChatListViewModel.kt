@@ -1,6 +1,7 @@
 package com.xabber.presentation.application.fragments.chatlist
 
 import android.os.Build
+import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
@@ -70,6 +71,8 @@ class ChatListViewModel : ViewModel() {
                     .sortedWith(compareByDescending<ChatListDto> { it.pinnedDate }
                         .thenByDescending { it.lastMessageDate })
             }.collect { list ->
+                val top = list.firstOrNull()
+                Log.d("ChatListVM", "combine emit: size=${list.size}, top=${top?.opponentJid}, body='${top?.lastMessageBody?.take(30)}', unread=${top?.unread}, date=${top?.lastMessageDate}")
                 _chats.value = list
             }
         }

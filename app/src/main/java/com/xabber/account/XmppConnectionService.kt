@@ -6,16 +6,20 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
+import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
+import androidx.core.app.ServiceCompat
 import com.xabber.R
 import com.xabber.presentation.application.activity.ApplicationActivity
 import com.xabber.stream.StreamState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -27,7 +31,8 @@ class XmppConnectionService : Service() {
         private const val CHANNEL_NAME = "XMPP Connection"
     }
 
-    private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val supervisorJob = SupervisorJob()
+    private val serviceScope = CoroutineScope(Dispatchers.IO + supervisorJob)
     private var activeAccounts = mutableSetOf<String>() // JIDs of connected accounts
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -35,6 +40,11 @@ class XmppConnectionService : Service() {
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        serviceScope.cancel()
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
@@ -51,7 +61,7 @@ class XmppConnectionService : Service() {
                 val jid = intent.getStringExtra("jid")
                 if (jid != null) activeAccounts.remove(jid)
                 if (activeAccounts.isEmpty()) {
-                    stopForeground(true)
+                    ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
                     stopSelf()
                 } else {
                     updateNotification(activeAccounts.size)
@@ -92,7 +102,20 @@ class XmppConnectionService : Service() {
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .build()
 
-        startForeground(NOTIFICATION_ID, notification)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(
+                NOTIFICATION_ID, notification,
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_REMOTE_MESSAGING
+            )
+        } else {
+            startForeground(NOTIFICATION_ID, notification)
+        }
+    }
+
+    override fun onTimeout(startId: Int) {
+        Log.w("XmppConnectionService", "Foreground service timed out, stopping")
+        ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
+        stopSelf(startId)
     }
 
     @RequiresApi(Build.VERSION_CODES.O)

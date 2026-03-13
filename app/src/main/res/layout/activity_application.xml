@@ -5,7 +5,6 @@
     android:id="@+id/outer_sliding_pane_layout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:fitsSystemWindows="true"
     android:theme="@style/Theme.MaterialComponents.Light.Bridge"
     tools:context=".presentation.application.activity.ApplicationActivity">
 
@@ -20,15 +19,12 @@
         <!-- Main content inside SlidingPaneLayout -->
         <androidx.slidingpanelayout.widget.SlidingPaneLayout
             android:id="@+id/sliding_pane_layout"
-            android:fitsSystemWindows="true"
-
             android:layout_width="match_parent"
             android:layout_height="match_parent">
 
             <!-- Main Container -->
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:id="@+id/main_container"
-                android:fitsSystemWindows="true"
 
                 android:layout_width="@dimen/main_container_width"
                 android:layout_height="match_parent">

@@ -38,6 +38,7 @@ import com.xabber.xmpp.notifications.XMPPNotificationsManagerStorageItem
 import com.xabber.xmpp.roster.RosterDisplayNameStorageItem
 import com.xabber.xmpp.voip.voIPManager.CallMetadataStorageItem
 import com.xabber.xmpp.x509.X509StorageItem
+import com.xabber.common.SettingManager
 import io.realm.kotlin.Realm
 import io.realm.kotlin.ext.query
 import io.realm.kotlin.types.RealmObject
@@ -503,6 +504,9 @@ object AccountManager {
             // Delete all data from Realm and password storage
             val deleted = deleteAccount(jid)
             if (deleted) {
+                // Clear cached settings (sync version, roster version, etc.)
+                SettingManager.clear(jid)
+
                 // Remove from users list (already inside deleteAccount, but double-check)
                 synchronized(users) {
                     users.removeAll { it.jid == jid }

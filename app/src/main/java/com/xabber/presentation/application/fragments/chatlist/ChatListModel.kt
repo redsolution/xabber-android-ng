@@ -35,7 +35,10 @@ class ChatListModel {
             .sort("pinnedPosition" to Sort.DESCENDING, "messageDate" to Sort.DESCENDING)
             .asFlow()
             .map { changes ->
-                changes.list.map { item -> item.toChatListDto() }
+                val dtos = changes.list.map { item -> item.toChatListDto() }
+                val top = dtos.firstOrNull()
+                android.util.Log.d("ChatListModel", "getChatsFlow emit: size=${dtos.size}, top=${top?.opponentJid}, body='${top?.lastMessageBody?.take(30)}', unread=${top?.unread}, msgDate=${top?.lastMessageDate}")
+                dtos
             }
     }
 
@@ -67,10 +70,8 @@ class ChatListModel {
 
     private fun getEnabledAccountIds(): RealmSet<String> {
         val set = realmSetOf<String>()
-        realm.writeBlocking {
-            val accounts = query<com.xabber.data_base.models.account.AccountStorageItem>("enabled = true").find()
-            accounts.forEach { set.add(it.primary) }
-        }
+        val accounts = realm.query<com.xabber.data_base.models.account.AccountStorageItem>("enabled = true").find()
+        accounts.forEach { set.add(it.primary) }
         return set
     }
 
