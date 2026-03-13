@@ -51,7 +51,6 @@ import com.google.android.material.navigation.NavigationView
 import com.google.android.material.snackbar.Snackbar
 import com.xabber.R
 import com.xabber.account.AccountManager
-import com.xabber.account.XmppConnectionService
 import com.xabber.data_base.defaultRealmConfig
 import com.xabber.databinding.ActivityApplicationBinding
 import com.xabber.dto.AccountDto
@@ -195,16 +194,8 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         processLifecycleObserver = object : DefaultLifecycleObserver {
             override fun onStart(owner: LifecycleOwner) {
                 super.onStart(owner)
-                Log.d("ApplicationActivity", "App moved to foreground – starting service & checking accounts")
+                Log.d("ApplicationActivity", "App moved to foreground – checking accounts")
                 AccountManager.users.forEach { account ->
-                    // Start the foreground service for each account
-                    val serviceIntent = Intent(this@ApplicationActivity, XmppConnectionService::class.java).apply {
-                        action = "START"
-                        putExtra("jid", account.jid)
-                    }
-                    startForegroundService(serviceIntent)
-
-                    // Reconnect only if no active connection
                     if (!account.isConnected()) {
                         Log.d("ApplicationActivity", "Account ${account.jid} is disconnected, scheduling reconnect")
                         CoroutineScope(Dispatchers.IO).launch {
@@ -212,13 +203,6 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
                         }
                     }
                 }
-            }
-
-            override fun onStop(owner: LifecycleOwner) {
-                super.onStop(owner)
-                Log.d("ApplicationActivity", "App moved to background – stopping connection service")
-                val stopIntent = Intent(this@ApplicationActivity, XmppConnectionService::class.java)
-                stopService(stopIntent)
             }
         }
         ProcessLifecycleOwner.get().lifecycle.addObserver(processLifecycleObserver!!)

@@ -273,13 +273,6 @@ object AccountManager {
                     )
                 }
 
-                // Start the foreground service for this account
-                val serviceIntent = Intent(appContext(), XmppConnectionService::class.java).apply {
-                    action = "START"
-                    putExtra("jid", normalizedJid)
-                }
-                appContext().startForegroundService(serviceIntent)
-
                 Log.d(
                     "AccountManager",
                     "Account creation (login) successful for jid $normalizedJid"
@@ -463,13 +456,6 @@ object AccountManager {
                     users.add(newUserAccount)
                 }
 
-                // Start the foreground service for this account
-                val serviceIntent = Intent(appContext(), XmppConnectionService::class.java).apply {
-                    action = "START"
-                    putExtra("jid", jid)
-                }
-                appContext().startForegroundService(serviceIntent)
-
                 account = newUserAccount
                 Log.d(
                     "AccountManager",
@@ -514,13 +500,6 @@ object AccountManager {
 
                 // Clear any in-memory ViewModels for this account
                 chatViewModels.entries.removeAll { it.key.contains(jid) }
-
-                // Stop the foreground service for this account
-                val serviceIntent = Intent(appContext(), XmppConnectionService::class.java).apply {
-                    action = "STOP"
-                    putExtra("jid", jid)
-                }
-                appContext().startService(serviceIntent)
 
                 Log.d("AccountManager", "Successfully logged out account with jid $jid")
                 true
