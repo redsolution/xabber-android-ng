@@ -309,6 +309,11 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
             val toolbarNav = findViewById<Toolbar>(R.id.toolbar_nav)
             val statusBarHeight = DisplayManager.getHeightStatusBar()
 
+            ViewCompat.setOnApplyWindowInsetsListener(navigationView) { v, insets ->
+                val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+                v.setPadding(v.paddingLeft, v.paddingTop, v.paddingRight, systemBars.bottom)
+                insets
+            }
             // Set padding for the toolbar (top padding for status bar)
             toolbarNav.setPadding(
                 toolbarNav.paddingLeft, statusBarHeight,
@@ -317,7 +322,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
 
             val avatarImageView = findViewById<ImageView>(R.id.avatar_image_view)
             val titleTextView = findViewById<TextView>(R.id.title_text_view)
-            val subtitleTextView = findViewById<TextView>(R.id.subtitle_text_view)
+            val subtitleTextView = findViewById<TextView>(R.id.subtitle_text_view).also { it.isSelected = true }
             val account = getPrimaryAccount()
             val avatar = account?.let { getAvatar(it.id) }
 

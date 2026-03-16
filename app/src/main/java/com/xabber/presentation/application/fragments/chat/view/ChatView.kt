@@ -231,6 +231,7 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         binding.toolbar.navigationIcon = null
+        binding.tvChatTitle.isSelected = true
 
         // Listen for mute duration selected in NotificationBottomSheet
         childFragmentManager.setFragmentResultListener(
@@ -1541,6 +1542,7 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
             } else if (binding.selectMessagesToolbar.toolbarSelectedMessages.isVisible) {
                 enableSelectionMode(false)
             } else {
+                (activity as? androidx.appcompat.app.AppCompatActivity)?.hideSoftKeyboard(binding.chatInput)
                 navigator().closeDetail()
             }
         }

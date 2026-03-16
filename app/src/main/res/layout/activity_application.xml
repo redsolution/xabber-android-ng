@@ -218,7 +218,10 @@
                             android:fontFamily="@font/roboto"
                             android:text="Subtitle"
                             android:textColor="@color/black"
-                            android:textSize="14sp" />
+                            android:textSize="14sp"
+                            android:singleLine="true"
+                            android:ellipsize="marquee"
+                            android:marqueeRepeatLimit="marquee_forever" />
                     </LinearLayout>
 
                     <androidx.constraintlayout.widget.ConstraintLayout

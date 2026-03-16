@@ -242,10 +242,32 @@ class MessageCommonReceiver(private val owner: String) {
         val date = getDelayedDate(message) ?: Date()
         val messageBare = getArchivedMessageContainer(message) ?: return
         val messageId = getOriginId(messageBare) ?: messageBare.id ?: return
-        if (processedMessageIds.contains(messageId)) return
+
+        val isIncomingSystem = messageBare.hasElement("system", "urn:xmpp:system") ||
+                messageBare.hasElement("x", "https://xabber.com/protocol/groups#system-message") ||
+                messageBare.element("x", "https://xabber.com/protocol/groups")?.element("system-message") != null ||
+                messageBare.raw.contains("<system-message")
+
+        if (processedMessageIds.contains(messageId)) {
+            // If the MAM version reveals it should be a system message but was stored wrong, fix it
+            if (isIncomingSystem) {
+                val primary = MessageStorageItem.genPrimary(messageId, owner)
+                val existing = realm.query<MessageStorageItem>("primary == $0", primary).first().find()
+                if (existing != null && existing.displayAs_ != "system") {
+                    realm.write { findLatest(existing)?.displayAs = "system" }
+                    Log.w(TAG, "receiveArchived: upgraded existing message to system: messageId=$messageId")
+                }
+            }
+            return
+        }
         processedMessageIds.add(messageId)
         val primary = MessageStorageItem.genPrimary(messageId, owner)
-        if (realm.query<MessageStorageItem>("primary == $0", primary).first().find() != null) {
+        val existingRecord = realm.query<MessageStorageItem>("primary == $0", primary).first().find()
+        if (existingRecord != null) {
+            if (isIncomingSystem && existingRecord.displayAs_ != "system") {
+                realm.write { findLatest(existingRecord)?.displayAs = "system" }
+                Log.w(TAG, "receiveArchived: upgraded existing message to system: messageId=$messageId")
+            }
             return
         }
         val queueItem = MessageQueueItem(
@@ -632,7 +654,8 @@ class MessageCommonReceiver(private val owner: String) {
 
                 if (item.message.hasElement("system", "urn:xmpp:system") ||
                     item.message.hasElement("x", "https://xabber.com/protocol/groups#system-message") ||
-                    item.message.element("x", "https://xabber.com/protocol/groups")?.element("system-message") != null
+                    item.message.element("x", "https://xabber.com/protocol/groups")?.element("system-message") != null ||
+                    item.message.raw.contains("<system-message")
                 ) {
                     configureSystemMessage(item.message, owner, opponent, item.date)
                 } else {

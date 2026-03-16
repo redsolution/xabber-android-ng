@@ -635,7 +635,10 @@ class Account : XMPPStreamDelegate {
             stream?.close()
             stream = null
             presenceManager = null
-            resetReconnectState()
+            // Do NOT call resetReconnectState() here — that would cancel the reconnectJob
+            // that may have triggered this closeStream() call, killing the reconnect loop.
+            reconnectAttempts = 0
+            reconnectDelayMs = 3000L
 
             rosterManager?.close()
             rosterManager = null
