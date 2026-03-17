@@ -64,7 +64,11 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.TimeoutCancellationException
+import java.util.concurrent.atomic.AtomicBoolean
 import org.w3c.dom.Node
 import org.xmlpull.v1.XmlPullParser
 import org.xmlpull.v1.XmlPullParserException
@@ -87,7 +91,7 @@ class Account : XMPPStreamDelegate {
     }
     private var bindingCompleted = false
     private var bindingRequestId: String? = null
-    private var isConnecting = false
+    private val isConnecting = AtomicBoolean(false)
     private val streamMutex = Mutex()
     private val presenceStanzas = mutableListOf<String>() // Class-level buffer for presence stanzas
     private val progressListeners = mutableListOf<ConnectionProgressListener>()
@@ -137,8 +141,10 @@ class Account : XMPPStreamDelegate {
     private val RECONNECT_BACKOFF_MULTIPLIER = 2L
     private val MAX_RECONNECT_ATTEMPTS = 10 // Optional hard limit
     private var reconnectAttempts = 0
-    @Volatile
-    private var isReconnecting = false
+    private val isReconnecting = AtomicBoolean(false)
+    /** Stable scope that outlives individual streams and reconnect jobs. */
+    private val accountScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val rosterMutex = Mutex()
     // New: Buffer for post-registration stanzas (roster, sync, presence)
     private var stanzaBuffer = MutableSharedFlow<StanzaItem>(replay = 0, extraBufferCapacity = 1000)
     private var stanzaProcessingScope =
@@ -203,23 +209,37 @@ class Account : XMPPStreamDelegate {
      * @param networkChanged When true, shows a toast indicating the network switch was the cause.
      */
     suspend fun performReconnect(force: Boolean = false, networkChanged: Boolean = false) {
-        if (isReconnecting) {
-            if (force) {
+        if (force) {
+            // Force: always proceed, cancel whatever is running
+            val wasAlready = isReconnecting.getAndSet(true)
+            if (wasAlready) {
                 Log.w(TAG, "Force-cancelling in-progress reconnect for $jid (network changed)")
                 reconnectJob?.cancel()
                 reconnectJob = null
-                isReconnecting = false
-            } else {
+                // The cancelled job's finally block may not have run yet, so isConnecting
+                // could still be true — reset it explicitly so the new connectStream() can proceed.
+                isConnecting.set(false)
+            }
+        } else {
+            // Non-force: bail if already reconnecting
+            if (!isReconnecting.compareAndSet(false, true)) {
                 Log.w(TAG, "performReconnect already in progress for $jid, ignoring duplicate call")
                 return
             }
+            // Check network before tearing down the existing connection (non-force only)
+            if (!isNetworkAvailable()) {
+                Log.w(TAG, "performReconnect: no network available, skipping teardown for $jid")
+                isReconnecting.set(false)
+                return
+            }
         }
-        isReconnecting = true
 
         try {
-            ApplicationActivity.currentActivity?.showReconnectingSnackbar()
+            withContext(Dispatchers.Main) {
+                ApplicationActivity.currentActivity?.showReconnectingSnackbar()
+            }
             if (networkChanged) {
-                CoroutineScope(Dispatchers.Main).launch {
+                accountScope.launch(Dispatchers.Main) {
                     Toast.makeText(
                         XabberApplication.applicationContext(),
                         "Сеть изменилась. Попытка переподключения...",
@@ -229,22 +249,32 @@ class Account : XMPPStreamDelegate {
             }
             reconnectJob?.cancel()
             reconnectJob = null
+            // Reset isConnecting in case connectStream() is mid-flight (e.g. stuck in TCP handshake)
+            // so the new attempt below is not silently rejected.
+            isConnecting.set(false)
+
+            // Neutralise the error callback on the OLD stream before teardown,
+            // so any delayed socket error from the old connection cannot trigger
+            // another spurious performReconnect() after we've already started one.
+            stream?.setOnSocketReadLoopError(null)
 
             // Полностью закрываем текущий stream
             closeStream()
+
+            // Reset auth/binding flags AFTER the stream is dead
             rosterRequested = false
             attemptedPreTlsAuth = false
             bindingCompleted = false
             boundJid = null
 
-            // Сбрасываем состояние аккаунта
             statusMessage.onNext("Offline")
-            resetReconnectState()
+            // Reset delay/attempt counters without cancelling reconnectJob (it's already null above)
+            reconnectAttempts = 0
+            reconnectDelayMs = 3000L
             delay(200)
 
-            // Запускаем переподключение с экспоненциальной задержкой
-            reconnectJob = CoroutineScope(Dispatchers.IO + SupervisorJob()).launch {
-                reconnectAttempts = 0
+            // Launch reconnect loop under accountScope so it is tracked and bounded
+            reconnectJob = accountScope.launch {
                 while (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
                     reconnectAttempts++
                     if (!isNetworkAvailable()) {
@@ -258,26 +288,26 @@ class Account : XMPPStreamDelegate {
                     if (connectStream()) {
                         Log.d(TAG, "Reconnect successful for $jid")
                         resetReconnectState()
-                        isReconnecting = false
                         return@launch
                     }
 
                     reconnectDelayMs = (reconnectDelayMs * RECONNECT_BACKOFF_MULTIPLIER)
                         .coerceAtMost(MAX_RECONNECT_DELAY)
                 }
-                isReconnecting = false
+                isReconnecting.set(false)
                 showPermanentErrorDialog()
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error in performReconnect: ${e.message}", e)
-            isReconnecting = false
+            isReconnecting.set(false)
         }
     }
 
     private suspend fun processRosterStanza(stanza: String, stream: Stream) {
         val batchSize = 10 // Process up to 10 roster stanzas at once
         val rosterStanzas = mutableListOf<String>()
-        synchronized(rosterStanzaBuffer) {
+        // Use Mutex (not synchronized) so we suspend the coroutine rather than block the thread
+        rosterMutex.withLock {
             rosterStanzaBuffer.append(stanza)
             val bufferedContent = rosterStanzaBuffer.toString()
             if (bufferedContent.trim().startsWith("<iq") && bufferedContent.contains("</iq>")) {
@@ -292,20 +322,26 @@ class Account : XMPPStreamDelegate {
         rosterStanzas.chunked(batchSize).forEach { batch ->
             try {
                 batch.forEach { completeStanza ->
-                    val iq = parseIQ(completeStanza) // Assume parseIQ is defined elsewhere
+                    val iq = parseIQ(completeStanza)
                     if (iq != null) {
-                        rosterManager?.read(
-                            XMPPIQ(
-                                raw = completeStanza,
-                                type = iq.type,
-                                id = iq.id,
-                                from = iq.from,
-                                to = iq.to,
-                                error = iq.error,
-                                queryNamespace = iq.queryNamespace,
-                                queryContent = iq.queryContent
-                            )
-                        )
+                        try {
+                            withTimeout(10_000L) {
+                                rosterManager?.read(
+                                    XMPPIQ(
+                                        raw = completeStanza,
+                                        type = iq.type,
+                                        id = iq.id,
+                                        from = iq.from,
+                                        to = iq.to,
+                                        error = iq.error,
+                                        queryNamespace = iq.queryNamespace,
+                                        queryContent = iq.queryContent
+                                    )
+                                )
+                            }
+                        } catch (e: TimeoutCancellationException) {
+                            Log.w(TAG, "Roster stanza DB write timed out, skipping: ${completeStanza.take(100)}")
+                        }
                     } else {
                         Log.w(TAG, "Failed to parse roster IQ stanza: ${completeStanza.take(200)}")
                     }
@@ -344,8 +380,14 @@ class Account : XMPPStreamDelegate {
         syncStanzas.chunked(batchSize).forEach { batch ->
             try {
                 batch.forEach { completeStanza ->
-                    syncManager?.read(completeStanza)
-                    syncCompletionChannel.trySend(Unit)
+                    try {
+                        withTimeout(10_000L) {
+                            syncManager?.read(completeStanza)
+                        }
+                        syncCompletionChannel.trySend(Unit)
+                    } catch (e: TimeoutCancellationException) {
+                        Log.w(TAG, "Sync stanza DB write timed out, skipping")
+                    }
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error processing sync stanza batch: ${e.message}", e)
@@ -390,9 +432,13 @@ class Account : XMPPStreamDelegate {
     }
 
     private fun launchReconnect() {
+        if (!isReconnecting.compareAndSet(false, true)) {
+            Log.w(TAG, "launchReconnect: reconnect already in progress for $jid")
+            return
+        }
         reconnectJob?.cancel() // Cancel any previous attempt
 
-        reconnectJob = CoroutineScope(Dispatchers.IO).launch {
+        reconnectJob = accountScope.launch {
             reconnectAttempts = 0
             while (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
                 reconnectAttempts++
@@ -415,6 +461,7 @@ class Account : XMPPStreamDelegate {
             }
 
             // All attempts failed → show dialog on main thread
+            isReconnecting.set(false)
             withContext(Dispatchers.Main) {
                 showPermanentErrorDialog()
             }
@@ -426,7 +473,7 @@ class Account : XMPPStreamDelegate {
         reconnectJob = null
         reconnectAttempts = 0
         reconnectDelayMs = 3000L
-        isReconnecting = false
+        isReconnecting.set(false)
     }
 
     private fun showPermanentErrorDialog() {
@@ -568,11 +615,10 @@ class Account : XMPPStreamDelegate {
 
     @RequiresApi(Build.VERSION_CODES.O)
     suspend fun connectStream(): Boolean = withContext(Dispatchers.IO) {
-        if (isConnecting) {
+        if (!isConnecting.compareAndSet(false, true)) {
             Log.w(TAG, "Connection already in progress for $jid, ignoring")
             return@withContext false
         }
-        isConnecting = true
         try {
             closeStream()
 
@@ -581,10 +627,11 @@ class Account : XMPPStreamDelegate {
                 return@withContext false
             }
             val currentStream = stream ?: error("Stream is null after initialization")
-            // 👇 теперь stream гарантированно не null
+            // Register read-loop error callback using accountScope so it is tracked.
+            // Any stale callback from a previous stream was already nullified in performReconnect().
             currentStream.setOnSocketReadLoopError {
                 Log.e(TAG, "Read loop error - connection lost")
-                CoroutineScope(Dispatchers.Main).launch {
+                accountScope.launch(Dispatchers.Main) {
                     Toast.makeText(
                         XabberApplication.applicationContext(),
                         "Соединение потеряно. Попытка переподключения...",
@@ -592,7 +639,7 @@ class Account : XMPPStreamDelegate {
                     ).show()
                 }
                 statusMessage.onNext("Offline")
-                CoroutineScope(Dispatchers.IO + SupervisorJob()).launch {
+                accountScope.launch(Dispatchers.IO) {
                     performReconnect()
                 }
             }
@@ -617,9 +664,14 @@ class Account : XMPPStreamDelegate {
                 }
                 presenceManager = PresenceManager(jid, stream!!.socket!!)
                 statusMessage.onNext("Online")
-                resetReconnectState()
                 Log.d(TAG, "Stream connected for $jid")
-                ApplicationActivity.currentActivity?.hideReconnectingSnackbar()
+                // Use NonCancellable so the snackbar dismiss survives the coroutine cancellation
+                // that resetReconnectState() causes (it cancels reconnectJob, which is the job
+                // currently executing this connectStream() call).
+                withContext(NonCancellable + Dispatchers.Main) {
+                    ApplicationActivity.currentActivity?.hideReconnectingSnackbar()
+                }
+                resetReconnectState()
                 return@withContext true
             } else {
                 statusMessage.onNext("Offline")
@@ -634,7 +686,7 @@ class Account : XMPPStreamDelegate {
             statusMessage.onNext("Offline")
             return@withContext false
         } finally {
-            isConnecting = false
+            isConnecting.set(false)
         }
 
     }
@@ -672,10 +724,12 @@ class Account : XMPPStreamDelegate {
             bindingCompleted = false
             boundJid = null
 
-            // Replace the buffer and restart processing
+            // Reset the stanza pipeline — cancel the old scope and create a fresh buffer.
+            // Do NOT call restartStanzaProcessing() here: initializeStream() will call it
+            // after managers are created. Starting a collector now would be wasteful (it gets
+            // cancelled immediately) and could process stanzas with null managers.
             stanzaProcessingScope.cancel()
             stanzaBuffer = MutableSharedFlow(replay = 0, extraBufferCapacity = 1000)
-            restartStanzaProcessing()
 
             Log.d(TAG, "Stream fully closed and cleaned for $jid")
         }
@@ -961,20 +1015,24 @@ class Account : XMPPStreamDelegate {
                 stream.state = StreamState.NOT_CONNECTING
                 return false
             }
+            // Capture whether we are post-TLS BEFORE changing the state to STREAM_OPEN.
+            // The PROCEED checks below must use this flag, not stream.state, because
+            // state is updated to STREAM_OPEN on the very next line.
+            val isPostTls = (stream.state == StreamState.PROCEED)
             if (stream.state == StreamState.NOT_CONNECTING || stream.state == StreamState.PROCEED || stream.state == StreamState.AUTH_SUCCESS) {
                 Log.d(TAG, "Initial stream response received")
                 stream.state = StreamState.STREAM_OPEN
             }
             response.features?.let { feat ->
                 Log.d(TAG, "Stream features: $feat")
-                if (stream.state == StreamState.PROCEED && DevicesOCRA.Companion.isSupported(feat)) {
+                if (isPostTls && DevicesOCRA.Companion.isSupported(feat)) {
                     Log.d(TAG, "DEVICES-OCRA authentication is supported post-TLS")
                     stream.state = StreamState.START_AUTH
                 } else if (!attemptedPreTlsAuth && DevicesOCRA.Companion.isSupported(feat)) {
                     Log.d(TAG, "DEVICES-OCRA authentication is supported pre-TLS")
                     attemptedPreTlsAuth = true
                     stream.state = StreamState.START_AUTH
-                } else if (stream.state == StreamState.PROCEED && feat.mechanisms?.mechanism?.contains("PLAIN") == true) {
+                } else if (isPostTls && feat.mechanisms?.mechanism?.contains("PLAIN") == true) {
                     Log.d(TAG, "PLAIN authentication is supported post-TLS")
                     stream.state = StreamState.START_AUTH
                 } else if (!attemptedPreTlsAuth && feat.mechanisms?.mechanism?.contains("PLAIN") == true) {
@@ -1174,10 +1232,23 @@ class Account : XMPPStreamDelegate {
             // Starting it earlier (at TCP connect) causes pings during handshake → not-authorized.
             stream.socket?.startKeepAlive()
 
-            CoroutineScope(Dispatchers.IO).launch {
+            accountScope.launch {
+                // If a reconnect happened while we were waiting, this stream is stale — bail out.
+                // Using referential equality so we check the exact Stream object, not just JID.
+                if (this@Account.stream !== stream) {
+                    Log.w(TAG, "streamDidConnect: stale stream for $jid, ignoring")
+                    return@launch
+                }
+
                 presenceManager?.sendInitialPresence()
 
                 delay(200)
+
+                // Re-check after the delay: a reconnect could have replaced the stream.
+                if (this@Account.stream !== stream) {
+                    Log.w(TAG, "streamDidConnect: stream replaced during delay for $jid, aborting data load")
+                    return@launch
+                }
 
                 if (!rosterRequested) {
                     rosterManager?.request(stream)
@@ -1188,6 +1259,7 @@ class Account : XMPPStreamDelegate {
 
                 // Request own member IDs for groups where we don't know them yet
                 delay(500)
+                if (this@Account.stream !== stream) return@launch
                 groupchatManager?.requestSelfIdsForAllGroups(stream)
             }
             return true
@@ -1416,10 +1488,12 @@ class Account : XMPPStreamDelegate {
             delay(100)
             Log.d(TAG, "Upgrading to TLS")
             if (stream.socket?.upgradeToTls() == true) {
-                Log.d(TAG, "TLS upgrade successful, stream already restarted by upgradeToTls()")
+                Log.d(TAG, "TLS upgrade successful, stream header sent by upgradeToTls()")
                 stream.state = StreamState.PROCEED
-                // Note: upgradeToTls() already sends <stream:stream> and receives the response,
-                // so we do NOT call initiateXmppStream() here (that would send a duplicate header)
+                // upgradeToTls() sends <stream:stream> via write() → wrapAndSendTls() and
+                // starts the TLS read loop. The server's response arrives via messageCallback
+                // → handleIncomingStanza → didReceiveStreamFeatures asynchronously.
+                // Do NOT call initiateXmppStream() here — that would send a duplicate header.
                 return@withContext true
             } else {
                 Log.e(TAG, "Failed to upgrade to TLS")
@@ -1437,31 +1511,32 @@ class Account : XMPPStreamDelegate {
 
     override suspend fun streamSyncRequest(stream: Stream): Boolean {
         try {
+            // Bail out if this is a stale stream (a reconnect replaced it).
+            // This prevents sending requests on a closed socket and avoids corrupting
+            // the new stream's state by accident.
+            if (this.stream !== stream) {
+                Log.w(TAG, "streamSyncRequest: stale stream for $jid, ignoring")
+                return false
+            }
             if (stream.state != StreamState.CONNECTED) {
-                Log.w(TAG, "Cannot send sync request: Stream is not in CONNECTED state, current state: ${stream.state}")
-                onErrorCallback?.invoke("Cannot send sync request: Not connected")
+                Log.w(TAG, "Cannot send sync request: not CONNECTED (state=${stream.state})")
+                // Do NOT set stream.state = NOT_CONNECTING here — that would mark a live stream
+                // as disconnected, causing all subsequent IQs to be silently dropped.
                 return false
             }
             if (stream.socket == null || stream.socket?.getSocket()?.isClosed == true) {
-                Log.e(TAG, "Cannot send sync request: Socket is null or closed")
-                onErrorCallback?.invoke("Cannot send sync request: Connection closed")
-                stream.state = StreamState.NOT_CONNECTING
+                Log.e(TAG, "Cannot send sync request: socket is null or closed")
                 return false
             }
             val sm = this.syncManager ?: run {
                 Log.e(TAG, "Cannot send sync request: syncManager is null")
                 return false
             }
-            val st = this.stream ?: run {
-                Log.e(TAG, "Cannot send sync request: stream is null")
-                return false
-            }
-            sm.sync(st, boundJid = this.boundJid)
+            sm.sync(stream, boundJid = this.boundJid)
             return true
         } catch (e: Exception) {
-            Log.e(TAG, "Error sending sync request for JID: $jid: ${e.message}", e)
-            onErrorCallback?.invoke("Sync request error: ${e.message}")
-            stream.state = StreamState.NOT_CONNECTING
+            Log.e(TAG, "Error sending sync request for $jid: ${e.message}", e)
+            // Do NOT change stream.state here — let the socket error propagate naturally.
             return false
         }
     }
@@ -1578,6 +1653,7 @@ class Account : XMPPStreamDelegate {
         reconnectJob?.cancel()
         reconnectJob = null
         stanzaProcessingScope.cancel()
+        accountScope.cancel()
         closeStream()
         progressListeners.clear()
         syncManager?.clear()  // Reset sync version

@@ -44,6 +44,7 @@ import io.realm.kotlin.ext.query
 import io.realm.kotlin.types.RealmObject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
@@ -72,25 +73,78 @@ object AccountManager {
     @Volatile
     private var currentNetworkId: Long = -1L
 
+    /**
+     * The last network ID we were successfully *connected* on.
+     * Unlike currentNetworkId, this is NOT reset on onLost — it persists so that
+     * when a network is restored (same handle), we can recognize it and avoid a
+     * force-reconnect. Reset only when we connect on a new network.
+     */
+    /** Managed scope for all AccountManager async work. Survives for the app lifetime. */
+    private val managerScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    @Volatile
+    private var lastConnectedNetworkId: Long = -1L
+
+    /**
+     * Debounce timestamp to suppress rapid consecutive network events
+     * (common on Samsung, Xiaomi MIUI, Huawei EMUI, MediaTek dual-SIM).
+     */
+    @Volatile
+    private var lastNetworkEventMs: Long = 0L
+    private val NETWORK_EVENT_DEBOUNCE_MS = 1_000L
+
     private fun startNetworkMonitoring(context: Context) {
         val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-        val request = NetworkRequest.Builder()
-            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-            .build()
 
         // Seed with current active network (if any)
-        connectivityManager.activeNetwork?.let { currentNetworkId = it.networkHandle }
+        connectivityManager.activeNetwork?.let {
+            currentNetworkId = it.networkHandle
+            lastConnectedNetworkId = it.networkHandle
+        }
+
+        // We add VALIDATED so that onAvailable only fires once the network is
+        // actually routable (past captive-portal check).  This prevents premature
+        // reconnect attempts on Samsung/Huawei/MIUI devices that report the network
+        // before DNS is usable.
+        val request = NetworkRequest.Builder()
+            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            .addCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+            .build()
 
         connectivityManager.registerNetworkCallback(request, object : ConnectivityManager.NetworkCallback() {
+
             override fun onAvailable(network: Network) {
                 val newId = network.networkHandle
-                val oldId = currentNetworkId
-                currentNetworkId = newId
 
-                if (oldId == newId) {
-                    // Same network came back (e.g. brief dropout) — reconnect only offline accounts
+                // Guard against invalid handles (seen on some MTK / dual-SIM devices)
+                if (newId <= 0) {
+                    Log.w("AccountManager", "onAvailable: invalid network handle $newId, ignoring")
+                    return
+                }
+
+                // Debounce: some vendors (MIUI, Huawei) fire rapid onLost+onAvailable pairs
+                // for the same physical interface (WiFi reassociation, DHCP renewal).
+                val now = System.currentTimeMillis()
+                if (now - lastNetworkEventMs < NETWORK_EVENT_DEBOUNCE_MS) {
+                    Log.d("AccountManager", "onAvailable: debouncing rapid network event for handle=$newId")
+                    // Still update tracking
+                    currentNetworkId = newId
+                    return
+                }
+                lastNetworkEventMs = now
+
+                val prevConnected = lastConnectedNetworkId
+                currentNetworkId = newId
+                lastConnectedNetworkId = newId
+
+                // "Same network" = the network handle we last actually connected on came back.
+                // We do NOT use currentNetworkId for this comparison because onLost resets it to -1,
+                // making every subsequent onAvailable look like a new network (the original bug).
+                val isSameNetwork = (prevConnected == newId && prevConnected > 0)
+
+                if (isSameNetwork) {
+                    // Same network restored (brief dropout, DHCP renewal) — only reconnect accounts that dropped
                     Log.d("AccountManager", "Network restored (same=$newId) – checking offline accounts")
-                    CoroutineScope(Dispatchers.IO).launch {
+                    managerScope.launch {
                         users.forEach { account ->
                             if (!account.isConnected()) {
                                 Log.d("AccountManager", "Reconnecting offline ${account.jid}")
@@ -100,8 +154,8 @@ object AccountManager {
                     }
                 } else {
                     // Different network (wifi→mobile or vice versa) — force reconnect ALL accounts
-                    Log.d("AccountManager", "Network changed ($oldId → $newId) – force reconnecting all accounts")
-                    CoroutineScope(Dispatchers.IO).launch {
+                    Log.d("AccountManager", "Network changed ($prevConnected → $newId) – force reconnecting all accounts")
+                    managerScope.launch {
                         users.forEach { account ->
                             Log.d("AccountManager", "Force reconnecting ${account.jid} due to network change")
                             account.performReconnect(force = true, networkChanged = true)
@@ -113,9 +167,30 @@ object AccountManager {
             override fun onLost(network: Network) {
                 val lostId = network.networkHandle
                 Log.d("AccountManager", "Network lost ($lostId)")
-                // If the lost network was our active one, mark it so next onAvailable forces reconnect
+                // Only clear currentNetworkId — do NOT touch lastConnectedNetworkId.
+                // lastConnectedNetworkId persists so the next onAvailable for the same
+                // handle is correctly identified as a "same network" restore.
                 if (currentNetworkId == lostId) {
                     currentNetworkId = -1L
+                }
+            }
+
+            override fun onCapabilitiesChanged(network: Network, caps: NetworkCapabilities) {
+                // Some devices (Oppo ColorOS, some Huawei) fire onAvailable before VALIDATED
+                // is granted even when we requested it.  onCapabilitiesChanged is more reliable
+                // for detecting the moment the network becomes actually usable.
+                if (!caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)) return
+                if (network.networkHandle != currentNetworkId) return
+
+                val now = System.currentTimeMillis()
+                if (now - lastNetworkEventMs < NETWORK_EVENT_DEBOUNCE_MS) return
+
+                Log.d("AccountManager", "Network validated (handle=${network.networkHandle}) – checking offline accounts")
+                managerScope.launch {
+                    users.filter { !it.isConnected() }.forEach { account ->
+                        Log.d("AccountManager", "Network validated, reconnecting offline ${account.jid}")
+                        account.performReconnect()
+                    }
                 }
             }
         })
@@ -183,7 +258,7 @@ object AccountManager {
             chatViewModels[chatId] = viewModel
             Log.d("AccountManager", "Created ChatViewModel for chatId=$chatId, opponent=$opponent, conversationType=${conversationType.rawValue}")
             // Ensure LastChatsStorageItem exists (async to avoid blocking main thread)
-            CoroutineScope(Dispatchers.IO).launch {
+            managerScope.launch {
                 realm.write {
                     val existingChat = query<LastChatsStorageItem>("primary = $0", chatId).first().find()
                     if (existingChat == null) {
@@ -442,14 +517,8 @@ object AccountManager {
 
                 val streamConnected = newUserAccount.connectStream()
                 if (!streamConnected) {
-                    Log.e("AccountManager", "Failed to connect Stream for jid $jid")
-                    realm.write {
-                        val account =
-                            query(AccountStorageItem::class, "jid = $0", jid).first().find()
-                        account?.let { delete(it) }
-                        passwordStorageHelper?.remove(jid)
-                    }
-                    return@runBlocking
+                    // Network may be temporarily unavailable — keep the account, reconnect later
+                    Log.w("AccountManager", "Initial connect failed for $jid, keeping account offline")
                 }
 
                 synchronized(users) {
@@ -459,7 +528,7 @@ object AccountManager {
                 account = newUserAccount
                 Log.d(
                     "AccountManager",
-                    "Successfully loaded and connected first account with jid $jid"
+                    "Loaded account $jid, connected=$streamConnected"
                 )
             } catch (e: Exception) {
                 Log.e("AccountManager", "Failed to load and connect first account: ${e.message}", e)

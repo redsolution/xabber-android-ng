@@ -425,6 +425,8 @@ class Socket(private val host: String, private val port: Int) {
                             }
                         }
                         SSLEngineResult.HandshakeStatus.NEED_UNWRAP -> {
+                            // Drain whatever is already in accumulatedData before blocking for more.
+                            var gotUnderflow = false
                             var unwrapAttempts = 0
                             val maxUnwrapAttempts = 100
                             while (accumulatedData.position() > 0 && unwrapAttempts < maxUnwrapAttempts) {
@@ -438,7 +440,13 @@ class Socket(private val host: String, private val port: Int) {
                                     accumulatedBytes -= result.bytesConsumed()
                                     Log.d(TAG, "Consumed ${result.bytesConsumed()} bytes, remaining: $accumulatedBytes")
                                     if (result.status == SSLEngineResult.Status.BUFFER_UNDERFLOW) {
-                                        Log.d(TAG, "Buffer underflow, exiting unwrap loop to read more data")
+                                        // Partial TLS record: we have some bytes but not a full record.
+                                        // We MUST read more data even though accumulatedData.position() > 0,
+                                        // because compact() leaves the partial bytes at the start.
+                                        // Without this flag the outer condition was `position() == 0`,
+                                        // which is always false here → infinite busy-wait loop.
+                                        gotUnderflow = true
+                                        Log.d(TAG, "Buffer underflow, need more network data (${accumulatedData.position()} bytes buffered)")
                                         break
                                     } else if (result.status == SSLEngineResult.Status.BUFFER_OVERFLOW) {
                                         Log.w(TAG, "Buffer overflow during unwrap, increasing appBuffer size")
@@ -460,8 +468,12 @@ class Socket(private val host: String, private val port: Int) {
                                 unwrapAttempts++
                             }
 
+                            // Read more from the network when the engine still needs data:
+                            // - accumulatedData is empty (nothing left to try), OR
+                            // - we got BUFFER_UNDERFLOW (partial record; compact() left bytes at pos > 0
+                            //   but we still need more data to complete the record).
                             if (sslEngine.handshakeStatus == SSLEngineResult.HandshakeStatus.NEED_UNWRAP &&
-                                accumulatedData.position() == 0) {
+                                (accumulatedData.position() == 0 || gotUnderflow)) {
                                 Log.d(TAG, "Waiting for TLS data from channel, retry=$readRetries")
                                 val bytes = withTimeoutOrNull(1000) {
                                     tlsDataChannel.receive()
@@ -584,94 +596,18 @@ class Socket(private val host: String, private val port: Int) {
                 return@withContext false
             }
 
-            val restartedStream = """
-                <stream:stream xmlns='jabber:client' xmlns:stream='http://etherx.jabber.org/streams' version='1.0' to='$domain'>
-            """.trimIndent()
-            appBuffer.clear()
-            appBuffer.put(restartedStream.toByteArray())
-            appBuffer.flip()
-            packetBuffer.clear()
-            val wrapResult = sslEngine.wrap(appBuffer, packetBuffer)
-            Log.d(TAG, "Wrap stream result: status=${wrapResult.status}, bytesProduced=${wrapResult.bytesProduced()}")
-            packetBuffer.flip()
-            if (wrapResult.bytesProduced() > 0 && wrapResult.status == SSLEngineResult.Status.OK) {
-                writer?.write { buffer ->
-                    buffer.put(packetBuffer)
-                    buffer.remaining()
-                }
-                writer?.flush()
-                Log.d(TAG, "Sent restarted XMPP stream: $restartedStream")
-            } else {
-                Log.e(TAG, "Failed to wrap XMPP stream: status=${wrapResult.status}, bytesProduced=${wrapResult.bytesProduced()}")
-                closeInternal()
-                return@withContext false
-            }
-
-            packetBuffer.clear()
-            Log.d(TAG, "Waiting for TLS stream response")
-            val bytes = withTimeoutOrNull(10000) {
-                tlsDataChannel.receive()
-            }
-            if (bytes != null) {
-                Log.d(TAG, "Received raw TLS response bytes: ${bytes.copyOfRange(0, bytes.size.coerceAtMost(256)).joinToString(", ")}")
-                packetBuffer.put(bytes)
-                packetBuffer.flip()
-                appBuffer.clear()
-
-                // Unwrap all available TLS records (response may contain stream header + features)
-                val fullResponse = StringBuilder()
-                while (packetBuffer.hasRemaining()) {
-                    appBuffer.clear()
-                    val unwrapResult = sslEngine.unwrap(packetBuffer, appBuffer)
-                    Log.d(TAG, "Unwrap response result: status=${unwrapResult.status}, bytesProduced=${unwrapResult.bytesProduced()}")
-                    if (unwrapResult.bytesProduced() > 0) {
-                        appBuffer.flip()
-                        val chunk = ByteArray(appBuffer.remaining())
-                        appBuffer.get(chunk)
-                        fullResponse.append(String(chunk))
-                    }
-                    if (unwrapResult.status == SSLEngineResult.Status.BUFFER_UNDERFLOW) break
-                    if (unwrapResult.status != SSLEngineResult.Status.OK) break
-                }
-
-                if (fullResponse.isNotEmpty()) {
-                    val tlsResponse = fullResponse.toString()
-                    Log.d(TAG, "TLS response: $tlsResponse")
-                    if (tlsResponse.contains("<stream:error") || tlsResponse.contains("</stream:stream>")) {
-                        Log.e(TAG, "Server returned stream error after TLS upgrade: $tlsResponse")
-                        closeInternal()
-                        return@withContext false
-                    }
-                    messageCallback?.invoke(tlsResponse)
-                } else {
-                    Log.e(TAG, "No application data in TLS response")
-                    closeInternal()
-                    return@withContext false
-                }
-
-                // Seed tlsReadBuffer with any remaining bytes for the new read loop
-                if (packetBuffer.hasRemaining()) {
-                    val remaining = ByteArray(packetBuffer.remaining())
-                    packetBuffer.get(remaining)
-                    tlsReadBuffer.clear()
-                    tlsReadBuffer.put(remaining)
-                    Log.d(TAG, "Seeded tlsReadBuffer with ${remaining.size} leftover bytes")
-                } else {
-                    tlsReadBuffer.clear()
-                }
-            } else {
-                Log.e(TAG, "No TLS response received within 10 seconds")
-                closeInternal()
-                return@withContext false
-            }
-
+            // Cancel the old read loop and establish TLS mode BEFORE sending the stream
+            // header. This ensures write() routes through wrapAndSendTls() and the
+            // server response arrives via the read loop → unwrapTlsData() → messageCallback
+            // path, exactly the same as all subsequent XMPP stanzas.
             readingLoopJob?.cancel()
             readingLoopJob = null
             isReadingLoopActive = false
             tlsHandshaking = false
             tlsEstablished = true
 
-            // Drain any buffered TLS data from the old read loop into tlsReadBuffer
+            // Drain any TLS bytes the old read loop buffered but the handshake didn't consume.
+            tlsReadBuffer.clear()
             while (true) {
                 val pending = tlsDataChannel.tryReceive().getOrNull() ?: break
                 if (tlsReadBuffer.remaining() < pending.size) {
@@ -690,6 +626,19 @@ class Socket(private val host: String, private val port: Int) {
             // The existing reader still works; the read loop will now unwrap
             // TLS records through sslEngine since tlsEstablished=true.
             startReadingLoop()
+
+            // Send the restarted XMPP stream header using the proven write() path
+            // (which calls wrapAndSendTls() since tlsEstablished=true). The server's
+            // <stream:stream> + <stream:features> response arrives via the new read
+            // loop → unwrapTlsData() → messageCallback → handleIncomingStanza.
+            val restartedStream = "<stream:stream xmlns='jabber:client' xmlns:stream='http://etherx.jabber.org/streams' version='1.0' to='$domain'>"
+            Log.d(TAG, "Sending restarted XMPP stream: $restartedStream")
+            if (!write(restartedStream)) {
+                Log.e(TAG, "Failed to send restarted XMPP stream header")
+                closeInternal()
+                return@withContext false
+            }
+            Log.d(TAG, "Sent restarted XMPP stream header, awaiting features via messageCallback")
             return@withContext true
         } catch (e: Exception) {
             Log.e(TAG, "Failed to upgrade to TLS: ${e.message}", e)

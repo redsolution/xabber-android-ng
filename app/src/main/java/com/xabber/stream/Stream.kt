@@ -36,6 +36,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
+import java.util.concurrent.atomic.AtomicBoolean
 import nl.adaptivity.xmlutil.core.impl.multiplatform.StringReader
 import org.xmlpull.v1.XmlPullParser
 import org.xmlpull.v1.XmlPullParserException
@@ -80,12 +81,10 @@ class Stream(var jid: String, var port: Int = 5222) {
     var host: String = extractHostFromJid(jid)
     var remoteAddress: String = ""
     var socket: Socket? = null
-    private val connectionLock = Any()
-    private var isConnecting = false
+    private val isConnecting = AtomicBoolean(false)
     private val streamBuffer = StringBuilder()
     private val bufferMutex = Mutex()
-    private val stanzaProcessingScope = CoroutineScope(Dispatchers.IO.limitedParallelism(999) + SupervisorJob())
-    val messageCallbackChannel = Channel<String>(Channel.UNLIMITED)
+    private val stanzaProcessingScope = CoroutineScope(Dispatchers.IO.limitedParallelism(4) + SupervisorJob())
     val messageQueue = Channel<MessageQueueItem>(Channel.UNLIMITED)
     private val queueMutex = Mutex()
     private val streamJob = SupervisorJob()
@@ -134,7 +133,7 @@ class Stream(var jid: String, var port: Int = 5222) {
 
     }
 
-    fun setOnSocketReadLoopError(callback: () -> Unit) {
+    fun setOnSocketReadLoopError(callback: (() -> Unit)?) {
         onSocketReadLoopError = callback
     }
 
@@ -167,12 +166,9 @@ class Stream(var jid: String, var port: Int = 5222) {
     }
 
     suspend fun connect(): String? = withContext(Dispatchers.IO) {
-        synchronized(connectionLock) {
-            if (isConnecting) {
-                Log.w(TAG, "Connect already in progress for $jid, ignoring")
-                return@withContext "Connect already in progress"
-            }
-            isConnecting = true
+        if (!isConnecting.compareAndSet(false, true)) {
+            Log.w(TAG, "Connect already in progress for $jid, ignoring")
+            return@withContext "Connect already in progress"
         }
         try {
             Log.d(TAG, "Connection attempt for JID: $jid")
@@ -191,7 +187,6 @@ class Stream(var jid: String, var port: Int = 5222) {
             onSocketReadLoopError?.let { socket?.setOnReadLoopError(it) }
             socket?.setMessageCallback { message ->
                 streamScope.launch {
-                    messageCallbackChannel.send(message)
                     handleIncomingStanza(message)
                 }
             }
@@ -215,267 +210,221 @@ class Stream(var jid: String, var port: Int = 5222) {
             state = StreamState.NOT_CONNECTING
             return@withContext "Connection failed: ${e.message}"
         } finally {
-            synchronized(connectionLock) {
-                isConnecting = false
-            }
+            isConnecting.set(false)
         }
     }
 
-    private suspend fun handleIncomingStanza(chunk: String) {
-        bufferMutex.withLock {
-            val MAX_BUFFER_SIZE = 2 * 1024 * 1024 // 2 MB
-            if (streamBuffer.length + chunk.length > MAX_BUFFER_SIZE) {
-                Log.e(TAG, "Stream buffer overflow (${streamBuffer.length + chunk.length} bytes), discarding buffer")
-                streamBuffer.clear()
-                return
+    /**
+     * Lightweight data holder produced by [extractRawStanzas].
+     * The [tagName] drives dispatch; [raw] is the unparsed stanza text.
+     */
+    private data class RawStanza(val tagName: String, val raw: String)
+
+    /**
+     * Extract complete stanza strings from [streamBuffer] + [chunk].
+     *
+     * **Must be called inside [bufferMutex].** Only performs fast string-scanning
+     * (indexOf / substring). No XML parsing happens here, so the mutex is released
+     * as quickly as possible.
+     */
+    private fun extractRawStanzas(chunk: String): List<RawStanza> {
+        val MAX_BUFFER_SIZE = 2 * 1024 * 1024
+        if (streamBuffer.length + chunk.length > MAX_BUFFER_SIZE) {
+            Log.e(TAG, "Stream buffer overflow (${streamBuffer.length + chunk.length} B), clearing")
+            streamBuffer.clear()
+            return emptyList()
+        }
+        streamBuffer.append(chunk)
+        var content = streamBuffer.toString()
+        val result = mutableListOf<RawStanza>()
+        var processedCount = 0
+
+        while (content.isNotEmpty()) {
+            val start = content.indexOf("<")
+            if (start == -1) break
+
+            // ── XML declaration / stream open ────────────────────────────────
+            if (content.startsWith("<?xml", start) || content.indexOf("<stream:stream", start) == start) {
+                val end = content.indexOf(">", start)
+                if (end == -1) break
+                result.add(RawStanza("stream:open", content.substring(start, end + 1)))
+                content = content.substring(end + 1).trimStart()
+                processedCount++
+                continue
             }
-            streamBuffer.append(chunk)
-            var content = streamBuffer.toString()
-            var processedStanzas = 0
-            while (content.isNotEmpty()) {
-                val start = content.indexOf("<")
-                if (start == -1) {
-                    Log.w(TAG, "No XML start tag found in buffer: ${content.take(200)}")
-                    break
-                }
+            // ── stream:features ───────────────────────────────────────────────
+            if (content.indexOf("<stream:features>", start) == start) {
+                val closeTag = "</stream:features>"
+                val end = content.indexOf(closeTag)
+                if (end == -1) break
+                val fullEnd = end + closeTag.length
+                result.add(RawStanza("stream:features", content.substring(start, fullEnd)))
+                content = content.substring(fullEnd).trimStart()
+                processedCount++
+                continue
+            }
+            // ── stream:error ──────────────────────────────────────────────────
+            if (content.indexOf("<stream:error>", start) == start) {
+                val closeTag = "</stream:error>"
+                val end = content.indexOf(closeTag)
+                if (end == -1) break
+                val fullEnd = end + closeTag.length
+                result.add(RawStanza("stream:error", content.substring(start, fullEnd)))
+                content = content.substring(fullEnd).trimStart()
+                processedCount++
+                continue
+            }
+            // ── stream:stream close ───────────────────────────────────────────
+            if (content.indexOf("</stream:stream>", start) == start) {
+                val closeTag = "</stream:stream>"
+                result.add(RawStanza("stream:close", closeTag))
+                content = content.substring(start + closeTag.length).trimStart()
+                processedCount++
+                continue
+            }
 
-                // Handle stream headers and special cases
-                if (content.startsWith("<?xml", start) || content.indexOf("<stream:stream", start) == start) {
-                    val end = content.indexOf(">", start)
-                    if (end == -1) {
-                        Log.w(TAG, "Incomplete stream header, buffering: ${content.take(200)}")
-                        break
-                    }
-                    val header = content.substring(start, end + 1)
-                    stanzaProcessingScope.launch {
-                        delegate?.didReceiveStreamHeader(header, this@Stream)
-                    }
-                    content = content.substring(end + 1).trimStart()
-                    processedStanzas++
-                    continue
-                }
+            // ── Regular stanzas (iq / message / presence / …) ─────────────────
+            val candidates = listOfNotNull(
+                content.indexOf("<iq",       start).takeIf { it != -1 }?.let { it to "iq" },
+                content.indexOf("<presence", start).takeIf { it != -1 }?.let { it to "presence" },
+                content.indexOf("<message",  start).takeIf { it != -1 }?.let { it to "message" }
+            ).minByOrNull { it.first }
 
-                if (content.indexOf("<stream:features>", start) == start) {
-                    val end = content.indexOf("</stream:features>", start) + "</stream:features>".length
-                    if (end == -1) {
-                        Log.w(TAG, "Incomplete stream features, buffering: ${content.take(200)}")
-                        break
-                    }
-                    val features = content.substring(start, end)
-                    stanzaProcessingScope.launch {
-                        delegate?.didReceiveStreamFeatures(features, this@Stream)
-                    }
-                    content = content.substring(end).trimStart()
-                    processedStanzas++
-                    continue
-                }
+            val stanzaStart: Int
+            val tagName: String
+            if (candidates != null) {
+                stanzaStart = candidates.first
+                tagName = candidates.second
+            } else {
+                val gtPos = content.indexOf(">", start)
+                if (gtPos == -1) break
+                tagName = content.substring(start + 1, gtPos).split(Regex("\\s+")).first().trimEnd('/')
+                stanzaStart = start
+            }
 
-                if (content.indexOf("<stream:error>", start) == start) {
-                    val end = content.indexOf("</stream:error>", start) + "</stream:error>".length
-                    if (end == -1) {
-                        Log.w(TAG, "Incomplete stream error, buffering: ${content.take(200)}")
-                        break
+            val tagEnd = content.indexOf(">", stanzaStart)
+            if (tagEnd == -1) break
+
+            val fullTag = content.substring(stanzaStart + 1, tagEnd)
+            val isSelfClosing = fullTag.endsWith("/")
+            val fullEnd: Int
+
+            if (isSelfClosing) {
+                fullEnd = tagEnd + 1
+            } else {
+                var openTags = 1
+                var currentIndex = tagEnd + 1
+                var complete = false
+                while (openTags > 0 && currentIndex < content.length) {
+                    val nextOpen  = content.indexOf("<$tagName",   currentIndex)
+                    val nextClose = content.indexOf("</$tagName>", currentIndex)
+                    if (nextClose == -1) break
+                    if (nextOpen != -1 && nextOpen < nextClose) {
+                        val gtPos = content.indexOf(">", nextOpen)
+                        if (gtPos == -1) break
+                        openTags++
+                        currentIndex = gtPos + 1
+                    } else {
+                        openTags--
+                        currentIndex = nextClose + "</$tagName>".length
+                        if (openTags == 0) { complete = true; break }
                     }
-                    val error = content.substring(start, end)
-                    stanzaProcessingScope.launch {
-                        Log.e(TAG, "Received stream error: $error")
+                }
+                if (!complete) break
+                fullEnd = currentIndex
+            }
+
+            result.add(RawStanza(tagName, content.substring(stanzaStart, fullEnd)))
+            content = content.substring(fullEnd).trimStart()
+            processedCount++
+        }
+
+        streamBuffer.clear()
+        streamBuffer.append(content)
+        if (processedCount > 0) Log.d(TAG, "Processed $processedCount stanzas in this chunk")
+        return result
+    }
+
+    /**
+     * Entry point called from the socket read loop.
+     *
+     * 1. Acquires [bufferMutex] briefly to extract complete raw stanza strings.
+     * 2. Releases the mutex.
+     * 3. Parses each stanza (potentially slow) **outside** the mutex so that the
+     *    next incoming chunk is not blocked during XML parsing.
+     */
+    private suspend fun handleIncomingStanza(chunk: String) {
+        // Step 1 — fast: buffer management and boundary detection under lock
+        val stanzas = bufferMutex.withLock { extractRawStanzas(chunk) }
+
+        // Step 2 — slow: XML parsing and delegate dispatch, no lock held
+        for (stanza in stanzas) {
+            Log.d("XMPP STANZA READ", "RECV:${stanza.raw.take(4096)}")
+            try {
+                when (stanza.tagName) {
+                    "stream:open" -> stanzaProcessingScope.launch {
+                        delegate?.didReceiveStreamHeader(stanza.raw, this@Stream)
+                    }
+                    "stream:features" -> stanzaProcessingScope.launch {
+                        delegate?.didReceiveStreamFeatures(stanza.raw, this@Stream)
+                    }
+                    "stream:error" -> stanzaProcessingScope.launch {
+                        Log.e(TAG, "Received stream error: ${stanza.raw}")
                         onErrorCallback?.invoke("Stream error occurred")
                         state = StreamState.NOT_CONNECTING
                     }
-                    content = content.substring(end).trimStart()
-                    processedStanzas++
-                    continue
-                }
-
-                if (content.indexOf("</stream:stream>", start) == start) {
-                    val end = content.indexOf("</stream:stream>", start) + "</stream:stream>".length
-                    if (end == -1) {
-                        Log.w(TAG, "Incomplete stream termination, buffering: ${content.take(200)}")
-                        break
-                    }
-                    val termination = content.substring(start, end)
-                    stanzaProcessingScope.launch {
-                        Log.w(TAG, "Received stream termination: $termination")
+                    "stream:close" -> stanzaProcessingScope.launch {
+                        Log.w(TAG, "Server closed the stream")
                         onErrorCallback?.invoke("Connection closed by server")
                         state = StreamState.NOT_CONNECTING
                     }
-                    content = content.substring(end).trimStart()
-                    processedStanzas++
-                    continue
-                }
-
-                // Determine the stanza type
-                val iqStart = content.indexOf("<iq", start)
-                val presenceStart = content.indexOf("<presence", start)
-                val messageStart = content.indexOf("<message", start)
-
-                val nextStart = listOfNotNull(
-                    iqStart.takeIf { it != -1 }?.let { it to "iq" },
-                    presenceStart.takeIf { it != -1 }?.let { it to "presence" },
-                    messageStart.takeIf { it != -1 }?.let { it to "message" }
-                ).minByOrNull { it.first }?.let { it.first to it.second } ?: (start to null)
-
-                val tagName = when (nextStart.second) {
-                    "iq" -> "iq"
-                    "presence" -> "presence"
-                    "message" -> "message"
-                    else -> content.substring(start + 1, content.indexOf(">", start).takeIf { it != -1 } ?: content.length)
-                        .split(Regex("\\s+"))[0]
-                }
-
-                val tagEnd = content.indexOf(">", nextStart.first)
-                if (tagEnd == -1) {
-                    Log.w(TAG, "Incomplete stanza tag, buffering: ${content.take(200)}")
-                    break
-                }
-                val fullTag = content.substring(nextStart.first + 1, tagEnd)
-                val isSelfClosing = fullTag.endsWith("/")
-                val stanzaEnd: Int
-                val fullEnd: Int
-                if (isSelfClosing) {
-                    stanzaEnd = tagEnd
-                    fullEnd = stanzaEnd + 1
-                } else {
-                    var openTags = 1
-                    var currentIndex = tagEnd + 1
-                    while (openTags > 0 && currentIndex < content.length) {
-                        val nextOpen = content.indexOf("<$tagName", currentIndex)
-                        val nextClose = content.indexOf("</$tagName>", currentIndex)
-                        if (nextClose == -1) {
-                            break
+                    "iq" -> {
+                        // parseIQ now runs outside the mutex
+                        val iq = parseIQ(stanza.raw)
+                        if (iq != null) stanzaProcessingScope.launch {
+                            try { delegate?.didReceiveIQ(iq, this@Stream) }
+                            catch (e: Exception) { Log.e(TAG, "Delegate error on IQ: ${e.message}", e) }
                         }
-                        if (nextOpen != -1 && nextOpen < nextClose) {
-                            val gtPos = content.indexOf(">", nextOpen)
-                            if (gtPos == -1) {
-                                break
+                    }
+                    "message" -> {
+                        // Both parsers run outside the mutex
+                        val msg = try { parseMessage(stanza.raw) }
+                                  catch (e: XmlPullParserException) { null }
+                                  catch (e: Exception) { null }
+                            ?: extractFallbackMessage(stanza.raw)?.also {
+                                Log.i(TAG, "Recovered via fallback parser: id=${it.id}")
                             }
-                            openTags++
-                            currentIndex = gtPos + 1
+                        if (msg != null) stanzaProcessingScope.launch {
+                            try { delegate?.didReceiveMessage(msg, this@Stream) }
+                            catch (e: Exception) { Log.e(TAG, "Delegate error on message: ${e.message}", e) }
                         } else {
-                            openTags--
-                            currentIndex = nextClose + "</$tagName>".length
-                            if (openTags == 0) break
+                            Log.w(TAG, "Both parsers failed – skipping malformed message stanza")
                         }
                     }
-                    if (openTags == 0) {
-                        stanzaEnd = currentIndex - "</$tagName>".length
-                        fullEnd = currentIndex
-                    } else {
-                        break
+                    "presence" -> stanzaProcessingScope.launch {
+                        try { delegate?.didReceivePresence(stanza.raw, this@Stream) }
+                        catch (e: Exception) { Log.e(TAG, "Delegate error on presence: ${e.message}", e) }
                     }
+                    "challenge" -> stanzaProcessingScope.launch {
+                        try { delegate?.didReceiveChallenge(stanza.raw, this@Stream) }
+                        catch (e: Exception) { Log.e(TAG, "Delegate error on challenge: ${e.message}", e) }
+                    }
+                    "success" -> stanzaProcessingScope.launch {
+                        try { delegate?.didReceiveSuccess(stanza.raw, this@Stream) }
+                        catch (e: Exception) { Log.e(TAG, "Delegate error on success: ${e.message}", e) }
+                    }
+                    "proceed" -> stanzaProcessingScope.launch {
+                        try { delegate?.didReceiveProceed(stanza.raw, this@Stream) }
+                        catch (e: Exception) { Log.e(TAG, "Delegate error on proceed: ${e.message}", e) }
+                    }
+                    "failure" -> stanzaProcessingScope.launch {
+                        try { delegate?.didReceiveFailure(stanza.raw, this@Stream) }
+                        catch (e: Exception) { Log.e(TAG, "Delegate error on failure: ${e.message}", e) }
+                    }
+                    else -> Log.w(TAG, "Unhandled stanza type: ${stanza.tagName}, preview: ${stanza.raw.take(200)}")
                 }
-                val stanza = content.substring(nextStart.first, fullEnd)
-                Log.d("XMPP STANZA READ", "RECV:${stanza.take(4096)}")
-
-                // Обработка каждой отдельной станзы в отдельном try-catch,
-                // чтобы ошибка в одной станзе не прерывала цикл обработки остальных
-                try {
-                    when (tagName) {
-                        "iq" -> {
-                            val iq = parseIQ(stanza)
-                            stanzaProcessingScope.launch {
-                                try {
-                                    delegate?.didReceiveIQ(iq!!, this@Stream)
-                                } catch (e: Exception) {
-                                    Log.e(TAG, "Delegate error on IQ: ${e.message}", e)
-                                }
-                            }
-                        }
-                        "message" -> {
-                            var message: XMPPMessage? = null
-
-                            // Первичный парсер
-                            try {
-                                message = parseMessage(stanza)
-                            } catch (e: XmlPullParserException) {
-                                Log.w(TAG, "Primary parser failed (malformed XML): ${e.message}")
-                            } catch (e: Exception) {
-                                Log.w(TAG, "Primary parser failed: ${e.message}", e)
-                            }
-
-                            // Fallback-парсер, если первичный не справился
-                            if (message == null) {
-                                message = extractFallbackMessage(stanza)
-                                if (message != null) {
-                                    Log.i(TAG, "Recovered via fallback parser: id=${message.id}, body=${message.body?.take(50)}")
-                                } else {
-                                    Log.w(TAG, "Both parsers failed – skipping malformed message")
-                                    // Продолжаем обработку следующей станзы
-                                }
-                            }
-
-                            // Передаём сообщение делегату, если удалось получить
-                            if (message != null) {
-                                stanzaProcessingScope.launch {
-                                    try {
-                                        delegate?.didReceiveMessage(message, this@Stream)
-                                    } catch (e: Exception) {
-                                        Log.e(TAG, "Delegate error on message: ${e.message}", e)
-                                    }
-                                }
-                            }
-                        }
-                        "presence" -> {
-                            stanzaProcessingScope.launch {
-                                try {
-                                    delegate?.didReceivePresence(stanza, this@Stream)
-                                } catch (e: Exception) {
-                                    Log.e(TAG, "Delegate error on presence: ${e.message}", e)
-                                }
-                            }
-                        }
-                        "challenge" -> {
-                            stanzaProcessingScope.launch {
-                                try {
-                                    delegate?.didReceiveChallenge(stanza, this@Stream)
-                                } catch (e: Exception) {
-                                    Log.e(TAG, "Delegate error on challenge: ${e.message}", e)
-                                }
-                            }
-                        }
-                        "success" -> {
-                            stanzaProcessingScope.launch {
-                                try {
-                                    delegate?.didReceiveSuccess(stanza, this@Stream)
-                                } catch (e: Exception) {
-                                    Log.e(TAG, "Delegate error on success: ${e.message}", e)
-                                }
-                            }
-                        }
-                        "proceed" -> {
-                            stanzaProcessingScope.launch {
-                                try {
-                                    delegate?.didReceiveProceed(stanza, this@Stream)
-                                } catch (e: Exception) {
-                                    Log.e(TAG, "Delegate error on proceed: ${e.message}", e)
-                                }
-                            }
-                        }
-                        "failure" -> {
-                            stanzaProcessingScope.launch {
-                                try {
-                                    delegate?.didReceiveFailure(stanza, this@Stream)
-                                } catch (e: Exception) {
-                                    Log.e(TAG, "Delegate error on failure: ${e.message}", e)
-                                }
-                            }
-                        }
-                        else -> {
-                            Log.w(TAG, "Unhandled stanza type: $tagName, stanza preview: ${stanza.take(200)}")
-                        }
-                    }
-                } catch (e: Exception) {
-                    Log.e(TAG, "Unexpected error while processing stanza (continuing with next): ${e.message}\nStanza preview: ${stanza.take(500)}", e)
-                }
-
-                content = content.substring(fullEnd).trimStart()
-                processedStanzas++
-            }
-            streamBuffer.clear()
-            streamBuffer.append(content)
-
-            if (processedStanzas > 0) {
-                Log.d(TAG, "Processed $processedStanzas stanzas in this chunk")
+            } catch (e: Exception) {
+                Log.e(TAG, "Unexpected error dispatching stanza (${stanza.tagName}): ${e.message}")
             }
         }
     }
@@ -512,155 +461,144 @@ class Stream(var jid: String, var port: Int = 5222) {
 
     private suspend fun processMessageQueue() {
         val processedIds = mutableSetOf<String>()
-
-        // Загружаем уже обработанные ID один раз в начале
-        val initialRealm = Realm.open(defaultRealmConfig())
+        val realm = Realm.open(defaultRealmConfig())
         try {
-            initialRealm.write {
-                val storedIds = query<ProcessedMessageId>("owner = $0", jid).find().map { it.messageId }
-                processedIds.addAll(storedIds)
-                Log.d(TAG, "Loaded ${storedIds.size} processed message IDs for owner=$jid")
+            // Load already-processed IDs once at startup
+            realm.write {
+                val stored = query<ProcessedMessageId>("owner = $0", jid).find()
+                processedIds.addAll(stored.map { it.messageId })
+                Log.d(TAG, "Loaded ${stored.size} processed message IDs for owner=$jid")
             }
-        } finally {
-            initialRealm.close()
-        }
 
-        while (true) {
-            val result = messageQueue.receiveCatching()
-            if (result.isClosed) {
-                Log.d(TAG, "processMessageQueue: channel closed, exiting")
-                break
-            }
-            val item = result.getOrNull() ?: break
-
-            currentCoroutineContext().ensureActive()
-
-            queueMutex.withLock {
-                if (item.message.id == null || item.message.from == null || item.message.to == null) {
-                    Log.w(TAG, "Skipping invalid queue item: id=${item.message.id}, from=${item.message.from?.bare()}, to=${item.message.to?.bare()}, stanza=${item.stanza}")
-                    return@withLock
+            while (true) {
+                val result = messageQueue.receiveCatching()
+                if (result.isClosed) {
+                    Log.d(TAG, "processMessageQueue: channel closed, exiting")
+                    break
                 }
+                val item = result.getOrNull() ?: break
+                currentCoroutineContext().ensureActive()
 
-                val messageId = item.message.id!!
-                if (messageId in processedIds) {
-                    Log.d(TAG, "Already processed messageId=$messageId, checking if in MessageStorageItem")
-                    val msgPrimary = MessageStorageItem.genPrimary(messageId, jid)
-                    val tempRealm = Realm.open(defaultRealmConfig())
-                    try {
-                        val existingMessage = tempRealm.query<MessageStorageItem>("primary = $0", msgPrimary).first().find()
+                queueMutex.withLock {
+                    if (item.message.id == null || item.message.from == null || item.message.to == null) {
+                        Log.w(TAG, "Skipping invalid queue item: id=${item.message.id}")
+                        return@withLock
+                    }
+
+                    val messageId = item.message.id!!
+                    if (messageId in processedIds) {
+                        // Double-check in Realm in case of a restart
+                        val msgPrimary = MessageStorageItem.genPrimary(messageId, jid)
+                        val existingMessage = realm.query<MessageStorageItem>("primary = $0", msgPrimary).first().find()
                         if (existingMessage != null) {
-                            Log.d(TAG, "Confirmed messageId=$messageId in MessageStorageItem, skipping")
+                            Log.d(TAG, "Confirmed messageId=$messageId already stored, skipping")
                             return@withLock
                         }
-                    } finally {
-                        tempRealm.close()
+                        Log.w(TAG, "messageId=$messageId marked processed but absent in DB, reprocessing")
                     }
-                    Log.w(TAG, "MessageId=$messageId marked as processed but not in MessageStorageItem, reprocessing")
-                }
 
-                val from = item.message.from!!.bare()!!
-                val to = item.message.to!!.bare()!!
-                var isOutgoing = item.isArchived ?: (from == jid)
-                val opponent = if (isOutgoing) to else from
+                    val from = item.message.from!!.bare()!!
+                    val to   = item.message.to!!.bare()!!
+                    var isOutgoing = item.isArchived ?: (from == jid)
+                    val opponent = if (isOutgoing) to else from
 
-                if (item.message.body.isNullOrEmpty()) {
-                    Log.d(TAG, "Skipping message with no body: id=$messageId")
-                    return@withLock
-                }
+                    if (item.message.body.isNullOrEmpty()) {
+                        Log.d(TAG, "Skipping bodyless message: id=$messageId")
+                        return@withLock
+                    }
 
-                Log.d(TAG, "Processing queued message: id=$messageId, from=$from, to=$to, body=${item.message.body.take(50)}, isOutgoing=$isOutgoing")
+                    Log.d(TAG, "Processing queued message: id=$messageId, from=$from, to=$to, body=${item.message.body.take(50)}")
 
-                val realm = Realm.open(defaultRealmConfig())
-                try {
-                    realm.write {
-                        val msgPrimary = MessageStorageItem.genPrimary(messageId, jid)
-                        val existingMessage = query<MessageStorageItem>("primary = $0", msgPrimary).first().find()
-                        if (existingMessage != null) {
-                            Log.d(TAG, "Skipping duplicate message in MessageStorageItem: id=$messageId")
-                            return@write
-                        }
-
-                        val rosterItem = query<RosterStorageItem>("jid = $0 AND owner = $1", opponent, jid).first().find()
-                            ?: copyToRealm(RosterStorageItem().apply {
-                                primary = RosterStorageItem.genPrimary(opponent, jid)
-                                this.jid = opponent
-                                this.owner = jid
-                                this.customNickname = opponent
-                            }, UpdatePolicy.ALL)
-
-                        val isGroupChat = item.message.element("x", namespace = "https://xabber.com/protocol/groups") != null
-                        if (isGroupChat) {
-                            val userId = item.message.element("x", namespace = "https://xabber.com/protocol/groups")
-                                ?.element("reference", namespace = "https://xabber.com/protocol/references")
-                                ?.element("user", namespace = "https://xabber.com/protocol/groups")?.getAttribute("id")
-                            isOutgoing = userId == jid
-                            Log.d(TAG, "Group chat message: userId=$userId, jid=$jid, isOutgoing=$isOutgoing")
-                        }
-
-                        val message = copyToRealm(MessageStorageItem().apply {
-                            primary = msgPrimary
-                            this.messageId = messageId
-                            this.owner = jid
-                            this.opponent = opponent
-                            this.body = item.message.body ?: ""
-                            this.date = item.timestamp
-                            this.sentDate = item.timestamp
-                            this.editDate = 0L
-                            this.outgoing = isOutgoing
-                            this.conversationType_ = when {
-                                item.isClientSync && to == "favorites.redsolution.com" -> "urn:xabber:favorites:0"
-                                isGroupChat -> "https://xabber.com/protocol/groups"
-                                else -> "urn:xabber:chat"
+                    try {
+                        realm.write {
+                            val msgPrimary = MessageStorageItem.genPrimary(messageId, jid)
+                            val existing = query<MessageStorageItem>("primary = $0", msgPrimary).first().find()
+                            if (existing != null) {
+                                Log.d(TAG, "Skipping duplicate message in DB: id=$messageId")
+                                return@write
                             }
-                            this.isRead = isOutgoing || item.isArchived
-                            this.state = if (isOutgoing) MessageSendingState.Deliver else MessageSendingState.Sent
-                            this.queryIds = item.queryId
-                            this.archivedId = item.message.element("archived", namespace = "urn:xmpp:mam:tmp")?.getAttribute("id") ?: ""
-                        }, UpdatePolicy.ALL)
 
-                        Log.w("CHECK", "check it STREAM ${message.archivedId}")
+                            val rosterItem = query<RosterStorageItem>("jid = $0 AND owner = $1", opponent, jid).first().find()
+                                ?: copyToRealm(RosterStorageItem().apply {
+                                    primary = RosterStorageItem.genPrimary(opponent, jid)
+                                    this.jid = opponent
+                                    this.owner = jid
+                                    this.customNickname = opponent
+                                }, UpdatePolicy.ALL)
 
-                        val conversationType = ConversationType.fromRaw(message.conversationType_)
-                        val chatPrimary = LastChatsStorageItem.genPrimary(opponent, jid, conversationType)
-                        val chat = query<LastChatsStorageItem>("primary = $0", chatPrimary).first().find()
-                        if (chat == null) {
-                            copyToRealm(LastChatsStorageItem().apply {
-                                primary = chatPrimary
-                                this.jid = opponent
+                            val isGroupChat = item.message.element("x", namespace = "https://xabber.com/protocol/groups") != null
+                            if (isGroupChat) {
+                                val userId = item.message.element("x", namespace = "https://xabber.com/protocol/groups")
+                                    ?.element("reference", namespace = "https://xabber.com/protocol/references")
+                                    ?.element("user", namespace = "https://xabber.com/protocol/groups")?.getAttribute("id")
+                                isOutgoing = userId == jid
+                            }
+
+                            val message = copyToRealm(MessageStorageItem().apply {
+                                primary = msgPrimary
+                                this.messageId = messageId
                                 this.owner = jid
-                                this.conversationType_ = conversationType.rawValue
-                                this.isArchived = false
-                                this.unread = if (isOutgoing || item.isArchived) 0 else 1
-                                this.messageDate = item.timestamp
-                                this.lastMessageId = messageId
-                                this.rosterItem = rosterItem
-                                this.lastMessage = message
+                                this.opponent = opponent
+                                this.body = item.message.body ?: ""
+                                this.date = item.timestamp
+                                this.sentDate = item.timestamp
+                                this.editDate = 0L
+                                this.outgoing = isOutgoing
+                                this.conversationType_ = when {
+                                    item.isClientSync && to == "favorites.redsolution.com" -> "urn:xabber:favorites:0"
+                                    isGroupChat -> "https://xabber.com/protocol/groups"
+                                    else -> "urn:xabber:chat"
+                                }
+                                this.isRead = isOutgoing || item.isArchived
+                                this.state = if (isOutgoing) MessageSendingState.Deliver else MessageSendingState.Sent
+                                this.queryIds = item.queryId
+                                this.archivedId = item.message.element("archived", namespace = "urn:xmpp:mam:tmp")?.getAttribute("id") ?: ""
                             }, UpdatePolicy.ALL)
-                        } else {
-                            findLatest(chat)?.apply {
-                                if (item.timestamp / 10000 > this.messageDate) {
-                                    this.unread = if (isOutgoing || item.isArchived) this.unread else this.unread + 1
+
+                            Log.w("CHECK", "check it STREAM ${message.archivedId}")
+
+                            val conversationType = ConversationType.fromRaw(message.conversationType_)
+                            val chatPrimary = LastChatsStorageItem.genPrimary(opponent, jid, conversationType)
+                            val chat = query<LastChatsStorageItem>("primary = $0", chatPrimary).first().find()
+                            if (chat == null) {
+                                copyToRealm(LastChatsStorageItem().apply {
+                                    primary = chatPrimary
+                                    this.jid = opponent
+                                    this.owner = jid
+                                    this.conversationType_ = conversationType.rawValue
+                                    this.isArchived = false
+                                    this.unread = if (isOutgoing || item.isArchived) 0 else 1
                                     this.messageDate = item.timestamp
                                     this.lastMessageId = messageId
+                                    this.rosterItem = rosterItem
                                     this.lastMessage = message
-                                    this.isArchived = false
+                                }, UpdatePolicy.ALL)
+                            } else {
+                                findLatest(chat)?.apply {
+                                    if (item.timestamp / 10000 > this.messageDate) {
+                                        this.unread = if (isOutgoing || item.isArchived) this.unread else this.unread + 1
+                                        this.messageDate = item.timestamp
+                                        this.lastMessageId = messageId
+                                        this.lastMessage = message
+                                        this.isArchived = false
+                                    }
                                 }
                             }
-                        }
 
-                        processedIds.add(messageId)
-                        copyToRealm(ProcessedMessageId().apply {
-                            this.messageId = messageId
-                            this.owner = jid
-                            this.timestamp = item.timestamp / 10000
-                        }, UpdatePolicy.ALL)
+                            processedIds.add(messageId)
+                            copyToRealm(ProcessedMessageId().apply {
+                                this.messageId = messageId
+                                this.owner = jid
+                                this.timestamp = item.timestamp / 10000
+                            }, UpdatePolicy.ALL)
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error storing message id=$messageId: ${e.message}", e)
                     }
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error processing queued message id=$messageId: ${e.message}", e)
-                } finally {
-                    realm.close()
                 }
             }
+        } finally {
+            realm.close()
         }
     }
     suspend fun debugDatabaseState() {
@@ -979,12 +917,10 @@ class Stream(var jid: String, var port: Int = 5222) {
         )
     }
     suspend fun close() = withContext(Dispatchers.IO) {
-        val socketToClose: Socket?
-        synchronized(connectionLock) {
-            socketToClose = socket
-            socket = null
-            state = StreamState.NOT_CONNECTING
-        }
+        isConnecting.set(false)
+        val socketToClose = socket
+        socket = null
+        state = StreamState.NOT_CONNECTING
         socketToClose?.close()
         messageQueue.close()
         stanzaProcessingScope.cancel()
@@ -995,9 +931,7 @@ class Stream(var jid: String, var port: Int = 5222) {
 
     fun logout(jid: String) {
         if (this.jid == jid) {
-            CoroutineScope(Dispatchers.IO).launch {
-                close()
-            }
+            streamScope.launch { close() }
         }
     }
 
