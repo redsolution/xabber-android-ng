@@ -444,7 +444,15 @@ object AccountManager {
                 deleteStorageItems(RosterStorageItem::class, "owner", jid)
                 deleteStorageItems(LastChatsStorageItem::class, "owner", jid)
                 deleteStorageItems(MessageForwardsInlineStorageItem::class, "owner", jid)
-                deleteStorageItems(GroupChatIndexStorageItem::class, "owner", jid)
+                // GroupChatIndexStorageItem has no owner field — it is a global index keyed by
+                // groupchat JID, so delete all entries when any account is removed.
+                try {
+                    val indexItems = this.query(GroupChatIndexStorageItem::class).find()
+                    Log.d("AccountManager", "Deleting ${indexItems.size} items of GroupChatIndexStorageItem (global)")
+                    delete(indexItems)
+                } catch (e: Exception) {
+                    Log.e("AccountManager", "Failed to delete GroupChatIndexStorageItem: ${e.message}")
+                }
                 deleteStorageItems(RosterDisplayNameStorageItem::class, "owner", jid)
                 deleteStorageItems(ProcessedMessageId::class, "owner", jid)
                 passwordStorageHelper?.remove(jid)

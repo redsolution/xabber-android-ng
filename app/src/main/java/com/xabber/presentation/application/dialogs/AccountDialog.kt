@@ -337,8 +337,8 @@ class AccountDialog : DialogFragment(R.layout.fragment_account), SharedPreferenc
         viewModel.initDataListener(jid)
         viewModel.accounts.observe(viewLifecycleOwner) { accounts ->
             if (accounts.isEmpty()) {
-                Log.e("AccountDialog", "No accounts found for JID: $jid")
-                Toast.makeText(context, "Error: No account found for this ID", Toast.LENGTH_LONG).show()
+                // Account was deleted (e.g. during logout) — dismiss silently.
+                Log.d("AccountDialog", "Account list empty for JID: $jid — dismissing")
                 dismiss()
                 return@observe
             }
