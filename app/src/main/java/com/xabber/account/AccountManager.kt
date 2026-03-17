@@ -104,7 +104,7 @@ object AccountManager {
                     CoroutineScope(Dispatchers.IO).launch {
                         users.forEach { account ->
                             Log.d("AccountManager", "Force reconnecting ${account.jid} due to network change")
-                            account.performReconnect(force = true)
+                            account.performReconnect(force = true, networkChanged = true)
                         }
                     }
                 }

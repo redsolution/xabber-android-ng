@@ -200,8 +200,9 @@ class Account : XMPPStreamDelegate {
     /**
      * @param force When true, cancels any in-progress reconnect and starts fresh.
      *              Used for network-change events where the old connection is stale.
+     * @param networkChanged When true, shows a toast indicating the network switch was the cause.
      */
-    suspend fun performReconnect(force: Boolean = false) {
+    suspend fun performReconnect(force: Boolean = false, networkChanged: Boolean = false) {
         if (isReconnecting) {
             if (force) {
                 Log.w(TAG, "Force-cancelling in-progress reconnect for $jid (network changed)")
@@ -217,6 +218,15 @@ class Account : XMPPStreamDelegate {
 
         try {
             ApplicationActivity.currentActivity?.showReconnectingSnackbar()
+            if (networkChanged) {
+                CoroutineScope(Dispatchers.Main).launch {
+                    Toast.makeText(
+                        XabberApplication.applicationContext(),
+                        "Сеть изменилась. Попытка переподключения...",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
             reconnectJob?.cancel()
             reconnectJob = null
 
