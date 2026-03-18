@@ -49,12 +49,21 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import kotlin.reflect.KClass
+import java.util.Collections
+import java.util.concurrent.ConcurrentHashMap
 
 @RequiresApi(Build.VERSION_CODES.O)
 object AccountManager {
 
     private val realm = Realm.Companion.open(defaultRealmConfig())
     var users: MutableList<Account> = mutableListOf()
+
+    /**
+     * JIDs of accounts currently in the middle of connecting (startup or reconnect).
+     * While a JID is in this set, [Account.action] and [Account.unsafeAction] skip
+     * any socket/Realm work to avoid crashes on a not-yet-ready stream.
+     */
+    val connectingAccounts: MutableSet<String> = Collections.newSetFromMap(ConcurrentHashMap())
     private var isLoggingOut: Boolean = false
     private var passwordStorageHelper: PasswordStorageHelper? = null
     private val chatViewModels = mutableMapOf<String, ChatViewModel>()
@@ -523,7 +532,14 @@ object AccountManager {
                     loadAccount()
                 }
 
-                val streamConnected = newUserAccount.connectStream()
+                Log.d("AccountManager", "connectingAccounts ADD (startup) $jid")
+                connectingAccounts.add(jid)
+                val streamConnected = try {
+                    newUserAccount.connectStream()
+                } finally {
+                    connectingAccounts.remove(jid)
+                    Log.d("AccountManager", "connectingAccounts REMOVE (startup) $jid, set=$connectingAccounts")
+                }
                 if (!streamConnected) {
                     // Network may be temporarily unavailable — keep the account, reconnect later
                     Log.w("AccountManager", "Initial connect failed for $jid, keeping account offline")

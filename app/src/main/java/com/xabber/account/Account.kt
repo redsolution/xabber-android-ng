@@ -137,7 +137,7 @@ class Account : XMPPStreamDelegate {
 
     private var reconnectJob: Job? = null
     private var reconnectDelayMs = 3000L          // Initial delay
-    private val MAX_RECONNECT_DELAY = 60000L // Cap at 60 seconds
+    private val MAX_RECONNECT_DELAY = 10000L // Cap at 10 seconds
     private val RECONNECT_BACKOFF_MULTIPLIER = 2L
     private val MAX_RECONNECT_ATTEMPTS = 10 // Optional hard limit
     private var reconnectAttempts = 0
@@ -229,10 +229,18 @@ class Account : XMPPStreamDelegate {
             // Check network before tearing down the existing connection (non-force only)
             if (!isNetworkAvailable()) {
                 Log.w(TAG, "performReconnect: no network available, skipping teardown for $jid")
+                // Block any pending action()/unsafeAction() calls while we are offline,
+                // then close the dead stream so stream==null guard also triggers.
+                AccountManager.connectingAccounts.add(jid)
+                Log.d(TAG, "connectingAccounts ADD (no network) $jid, set=${AccountManager.connectingAccounts}")
                 isReconnecting.set(false)
+                closeStream()
                 return
             }
         }
+
+        AccountManager.connectingAccounts.add(jid)
+        Log.d(TAG, "connectingAccounts ADD (reconnect, force=$force) $jid, set=${AccountManager.connectingAccounts}")
 
         try {
             withContext(Dispatchers.Main) {
@@ -287,6 +295,13 @@ class Account : XMPPStreamDelegate {
 
                     if (connectStream()) {
                         Log.d(TAG, "Reconnect successful for $jid")
+                        // UI updates — NonCancellable because resetReconnectState() cancels
+                        // the current reconnectJob (this coroutine) immediately after.
+                        withContext(NonCancellable + Dispatchers.Main) {
+                            val activity = ApplicationActivity.currentActivity
+                            activity?.hideReconnectingSnackbar()
+                            activity?.clearChatStack()
+                        }
                         resetReconnectState()
                         return@launch
                     }
@@ -294,11 +309,15 @@ class Account : XMPPStreamDelegate {
                     reconnectDelayMs = (reconnectDelayMs * RECONNECT_BACKOFF_MULTIPLIER)
                         .coerceAtMost(MAX_RECONNECT_DELAY)
                 }
+                AccountManager.connectingAccounts.remove(jid)
+                Log.d(TAG, "connectingAccounts REMOVE (max attempts) $jid, set=${AccountManager.connectingAccounts}")
                 isReconnecting.set(false)
                 showPermanentErrorDialog()
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error in performReconnect: ${e.message}", e)
+            AccountManager.connectingAccounts.remove(jid)
+            Log.d(TAG, "connectingAccounts REMOVE (exception) $jid, set=${AccountManager.connectingAccounts}")
             isReconnecting.set(false)
         }
     }
@@ -450,6 +469,11 @@ class Account : XMPPStreamDelegate {
                 val success = connectStream()
                 if (success) {
                     Log.d(TAG, "Reconnection successful")
+                    withContext(NonCancellable + Dispatchers.Main) {
+                        val activity = ApplicationActivity.currentActivity
+                        activity?.hideReconnectingSnackbar()
+                        activity?.clearChatStack()
+                    }
                     resetReconnectState()
                     return@launch
                 }
@@ -664,13 +688,9 @@ class Account : XMPPStreamDelegate {
                 }
                 presenceManager = PresenceManager(jid, stream!!.socket!!)
                 statusMessage.onNext("Online")
+                AccountManager.connectingAccounts.remove(jid)
+                Log.d(TAG, "connectingAccounts REMOVE (connectStream success) $jid, set=${AccountManager.connectingAccounts}")
                 Log.d(TAG, "Stream connected for $jid")
-                // Use NonCancellable so the snackbar dismiss survives the coroutine cancellation
-                // that resetReconnectState() causes (it cancels reconnectJob, which is the job
-                // currently executing this connectStream() call).
-                withContext(NonCancellable + Dispatchers.Main) {
-                    ApplicationActivity.currentActivity?.hideReconnectingSnackbar()
-                }
                 resetReconnectState()
                 return@withContext true
             } else {
@@ -1624,12 +1644,28 @@ class Account : XMPPStreamDelegate {
     }
 
     fun unsafeAction(action: (Account, Stream) -> Unit) {
-        action(this, stream!!)
+        val s = stream
+        if (s == null || jid in AccountManager.connectingAccounts) {
+            Log.w(TAG, "unsafeAction() skipped for $jid: ${if (s == null) "stream null" else "account connecting"}")
+            return
+        }
+        action(this, s)
     }
 
     suspend fun action(action: suspend (Account, Stream) -> Unit) {
+        val s = stream
+        if (s == null || jid in AccountManager.connectingAccounts) {
+            Log.w(TAG, "action() skipped for $jid: ${if (s == null) "stream null" else "account connecting"}")
+            return
+        }
         withContext(Dispatchers.IO) {
-            action(this@Account, stream!!)
+            // Re-check after the context switch: a concurrent closeStream() or
+            // performReconnect() may have nulled the stream/managers in the meantime.
+            if (jid in AccountManager.connectingAccounts || stream == null) {
+                Log.w(TAG, "action() aborted after context switch for $jid")
+                return@withContext
+            }
+            action(this@Account, s)
         }
     }
 
@@ -1652,6 +1688,9 @@ class Account : XMPPStreamDelegate {
     suspend fun cleanup() {
         reconnectJob?.cancel()
         reconnectJob = null
+        isReconnecting.set(false)
+        AccountManager.connectingAccounts.remove(jid)
+        Log.d(TAG, "connectingAccounts REMOVE (cleanup) $jid, set=${AccountManager.connectingAccounts}")
         stanzaProcessingScope.cancel()
         accountScope.cancel()
         closeStream()

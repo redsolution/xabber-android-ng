@@ -1362,6 +1362,26 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         reconnectSnackbar = null
     }
 
+    /**
+     * Called after a successful reconnect. Removes all cached chat fragments so
+     * they are recreated fresh (with up-to-date data) the next time the user opens them.
+     */
+    fun clearChatStack() {
+        if (isFinishing || isDestroyed) return
+        val fm = supportFragmentManager
+        fm.commit {
+            setReorderingAllowed(true)
+            for (chatId in chatFragmentStack) {
+                fm.findFragmentByTag(chatTag(chatId))?.let { remove(it) }
+            }
+        }
+        chatFragmentStack.clear()
+        currentDetailTag = null
+        if (binding.slidingPaneLayout.isOpen) {
+            binding.slidingPaneLayout.close()
+        }
+        Log.d("ApplicationActivity", "clearChatStack: chat fragment stack cleared after reconnect")
+    }
 
     override fun launchDetail(fragment: Fragment) {
         val fm = supportFragmentManager

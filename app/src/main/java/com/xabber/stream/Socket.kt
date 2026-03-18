@@ -129,7 +129,7 @@ class Socket(private val host: String, private val port: Int) {
     @Volatile
     private var lastDataReceivedTime = System.currentTimeMillis()
     private val KEEPALIVE_INTERVAL_MS = 10_000L    // how often to send a keepalive ping
-    private val DEAD_CONNECTION_MS    = 120_000L  // silence this long → declare connection dead
+    private val DEAD_CONNECTION_MS    = 60_000L  // silence this long → declare connection dead
 
     val isClosed: Boolean
         get() = socket?.isClosed != false || writer?.isClosedForWrite != false

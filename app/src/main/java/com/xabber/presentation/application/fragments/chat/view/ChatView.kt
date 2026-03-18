@@ -290,7 +290,7 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
             if (account != null) {
                 account.action { acc, stream ->
                     Log.d("ChatView", "Starting MAM sync for chat: owner=$bareOwner, opponent=$bareOpponent, type=${viewModel.conversationType}")
-                    acc.messageArchiveManager!!.syncChat(
+                    acc.messageArchiveManager?.syncChat(
                         stream = stream,
                         jid = bareOpponent,
                         conversationType = viewModel.conversationType

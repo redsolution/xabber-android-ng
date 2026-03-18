@@ -331,31 +331,41 @@ class MessageArchiveManager(private val owner: String) {
                 isNormalSynchronousTask = false,
                 backward = true,
                 callback = {
+                    // Open a fresh Realm — the outer `realm` is closed in syncChat()'s finally
+                    // block as soon as requestArchive() returns, so sharing it with this
+                    // independently-launched coroutine causes RLM_ERR_CLOSED_REALM.
                     CoroutineScope(Dispatchers.IO).launch {
-                        realm.write {
-                            val chat = query<LastChatsStorageItem>(
-                                "primary = $0",
-                                LastChatsStorageItem.genPrimary(jid, owner, conversationType)
-                            ).first().find()
-                            chat?.let {
-                                findLatest(it)?.apply {
-                                    isSynced = true
-                                    isInitialArchiveLoaded = true
-                                    val latestMessage = query<MessageStorageItem>(
-                                        "owner = $0 AND opponent = $1 AND conversationType_ = $2 AND isDeleted = false",
-                                        owner, jid, conversationType.rawValue
-                                    ).find().maxByOrNull { it.sentDate }
-                                    if (latestMessage != null) {
-                                        lastMessage = latestMessage
-                                        messageDate = latestMessage.sentDate
-                                        lastMessageId = latestMessage.archivedId
-                                        if (!latestMessage.outgoing && muteExpired <= 0 && !latestMessage.isRead) {
-                                            isArchived = false
-                                            unread = (unread ?: 0) + 1
+                        val cbRealm = Realm.open(defaultRealmConfig())
+                        try {
+                            cbRealm.write {
+                                val chat = query<LastChatsStorageItem>(
+                                    "primary = $0",
+                                    LastChatsStorageItem.genPrimary(jid, owner, conversationType)
+                                ).first().find()
+                                chat?.let {
+                                    findLatest(it)?.apply {
+                                        isSynced = true
+                                        isInitialArchiveLoaded = true
+                                        val latestMessage = query<MessageStorageItem>(
+                                            "owner = $0 AND opponent = $1 AND conversationType_ = $2 AND isDeleted = false",
+                                            owner, jid, conversationType.rawValue
+                                        ).find().maxByOrNull { it.sentDate }
+                                        if (latestMessage != null) {
+                                            lastMessage = latestMessage
+                                            messageDate = latestMessage.sentDate
+                                            lastMessageId = latestMessage.archivedId
+                                            if (!latestMessage.outgoing && muteExpired <= 0 && !latestMessage.isRead) {
+                                                isArchived = false
+                                                unread = (unread ?: 0) + 1
+                                            }
                                         }
                                     }
                                 }
                             }
+                        } catch (e: Exception) {
+                            Log.e(TAG, "syncChat callback: failed to update LastChatsStorageItem: ${e.message}", e)
+                        } finally {
+                            cbRealm.close()
                         }
                         callback?.invoke()
                     }
