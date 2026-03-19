@@ -48,6 +48,9 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlin.reflect.KClass
 import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
@@ -57,6 +60,17 @@ object AccountManager {
 
     private val realm = Realm.Companion.open(defaultRealmConfig())
     var users: MutableList<Account> = mutableListOf()
+
+    /**
+     * Emits `true` when any account starts reconnecting, `false` when it reconnects successfully.
+     * Observed by [ApplicationActivity] via lifecycleScope to drive the reconnect snackbar.
+     */
+    private val _reconnectingState = MutableStateFlow(false)
+    val reconnectingState: StateFlow<Boolean> = _reconnectingState.asStateFlow()
+
+    fun setReconnecting(isReconnecting: Boolean) {
+        _reconnectingState.value = isReconnecting
+    }
 
     /**
      * JIDs of accounts currently in the middle of connecting (startup or reconnect).
@@ -189,16 +203,40 @@ object AccountManager {
                 // is granted even when we requested it.  onCapabilitiesChanged is more reliable
                 // for detecting the moment the network becomes actually usable.
                 if (!caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)) return
-                if (network.networkHandle != currentNetworkId) return
+
+                val networkId = network.networkHandle
+                // When we are offline (currentNetworkId == -1) onAvailable may not have fired
+                // (observed on Nokia T20 / MediaTek after svc wifi disable/enable).  Accept any
+                // validated network as a reconnect signal in that case.
+                val wasOffline = currentNetworkId == -1L
+                if (!wasOffline && networkId != currentNetworkId) return
 
                 val now = System.currentTimeMillis()
                 if (now - lastNetworkEventMs < NETWORK_EVENT_DEBOUNCE_MS) return
+                lastNetworkEventMs = now
 
-                Log.d("AccountManager", "Network validated (handle=${network.networkHandle}) – checking offline accounts")
-                managerScope.launch {
-                    users.filter { !it.isConnected() }.forEach { account ->
-                        Log.d("AccountManager", "Network validated, reconnecting offline ${account.jid}")
-                        account.performReconnect()
+                if (wasOffline) {
+                    // Treat as if onAvailable fired: update tracking and reconnect.
+                    val prevConnected = lastConnectedNetworkId
+                    currentNetworkId = networkId
+                    lastConnectedNetworkId = networkId
+                    val isSameNetwork = prevConnected == networkId && prevConnected > 0
+                    Log.d("AccountManager", "Network validated while offline (handle=$networkId, same=$isSameNetwork) – reconnecting offline accounts")
+                    managerScope.launch {
+                        users.forEach { account ->
+                            if (!account.isConnected()) {
+                                Log.d("AccountManager", "Network validated (offline recovery), reconnecting ${account.jid} force=${!isSameNetwork}")
+                                account.performReconnect(force = !isSameNetwork)
+                            }
+                        }
+                    }
+                } else {
+                    Log.d("AccountManager", "Network validated (handle=$networkId) – checking offline accounts")
+                    managerScope.launch {
+                        users.filter { !it.isConnected() }.forEach { account ->
+                            Log.d("AccountManager", "Network validated, reconnecting offline ${account.jid}")
+                            account.performReconnect()
+                        }
                     }
                 }
             }

@@ -7,6 +7,8 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import com.xabber.presentation.XabberApplication
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.widget.Toast
 import androidx.annotation.RequiresApi
@@ -108,6 +110,8 @@ class Account : XMPPStreamDelegate {
     var priority: Int = 0
     var deviceName: String = ""
     var statusMessage: BehaviorSubject<String> = BehaviorSubject.createDefault("Offline")
+    /** True once the account has connected at least once this session; gates the reconnect snackbar. */
+    private var wasOnline = false
     var stream: Stream? = null
     private var onErrorCallback: ((String) -> Unit)? = null
 
@@ -136,6 +140,8 @@ class Account : XMPPStreamDelegate {
     private val syncCompletionChannel = Channel<Unit>(1)
 
     private var reconnectJob: Job? = null
+    /** Polls for network while offline; cancelled as soon as any reconnect path fires. */
+    private var networkWatcherJob: Job? = null
     private var reconnectDelayMs = 3000L          // Initial delay
     private val MAX_RECONNECT_DELAY = 10000L // Cap at 10 seconds
     private val RECONNECT_BACKOFF_MULTIPLIER = 2L
@@ -234,27 +240,38 @@ class Account : XMPPStreamDelegate {
                 AccountManager.connectingAccounts.add(jid)
                 Log.d(TAG, "connectingAccounts ADD (no network) $jid, set=${AccountManager.connectingAccounts}")
                 isReconnecting.set(false)
+                reconnectJob?.cancel()
                 closeStream()
+                // Fallback watcher: on devices where onAvailable/onCapabilitiesChanged don't
+                // fire reliably (e.g. Nokia T20 / MediaTek), poll until the network is back
+                // and then kick off a normal reconnect.  The watcher is cancelled automatically
+                // once any other reconnect path (onAvailable, onCapabilitiesChanged) fires.
+                networkWatcherJob?.cancel()
+                networkWatcherJob = accountScope.launch {
+                    var poll = 0
+                    while (isActive) {
+                        delay(3000)
+                        poll++
+                        if (!isNetworkAvailable()) {
+                            Log.d(TAG, "Offline watcher poll=$poll: no network yet for $jid")
+                            continue
+                        }
+                        Log.d(TAG, "Offline watcher poll=$poll: network back for $jid — triggering reconnect")
+                        // Launch in a sibling coroutine so the watcher job is not
+                        // self-cancelled when performReconnect() cancels reconnectJob.
+                        accountScope.launch { performReconnect() }
+                        return@launch
+                    }
+                }
                 return
             }
         }
 
-        AccountManager.connectingAccounts.add(jid)
-        Log.d(TAG, "connectingAccounts ADD (reconnect, force=$force) $jid, set=${AccountManager.connectingAccounts}")
-
         try {
-            withContext(Dispatchers.Main) {
-                ApplicationActivity.currentActivity?.showReconnectingSnackbar()
-            }
-            if (networkChanged) {
-                accountScope.launch(Dispatchers.Main) {
-                    Toast.makeText(
-                        XabberApplication.applicationContext(),
-                        "Сеть изменилась. Попытка переподключения...",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
-            }
+            // Cancel any offline watcher — a real reconnect attempt is now in flight.
+            networkWatcherJob?.cancel()
+            networkWatcherJob = null
+
             reconnectJob?.cancel()
             reconnectJob = null
             // Reset isConnecting in case connectStream() is mid-flight (e.g. stuck in TCP handshake)
@@ -275,7 +292,7 @@ class Account : XMPPStreamDelegate {
             bindingCompleted = false
             boundJid = null
 
-            statusMessage.onNext("Offline")
+            goOffline()
             // Reset delay/attempt counters without cancelling reconnectJob (it's already null above)
             reconnectAttempts = 0
             reconnectDelayMs = 3000L
@@ -295,13 +312,6 @@ class Account : XMPPStreamDelegate {
 
                     if (connectStream()) {
                         Log.d(TAG, "Reconnect successful for $jid")
-                        // UI updates — NonCancellable because resetReconnectState() cancels
-                        // the current reconnectJob (this coroutine) immediately after.
-                        withContext(NonCancellable + Dispatchers.Main) {
-                            val activity = ApplicationActivity.currentActivity
-                            activity?.hideReconnectingSnackbar()
-                            activity?.clearChatStack()
-                        }
                         resetReconnectState()
                         return@launch
                     }
@@ -312,7 +322,8 @@ class Account : XMPPStreamDelegate {
                 AccountManager.connectingAccounts.remove(jid)
                 Log.d(TAG, "connectingAccounts REMOVE (max attempts) $jid, set=${AccountManager.connectingAccounts}")
                 isReconnecting.set(false)
-                showPermanentErrorDialog()
+                AccountManager.setReconnecting(false)
+                Handler(Looper.getMainLooper()).post { showPermanentErrorDialog() }
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error in performReconnect: ${e.message}", e)
@@ -445,7 +456,7 @@ class Account : XMPPStreamDelegate {
         onErrorCallback = callback
         stream?.setOnErrorCallback { error ->
             onErrorCallback?.invoke(error)
-            statusMessage.onNext("Offline")
+            goOffline()
             launchReconnect()
         }
     }
@@ -469,11 +480,6 @@ class Account : XMPPStreamDelegate {
                 val success = connectStream()
                 if (success) {
                     Log.d(TAG, "Reconnection successful")
-                    withContext(NonCancellable + Dispatchers.Main) {
-                        val activity = ApplicationActivity.currentActivity
-                        activity?.hideReconnectingSnackbar()
-                        activity?.clearChatStack()
-                    }
                     resetReconnectState()
                     return@launch
                 }
@@ -484,15 +490,16 @@ class Account : XMPPStreamDelegate {
                 Log.w(TAG, "Reconnect failed – next attempt in ${reconnectDelayMs}ms")
             }
 
-            // All attempts failed → show dialog on main thread
+            // All attempts failed
             isReconnecting.set(false)
-            withContext(Dispatchers.Main) {
-                showPermanentErrorDialog()
-            }
+            AccountManager.setReconnecting(false)
+            Handler(Looper.getMainLooper()).post { showPermanentErrorDialog() }
         }
     }
 
     private fun resetReconnectState() {
+        networkWatcherJob?.cancel()
+        networkWatcherJob = null
         reconnectJob?.cancel()
         reconnectJob = null
         reconnectAttempts = 0
@@ -514,6 +521,27 @@ class Account : XMPPStreamDelegate {
             .setCancelable(false)
             .show()
     }
+
+    // ------------------------------------------------------------------ state helpers
+
+    /** Mark account as offline; signal reconnecting state if we were online before. */
+    private fun goOffline() {
+        statusMessage.onNext("Offline")
+        Log.d(TAG, "goOffline: wasOnline=$wasOnline for $jid")
+        if (wasOnline) {
+            AccountManager.setReconnecting(true)
+        }
+    }
+
+    /** Mark account as online; clear reconnecting state so the activity hides the snackbar. */
+    private fun goOnline() {
+        Log.d(TAG, "goOnline: setting wasOnline=true for $jid")
+        wasOnline = true
+        statusMessage.onNext("Online")
+        AccountManager.setReconnecting(false)
+    }
+
+    // ------------------------------------------------------------------
 
     suspend fun loadAccount() = withContext(Dispatchers.IO) {
         try {
@@ -655,14 +683,7 @@ class Account : XMPPStreamDelegate {
             // Any stale callback from a previous stream was already nullified in performReconnect().
             currentStream.setOnSocketReadLoopError {
                 Log.e(TAG, "Read loop error - connection lost")
-                accountScope.launch(Dispatchers.Main) {
-                    Toast.makeText(
-                        XabberApplication.applicationContext(),
-                        "Соединение потеряно. Попытка переподключения...",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
-                statusMessage.onNext("Offline")
+                goOffline()
                 accountScope.launch(Dispatchers.IO) {
                     performReconnect()
                 }
@@ -687,7 +708,7 @@ class Account : XMPPStreamDelegate {
                     Log.e(TAG, "Error clearing stale resources: ${e.message}")
                 }
                 presenceManager = PresenceManager(jid, stream!!.socket!!)
-                statusMessage.onNext("Online")
+                goOnline()
                 AccountManager.connectingAccounts.remove(jid)
                 Log.d(TAG, "connectingAccounts REMOVE (connectStream success) $jid, set=${AccountManager.connectingAccounts}")
                 Log.d(TAG, "Stream connected for $jid")

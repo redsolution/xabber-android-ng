@@ -102,6 +102,9 @@ import io.realm.kotlin.Realm
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import androidx.lifecycle.Lifecycle
 
 
 /**
@@ -180,6 +183,25 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         initViews()
         setupStatusBar()
         currentActivity = this
+
+        // Observe reconnecting state from AccountManager and drive the snackbar.
+        // lifecycleScope runs on Main and is cancelled when the activity is destroyed.
+        // repeatOnLifecycle(STARTED) pauses collection when the app goes to background.
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                var wasReconnecting = false
+                AccountManager.reconnectingState.collect { isReconnecting ->
+                    if (isReconnecting) {
+                        wasReconnecting = true
+                        showReconnectingSnackbar()
+                    } else if (wasReconnecting) {
+                        wasReconnecting = false
+                        hideReconnectingSnackbar()
+                        clearChatStack()
+                    }
+                }
+            }
+        }
 
         // Restore chat stack state after process recreation
         if (savedInstanceState != null) {
