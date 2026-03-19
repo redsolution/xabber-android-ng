@@ -197,7 +197,8 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
                     } else if (wasReconnecting) {
                         wasReconnecting = false
                         hideReconnectingSnackbar()
-                        clearChatStack()
+                        // Chat fragments observe reconnectingState themselves and
+                        // re-sync their archive — no need to destroy and recreate them.
                     }
                 }
             }

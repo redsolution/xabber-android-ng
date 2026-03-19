@@ -708,7 +708,6 @@ class Account : XMPPStreamDelegate {
                     Log.e(TAG, "Error clearing stale resources: ${e.message}")
                 }
                 presenceManager = PresenceManager(jid, stream!!.socket!!)
-                goOnline()
                 AccountManager.connectingAccounts.remove(jid)
                 Log.d(TAG, "connectingAccounts REMOVE (connectStream success) $jid, set=${AccountManager.connectingAccounts}")
                 Log.d(TAG, "Stream connected for $jid")
@@ -1281,6 +1280,7 @@ class Account : XMPPStreamDelegate {
                     return@launch
                 }
 
+                goOnline()
                 presenceManager?.sendInitialPresence()
 
                 delay(200)

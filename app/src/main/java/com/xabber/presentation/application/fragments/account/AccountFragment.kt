@@ -306,6 +306,7 @@ class AccountFragment : DetailBaseFragment(R.layout.fragment_account) {
     private fun subscribeToViewModelData() {
         viewModel.initDataListener(getJid())
         viewModel.accounts.observe(viewLifecycleOwner) {
+            if (it.isEmpty()) return@observe
             loadAvatar(it[0])
             if (hasAvatar != it[0].hasAvatar) {
                 loadAvatar(it[0])

@@ -301,6 +301,29 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
             }
         }
 
+        // Re-sync archive when the account reconnects without recreating this fragment.
+        lifecycleScope.launch {
+            var wasReconnecting = false
+            AccountManager.reconnectingState.collect { isReconnecting ->
+                if (isReconnecting) {
+                    wasReconnecting = true
+                } else if (wasReconnecting) {
+                    wasReconnecting = false
+                    isLoadingHistory = false
+                    viewModel.resetArchiveLoadState()
+                    Log.d("ChatView", "Reconnected — re-syncing archive for $bareOpponent")
+                    val account = AccountManager.find(bareOwner)
+                    account?.action { acc, stream ->
+                        acc.messageArchiveManager?.syncChat(
+                            stream = stream,
+                            jid = bareOpponent,
+                            conversationType = viewModel.conversationType
+                        )
+                    }
+                }
+            }
+        }
+
         binding.messageList.post {
             scrollDown()
         }

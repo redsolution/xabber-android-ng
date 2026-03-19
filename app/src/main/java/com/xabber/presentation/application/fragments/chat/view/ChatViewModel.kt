@@ -231,6 +231,16 @@ class ChatViewModel(
         }
     }
 
+    /**
+     * Reset archive-load state after a reconnect so the fragment can
+     * re-trigger syncChat() without the counter being stuck > 0.
+     * Called by ChatView when the account transitions back to online.
+     */
+    fun resetArchiveLoadState() {
+        activeArchiveLoads.set(0)
+        _isArchiveLoading.postValue(false)
+    }
+
     private fun observeChat() {
         chatJob?.cancel()
         chatJob = viewModelScope.launch {
