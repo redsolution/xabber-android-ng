@@ -32,13 +32,13 @@
 
                 <ImageView
                     android:id="@+id/btn_back"
-                    android:layout_width="48dp"
+                    android:layout_width="32dp"
                     android:layout_height="0dp"
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:clickable="true"
                     android:focusable="true"
+                    android:padding="4dp"
                     android:contentDescription="@string/abc_action_bar_up_description"
-                    android:padding="12dp"
                     android:src="@drawable/ic_arrow_left_white"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toTopOf="parent"
@@ -52,7 +52,7 @@
                     android:clickable="true"
                     android:focusable="true"
                     app:layout_constraintStart_toEndOf="@id/btn_back"
-                    app:layout_constraintEnd_toStartOf="@id/search"
+                    app:layout_constraintEnd_toStartOf="@id/menu"
                     app:layout_constraintTop_toTopOf="parent"
                     app:layout_constraintBottom_toBottomOf="parent">
 
@@ -73,8 +73,8 @@
 
                             <ImageView
                                 android:id="@+id/avatar"
-                                android:layout_width="@dimen/avatar48"
-                                android:layout_height="@dimen/avatar48"
+                                android:layout_width="42dp"
+                                android:layout_height="42dp"
                                 android:scaleType="centerCrop"
                                 android:contentDescription="@string/avatar_content_description"
                                 tools:src="@tools:sample/avatars" />
@@ -106,8 +106,6 @@
                         android:layout_height="wrap_content"
                         android:layout_marginStart="8dp"
                         android:drawablePadding="6dp"
-                        android:ellipsize="marquee"
-                        android:marqueeRepeatLimit="marquee_forever"
                         android:gravity="start"
                         android:singleLine="true"
                         app:layout_constraintStart_toEndOf="@id/frame_shape"
@@ -133,15 +131,6 @@
 
                 </androidx.constraintlayout.widget.ConstraintLayout>
 
-                <ImageView
-                    android:id="@+id/search"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:padding="12dp"
-                    android:src="@drawable/ic_search_white"
-                    app:layout_constraintEnd_toStartOf="@id/menu"
-                    app:layout_constraintTop_toTopOf="parent"
-                    app:layout_constraintBottom_toBottomOf="parent" />
 
                 <ImageView
                     android:id="@+id/menu"
