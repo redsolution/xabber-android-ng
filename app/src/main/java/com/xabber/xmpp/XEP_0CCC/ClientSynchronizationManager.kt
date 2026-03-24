@@ -54,12 +54,14 @@ class ClientSynchronizationManager(owner: String) {
     private val bufferMutex = Mutex()
     private var processingJob: Job? = null
     private var TAG = "ClientSynchronizationManager"
+    // Accumulates gap-fill requests across pages; dispatched only after final sync page
+    private val pendingGapRequests = mutableListOf<GapFillRequest>()
     var mentionId: String? = null
     var retractVersion: String? = null
     var boundJid: String? = null
 
     companion object {
-        private const val SYNC_PAGE_SIZE = 75
+        private const val SYNC_PAGE_SIZE = 50
     }
 
     data class SyncItem(
@@ -116,6 +118,7 @@ class ClientSynchronizationManager(owner: String) {
                 query<LastChatsStorageItem>("owner = $0 AND isHistoryGapFixedForSession = true", owner)
                     .find().forEach { findLatest(it)?.isHistoryGapFixedForSession = false }
             }
+            pendingGapRequests.clear()
         }
 
         val syncId = NanoId.generateOptimized(9, "_-0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", 63, 16)
@@ -138,8 +141,24 @@ class ClientSynchronizationManager(owner: String) {
         val fromAttr = boundJid?.let { " from='$it'" } ?: ""
         val toAttr = " to='$owner'"
         val iq = "<iq type='get' id='SYNC: $syncId'$fromAttr$toAttr>$query</iq>"
-        val success = stream.socket?.write(iq) == true
-        Log.d("ClientSyncManager", "Sent sync request for $owner with id $syncId, version: ${customVer ?: version}, after: $after, success: $success")
+        // Retry up to 3 times on write failure
+        var success = false
+        var attempt = 0
+        while (!success && attempt < 3) {
+            success = stream.socket?.write(iq) == true
+            if (!success) {
+                attempt++
+                if (attempt < 3) {
+                    Log.w("ClientSyncManager", "Sync IQ write failed (attempt $attempt/3), retrying in 1s")
+                    kotlinx.coroutines.delay(1000L)
+                }
+            }
+        }
+        Log.d("ClientSyncManager",
+            "Sent sync request for $owner with id $syncId, version: ${customVer ?: version}, after: $after, success: $success (attempts: ${attempt + 1})")
+        if (!success) {
+            Log.e("ClientSyncManager", "Failed to send sync IQ after 3 attempts for $owner")
+        }
     }
 
     fun getChat(jid: String, type: ConversationType): LastChatsStorageItem? {
@@ -310,13 +329,16 @@ class ClientSynchronizationManager(owner: String) {
             "https://xabber.com/protocol/groups"
         )
 
+        // Pre-fetch all roster JIDs for this owner in one query
+        val existingRosterJids: Set<String> = realm
+            .query<RosterStorageItem>("owner = $0", owner)
+            .find()
+            .map { it.jid }
+            .toHashSet()
+
         realm.write {
-            val batchSize = 10
-            (0 until conversations.length step batchSize).forEach { start ->
-                val batch = (start until minOf(start + batchSize, conversations.length)).map { idx ->
-                    conversations.item(idx) as Element
-                }
-                batch.forEach { conversation ->
+            (0 until conversations.length).forEach { idx ->
+                val conversation = conversations.item(idx) as Element
                     val jid = conversation.getAttribute("jid")?.let { XMPPJID(it).bare() }?.takeIf { it.isNotBlank() } ?: return@forEach
                     val type = conversation.getAttribute("type")?.takeIf { it.isNotBlank() } ?: return@forEach
 
@@ -493,57 +515,65 @@ class ClientSynchronizationManager(owner: String) {
                     if (lastMessage == null || messageDateUs == 0L || lastMessageId.isEmpty()) return@forEach
 
                     val isExcludedForRoster = excludedJidsForRoster.contains(jid) || excludedTypesForRoster.contains(type) || jid == owner
+                    // NEW: use pre-fetched set for existence check; only write if actually missing
                     var rosterItem: RosterStorageItem? = null
                     if (!isExcludedForRoster) {
-                        rosterItem = query<RosterStorageItem>("jid = $0 AND owner = $1", jid, owner).first().find()
-                            ?: copyToRealm(RosterStorageItem().apply {
+                        rosterItem = if (existingRosterJids.contains(jid)) {
+                            query<RosterStorageItem>("jid = $0 AND owner = $1", jid, owner).first().find()
+                        } else {
+                            copyToRealm(RosterStorageItem().apply {
                                 primary = RosterStorageItem.genPrimary(jid, owner)
                                 this.jid = jid
                                 this.owner = owner
                                 this.customNickname = jid
                             }, UpdatePolicy.ALL)
+                        }
                     }
 
                     val chatPrimary = LastChatsStorageItem.genPrimary(jid, owner, conversationType)
                     if (chatPrimary.isEmpty()) return@forEach
 
-                    // Применяем unread after ко всем существующим сообщениям
-                    val allMessagesInChat = query<MessageStorageItem>(
-                        "owner = $0 AND opponent = $1 AND conversationType_ = $2",
-                        owner, jid, type
-                    ).find()
+                    // Fetch existing chat to check if markers changed
+                    val existingChat = query<LastChatsStorageItem>(
+                        "jid = $0 AND owner = $1 AND conversationType_ = $2", jid, owner, type
+                    ).first().find()
 
-                    val displayedIdUs = displayedId?.toLongOrNull()
-                    val deliveredIdUs = deliveredId?.toLongOrNull()
+                    // Skip expensive per-message state update if markers haven't changed
+                    val markersChanged = existingChat == null
+                        || existingChat.displayedId != displayedId
+                        || existingChat.deliveredId != deliveredId
+                        || existingChat.unread.toLong() != unreadCount
 
-                    // Update all existing messages and calculate actual unread count
-                    var actualUnread = 0
-
-                    allMessagesInChat.forEach { msg ->
-                        val (msgState, msgIsRead) = determineMessageState(
-                            isOutgoing = msg.outgoing,
-                            messageTimestampUs = msg.sentDate * 1000L,
-                            displayedIdUs = displayedIdUs,
-                            deliveredIdUs = deliveredIdUs,
-                            unreadCount = unreadCount,
-                            unreadAfterUs = unreadAfterUs,
-                            currentState = msg.state
-                        )
-                        msg.state = msgState
-                        msg.isRead = msgIsRead
-
-                        if (!msg.outgoing && !msgIsRead) {
-                            actualUnread++
+                    var actualUnread: Int
+                    if (markersChanged) {
+                        val allMessagesInChat = query<MessageStorageItem>(
+                            "owner = $0 AND opponent = $1 AND conversationType_ = $2",
+                            owner, jid, type
+                        ).find()
+                        val displayedIdUs = displayedId?.toLongOrNull()
+                        val deliveredIdUs = deliveredId?.toLongOrNull()
+                        actualUnread = 0
+                        allMessagesInChat.forEach { msg ->
+                            val (msgState, msgIsRead) = determineMessageState(
+                                isOutgoing = msg.outgoing,
+                                messageTimestampUs = msg.sentDate * 1000L,
+                                displayedIdUs = displayedIdUs,
+                                deliveredIdUs = deliveredIdUs,
+                                unreadCount = unreadCount,
+                                unreadAfterUs = unreadAfterUs,
+                                currentState = msg.state
+                            )
+                            msg.state = msgState
+                            msg.isRead = msgIsRead
+                            if (!msg.outgoing && !msgIsRead) actualUnread++
                         }
+                        // Если unreadCount от сервера не совпадает с нашим расчетом, используем серверное значение
+                        if (unreadCount > 0 && actualUnread != unreadCount.toInt()) {
+                            actualUnread = unreadCount.toInt()
+                        }
+                    } else {
+                        actualUnread = existingChat.unread
                     }
-
-                    // Если unreadCount от сервера не совпадает с нашим расчетом, используем серверное значение
-                    if (unreadCount > 0 && actualUnread != unreadCount.toInt()) {
-//                        Log.w("ClientSyncManager", "Unread mismatch: calculated=$actualUnread, server=$unreadCount for jid=$jid, using server value")
-                        actualUnread = unreadCount.toInt()
-                    }
-
-                    val existingChat = query<LastChatsStorageItem>("jid = $0 AND owner = $1 AND conversationType_ = $2", jid, owner, type).first().find()
                     if (existingChat == null) {
                         copyToRealm(LastChatsStorageItem().apply {
                             primary = chatPrimary
@@ -664,7 +694,6 @@ class ClientSynchronizationManager(owner: String) {
                         }
                     }
                 }
-            }
         }
         gapFillRequests
     }
@@ -751,16 +780,23 @@ class ClientSynchronizationManager(owner: String) {
         // --- Now process the current page (Realm writes) ---
         val gapRequests = readConversationMetadata(query, owner)
 
+        // NEW: always persist the page stamp as the current version checkpoint
+        version = stamp
+        SettingManager.saveClientSynchronizationVersion(owner, version)
         if (!isFullPage) {
-            // Last page — sync complete, persist version
-            version = stamp
-            SettingManager.saveClientSynchronizationVersion(owner, version)
             Log.d("ClientSyncManager", "Sync completed, updated version to $version, returned=$returnedCount")
+        } else {
+            Log.d("ClientSyncManager", "Sync page checkpoint, version=$version, returned=$returnedCount")
         }
 
-        // Fill any message gaps detected on this page
-        if (gapRequests.isNotEmpty()) {
-            scope.launch { fillGaps(gapRequests) }
+        // NEW: accumulate during sync, dispatch only on final page
+        pendingGapRequests.addAll(gapRequests)
+
+        if (!isFullPage && pendingGapRequests.isNotEmpty()) {
+            val toFill = pendingGapRequests.toList()
+            pendingGapRequests.clear()
+            scope.launch { fillGaps(toFill) }
+            Log.d("ClientSyncManager", "Sync complete — dispatching ${toFill.size} gap-fill requests")
         }
     }
 
