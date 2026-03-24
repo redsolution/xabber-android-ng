@@ -58,6 +58,13 @@ import com.xabber.xmpp.core.auth.DevicesOcraAuthStrategy
 import com.xabber.xmpp.core.auth.PlainAuthStrategy
 import com.xabber.xmpp.core.module.XmppModuleContext
 import com.xabber.xmpp.core.module.XmppModuleRegistry
+import com.xabber.xmpp.core.module.MamIqModule
+import com.xabber.xmpp.core.module.RosterIqModule
+import com.xabber.xmpp.core.module.SyncIqModule
+import com.xabber.xmpp.core.module.GroupchatIqModule
+import com.xabber.xmpp.core.module.AvatarIqModule
+import com.xabber.xmpp.core.module.BufferedPresenceModule
+import com.xabber.xmpp.core.module.MessageRoutingModule
 import com.xabber.xmpp.core.session.XmppSession
 import com.xabber.xmpp.core.session.XmppSessionAction
 import io.ktor.network.sockets.isClosed
@@ -814,60 +821,31 @@ class Account : XMPPStreamDelegate {
 
     private fun configureLegacyModuleRegistry() {
         moduleRegistry = XmppModuleRegistry().apply {
-            registerIqModule(priority = 100) { stanza, context ->
-                val iq = stanza.value
-                if (iq.queryNamespace == "urn:xmpp:mam:2") {
-                    return@registerIqModule messageArchiveManager?.read(iq.raw, context.stream) == true
-                }
-                false
+            messageArchiveManager?.let { registerIqModule(priority = 100, module = MamIqModule(jid, it)) }
+            rosterManager?.let { registerIqModule(priority = 90, module = RosterIqModule(jid, it)) }
+            registerIqModule(
+                priority = 80,
+                module = SyncIqModule(
+                    owner = jid,
+                    jid = jid,
+                    ackWriter = { xml -> withContext(Dispatchers.IO) { stream?.socket?.write(xml) == true } },
+                    emitSyncStanza = { raw, activeStream ->
+                        stanzaBuffer.emit(StanzaItem(StanzaItem.StanzaType.SYNC, raw, activeStream))
+                    },
+                ),
+            )
+            groupchatManager?.let {
+                registerIqModule(
+                    priority = 70,
+                    module = GroupchatIqModule(
+                        owner = jid,
+                        jid = jid,
+                        groupchatManager = it,
+                        ackWriter = { xml -> withContext(Dispatchers.IO) { stream?.socket?.write(xml) == true } },
+                    ),
+                )
             }
-
-            registerIqModule(priority = 90) { stanza, _ ->
-                val iq = stanza.value
-                if (iq.type == "result" && iq.queryNamespace == "jabber:iq:roster") {
-                    return@registerIqModule rosterManager?.read(iq) == true
-                }
-                false
-            }
-
-            registerIqModule(priority = 80) { stanza, context ->
-                val iq = stanza.value
-                if (iq.queryNamespace != "https://xabber.com/protocol/synchronization") {
-                    return@registerIqModule false
-                }
-                if (iq.type == "set") {
-                    val ackId = iq.id ?: ""
-                    val ackFrom = iq.to ?: jid
-                    val ackTo = iq.from ?: jid
-                    val ack = "<iq type='result' id='$ackId' from='$ackFrom' to='$ackTo'/>"
-                    withContext(Dispatchers.IO) { context.stream.socket?.write(ack) }
-                }
-                stanzaBuffer.emit(StanzaItem(StanzaItem.StanzaType.SYNC, iq.raw, context.stream))
-                true
-            }
-
-            registerIqModule(priority = 70) { stanza, context ->
-                val iq = stanza.value
-                if (!iq.raw.contains("https://xabber.com/protocol/groups")) {
-                    return@registerIqModule false
-                }
-                if (iq.type == "set") {
-                    val ackId = iq.id ?: ""
-                    val ackFrom = iq.to ?: jid
-                    val ackTo = iq.from ?: jid
-                    val ack = "<iq type='result' id='$ackId' from='$ackFrom' to='$ackTo'/>"
-                    withContext(Dispatchers.IO) { context.stream.socket?.write(ack) }
-                }
-                groupchatManager?.read(iq.raw) == true
-            }
-
-            registerIqModule(priority = 60) { stanza, _ ->
-                val iq = stanza.value
-                if (iq.type == "result" && iq.raw.contains("urn:xmpp:avatar:data")) {
-                    return@registerIqModule avatarManager?.read(iq.raw) == true
-                }
-                false
-            }
+            avatarManager?.let { registerIqModule(priority = 60, module = AvatarIqModule(jid, it)) }
 
             registerIqModule(priority = 50) { stanza, context ->
                 val iq = stanza.value
@@ -913,64 +891,27 @@ class Account : XMPPStreamDelegate {
                 iq.type == "result" && (iq.queryContent.isNullOrBlank())
             }
 
-            registerPresenceModule(priority = 100) { stanza, context ->
-                if (context.stream.state == StreamState.CONNECTED || context.stream.state == StreamState.BINDING) {
-                    stanzaBuffer.emit(StanzaItem(StanzaItem.StanzaType.PRESENCE, stanza.raw, context.stream))
-                    return@registerPresenceModule true
-                }
-                if (stanza.raw.contains("https://xabber.com/protocol/groups")) {
-                    return@registerPresenceModule groupchatManager?.handlePresence(stanza.raw) ?: false
-                }
-                presenceManager?.processPresence(stanza.raw) ?: false
-            }
-
-            registerMessageModule(priority = 100) { stanza, _ ->
-                chatMarkers?.read(stanza.value)
-                false
-            }
-
-            registerMessageModule(priority = 90) { stanza, _ ->
-                avatarManager?.readMessage(stanza.value) == true
-            }
-
-            registerMessageModule(priority = 80) { stanza, _ ->
-                val message = stanza.value
-                val isMamResult = message.hasElement("result", "urn:xmpp:mam:2") ||
-                    message.raw.contains("""<result\b[^>]*xmlns\s*=\s*["']urn:xmpp:mam:2["']""".toRegex(RegexOption.IGNORE_CASE))
-                val isGroupChatLive = message.raw.contains("type='headline'") &&
-                    message.raw.contains("https://xabber.com/protocol/groups")
-                val isMamTmp = !isGroupChatLive && (
-                    message.hasElement("archived", "urn:xmpp:mam:tmp") ||
-                        message.raw.contains("""<archived\b[^>]*xmlns\s*=\s*["']urn:xmpp:mam:tmp["']""".toRegex(RegexOption.IGNORE_CASE))
-                    )
-                val isCarbon = message.isCarbonCopy() || message.isCarbonForwarded()
-                val isClientSyncLast = message.hasElement("last-message", "https://xabber.com/protocol/synchronization")
-
-                val payload = when {
-                    isCarbon -> message.getCarbonCopyMessageContainer()
-                        ?: message.getCarbonForwardedMessageContainer()
-                        ?: message
-                    isMamResult -> message.getArchivedMessageContainer() ?: message
-                    isMamTmp -> message
-                    else -> message
-                }
-
-                if (payload.body.isNullOrBlank() && payload.children.isEmpty()) {
-                    return@registerMessageModule true
-                }
-
-                when {
-                    isCarbon -> messageReceiver?.receiveCarbon(message)
-                    isMamResult || isMamTmp -> messageReceiver?.receiveArchived(payload)
-                    isClientSyncLast -> messageReceiver?.receiveClientSyncRaw(payload)
-                    else -> messageReceiver?.receiveRuntime(payload)
-                }
-
-                if (payload.hasElement("x", "https://xabber.com/protocol/groups")) {
-                    groupchatManager?.handleMessage(payload)
-                }
-                true
-            }
+            registerPresenceModule(
+                priority = 100,
+                module = BufferedPresenceModule(
+                    owner = jid,
+                    emitPresence = { raw, activeStream ->
+                        stanzaBuffer.emit(StanzaItem(StanzaItem.StanzaType.PRESENCE, raw, activeStream))
+                    },
+                    presenceManager = { presenceManager },
+                    groupchatManager = { groupchatManager },
+                ),
+            )
+            registerMessageModule(
+                priority = 80,
+                module = MessageRoutingModule(
+                    owner = jid,
+                    chatMarkersManager = chatMarkers,
+                    avatarManager = avatarManager,
+                    messageReceiver = messageReceiver,
+                    groupchatManager = groupchatManager,
+                ),
+            )
         }
     }
 
