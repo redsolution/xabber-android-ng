@@ -58,6 +58,10 @@ class ClientSynchronizationManager(owner: String) {
     var retractVersion: String? = null
     var boundJid: String? = null
 
+    companion object {
+        private const val SYNC_PAGE_SIZE = 75
+    }
+
     data class SyncItem(
         val stream: Stream,
         val customVer: String? = null,
@@ -124,7 +128,7 @@ class ClientSynchronizationManager(owner: String) {
             }
             append(">")
             append("<set xmlns='http://jabber.org/protocol/rsm'>")
-            append("<max>40</max>") // Reduced page size from 60 to 20
+            append("<max>$SYNC_PAGE_SIZE</max>")
             if (after != null) {
                 append("<after>$after</after>")
             }
@@ -723,43 +727,40 @@ class ClientSynchronizationManager(owner: String) {
 
     private suspend fun readSnapshot(query: Element) = withContext(Dispatchers.IO) {
         val stamp = query.getAttribute("stamp")?.toLongOrNull()?.toString() ?: "0"
-        val gapRequests = readConversationMetadata(query, owner)
-        val countElement = query.getElementsByTagNameNS("http://jabber.org/protocol/rsm", "count").item(0) as? Element
-        val count = countElement?.textContent?.toIntOrNull() ?: 0
-        if (count < 40) { // Must match <max>40</max> page size in performSync()
-            version = stamp
-            SettingManager.saveClientSynchronizationVersion(owner, version)
-            Log.d("ClientSyncManager", "Sync completed, updated version to $version, count: $count")
 
-            // Fill detected gaps via MAM
-            if (gapRequests.isNotEmpty()) {
-                scope.launch {
-                    fillGaps(gapRequests)
-                }
-            }
-        } else {
-            // Fill gaps from this page while pagination continues
-            if (gapRequests.isNotEmpty()) {
-                scope.launch {
-                    fillGaps(gapRequests)
-                }
-            }
+        // Use actual returned conversation count (not RSM <count> which is the total result set
+        // size and stays constant across all pages, preventing correct termination detection).
+        val conversations = query.getElementsByTagName("conversation")
+        val returnedCount = conversations.length
+        val isFullPage = returnedCount >= SYNC_PAGE_SIZE
 
-            // Pagination: Trigger another sync with the last conversation's stamp
-            val conversations = query.getElementsByTagName("conversation")
-            val lastStamp = if (conversations.length > 0) {
-                (conversations.item(conversations.length - 1) as Element).getAttribute("stamp")?.toLongOrNull()?.toString() ?: stamp
-            } else {
-                stamp
-            }
+        // --- Pipeline: send next page request immediately, before processing this page ---
+        // The server starts computing page N+1 while the client writes page N to Realm.
+        if (isFullPage) {
+            val lastStamp = (conversations.item(conversations.length - 1) as? Element)
+                ?.getAttribute("stamp")?.toLongOrNull()?.toString() ?: stamp
             val stream = AccountManager.find(owner)?.stream
             if (stream != null) {
-                scope.launch {
-                    sync(stream, version, after = lastStamp)
-                }
+                scope.launch { sync(stream, version, after = lastStamp) }
+                Log.d("ClientSyncManager", "Pipelined page request (after=$lastStamp), returned=$returnedCount")
             } else {
                 Log.w("ClientSyncManager", "No stream available for pagination sync for $owner")
             }
+        }
+
+        // --- Now process the current page (Realm writes) ---
+        val gapRequests = readConversationMetadata(query, owner)
+
+        if (!isFullPage) {
+            // Last page — sync complete, persist version
+            version = stamp
+            SettingManager.saveClientSynchronizationVersion(owner, version)
+            Log.d("ClientSyncManager", "Sync completed, updated version to $version, returned=$returnedCount")
+        }
+
+        // Fill any message gaps detected on this page
+        if (gapRequests.isNotEmpty()) {
+            scope.launch { fillGaps(gapRequests) }
         }
     }
 

@@ -9,6 +9,7 @@ import android.location.LocationManager
 import android.os.Bundle
 import android.provider.Settings
 import android.view.View
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
@@ -100,6 +101,18 @@ class PickGeolocationActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(binding.root)
         setupEdgeToEdge()
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                if (binding.bottomBubble.isVisible) {
+                    binding.tvLocationTitle.text = ""
+                    binding.tvLocationCoordinates.text = ""
+                    binding.bottomBubble.isVisible = false
+                    binding.frameSnack.isVisible = true
+                } else {
+                    finish()
+                }
+            }
+        })
         if (savedInstanceState != null) {
             isBubbleShow = savedInstanceState.getBoolean(IS_BUBBLE_SHOW_KEY)
         }
@@ -163,18 +176,6 @@ class PickGeolocationActivity : AppCompatActivity() {
         ...
     }
     */
-
-    @Deprecated("Deprecated in Java")
-    override fun onBackPressed() {
-        if (binding.bottomBubble.isVisible) {
-            binding.tvLocationTitle.text = ""
-            binding.tvLocationCoordinates.text = ""
-            binding.bottomBubble.isVisible = false
-            binding.frameSnack.isVisible = true
-        } else {
-            super.onBackPressed()
-        }
-    }
 
     private fun initMapButtons() {
         binding.imMyGeolocation.setOnClickListener {

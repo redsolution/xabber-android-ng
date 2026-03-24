@@ -32,7 +32,7 @@ public final class VoiceManager implements MediaPlayer.OnCompletionListener, Med
     private AudioFocusRequest audioFocusRequest;
     private MediaPlayer mp;
     //private MediaRecorder mr;
-    private final Handler mHandler = new Handler();
+    private final Handler mHandler = new Handler(Looper.getMainLooper());
     private String currentPlayingMessageId;
     private String currentPlayingAttachmentId;
     private Long messageTimestamp;

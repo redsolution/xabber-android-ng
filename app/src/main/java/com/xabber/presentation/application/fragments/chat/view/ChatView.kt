@@ -834,7 +834,7 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
     }
 
     private fun initializeButtonEmoji() {
-        AXEmojiManager.install(requireContext(), AXGoogleEmojiProvider(requireContext()))
+        AXEmojiManager.install(requireContext().applicationContext, AXGoogleEmojiProvider(requireContext().applicationContext))
         val emojiView = AXSingleEmojiView(requireContext())
         emojiView.editText = binding.chatInput
         binding.emojiPopupLayout.initPopupView(emojiView)
@@ -1624,6 +1624,7 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
         super.onDestroyView()
         saveLastPosition()
         saveDraft()
+        handler.removeCallbacksAndMessages(null)
         botJob?.cancel()
         AccountManager.unregisterChatViewModel(getParams().id)
         messageSender?.unsubscribeSender()

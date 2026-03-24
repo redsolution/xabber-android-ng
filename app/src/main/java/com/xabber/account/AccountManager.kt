@@ -92,6 +92,8 @@ object AccountManager {
         }
     }
 
+    private var networkCallback: ConnectivityManager.NetworkCallback? = null
+
     /** Tracks the currently active network so we can detect wifi↔mobile switches. */
     @Volatile
     private var currentNetworkId: Long = -1L
@@ -133,7 +135,7 @@ object AccountManager {
             .addCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
             .build()
 
-        connectivityManager.registerNetworkCallback(request, object : ConnectivityManager.NetworkCallback() {
+        networkCallback = object : ConnectivityManager.NetworkCallback() {
 
             override fun onAvailable(network: Network) {
                 val newId = network.networkHandle
@@ -240,7 +242,8 @@ object AccountManager {
                     }
                 }
             }
-        })
+        }
+        connectivityManager.registerNetworkCallback(request, networkCallback!!)
     }
 
 //    fun registerStream(owner: String, stream: Stream) {

@@ -71,7 +71,12 @@
             <meta-data
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/provider_paths" />
-        </provider> <!-- <service android:name=".service.RecordService" /> -->
+        </provider>
+        <service
+            android:name=".account.XmppConnectionService"
+            android:exported="false"
+            android:foregroundServiceType="remoteMessaging" />
+        <!-- <service android:name=".service.RecordService" /> -->
         <!-- <service -->
         <!-- android:name=".notification.PushService" -->
         <!-- android:exported="false"> -->

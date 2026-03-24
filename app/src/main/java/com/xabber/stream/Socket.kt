@@ -783,7 +783,7 @@ class Socket(private val host: String, private val port: Int) {
                         Log.w(TAG, "TLS session closed by peer")
                         fireReadLoopError()
                         return null
-                    }
+                }
                     SSLEngineResult.Status.BUFFER_OVERFLOW -> {
                         Log.e(TAG, "TLS unwrap buffer overflow — appBuffer too small")
                         break

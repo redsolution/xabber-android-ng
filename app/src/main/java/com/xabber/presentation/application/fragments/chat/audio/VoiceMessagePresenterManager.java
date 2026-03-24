@@ -6,6 +6,7 @@ import android.media.MediaExtractor;
 import android.media.MediaFormat;
 import android.os.Build;
 import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
@@ -20,6 +21,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.ShortBuffer;
+import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
@@ -27,10 +29,10 @@ import java.util.Map;
 public final class VoiceMessagePresenterManager {
 
     private static VoiceMessagePresenterManager instance;
-    private final Handler handler = new Handler();
+    private final Handler handler = new Handler(Looper.getMainLooper());
 
     private static final Map<String, ArrayList<Integer>> voiceWaveData = new HashMap<>();
-    private static final Map<String, PlayerVisualizerView> voiceWaveFreshViews = new HashMap<>();
+    private static final Map<String, WeakReference<PlayerVisualizerView>> voiceWaveFreshViews = new HashMap<>();
     private static final ArrayList<String> voiceWaveInProgress = new ArrayList<>();
     private static final ArrayList<String> voiceWaveForRemoval = new ArrayList<>();
 
@@ -49,11 +51,12 @@ public final class VoiceMessagePresenterManager {
                     for (int i = 0; i < size; i++) {
                         String voicePath = voiceWaveInProgress.get(i);
                         if (voiceWaveData.get(voicePath) != null) {
-                            PlayerVisualizerView view = voiceWaveFreshViews.get(voicePath);
+                            WeakReference<PlayerVisualizerView> ref = voiceWaveFreshViews.get(voicePath);
+                            PlayerVisualizerView view = (ref != null) ? ref.get() : null;
+                            voiceWaveFreshViews.remove(voicePath);
+                            voiceWaveForRemoval.add(voicePath);
                             if (view != null) {
                                 view.updateVisualizer(voiceWaveData.get(voicePath));
-                                voiceWaveFreshViews.remove(voicePath);
-                                voiceWaveForRemoval.add(voicePath);
                             }
                         }
                     }
@@ -104,7 +107,7 @@ public final class VoiceMessagePresenterManager {
                 buf.close();
             } catch (Exception e) {
             }
-            voiceWaveFreshViews.put(filePath, view);
+            voiceWaveFreshViews.put(filePath, new WeakReference<>(view));
             if (!voiceWaveInProgress.contains(filePath)) {
                 voiceWaveInProgress.add(filePath);
                 createWaveform(file, view);

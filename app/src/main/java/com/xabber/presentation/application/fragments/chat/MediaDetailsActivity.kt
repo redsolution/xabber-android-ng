@@ -7,6 +7,7 @@ import android.os.Bundle
 import android.util.Log
 import android.view.Menu
 import android.widget.CompoundButton
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.net.toUri
@@ -57,6 +58,12 @@ class MediaDetailsActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(binding.root)
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                setResult()
+                finish()
+            }
+        })
 
         messageId = intent.getStringExtra(AppConstants.MESSAGE_UID) ?: ""
         mediaList = viewModel.getMediaList()
@@ -170,14 +177,8 @@ class MediaDetailsActivity : AppCompatActivity() {
 
     override fun onSupportNavigateUp(): Boolean {
         setResult()
-        onBackPressedDispatcher.onBackPressed()
+        finish()
         return true
-    }
-
-    @Deprecated("Deprecated in Java")
-    override fun onBackPressed() {
-        setResult()
-        onBackPressedDispatcher.onBackPressed()
     }
 
     private fun setResult() {

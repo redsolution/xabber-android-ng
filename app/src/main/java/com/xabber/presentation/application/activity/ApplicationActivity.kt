@@ -41,9 +41,6 @@ import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.commit
-import androidx.lifecycle.DefaultLifecycleObserver
-import androidx.lifecycle.LifecycleOwner
-import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.slidingpanelayout.widget.SlidingPaneLayout
 import com.bumptech.glide.Glide
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
@@ -128,7 +125,6 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
     private val realm = Realm.open(defaultRealmConfig())
     private lateinit var drawerLayout: DrawerLayout
     private lateinit var actionBarToggle: ActionBarDrawerToggle
-    private var processLifecycleObserver: DefaultLifecycleObserver? = null
     private val activeFragment: Fragment?
         get() = supportFragmentManager.findFragmentById(R.id.application_container)
     private val viewModel = ApplicationViewModel()
@@ -214,22 +210,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         // Keep currentDetailTag in sync whenever the backstack changes (e.g. popBackStack via close())
         supportFragmentManager.addOnBackStackChangedListener { syncCurrentDetailTag() }
 
-        processLifecycleObserver = object : DefaultLifecycleObserver {
-            override fun onStart(owner: LifecycleOwner) {
-                super.onStart(owner)
-                Log.d("ApplicationActivity", "App moved to foreground – checking accounts")
-                AccountManager.users.forEach { account ->
-                    if (!account.isConnected()) {
-                        Log.d("ApplicationActivity", "Account ${account.jid} is disconnected, scheduling reconnect")
-                        CoroutineScope(Dispatchers.IO).launch {
-                            account.performReconnect()
-                        }
-                    }
-                }
-            }
-        }
-        ProcessLifecycleOwner.get().lifecycle.addObserver(processLifecycleObserver!!)
-        setupNavigationDrawer()
+setupNavigationDrawer()
         setupBackPressedHandler()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
@@ -1805,11 +1786,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         if (currentActivity == this) {
             currentActivity = null
         }
-        processLifecycleObserver?.let {
-            ProcessLifecycleOwner.get().lifecycle.removeObserver(it)
-        }
-        processLifecycleObserver = null
-        val sharedPreferences = getSharedPreferences(AppConstants.SHARED_PREF_MASK, Context.MODE_PRIVATE)
+val sharedPreferences = getSharedPreferences(AppConstants.SHARED_PREF_MASK, Context.MODE_PRIVATE)
         sharedPreferences.unregisterOnSharedPreferenceChangeListener(this)
     }
 

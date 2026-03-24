@@ -3,6 +3,7 @@ package com.xabber.presentation.application.fragments.chat.geo
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import android.widget.TextView
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.xabber.R
 import com.xabber.remote.Place
@@ -28,7 +29,7 @@ class FoundPlacesRecyclerViewAdapter(
             LayoutInflater.from(parent.context).inflate(
                 R.layout.found_places_item, parent, false
             ).apply {
-                setBackgroundColor(resources.getColor(R.color.white))
+                setBackgroundColor(ContextCompat.getColor(context, R.color.white))
             }
         )
     }
