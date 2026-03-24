@@ -40,7 +40,7 @@ interface XmppAuthStrategy {
 
     suspend fun onChallenge(challenge: String, sessionContext: AuthSessionContext): OutboundAuthResponse
 
-    suspend fun onSuccess(sessionContext: AuthSessionContext): AuthResult
+    suspend fun onSuccess(success: String, sessionContext: AuthSessionContext): AuthResult
 
     suspend fun onFailure(failure: String, sessionContext: AuthSessionContext): AuthResult
 }

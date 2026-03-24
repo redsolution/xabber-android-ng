@@ -25,7 +25,7 @@ class PlainAuthStrategy(
         error("PLAIN authentication does not support challenge handling")
     }
 
-    override suspend fun onSuccess(sessionContext: AuthSessionContext): AuthResult = AuthResult.Success
+    override suspend fun onSuccess(success: String, sessionContext: AuthSessionContext): AuthResult = AuthResult.Success
 
     override suspend fun onFailure(failure: String, sessionContext: AuthSessionContext): AuthResult {
         return AuthResult.Failure("PLAIN authentication failed")

@@ -42,8 +42,8 @@ class DevicesOcraAuthStrategy(
         return OutboundAuthResponse(xml = "")
     }
 
-    override suspend fun onSuccess(sessionContext: AuthSessionContext): AuthResult {
-        return if (ocra?.handleAuthResponse("<success xmlns='urn:ietf:params:xml:ns:xmpp-sasl'/>") == false) {
+    override suspend fun onSuccess(success: String, sessionContext: AuthSessionContext): AuthResult {
+        return if (ocra?.handleAuthResponse(success) == false) {
             AuthResult.Failure("DEVICES-OCRA success handling failed")
         } else {
             AuthResult.Success

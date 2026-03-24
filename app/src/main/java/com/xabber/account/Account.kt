@@ -24,6 +24,7 @@ import com.xabber.data_base.models.messages.MessageSendingState
 import com.xabber.data_base.models.messages.MessageStorageItem
 import com.xabber.data_base.models.sync.ConversationType
 import com.xabber.presentation.application.activity.ApplicationActivity
+import com.xabber.presentation.onboarding.util.PasswordStorageHelper
 import com.xabber.utils.custom.NickGenerator
 import com.xabber.utils.getArchivedMessageContainer
 import com.xabber.utils.getCarbonCopyMessageContainer
@@ -51,8 +52,14 @@ import com.xabber.xmpp.roster.RosterManager
 import com.xabber.xmpp.core.model.IqStanza
 import com.xabber.xmpp.core.model.MessageStanza
 import com.xabber.xmpp.core.model.PresenceStanza
+import com.xabber.xmpp.core.auth.AccountIdentity
+import com.xabber.xmpp.core.auth.DeviceState
+import com.xabber.xmpp.core.auth.DevicesOcraAuthStrategy
+import com.xabber.xmpp.core.auth.PlainAuthStrategy
 import com.xabber.xmpp.core.module.XmppModuleContext
 import com.xabber.xmpp.core.module.XmppModuleRegistry
+import com.xabber.xmpp.core.session.XmppSession
+import com.xabber.xmpp.core.session.XmppSessionAction
 import io.ktor.network.sockets.isClosed
 import io.reactivex.subjects.BehaviorSubject
 import io.realm.kotlin.Realm
@@ -69,6 +76,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.NonCancellable
@@ -131,6 +139,7 @@ class Account : XMPPStreamDelegate {
     var groupchatManager: GroupchatManager? = null
     var avatarManager: XmppAvatarManager? = null
     private var moduleRegistry: XmppModuleRegistry? = null
+    private var xmppSession: XmppSession? = null
 
     private val deviceModel = Build.MODEL
     private var isDeviceRegistered = false
@@ -656,6 +665,24 @@ class Account : XMPPStreamDelegate {
             messageReceiver?.subscribeReceiver()
             groupchatManager = GroupchatManager(jid)
             avatarManager = XmppAvatarManager(jid)
+            xmppSession = XmppSession(
+                account = AccountIdentity(
+                    jid = jid,
+                    username = jid.substringBefore("@", jid),
+                ),
+                authStrategies = listOf(
+                    DevicesOcraAuthStrategy(
+                        streamProvider = { requireNotNull(stream) { "Stream is not initialized" } },
+                        realmProvider = { realm },
+                        deviceStateProvider = { ownerJid -> loadDeviceState(ownerJid) },
+                    ),
+                    PlainAuthStrategy(
+                        passwordProvider = { ownerJid ->
+                            PasswordStorageHelper(XabberApplication.applicationContext()).getData(ownerJid)
+                        },
+                    ),
+                ),
+            )
             configureLegacyModuleRegistry()
 
             restartStanzaProcessing()
@@ -765,6 +792,8 @@ class Account : XMPPStreamDelegate {
             avatarManager?.close()
             avatarManager = null
             moduleRegistry = null
+            xmppSession?.resetAuthState()
+            xmppSession = null
 
             statusMessage.onNext("Offline")
             rosterRequested = false
@@ -940,6 +969,52 @@ class Account : XMPPStreamDelegate {
                 if (payload.hasElement("x", "https://xabber.com/protocol/groups")) {
                     groupchatManager?.handleMessage(payload)
                 }
+                true
+            }
+        }
+    }
+
+    private suspend fun loadDeviceState(ownerJid: String): DeviceState? {
+        val device = realm.query<DeviceStorageItem>("owner = $0", ownerJid).first().find() ?: return null
+        if (device.uid.isBlank() || device.secret.isBlank() || device.validationKey.isBlank()) {
+            return null
+        }
+        return DeviceState(
+            deviceId = device.uid,
+            secret = device.secret,
+            validationKey = device.validationKey,
+            authCounter = device.authCounter,
+        )
+    }
+
+    private suspend fun applySessionAction(action: XmppSessionAction, stream: Stream): Boolean {
+        return when (action) {
+            XmppSessionAction.NoOp -> false
+            XmppSessionAction.RestartStream -> {
+                stream.state = StreamState.AUTH_SUCCESS
+                true
+            }
+            is XmppSessionAction.TransitionTo -> {
+                stream.state = action.state
+                true
+            }
+            is XmppSessionAction.SendAndTransition -> {
+                withContext(Dispatchers.IO) {
+                    if (stream.socket?.write(action.xml) == true) {
+                        stream.state = action.state
+                        true
+                    } else {
+                        Log.e(TAG, "Failed to write session action stanza")
+                        onErrorCallback?.invoke("Failed to write XMPP session stanza")
+                        stream.state = StreamState.NOT_CONNECTING
+                        false
+                    }
+                }
+            }
+            is XmppSessionAction.Fail -> {
+                Log.e(TAG, action.message)
+                onErrorCallback?.invoke(action.message)
+                stream.state = action.state
                 true
             }
         }
@@ -1153,44 +1228,17 @@ class Account : XMPPStreamDelegate {
             }
             response.features?.let { feat ->
                 Log.d(TAG, "Stream features: $feat")
-                if (isPostTls && DevicesOCRA.Companion.isSupported(feat)) {
-                    Log.d(TAG, "DEVICES-OCRA authentication is supported post-TLS")
-                    stream.state = StreamState.START_AUTH
-                } else if (!attemptedPreTlsAuth && DevicesOCRA.Companion.isSupported(feat)) {
-                    Log.d(TAG, "DEVICES-OCRA authentication is supported pre-TLS")
-                    attemptedPreTlsAuth = true
-                    stream.state = StreamState.START_AUTH
-                } else if (isPostTls && feat.mechanisms?.mechanism?.contains("PLAIN") == true) {
-                    Log.d(TAG, "PLAIN authentication is supported post-TLS")
-                    stream.state = StreamState.START_AUTH
-                } else if (!attemptedPreTlsAuth && feat.mechanisms?.mechanism?.contains("PLAIN") == true) {
-                    Log.d(TAG, "PLAIN authentication is supported pre-TLS")
-                    attemptedPreTlsAuth = true
-                    stream.state = StreamState.START_AUTH
-                } else if (feat.starttls?.present == true) {
-                    val isTlsRequired = features.contains("<required/>")
-                    Log.d(TAG, "STARTTLS is supported${if (isTlsRequired) " and required" else ""}")
-                    if (isTlsRequired && attemptedPreTlsAuth) {
-                        Log.w(TAG, "TLS required after failed pre-TLS auth attempt")
-                        attemptedPreTlsAuth = false
-                    }
-                    stream.state = StreamState.START_TLS
-                } else if (stream.state == StreamState.STREAM_OPEN && feat.devices?.present == true) {
-                    Log.d(TAG, "Device registration is supported")
-                    if (isDeviceRegistered) {
-                        Log.d(TAG, "Skipping device registration, already registered for JID: $jid")
-                        stream.state = StreamState.BINDING
-                    } else {
-                        stream.state = StreamState.DEVICE_REGISTRATION
-                    }
-                } else {
-                    Log.w(TAG, "No supported features found")
-                    onErrorCallback?.invoke("No supported authentication features found")
-                    stream.state = StreamState.NOT_CONNECTING
-                    return false
-                }
             }
-            return true
+            val session = xmppSession ?: return false
+            val action = runBlocking(Dispatchers.IO) {
+                session.handleStreamFeatures(
+                    raw = features,
+                    currentState = if (isPostTls) StreamState.PROCEED else stream.state,
+                    isDeviceRegistered = isDeviceRegistered,
+                    deviceState = loadDeviceState(jid),
+                )
+            }
+            return runBlocking(Dispatchers.IO) { applySessionAction(action, stream) }
         } catch (e: Exception) {
             Log.e(TAG, "Error handling stream features: ${e.message}", e)
             onErrorCallback?.invoke("Error processing stream features: ${e.message}")
@@ -1202,15 +1250,9 @@ class Account : XMPPStreamDelegate {
     override suspend fun didReceiveChallenge(challenge: String, stream: Stream): Boolean {
         try {
             Log.d(TAG, "Received OCRA challenge")
-            if (stream.state == StreamState.PROCESS_AUTH && ocraAuth != null) {
-                val success = ocraAuth!!.handleAuthChallenge(challenge)
-                if (!success) {
-                    Log.e(TAG, "OCRA challenge handling failed")
-                    onErrorCallback?.invoke("OCRA authentication challenge failed")
-                    stream.state = StreamState.AUTH_FAILED
-                    return false
-                }
-                return true
+            if (stream.state == StreamState.PROCESS_AUTH) {
+                val session = xmppSession ?: return false
+                return applySessionAction(session.handleChallenge(challenge), stream)
             }
             return false
         } catch (e: Exception) {
@@ -1225,17 +1267,8 @@ class Account : XMPPStreamDelegate {
         try {
             Log.d(TAG, "Authentication successful")
             if (stream.state == StreamState.PROCESS_AUTH) {
-                if (ocraAuth != null) {
-                    val succ = ocraAuth!!.handleAuthResponse(success)
-                    if (!succ) {
-                        Log.e(TAG, "OCRA authentication response handling failed")
-                        onErrorCallback?.invoke("OCRA authentication response handling failed")
-                        stream.state = StreamState.AUTH_FAILED
-                        return false
-                    }
-                }
-                stream.state = StreamState.AUTH_SUCCESS
-                return true
+                val session = xmppSession ?: return false
+                return applySessionAction(session.handleSuccess(success), stream)
             }
             return false
         } catch (e: Exception) {
@@ -1250,18 +1283,10 @@ class Account : XMPPStreamDelegate {
         try {
             Log.e(TAG, "Authentication failed: $failure")
             if (stream.state == StreamState.PROCESS_AUTH) {
-                val errorTextMatch = Regex("""<text[^>]*>([^<]+)</text>""").find(failure)
-                val errorText = errorTextMatch?.groupValues?.get(1) ?: "Unknown authentication error"
-                val errorTypeMatch = Regex("""<([a-z\-]+)\/>""").find(failure)
-                val errorType = errorTypeMatch?.groupValues?.get(1) ?: "unknown"
-                val userMessage = when (errorType) {
-                    "not-authorized" -> "Authentication failed: $errorText"
-                    else -> "Authentication failed: $errorText ($errorType)"
+                val session = xmppSession ?: return false
+                return runBlocking(Dispatchers.IO) {
+                    applySessionAction(session.handleFailure(failure), stream)
                 }
-                Log.e(TAG, userMessage)
-                onErrorCallback?.invoke(userMessage)
-                stream.state = StreamState.AUTH_FAILED
-                return true
             }
             return false
         } catch (e: Exception) {
@@ -1326,15 +1351,7 @@ class Account : XMPPStreamDelegate {
             return true
         }
         bindingCompleted = true
-        val bindId = NanoId.generateOptimized(9, "-0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", 63, 16)
-        val resourceId = NanoId.generateOptimized(8, "0123456789ABC Chaz6", 63, 16)
-        val bindRequest = """
-                <iq type='set' id='$bindId'>
-                    <bind xmlns='urn:ietf:params:xml:ns:xmpp-bind'>
-                        <resource>xabber-android-$resourceId</resource>
-                    </bind>
-                </iq>
-            """.trimIndent()
+        val bindRequest = xmppSession?.buildBindRequest() ?: return false
         return withContext(Dispatchers.IO) {
             if (stream.socket?.write(bindRequest) == true) {
                 Log.d(TAG, "Sent bind request for JID: $jid")
@@ -1392,12 +1409,12 @@ class Account : XMPPStreamDelegate {
     override suspend fun streamAuthFailed(stream: Stream): Boolean {
         Log.e(TAG, "Authentication failed for JID: $jid")
         onErrorCallback?.invoke("Authentication failed")
-        if (!attemptedPreTlsAuth || stream.state == StreamState.PROCEED) {
-            Log.e(TAG, "Closing connection due to auth failure")
-            closeStream()
-        } else {
+        if (xmppSession?.shouldFallbackToTlsAfterAuthFailure() == true) {
             Log.d(TAG, "Pre-TLS auth failed, falling back to START_TLS")
             stream.state = StreamState.START_TLS
+        } else {
+            Log.e(TAG, "Closing connection due to auth failure")
+            closeStream()
         }
         return true
     }
