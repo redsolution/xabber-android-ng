@@ -57,14 +57,12 @@ class MessageManager(private val owner: String, activeStream: Boolean) {
         if (activeStream) {
             CoroutineScope(Dispatchers.IO).launch {
                 try {
-
                     realm.write {
-                        val states = listOf(
-                            MessageSendingState.Sending,
-                            MessageSendingState.Uploading
-                        )
                         val collection = query<MessageStorageItem>(
-                            "owner = $0 AND state_ IN $1", owner, states
+                            "owner = $0 AND (state_ == $1 OR state_ == $2)",
+                            owner,
+                            MessageSendingState.Sending.rawValue,
+                            MessageSendingState.Uploading.rawValue
                         ).find()
                         collection.forEach { message ->
                             message.state = MessageSendingState.Error
@@ -94,33 +92,34 @@ class MessageManager(private val owner: String, activeStream: Boolean) {
                 override fun run() {
                     CoroutineScope(Dispatchers.IO).launch {
                         try {
-                            realm.write {
-                                val sendingMessages = query<MessageStorageItem>(
-                                    "owner = $0 AND state_ IN $1",
-                                    owner,
-                                    listOf(
-                                        MessageSendingState.Sending,
-                                        MessageSendingState.Uploading
-                                    )
-                                ).find()
-                                val toEdit = mutableSetOf<String>()
-                                val toResend = mutableSetOf<String>()
-                                sendingMessages.forEach { message ->
-                                    if (message.displayAs == "text") {
-                                        val timeSince = (System.currentTimeMillis() - message.date) / 1000
-                                        if (timeSince > 10) {
-                                            toResend.add(message.primary)
-                                        } else if (timeSince > 60) {
-                                            toEdit.add(message.primary)
-                                        }
-                                    } else {
-                                        val totalAttachesSize = message.references.sumOf { it.fileSize }
-                                        val totalSeconds = 60 + (totalAttachesSize / 1024 / 32)
-                                        if ((System.currentTimeMillis() - message.date) / 1000 > totalSeconds) {
-                                            toEdit.add(message.primary)
-                                        }
+                            val sendingMessages = realm.query<MessageStorageItem>(
+                                "owner = $0 AND (state_ == $1 OR state_ == $2)",
+                                owner,
+                                MessageSendingState.Sending.rawValue,
+                                MessageSendingState.Uploading.rawValue
+                            ).find()
+                            if (sendingMessages.isEmpty()) {
+                                return@launch
+                            }
+
+                            val toEdit = mutableSetOf<String>()
+                            val toResend = mutableSetOf<String>()
+                            sendingMessages.forEach { message ->
+                                if (message.displayAs == "text") {
+                                    val timeSince = (System.currentTimeMillis() - message.date) / 1000
+                                    if (timeSince > 60) {
+                                        toEdit.add(message.primary)
+                                    } else if (timeSince > 10) {
+                                        toResend.add(message.primary)
+                                    }
+                                } else {
+                                    val totalAttachesSize = message.references.sumOf { it.fileSize }
+                                    val totalSeconds = 60 + (totalAttachesSize / 1024 / 32)
+                                    if ((System.currentTimeMillis() - message.date) / 1000 > totalSeconds) {
+                                        toEdit.add(message.primary)
                                     }
                                 }
+                            }
 //                                if (toResend.isNotEmpty()) {
 //                                    AccountManager.find(owner)?.action { user, stream ->
 //                                        toResend.forEach { primary ->
@@ -128,7 +127,8 @@ class MessageManager(private val owner: String, activeStream: Boolean) {
 //                                        }
 //                                    }
 //                                }
-                                if (toEdit.isNotEmpty()) {
+                            if (toEdit.isNotEmpty()) {
+                                realm.write {
                                     val collection = query<MessageStorageItem>("primary IN $0", toEdit.toList()).find()
                                     collection.forEach { message ->
                                         message.state = MessageSendingState.Error

@@ -48,6 +48,11 @@ import com.xabber.xmpp.messages.messages_manager.MessageManager
 import com.xabber.xmpp.groupchat.GroupchatManager
 import com.xabber.xmpp.presence.PresenceManager
 import com.xabber.xmpp.roster.RosterManager
+import com.xabber.xmpp.core.model.IqStanza
+import com.xabber.xmpp.core.model.MessageStanza
+import com.xabber.xmpp.core.model.PresenceStanza
+import com.xabber.xmpp.core.module.XmppModuleContext
+import com.xabber.xmpp.core.module.XmppModuleRegistry
 import io.ktor.network.sockets.isClosed
 import io.reactivex.subjects.BehaviorSubject
 import io.realm.kotlin.Realm
@@ -125,6 +130,7 @@ class Account : XMPPStreamDelegate {
     var presenceManager: PresenceManager? = null
     var groupchatManager: GroupchatManager? = null
     var avatarManager: XmppAvatarManager? = null
+    private var moduleRegistry: XmppModuleRegistry? = null
 
     private val deviceModel = Build.MODEL
     private var isDeviceRegistered = false
@@ -650,6 +656,7 @@ class Account : XMPPStreamDelegate {
             messageReceiver?.subscribeReceiver()
             groupchatManager = GroupchatManager(jid)
             avatarManager = XmppAvatarManager(jid)
+            configureLegacyModuleRegistry()
 
             restartStanzaProcessing()
             return@withContext true
@@ -757,6 +764,7 @@ class Account : XMPPStreamDelegate {
             groupchatManager = null
             avatarManager?.close()
             avatarManager = null
+            moduleRegistry = null
 
             statusMessage.onNext("Offline")
             rosterRequested = false
@@ -774,78 +782,95 @@ class Account : XMPPStreamDelegate {
             Log.d(TAG, "Stream fully closed and cleaned for $jid")
         }
     }
-    @RequiresApi(Build.VERSION_CODES.O)
-    override suspend fun didReceiveIQ(iq: XMPPIQ, stream: Stream): Boolean {
 
-        try {
-            if (iq.queryNamespace == "urn:xmpp:mam:2") {
-                return messageArchiveManager!!.read(iq.raw, stream)
+    private fun configureLegacyModuleRegistry() {
+        moduleRegistry = XmppModuleRegistry().apply {
+            registerIqModule(priority = 100) { stanza, context ->
+                val iq = stanza.value
+                if (iq.queryNamespace == "urn:xmpp:mam:2") {
+                    return@registerIqModule messageArchiveManager?.read(iq.raw, context.stream) == true
+                }
+                false
             }
-            // Buffer roster and sync IQ stanzas post-registration
-            if (stream.state == StreamState.CONNECTED || stream.state == StreamState.BINDING) {
+
+            registerIqModule(priority = 90) { stanza, _ ->
+                val iq = stanza.value
                 if (iq.type == "result" && iq.queryNamespace == "jabber:iq:roster") {
-                    Log.w(TAG, "ROSTER IQ: $iq")
-                    return rosterManager!!.read(iq)
+                    return@registerIqModule rosterManager?.read(iq) == true
                 }
-                if (iq.queryNamespace == "https://xabber.com/protocol/synchronization") {
-                    // Acknowledge push stanzas (type='set') per XMPP spec
-                    if (iq.type == "set") {
-                        val ackId = iq.id ?: ""
-                        val ackFrom = iq.to ?: jid
-                        val ackTo = iq.from ?: jid
-                        val ack = "<iq type='result' id='$ackId' from='$ackFrom' to='$ackTo'/>"
-                        withContext(Dispatchers.IO) { stream.socket?.write(ack) }
-                    }
-                    stanzaBuffer.emit(StanzaItem(StanzaItem.StanzaType.SYNC, iq.raw, stream))
-                    return true
-                }
-                // Route group chat IQs to GroupchatManager
-                if (iq.raw.contains("https://xabber.com/protocol/groups")) {
-                    // Acknowledge push stanzas (type='set') per XMPP spec
-                    if (iq.type == "set") {
-                        val ackId = iq.id ?: ""
-                        val ackFrom = iq.to ?: jid
-                        val ackTo = iq.from ?: jid
-                        val ack = "<iq type='result' id='$ackId' from='$ackFrom' to='$ackTo'/>"
-                        withContext(Dispatchers.IO) { stream.socket?.write(ack) }
-                    }
-                    val handled = groupchatManager?.read(iq.raw) ?: false
-                    if (handled) return true
-                }
-
-                // Route PubSub avatar data IQ responses to AvatarManager
-                if (iq.type == "result" && iq.raw.contains("urn:xmpp:avatar:data")) {
-                    val handled = avatarManager?.read(iq.raw) ?: false
-                    if (handled) return true
-                }
+                false
             }
 
-            // Handle ping and disco#info synchronously to maintain responsiveness
-            if (iq.type == "get" && iq.queryNamespace == "urn:xmpp:ping" && stream.state == StreamState.CONNECTED) {
-                val pingId = iq.id ?: return false
-                val fromJid = iq.from ?: return false
-                val response = """
-                    <iq type='result' id='$pingId' to='$fromJid'/>
-                """.trimIndent()
-                return withContext(Dispatchers.IO) {
-                    if (stream.socket?.write(response) == true) {
+            registerIqModule(priority = 80) { stanza, context ->
+                val iq = stanza.value
+                if (iq.queryNamespace != "https://xabber.com/protocol/synchronization") {
+                    return@registerIqModule false
+                }
+                if (iq.type == "set") {
+                    val ackId = iq.id ?: ""
+                    val ackFrom = iq.to ?: jid
+                    val ackTo = iq.from ?: jid
+                    val ack = "<iq type='result' id='$ackId' from='$ackFrom' to='$ackTo'/>"
+                    withContext(Dispatchers.IO) { context.stream.socket?.write(ack) }
+                }
+                stanzaBuffer.emit(StanzaItem(StanzaItem.StanzaType.SYNC, iq.raw, context.stream))
+                true
+            }
+
+            registerIqModule(priority = 70) { stanza, context ->
+                val iq = stanza.value
+                if (!iq.raw.contains("https://xabber.com/protocol/groups")) {
+                    return@registerIqModule false
+                }
+                if (iq.type == "set") {
+                    val ackId = iq.id ?: ""
+                    val ackFrom = iq.to ?: jid
+                    val ackTo = iq.from ?: jid
+                    val ack = "<iq type='result' id='$ackId' from='$ackFrom' to='$ackTo'/>"
+                    withContext(Dispatchers.IO) { context.stream.socket?.write(ack) }
+                }
+                groupchatManager?.read(iq.raw) == true
+            }
+
+            registerIqModule(priority = 60) { stanza, _ ->
+                val iq = stanza.value
+                if (iq.type == "result" && iq.raw.contains("urn:xmpp:avatar:data")) {
+                    return@registerIqModule avatarManager?.read(iq.raw) == true
+                }
+                false
+            }
+
+            registerIqModule(priority = 50) { stanza, context ->
+                val iq = stanza.value
+                if (iq.type != "get" || iq.queryNamespace != "urn:xmpp:ping" || context.stream.state != StreamState.CONNECTED) {
+                    return@registerIqModule false
+                }
+                val pingId = iq.id ?: return@registerIqModule false
+                val fromJid = iq.from ?: return@registerIqModule false
+                val response = "<iq type='result' id='$pingId' to='$fromJid'/>"
+                withContext(Dispatchers.IO) {
+                    if (context.stream.socket?.write(response) == true) {
                         true
                     } else {
                         Log.e(TAG, "Failed to send ping response")
                         onErrorCallback?.invoke("Failed to send ping response")
-                        stream.state = StreamState.NOT_CONNECTING
+                        context.stream.state = StreamState.NOT_CONNECTING
                         false
                     }
                 }
             }
 
-            if (iq.type == "get" && iq.queryNamespace == "http://jabber.org/protocol/disco#info") {
-                val discoId = iq.id ?: return false
-                val fromJid = iq.from ?: return false
+            registerIqModule(priority = 40) { stanza, context ->
+                val iq = stanza.value
+                if (iq.type != "get" || iq.queryNamespace != "http://jabber.org/protocol/disco#info") {
+                    return@registerIqModule false
+                }
+                val discoId = iq.id ?: return@registerIqModule false
+                val fromJid = iq.from ?: return@registerIqModule false
                 val toJid = iq.to ?: jid
                 val response = buildDiscoInfoResponse(discoId, fromJid, toJid)
-                return withContext(Dispatchers.IO) {
-                    if (stream.socket?.write(response) == true) {
+                withContext(Dispatchers.IO) {
+                    if (context.stream.socket?.write(response) == true) {
                         true
                     } else {
                         Log.e(TAG, "Failed to send disco#info response")
@@ -854,6 +879,76 @@ class Account : XMPPStreamDelegate {
                 }
             }
 
+            registerIqModule(priority = 10) { stanza, _ ->
+                val iq = stanza.value
+                iq.type == "result" && (iq.queryContent.isNullOrBlank())
+            }
+
+            registerPresenceModule(priority = 100) { stanza, context ->
+                if (context.stream.state == StreamState.CONNECTED || context.stream.state == StreamState.BINDING) {
+                    stanzaBuffer.emit(StanzaItem(StanzaItem.StanzaType.PRESENCE, stanza.raw, context.stream))
+                    return@registerPresenceModule true
+                }
+                if (stanza.raw.contains("https://xabber.com/protocol/groups")) {
+                    return@registerPresenceModule groupchatManager?.handlePresence(stanza.raw) ?: false
+                }
+                presenceManager?.processPresence(stanza.raw) ?: false
+            }
+
+            registerMessageModule(priority = 100) { stanza, _ ->
+                chatMarkers?.read(stanza.value)
+                false
+            }
+
+            registerMessageModule(priority = 90) { stanza, _ ->
+                avatarManager?.readMessage(stanza.value) == true
+            }
+
+            registerMessageModule(priority = 80) { stanza, _ ->
+                val message = stanza.value
+                val isMamResult = message.hasElement("result", "urn:xmpp:mam:2") ||
+                    message.raw.contains("""<result\b[^>]*xmlns\s*=\s*["']urn:xmpp:mam:2["']""".toRegex(RegexOption.IGNORE_CASE))
+                val isGroupChatLive = message.raw.contains("type='headline'") &&
+                    message.raw.contains("https://xabber.com/protocol/groups")
+                val isMamTmp = !isGroupChatLive && (
+                    message.hasElement("archived", "urn:xmpp:mam:tmp") ||
+                        message.raw.contains("""<archived\b[^>]*xmlns\s*=\s*["']urn:xmpp:mam:tmp["']""".toRegex(RegexOption.IGNORE_CASE))
+                    )
+                val isCarbon = message.isCarbonCopy() || message.isCarbonForwarded()
+                val isClientSyncLast = message.hasElement("last-message", "https://xabber.com/protocol/synchronization")
+
+                val payload = when {
+                    isCarbon -> message.getCarbonCopyMessageContainer()
+                        ?: message.getCarbonForwardedMessageContainer()
+                        ?: message
+                    isMamResult -> message.getArchivedMessageContainer() ?: message
+                    isMamTmp -> message
+                    else -> message
+                }
+
+                if (payload.body.isNullOrBlank() && payload.children.isEmpty()) {
+                    return@registerMessageModule true
+                }
+
+                when {
+                    isCarbon -> messageReceiver?.receiveCarbon(message)
+                    isMamResult || isMamTmp -> messageReceiver?.receiveArchived(payload)
+                    isClientSyncLast -> messageReceiver?.receiveClientSyncRaw(payload)
+                    else -> messageReceiver?.receiveRuntime(payload)
+                }
+
+                if (payload.hasElement("x", "https://xabber.com/protocol/groups")) {
+                    groupchatManager?.handleMessage(payload)
+                }
+                true
+            }
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.O)
+    override suspend fun didReceiveIQ(iq: XMPPIQ, stream: Stream): Boolean {
+
+        try {
             // Handle device registration and binding synchronously
             if (stream.state == StreamState.DEVICE_REGISTRATION) {
                 Log.d(TAG, "Received IQ response for device registration")
@@ -968,13 +1063,8 @@ class Account : XMPPStreamDelegate {
                 }
             }
 
-            // *** ADD THIS NEW HANDLER ***
-            if (iq.type == "result" && iq.queryContent.isNullOrEmpty() && iq.queryNamespace.isNullOrEmpty()) {
-                return true
-            }
-
-            // Handle other empty results that might have just a namespace but no content
-            if (iq.type == "result" && (iq.queryContent.isNullOrEmpty() || iq.queryContent?.trim() == "")) {
+            val registry = moduleRegistry
+            if (registry != null && registry.dispatch(IqStanza(iq), XmppModuleContext(stream))) {
                 return true
             }
 
@@ -1013,20 +1103,18 @@ class Account : XMPPStreamDelegate {
     }
 
     override suspend fun didReceivePresence(presence: String, stream: Stream): Boolean {
+        val registry = moduleRegistry
+        if (registry != null) {
+            return registry.dispatch(PresenceStanza(presence), XmppModuleContext(stream))
+        }
         if (stream.state == StreamState.CONNECTED || stream.state == StreamState.BINDING) {
             stanzaBuffer.emit(StanzaItem(StanzaItem.StanzaType.PRESENCE, presence, stream))
             return true
         }
         if (presence.contains("https://xabber.com/protocol/groups")) {
-            return groupchatManager?.handlePresence(presence) ?: run {
-                Log.w(TAG, "GroupchatManager not initialized, skipping group presence")
-                false
-            }
+            return groupchatManager?.handlePresence(presence) ?: false
         }
-        return presenceManager?.processPresence(presence) ?: run {
-            Log.w(TAG, "PresenceManager not initialized, skipping presence processing")
-            false
-        }
+        return presenceManager?.processPresence(presence) ?: false
     }
 
     override fun didReceiveStreamHeader(header: String, stream: Stream): Boolean {
@@ -1190,81 +1278,7 @@ class Account : XMPPStreamDelegate {
     }
 
     override suspend fun didReceiveMessage(message: XMPPMessage, stream: Stream) {
-        // 1. Always process chat markers first — they can come in any message
-        chatMarkers!!.read(message)
-
-        // 2. PubSub avatar metadata events (headline messages) — handle early
-        if (avatarManager?.readMessage(message) == true) return
-
-        // ────────────────────────────────────────────────────────────────
-        //  Important: we determine the *nature* of the message
-        //             based on the **outer** container
-        // ────────────────────────────────────────────────────────────────
-
-        val isMamResult = message.hasElement("result", "urn:xmpp:mam:2") ||
-                message.raw.contains("""<result\b[^>]*xmlns\s*=\s*["']urn:xmpp:mam:2["']""".toRegex(RegexOption.IGNORE_CASE))
-
-        // Group chat headline messages contain <archived> as metadata, not as a MAM indicator.
-        // Detect them by checking if the outer stanza is type='headline' with group chat namespace.
-        val isGroupChatLive = message.raw.contains("type='headline'") &&
-                message.raw.contains("https://xabber.com/protocol/groups")
-
-        val isMamTmp = !isGroupChatLive && (message.hasElement("archived", "urn:xmpp:mam:tmp") ||
-                message.raw.contains("""<archived\b[^>]*xmlns\s*=\s*["']urn:xmpp:mam:tmp["']""".toRegex(RegexOption.IGNORE_CASE)))
-        val isCarbon         = message.isCarbonCopy() || message.isCarbonForwarded()
-        val isClientSyncLast = message.hasElement("last-message", "https://xabber.com/protocol/synchronization")
-
-        // Extract "real payload" depending on container type
-        // Carbon check must come first: carbon stanzas contain inner <archived> elements
-        // that would incorrectly match the isMamTmp raw-string check.
-        val payload = when {
-            isCarbon         -> message.getCarbonCopyMessageContainer()
-                ?: message.getCarbonForwardedMessageContainer()
-                ?: message
-            isMamResult      -> message.getArchivedMessageContainer() ?: message
-            isMamTmp         -> message  // tmp variant usually doesn't wrap again
-            else             -> message
-        }
-
-        // Very important: skip empty / service messages early
-        if (payload.body.isNullOrBlank() && payload.children.isEmpty()) {
-            return
-        }
-
-        // ────────────────────────────────────────────────────────────────
-        //                    Routing based on ORIGIN
-        // ────────────────────────────────────────────────────────────────
-        when {
-            isCarbon -> {
-                Log.w(TAG, "messageReceiver.receiveCarbon")
-
-                messageReceiver!!.receiveCarbon(message)
-            }
-
-            isMamResult || isMamTmp -> {
-                // All history — classic MAM + your temporary archived variant
-//                Log.w(TAG, "messageReceiver.receiveArchived")
-                messageReceiver!!.receiveArchived(payload)
-            }
-
-            isClientSyncLast -> {
-                Log.w(TAG, "messageReceiver.receiveClientSyncRaw")
-
-                messageReceiver!!.receiveClientSyncRaw(payload)
-            }
-
-            // Only real live messages should fall here
-            else -> {
-                Log.w(TAG, "messageReceiver.receiveRuntime")
-
-                messageReceiver!!.receiveRuntime(payload)
-            }
-        }
-
-        // Also let GroupchatManager process group messages for user cards / pinned messages
-        if (payload.hasElement("x", "https://xabber.com/protocol/groups")) {
-            groupchatManager?.handleMessage(payload)
-        }
+        moduleRegistry?.dispatch(MessageStanza(message), XmppModuleContext(stream))
     }
 
         override suspend fun streamDidConnect(stream: Stream): Boolean {

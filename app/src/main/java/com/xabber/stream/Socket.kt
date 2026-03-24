@@ -20,6 +20,7 @@ import kotlinx.serialization.Serializable
 import nl.adaptivity.xmlutil.serialization.XML
 import nl.adaptivity.xmlutil.serialization.XmlElement
 import nl.adaptivity.xmlutil.serialization.XmlSerialName
+import com.xabber.xmpp.core.parser.CoreStanzaParser
 import java.io.IOException
 import java.nio.BufferOverflowException
 import java.nio.ByteBuffer
@@ -97,13 +98,14 @@ data class Bind(
 )
 
 class Socket(private val host: String, private val port: Int) {
+    private val TAG = "Socket_nging"
+    private val stanzaParser = CoreStanzaParser(TAG)
     private val KTOR_LOGGER = KtorSimpleLogger("io.ktor.network")
     private var socket: io.ktor.network.sockets.Socket? = null
     private var reader: ByteReadChannel? = null
     private var writer: ByteWriteChannel? = null
     private val selectorManager = SelectorManager(Dispatchers.Default)
     var scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-    private val TAG = "Socket_nging"
     private val tagPing = "SOCKET PING"
     private val sslContext = SSLContext.getInstance("TLS")
     private lateinit var sslEngine: SSLEngine
@@ -949,9 +951,9 @@ class Socket(private val host: String, private val port: Int) {
     }
 
     fun parseStreamResponse(response: String): StreamResponse? {
-        try {
+        return try {
             if (response.contains("<stream:error")) {
-                Log.e(TAG, "Server responded with stream error: $response")
+                Log.e(TAG, "Server responded with stream error")
                 return null
             }
             if (response.contains("<proceed")) {
@@ -959,102 +961,39 @@ class Socket(private val host: String, private val port: Int) {
                 return null
             }
             if (response.contains("</stream:stream>") && !response.contains("<stream:features>")) {
-                Log.e(TAG, "Server responded with stream termination: $response")
+                Log.e(TAG, "Server responded with stream termination")
                 return null
             }
             val xmlContent = response.replace(Regex("""<\?xml\s+version=['"][^'"]+['"](?:\s+encoding=['"][^'"]+['"])?\s*\?>"""), "").trim()
-            Log.d(TAG, "Processing XML content: $xmlContent")
-
-            val xml = XML {
-                indent = 2
-                autoPolymorphic = false
-                defaultPolicy {
-                    ignoreUnknownChildren()
-                    pedantic = false
-                }
+            val parsedFeatures = if (xmlContent.contains("<stream:features")) stanzaParser.parseStreamFeatures(xmlContent) else null
+            val features = parsedFeatures?.let {
+                StreamFeatures(
+                    mechanisms = it.mechanisms.takeIf(List<String>::isNotEmpty)?.let(::Mechanisms),
+                    starttls = if (it.startTlsSupported) StartTls(true) else null,
+                    proxy = if (it.proxySupported) Proxy(true) else null,
+                    devices = if (it.devicesSupported) Devices(true) else null,
+                    bind = if (it.bindSupported) Bind(true) else null,
+                )
             }
-
             if (xmlContent.startsWith("<stream:features")) {
-                Log.d(TAG, "Parsing standalone stream features")
-                val featuresMatch = Regex("""<stream:features([^>]*)>(.*?)</stream:features>""", RegexOption.DOT_MATCHES_ALL).find(xmlContent)
-                val features = if (featuresMatch != null) {
-                    val mechanismsContent = Regex("""<mechanisms[^>]*>(.*?)</mechanisms>""", RegexOption.DOT_MATCHES_ALL).find(featuresMatch.value)?.groupValues?.get(1)
-                    val mechanisms = if (mechanismsContent != null) {
-                        val mechanismList = Regex("""<mechanism>([^<]+)</mechanism>""").findAll(mechanismsContent)
-                            .map { it.groupValues[1] }
-                            .toList()
-                        Mechanisms(mechanismList)
-                    } else null
-                    val starttlsPresent = featuresMatch.value.contains("<starttls")
-                    val proxyPresent = featuresMatch.value.contains("<proxy")
-                    val devicesPresent = featuresMatch.value.contains("https://xabber.com/protocol/devices")
-                    val bindPresent = featuresMatch.value.contains("<bind")
-                    StreamFeatures(
-                        mechanisms = mechanisms,
-                        starttls = if (starttlsPresent) StartTls(present = true) else null,
-                        proxy = if (proxyPresent) Proxy(present = true) else null,
-                        devices = if (devicesPresent) Devices(present = true) else null,
-                        bind = if (bindPresent) Bind(present = true) else null
-                    )
-                } else {
-                    Log.w(TAG, "No features found in response")
-                    null
-                }
                 return StreamResponse(features = features)
             }
-
-            Log.d(TAG, "Extracting stream:stream attributes")
             val headerMatch = Regex("""<stream:stream\s+([^>]+?)>""").find(xmlContent) ?: return null
             val attributes = headerMatch.groupValues[1]
-            val idMatch = Regex("""id=['"]([^'"]+)['"]""").find(attributes)
-            val versionMatch = Regex("""version=['"]([^'"]+)['"]""").find(attributes)
-            val fromMatch = Regex("""from=['"]([^'"]+)['"]""").find(attributes)
-            val toMatch = Regex("""to=['"]([^'"]+)['"]""").find(attributes)
-            val xmlLangMatch = Regex("""xml:lang=['"]([^'"]+)['"]""").find(attributes)
-            val xmlnsMatch = Regex("""xmlns=['"]([^'"]+)['"]""").find(attributes)
-            val xmlnsStreamMatch = Regex("""xmlns:stream=['"]([^'"]+)['"]""").find(attributes)
-
-            val featuresMatch = Regex("""<stream:features([^>]*)>(.*?)</stream:features>""", RegexOption.DOT_MATCHES_ALL).find(xmlContent)
-            val features = if (featuresMatch != null) {
-                Log.d(TAG, "Features match found: ${featuresMatch.value}")
-                val mechanismsContent = Regex("""<mechanisms[^>]*>(.*?)</mechanisms>""", RegexOption.DOT_MATCHES_ALL).find(featuresMatch.value)?.groupValues?.get(1)
-                val mechanisms = if (mechanismsContent != null) {
-                    val mechanismList = Regex("""<mechanism>([^<]+)</mechanism>""").findAll(mechanismsContent)
-                        .map { it.groupValues[1] }
-                        .toList()
-                    Mechanisms(mechanismList)
-                } else null
-                val starttlsPresent = featuresMatch.value.contains("<starttls")
-                val proxyPresent = featuresMatch.value.contains("<proxy")
-                val devicesPresent = featuresMatch.value.contains("https://xabber.com/protocol/devices")
-                val bindPresent = featuresMatch.value.contains("<bind")
-                StreamFeatures(
-                    mechanisms = mechanisms,
-                    starttls = if (starttlsPresent) StartTls(present = true) else null,
-                    proxy = if (proxyPresent) Proxy(present = true) else null,
-                    devices = if (devicesPresent) Devices(present = true) else null,
-                    bind = if (bindPresent) Bind(present = true) else null
-                )
-            } else {
-                Log.w(TAG, "No features found in response")
-                null
-            }
-
-            val parsed = StreamResponse(
-                id = idMatch?.groupValues?.get(1),
-                version = versionMatch?.groupValues?.get(1),
-                from = fromMatch?.groupValues?.get(1),
-                to = toMatch?.groupValues?.get(1),
-                xmlLang = xmlLangMatch?.groupValues?.get(1),
-                xmlns = xmlnsMatch?.groupValues?.get(1) ?: "jabber:client",
-                xmlnsStream = xmlnsStreamMatch?.groupValues?.get(1) ?: "http://etherx.jabber.org/streams",
-                features = features
+            StreamResponse(
+                id = Regex("""id=['"]([^'"]+)['"]""").find(attributes)?.groupValues?.get(1),
+                version = Regex("""version=['"]([^'"]+)['"]""").find(attributes)?.groupValues?.get(1),
+                from = Regex("""from=['"]([^'"]+)['"]""").find(attributes)?.groupValues?.get(1),
+                to = Regex("""to=['"]([^'"]+)['"]""").find(attributes)?.groupValues?.get(1),
+                xmlLang = Regex("""xml:lang=['"]([^'"]+)['"]""").find(attributes)?.groupValues?.get(1),
+                xmlns = Regex("""xmlns=['"]([^'"]+)['"]""").find(attributes)?.groupValues?.get(1) ?: "jabber:client",
+                xmlnsStream = Regex("""xmlns:stream=['"]([^'"]+)['"]""").find(attributes)?.groupValues?.get(1)
+                    ?: "http://etherx.jabber.org/streams",
+                features = features,
             )
-            Log.d(TAG, "Parsed StreamResponse: $parsed")
-            return parsed
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to parse stream response: ${e.message}\nRaw response: $response", e)
-            return null
+            Log.e(TAG, "Failed to parse stream response: ${e.message}", e)
+            null
         }
     }
 

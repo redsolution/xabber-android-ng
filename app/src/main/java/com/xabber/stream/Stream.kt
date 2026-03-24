@@ -19,6 +19,7 @@ import com.xabber.xmpp.jid.XMPPJID
 import com.xabber.xmpp.messages.XMPPMessage
 import com.xabber.xmpp.messages.XMLElement
 import com.xabber.xmpp.messages.messages_manager.MessageCommonReceiver
+import com.xabber.xmpp.core.parser.CoreStanzaParser
 import io.realm.kotlin.Realm
 import io.realm.kotlin.UpdatePolicy
 import io.realm.kotlin.ext.query
@@ -76,6 +77,7 @@ enum class StreamState {
 
 @RequiresApi(Build.VERSION_CODES.O)
 class Stream(var jid: String, var port: Int = 5222) {
+    private val coreParser = CoreStanzaParser("Stream")
     var delegate: XMPPStreamDelegate? = null
     @PrimaryKey
     var host: String = extractHostFromJid(jid)
@@ -637,212 +639,11 @@ class Stream(var jid: String, var port: Int = 5222) {
     }
 
     fun parseIQ(stanza: String): XMPPIQ? {
-        try {
-            val typeMatch = Regex("""type=['"]([^'"]+)['"]""").find(stanza)?.groupValues?.get(1) ?: return null
-            val idMatch = Regex("""id=['"]([^'"]+)['"]""").find(stanza)?.groupValues?.get(1)
-            val fromMatch = Regex("""from=['"]([^'"]+)['"]""").find(stanza)?.groupValues?.get(1)
-            val toMatch = Regex("""to=['"]([^'"]+)['"]""").find(stanza)?.groupValues?.get(1)
-            val error = if (typeMatch == "error") {
-                val errorStart = stanza.indexOf("<error")
-                if (errorStart != -1) {
-                    val errorEnd = stanza.indexOf("</error>", errorStart) + 8
-                    stanza.substring(errorStart, errorEnd)
-                } else null
-            } else null
-            val iqStart = stanza.indexOf("<iq")
-            val headerEnd = stanza.indexOf(">", iqStart)
-            val iqEnd = stanza.lastIndexOf("</iq>")
-            val content = if (headerEnd != -1 && iqEnd > headerEnd + 1) stanza.substring(headerEnd + 1, iqEnd).trim() else ""
-            val queryNamespace = if (content.isNotEmpty()) {
-                val childStart = content.indexOf("<")
-                if (childStart != -1) {
-                    val childHeaderEnd = content.indexOf(">", childStart)
-                    Regex("""xmlns=['"]([^'"]+)['"]""").find(content.substring(childStart, childHeaderEnd + 1))?.groupValues?.get(1)
-                } else null
-            } else null
-            return XMPPIQ(
-                stanza,
-                typeMatch,
-                idMatch,
-                fromMatch,
-                toMatch,
-                error,
-                queryNamespace,
-                content
-            )
-        } catch (e: Exception) {
-            Log.e(TAG, "Error parsing IQ: error ${e.message}, stanza=${stanza.take(500)}", e)
-            return null
-        }
+        return coreParser.parseIQ(stanza)
     }
 
     fun parseMessage(stanza: String): XMPPMessage? {
-        try {
-            val factory = XmlPullParserFactory.newInstance().apply {
-                isNamespaceAware = true
-            }
-            val parser = factory.newPullParser()
-            parser.setInput(StringReader(stanza))
-
-            var type: String? = null
-            var id: String? = null
-            var from: XMPPJID? = null
-            var to: XMPPJID? = null
-            var lang: String? = null
-
-            var body: String? = null
-            var originId: String? = null
-            var archivedId: String? = null
-            var queryId: String? = null
-            var timestamp: Long? = null
-
-            var realFrom: XMPPJID? = null
-            var realTo: XMPPJID? = null
-            var realId: String? = null
-
-            var inForwarded = false
-            var currentMessageDepth = 0
-            var targetMessageDepth = -1
-
-            // Collects ALL child elements of the target message
-            val messageChildren = mutableListOf<XMLElement>()
-
-            // Elements that act as structural wrappers and must NOT be consumed by
-            // parseElementFull — their children are iterated by the main loop.
-            val structuralTags = setOf("message", "result", "forwarded")
-
-            var event = parser.eventType
-            while (event != XmlPullParser.END_DOCUMENT) {
-                when (event) {
-                    XmlPullParser.START_TAG -> {
-                        val tagName = parser.name
-                        val tagNs = parser.namespace ?: ""
-
-                        when {
-                            // --- <message> ---------------------------------------------------
-                            tagName == "message" -> {
-                                currentMessageDepth++
-                                if (currentMessageDepth == 1) {
-                                    type = parser.getAttributeValue(null, "type") ?: "chat"
-                                    id = parser.getAttributeValue(null, "id")
-                                    from = parser.getAttributeValue(null, "from")?.let { XMPPJID(it) }
-                                    to = parser.getAttributeValue(null, "to")?.let { XMPPJID(it) }
-                                    lang = parser.getAttributeValue(null, "xml:lang")
-                                }
-                                if (inForwarded && targetMessageDepth == -1) {
-                                    targetMessageDepth = currentMessageDepth
-                                    realFrom = parser.getAttributeValue(null, "from")?.let { XMPPJID(it) } ?: from
-                                    realTo = parser.getAttributeValue(null, "to")?.let { XMPPJID(it) } ?: to
-                                    realId = parser.getAttributeValue(null, "id") ?: id
-                                    type = parser.getAttributeValue(null, "type") ?: type ?: "chat"
-                                }
-                                // Do NOT consume children — main loop iterates them
-                            }
-
-                            // --- <result xmlns='urn:xmpp:mam:2'> ----------------------------
-                            tagName == "result" && tagNs == "urn:xmpp:mam:2" -> {
-                                archivedId = parser.getAttributeValue(null, "id")
-                                queryId = parser.getAttributeValue(null, "queryid")
-                                // Structural — main loop iterates its children
-                            }
-
-                            // --- <forwarded xmlns='urn:xmpp:forward:0'> ---------------------
-                            tagName == "forwarded" && tagNs == "urn:xmpp:forward:0" -> {
-                                inForwarded = true
-                                // Structural — main loop iterates its children
-                            }
-
-                            // --- <body> at message level ------------------------------------
-                            tagName == "body" &&
-                                (currentMessageDepth == targetMessageDepth || targetMessageDepth == -1) -> {
-                                val text = parser.nextText().trim()
-                                if (text.isNotBlank()) body = text
-                            }
-
-                            // --- All other elements: parse fully and add to children --------
-                            else -> {
-                                // Whether this is a direct child of the target message
-                                val isAtMessageLevel =
-                                    (currentMessageDepth == 1 && !inForwarded) ||
-                                    (inForwarded && currentMessageDepth == targetMessageDepth)
-
-                                // Extract specific top-level fields before consuming
-                                when (tagName) {
-                                    "delay" -> if (tagNs == "urn:xmpp:delay") {
-                                        val stamp = parser.getAttributeValue(null, "stamp")
-                                        stamp?.let { timestamp = it.parseXMPPDateToMillis() ?: timestamp }
-                                    }
-                                    "time" -> if (tagNs == "https://xabber.com/protocol/delivery") {
-                                        val stamp = parser.getAttributeValue(null, "stamp")
-                                        stamp?.let {
-                                            val timeMillis = it.parseXMPPDateToMillis()
-                                            if (timeMillis != null && (timestamp == null || timeMillis > timestamp!!)) {
-                                                timestamp = timeMillis
-                                            }
-                                        }
-                                    }
-                                    "origin-id" -> if (tagNs == "urn:xmpp:sid:0") {
-                                        originId = parser.getAttributeValue(null, "id")
-                                    }
-                                }
-
-                                // Parse the full element tree
-                                val element = parseElementFull(parser, tagName, tagNs)
-
-                                if (isAtMessageLevel) {
-                                    messageChildren.add(element)
-                                }
-                                // parseElementFull leaves parser at END_TAG of this element
-                            }
-                        }
-                    }
-                    XmlPullParser.END_TAG -> {
-                        if (parser.name == "message") currentMessageDepth--
-                        if (parser.name == "forwarded") inForwarded = false
-                    }
-                }
-                event = parser.next()
-            }
-
-            val finalFrom = realFrom ?: from
-            val finalTo = realTo ?: to
-            val finalId = realId ?: originId ?: id
-
-            // If no body, but known extensions exist — don't discard
-            if (body == null) {
-                val hasKnownExtension = stanza.contains("urn:xmpp:chat-markers:0") ||
-                        stanza.contains("http://jabber.org/protocol/chatstates") ||
-                        stanza.contains("urn:xmpp:receipt") ||
-                        stanza.contains("urn:xmpp:carbons") ||
-                        stanza.contains("https://xabber.com/protocol/groups") ||
-                        type == "headline" || type == "error"
-
-                if (!hasKnownExtension) return null
-            }
-
-            if (timestamp == null && stanza.contains("<delay")) {
-                val delayMatch = Regex("""<delay[^>]+stamp=['"]([^'"]+)['"]""").find(stanza)
-                timestamp = delayMatch?.groupValues?.get(1)?.parseXMPPDateToMillis()
-            }
-
-            return XMPPMessage(
-                raw = stanza,
-                type = type,
-                id = finalId,
-                from = finalFrom,
-                to = finalTo,
-                lang = lang,
-                date = timestamp,
-                body = body,
-                originId = originId,
-                archivedId = archivedId ?: queryId?.let { "query:$it" },
-                children = messageChildren
-            )
-
-        } catch (e: Exception) {
-            Log.e("Stream", "Failed to parse message stanza: ${e.message}\nStanza: ${stanza.take(1000)}", e)
-            return null
-        }
+        return coreParser.parseMessage(stanza)
     }
 
     /**
