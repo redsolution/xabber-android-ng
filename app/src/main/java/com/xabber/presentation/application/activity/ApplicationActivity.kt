@@ -127,6 +127,9 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
     private val realm = Realm.open(defaultRealmConfig())
     private lateinit var drawerLayout: DrawerLayout
     private lateinit var actionBarToggle: ActionBarDrawerToggle
+    private var navigationDrawerInitialized = false
+    private var pendingNavigationHeaderUpdate = false
+    private var pendingPostLaunchUiSetup = false
     private val activeFragment: Fragment?
         get() = supportFragmentManager.findFragmentById(R.id.application_container)
     private val viewModel = ApplicationViewModel()
@@ -315,46 +318,61 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
             drawerLayout = findViewById(R.id.drawer_layout)
             val navigationView = findViewById<NavigationView>(R.id.nav_view)
             val toolbarNav = findViewById<Toolbar>(R.id.toolbar_nav)
-            val statusBarHeight = DisplayManager.getHeightStatusBar()
+            if (!navigationDrawerInitialized) {
+                val statusBarHeight = DisplayManager.getHeightStatusBar()
 
-            ViewCompat.setOnApplyWindowInsetsListener(navigationView) { v, insets ->
-                val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-                v.setPadding(v.paddingLeft, v.paddingTop, v.paddingRight, systemBars.bottom)
-                insets
-            }
-            // Set padding for the toolbar (top padding for status bar)
-            toolbarNav.setPadding(
-                toolbarNav.paddingLeft, statusBarHeight,
-                toolbarNav.paddingRight, toolbarNav.paddingBottom
-            )
+                ViewCompat.setOnApplyWindowInsetsListener(navigationView) { v, insets ->
+                    val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+                    v.setPadding(v.paddingLeft, v.paddingTop, v.paddingRight, systemBars.bottom)
+                    insets
+                }
+                toolbarNav.setPadding(
+                    toolbarNav.paddingLeft, statusBarHeight,
+                    toolbarNav.paddingRight, toolbarNav.paddingBottom
+                )
 
-            val avatarImageView = findViewById<ImageView>(R.id.avatar_image_view)
-            val titleTextView = findViewById<TextView>(R.id.title_text_view)
-            val subtitleTextView = findViewById<TextView>(R.id.subtitle_text_view).also { it.isSelected = true }
-            val account = getPrimaryAccount()
-            val avatar = account?.let { getAvatar(it.id) }
-
-            account?.let {
-                titleTextView.text = it.getAccountName()
-                subtitleTextView.text = it.jid
-            }
-
-            avatar?.let {
-                Glide.with(this).load(it.fileUri).into(avatarImageView)
-                avatarImageView.requestLayout()
+                supportActionBar?.setDisplayShowTitleEnabled(false)
+                supportActionBar?.setDisplayHomeAsUpEnabled(true)
+                actionBarToggle = ActionBarDrawerToggle(this, drawerLayout, toolbarNav, R.string.open, R.string.close)
+                drawerLayout.addDrawerListener(actionBarToggle)
+                actionBarToggle.syncState()
+                navigationView.setNavigationItemSelectedListener(this)
+                drawerLayout.setScrimColor(Color.parseColor("#88000000"))
+                navigationDrawerInitialized = true
             }
 
-            supportActionBar?.setDisplayShowTitleEnabled(false)
-            supportActionBar?.setDisplayHomeAsUpEnabled(true)
-            actionBarToggle = ActionBarDrawerToggle(this, drawerLayout, toolbarNav, R.string.open, R.string.close)
-            drawerLayout.addDrawerListener(actionBarToggle)
-            actionBarToggle.syncState()
-            navigationView.setNavigationItemSelectedListener(this)
-            drawerLayout.setScrimColor(Color.parseColor("#88000000"))
-
+            scheduleNavigationHeaderUpdate()
 
         } finally {
             isUpdatingUI = false
+        }
+    }
+
+    private fun scheduleNavigationHeaderUpdate() {
+        if (pendingNavigationHeaderUpdate) return
+        pendingNavigationHeaderUpdate = true
+        binding.root.post {
+            pendingNavigationHeaderUpdate = false
+            if (isDestroyed || isFinishing) return@post
+            updateNavigationHeader()
+        }
+    }
+
+    private fun updateNavigationHeader() {
+        val avatarImageView = findViewById<ImageView>(R.id.avatar_image_view)
+        val titleTextView = findViewById<TextView>(R.id.title_text_view)
+        val subtitleTextView = findViewById<TextView>(R.id.subtitle_text_view).also { it.isSelected = true }
+        val account = getPrimaryAccount()
+        val avatar = account?.let { getAvatar(it.id) }
+
+        titleTextView.text = account?.getAccountName().orEmpty()
+        subtitleTextView.text = account?.jid.orEmpty()
+
+        if (avatar != null) {
+            Glide.with(this).load(avatar.fileUri).into(avatarImageView)
+            avatarImageView.requestLayout()
+        } else {
+            avatarImageView.setImageDrawable(null)
         }
     }
 
@@ -376,10 +394,6 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         updateUiDependingOnMode(isDualScreenMode())
         setupEdgeToEdge()
         setMask()
-        setChatSettings()
-        handleUnread()
-//        handleContactAddition()
-        subscribeToViewModelData()
 
         if (savedInstanceState == null) { // Only set up if not restoring state
             if (supportFragmentManager.findFragmentById(R.id.application_container) == null) {
@@ -392,18 +406,30 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         } else {
             setupIconChat(chatListViewModel.showUnreadOnly.value ?: false)
         }
+
+        schedulePostLaunchUiSetup()
+    }
+
+    private fun schedulePostLaunchUiSetup() {
+        if (pendingPostLaunchUiSetup) return
+        pendingPostLaunchUiSetup = true
+        binding.root.post {
+            pendingPostLaunchUiSetup = false
+            if (isDestroyed || isFinishing) return@post
+            setChatSettings()
+            handleUnread()
+            subscribeToViewModelData()
+        }
     }
 
 
 
     private fun getPrimaryAccount(): AccountDto? {
-        var accountDto: AccountDto? = null
         val realmAccounts = realm.query(com.xabber.data_base.models.account.AccountStorageItem::class, "enabled = true").find()
-        val primaryAccount = realmAccounts.minByOrNull { T -> T.order }
-        if (primaryAccount != null) {
-            accountDto = primaryAccount.toAccountDto()
-        }
-        return accountDto
+        val primaryAccount = PrimaryAccountSelector.selectPrimaryAccountId(
+            realmAccounts.map { it.primary to it.order }
+        ) ?: return null
+        return realmAccounts.firstOrNull { it.primary == primaryAccount }?.toAccountDto()
     }
 
     private fun getAvatar(id: String): AvatarDto? {
@@ -851,31 +877,9 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         ChatSettingsManager.designType = designType
         ChatSettingsManager.gradient = gradient
 
-        val gradientDraw = when (gradient) {
-            1 -> R.drawable.gradient_bordo
-            2 -> R.drawable.gradient_red
-            3 -> R.drawable.gradient_orange
-            4 -> R.drawable.gradient_yellish_blue
-            5 -> R.drawable.gradient_light_green
-            6 -> R.drawable.gradient_light_yellish_blue
-            7 -> R.drawable.gradient_blue
-            8 -> R.drawable.gradient_purple
-            else -> {
-                R.drawable.gradient_blue
-            }
-        }
+        val gradientDraw = ChatSettingsVisuals.gradientDrawable(gradient)
         binding.detailContainer.setBackgroundResource(gradientDraw)
-        val designDrawable = when (designType) {
-            1 -> R.drawable.aliens_repeat
-            2 -> R.drawable.cats_repeat
-            3 -> R.drawable.hearts_repeat
-            4 -> R.drawable.flowers_repeat
-            5 -> R.drawable.meadow_repeat
-            6 -> R.drawable.summer_repeat
-            else -> {
-                R.drawable.aliens_repeat
-            }
-        }
+        val designDrawable = ChatSettingsVisuals.patternDrawable(designType)
         binding.fr.setBackgroundResource(designDrawable)
     }
 
