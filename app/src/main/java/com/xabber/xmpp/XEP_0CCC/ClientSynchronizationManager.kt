@@ -48,7 +48,8 @@ class ClientSynchronizationManager(private val owner: String) {
 
     private val processPush = ProcessPushUpdateUseCase(processPage, fillGaps, repo)
 
-    // Called by Account after stream features are discovered
+    // stream/customVer/after kept for API compatibility with Account.kt;
+    // stream is re-fetched internally via AccountManager.
     suspend fun sync(stream: Stream, customVer: String? = null, after: String? = null, boundJid: String? = null): Boolean {
         if (boundJid != null) this.boundJid = boundJid
         runSync.start(owner)

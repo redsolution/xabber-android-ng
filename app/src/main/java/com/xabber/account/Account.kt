@@ -789,6 +789,7 @@ class Account : XMPPStreamDelegate {
 
             rosterManager?.close()
             rosterManager = null
+            syncManager?.reset()
             syncManager = null
             messageArchiveManager?.reset()
             messageArchiveManager = null
