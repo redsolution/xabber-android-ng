@@ -20,18 +20,18 @@ class ProcessSyncPageUseCase(
             }
 
             val existing = repo.getConversation(owner, conv.jid, conv.type)
+            val merged = mergeMarkers.execute(existing?.markers, conv.markers, conv.lastMessage?.timestampUs)
+
             val markersChanged = existing == null
-                || existing.markers.displayedId != conv.markers.displayedId
-                || existing.markers.deliveredId != conv.markers.deliveredId
-                || existing.markers.unreadCount != conv.markers.unreadCount
+                || existing.markers.displayedId != merged.displayedId
+                || existing.markers.deliveredId != merged.deliveredId
+                || existing.markers.unreadCount != merged.unreadCount
 
             val message = conv.lastMessage?.let { msg ->
                 val msgWithState = msg.copy(currentState = existing?.lastMessageState)
                 val state = determineState.execute(msgWithState, conv.markers)
                 ConversationWrite.MessageUpdate(msgWithState, state)
             }
-
-            val merged = mergeMarkers.execute(existing?.markers, conv.markers, conv.lastMessage?.timestampUs)
 
             detectGap(existing, conv)?.let { gaps += it }
 
@@ -52,7 +52,7 @@ class ProcessSyncPageUseCase(
         val serverLastMsgMs = conv.lastMessage?.timestampUs?.div(1000L) ?: return null
         val localLastMsgMs = existing?.lastMessageDateMs ?: return null
         val isFixed = existing.isGapFixedForSession
-        if (!MergeSyncMarkersUseCase().shouldRequestGapFill(localLastMsgMs, serverLastMsgMs, isFixed)) return null
+        if (!mergeMarkers.shouldRequestGapFill(localLastMsgMs, serverLastMsgMs, isFixed)) return null
         return GapFillRequest(
             jid = conv.jid,
             conversationType = conv.type,
