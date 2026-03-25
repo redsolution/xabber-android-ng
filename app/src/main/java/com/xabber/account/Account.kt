@@ -38,6 +38,7 @@ import com.xabber.utils.isForwardedMessage
 import com.xabber.utils.parseTimestamp
 import com.xabber.xmpp.XEP_0CCC.ClientSynchronizationManager
 import com.xabber.xmpp.auth.DevicesOCRA
+import com.xabber.xmpp.auth.redactSecretForLog
 import com.xabber.xmpp.avatar.XmppAvatarManager
 import com.xabber.xmpp.device.DeviceStorageItem
 import com.xabber.xmpp.jid.XMPPJID
@@ -630,7 +631,10 @@ class Account : XMPPStreamDelegate {
             val devices = realm.query<DeviceStorageItem>("owner = $0", jid).find()
             Log.d(TAG, "Found ${devices.size} devices for JID: $jid")
             devices.forEach { device ->
-                Log.d(TAG, "Device: uid=${device.uid}, expire=${device.expire}, authCounter=${device.authCounter}, secret=${device.secret.substring(0, 8)}..., validationKey=${device.validationKey.substring(0, 8)}...")
+                Log.d(
+                    TAG,
+                    "Device: uid=${redactSecretForLog(device.uid)}, expire=${device.expire}, authCounter=${device.authCounter}, hasSecret=${device.secret.isNotBlank()}, hasValidationKey=${device.validationKey.isNotBlank()}"
+                )
             }
             val validDevice = devices.firstOrNull { it.expire > System.currentTimeMillis().toDouble() / 1000 }
             isDeviceRegistered = validDevice != null
