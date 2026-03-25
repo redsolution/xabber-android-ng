@@ -21,7 +21,7 @@ class SyncProtocolSender {
         val syncId = NanoId.generateOptimized(9, "_-0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", 63, 16)
         val query = buildString {
             append("<query xmlns='https://xabber.com/protocol/synchronization'")
-            if (version.isNotEmpty() && version != "0") {
+            if (version.isNotEmpty()) {
                 append(" stamp='$version'")
             }
             append(">")
@@ -107,12 +107,13 @@ class SyncProtocolSender {
     private suspend fun writeWithRetry(stream: Stream, stanza: String) {
         var attempt = 0
         while (attempt < 3) {
-            if (stream.socket?.write(stanza) == true) return
-            attempt++
-            if (attempt < 3) {
-                Log.w(TAG, "IQ write failed (attempt $attempt/3), retrying in 1s: ${stanza.take(80)}")
-                delay(1_000L)
+            try {
+                if (stream.socket?.write(stanza) == true) return
+            } catch (e: Exception) {
+                Log.w(TAG, "Write attempt $attempt failed: ${e.message}")
             }
+            attempt++
+            if (attempt < 3) delay(1_000L)
         }
         Log.w(TAG, "IQ write failed after 3 attempts: ${stanza.take(80)}")
     }
