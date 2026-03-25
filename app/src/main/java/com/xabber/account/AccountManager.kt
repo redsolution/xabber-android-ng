@@ -545,71 +545,76 @@ object AccountManager {
     fun loadFirstAccount(): Account? {
         var account: Account? = null
         runBlocking(Dispatchers.IO) {
-            try {
+            account = loadFirstAccountAsync()
+        }
+        return account
+    }
+
+    suspend fun loadFirstAccountAsync(): Account? = withContext(Dispatchers.IO) {
+        var account: Account? = null
+        try {
+            synchronized(users) {
+                if (users.isNotEmpty()) {
+                    account = users.first()
+                    Log.d("AccountManager", "First account already loaded: ${account?.jid}")
+                    return@withContext account
+                }
+            }
+
+            val accountStorageItem = realm.query(AccountStorageItem::class).first().find()
+            if (accountStorageItem == null) {
+                Log.w("AccountManager", "No accounts found in loadFirstAccount")
+                return@withContext null
+            }
+
+            val jid = accountStorageItem.jid
+            val username = accountStorageItem.username
+            Log.d(
+                "AccountManager",
+                "Attempting to load and connect first account with jid $jid"
+            )
+
+            val newUserAccount = Account().apply {
+                this.jid = jid
+                this.username = username
+                loadAccount()
+            }
+
+            Log.d("AccountManager", "connectingAccounts ADD (startup) $jid")
+            connectingAccounts.add(jid)
+            val streamConnected = try {
+                newUserAccount.connectStream()
+            } finally {
+                connectingAccounts.remove(jid)
+                Log.d("AccountManager", "connectingAccounts REMOVE (startup) $jid, set=$connectingAccounts")
+            }
+            if (!streamConnected) {
+                Log.w("AccountManager", "Initial connect failed for $jid, keeping account offline")
+            }
+
+            synchronized(users) {
+                users.add(newUserAccount)
+            }
+
+            account = newUserAccount
+            Log.d(
+                "AccountManager",
+                "Loaded account $jid, connected=$streamConnected"
+            )
+        } catch (e: Exception) {
+            Log.e("AccountManager", "Failed to load and connect first account: ${e.message}", e)
+            account?.let {
                 synchronized(users) {
-                    if (users.isNotEmpty()) {
-                        account = users.first()
-                        Log.d("AccountManager", "First account already loaded: ${account?.jid}")
-                        return@runBlocking
-                    }
-                }
-
-                val accountStorageItem = realm.query(AccountStorageItem::class).first().find()
-                if (accountStorageItem == null) {
-                    Log.w("AccountManager", "No accounts found in loadFirstAccount")
-                    return@runBlocking
-                }
-
-                val jid = accountStorageItem.jid
-                val username = accountStorageItem.username
-                Log.d(
-                    "AccountManager",
-                    "Attempting to load and connect first account with jid $jid"
-                )
-
-                val newUserAccount = Account().apply {
-                    this.jid = jid
-                    this.username = username
-                    loadAccount()
-                }
-
-                Log.d("AccountManager", "connectingAccounts ADD (startup) $jid")
-                connectingAccounts.add(jid)
-                val streamConnected = try {
-                    newUserAccount.connectStream()
-                } finally {
-                    connectingAccounts.remove(jid)
-                    Log.d("AccountManager", "connectingAccounts REMOVE (startup) $jid, set=$connectingAccounts")
-                }
-                if (!streamConnected) {
-                    // Network may be temporarily unavailable — keep the account, reconnect later
-                    Log.w("AccountManager", "Initial connect failed for $jid, keeping account offline")
-                }
-
-                synchronized(users) {
-                    users.add(newUserAccount)
-                }
-
-                account = newUserAccount
-                Log.d(
-                    "AccountManager",
-                    "Loaded account $jid, connected=$streamConnected"
-                )
-            } catch (e: Exception) {
-                Log.e("AccountManager", "Failed to load and connect first account: ${e.message}", e)
-                account?.let {
-                    synchronized(users) {
-                        users.removeIf { user -> user.jid == it.jid }
-                        passwordStorageHelper?.remove(it.jid)
-                        Log.d(
-                            "AccountManager",
-                            "Removed account with jid ${it.jid} from users list and password storage due to failure"
-                        )
-                    }
+                    users.removeIf { user -> user.jid == it.jid }
+                    passwordStorageHelper?.remove(it.jid)
+                    Log.d(
+                        "AccountManager",
+                        "Removed account with jid ${it.jid} from users list and password storage due to failure"
+                    )
                 }
             }
         }
-        return account
+        return@withContext account
     }
 
     fun logout(jid: String): Boolean {

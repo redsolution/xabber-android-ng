@@ -96,12 +96,14 @@ import com.xabber.utils.toAccountDto
 import com.xabber.utils.toAvatarDto
 import com.xabber.xmpp.avatar.AvatarStorageItem
 import io.realm.kotlin.Realm
+import io.realm.kotlin.ext.query
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.Lifecycle
+import com.xabber.data_base.models.account.AccountStorageItem
 
 
 /**
@@ -210,7 +212,6 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         // Keep currentDetailTag in sync whenever the backstack changes (e.g. popBackStack via close())
         supportFragmentManager.addOnBackStackChangedListener { syncCurrentDetailTag() }
 
-setupNavigationDrawer()
         setupBackPressedHandler()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
@@ -220,9 +221,12 @@ setupNavigationDrawer()
 
 
         // Check for an existing account
-        if (AccountManager.loadFirstAccount() != null) {
+        if (hasStoredAccount()) {
             Log.d("ApplicationActivity", "Found existing account, initializing app")
             initializeAppForLoggedInUser(savedInstanceState)
+            lifecycleScope.launch {
+                AccountManager.loadFirstAccountAsync()
+            }
         } else {
             Log.d("ApplicationActivity", "No account found, redirecting to onboarding")
             goToOnboarding()
@@ -359,11 +363,16 @@ setupNavigationDrawer()
         shapeView = findViewById(R.id.shape_view)
     }
 
+    private fun hasStoredAccount(): Boolean {
+        return realm.query<AccountStorageItem>("enabled = true").first().find() != null
+    }
+
     override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences?, key: String?) {
         shapeView?.setDrawable(MaskManager.mask)
     }
 
     private fun initializeAppForLoggedInUser(savedInstanceState: Bundle?) {
+        setupNavigationDrawer()
         updateUiDependingOnMode(isDualScreenMode())
         setupEdgeToEdge()
         setMask()
