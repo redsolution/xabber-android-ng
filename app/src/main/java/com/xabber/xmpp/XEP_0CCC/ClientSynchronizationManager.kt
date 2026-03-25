@@ -537,6 +537,7 @@ class ClientSynchronizationManager(owner: String) {
                     val existingChat = query<LastChatsStorageItem>(
                         "jid = $0 AND owner = $1 AND conversationType_ = $2", jid, owner, type
                     ).first().find()
+                    val previousMessageDateMs = existingChat?.messageDate ?: 0L
 
                     // Skip expensive per-message state update if markers haven't changed
                     val markersChanged = existingChat == null
@@ -618,42 +619,30 @@ class ClientSynchronizationManager(owner: String) {
                             this.pinnedPosition = pinned
                             this.isArchived = status == "archived"
 
+                            val mergedMarkers = mergeSyncChatMarkers(
+                                current = SyncChatMarkersSnapshot(
+                                    unread = this.unread,
+                                    displayedId = this.displayedId,
+                                    deliveredId = this.deliveredId,
+                                    lastReadMessageDate = this.lastReadMessageDate,
+                                ),
+                                actualUnread = actualUnread,
+                                incomingDisplayedId = displayedId,
+                                incomingDeliveredId = deliveredId,
+                                unreadCount = unreadCount,
+                                unreadAfterUs = unreadAfterUs,
+                                messageDateMs = messageDateUs / 1000L,
+                            )
+                            this.unread = mergedMarkers.unread
+                            this.displayedId = mergedMarkers.displayedId
+                            this.deliveredId = mergedMarkers.deliveredId
+                            this.lastReadMessageDate = mergedMarkers.lastReadMessageDate
+
                             if (messageDateUs / 1000L > this.messageDate) {
-                                this.unread = actualUnread
                                 this.messageDate = messageDateUs / 1000L
                                 this.lastMessageId = lastMessageId
                                 this.rosterItem = rosterItem
                                 this.lastMessage = lastMessage
-
-                                // Обновляем displayedId и deliveredId если они есть
-                                if (displayedId != null) {
-                                    val currentDisplayedIdUs = this.displayedId?.toLongOrNull() ?: 0L
-                                    val newDisplayedIdUs = displayedId.toLongOrNull() ?: 0L
-                                    if (newDisplayedIdUs > currentDisplayedIdUs) {
-                                        this.displayedId = displayedId
-                                    }
-                                }
-
-                                if (deliveredId != null) {
-                                    val currentDeliveredIdUs = this.deliveredId?.toLongOrNull() ?: 0L
-                                    val newDeliveredIdUs = deliveredId.toLongOrNull() ?: 0L
-                                    if (newDeliveredIdUs > currentDeliveredIdUs) {
-                                        this.deliveredId = deliveredId
-                                    }
-                                }
-
-                                // Обновляем lastReadMessageDate из unread after
-                                val unreadAfterMs = if (unreadAfterUs != null) unreadAfterUs / 1000L else 0L
-                                val newLastReadMessageDate = when {
-                                    unreadAfterMs > 0 -> unreadAfterMs
-                                    unreadCount == 0L -> messageDateUs / 1000L
-                                    else -> this.lastReadMessageDate
-                                }
-
-                                if (newLastReadMessageDate > this.lastReadMessageDate) {
-                                    this.lastReadMessageDate = newLastReadMessageDate
-                                }
-
 //                                Log.d("ClientSyncManager",
 //                                    "Updated chat for $jid: " +
 //                                            "unread=$actualUnread (server=$unreadCount), " +
@@ -675,23 +664,24 @@ class ClientSynchronizationManager(owner: String) {
                         "jid = $0 AND owner = $1 AND conversationType_ = $2", jid, owner, type
                     ).first().find()
 
-                    if (chatForGap != null && !chatForGap.isHistoryGapFixedForSession) {
-                        val localLastMessageDateMs = chatForGap.messageDate
-                        val hasGap = serverLastMessageDateMs > localLastMessageDateMs + 1000L // 1s tolerance
-
-                        if (hasGap) {
-                            gapFillRequests.add(GapFillRequest(
-                                jid = jid,
-                                conversationType = conversationType,
-                                localLastMessageDateMs = localLastMessageDateMs,
-                                serverLastMessageDateMs = serverLastMessageDateMs
-                            ))
-                            Log.d("ClientSyncManager",
-                                "Gap detected for jid=$jid: local=$localLastMessageDateMs, server=$serverLastMessageDateMs")
-                        } else {
-                            // No gap — mark as fixed for session
-                            findLatest(chatForGap)?.isHistoryGapFixedForSession = true
-                        }
+                    if (chatForGap != null && shouldRequestGapFill(
+                            previousMessageDateMs = previousMessageDateMs,
+                            serverLastMessageDateMs = serverLastMessageDateMs,
+                            isHistoryGapFixedForSession = chatForGap.isHistoryGapFixedForSession,
+                        )
+                    ) {
+                        val localLastMessageDateMs = previousMessageDateMs
+                        gapFillRequests.add(GapFillRequest(
+                            jid = jid,
+                            conversationType = conversationType,
+                            localLastMessageDateMs = localLastMessageDateMs,
+                            serverLastMessageDateMs = serverLastMessageDateMs
+                        ))
+                        Log.d("ClientSyncManager",
+                            "Gap detected for jid=$jid: local=$localLastMessageDateMs, server=$serverLastMessageDateMs")
+                    } else if (chatForGap != null && !chatForGap.isHistoryGapFixedForSession) {
+                        // No gap — mark as fixed for session
+                        findLatest(chatForGap)?.isHistoryGapFixedForSession = true
                     }
                 }
         }
