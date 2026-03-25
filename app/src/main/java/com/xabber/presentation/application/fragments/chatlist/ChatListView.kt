@@ -35,6 +35,7 @@ class ChatListView : BaseFragment(R.layout.fragment_chat_list), ChatListAdapter.
         setupRecyclerView()
         observeViewModel()
         binding.btnMarkAllMessagesUnread.setOnClickListener { viewModel.markAllAsRead() }
+        scheduleStartupLoads()
     }
 
     private fun setupToolbar() {
@@ -45,12 +46,24 @@ class ChatListView : BaseFragment(R.layout.fragment_chat_list), ChatListAdapter.
         adapter = ChatListAdapter(this)
         binding.chatList.adapter = adapter
         binding.chatList.layoutManager = LinearLayoutManager(requireContext())
+        binding.chatList.setHasFixedSize(true)
+        binding.chatList.itemAnimator = null
+        binding.chatList.setItemViewCacheSize(8)
         binding.chatList.addItemDecoration(
             DividerItemDecoration(requireContext(), LinearLayoutManager.VERTICAL).apply {
                 setChatListOffsetMode(ChatListBaseFragment.ChatListAvatarState.SHOW_AVATARS)
                 skipDividerOnLastItem(true)
             }
         )
+    }
+
+    private fun scheduleStartupLoads() {
+        view?.post {
+            viewModel.startInitialLoad()
+            view?.post {
+                viewModel.startEnrichment()
+            }
+        }
     }
 
     @SuppressLint("NotifyDataSetChanged")

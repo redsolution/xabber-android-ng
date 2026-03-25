@@ -1,26 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.slidingpanelayout.widget.SlidingPaneLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.drawerlayout.widget.DrawerLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/outer_sliding_pane_layout"
+    android:id="@+id/drawer_layout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:fitsSystemWindows="true"
     android:theme="@style/Theme.MaterialComponents.Light.Bridge"
     tools:context=".presentation.application.activity.ApplicationActivity">
 
-    <!-- DrawerLayout now wraps the entire content -->
-    <androidx.drawerlayout.widget.DrawerLayout
-        android:id="@+id/drawer_layout"
+    <androidx.slidingpanelayout.widget.SlidingPaneLayout
+        android:id="@+id/sliding_pane_layout"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:fitsSystemWindows="true"
-        tools:context=".presentation.application.activity.ApplicationActivity">
-
-        <!-- Main content inside SlidingPaneLayout -->
-        <androidx.slidingpanelayout.widget.SlidingPaneLayout
-            android:id="@+id/sliding_pane_layout"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent">
+        android:layout_height="match_parent">
 
             <!-- Main Container -->
             <androidx.constraintlayout.widget.ConstraintLayout
@@ -76,11 +68,6 @@
                     </TextView>
 
                 </androidx.appcompat.widget.Toolbar>
-                <FrameLayout
-                    android:id="@+id/fragment_container"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent" />
-
                 <com.google.android.material.bottomnavigation.BottomNavigationView
                     android:id="@+id/bottom_nav_bar"
                     android:layout_width="0dp"
@@ -101,6 +88,7 @@
                     android:layout_height="?attr/actionBarSize"
                     android:alpha="0.4"
                     android:background="@color/grey_600"
+                    android:visibility="gone"
                     app:layout_constraintBottom_toTopOf="@id/delimiter"
                     app:layout_constraintEnd_toEndOf="parent"
                     app:layout_constraintTop_toTopOf="parent" />
@@ -111,6 +99,7 @@
                     android:layout_height="0dp"
                     android:alpha="0.3"
                     android:background="@color/blue_grey_200"
+                    android:visibility="gone"
                     app:layout_constraintBottom_toTopOf="@id/delimiter_navbar"
                     app:layout_constraintEnd_toEndOf="parent"
                     app:layout_constraintTop_toBottomOf="@id/delimiter_toolbar" />
@@ -121,6 +110,7 @@
                     android:layout_height="0dp"
                     android:alpha="0.2"
                     android:background="@color/grey_100"
+                    android:visibility="gone"
                     app:layout_constraintBottom_toBottomOf="@id/bottom_nav_bar"
                     app:layout_constraintEnd_toEndOf="parent"
                     app:layout_constraintTop_toTopOf="@id/bottom_nav_bar" />
@@ -142,7 +132,7 @@
 
             </androidx.constraintlayout.widget.ConstraintLayout>
 
-        </androidx.slidingpanelayout.widget.SlidingPaneLayout>
+    </androidx.slidingpanelayout.widget.SlidingPaneLayout>
 
         <!-- Navigation Drawer -->
         <com.google.android.material.navigation.NavigationView
@@ -151,7 +141,6 @@
             android:layout_height="match_parent"
             android:layout_gravity="start"
             app:labelVisibilityMode="unlabeled"
-            app:headerLayout="@layout/drawer_header"
             android:fitsSystemWindows="true"
             app:menu="@menu/side_menu">
 
@@ -247,8 +236,6 @@
                     </androidx.constraintlayout.widget.ConstraintLayout>
                 </LinearLayout>
             </LinearLayout>
-        </com.google.android.material.navigation.NavigationView>
+    </com.google.android.material.navigation.NavigationView>
 
-    </androidx.drawerlayout.widget.DrawerLayout>
-
-</androidx.slidingpanelayout.widget.SlidingPaneLayout>
+</androidx.drawerlayout.widget.DrawerLayout>

@@ -2,19 +2,21 @@ package com.xabber.presentation.application.fragments.chatlist
 
 import android.graphics.PorterDuff
 import android.graphics.PorterDuffColorFilter
-import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.os.Bundle
+import android.os.SystemClock
 import android.text.Spannable
 import android.text.SpannableString
 import android.text.style.ForegroundColorSpan
 import android.view.Gravity
+import android.util.Log
 import androidx.appcompat.widget.PopupMenu
 import androidx.core.content.ContextCompat
-import androidx.core.text.HtmlCompat
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
+import com.bumptech.glide.request.RequestListener
+import com.bumptech.glide.request.target.Target
 import com.xabber.R
 import com.xabber.data_base.models.messages.MessageSendingState
 import com.xabber.data_base.models.presences.ResourceStatus
@@ -38,19 +40,18 @@ import com.xabber.presentation.application.manage.MaskManager
 import com.xabber.utils.dateFormat
 import com.xabber.utils.parcelable
 import java.util.*
-import android.graphics.Bitmap
-import android.graphics.Canvas
-import android.graphics.Color
-import android.graphics.Paint
-import android.graphics.Rect
 import com.xabber.xmpp.avatar.DefaultAvatarManager
+import java.util.concurrent.atomic.AtomicBoolean
 
 class ChatListViewHolder(
     val binding: ItemChatListBinding // Make binding public for adapter access
 ) : RecyclerView.ViewHolder(binding.root) {
 
+    init {
+        binding.shapeView.setDrawable(MaskManager.mask)
+    }
+
     fun bind(chatListDto: ChatListDto, listener: ChatListAdapter.ChatListener) {
-        binding.cardview.radius = 0f
         setColorDivider(chatListDto.colorKey)
         setAvatar(chatListDto.opponentJid, chatListDto.avatarUrl)
         setName(chatListDto.getChatName())
@@ -72,6 +73,7 @@ class ChatListViewHolder(
             setupAndShowPopupMenu(chatListDto.id, chatListDto.muteExpired, chatListDto.pinnedDate, chatListDto.getChatName(), listener)
             true
         }
+        logFirstVisibleBind(chatListDto.id)
     }
 
     private fun setColorDivider(colorKey: String) {
@@ -79,64 +81,47 @@ class ChatListViewHolder(
 //        binding.accountColorIndicator.setBackgroundResource(color)
     }
 
-    private fun getAvatarColor(jid: String): Int {
-
-        return Color.parseColor("#45B7D1")
-    }
-
-    fun createInitialsBitmap(initials: String, jid: String): Bitmap {
-        // Размер аватара (в пикселях, подгони под свой layout)
-        val size = 48 // или resources.getDimensionPixelSize(R.dimen.avatar_size)
-
-        val backgroundPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = getAvatarColor(jid)
-        }
-
-        val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.WHITE
-            textSize = (size * 0.5f)
-            isFakeBoldText = true
-            textAlign = Paint.Align.CENTER // Горизонтальное центрирование
-        }
-
-        // Создаём Bitmap
-        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
-        val canvas = Canvas(bitmap)
-
-        // Рисуем квадратный фон (по всему Bitmap)
-        canvas.drawRect(0f, 0f, size.toFloat(), size.toFloat(), backgroundPaint)
-
-        // Точное центрирование текста
-        val fontMetrics = textPaint.fontMetrics
-        val x = size / 2f
-        val baselineY = (size / 2f) + (fontMetrics.descent - fontMetrics.ascent) / 2f - 4
-
-        // Рисуем текст
-        canvas.drawText(initials, x, baselineY, textPaint)
-
-        return bitmap
-    }
-
     private fun setAvatar(contactJid: String, avatarUrl: String?) {
-        binding.shapeView.setDrawable(MaskManager.mask)
-
-        val initials = contactJid.take(1).uppercase()
-        val initialsBitmap = createInitialsBitmap(initials, contactJid)
+        binding.tvInitials.text = ChatListAvatarPlaceholder.initialsForJid(contactJid)
+        binding.imChatListItemAvatar.setBackgroundColor(
+            ChatListAvatarPlaceholder.backgroundColorForJid(contactJid)
+        )
 
         if (avatarUrl != null) {
-            // Check for locally cached PubSub avatar (avatarUrl may be a cache key)
             val localFile = DefaultAvatarManager.getStoredImageFile(avatarUrl)
             val loadSource: Any = localFile ?: avatarUrl
 
             Glide.with(itemView)
                 .load(loadSource)
-                .placeholder(BitmapDrawable(itemView.resources, initialsBitmap))
-                .error(BitmapDrawable(itemView.resources, initialsBitmap))
+                .listener(object : RequestListener<Drawable> {
+                    override fun onLoadFailed(
+                        e: com.bumptech.glide.load.engine.GlideException?,
+                        model: Any?,
+                        target: Target<Drawable>,
+                        isFirstResource: Boolean
+                    ): Boolean {
+                        binding.tvInitials.isVisible = true
+                        binding.imChatListItemAvatar.setImageDrawable(null)
+                        return false
+                    }
+
+                    override fun onResourceReady(
+                        resource: Drawable,
+                        model: Any,
+                        target: Target<Drawable>?,
+                        dataSource: com.bumptech.glide.load.DataSource,
+                        isFirstResource: Boolean
+                    ): Boolean {
+                        binding.tvInitials.isVisible = false
+                        return false
+                    }
+                })
                 .into(binding.imChatListItemAvatar)
+            binding.tvInitials.isVisible = false
         } else {
-            Glide.with(itemView)
-                .load(initialsBitmap)
-                .into(binding.imChatListItemAvatar)
+            Glide.with(itemView).clear(binding.imChatListItemAvatar)
+            binding.imChatListItemAvatar.setImageDrawable(null)
+            binding.tvInitials.isVisible = true
         }
     }
 
@@ -162,10 +147,7 @@ class ChatListViewHolder(
             binding.tvChatListLastMessage.text = spannable
             binding.imMessageStatus.isVisible = false
         } else {
-            binding.tvChatListLastMessage.text = HtmlCompat.fromHtml(
-                lastMessageBody,
-                HtmlCompat.FROM_HTML_MODE_COMPACT
-            )
+            binding.tvChatListLastMessage.text = ChatListPreviewFormatter.format(lastMessageBody)
         }
     }
 
@@ -364,7 +346,7 @@ class ChatListViewHolder(
                 PAYLOAD_CHAT_MESSAGE_BODY -> {
                     val lastMessageBody = bundle.getString(PAYLOAD_CHAT_MESSAGE_BODY)
                     if (lastMessageBody != null && lastMessageBody.isNotEmpty()) {
-                        binding.tvChatListLastMessage.text = lastMessageBody
+                        binding.tvChatListLastMessage.text = ChatListPreviewFormatter.format(lastMessageBody)
                         binding.imMessageStatus.isVisible = chatListDto.lastMessageIsOutgoing && chatListDto.draftMessage == null && chatListDto.unread.isEmpty()
                     }
                 }
@@ -395,6 +377,16 @@ class ChatListViewHolder(
                 }
             }
         }
+    }
+
+    private fun logFirstVisibleBind(chatId: String) {
+        if (firstBindLogged.compareAndSet(false, true)) {
+            Log.d("ChatListVH", "startup[first_row_bound] ${SystemClock.elapsedRealtime()} chatId=$chatId")
+        }
+    }
+
+    companion object {
+        private val firstBindLogged = AtomicBoolean(false)
     }
 
 }

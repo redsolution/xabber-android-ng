@@ -104,6 +104,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.Lifecycle
 import com.xabber.data_base.models.account.AccountStorageItem
+import android.view.ViewTreeObserver
 
 
 /**
@@ -130,6 +131,8 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
     private var navigationDrawerInitialized = false
     private var pendingNavigationHeaderUpdate = false
     private var pendingPostLaunchUiSetup = false
+    private var startupTrace: StartupTrace? = null
+    private var firstPreDrawLogged = false
     private val activeFragment: Fragment?
         get() = supportFragmentManager.findFragmentById(R.id.application_container)
     private val viewModel = ApplicationViewModel()
@@ -174,16 +177,20 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
     @RequiresApi(Build.VERSION_CODES.O)
     @SuppressLint("WrongViewCast")
     override fun onCreate(savedInstanceState: Bundle?) {
+        startupTrace = StartupTrace("ApplicationActivity", "ApplicationActivity")
         setTheme(R.style.ThemeApplication)
         super.onCreate(savedInstanceState)
+        startupTrace?.step("super.onCreate")
         val toolbarNav = findViewById<Toolbar>(R.id.toolbar_nav)
         setSupportActionBar(toolbarNav)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         supportActionBar?.setHomeButtonEnabled(true)
         setContentView(binding.root)
+        registerFirstFrameTrace()
         initViews()
         setupStatusBar()
         currentActivity = this
+        startupTrace?.step("base ui initialized")
 
         // Observe reconnecting state from AccountManager and drive the snackbar.
         // lifecycleScope runs on Main and is cancelled when the activity is destroyed.
@@ -216,18 +223,24 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         supportFragmentManager.addOnBackStackChangedListener { syncCurrentDetailTag() }
 
         setupBackPressedHandler()
+        startupTrace?.step("back press handler ready")
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
                 ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), 100)
             }
         }
+        startupTrace?.step("notification permission check")
 
 
         // Check for an existing account
-        if (hasStoredAccount()) {
+        val hasStoredAccount = hasStoredAccount()
+        startupTrace?.step("checked stored account")
+        if (hasStoredAccount) {
             Log.d("ApplicationActivity", "Found existing account, initializing app")
             initializeAppForLoggedInUser(savedInstanceState)
+            startupTrace?.step("logged-in ui initialized")
             lifecycleScope.launch {
+                startupTrace?.step("account load coroutine launched")
                 AccountManager.loadFirstAccountAsync()
             }
         } else {
@@ -244,6 +257,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         sharedPreferences.registerOnSharedPreferenceChangeListener(this)
 
         handleNotificationIntent(intent)
+        startupTrace?.step("onCreate complete")
 
 //        CoroutineScope(Dispatchers.IO).launch {
 //            Account().loadAccount()
@@ -271,6 +285,24 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
 //        }
 
 
+    }
+
+    private fun registerFirstFrameTrace() {
+        binding.root.viewTreeObserver.addOnPreDrawListener(object : ViewTreeObserver.OnPreDrawListener {
+            override fun onPreDraw(): Boolean {
+                if (!firstPreDrawLogged) {
+                    firstPreDrawLogged = true
+                    startupTrace?.step("first pre-draw")
+                    binding.root.post {
+                        startupTrace?.step("first frame committed")
+                    }
+                }
+                if (binding.root.viewTreeObserver.isAlive) {
+                    binding.root.viewTreeObserver.removeOnPreDrawListener(this)
+                }
+                return true
+            }
+        })
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -309,6 +341,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
     }
 
     private fun setupNavigationDrawer() {
+        startupTrace?.step("setupNavigationDrawer:start")
         if (isLoggingOut || isUpdatingUI) {
             Log.w("ApplicationActivity", "Skipping setupNavigationDrawer during logout or UI update")
             return
@@ -345,6 +378,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
 
         } finally {
             isUpdatingUI = false
+            startupTrace?.step("setupNavigationDrawer:end")
         }
     }
 
@@ -354,7 +388,9 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         binding.root.post {
             pendingNavigationHeaderUpdate = false
             if (isDestroyed || isFinishing) return@post
+            startupTrace?.step("navigation header update:start")
             updateNavigationHeader()
+            startupTrace?.step("navigation header update:end")
         }
     }
 
@@ -392,8 +428,11 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
     private fun initializeAppForLoggedInUser(savedInstanceState: Bundle?) {
         setupNavigationDrawer()
         updateUiDependingOnMode(isDualScreenMode())
+        startupTrace?.step("dual screen update")
         setupEdgeToEdge()
+        startupTrace?.step("edge-to-edge ready")
         setMask()
+        startupTrace?.step("mask applied")
 
         if (savedInstanceState == null) { // Only set up if not restoring state
             if (supportFragmentManager.findFragmentById(R.id.application_container) == null) {
@@ -402,12 +441,15 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
                     replace(R.id.application_container, ChatListView())
                     addToBackStack("chat_list_root")
                 }
+                startupTrace?.step("chat list fragment committed")
             }
         } else {
             setupIconChat(chatListViewModel.showUnreadOnly.value ?: false)
+            startupTrace?.step("restored chat icon state")
         }
 
         schedulePostLaunchUiSetup()
+        startupTrace?.step("post launch ui scheduled")
     }
 
     private fun schedulePostLaunchUiSetup() {
@@ -416,9 +458,13 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
         binding.root.post {
             pendingPostLaunchUiSetup = false
             if (isDestroyed || isFinishing) return@post
+            startupTrace?.step("post launch ui:start")
             setChatSettings()
+            startupTrace?.step("chat settings applied")
             handleUnread()
+            startupTrace?.step("unread handler ready")
             subscribeToViewModelData()
+            startupTrace?.step("view model subscriptions ready")
         }
     }
 

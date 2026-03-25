@@ -1,6 +1,7 @@
 package com.xabber.presentation.application.fragments.chatlist
 
 import android.os.Build
+import android.os.SystemClock
 import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.lifecycle.LiveData
@@ -30,33 +31,67 @@ class ChatListViewModel : ViewModel() {
     private val _showUnreadOnly = MutableLiveData(false)
     val showUnreadOnly: LiveData<Boolean> = _showUnreadOnly
 
-    private var combinedJob: Job? = null
-
-    init {
-        observeChatsAndPresences()
-    }
+    private var chatsJob: Job? = null
+    private var enrichmentJob: Job? = null
+    private var initialLoadStarted = false
+    private var enrichmentStarted = false
+    private var initialPlainListSubmitted = false
+    private var pendingEnrichmentStart = false
+    private val startupMs = SystemClock.elapsedRealtime()
 
     fun setShowUnreadOnly(show: Boolean) {
         _showUnreadOnly.value = show
-        observeChatsAndPresences()          // restart with new filter
+        restartActiveLoad()
     }
 
     fun toggleUnreadOnly() {
         _showUnreadOnly.value = !(_showUnreadOnly.value ?: false)
-        observeChatsAndPresences()
+        restartActiveLoad()
     }
 
-    private fun observeChatsAndPresences() {
-        combinedJob?.cancel()
-        combinedJob = viewModelScope.launch {
-            // Show snapshot immediately (avoids empty list)
+    fun startInitialLoad(force: Boolean = false) {
+        if (initialLoadStarted && !force) return
+        initialLoadStarted = true
+        chatsJob?.cancel()
+        chatsJob = viewModelScope.launch {
             val snapshot = model.getChatsSnapshot(_showUnreadOnly.value == true)
                 .applyAccountColors()
                 .sortedWith(compareByDescending<ChatListDto> { it.pinnedDate }
                     .thenByDescending { it.lastMessageDate })
             _chats.value = snapshot
+            initialPlainListSubmitted = true
+            logStartup("snapshot submitted size=${snapshot.size}")
+            maybeStartPendingEnrichment()
 
-            // Combine live flows for updates
+            model.getChatsFlow(_showUnreadOnly.value == true)
+                .map { chatList ->
+                    chatList
+                        .applyAccountColors()
+                        .sortedWith(compareByDescending<ChatListDto> { it.pinnedDate }
+                            .thenByDescending { it.lastMessageDate })
+                }
+                .collect { list ->
+                    _chats.value = list
+                    initialPlainListSubmitted = true
+                    logStartup("plain list submitted size=${list.size}")
+                    maybeStartPendingEnrichment()
+                }
+        }
+    }
+
+    fun startEnrichment(force: Boolean = false) {
+        if (enrichmentStarted && !force) return
+        if (!initialPlainListSubmitted && !force) {
+            pendingEnrichmentStart = true
+            return
+        }
+        enrichmentStarted = true
+        pendingEnrichmentStart = false
+        startInitialLoad(force = force)
+        chatsJob?.cancel()
+        enrichmentJob?.cancel()
+        enrichmentJob = viewModelScope.launch {
+            logStartup("enrichment started")
             model.getChatsFlow(_showUnreadOnly.value == true)
                 .flatMapLatest { chatList: List<ChatListDto> ->
                     model.observePresencesForChats(chatList).map { presenceMap: Map<String, ChatListModel.ContactPresence> ->
@@ -75,12 +110,30 @@ class ChatListViewModel : ViewModel() {
                                 .thenByDescending { it.lastMessageDate })
                     }
                 }
-                .collect { list: List<ChatListDto> ->
-                    val top = list.firstOrNull()
-                    Log.d("ChatListVM", "combine emit: size=${list.size}, top=${top?.opponentJid}, body='${top?.lastMessageBody?.take(30)}', unread=${top?.unread}, date=${top?.lastMessageDate}")
+                .collect { list ->
                     _chats.value = list
+                    logStartup("enriched list submitted size=${list.size}")
                 }
         }
+    }
+
+    private fun restartActiveLoad() {
+        initialPlainListSubmitted = false
+        pendingEnrichmentStart = false
+        when {
+            enrichmentStarted -> startEnrichment(force = true)
+            initialLoadStarted -> startInitialLoad(force = true)
+        }
+    }
+
+    private fun maybeStartPendingEnrichment() {
+        if (pendingEnrichmentStart && !enrichmentStarted) {
+            startEnrichment(force = true)
+        }
+    }
+
+    private fun logStartup(message: String) {
+        Log.d("ChatListVM", "startup[ChatListViewModel] ${SystemClock.elapsedRealtime() - startupMs}ms $message")
     }
 
     fun selectChat(chatId: String) {
@@ -95,7 +148,8 @@ class ChatListViewModel : ViewModel() {
     fun markAllAsRead() = viewModelScope.launch { model.markAllAsRead() }
 
     override fun onCleared() {
-        combinedJob?.cancel()
+        chatsJob?.cancel()
+        enrichmentJob?.cancel()
         model.close()
         super.onCleared()
     }

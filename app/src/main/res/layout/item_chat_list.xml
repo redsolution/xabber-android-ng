@@ -1,24 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/chat_ground"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:elevation="0dp"
-    android:clickable="true"
-    android:focusable="true"
-    android:id="@+id/cardview"
-    app:cardCornerRadius="0dp"
-    app:cardMaxElevation="0dp"
-    android:background="@color/transparent"
-    app:cardElevation="0dp">
-
-    <androidx.constraintlayout.widget.ConstraintLayout
-        android:id="@+id/chat_ground"
-        android:layout_width="match_parent"
-        android:layout_height="@dimen/chat_list_item_height">
-
-
+    android:layout_height="@dimen/chat_list_item_height">
 
         <com.xabber.utils.custom.ShapeOfView
             android:id="@+id/shape_view"
@@ -46,7 +32,9 @@
             android:id="@+id/tv_initials"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textColor="@color/grey_900"
+            android:textColor="@color/white"
+            android:textSize="18sp"
+            android:textStyle="bold"
             android:visibility="gone"
             app:layout_constraintBottom_toBottomOf="@id/shape_view"
             app:layout_constraintEnd_toEndOf="@id/shape_view"
@@ -65,31 +53,23 @@
             app:layout_constraintEnd_toEndOf="@id/shape_view"
             tools:src="@drawable/status_bot_chat" />
 
-        <FrameLayout
+        <TextView
+            android:id="@+id/tv_chat_item_name"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginStart="16dp"
             android:layout_marginEnd="@dimen/margin_small"
+            android:drawablePadding="@dimen/drawable_mute_padding"
+            android:ellipsize="end"
+            android:fontFamily="sans-serif-medium"
+            android:maxLines="1"
+            android:singleLine="true"
+            android:textColor="@color/grey_900"
+            android:textSize="@dimen/text_size_item_chat_title"
             app:layout_constraintBottom_toTopOf="@id/space_center_vertical"
             app:layout_constraintEnd_toStartOf="@id/tv_timestamp"
-            app:layout_constraintStart_toEndOf="@id/shape_view">
-
-            <TextView
-                android:id="@+id/tv_chat_item_name"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="start"
-                android:drawablePadding="@dimen/drawable_mute_padding"
-                android:ellipsize="end"
-                android:fontFamily="sans-serif-medium"
-                android:maxLines="1"
-                android:singleLine="true"
-                android:textColor="@color/grey_900"
-                android:textSize="@dimen/text_size_item_chat_title"
-                app:layout_constraintBottom_toTopOf="@id/space_center_vertical"
-                app:layout_constraintStart_toEndOf="@id/im_chat_list_item_avatar"
-                tools:text="Name Surname" />
-        </FrameLayout>
+            app:layout_constraintStart_toEndOf="@id/shape_view"
+            tools:text="Name Surname" />
 
         <View
             android:id="@+id/space_center_vertical"
@@ -101,26 +81,20 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
 
-        <FrameLayout
+        <TextView
+            android:id="@+id/tv_chat_list_last_message"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginStart="16dp"
             android:layout_marginEnd="@dimen/margin_small"
+            android:ellipsize="end"
+            android:lines="1"
+            android:textColor="@color/grey_text_2"
+            android:textSize="@dimen/text_size_item_chat_message"
             app:layout_constraintEnd_toStartOf="@id/lin_chat_data"
             app:layout_constraintStart_toEndOf="@id/shape_view"
-            app:layout_constraintTop_toBottomOf="@id/space_center_vertical">
-
-            <TextView
-                android:id="@+id/tv_chat_list_last_message"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="start"
-                android:ellipsize="end"
-                android:lines="1"
-                android:textColor="@color/grey_text_2"
-                android:textSize="@dimen/text_size_item_chat_message"
-                tools:text="@tools:sample/lorem/random" />
-        </FrameLayout>
+            app:layout_constraintTop_toBottomOf="@id/space_center_vertical"
+            tools:text="@tools:sample/lorem/random" />
 
         <TextView
             android:id="@+id/tv_timestamp"
@@ -186,5 +160,4 @@
             app:layout_constraintStart_toEndOf="@id/tv_timestamp"
             app:layout_constraintTop_toTopOf="@id/tv_timestamp"
             tools:visibility="visible" />
-    </androidx.constraintlayout.widget.ConstraintLayout>
-</androidx.cardview.widget.CardView>
+</androidx.constraintlayout.widget.ConstraintLayout>

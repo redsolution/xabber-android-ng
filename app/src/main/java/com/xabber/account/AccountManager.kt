@@ -7,6 +7,7 @@ import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
 import android.os.Build
+import android.os.SystemClock
 import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationManagerCompat
@@ -39,6 +40,7 @@ import com.xabber.xmpp.roster.RosterDisplayNameStorageItem
 import com.xabber.xmpp.voip.voIPManager.CallMetadataStorageItem
 import com.xabber.xmpp.x509.X509StorageItem
 import com.xabber.common.SettingManager
+import com.xabber.presentation.application.activity.StartupTrace
 import io.realm.kotlin.Realm
 import io.realm.kotlin.ext.query
 import io.realm.kotlin.types.RealmObject
@@ -551,12 +553,14 @@ object AccountManager {
     }
 
     suspend fun loadFirstAccountAsync(): Account? = withContext(Dispatchers.IO) {
+        val startupTrace = StartupTrace("AccountManager", "loadFirstAccountAsync", SystemClock.elapsedRealtime())
         var account: Account? = null
         try {
             synchronized(users) {
                 if (users.isNotEmpty()) {
                     account = users.first()
                     Log.d("AccountManager", "First account already loaded: ${account?.jid}")
+                    startupTrace.step("reused existing account")
                     return@withContext account
                 }
             }
@@ -564,8 +568,10 @@ object AccountManager {
             val accountStorageItem = realm.query(AccountStorageItem::class).first().find()
             if (accountStorageItem == null) {
                 Log.w("AccountManager", "No accounts found in loadFirstAccount")
+                startupTrace.step("no stored accounts")
                 return@withContext null
             }
+            startupTrace.step("queried first account")
 
             val jid = accountStorageItem.jid
             val username = accountStorageItem.username
@@ -579,6 +585,7 @@ object AccountManager {
                 this.username = username
                 loadAccount()
             }
+            startupTrace.step("account object loaded")
 
             Log.d("AccountManager", "connectingAccounts ADD (startup) $jid")
             connectingAccounts.add(jid)
@@ -588,6 +595,7 @@ object AccountManager {
                 connectingAccounts.remove(jid)
                 Log.d("AccountManager", "connectingAccounts REMOVE (startup) $jid, set=$connectingAccounts")
             }
+            startupTrace.step("connectStream finished")
             if (!streamConnected) {
                 Log.w("AccountManager", "Initial connect failed for $jid, keeping account offline")
             }
@@ -595,12 +603,14 @@ object AccountManager {
             synchronized(users) {
                 users.add(newUserAccount)
             }
+            startupTrace.step("account cached")
 
             account = newUserAccount
             Log.d(
                 "AccountManager",
                 "Loaded account $jid, connected=$streamConnected"
             )
+            startupTrace.step("loadFirstAccountAsync complete")
         } catch (e: Exception) {
             Log.e("AccountManager", "Failed to load and connect first account: ${e.message}", e)
             account?.let {
@@ -613,6 +623,7 @@ object AccountManager {
                     )
                 }
             }
+            startupTrace.step("loadFirstAccountAsync failed")
         }
         return@withContext account
     }

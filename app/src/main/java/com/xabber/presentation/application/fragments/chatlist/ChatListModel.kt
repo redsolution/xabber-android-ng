@@ -4,7 +4,6 @@ import android.os.Build
 import androidx.annotation.RequiresApi
 import com.xabber.data_base.defaultRealmConfig
 import com.xabber.data_base.models.last_chats.LastChatsStorageItem
-import com.xabber.data_base.models.messages.MessageSendingState
 import com.xabber.data_base.models.presences.ResourceStatus
 import com.xabber.data_base.models.presences.ResourceStorageItem
 import com.xabber.data_base.models.sync.ConversationType
@@ -13,8 +12,6 @@ import com.xabber.utils.toChatListDto
 import io.realm.kotlin.Realm
 import io.realm.kotlin.ext.query
 import io.realm.kotlin.ext.realmSetOf
-import io.realm.kotlin.notifications.ResultsChange
-import io.realm.kotlin.notifications.UpdatedResults
 import io.realm.kotlin.query.Sort
 import io.realm.kotlin.types.RealmSet
 import kotlinx.coroutines.Dispatchers
@@ -48,15 +45,7 @@ class ChatListModel {
         val result = realm.query<LastChatsStorageItem>(query)
             .sort("pinnedPosition" to Sort.DESCENDING, "messageDate" to Sort.DESCENDING)
             .find()
-        result.map { item ->
-            val baseDto = item.toChatListDto()
-            if (baseDto.isGroup) {
-                baseDto
-            } else {
-                val presenceStatus = getBestPresence(item.owner, item.jid)
-                baseDto.copy(status = presenceStatus)
-            }
-        }
+        result.map { item -> item.toChatListDto() }
     }
 
     private fun buildQuery(accounts: RealmSet<String>, showUnreadOnly: Boolean): String {
@@ -126,19 +115,6 @@ class ChatListModel {
     }
 
     fun close() = realm.close()
-
-    private fun getBestPresence(owner: String, contactJid: String): ResourceStatus {
-        val resources = realm.query<ResourceStorageItem>(
-            "owner = $0 AND jid = $1",
-            owner, contactJid
-        ).find()
-        if (resources.isEmpty()) return ResourceStatus.OFFLINE
-        // Choose the resource with highest status rank, then highest priority
-        return resources.maxWithOrNull(
-            compareBy<ResourceStorageItem> { it.status.rank() }
-                .thenByDescending { it.priority }
-        )?.status ?: ResourceStatus.OFFLINE
-    }
 
     fun observeAllPresences(): Flow<Map<String, ContactPresence>> {
         return realm.query<ResourceStorageItem>()
