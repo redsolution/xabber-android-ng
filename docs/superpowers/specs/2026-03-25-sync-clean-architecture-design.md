@@ -104,7 +104,8 @@ com/xabber/
 │   │   ├── DetermineMessageStateUseCase.kt # pure: message state from markers + currentState
 │   │   └── MergeSyncMarkersUseCase.kt      # pure: merge current + incoming markers
 │   └── repository/
-│       └── SyncRepository.kt              # interface only
+│       ├── SyncRepository.kt              # interface only
+│       └── GapFillPort.kt                 # NEW: domain port for MAM adapter
 │
 └── data/sync/                              # NEW: Data layer
     ├── SyncRepositoryImpl.kt               # all Realm operations
@@ -181,7 +182,8 @@ data class StoredConversation(
 sealed class ConversationWrite {
     data class Upsert(
         val conv: SyncConversation,
-        val mergedMarkers: SyncMarkers,
+        val finalMarkers: SyncMarkers,  // merged result — the ONLY markers applyBatch() writes to DB
+                                        // conv.markers is raw server data; never write it directly
         val message: MessageUpdate?,
         val markersChanged: Boolean,    // if false, applyBatch() skips per-message state scan
         val createRosterIfMissing: Boolean,  // true when jid not in existing roster set
@@ -217,8 +219,8 @@ class RunSyncUseCase(
         sender.sendSyncRequest(stream, owner, version = repo.getVersion(owner), after = null)
     }
 
-    suspend fun onPageReceived(page: SyncPage, stream: Stream, owner: String) {
-        if (page.isFullPage) {
+    suspend fun onPageReceived(page: SyncPage, stream: Stream?, owner: String) {
+        if (page.isFullPage && stream != null) {
             sender.sendSyncRequest(stream, owner, version = repo.getVersion(owner), after = page.lastStamp)
         }
         val gaps = processPage.execute(page, owner)
@@ -269,7 +271,7 @@ class ProcessSyncPageUseCase(
             detectGap(existing, conv)?.let { gaps += it }
             writes += ConversationWrite.Upsert(
                 conv = conv,
-                mergedMarkers = merged,
+                finalMarkers = merged,
                 message = message,
                 markersChanged = markersChanged,
                 createRosterIfMissing = conv.jid !in existingRosterJids,
@@ -301,7 +303,16 @@ class DetermineMessageStateUseCase {
 Pure function. Extracted directly from `ClientSynchronizationMergeRules.kt` — max-wins for IDs, timestamp-based for `lastReadMessageDate`.
 
 ### FillGapsUseCase
-Receives a list of `GapFillRequest`, delegates to `MessageArchiveManager` (MAM). Marks `isHistoryGapFixedForSession = true` on completion via `SyncRepository`. No changes to MAM internals.
+Receives a list of `GapFillRequest` and delegates to a `GapFillPort` interface — defined in the domain layer so `FillGapsUseCase` stays pure with no dependency on `account/` or `xmpp/`.
+
+```kotlin
+// domain/sync/repository/GapFillPort.kt
+interface GapFillPort {
+    suspend fun requestArchive(request: GapFillRequest, owner: String, onComplete: suspend () -> Unit)
+}
+```
+
+`MessageArchiveManager` (in `xmpp/`) implements `GapFillPort` via a thin adapter constructed in `ClientSynchronizationManager`. On completion, the adapter calls `repo.markGapFixed()`. No changes to MAM internals.
 
 ---
 
@@ -389,7 +400,8 @@ class ClientSynchronizationManager(private val owner: String) {
 
     suspend fun sync(stream: Stream) = runSync.start(stream, owner)
 
-    suspend fun read(page: SyncPage, stream: Stream) {
+    // stream is null when called from the message-stanza path (no pipelining needed)
+    suspend fun read(page: SyncPage, stream: Stream?) {
         if (page.isPush) processPush.execute(page, owner)
         else runSync.onPageReceived(page, stream, owner)
     }
@@ -453,7 +465,7 @@ Server → SyncIqModule.handle() [type=set]
 ```
 Server → MessageManager+CommonReceiver → ClientSynchronizationManager.receiveClientSyncRaw(raw)
   → SyncProtocolParser.parseMessageStanza(raw) → SyncPage? (isPush=true)
-  → if non-null: ClientSynchronizationManager.read(page, stream=null)
+  → if non-null: ClientSynchronizationManager.read(page, stream=null)  // Stream? — no pipelining
   → ProcessPushUpdateUseCase.execute()
       → ProcessSyncPageUseCase.execute()   // same path as above
       → repo.saveVersion()
