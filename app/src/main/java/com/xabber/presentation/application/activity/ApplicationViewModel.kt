@@ -8,12 +8,11 @@ import com.xabber.data_base.defaultRealmConfig
 import com.xabber.data_base.models.account.AccountStorageItem
 import com.xabber.data_base.models.last_chats.LastChatsStorageItem
 import com.xabber.dto.AccountDto
-import com.xabber.utils.toAccountDto
 import io.realm.kotlin.Realm
-import io.realm.kotlin.ext.realmSetOf
+import io.realm.kotlin.ext.query
+import io.realm.kotlin.notifications.InitialResults
 import io.realm.kotlin.notifications.ResultsChange
 import io.realm.kotlin.notifications.UpdatedResults
-import io.realm.kotlin.types.RealmSet
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -22,86 +21,48 @@ class ApplicationViewModel : ViewModel() {
     val realm = Realm.open(defaultRealmConfig())
     var showUnreadOnly = false
 
-    private val enabledAccounts = HashSet<String>()
     private val _unreadMessages = MutableLiveData<Int>()
     val unreadMessage: LiveData<Int> = _unreadMessages
-    private val _accounts = MutableLiveData<List<AccountDto>>()
-    init {
-        getUnreadMessages()
-    }
+    private var unreadListenerStarted = false
 
     fun checkIsEntry(): Boolean {
-        var isEntry = false
-        realm.writeBlocking {
-            val account = this.query(AccountStorageItem::class).first().find()
-            isEntry = account != null
-        }
-        return isEntry
-    }
-
-
-
-    fun initAccountListListener() {
-        viewModelScope.launch(Dispatchers.IO) {
-            val request =
-                realm.query(AccountStorageItem::class, "enabled = true")
-            request.asFlow().collect { changes: ResultsChange<AccountStorageItem> ->
-                when (changes) {
-                    is UpdatedResults -> {
-                        changes.list.forEach { enabledAccounts.add(it.jid) }
-                    }
-                    else -> {}
-                }
-            }
-        }
+        return realm.query<AccountStorageItem>().first().find() != null
     }
 
     fun initUnreadMessagesCountListener() {
-        val accounts = getEnableAccountList()
+        if (unreadListenerStarted) return
+        unreadListenerStarted = true
         viewModelScope.launch(Dispatchers.IO) {
-            val request =
-                realm.query(
-                    LastChatsStorageItem::class,
-                    "owner IN {${accounts.joinToString { "'$it'" }}} && isArchived = false && muteExpired <= 0 && unread > 0"
-                )
+            val accounts = getEnabledAccountIds()
+            val query = ApplicationUnreadQueryBuilder.build(accounts)
+            if (query == null) {
+                withContext(Dispatchers.Main) { _unreadMessages.value = 0 }
+                return@launch
+            }
+            val request = realm.query(LastChatsStorageItem::class, query)
             request.asFlow().collect { changes: ResultsChange<LastChatsStorageItem> ->
                 when (changes) {
+                    is InitialResults -> publishUnreadCount(changes.list)
                     is UpdatedResults -> {
-                        var count = 0
-                        changes.list.forEach { count += it.unread }
-                        withContext(Dispatchers.Main) { _unreadMessages.value = count }
+                        publishUnreadCount(changes.list)
                     }
-                    else -> {}
                 }
             }
         }
     }
 
-    private fun getEnableAccountList(): RealmSet<String> {
-        val enabledAccountsIdes = realmSetOf("")
-        realm.writeBlocking {
-            val enabledAccounts = this.query(com.xabber.data_base.models.account.AccountStorageItem::class, "enabled = true").find()
-            enabledAccounts.forEach { enabledAccountsIdes.add(it.primary) }
-        }
-        return enabledAccountsIdes
-    }
-
-    fun getUnreadMessages() {
-        val accounts = getEnableAccountList()
-        viewModelScope.launch(Dispatchers.IO) {
-            val request =
-                realm.query(
-                    LastChatsStorageItem::class,
-                    "owner IN {${accounts.joinToString { "'$it'" }}} && isArchived = false && muteExpired <= 0 && unread > 0"
-                ).find()
-            var count = 0
-            request.forEach {
-                if (it.unread > 0) count += it.unread
-            }
-            withContext(Dispatchers.Main) {
-                _unreadMessages.value = count
-            }
+    private suspend fun publishUnreadCount(chats: List<LastChatsStorageItem>) {
+        val count = chats.sumOf { it.unread }
+        withContext(Dispatchers.Main) {
+            _unreadMessages.value = count
         }
     }
 
+    private fun getEnabledAccountIds(): Set<String> {
+        return realm.query<AccountStorageItem>("enabled = true")
+            .find()
+            .mapTo(linkedSetOf()) { it.primary }
+            .filter { it.isNotBlank() }
+            .toSet()
+    }
 }

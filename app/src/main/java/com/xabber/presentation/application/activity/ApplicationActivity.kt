@@ -950,12 +950,10 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
     }
 
     private fun subscribeToViewModelData() {
-        viewModel.initAccountListListener()
         viewModel.initUnreadMessagesCountListener()
         viewModel.unreadMessage.observe(this) {
             // handler.postDelayed(showBadge, 300)
         }
-        viewModel.getUnreadMessages()
     }
 
     private fun setupIconChat(unreadChats: Boolean) {
