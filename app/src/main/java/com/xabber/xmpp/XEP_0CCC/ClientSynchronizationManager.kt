@@ -769,8 +769,13 @@ class ClientSynchronizationManager(owner: String) {
             val lastStamp = (conversations.item(conversations.length - 1) as? Element)
                 ?.getAttribute("stamp")?.toLongOrNull()?.toString() ?: stamp
             val stream = AccountManager.find(owner)?.stream
+            // Capture version NOW — readConversationMetadata + "version = stamp" run concurrently
+            // on Dispatchers.IO. If the launched coroutine reads `this.version` after the update,
+            // it sends stamp=PAGE_N_STAMP and after=PAGE_N_STAMP to the server, which returns 0
+            // results and kills pagination.
+            val versionForNextPage = version
             if (stream != null) {
-                scope.launch { sync(stream, version, after = lastStamp) }
+                scope.launch { sync(stream, versionForNextPage, after = lastStamp) }
                 Log.d("ClientSyncManager", "Pipelined page request (after=$lastStamp), returned=$returnedCount")
             } else {
                 Log.w("ClientSyncManager", "No stream available for pagination sync for $owner")
