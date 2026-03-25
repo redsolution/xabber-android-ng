@@ -85,6 +85,8 @@ class SyncRepositoryImpl(private val realm: Realm) : SyncRepository {
                             "jid = $0 AND owner = $1 AND conversationType_ = $2",
                             write.jid, owner, write.type
                         ).first().find()
+                        // Only the chat entry is removed — MessageStorageItems are left in place.
+                        // This matches existing behaviour (the old CSM did the same).
                         chat?.let { findLatest(it)?.let { latest -> delete(latest) } }
                     }
                     is ConversationWrite.Upsert -> applyUpsert(owner, write)
@@ -155,7 +157,7 @@ class SyncRepositoryImpl(private val realm: Realm) : SyncRepository {
                     id = msg.messageId,
                     fromJid = if (msg.outgoing) owner else jid,
                     body = msg.body,
-                    timestampUs = msg.sentDate * 1000L,
+                    timestampUs = msg.sentDate * 1000L, // sentDate stored in ms; *1000 → µs for displayedId/deliveredId comparison
                     isOutgoing = msg.outgoing,
                     groupNickname = null,
                     currentState = msg.state,
