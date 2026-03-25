@@ -211,8 +211,22 @@ class PresenceManager(private val owner: String, private val socket: Socket) {
         val startTime = System.currentTimeMillis()
         var contactPresenceCount = 0
         try {
-            val rosterItems = realm.query<RosterStorageItem>("owner = $0", owner).find().associateBy { RosterStorageItem.genPrimary(it.jid, owner) }
-            val resourceItems = realm.query<ResourceStorageItem>("owner = $0", owner).find().associateBy { it.primary }
+            val rosterPrimaryKeys = buildRosterPrimaryKeysForBatch(owner, presences)
+            val resourcePrimaryKeys = buildResourcePrimaryKeysForBatch(owner, presences)
+            val rosterItems = if (rosterPrimaryKeys.isEmpty()) {
+                emptyMap()
+            } else {
+                realm.query<RosterStorageItem>("primary IN $0", rosterPrimaryKeys)
+                    .find()
+                    .associateBy { it.primary }
+            }
+            val resourceItems = if (resourcePrimaryKeys.isEmpty()) {
+                emptyMap()
+            } else {
+                realm.query<ResourceStorageItem>("primary IN $0", resourcePrimaryKeys)
+                    .find()
+                    .associateBy { it.primary }
+            }
 
             // Process in smaller chunks to avoid blocking
             presences.chunked(20).forEach { chunk ->
@@ -241,7 +255,10 @@ class PresenceManager(private val owner: String, private val socket: Socket) {
         } catch (e: Exception) {
             Log.e(TAG, "Error processing presence batch: ${e.message}")
         }
-        Log.d(TAG, "Processed batch of ${presences.size} presence stanzas in ${System.currentTimeMillis() - startTime}ms: $contactPresenceCount contact presences")
+        Log.d(
+            TAG,
+            "Processed batch of ${presences.size} presence stanzas in ${System.currentTimeMillis() - startTime}ms: $contactPresenceCount contact presences"
+        )
     }
 
     private fun didReceiveSubscribeRequest(presence: ParsedPresence, realm: MutableRealm, rosterItems: Map<String, RosterStorageItem>) {
@@ -281,7 +298,6 @@ class PresenceManager(private val owner: String, private val socket: Socket) {
 
         // Unavailable → remove the resource entirely so it doesn't pollute rank()
         if (presence.type == "unavailable") {
-            Log.d(TAG, "Contact presence: $fromJid/$resource → DELETED (unavailable)")
             val resourceItem = resourceItems[primaryKey]
             if (resourceItem != null) {
                 realm.findLatest(resourceItem)?.let { realm.delete(it) }
@@ -297,7 +313,6 @@ class PresenceManager(private val owner: String, private val socket: Socket) {
             null -> ResourceStatus.ONLINE
             else -> ResourceStatus.ONLINE
         }
-        Log.d(TAG, "Contact presence: $fromJid/$resource → ${status.rawValue} (show=${presence.show})")
         val statusMessage = presence.status ?: ""
         val priority = presence.priority ?: 0
 
@@ -320,6 +335,29 @@ class PresenceManager(private val owner: String, private val socket: Socket) {
                 this.priority = priority
                 this.timestamp = System.currentTimeMillis()
             }, UpdatePolicy.ALL)
+        }
+    }
+
+    companion object {
+        internal fun buildRosterPrimaryKeysForBatch(owner: String, presences: List<ParsedPresence>): Set<String> {
+            return presences
+                .asSequence()
+                .mapNotNull { it.from?.substringBefore("/") }
+                .filter { it.isNotBlank() }
+                .map { RosterStorageItem.genPrimary(it, owner) }
+                .toSet()
+        }
+
+        internal fun buildResourcePrimaryKeysForBatch(owner: String, presences: List<ParsedPresence>): Set<String> {
+            return presences
+                .asSequence()
+                .mapNotNull { presence ->
+                    val from = presence.from ?: return@mapNotNull null
+                    val bare = from.substringBefore("/")
+                    val resource = from.substringAfter("/", "")
+                    if (bare.isBlank()) null else ResourceStorageItem.genPrimary(bare, owner, resource)
+                }
+                .toSet()
         }
     }
 
