@@ -20,6 +20,7 @@ import com.xabber.xmpp.messages.XMPPMessage
 import com.xabber.xmpp.messages.XMLElement
 import com.xabber.xmpp.messages.messages_manager.MessageCommonReceiver
 import com.xabber.xmpp.core.parser.CoreStanzaParser
+import com.xabber.xmpp.core.storage.LegacyStreamPersistenceRepository
 import io.realm.kotlin.Realm
 import io.realm.kotlin.UpdatePolicy
 import io.realm.kotlin.ext.query
@@ -78,6 +79,7 @@ enum class StreamState {
 @RequiresApi(Build.VERSION_CODES.O)
 class Stream(var jid: String, var port: Int = 5222) {
     private val coreParser = CoreStanzaParser("Stream")
+    private val persistenceRepository = LegacyStreamPersistenceRepository(jid)
     var delegate: XMPPStreamDelegate? = null
     @PrimaryKey
     var host: String = extractHostFromJid(jid)
@@ -127,7 +129,7 @@ class Stream(var jid: String, var port: Int = 5222) {
 
     init {
         streamScope.launch {
-            clearStaleProcessedMessages() // Add this to clear stale entries on initialization
+            clearStaleProcessedMessages()
             processMessageQueue()
 
         }
@@ -140,14 +142,7 @@ class Stream(var jid: String, var port: Int = 5222) {
     }
 
     suspend fun clearStaleProcessedMessages() {
-        val realm = Realm.open(defaultRealmConfig())
-        realm.write {
-            val threshold = System.currentTimeMillis() - 24 * 60 * 60 * 1000 // 24 hours
-            val stale = query<ProcessedMessageId>("owner = $0 AND timestamp < $1", jid, threshold).find()
-            delete(stale)
-            Log.d(TAG, "Cleared ${stale.size} stale ProcessedMessageId entries for owner=$jid")
-        }
-        realm.close()
+        persistenceRepository.clearStaleProcessedMessages()
     }
     fun setOnErrorCallback(callback: (String) -> Unit) {
         onErrorCallback = callback
@@ -462,145 +457,23 @@ class Stream(var jid: String, var port: Int = 5222) {
     }
 
     private suspend fun processMessageQueue() {
-        val processedIds = mutableSetOf<String>()
-        val realm = Realm.open(defaultRealmConfig())
-        try {
-            // Load already-processed IDs once at startup
-            realm.write {
-                val stored = query<ProcessedMessageId>("owner = $0", jid).find()
-                processedIds.addAll(stored.map { it.messageId })
-                Log.d(TAG, "Loaded ${stored.size} processed message IDs for owner=$jid")
+        val processedIds = persistenceRepository.loadProcessedIds()
+        while (true) {
+            val result = messageQueue.receiveCatching()
+            if (result.isClosed) {
+                Log.d(TAG, "processMessageQueue: channel closed, exiting")
+                break
             }
+            val item = result.getOrNull() ?: break
+            currentCoroutineContext().ensureActive()
 
-            while (true) {
-                val result = messageQueue.receiveCatching()
-                if (result.isClosed) {
-                    Log.d(TAG, "processMessageQueue: channel closed, exiting")
-                    break
-                }
-                val item = result.getOrNull() ?: break
-                currentCoroutineContext().ensureActive()
-
-                queueMutex.withLock {
-                    if (item.message.id == null || item.message.from == null || item.message.to == null) {
-                        Log.w(TAG, "Skipping invalid queue item: id=${item.message.id}")
-                        return@withLock
-                    }
-
-                    val messageId = item.message.id!!
-                    if (messageId in processedIds) {
-                        // Double-check in Realm in case of a restart
-                        val msgPrimary = MessageStorageItem.genPrimary(messageId, jid)
-                        val existingMessage = realm.query<MessageStorageItem>("primary = $0", msgPrimary).first().find()
-                        if (existingMessage != null) {
-                            Log.d(TAG, "Confirmed messageId=$messageId already stored, skipping")
-                            return@withLock
-                        }
-                        Log.w(TAG, "messageId=$messageId marked processed but absent in DB, reprocessing")
-                    }
-
-                    val from = item.message.from!!.bare()!!
-                    val to   = item.message.to!!.bare()!!
-                    var isOutgoing = item.isArchived ?: (from == jid)
-                    val opponent = if (isOutgoing) to else from
-
-                    if (item.message.body.isNullOrEmpty()) {
-                        Log.d(TAG, "Skipping bodyless message: id=$messageId")
-                        return@withLock
-                    }
-
-                    Log.d(TAG, "Processing queued message: id=$messageId, from=$from, to=$to, body=${item.message.body.take(50)}")
-
-                    try {
-                        realm.write {
-                            val msgPrimary = MessageStorageItem.genPrimary(messageId, jid)
-                            val existing = query<MessageStorageItem>("primary = $0", msgPrimary).first().find()
-                            if (existing != null) {
-                                Log.d(TAG, "Skipping duplicate message in DB: id=$messageId")
-                                return@write
-                            }
-
-                            val rosterItem = query<RosterStorageItem>("jid = $0 AND owner = $1", opponent, jid).first().find()
-                                ?: copyToRealm(RosterStorageItem().apply {
-                                    primary = RosterStorageItem.genPrimary(opponent, jid)
-                                    this.jid = opponent
-                                    this.owner = jid
-                                    this.customNickname = opponent
-                                }, UpdatePolicy.ALL)
-
-                            val isGroupChat = item.message.element("x", namespace = "https://xabber.com/protocol/groups") != null
-                            if (isGroupChat) {
-                                val userId = item.message.element("x", namespace = "https://xabber.com/protocol/groups")
-                                    ?.element("reference", namespace = "https://xabber.com/protocol/references")
-                                    ?.element("user", namespace = "https://xabber.com/protocol/groups")?.getAttribute("id")
-                                isOutgoing = userId == jid
-                            }
-
-                            val message = copyToRealm(MessageStorageItem().apply {
-                                primary = msgPrimary
-                                this.messageId = messageId
-                                this.owner = jid
-                                this.opponent = opponent
-                                this.body = item.message.body ?: ""
-                                this.date = item.timestamp
-                                this.sentDate = item.timestamp
-                                this.editDate = 0L
-                                this.outgoing = isOutgoing
-                                this.conversationType_ = when {
-                                    item.isClientSync && to == "favorites.redsolution.com" -> "urn:xabber:favorites:0"
-                                    isGroupChat -> "https://xabber.com/protocol/groups"
-                                    else -> "urn:xabber:chat"
-                                }
-                                this.isRead = isOutgoing || item.isArchived
-                                this.state = if (isOutgoing) MessageSendingState.Deliver else MessageSendingState.Sent
-                                this.queryIds = item.queryId
-                                this.archivedId = item.message.element("archived", namespace = "urn:xmpp:mam:tmp")?.getAttribute("id") ?: ""
-                            }, UpdatePolicy.ALL)
-
-                            Log.w("CHECK", "check it STREAM ${message.archivedId}")
-
-                            val conversationType = ConversationType.fromRaw(message.conversationType_)
-                            val chatPrimary = LastChatsStorageItem.genPrimary(opponent, jid, conversationType)
-                            val chat = query<LastChatsStorageItem>("primary = $0", chatPrimary).first().find()
-                            if (chat == null) {
-                                copyToRealm(LastChatsStorageItem().apply {
-                                    primary = chatPrimary
-                                    this.jid = opponent
-                                    this.owner = jid
-                                    this.conversationType_ = conversationType.rawValue
-                                    this.isArchived = false
-                                    this.unread = if (isOutgoing || item.isArchived) 0 else 1
-                                    this.messageDate = item.timestamp
-                                    this.lastMessageId = messageId
-                                    this.rosterItem = rosterItem
-                                    this.lastMessage = message
-                                }, UpdatePolicy.ALL)
-                            } else {
-                                findLatest(chat)?.apply {
-                                    if (item.timestamp / 10000 > this.messageDate) {
-                                        this.unread = if (isOutgoing || item.isArchived) this.unread else this.unread + 1
-                                        this.messageDate = item.timestamp
-                                        this.lastMessageId = messageId
-                                        this.lastMessage = message
-                                        this.isArchived = false
-                                    }
-                                }
-                            }
-
-                            processedIds.add(messageId)
-                            copyToRealm(ProcessedMessageId().apply {
-                                this.messageId = messageId
-                                this.owner = jid
-                                this.timestamp = item.timestamp / 10000
-                            }, UpdatePolicy.ALL)
-                        }
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Error storing message id=$messageId: ${e.message}", e)
-                    }
+            queueMutex.withLock {
+                try {
+                    persistenceRepository.persistQueuedMessage(item, processedIds)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error storing queued message id=${item.message.id}: ${e.message}", e)
                 }
             }
-        } finally {
-            realm.close()
         }
     }
     suspend fun debugDatabaseState() {
@@ -628,13 +501,7 @@ class Stream(var jid: String, var port: Int = 5222) {
 
     fun deleteSelfChats() {
         streamScope.launch {
-            val realm = Realm.open(defaultRealmConfig())
-            realm.write {
-                val selfChats = query<LastChatsStorageItem>("owner = $0 AND jid = $0", jid).find()
-                delete(selfChats)
-                Log.d(TAG, "Deleted ${selfChats.size} self-chats for owner=$jid")
-            }
-            realm.close()
+            persistenceRepository.deleteSelfChats()
         }
     }
 
@@ -726,6 +593,7 @@ class Stream(var jid: String, var port: Int = 5222) {
         messageQueue.close()
         stanzaProcessingScope.cancel()
         streamJob.cancelAndJoin()
+        persistenceRepository.close()
         delegate = null
         Log.d(TAG, "Stream closed for $jid")
     }
