@@ -46,6 +46,8 @@ import java.util.concurrent.atomic.AtomicBoolean
 class ChatListViewHolder(
     val binding: ItemChatListBinding // Make binding public for adapter access
 ) : RecyclerView.ViewHolder(binding.root) {
+    private var boundAvatarUrl: String? = null
+    private var boundContactJid: String? = null
 
     init {
         binding.shapeView.setDrawable(MaskManager.mask)
@@ -82,6 +84,11 @@ class ChatListViewHolder(
     }
 
     private fun setAvatar(contactJid: String, avatarUrl: String?) {
+        if (boundContactJid == contactJid && boundAvatarUrl == avatarUrl) {
+            return
+        }
+        boundContactJid = contactJid
+        boundAvatarUrl = avatarUrl
         binding.tvInitials.text = ChatListAvatarPlaceholder.initialsForJid(contactJid)
         binding.imChatListItemAvatar.setBackgroundColor(
             ChatListAvatarPlaceholder.backgroundColorForJid(contactJid)

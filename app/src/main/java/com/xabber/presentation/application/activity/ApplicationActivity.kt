@@ -131,6 +131,7 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
     private var navigationDrawerInitialized = false
     private var pendingNavigationHeaderUpdate = false
     private var pendingPostLaunchUiSetup = false
+    private var navigationHeaderLoaded = false
     private var startupTrace: StartupTrace? = null
     private var firstPreDrawLogged = false
     private val activeFragment: Fragment?
@@ -368,13 +369,18 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
                 supportActionBar?.setDisplayHomeAsUpEnabled(true)
                 actionBarToggle = ActionBarDrawerToggle(this, drawerLayout, toolbarNav, R.string.open, R.string.close)
                 drawerLayout.addDrawerListener(actionBarToggle)
+                drawerLayout.addDrawerListener(object : DrawerLayout.SimpleDrawerListener() {
+                    override fun onDrawerOpened(drawerView: View) {
+                        if (drawerView.id == R.id.nav_view && !navigationHeaderLoaded) {
+                            scheduleNavigationHeaderUpdate()
+                        }
+                    }
+                })
                 actionBarToggle.syncState()
                 navigationView.setNavigationItemSelectedListener(this)
                 drawerLayout.setScrimColor(Color.parseColor("#88000000"))
                 navigationDrawerInitialized = true
             }
-
-            scheduleNavigationHeaderUpdate()
 
         } finally {
             isUpdatingUI = false
@@ -383,13 +389,14 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
     }
 
     private fun scheduleNavigationHeaderUpdate() {
-        if (pendingNavigationHeaderUpdate) return
+        if (pendingNavigationHeaderUpdate || navigationHeaderLoaded) return
         pendingNavigationHeaderUpdate = true
         binding.root.post {
             pendingNavigationHeaderUpdate = false
             if (isDestroyed || isFinishing) return@post
             startupTrace?.step("navigation header update:start")
             updateNavigationHeader()
+            navigationHeaderLoaded = true
             startupTrace?.step("navigation header update:end")
         }
     }
