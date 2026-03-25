@@ -33,7 +33,10 @@ class ProcessSyncPageUseCase(
                 || existing.markers.unreadCount != merged.unreadCount
 
             val message = conv.lastMessage?.let { msg ->
-                val msgWithState = msg.copy(currentState = existing?.lastMessageState)
+                val msgWithState = msg.copy(
+                    currentState = existing?.lastMessageState,
+                    isOutgoing = msg.fromJid == owner,
+                )
                 val state = determineState.execute(msgWithState, conv.markers)
                 ConversationWrite.MessageUpdate(msgWithState, state)
             }

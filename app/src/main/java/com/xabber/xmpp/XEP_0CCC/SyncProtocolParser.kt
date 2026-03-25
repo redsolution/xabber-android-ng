@@ -125,7 +125,6 @@ class SyncProtocolParser {
             effectiveBody = body
         }
 
-        // isOutgoing defaults to false — corrected later in SyncRepositoryImpl with owner JID
         return SyncMessage(id, fromJid, effectiveBody, timestampUs, isOutgoing = false, groupNickname)
     }
 
