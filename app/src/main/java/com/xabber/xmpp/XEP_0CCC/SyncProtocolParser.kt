@@ -58,7 +58,7 @@ class SyncProtocolParser {
         val pinned = el.getAttribute("pinned")?.toLongOrNull() ?: 0L
         val muteUntilMs = parseMute(el.getAttribute("mute"))
         val markers = parseMarkers(el)
-        val lastMessage = parseLastMessage(el, jid, type)
+        val lastMessage = parseLastMessage(el, jid, type, stamp)
         return SyncConversation(jid, type, stamp, status, pinned, muteUntilMs, markers, lastMessage)
     }
 
@@ -93,24 +93,25 @@ class SyncProtocolParser {
         return SyncMarkers(0, null, null, null)
     }
 
-    private fun parseLastMessage(conv: Element, convJid: String, convType: String): SyncMessage? {
+    private fun parseLastMessage(conv: Element, convJid: String, convType: String, convStamp: String): SyncMessage? {
+        val convStampUs = convStamp.toLongOrNull() ?: 0L
         val metaList = conv.getElementsByTagName("metadata")
         for (i in 0 until metaList.length) {
             val meta = metaList.item(i) as? Element ?: continue
             if (meta.getAttribute("node") != SYNC_NS) continue
             val lastMsgEl = meta.getElementsByTagName("last-message").item(0) as? Element ?: continue
             val msgEl = lastMsgEl.getElementsByTagName("message").item(0) as? Element ?: continue
-            return parseMessageElement(msgEl, convJid, convType)
+            return parseMessageElement(msgEl, convJid, convType, convStampUs)
         }
         return null
     }
 
-    private fun parseMessageElement(el: Element, convJid: String, convType: String): SyncMessage? {
+    private fun parseMessageElement(el: Element, convJid: String, convType: String, convStampUs: Long = 0L): SyncMessage? {
         val id = el.getAttribute("id")?.takeIf { it.isNotBlank() } ?: return null
         val body = el.getElementsByTagName("body").item(0)?.textContent?.trim()
             ?.takeIf { it.isNotEmpty() } ?: return null
         val fromJid = el.getAttribute("from")?.let { XMPPJID(it).bare() }?.takeIf { it.isNotBlank() } ?: convJid
-        val timestampUs = parseTimestampUs(el)
+        val timestampUs = parseTimestampUs(el, convStampUs)
         val isGroupConversation = convType.contains("xabber.com/protocol/groups")
 
         val groupNickname: String?
@@ -128,18 +129,18 @@ class SyncProtocolParser {
         return SyncMessage(id, fromJid, effectiveBody, timestampUs, isOutgoing = false, groupNickname)
     }
 
-    private fun parseTimestampUs(msgEl: Element): Long {
+    private fun parseTimestampUs(msgEl: Element, fallbackUs: Long = 0L): Long {
         val timeEl = msgEl.getElementsByTagName("time").item(0) as? Element
-            ?: return System.currentTimeMillis() * 1000L
+            ?: return if (fallbackUs > 0L) fallbackUs else System.currentTimeMillis() * 1000L
         val stamp = timeEl.getAttribute("stamp")
-            ?: return System.currentTimeMillis() * 1000L
+            ?: return if (fallbackUs > 0L) fallbackUs else System.currentTimeMillis() * 1000L
         return try {
             val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'", Locale.US)
             sdf.timeZone = TimeZone.getTimeZone("UTC")
-            (sdf.parse(stamp)?.time ?: System.currentTimeMillis()) * 1000L
+            (sdf.parse(stamp)?.time ?: (if (fallbackUs > 0L) fallbackUs / 1000L else System.currentTimeMillis())) * 1000L
         } catch (e: Exception) {
             Log.w(TAG, "Failed to parse message timestamp: $stamp")
-            System.currentTimeMillis() * 1000L
+            if (fallbackUs > 0L) fallbackUs else System.currentTimeMillis() * 1000L
         }
     }
 }

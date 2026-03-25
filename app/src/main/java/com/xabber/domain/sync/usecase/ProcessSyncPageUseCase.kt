@@ -14,6 +14,11 @@ class ProcessSyncPageUseCase(
         val existingRosterJids = repo.getRosterJids(owner)
 
         for (conv in page.conversations) {
+            // Skip self-JID, XEN, and server-domain conversations (matches existing CSM filter)
+            if (conv.jid == owner
+                || conv.type == "urn:xabber:xen:0"
+                || conv.jid == owner.substringAfter("@")) continue
+
             if (conv.status == SyncStatus.DELETED) {
                 writes += ConversationWrite.Delete(conv.jid, conv.type)
                 continue
