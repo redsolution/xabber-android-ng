@@ -10,10 +10,14 @@ import androidx.lifecycle.viewModelScope
 import com.xabber.dto.ChatListDto
 import com.xabber.utils.applyAccountColors
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 @RequiresApi(Build.VERSION_CODES.O)
+@OptIn(ExperimentalCoroutinesApi::class)
 class ChatListViewModel : ViewModel() {
 
     private val model = ChatListModel()
@@ -53,28 +57,29 @@ class ChatListViewModel : ViewModel() {
             _chats.value = snapshot
 
             // Combine live flows for updates
-            combine(
-                model.getChatsFlow(_showUnreadOnly.value == true),
-                model.observeAllPresences()
-            ) { chatList, presenceMap ->
-                chatList
-                    .map { dto ->
-                        if (dto.isGroup) {
-                            dto
-                        } else {
-                            val key = "${dto.owner}|${dto.opponentJid}"
-                            val newStatus = presenceMap[key]?.status ?: dto.status
-                            dto.copy(status = newStatus)
-                        }
+            model.getChatsFlow(_showUnreadOnly.value == true)
+                .flatMapLatest { chatList: List<ChatListDto> ->
+                    model.observePresencesForChats(chatList).map { presenceMap: Map<String, ChatListModel.ContactPresence> ->
+                        chatList
+                            .map { dto ->
+                                if (dto.isGroup) {
+                                    dto
+                                } else {
+                                    val key = "${dto.owner}|${dto.opponentJid}"
+                                    val newStatus = presenceMap[key]?.status ?: dto.status
+                                    dto.copy(status = newStatus)
+                                }
+                            }
+                            .applyAccountColors()
+                            .sortedWith(compareByDescending<ChatListDto> { it.pinnedDate }
+                                .thenByDescending { it.lastMessageDate })
                     }
-                    .applyAccountColors()
-                    .sortedWith(compareByDescending<ChatListDto> { it.pinnedDate }
-                        .thenByDescending { it.lastMessageDate })
-            }.collect { list ->
-                val top = list.firstOrNull()
-                Log.d("ChatListVM", "combine emit: size=${list.size}, top=${top?.opponentJid}, body='${top?.lastMessageBody?.take(30)}', unread=${top?.unread}, date=${top?.lastMessageDate}")
-                _chats.value = list
-            }
+                }
+                .collect { list: List<ChatListDto> ->
+                    val top = list.firstOrNull()
+                    Log.d("ChatListVM", "combine emit: size=${list.size}, top=${top?.opponentJid}, body='${top?.lastMessageBody?.take(30)}', unread=${top?.unread}, date=${top?.lastMessageDate}")
+                    _chats.value = list
+                }
         }
     }
 

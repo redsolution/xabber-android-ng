@@ -160,6 +160,31 @@ class ChatListModel {
             .distinctUntilChanged()
     }
 
+    fun observePresencesForChats(chats: List<ChatListDto>): Flow<Map<String, ContactPresence>> {
+        val query = buildPresenceQueryForChats(chats)
+        if (query == null) {
+            return flowOf(emptyMap())
+        }
+
+        return realm.query<ResourceStorageItem>(query)
+            .asFlow()
+            .map { changes ->
+                val resources = changes.list
+                val presenceMap = mutableMapOf<String, ContactPresence>()
+                resources.groupBy { "${it.owner}|${it.jid}" }
+                    .forEach { (key, list) ->
+                        val best = list.maxWithOrNull(
+                            compareBy<ResourceStorageItem> { it.status.rank() }
+                                .thenByDescending { it.priority }
+                        ) ?: return@forEach
+                        presenceMap[key] = ContactPresence(best.status, best.statusMessage)
+                    }
+                android.util.Log.d("ChatListModel", "observePresencesForChats: tracked=${chats.size}, resources=${resources.size}, contacts=${presenceMap.size}")
+                presenceMap
+            }
+            .distinctUntilChanged()
+    }
+
     data class ContactPresence(val status: ResourceStatus, val statusMessage: String?)
 
     private fun ResourceStatus.rank(): Int = when (this) {
@@ -170,6 +195,27 @@ class ChatListModel {
         ResourceStatus.XA      -> 1
         ResourceStatus.OFFLINE -> 0
     }
-
-
 }
+
+internal fun buildPresenceQueryForChats(chats: List<ChatListDto>): String? {
+    val targets = chats
+        .asSequence()
+        .filterNot { it.isGroup }
+        .map { it.owner to it.opponentJid }
+        .distinct()
+        .toList()
+
+    if (targets.isEmpty()) {
+        return null
+    }
+
+    return targets.joinToString(
+        separator = " OR ",
+        prefix = "(",
+        postfix = ")"
+    ) { (owner, jid) ->
+        "(owner = '${escapeRealmValue(owner)}' AND jid = '${escapeRealmValue(jid)}')"
+    }
+}
+
+private fun escapeRealmValue(value: String): String = value.replace("\\", "\\\\").replace("'", "\\'")
