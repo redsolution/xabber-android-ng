@@ -116,16 +116,31 @@ class SyncProtocolParser {
 
         val groupNickname: String?
         val effectiveBody: String
+        val effectiveFromJid: String
         if (isGroupConversation) {
             val colonIdx = body.indexOf(":\n")
             groupNickname = if (colonIdx > 0) body.substring(0, colonIdx) else null
             effectiveBody = MessageStorageItem.stripGroupNicknamePrefix(body)
+            // For group messages, `from` is the group JID. Extract the actual sender JID
+            // from <x xmlns='https://xabber.com/protocol/groups'><user jid='...'/>
+            val groupNs = "https://xabber.com/protocol/groups"
+            val xElements = el.getElementsByTagNameNS(groupNs, "x")
+            val userEl = (0 until xElements.length)
+                .mapNotNull { xElements.item(it) as? Element }
+                .firstNotNullOfOrNull { xEl ->
+                    xEl.getElementsByTagNameNS(groupNs, "user").item(0) as? Element
+                        ?: xEl.getElementsByTagName("user").item(0) as? Element
+                }
+            val senderJid = userEl?.getAttribute("jid")?.takeIf { it.isNotBlank() }
+                ?: (userEl?.getElementsByTagName("jid")?.item(0) as? Element)?.textContent?.trim()?.takeIf { it.isNotBlank() }
+            effectiveFromJid = senderJid ?: fromJid
         } else {
             groupNickname = null
             effectiveBody = body
+            effectiveFromJid = fromJid
         }
 
-        return SyncMessage(id, fromJid, effectiveBody, timestampUs, isOutgoing = false, groupNickname)
+        return SyncMessage(id, effectiveFromJid, effectiveBody, timestampUs, isOutgoing = false, groupNickname)
     }
 
     private fun parseTimestampUs(msgEl: Element, fallbackUs: Long = 0L): Long {
