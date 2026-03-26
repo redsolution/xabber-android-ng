@@ -311,30 +311,36 @@ class MessageStorageItem : RealmObject {
 
     // Save message inside an existing MutableRealm transaction (for batching multiple saves)
     @RequiresApi(Build.VERSION_CODES.O)
-    fun saveInTransaction(mutableRealm: io.realm.kotlin.MutableRealm) {
+    fun saveInTransaction(
+        mutableRealm: io.realm.kotlin.MutableRealm,
+        skipDedup: Boolean = false,
+        lastChatCache: MutableMap<String, LastChatsStorageItem?>? = null,
+        rosterCache: MutableMap<String, RosterStorageItem?>? = null,
+    ) {
         if (opponent.isBlank() || owner.isBlank()) return
         if (primary.isBlank()) updatePrimary()
 
         with(mutableRealm) {
-            val existing = query<MessageStorageItem>("primary == $0", primary).first().find()
-
-            if (existing != null) {
-                var updated = false
-                if (trustedSource && !existing.trustedSource) {
-                    existing.trustedSource = true
-                    existing.previousId = previousId
-                    existing.archivedId = archivedId
-                    updated = true
-                }
-                queryIds?.let { newIds ->
-                    val old = existing.queryIds.orEmpty()
-                    val combined = if (old.isNotEmpty() && newIds.isNotEmpty()) "$old,$newIds" else old + newIds
-                    if (combined != existing.queryIds) {
-                        existing.queryIds = combined
+            if (!skipDedup) {
+                val existing = query<MessageStorageItem>("primary == $0", primary).first().find()
+                if (existing != null) {
+                    var updated = false
+                    if (trustedSource && !existing.trustedSource) {
+                        existing.trustedSource = true
+                        existing.previousId = previousId
+                        existing.archivedId = archivedId
                         updated = true
                     }
+                    queryIds?.let { newIds ->
+                        val old = existing.queryIds.orEmpty()
+                        val combined = if (old.isNotEmpty() && newIds.isNotEmpty()) "$old,$newIds" else old + newIds
+                        if (combined != existing.queryIds) {
+                            existing.queryIds = combined
+                            updated = true
+                        }
+                    }
+                    return
                 }
-                return
             }
 
             val managedMessage = copyToRealm(this@MessageStorageItem, UpdatePolicy.ALL)
@@ -343,13 +349,25 @@ class MessageStorageItem : RealmObject {
             if (managedMessage.displayAs_ == "system") return
 
             val lastChatPrimary = LastChatsStorageItem.genPrimary(opponent, owner, conversationType)
-            val lastChat = query<LastChatsStorageItem>("primary == $0", lastChatPrimary).first().find()
-                ?: LastChatsStorageItem().apply {
-                    jid = opponent
-                    owner = managedMessage.owner
-                    conversationType = managedMessage.conversationType
-                    primary = lastChatPrimary
-                }.also { copyToRealm(it) }
+            val lastChat = if (lastChatCache != null) {
+                lastChatCache.getOrPut(lastChatPrimary) {
+                    query<LastChatsStorageItem>("primary == $0", lastChatPrimary).first().find()
+                        ?: LastChatsStorageItem().apply {
+                            jid = opponent
+                            owner = managedMessage.owner
+                            conversationType = managedMessage.conversationType
+                            primary = lastChatPrimary
+                        }.also { copyToRealm(it) }
+                }!!
+            } else {
+                query<LastChatsStorageItem>("primary == $0", lastChatPrimary).first().find()
+                    ?: LastChatsStorageItem().apply {
+                        jid = opponent
+                        owner = managedMessage.owner
+                        conversationType = managedMessage.conversationType
+                        primary = lastChatPrimary
+                    }.also { copyToRealm(it) }
+            }
 
             val lastMessageDate = lastChat.lastMessage?.date ?: 0L
             if (lastMessageDate <= managedMessage.date) {
@@ -378,7 +396,13 @@ class MessageStorageItem : RealmObject {
                     if (isArchived && !isMuted) isArchived = false
 
                     val rosterPrimary = RosterStorageItem.genPrimary(opponent, owner)
-                    val rosterItem = query<RosterStorageItem>("primary == $0", rosterPrimary).first().find()
+                    val rosterItem = if (rosterCache != null) {
+                        rosterCache.getOrPut(rosterPrimary) {
+                            query<RosterStorageItem>("primary == $0", rosterPrimary).first().find()
+                        }
+                    } else {
+                        query<RosterStorageItem>("primary == $0", rosterPrimary).first().find()
+                    }
                     if (rosterItem != null) this.rosterItem = rosterItem
                 }
             } else {

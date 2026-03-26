@@ -43,7 +43,7 @@ import javax.xml.parsers.DocumentBuilderFactory
 
 class MessageArchiveManager(private val owner: String) {
     private val namespace = "urn:xmpp:mam:2"
-    private val pageSize = 70
+    private val pageSize = 150
     private val paginationSize = 200
     private val callbacksQueue = mutableSetOf<CallbackQueueItem>()
     private val searchResultsQueries = mutableSetOf<String>()
@@ -903,7 +903,6 @@ class MessageArchiveManager(private val owner: String) {
                             continueLoadHistory(stream, task, continueUid)
                         } else {
                             // Последняя страница — завершаем
-                            delay(300L) // чуть меньше, чтобы не ждать лишнего
                             callbackItem.callback?.invoke()
                             callbacksQueue.remove(callbackItem)
                             interactiveQueue.remove(queryId)

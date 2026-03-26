@@ -673,6 +673,7 @@ class Account : XMPPStreamDelegate {
             chatMarkers = ChatMarkersManager(jid)
             messages = MessageManager(jid, activeStream = true)
             messageReceiver = MessageCommonReceiver(jid)
+            messageArchiveManager?.temporaryMessageReceiver = messageReceiver
             messageReceiver?.subscribeReceiver()
             groupchatManager = GroupchatManager(jid)
             avatarManager = XmppAvatarManager(jid)

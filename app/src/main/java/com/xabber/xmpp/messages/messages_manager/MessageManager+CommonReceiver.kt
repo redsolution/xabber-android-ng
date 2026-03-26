@@ -13,6 +13,7 @@ import androidx.core.app.NotificationManagerCompat
 import com.xabber.account.AccountManager
 import com.xabber.data_base.defaultRealmConfig
 import com.xabber.data_base.models.last_chats.LastChatsStorageItem
+import com.xabber.data_base.models.roster.RosterStorageItem
 import com.xabber.presentation.XabberApplication.Companion.applicationContext as appContext
 import com.xabber.data_base.models.messages.MessageDisplayType
 import com.xabber.data_base.models.messages.MessageReferenceStorageItem
@@ -27,6 +28,7 @@ import com.xabber.xmpp.jid.XMPPJID
 import com.xabber.xmpp.messages.XMPPMessage
 import com.xabber.xmpp.messages.XMLElement
 import com.xabber.xmpp.messages.message.TemporaryMessageStanzaStorageItem
+import com.xabber.xmpp.messages.message_archive.MessageArchiveManager
 import io.realm.kotlin.Realm
 import io.realm.kotlin.UpdatePolicy
 import io.realm.kotlin.ext.query
@@ -47,7 +49,7 @@ import java.util.UUID
 import kotlin.collections.HashSet
 
 @RequiresApi(Build.VERSION_CODES.O)
-class MessageCommonReceiver(private val owner: String) {
+class MessageCommonReceiver(private val owner: String) : MessageArchiveManager.TemporaryMessageReceiver {
 
     private val realmLazy = lazy { Realm.open(defaultRealmConfig()) }
     private val realm: Realm by realmLazy
@@ -63,6 +65,21 @@ class MessageCommonReceiver(private val owner: String) {
     private val myMemberIdCache = mutableMapOf<String, String>()
 
     private val messagesQueue = MutableStateFlow(mutableSetOf<MessageQueueItem>())
+    private val batchModeQueryIds = java.util.Collections.synchronizedSet(mutableSetOf<String>())
+
+    // TemporaryMessageReceiver — batch archive messages per MAM page
+    override fun didStartPageLoad(queryId: String) {
+        batchModeQueryIds.add(queryId)
+    }
+
+    override fun didReceiveEndPage(queryId: String, fin: Boolean, first: String, last: String, count: Int) {
+        batchModeQueryIds.remove(queryId)
+        scope.launch { storeMessagesNow(isArchiveBatch = true) }
+    }
+
+    override suspend fun didReceiveMessage(item: MessageStorageItem, queryId: String) {
+        // No-op: archive messages arrive via receiveArchived(), not this path
+    }
 
     companion object {
         private const val TAG = "MessageCommonReceiver"
@@ -282,7 +299,9 @@ class MessageCommonReceiver(private val owner: String) {
 //        Log.w("CHECK", "check it RECEIVER MAM $queueItem, ${message.body}, id:${message.id}, from=${message.from}, to=${message.to}")
 
         enqueue(queueItem)
-        storeMessagesNow()
+        if (queueItem.queryId == null || queueItem.queryId !in batchModeQueryIds) {
+            storeMessagesNow()
+        }
     }
 
     suspend fun receiveCarbon(message: XMPPMessage) {
@@ -512,12 +531,14 @@ class MessageCommonReceiver(private val owner: String) {
         Log.d(TAG, "Queue cleared: size=${messagesQueue.value.size}")
     }
 
-    private suspend fun processQueue(items: List<MessageQueueItem>) {
+    private suspend fun processQueue(items: List<MessageQueueItem>, isArchiveBatch: Boolean = false) {
         val sorted = items.sortedBy { it.date }
         val newUnreadChatPrimaries = mutableSetOf<String>()
         // Collect member IDs learned from JID matches — write to Realm once after the loop
         val learnedMemberIds = mutableMapOf<String, String>() // groupJid -> memberId
         val messagesToSave = mutableListOf<MessageStorageItem>()
+        // Cache LastChatsStorageItem reads (same chat queried once regardless of message count)
+        val chatReadCache = mutableMapOf<String, LastChatsStorageItem?>()
 
         for (item in sorted) {
             if (isVoIPMessage(item.message)) continue
@@ -569,11 +590,13 @@ class MessageCommonReceiver(private val owner: String) {
 
             val conversationType = conversationTypeByMessage(item.message)
 
-            // Получаем информацию о чате
-            val chat = realm.query<LastChatsStorageItem>(
-                "owner = $0 AND jid = $1 AND conversationType_ = $2",
-                owner, opponent, conversationType.rawValue
-            ).first().find()
+            val chatPrimaryKey = LastChatsStorageItem.genPrimary(opponent, owner, conversationType)
+            val chat = chatReadCache.getOrPut(chatPrimaryKey) {
+                realm.query<LastChatsStorageItem>(
+                    "owner = $0 AND jid = $1 AND conversationType_ = $2",
+                    owner, opponent, conversationType.rawValue
+                ).first().find()
+            }
 
             val displayedId = chat?.displayedId?.toLongOrNull()
             val deliveredId = chat?.deliveredId?.toLongOrNull()
@@ -704,8 +727,15 @@ class MessageCommonReceiver(private val owner: String) {
             Log.w(TAG, "processQueue: saving ${messagesToSave.size} messages to Realm")
             try {
                 realm.write {
+                    val txLastChatCache = mutableMapOf<String, LastChatsStorageItem?>()
+                    val txRosterCache = mutableMapOf<String, RosterStorageItem?>()
                     for (msg in messagesToSave) {
-                        msg.saveInTransaction(this)
+                        msg.saveInTransaction(
+                            this,
+                            skipDedup = isArchiveBatch,
+                            lastChatCache = txLastChatCache,
+                            rosterCache = txRosterCache,
+                        )
                     }
                 }
             } catch (e: Exception) {
@@ -771,12 +801,12 @@ class MessageCommonReceiver(private val owner: String) {
             messagesQueue.value = set
         }
     }
-    suspend fun storeMessagesNow() {
+    suspend fun storeMessagesNow(isArchiveBatch: Boolean = false) {
         processMutex.withLock {
             val items = messagesQueue.value.toList()
             messagesQueue.value = mutableSetOf()
             if (items.isNotEmpty()) {
-                processQueue(items)
+                processQueue(items, isArchiveBatch)
                 AccountManager.find(owner)?.chatMarkers?.deleteEphemeralMessages()
             }
         }
