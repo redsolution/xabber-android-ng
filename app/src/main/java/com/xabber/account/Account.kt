@@ -158,9 +158,6 @@ class Account : XMPPStreamDelegate {
     private var rosterRequested = false
 
     private val rosterStanzaBuffer = StringBuilder()
-    private val syncStanzaBuffer = StringBuilder()
-    private val syncStanzaMutex = Mutex()
-    private val syncCompletionChannel = Channel<Unit>(1)
 
     private var reconnectJob: Job? = null
     /** Polls for network while offline; cancelled as soon as any reconnect path fires. */
@@ -406,45 +403,15 @@ class Account : XMPPStreamDelegate {
     }
 
     private suspend fun processSyncStanza(stanza: String, stream: Stream) {
-        val batchSize = 10
-        val syncStanzas = mutableListOf<String>()
-        syncStanzaMutex.withLock {
-            syncStanzaBuffer.append(stanza)
-            val bufferedContent = syncStanzaBuffer.toString()
-            if (bufferedContent.contains("<query") && bufferedContent.contains("https://xabber.com/protocol/synchronization") && bufferedContent.contains(
-                    "</query>"
-                )
-            ) {
-                val cleaned = bufferedContent.replace(
-                    Regex("""<iq[^>]*type='result'[^>]*id='ping1'[^>]*/>"""),
-                    ""
-                )
-                val iqStart = cleaned.indexOf("<iq")
-                val iqEnd = cleaned.lastIndexOf("</iq>") + 5
-                if (iqStart != -1 && iqEnd != -1 && iqEnd > iqStart) {
-                    syncStanzas.add(cleaned.substring(iqStart, iqEnd))
-                    syncStanzaBuffer.clear()
-                } else {
-                    Log.e(TAG, "Failed to extract complete sync <iq> stanza: ${cleaned.take(200)}")
-                }
+        // XmppParser guarantees each stanza is a complete <iq>...</iq> — no re-buffering needed.
+        try {
+            withTimeout(10_000L) {
+                syncManager?.read(stanza)
             }
-        }
-        if (syncStanzas.isEmpty()) return
-        syncStanzas.chunked(batchSize).forEach { batch ->
-            try {
-                batch.forEach { completeStanza ->
-                    try {
-                        withTimeout(10_000L) {
-                            syncManager?.read(completeStanza)
-                        }
-                        syncCompletionChannel.trySend(Unit)
-                    } catch (e: TimeoutCancellationException) {
-                        Log.w(TAG, "Sync stanza DB write timed out, skipping")
-                    }
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error processing sync stanza batch: ${e.message}", e)
-            }
+        } catch (e: TimeoutCancellationException) {
+            Log.w(TAG, "Sync stanza DB write timed out, skipping: ${stanza.take(100)}")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error processing sync stanza: ${e.message}", e)
         }
     }
 

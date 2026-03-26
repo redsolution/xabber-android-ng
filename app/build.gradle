@@ -16,8 +16,8 @@ android {
         applicationId "com.xabber.android.beta"
         minSdk 23
         targetSdk 36
-        versionCode 1117
-        versionName "5.0.0.1117"
+        versionCode 1118
+        versionName "5.0.0.1118"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         lintOptions {
