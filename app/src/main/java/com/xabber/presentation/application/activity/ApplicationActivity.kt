@@ -869,28 +869,11 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
             binding.mainContainer.setPadding(0, 0, 0, bottomInset)
             binding.detailContainer.setPadding(0, 0, 0, bottomInset)
 
-            // Update delimiter height for dual-screen mode
-            setDelimiters(systemBars.top)
-
             windowInsets
         }
     }
 
     fun getStatusBarHeight(): Int = DisplayManager.getHeightStatusBar()
-    private fun setDelimiters(prolongation: Int) {
-        var actionBarHeight = 0
-        val typedValue = TypedValue()
-        if (this.theme.resolveAttribute(
-                android.R.attr.actionBarSize,
-                typedValue,
-                true
-            )
-        ) actionBarHeight =
-            TypedValue.complexToDimensionPixelSize(typedValue.data, resources.displayMetrics)
-        binding.delimiterToolbar.updateLayoutParams<ConstraintLayout.LayoutParams> {
-            this.height = actionBarHeight + prolongation
-        }
-    }
 
     private fun setMask() {
         val mask =

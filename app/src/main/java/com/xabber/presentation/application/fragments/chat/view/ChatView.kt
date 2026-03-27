@@ -230,7 +230,6 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        binding.toolbar.navigationIcon = null
         binding.tvChatTitle.isSelected = true
 
         // Listen for mute duration selected in NotificationBottomSheet
@@ -538,12 +537,6 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
                 delay(intervalMillis)
             }
         }
-    }
-
-    private fun setupToolbarMenu(mute: Long) {
-        val muteExpired = mute - System.currentTimeMillis()
-        binding.toolbar.menu.findItem(R.id.enable_notifications).isVisible = muteExpired > 0
-        binding.toolbar.menu.findItem(R.id.disable_notifications).isVisible = muteExpired <= 0
     }
 
     private fun restoreState(savedInstanceState: Bundle) {
