@@ -579,41 +579,4 @@
         app:layout_constraintBottom_toTopOf="@id/input_layout"
         app:layout_constraintStart_toStartOf="parent" />
 
-    <LinearLayout
-        android:layout_width="12dp"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:visibility="gone"
-        app:layout_constraintBottom_toTopOf="@id/input_layout"
-        app:layout_constraintStart_toStartOf="parent">
-
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="28dp"
-            android:background="@color/yellow_50" />
-
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="2dp"
-            android:background="@color/red_600" />
-    </LinearLayout>
-
-    <LinearLayout
-        android:layout_width="12dp"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:visibility="gone"
-        app:layout_constraintBottom_toTopOf="@id/input_layout"
-        app:layout_constraintEnd_toEndOf="parent">
-
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="28dp"
-            android:background="@color/yellow_50" />
-
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="2dp"
-            android:background="@color/red_600" />
-    </LinearLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>
