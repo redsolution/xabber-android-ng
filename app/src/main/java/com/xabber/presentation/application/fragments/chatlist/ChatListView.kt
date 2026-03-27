@@ -13,6 +13,7 @@ import by.kirich1409.viewbindingdelegate.viewBinding
 import com.xabber.R
 import com.xabber.databinding.FragmentChatListBinding
 import com.xabber.dto.ChatListDto
+import com.xabber.presentation.application.fragments.chat.view.ChatPreloadCache
 import com.xabber.presentation.application.contract.navigator
 import com.xabber.presentation.application.dialogs.ChatHistoryClearDialog
 import com.xabber.presentation.application.dialogs.DeletingChatDialog
@@ -84,6 +85,7 @@ class ChatListView : BaseFragment(R.layout.fragment_chat_list), ChatListAdapter.
     }
 
     override fun onClickItem(chatListDto: ChatListDto) {
+        ChatPreloadCache.put(chatListDto.id, chatListDto)
         viewModel.selectChat(chatListDto.id)
         navigator().showChat(ChatParams(chatListDto.id, chatListDto.drawableId))
     }

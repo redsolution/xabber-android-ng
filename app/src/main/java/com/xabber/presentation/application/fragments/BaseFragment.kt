@@ -13,7 +13,6 @@ import androidx.core.view.isVisible
 import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
-import com.google.android.material.appbar.AppBarLayout
 import com.google.android.material.appbar.CollapsingToolbarLayout
 import com.google.android.material.appbar.MaterialToolbar
 import com.xabber.R
@@ -31,7 +30,7 @@ import com.xabber.utils.custom.ShapeOfView
 abstract class BaseFragment(@LayoutRes contentLayoutId: Int) : DialogFragment(contentLayoutId),
     SharedPreferences.OnSharedPreferenceChangeListener {
     val baseViewModel: BaseViewModel by viewModels()
-    private var appbar: AppBarLayout? = null
+    private var appbar: View? = null
     private var accountToolbar: MaterialToolbar? = null
     private var imAvatar: ImageView? = null
     private var tvInitials: TextView? = null

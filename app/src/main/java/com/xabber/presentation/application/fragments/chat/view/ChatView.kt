@@ -1612,6 +1612,10 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
         }
     }
 
+    fun setMessageListLayoutSuppressed(suppress: Boolean) {
+        binding.messageList.suppressLayout(suppress)
+    }
+
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onDestroyView() {
         super.onDestroyView()

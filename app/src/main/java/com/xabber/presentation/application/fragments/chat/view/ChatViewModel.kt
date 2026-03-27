@@ -21,6 +21,7 @@ import com.xabber.presentation.application.fragments.chat.message.appendToChatIt
 import com.xabber.presentation.application.fragments.chat.message.toChatItems
 import com.xabber.presentation.XabberApplication.Companion.applicationContext as appContext
 import com.xabber.presentation.application.fragments.chat.view.ChatModel
+import com.xabber.presentation.application.fragments.chat.view.ChatPreloadCache
 import com.xabber.utils.toChatListDto
 import com.xabber.xmpp.jid.XMPPJID
 import kotlinx.coroutines.Dispatchers
@@ -183,6 +184,13 @@ class ChatViewModel(
     val chatDto: LiveData<ChatListDto?> = _chatDto
 
     init {
+        // Pre-populate chatDto from the cache set at click time (already in memory from the list).
+        // This makes chatDto.observe() deliver synchronously in onViewCreated so that
+        // initializeChatUi runs before the pane animation starts, not during it.
+        ChatPreloadCache.consume(chatId)?.let { preloaded ->
+            cachedChatDto = preloaded
+            _chatDto.value = preloaded
+        }
         loadChatDto()
         observeChat()
         observeMessages()

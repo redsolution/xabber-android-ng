@@ -849,6 +849,24 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
     private fun setupEdgeToEdge() {
         WindowCompat.setDecorFitsSystemWindows(window, false)
 
+        binding.slidingPaneLayout.addPanelSlideListener(object : SlidingPaneLayout.PanelSlideListener {
+            override fun onPanelSlide(panel: View, slideOffset: Float) {}
+            override fun onPanelOpened(panel: View) {
+                panel.setLayerType(View.LAYER_TYPE_NONE, null)
+                currentDetailTag?.let { tag ->
+                    (supportFragmentManager.findFragmentByTag(tag) as? ChatView)
+                        ?.setMessageListLayoutSuppressed(false)
+                }
+            }
+            override fun onPanelClosed(panel: View) {
+                panel.setLayerType(View.LAYER_TYPE_NONE, null)
+                currentDetailTag?.let { tag ->
+                    (supportFragmentManager.findFragmentByTag(tag) as? ChatView)
+                        ?.setMessageListLayoutSuppressed(false)
+                }
+            }
+        })
+
         ViewCompat.setOnApplyWindowInsetsListener(binding.slidingPaneLayout) { _, windowInsets ->
             val systemBars = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars())
             val ime = windowInsets.getInsets(WindowInsetsCompat.Type.ime())
@@ -1455,7 +1473,14 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
             add(R.id.detail_container, fragment, tag)
         }
         currentDetailTag = tag
-        binding.slidingPaneLayout.openPane()
+        fm.executePendingTransactions()
+        val willAnimate = binding.slidingPaneLayout.isSlideable && !binding.slidingPaneLayout.isOpen
+        if (willAnimate) {
+            binding.detailContainer.setLayerType(View.LAYER_TYPE_HARDWARE, null)
+            binding.detailContainer.post { binding.slidingPaneLayout.openPane() }
+        } else {
+            binding.slidingPaneLayout.openPane()
+        }
     }
 
     override fun launchDetailInStack(fragment: Fragment) {
@@ -1647,7 +1672,23 @@ class ApplicationActivity : AppCompatActivity(), Navigator, NavigationView.OnNav
             }
         }
         currentDetailTag = newTag
-        binding.slidingPaneLayout.openPane()
+        val willAnimate = binding.slidingPaneLayout.isSlideable && !binding.slidingPaneLayout.isOpen
+        if (existingFrag != null) {
+            if (willAnimate) {
+                binding.detailContainer.setLayerType(View.LAYER_TYPE_HARDWARE, null)
+                (existingFrag as? ChatView)?.setMessageListLayoutSuppressed(true)
+            }
+            binding.slidingPaneLayout.openPane()
+        } else {
+            fm.executePendingTransactions()
+            if (willAnimate) {
+                binding.detailContainer.setLayerType(View.LAYER_TYPE_HARDWARE, null)
+                (fm.findFragmentByTag(newTag) as? ChatView)?.setMessageListLayoutSuppressed(true)
+                binding.detailContainer.post { binding.slidingPaneLayout.openPane() }
+            } else {
+                binding.slidingPaneLayout.openPane()
+            }
+        }
     }
 
 

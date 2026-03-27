@@ -31,7 +31,7 @@ abstract class DetailBaseFragment(@LayoutRes contentLayoutId: Int) : BaseFragmen
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        toolbar = view.findViewById(R.id.toolbar)
+        toolbar = view.findViewById<View>(R.id.toolbar) as? Toolbar
         if (!DisplayManager.isDualScreenMode()) {
             toolbar?.setNavigationIcon(R.drawable.ic_arrow_left_white)
             toolbar?.setNavigationOnClickListener {
