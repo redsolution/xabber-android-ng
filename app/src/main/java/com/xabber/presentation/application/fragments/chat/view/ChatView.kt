@@ -55,6 +55,9 @@ import com.xabber.data_base.models.presences.ResourceStatus
 import com.xabber.data_base.models.presences.RosterItemEntity
 import com.xabber.data_base.models.sync.ConversationType
 import com.xabber.databinding.FragmentChatBinding
+import com.xabber.databinding.ViewBottomChatInteractionBinding
+import com.xabber.databinding.ViewChatRecordBinding
+import com.xabber.databinding.VoicePresenterBinding
 import com.xabber.dto.ChatListDto
 import com.xabber.dto.MessageReferenceDto
 import com.xabber.presentation.AppConstants
@@ -111,6 +114,15 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
     private var botJob: Job? = null
     private var botCounter = 0L   // счётчик сообщений (Long, чтобы не переполнялся)
     private val binding by viewBinding(FragmentChatBinding::bind)
+    private val interactionBinding: ViewBottomChatInteractionBinding by lazy {
+        ViewBottomChatInteractionBinding.bind(binding.interactionStub.inflate())
+    }
+    private val recordBinding: ViewChatRecordBinding by lazy {
+        ViewChatRecordBinding.bind(binding.recordStub.inflate())
+    }
+    private val audioPresenterBinding: VoicePresenterBinding by lazy {
+        VoicePresenterBinding.bind(binding.audioPresenterStub.inflate())
+    }
     private val handler = Handler(Looper.getMainLooper())
     private var messageAdapter: MessageAdapter? = null
     private var layoutManager: LinearLayoutManager? = null
@@ -204,8 +216,8 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
                 binding.frameStop.isVisible = true
                 val pulse = AnimationUtils.loadAnimation(context, R.anim.enlarge)
                 binding.imStop.startAnimation(pulse)
-                binding.record.slideLayout.isVisible = false
-                binding.record.cancelRecordLayout.isVisible = true
+                recordBinding.slideLayout.isVisible = false
+                recordBinding.cancelRecordLayout.isVisible = true
                 currentVoiceRecordingState = VoiceRecordState.StoppedRecording
             }
             override fun onAnimationRepeat(p0: Animation?) {}
@@ -550,8 +562,8 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
             if (voiceRecordPath != null) {
                 recordingPath = voiceRecordPath
                 currentVoiceRecordingState = VoiceRecordState.StoppedRecording
-                binding.record.recordLayout.isVisible = false
-                binding.audioPresenter.recordingPresenterLayout.isVisible = true
+                recordBinding.recordLayout.isVisible = false
+                audioPresenterBinding.recordingPresenterLayout.isVisible = true
                 if (recordingPath != null) setUpVoiceMessagePresenter(recordingPath!!)
             }
         }
@@ -906,7 +918,7 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
                             currentVoiceRecordingState = VoiceRecordState.NotRecording
                         }
                         VoiceRecordState.TouchRecording -> {
-                            val baseTime: Long = binding.record.chrRecordingTimer.getBase()
+                            val baseTime: Long = recordBinding.chrRecordingTimer.getBase()
                             val elapsedTime = SystemClock.elapsedRealtime() - baseTime
                             val seconds = (elapsedTime / 1000).toInt()
                             if (seconds >= 1) {
@@ -925,10 +937,10 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
                             handler.post(stop)
                         }
                         else -> {
-                            binding.record.chrRecordingTimer.stop()
+                            recordBinding.chrRecordingTimer.stop()
                             val animRight = AnimationUtils.loadAnimation(context, R.anim.slide_to_right)
-                            binding.record.recordLayout.startAnimation(animRight)
-                            binding.record.recordLayout.isVisible = false
+                            recordBinding.recordLayout.startAnimation(animRight)
+                            recordBinding.recordLayout.isVisible = false
                             binding.linRecordLock.isVisible = false
                             binding.btnRecordExpanded.isVisible = false
                             handler.removeCallbacks(record)
@@ -967,18 +979,18 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
                     }
                     val alpha = 1f + motionEvent.x / 400f
                     if (motionEvent.x < 0) {
-                        binding.record.slideLayout.animate().x(motionEvent.x).start()
+                        recordBinding.slideLayout.animate().x(motionEvent.x).start()
                     } else {
-                        binding.record.slideLayout.animate().x(0f).start()
+                        recordBinding.slideLayout.animate().x(0f).start()
                     }
-                    binding.record.slideLayout.alpha = alpha
+                    recordBinding.slideLayout.alpha = alpha
                     if (alpha <= 0) {
                         saveAudioMessage = false
                         val animRight = AnimationUtils.loadAnimation(context, R.anim.slide_to_right)
-                        binding.record.recordLayout.startAnimation(animRight)
-                        binding.record.recordLayout.isVisible = false
+                        recordBinding.recordLayout.startAnimation(animRight)
+                        recordBinding.recordLayout.isVisible = false
                         hideRecordPanel()
-                        binding.record.slideLayout.x = 0f
+                        recordBinding.slideLayout.x = 0f
                         currentVoiceRecordingState = VoiceRecordState.NotRecording
                     }
                 }
@@ -989,25 +1001,25 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
         binding.frameStop.setOnClickListener {
             binding.frameStop.isVisible = false
             binding.btnRecordExpanded.hide()
-            binding.record.recordLayout.isVisible = false
-            binding.audioPresenter.recordingPresenterLayout.isVisible = true
+            recordBinding.recordLayout.isVisible = false
+            audioPresenterBinding.recordingPresenterLayout.isVisible = true
             audioRecorder.stopRecord()
             setUpVoiceMessagePresenter(audioRecorder.getRecordedFilePath()!!)
         }
 
-        binding.record.tvCancelRecording.setOnClickListener {
+        recordBinding.tvCancelRecording.setOnClickListener {
             currentVoiceRecordingState = VoiceRecordState.NotRecording
             hideRecordPanel()
             clearVoiceMessage()
         }
 
-        binding.audioPresenter.btnDeleteAudioMessage.setOnClickListener {
+        audioPresenterBinding.btnDeleteAudioMessage.setOnClickListener {
             currentVoiceRecordingState = VoiceRecordState.NotRecording
             hideRecordPanel()
             clearVoiceMessage()
         }
 
-        binding.audioPresenter.btnSendAudioMessage.setOnClickListener {
+        audioPresenterBinding.btnSendAudioMessage.setOnClickListener {
             sendVoiceMessage(audioRecorder.getRecordedFilePath()!!)
             clearVoiceMessage()
             isPlaying = false
@@ -1125,7 +1137,7 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
                     binding.selectMessagesToolbar.tvMessagesCount.text = it.toString()
                     binding.selectMessagesToolbar.toolbarSelectedMessages.menu.findItem(R.id.edit_message).isVisible =
                         it == 1 && viewModel.isOutgoing()
-                    binding.interaction.linReply.isVisible = it == 1
+                    interactionBinding.linReply.isVisible = it == 1
                 } else {
                     enableSelectionMode(false)
                 }
@@ -1203,14 +1215,14 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
     }
 
     private fun initializeSelectedMessagePanel() {
-        binding.interaction.linReply.setOnClickListener {
+        interactionBinding.linReply.setOnClickListener {
             lifecycleScope.launch {
                 val message = viewModel.getMessage()
                 enableSelectionMode(false)
                 if (message != null) replyMessage(message)
             }
         }
-        binding.interaction.linForward.setOnClickListener {
+        interactionBinding.linForward.setOnClickListener {
             lifecycleScope.launch {
                 val text = viewModel.getForwardMessagesText()
                 val chat = viewModel.getCachedChat()
@@ -1340,10 +1352,10 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
     private fun prepareUiForRecording() {
         binding.downScroller.isVisible = false
         enabledInputPanelButtons(false)
-        binding.record.recordLayout.isVisible = true
-        binding.record.linChronometr.isVisible = true
-        binding.record.slideLayout.isVisible = true
-        binding.record.slideLayout.alpha = 1.0f
+        recordBinding.recordLayout.isVisible = true
+        recordBinding.linChronometr.isVisible = true
+        recordBinding.slideLayout.isVisible = true
+        recordBinding.slideLayout.alpha = 1.0f
         binding.linRecordLock.isVisible = true
         shortVibrate()
         binding.btnRecordExpanded.show()
@@ -1395,12 +1407,12 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
     }
 
     private fun hideRecordPanel() {
-        binding.record.recordLayout.isVisible = false
+        recordBinding.recordLayout.isVisible = false
         binding.linRecordLock.isVisible = false
         binding.btnRecordExpanded.hide()
         binding.btnRecordExpanded.isVisible = false
         enabledInputPanelButtons(true)
-        binding.record.cancelRecordLayout.isVisible = false
+        recordBinding.cancelRecordLayout.isVisible = false
     }
 
     private fun enabledInputPanelButtons(enabled: Boolean) {
@@ -1410,11 +1422,11 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
 
     private fun beginTimer(start: Boolean) {
         if (start) {
-            binding.record.chrRecordingTimer.base = SystemClock.elapsedRealtime()
-            binding.record.chrRecordingTimer.start()
+            recordBinding.chrRecordingTimer.base = SystemClock.elapsedRealtime()
+            recordBinding.chrRecordingTimer.start()
             currentVoiceRecordingState = VoiceRecordState.TouchRecording
         } else {
-            binding.record.chrRecordingTimer.stop()
+            recordBinding.chrRecordingTimer.stop()
         }
     }
 
@@ -1426,19 +1438,19 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
     }
 
     private fun clearVoiceMessage() {
-        binding.audioPresenter.btnPlay.setImageResource(R.drawable.ic_play)
+        audioPresenterBinding.btnPlay.setImageResource(R.drawable.ic_play)
         isPlaying = false
         isVibrate = false
-        binding.record.recordLayout.clearAnimation()
-        binding.record.recordLayout.x = 0f
-        binding.record.slideLayout.x = 0f
-        binding.record.slideLayout.clearAnimation()
+        recordBinding.recordLayout.clearAnimation()
+        recordBinding.recordLayout.x = 0f
+        recordBinding.slideLayout.x = 0f
+        recordBinding.slideLayout.clearAnimation()
         binding.imLock.setImageResource(R.drawable.ic_lock_base)
         binding.imLockBar.isVisible = true
-        binding.audioPresenter.recordingPresenterLayout.isVisible = false
+        audioPresenterBinding.recordingPresenterLayout.isVisible = false
         binding.frameStop.clearAnimation()
         binding.frameStop.isVisible = false
-        binding.record.recordLayout.isVisible = false
+        recordBinding.recordLayout.isVisible = false
         binding.btnRecordExpanded.hide()
         binding.btnRecordExpanded.isVisible = false
         binding.spaceLock.clearAnimation()
@@ -1570,7 +1582,7 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
             binding.toolbar.isVisible = false
             binding.selectMessagesToolbar.toolbarSelectedMessages.isVisible = true
             saveDraft()
-            binding.interaction.interactionView.isVisible = true
+            interactionBinding.interactionView.isVisible = true
             replySwipeCallback?.setSwipeEnabled(false)
             isSelectedMode = true
             Check.setSelectedMode(true)
@@ -1583,7 +1595,7 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
             val c = ColorManager.convertColorNameToId(color ?: resources.getString(R.string.blue))
             binding.appbar.setBackgroundResource(c)
             binding.selectMessagesToolbar.toolbarSelectedMessages.isVisible = false
-            binding.interaction.interactionView.isVisible = false
+            interactionBinding.interactionView.isVisible = false
             binding.toolbar.isVisible = true
             val textMessage = binding.chatInput.text.toString().trim()
             if (textMessage.isNotEmpty()) {
@@ -1715,17 +1727,17 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
     fun setUpVoiceMessagePresenter(path: String) {
 
         val time = HttpFileUploadManager.getVoiceLength(path)
-        binding.audioPresenter.tvDuration.text = String.format(
+        audioPresenterBinding.tvDuration.text = String.format(
             Locale.getDefault(), "%02d:%02d",
             TimeUnit.SECONDS.toMinutes(time),
             time % 60
         )
         subscribeForRecordedAudioProgress()
         VoiceMessagePresenterManager.getInstance()
-            .sendWaveDataIfSaved(path, binding.audioPresenter.playerVisualizer)
-        binding.audioPresenter.playerVisualizer.updatePlayerPercent(0f, false)
+            .sendWaveDataIfSaved(path, audioPresenterBinding.playerVisualizer)
+        audioPresenterBinding.playerVisualizer.updatePlayerPercent(0f, false)
 
-        binding.audioPresenter.playerVisualizer.setOnTouchListener(object : PlayerVisualizerView.onProgressTouch() {
+        audioPresenterBinding.playerVisualizer.setOnTouchListener(object : PlayerVisualizerView.onProgressTouch() {
             override fun onTouch(view: View, motionEvent: MotionEvent): Boolean {
                 when (motionEvent.action) {
                     MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE ->
@@ -1739,28 +1751,28 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
             }
         })
 
-        binding.audioPresenter.btnDeleteAudioMessage.setOnClickListener {
+        audioPresenterBinding.btnDeleteAudioMessage.setOnClickListener {
             isPlaying = false
             releaseRecordedVoicePlayback(path)
             finishVoiceRecordLayout()
             recordingPath = null
             audioProgressSubscription?.dispose()
             enableStandardPanelButtons(true)
-            binding.record.cancelRecordLayout.isVisible = false
+            recordBinding.cancelRecordLayout.isVisible = false
             binding.imLock.setImageResource(R.drawable.ic_lock_base)
             binding.imLockBar.setImageResource(R.drawable.ic_lock_bar)
             binding.linRecordLock.animate().y(911f).translationY(0f).start()
-            binding.record.recordLayout.invalidate()
+            recordBinding.recordLayout.invalidate()
             clearVoiceMessage()
         }
 
-        binding.audioPresenter.btnSendAudioMessage.setOnClickListener {
+        audioPresenterBinding.btnSendAudioMessage.setOnClickListener {
             sendVoiceMessage(path)
             scrollDown()
             finishVoiceRecordLayout()
             recordingPath = null
             audioProgressSubscription?.dispose()
-            binding.audioPresenter.recordingPresenterLayout.isVisible = false
+            audioPresenterBinding.recordingPresenterLayout.isVisible = false
             enableStandardPanelButtons(true)
             clearVoiceMessage()
         }
@@ -1792,13 +1804,13 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
         val mediaPlayer = MediaPlayer()
         mediaPlayer.setDataSource(audioRecorder.getRecordedFilePath())
         mediaPlayer.prepare()
-        binding.audioPresenter.btnPlay.setOnClickListener {
+        audioPresenterBinding.btnPlay.setOnClickListener {
             if (isPlaying) {
                 mediaPlayer.pause()
-                binding.audioPresenter.btnPlay.setImageResource(R.drawable.ic_play)
+                audioPresenterBinding.btnPlay.setImageResource(R.drawable.ic_play)
                 isPlaying = false
             } else {
-                binding.audioPresenter.btnPlay.setImageResource(R.drawable.ic_pause)
+                audioPresenterBinding.btnPlay.setImageResource(R.drawable.ic_pause)
                 mediaPlayer.start()
                 isPlaying = true
             }
@@ -1806,9 +1818,9 @@ class ChatView : DetailBaseFragment(R.layout.fragment_chat),
     }
 
     private fun finishVoiceRecordLayout() {
-        binding.record.recordLayout.isVisible = false
-        binding.audioPresenter.recordingPresenterLayout.isVisible = false
-        binding.audioPresenter.playerVisualizer.updateVisualizer(null)
+        recordBinding.recordLayout.isVisible = false
+        audioPresenterBinding.recordingPresenterLayout.isVisible = false
+        audioPresenterBinding.playerVisualizer.updateVisualizer(null)
         currentVoiceRecordingState = VoiceRecordState.NotRecording
     }
 

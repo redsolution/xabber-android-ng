@@ -54,7 +54,7 @@ class MessageArchiveManager(private val owner: String) {
     private val nanoIdStep = 16
     private val TAG = "MessageArchiveManager"
     private val queryTimeoutScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-    private val QUERY_TIMEOUT_MS = 60_000L
+    private val QUERY_TIMEOUT_MS = 15_000L
     private val queryToReceivedCount = mutableMapOf<String, Int>()
     val queryIds = mutableMapOf<String, CallbackQueueItem>()
     private val queryIdsMutex = Mutex()

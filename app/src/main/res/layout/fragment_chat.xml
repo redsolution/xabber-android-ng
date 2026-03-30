@@ -431,27 +431,29 @@
             tools:visibility="visible"
             tools:ignore="ContentDescription" />
 
-        <include
-            android:id="@+id/interaction"
-            layout="@layout/view_bottom_chat_interaction"
-            android:visibility="gone"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            tools:visibility="visible" />
-
-        <include
-            android:id="@+id/record"
-            layout="@layout/view_chat_record"
-            android:visibility="gone"
+        <ViewStub
+            android:id="@+id/interaction_stub"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout="@layout/view_bottom_chat_interaction"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent" />
 
-        <include
-            android:id="@+id/audio_presenter"
-            layout="@layout/voice_presenter"
-            android:visibility="gone"
+        <ViewStub
+            android:id="@+id/record_stub"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout="@layout/view_chat_record"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent" />
+
+        <ViewStub
+            android:id="@+id/audio_presenter_stub"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout="@layout/voice_presenter"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent" />
